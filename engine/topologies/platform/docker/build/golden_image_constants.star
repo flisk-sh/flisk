@@ -46,12 +46,6 @@ GOLDEN_LAYERS = {
         'description': 'Frontend build tools (no Prisma)',
         'target': 'l3_frontend_golden',
     },
-    'l3-migrator': {
-        'name': GOLDEN_IMAGE_PREFIX + '-l3-migrator',
-        'tag': 'latest',
-        'description': 'Migrator build tools (Prisma only, Infisical CLI skipped to avoid CDN hangs)',
-        'target': 'l3_migrator_golden',
-    },
     'l4-backend': {
         'name': GOLDEN_IMAGE_PREFIX + '-l4-backend',
         'tag': 'latest',
@@ -79,8 +73,21 @@ GOLDEN_LAYERS = {
 }
 
 
+# Layers that are no longer built, mapped to the layer that replaced them.
+# l3-migrator installed the same Prisma as l3-backend and produced identical layers.
+LAYER_ALIASES = {
+    'l3-migrator': 'l3-backend',
+}
+
+# Image names older engines built that nothing uses now; the golden build untags them.
+LEGACY_GOLDEN_IMAGES = [
+    GOLDEN_IMAGE_PREFIX + '-l3-migrator:latest',
+]
+
+
 def get_layer_reference(layer):
     """Returns the full image reference for a specific layer."""
+    layer = LAYER_ALIASES.get(layer, layer)
     if layer not in GOLDEN_LAYERS:
         fail("Invalid layer: " + layer + ". Must be one of: l1, l2, l3, l4")
 
