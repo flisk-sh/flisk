@@ -1,0 +1,147 @@
+# Runs the tdk up warm and cold start benchmark on the restaurant example after every change to main
+# that can affect start-up, then publishes an HTML report to GitHub Pages.
+#
+# The job builds the CLI from the commit being tested (not the published npm package), so the numbers
+# say what main does. Results are for a clean GitHub-hosted runner; they are not comparable with the
+# macOS numbers in benchmarks/results.
+name: 📊 Benchmarks report
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - "engine/**"
+      - "discovery/**"
+      - "scripts/benchmark/**"
+      - "benchmarks/**"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/benchmarks.yml"
+  workflow_dispatch:
+    inputs:
+      cold_runs:
+        description: "Cold runs (full rebuild, slow)"
+        type: string
+        default: "1"
+      warm_runs:
+        description: "Warm runs"
+        type: string
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmarks
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    name: ⏱️ Measure tdk up on the restaurant example
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      commit: ${{ steps.meta.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: meta
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: tdk-landscape/tdk-restaurant-example
+          path: restaurant
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - name: Build the CLI from this commit
+        run: |
+          bun install --frozen-lockfile
+          (cd cli && npm run build)
+          chmod +x cli/bin/tdk.js
+          echo "$GITHUB_WORKSPACE/cli/bin" >> "$GITHUB_PATH"
+
+      - name: Install Tilt
+        run: |
+          curl -fsSL -o tilt.tgz https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz
+          echo "e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f  tilt.tgz" | sha256sum -c -
+          sudo tar -xzf tilt.tgz -C /usr/local/bin tilt
+          rm -f tilt.tgz
+
+      - name: Machine
+        run: |
+          echo "cpus: $(nproc)"; free -h; df -h / | tail -1
+          docker version --format 'docker {{.Server.Version}}'
+          tdk --version; tilt version | head -1
+
+      - name: Generate the restaurant project
+        working-directory: restaurant
+        env:
+          TDK_EXTENSION_SOURCE: ${{ github.workspace }}
+        run: tdk project --yes
+
+      - name: Cold and warm starts
+        env:
+          TDK_EXTENSION_SOURCE: ${{ github.workspace }}
+        run: |
+          scripts/benchmark/tdk-up-warm-start.sh \
+            --project restaurant \
+            --out "$RUNNER_TEMP/bench" \
+            --cold-runs "${{ inputs.cold_runs || '1' }}" \
+            --warm-runs "${{ inputs.warm_runs || '3' }}" \
+            --healthy 8
+
+      - name: Build the report
+        run: |
+          node scripts/benchmark/build-report.mjs \
+            --run "$RUNNER_TEMP/bench" \
+            --history benchmarks/results \
+            --out "$RUNNER_TEMP/site" \
+            --commit "${{ steps.meta.outputs.commit }}" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          cp -r "$RUNNER_TEMP/bench" "$RUNNER_TEMP/site/raw"
+          cat "$RUNNER_TEMP/bench/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Report: the Pages site for this repository (updated on main)." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: benchmark-report
+          path: ${{ runner.temp }}/site
+          if-no-files-found: warn
+
+      - name: Stop the project
+        if: always()
+        working-directory: restaurant
+        run: tdk down || true
+
+  publish:
+    name: 🌐 Publish the report to GitHub Pages
+    needs: measure
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: benchmark-report
+          path: site
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

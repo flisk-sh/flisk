@@ -81,3 +81,9 @@ scripts/benchmark/tdk-up-warm-start.sh \
 **Outcomes:** each run's `run.txt` records one of `settled` (timed), `timeout` (no settled state within 30 minutes; the wall time is the limit, and `up.log` shows why), `down_failed` or `cleanup_failed` (the starting state could not be set up, so the run is not timed). The summary reports the outcome of every run and lists failed Tilt resources. A `timeout` is not a warm-start time and must not be reported as one.
 
 **Comparing results:** results depend on the machine, Docker's memory and CPU allocation, and the image cache. Compare runs on the same machine, with the same project and the same `--healthy`. A published result is one sample; re-run it before you rely on a difference of a few seconds. Do not commit a new dated result for each run. Publish one when you are recording a baseline.
+
+## CI report
+
+`.github/workflows/benchmarks.yml` runs this benchmark on the restaurant example after every change to `main` that can affect start-up (CLI, engine, discovery, benchmark scripts), and it can be started by hand from the Actions tab. It builds the CLI from the tested commit, measures one cold and three warm starts on a GitHub-hosted runner, and publishes an HTML report with tabs for warm and cold starts, per-service build times, the committed history and the environment: <https://tdk-landscape.github.io/tdk-cli-core/>.
+
+The same page is built locally by `node scripts/benchmark/build-report.mjs --run <run dir> --out <dir>`; it needs no network access.
