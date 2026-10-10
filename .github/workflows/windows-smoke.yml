@@ -17,6 +17,7 @@ jobs:
 
   windows-smoke:
     runs-on: windows-latest
+    timeout-minutes: 20
     needs: docs
     # Skip on docs-only and bring-your-own-example-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' && needs.docs.outputs.examples_only != 'true' }}
