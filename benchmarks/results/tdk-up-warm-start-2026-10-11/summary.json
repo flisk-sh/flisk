@@ -15,109 +15,111 @@
     {
       "name": "cold-1",
       "kind": "cold",
-      "wallSeconds": 72,
-      "spanSeconds": 67.99000000000524,
-      "goldenSeconds": 39.31,
+      "wallSeconds": 281,
+      "spanSeconds": 274.58000000000175,
+      "goldenSeconds": 119.78,
       "goldenSkipped": false,
+      "outcome": "settled",
+      "failedResources": [],
       "healthySeen": 8,
       "healthyExpected": 8,
-      "vmMinMiB": 2515,
-      "vmPeakMiB": 6870,
+      "vmMinMiB": 1878,
+      "vmPeakMiB": 4827,
       "resources": [
         {
           "resource": "(Tiltfile)",
-          "start": 80947,
-          "seconds": 2.18,
+          "start": 82284,
+          "seconds": 8.07,
           "failed": false
         },
         {
           "resource": "init-networks",
-          "start": 80949,
-          "seconds": 2.45,
+          "start": 82293,
+          "seconds": 2.41,
           "failed": false
         },
         {
           "resource": "golden-layers-build",
-          "start": 80952,
-          "seconds": 39.31,
+          "start": 82295,
+          "seconds": 119.78,
           "failed": false
         },
         {
           "resource": "postgres",
-          "start": 80952,
-          "seconds": 0.65,
+          "start": 82296,
+          "seconds": 3.36,
           "failed": false
         },
         {
           "resource": "traefik",
-          "start": 80952,
-          "seconds": 1.33,
+          "start": 82296,
+          "seconds": 6.36,
           "failed": false
         },
         {
           "resource": "provision-db-guest",
-          "start": 80953,
-          "seconds": 0.69,
+          "start": 82298,
+          "seconds": 2.8,
           "failed": false
         },
         {
           "resource": "provision-db-kitchen",
-          "start": 80953,
-          "seconds": 0.7,
+          "start": 82298,
+          "seconds": 2.79,
           "failed": false
         },
         {
           "resource": "provision-db-operations",
-          "start": 80953,
-          "seconds": 0.69,
+          "start": 82299,
+          "seconds": 2.11,
           "failed": false
         },
         {
           "resource": "reservation-api",
-          "start": 80991,
-          "seconds": 11.88,
+          "start": 82415,
+          "seconds": 76.45,
           "failed": false
         },
         {
           "resource": "kitchen-api",
-          "start": 80991,
-          "seconds": 10.8,
+          "start": 82415,
+          "seconds": 62.54,
           "failed": false
         },
         {
           "resource": "menu-api",
-          "start": 80991,
-          "seconds": 11.33,
+          "start": 82415,
+          "seconds": 57.46,
           "failed": false
         },
         {
           "resource": "kitchen-api-run-only",
-          "start": 81002,
-          "seconds": 0.56,
+          "start": 82475,
+          "seconds": 6.67,
           "failed": false
         },
         {
           "resource": "kitchen-worker",
-          "start": 81002,
-          "seconds": 8.74,
+          "start": 82475,
+          "seconds": 72.38,
           "failed": false
         },
         {
           "resource": "reservation-app",
-          "start": 81003,
-          "seconds": 11.99,
+          "start": 82489,
+          "seconds": 66.65,
           "failed": false
         },
         {
           "resource": "floor-app",
-          "start": 81003,
-          "seconds": 11.44,
+          "start": 82489,
+          "seconds": 69.58,
           "failed": false
         },
         {
           "resource": "kitchen-worker-run-only",
-          "start": 81010,
-          "seconds": 0.53,
+          "start": 82546,
+          "seconds": 2.33,
           "failed": false
         }
       ]
@@ -125,109 +127,111 @@
     {
       "name": "warm-1",
       "kind": "warm",
-      "wallSeconds": 19,
-      "spanSeconds": 11.05000000000291,
-      "goldenSeconds": 0.66,
+      "wallSeconds": 50,
+      "spanSeconds": 42.169999999998254,
+      "goldenSeconds": 1.96,
       "goldenSkipped": true,
+      "outcome": "settled",
+      "failedResources": [],
       "healthySeen": 8,
       "healthyExpected": 8,
-      "vmMinMiB": 4222,
-      "vmPeakMiB": 6196,
+      "vmMinMiB": 1845,
+      "vmPeakMiB": 2787,
       "resources": [
         {
           "resource": "(Tiltfile)",
-          "start": 81024,
-          "seconds": 1.96,
+          "start": 82598,
+          "seconds": 13.48,
           "failed": false
         },
         {
           "resource": "init-networks",
-          "start": 81026,
-          "seconds": 1.07,
+          "start": 82611,
+          "seconds": 2.67,
           "failed": false
         },
         {
           "resource": "golden-layers-build",
-          "start": 81027,
-          "seconds": 0.66,
-          "failed": false
-        },
-        {
-          "resource": "postgres",
-          "start": 81027,
-          "seconds": 0.44,
+          "start": 82614,
+          "seconds": 1.96,
           "failed": false
         },
         {
           "resource": "traefik",
-          "start": 81027,
-          "seconds": 1.01,
+          "start": 82615,
+          "seconds": 2.07,
+          "failed": false
+        },
+        {
+          "resource": "postgres",
+          "start": 82615,
+          "seconds": 4.15,
           "failed": false
         },
         {
           "resource": "provision-db-guest",
-          "start": 81028,
-          "seconds": 0.61,
+          "start": 82618,
+          "seconds": 2.23,
           "failed": false
         },
         {
           "resource": "provision-db-kitchen",
-          "start": 81028,
-          "seconds": 0.65,
+          "start": 82618,
+          "seconds": 2.24,
           "failed": false
         },
         {
           "resource": "provision-db-operations",
-          "start": 81028,
-          "seconds": 0.64,
-          "failed": false
-        },
-        {
-          "resource": "reservation-api",
-          "start": 81028,
-          "seconds": 2.73,
+          "start": 82618,
+          "seconds": 2.19,
           "failed": false
         },
         {
           "resource": "menu-api",
-          "start": 81028,
-          "seconds": 3.64,
+          "start": 82620,
+          "seconds": 11.71,
+          "failed": false
+        },
+        {
+          "resource": "reservation-api",
+          "start": 82620,
+          "seconds": 5.76,
           "failed": false
         },
         {
           "resource": "kitchen-api",
-          "start": 81028,
-          "seconds": 3.13,
+          "start": 82620,
+          "seconds": 8.18,
           "failed": false
         },
         {
           "resource": "reservation-app",
-          "start": 81031,
-          "seconds": 2.76,
+          "start": 82625,
+          "seconds": 9.45,
           "failed": false
         },
         {
           "resource": "kitchen-api-run-only",
-          "start": 81031,
-          "seconds": 0.48,
+          "start": 82627,
+          "seconds": 2.27,
           "failed": false
         },
         {
           "resource": "kitchen-worker",
-          "start": 81031,
-          "seconds": 2.88,
+          "start": 82627,
+          "seconds": 10.83,
           "failed": false
         },
         {
           "resource": "floor-app",
-          "start": 81032,
-          "seconds": 3.05,
+          "start": 82631,
+          "seconds": 9.17,
           "failed": false
         },
         {
           "resource": "kitchen-worker-run-only",
-          "start": 81034,
-          "seconds": 0.56,
+          "start": 82637,
+          "seconds": 1.67,
           "failed": false
         }
       ]
@@ -235,109 +239,111 @@
     {
       "name": "warm-2",
       "kind": "warm",
-      "wallSeconds": 19,
-      "spanSeconds": 9.970000000001164,
-      "goldenSeconds": 0.64,
+      "wallSeconds": 38,
+      "spanSeconds": 32.279999999998836,
+      "goldenSeconds": 1.56,
       "goldenSkipped": true,
+      "outcome": "settled",
+      "failedResources": [],
       "healthySeen": 8,
       "healthyExpected": 8,
-      "vmMinMiB": 3887,
-      "vmPeakMiB": 4091,
+      "vmMinMiB": 2513,
+      "vmPeakMiB": 2865,
       "resources": [
         {
           "resource": "(Tiltfile)",
-          "start": 81050,
-          "seconds": 1.89,
+          "start": 82660,
+          "seconds": 5.89,
           "failed": false
         },
         {
           "resource": "init-networks",
-          "start": 81052,
-          "seconds": 0.86,
+          "start": 82666,
+          "seconds": 2.07,
           "failed": false
         },
         {
           "resource": "golden-layers-build",
-          "start": 81053,
-          "seconds": 0.64,
+          "start": 82668,
+          "seconds": 1.56,
           "failed": false
         },
         {
           "resource": "postgres",
-          "start": 81053,
-          "seconds": 0.35,
+          "start": 82669,
+          "seconds": 1.8,
           "failed": false
         },
         {
           "resource": "traefik",
-          "start": 81053,
-          "seconds": 0.74,
+          "start": 82669,
+          "seconds": 3.77,
           "failed": false
         },
         {
           "resource": "provision-db-guest",
-          "start": 81053,
-          "seconds": 0.53,
+          "start": 82670,
+          "seconds": 1.67,
           "failed": false
         },
         {
           "resource": "provision-db-kitchen",
-          "start": 81053,
-          "seconds": 0.52,
+          "start": 82670,
+          "seconds": 1.48,
           "failed": false
         },
         {
           "resource": "provision-db-operations",
-          "start": 81053,
-          "seconds": 0.54,
-          "failed": false
-        },
-        {
-          "resource": "reservation-api",
-          "start": 81054,
-          "seconds": 2.46,
+          "start": 82670,
+          "seconds": 1.69,
           "failed": false
         },
         {
           "resource": "kitchen-api",
-          "start": 81054,
-          "seconds": 2.9,
+          "start": 82671,
+          "seconds": 12.24,
+          "failed": false
+        },
+        {
+          "resource": "reservation-api",
+          "start": 82671,
+          "seconds": 6.67,
           "failed": false
         },
         {
           "resource": "menu-api",
-          "start": 81054,
-          "seconds": 3.23,
+          "start": 82671,
+          "seconds": 8.55,
           "failed": false
         },
         {
           "resource": "reservation-app",
-          "start": 81056,
-          "seconds": 3.09,
-          "failed": false
-        },
-        {
-          "resource": "kitchen-api-run-only",
-          "start": 81057,
-          "seconds": 0.44,
-          "failed": false
-        },
-        {
-          "resource": "kitchen-worker",
-          "start": 81057,
-          "seconds": 2.97,
+          "start": 82677,
+          "seconds": 9.7,
           "failed": false
         },
         {
           "resource": "floor-app",
-          "start": 81057,
-          "seconds": 1.87,
+          "start": 82679,
+          "seconds": 10.55,
+          "failed": false
+        },
+        {
+          "resource": "kitchen-api-run-only",
+          "start": 82682,
+          "seconds": 1.91,
+          "failed": false
+        },
+        {
+          "resource": "kitchen-worker",
+          "start": 82682,
+          "seconds": 10.02,
           "failed": false
         },
         {
           "resource": "kitchen-worker-run-only",
-          "start": 81059,
-          "seconds": 0.38,
+          "start": 82691,
+          "seconds": 1.28,
           "failed": false
         }
       ]
@@ -345,109 +351,111 @@
     {
       "name": "warm-3",
       "kind": "warm",
-      "wallSeconds": 19,
-      "spanSeconds": 12.470000000001164,
-      "goldenSeconds": 0.68,
+      "wallSeconds": 40,
+      "spanSeconds": 35.9600000000064,
+      "goldenSeconds": 1.75,
       "goldenSkipped": true,
+      "outcome": "settled",
+      "failedResources": [],
       "healthySeen": 8,
       "healthyExpected": 8,
-      "vmMinMiB": 2313,
-      "vmPeakMiB": 3091,
+      "vmMinMiB": 2067,
+      "vmPeakMiB": 2538,
       "resources": [
         {
           "resource": "(Tiltfile)",
-          "start": 81075,
-          "seconds": 2.1,
+          "start": 82708,
+          "seconds": 5.39,
           "failed": false
         },
         {
           "resource": "init-networks",
-          "start": 81078,
-          "seconds": 1,
+          "start": 82714,
+          "seconds": 2.69,
           "failed": false
         },
         {
           "resource": "golden-layers-build",
-          "start": 81079,
-          "seconds": 0.68,
+          "start": 82716,
+          "seconds": 1.75,
           "failed": false
         },
         {
           "resource": "postgres",
-          "start": 81079,
-          "seconds": 0.37,
+          "start": 82717,
+          "seconds": 1.81,
           "failed": false
         },
         {
           "resource": "traefik",
-          "start": 81079,
-          "seconds": 1.06,
+          "start": 82717,
+          "seconds": 4.22,
           "failed": false
         },
         {
           "resource": "provision-db-guest",
-          "start": 81079,
-          "seconds": 0.79,
+          "start": 82718,
+          "seconds": 1.91,
           "failed": false
         },
         {
           "resource": "provision-db-kitchen",
-          "start": 81079,
-          "seconds": 0.77,
+          "start": 82718,
+          "seconds": 1.96,
           "failed": false
         },
         {
           "resource": "provision-db-operations",
-          "start": 81079,
-          "seconds": 0.77,
+          "start": 82718,
+          "seconds": 1.84,
           "failed": false
         },
         {
           "resource": "menu-api",
-          "start": 81080,
-          "seconds": 2.78,
-          "failed": false
-        },
-        {
-          "resource": "kitchen-api",
-          "start": 81080,
-          "seconds": 3.63,
+          "start": 82720,
+          "seconds": 6.25,
           "failed": false
         },
         {
           "resource": "reservation-api",
-          "start": 81080,
-          "seconds": 3.18,
+          "start": 82720,
+          "seconds": 11.14,
           "failed": false
         },
         {
-          "resource": "reservation-app",
-          "start": 81083,
-          "seconds": 2.73,
-          "failed": false
-        },
-        {
-          "resource": "floor-app",
-          "start": 81083,
-          "seconds": 3.31,
+          "resource": "kitchen-api",
+          "start": 82720,
+          "seconds": 8.74,
           "failed": false
         },
         {
           "resource": "kitchen-api-run-only",
-          "start": 81084,
-          "seconds": 0.5,
+          "start": 82728,
+          "seconds": 1.61,
           "failed": false
         },
         {
           "resource": "kitchen-worker",
-          "start": 81084,
-          "seconds": 3.47,
+          "start": 82728,
+          "seconds": 8.49,
+          "failed": false
+        },
+        {
+          "resource": "reservation-app",
+          "start": 82731,
+          "seconds": 8.52,
+          "failed": false
+        },
+        {
+          "resource": "floor-app",
+          "start": 82731,
+          "seconds": 12.96,
           "failed": false
         },
         {
           "resource": "kitchen-worker-run-only",
-          "start": 81087,
-          "seconds": 0.43,
+          "start": 82736,
+          "seconds": 1.37,
           "failed": false
         }
       ]

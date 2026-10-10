@@ -17,7 +17,7 @@
 - [x] 3.1 Emit `update_settings(max_parallel_updates=N)` in the generated Tiltfile, computed from `docker info` with the clamp in the design, honoring `TDK_MAX_PARALLEL_BUILDS`.
 - [x] 3.2 Log the chosen value and its source at Tiltfile load; keep Tilt's default when `docker info` fails.
 - [x] 3.3 Update golden Tiltfile snapshots in `cli/src/generator/__tests__/golden/` and add a test for the override and failure paths. (snapshots updated; the value and the override/failure wiring are tested in `build-performance-tilt.test.ts`)
-- [x] 3.4 Measure peak Docker memory during a restaurant warm start at the chosen `N` and adjust the per-build budget if needed. (Docker VM sampling is not a per-start measure: the VM's resident memory rises during the cold build and stays high (6.9 GB after the cold run, 3 to 6 GB in warm runs). An earlier 1.9 GB figure came from a smaller starting VM and is not comparable. The 1.5 GiB budget is unchanged. See benchmarks/results/tdk-up-warm-start-2026-10-11/README.md.)
+- [x] 3.4 Measure peak Docker memory during a restaurant warm start at the chosen `N` and adjust the per-build budget if needed. (Docker VM sampling is not a per-start measure: the VM's resident memory rises during the cold build and stays high (4.8 GB peak in the cold run, 2.5 to 2.9 GB in warm runs). An earlier 1.9 GB figure came from a smaller starting VM and is not comparable. The 1.5 GiB budget is unchanged. See benchmarks/results/tdk-up-warm-start-2026-10-11/README.md.)
 - [x] 3.5 Measure and post on #1023. (posted)
 
 ## 4. Frontend builds

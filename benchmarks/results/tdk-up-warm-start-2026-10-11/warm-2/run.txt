@@ -1,7 +1,8 @@
 name=warm-2
 kind=warm
-wall_seconds=19
+outcome=settled
+wall_seconds=38
 healthy_expected=8
 healthy_seen=8
 port=10350
-date=2026-10-10T22:31:08Z
+started=2026-10-10T22:57:25Z

@@ -62,7 +62,8 @@ const runs = readdirSync(dir)
 		const golden = resources.find((r) => r.resource === "golden-layers-build");
 		// Tilt's own log says whether the golden build skipped (a fast completed build is not a skip).
 		const goldenLog = readOr(join(runDir, "golden.log"));
-		const goldenSkipped = goldenLog ? /up to date/.test(goldenLog) : null;
+		// Anchored to the line the script prints when it skips; the command echoed at the top of the log also contains the words.
+		const goldenSkipped = goldenLog ? /^✅ Golden images are up to date \(hash [0-9a-f]+\) - skipping build/m.test(goldenLog) : null;
 		const samples = readOr(join(runDir, "vm-samples.txt"))
 			.split("\n")
 			.filter(Boolean)

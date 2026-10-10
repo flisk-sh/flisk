@@ -2,22 +2,22 @@
 <text x="110" y="18" font-size="14" font-weight="600">tdk up: span and golden base build per run</text>
 <text x="102" y="46" text-anchor="end" font-size="13">cold-1</text>
 <rect x="110" y="30" width="520" height="22" fill="#4f7cac"/>
-<text x="636" y="46" font-size="12">68.0 s span</text>
-<rect x="110" y="56" width="300.6500956022713" height="22" fill="#e0a526"/>
-<text x="416.6500956022713" y="72" font-size="12">39.3 s golden base</text>
+<text x="636" y="46" font-size="12">274.6 s span</text>
+<rect x="110" y="56" width="226.83953674703037" height="22" fill="#e0a526"/>
+<text x="342.83953674703037" y="72" font-size="12">119.8 s golden base</text>
 <text x="102" y="108" text-anchor="end" font-size="13">warm-1</text>
-<rect x="110" y="92" width="84.5124282982949" height="22" fill="#4f7cac"/>
-<text x="200.5124282982949" y="108" font-size="12">11.1 s span</text>
-<rect x="110" y="118" width="5.047801147227145" height="22" fill="#e0a526"/>
-<text x="121.04780114722715" y="134" font-size="12">0.7 s golden base</text>
+<rect x="110" y="92" width="79.86160681768138" height="22" fill="#4f7cac"/>
+<text x="195.86160681768138" y="108" font-size="12">42.2 s span</text>
+<rect x="110" y="118" width="3.7118508267171446" height="22" fill="#e0a526"/>
+<text x="119.71185082671714" y="134" font-size="12">2.0 s golden base</text>
 <text x="102" y="170" text-anchor="end" font-size="13">warm-2</text>
-<rect x="110" y="154" width="76.2523900573644" height="22" fill="#4f7cac"/>
-<text x="192.25239005736438" y="170" font-size="12">10.0 s span</text>
-<rect x="110" y="180" width="4.894837476099049" height="22" fill="#e0a526"/>
-<text x="120.89483747609904" y="196" font-size="12">0.6 s golden base</text>
+<rect x="110" y="154" width="61.13191055429852" height="22" fill="#4f7cac"/>
+<text x="177.1319105542985" y="170" font-size="12">32.3 s span</text>
+<rect x="110" y="180" width="2.9543302498360946" height="22" fill="#e0a526"/>
+<text x="118.95433024983609" y="196" font-size="12">1.6 s golden base</text>
 <text x="102" y="232" text-anchor="end" font-size="13">warm-3</text>
-<rect x="110" y="216" width="95.37284894837632" height="22" fill="#4f7cac"/>
-<text x="211.37284894837632" y="232" font-size="12">12.5 s span</text>
-<rect x="110" y="242" width="5.20076481835524" height="22" fill="#e0a526"/>
-<text x="121.20076481835524" y="258" font-size="12">0.7 s golden base</text>
+<rect x="110" y="216" width="68.10109986161851" height="22" fill="#4f7cac"/>
+<text x="184.1010998616185" y="232" font-size="12">36.0 s span</text>
+<rect x="110" y="242" width="3.314152523854593" height="22" fill="#e0a526"/>
+<text x="119.31415252385459" y="258" font-size="12">1.8 s golden base</text>
 </svg>
