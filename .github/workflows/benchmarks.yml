@@ -88,26 +88,33 @@ jobs:
       - name: Cold and warm starts
         env:
           TDK_EXTENSION_SOURCE: ${{ github.workspace }}
+          COLD_RUNS: ${{ inputs.cold_runs || '1' }}
+          WARM_RUNS: ${{ inputs.warm_runs || '3' }}
         run: |
           scripts/benchmark/tdk-up-warm-start.sh \
             --project restaurant \
             --out "$RUNNER_TEMP/bench" \
-            --cold-runs "${{ inputs.cold_runs || '1' }}" \
-            --warm-runs "${{ inputs.warm_runs || '3' }}" \
+            --cold-runs "$COLD_RUNS" \
+            --warm-runs "$WARM_RUNS" \
             --healthy 8
 
       - name: Build the report
+        env:
+          COMMIT: ${{ steps.meta.outputs.commit }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           node scripts/benchmark/build-report.mjs \
             --run "$RUNNER_TEMP/bench" \
             --history benchmarks/results \
             --out "$RUNNER_TEMP/site" \
-            --commit "${{ steps.meta.outputs.commit }}" \
-            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            --commit "$COMMIT" \
+            --run-url "$RUN_URL"
           cp -r "$RUNNER_TEMP/bench" "$RUNNER_TEMP/site/raw"
-          cat "$RUNNER_TEMP/bench/summary.md" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Report: the Pages site for this repository (updated on main)." >> "$GITHUB_STEP_SUMMARY"
+          {
+            cat "$RUNNER_TEMP/bench/summary.md"
+            echo ""
+            echo "Report: the Pages site for this repository (updated on main)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
