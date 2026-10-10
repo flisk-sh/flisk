@@ -41,7 +41,6 @@ const EXPECTED_IMAGES = [
   "tdk-project-l2:latest",
   "tdk-project-l3-backend:latest",
   "tdk-project-l3-frontend:latest",
-  "tdk-project-l3-migrator:latest",
   "tdk-project-l4-backend:latest",
   "tdk-project-l4-backend-node:latest",
   "tdk-project-l4-frontend:latest",
@@ -116,6 +115,7 @@ exit 0
     status: result.status,
     stdout: result.stdout,
     stderr: result.stderr,
+    calls,
     bake: calls.filter((c) => c.startsWith("buildx bake")),
     serialBuilds: calls.filter((c) => c.startsWith("build ")),
     hcl: existsSync(hcl) ? readFileSync(hcl, "utf-8") : "",
@@ -141,6 +141,15 @@ describe.skipIf(!hasTilt)("golden layer build script", () => {
     for (const image of EXPECTED_IMAGES) expect(run.hcl).toContain(`tags = ["${image}"]`);
     expect(run.hcl.match(/^target "/gm)).toHaveLength(EXPECTED_IMAGES.length);
     expect(run.hcl).toContain('"tdk.golden.hash" = HASH');
+  });
+
+  it("untags the l3-migrator image older engines built, after a build", () => {
+    expect(runGolden(script, { labelMatches: false }).calls).toContain(
+      "image rm tdk-project-l3-migrator:latest",
+    );
+    expect(runGolden(script, { labelMatches: true }).calls).not.toContain(
+      "image rm tdk-project-l3-migrator:latest",
+    );
   });
 
   it("forces a rebuild with TDK_GOLDEN_REBUILD even when the labels match", () => {

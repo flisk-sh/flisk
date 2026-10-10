@@ -83,7 +83,8 @@ def _load_golden_prefix():
 
 _GOLDEN_PREFIX = _load_golden_prefix()
 
-DEFAULT_GOLDEN_L3_MIGRATOR_IMAGE = _GOLDEN_PREFIX + "-l3-migrator:latest"
+# Migrators build on l3-backend; the golden build no longer makes a separate l3-migrator image.
+DEFAULT_GOLDEN_L3_MIGRATOR_IMAGE = _GOLDEN_PREFIX + "-l3-backend:latest"
 DEFAULT_GOLDEN_L4_MIGRATOR_IMAGE = _GOLDEN_PREFIX + "-l4-migrator:latest"
 
 DEFAULT_DB_PORT = "5432"

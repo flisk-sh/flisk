@@ -17,12 +17,15 @@
 # This Dockerfile builds 8 golden images:
 #   - tdk-project-l1:latest - OS base + Bun runtime
 #   - tdk-project-l2:latest - Dependencies installed
-#   - tdk-project-l3-backend:latest - Backend build tools (Prisma, no Infisical CLI)
+#   - tdk-project-l3-backend:latest - Backend and migrator build tools (Prisma, no Infisical CLI)
 #   - tdk-project-l3-frontend:latest - Frontend build tools (no Prisma)
-#   - tdk-project-l3-migrator:latest - Migrator build tools (Prisma, no Infisical CLI)
-#   - tdk-project-l4-backend:latest - Backend production runtime
+#   - tdk-project-l4-backend:latest - Backend production runtime (Bun)
+#   - tdk-project-l4-backend-node:latest - Backend production runtime (Node.js)
 #   - tdk-project-l4-frontend:latest - Frontend production runtime (Nginx)
 #   - tdk-project-l4-migrator:latest - Migrator production runtime
+#
+# Migrators build on l3-backend: a separate l3-migrator stage installed the same Prisma
+# and produced identical layers under a second image name.
 #
 # Services use these as base images to skip heavy dependency installation.
 #
@@ -98,26 +101,6 @@ LABEL layer="l3-frontend"       description="Frontend build tools without Prisma
 
 # Frontend doesn't need Prisma, just verify Bun
 RUN echo "Bun version: $(bun --version)"
-
-
-# =============================================================================
-# L3-MIGRATOR: MIGRATOR BUILD TOOLS (PRISMA)
-# =============================================================================
-FROM l2_golden AS l3_migrator_golden
-
-LABEL layer="l3-migrator"       description="Migrator build tools with Prisma"       maintainer="tdk-project"
-
-# Install Prisma CLI globally (required for migrations, pinned)
-RUN bun add -g prisma@7.5.0 @prisma/client@7.5.0
-
-# Verify Prisma installation
-RUN echo "Prisma version: $(bunx prisma --version | head -1)"
-
-# ⚠️ CRITICAL: Infisical CLI is NOT installed in golden L3 images
-# Reason: curl to dl.cloudsmith.io hangs during Docker builds when CDN is slow
-# Solution: Use SKIP_INFISICAL_SETUP=1 build arg or runtime env var injection
-# Services read secrets from environment variables at runtime (no CLI needed)
-# See: .tilt/topologies/platform/docker/layers/l3_builder_layers.star
 
 
 # =============================================================================
@@ -202,8 +185,8 @@ LABEL layer="l4-migrator"       description="Migrator runtime with Prisma"      
 
 ENV NODE_ENV=production
 
-# Copy global Prisma installation from L3
-COPY --from=l3_migrator_golden /root/.bun/install/global /root/.bun/install/global
+# Copy global Prisma installation from L3 (l3-backend carries the same pinned Prisma)
+COPY --from=l3_backend_golden /root/.bun/install/global /root/.bun/install/global
 
 # ⚠️ Infisical CLI is NOT included in golden L4 images
 # The migrator reads secrets directly from environment variables at runtime

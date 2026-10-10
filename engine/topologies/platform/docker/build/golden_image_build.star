@@ -2,7 +2,7 @@
 # 🏗️ TILT SDK - GOLDEN IMAGE BUILDERS
 # =============================================================================
 
-load('./golden_image_constants.star', 'GOLDEN_DOCKERFILE', 'GOLDEN_IMAGE_PREFIX', 'GOLDEN_LAYERS')
+load('./golden_image_constants.star', 'GOLDEN_DOCKERFILE', 'GOLDEN_IMAGE_PREFIX', 'GOLDEN_LAYERS', 'LEGACY_GOLDEN_IMAGES')
 
 # Label that records which golden Dockerfile an image was built from.
 GOLDEN_HASH_LABEL = 'tdk.golden.hash'
@@ -52,6 +52,11 @@ else
   echo "  ⚠️  docker buildx is not available - building golden targets one at a time"
   @@SERIAL_BUILDS@@
 fi
+
+# Untag golden images that older engines built and nothing uses now; an image still in use is left alone.
+for img in @@LEGACY_IMAGES@@; do
+  docker image rm "$img" >/dev/null 2>&1 && echo "  🧹 Removed legacy golden image $img"
+done
 
 echo "✅ Golden layers built (@@COUNT@@ images):"
 @@SUMMARY@@
@@ -118,6 +123,7 @@ def build_golden_layers(project_root='.'):
         .replace('@@DF_REL@@', _sh_quote(dockerfile_from_tiltfile))
         .replace('@@ROOT_REL@@', _sh_quote(context))
         .replace('@@IMAGES@@', ' '.join(images))
+        .replace('@@LEGACY_IMAGES@@', ' '.join(LEGACY_GOLDEN_IMAGES))
         .replace('@@HASH_LABEL@@', GOLDEN_HASH_LABEL)
         .replace('@@COUNT@@', str(len(images)))
         .replace('@@TARGET_NAMES@@', ', '.join(target_names))
