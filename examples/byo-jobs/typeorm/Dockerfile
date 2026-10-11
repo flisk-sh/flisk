@@ -7,4 +7,6 @@ COPY data-source.js ensure-db.js ./
 COPY migrations ./migrations
 RUN chown -R node:node .
 USER node
+# One-shot job: it has no server to probe and exits when the migration finishes, so the image disables the inherited check.
+HEALTHCHECK NONE
 CMD ["sh", "-c", "node ensure-db.js && npx typeorm migration:run -d data-source.js"]

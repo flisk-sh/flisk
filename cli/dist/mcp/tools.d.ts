@@ -2,6 +2,7 @@ import { type ChildProcess } from "node:child_process";
 import type { McpTool, McpToolResult } from "./server.js";
 export type RunTdk = (args: string[], options?: {
     timeoutMs?: number;
+    cwd?: string;
 }) => Promise<TdkRun>;
 export interface TdkRun {
     exitCode: number | null;
@@ -19,7 +20,7 @@ export declare const runTdkCli: RunTdk;
 export declare function toToolResult(run: TdkRun): McpToolResult;
 export interface UpDeps {
     /** Starts `tdk up` detached, with output going to a log file. */
-    spawnUp: (args: string[], logFile: string) => ChildProcess;
+    spawnUp: (args: string[], logFile: string, cwd?: string) => ChildProcess;
     readLog: (logFile: string) => string;
     sleep: (ms: number) => Promise<void>;
     now: () => number;

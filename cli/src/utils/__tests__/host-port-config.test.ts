@@ -108,4 +108,37 @@ describe("saved host port plan", () => {
 
     await expect(getHostPortPlan(projectRoot, { inspectDocker: false })).resolves.toEqual(plan);
   });
+
+  it("moves a saved fallback plan back to ports 80 and 443 once they are free", async () => {
+    delete process.env.TDK_HTTP_PORT;
+    delete process.env.TDK_HTTPS_PORT;
+    delete process.env.TDK_POSTGRES_PORT;
+    projectRoot = mkdtempSync(join(tmpdir(), "tdk-port-config-preferred-"));
+    writeSavedHostPortPlan(projectRoot, {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 15432,
+      requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: {
+        ingressHttp: "selected from fallback range 8080-8180",
+        ingressHttps: "selected from fallback range 8443-8543",
+        postgres: "selected from fallback range 15432-15532",
+      },
+    });
+
+    const plan = await getHostPortPlan(projectRoot, {
+      inspectDocker: false,
+      isPortFree: async () => true,
+    });
+    expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([8080, 8443, 15432]);
+
+    const moved = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect([moved.ingressHttp, moved.ingressHttps, moved.postgres]).toEqual([80, 443, 15432]);
+
+    const kept = await getHostPortPlan(projectRoot, {
+      isPortFree: async (port) => port !== 80 && port !== 443,
+    });
+    expect([kept.ingressHttp, kept.ingressHttps]).toEqual([8080, 8443]);
+  });
 });

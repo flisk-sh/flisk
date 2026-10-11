@@ -6,5 +6,7 @@ USER app
 # TDK's DATABASE_URL carries a Prisma-style ?schema=public that non-Prisma drivers reject, so strip it.
 # TDK's Postgres has SSL off, so ask the driver not to try it.
 # --wait retries until Postgres accepts connections; --no-dump-schema keeps the job read-only on disk.
+# One-shot job: it has no server to probe and exits when the migration finishes, so the image disables the inherited check.
+HEALTHCHECK NONE
 ENTRYPOINT ["/bin/sh", "-c"]
 CMD ["dbmate --url \"${DATABASE_URL%%\\?*}?sslmode=disable\" --migrations-dir /db/migrations --no-dump-schema --wait up"]

@@ -1,7 +1,7 @@
 # Makefile
 # Common development tasks
 
-.PHONY: help test-tilt-engine test test-coverage lint video video-build video-test video-validate video-generate
+.PHONY: help test test-ts test-python test-shell test-tilt-engine test-coverage lint video video-build video-test video-validate video-generate
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -16,9 +16,19 @@ test-tilt-engine-coverage: ## Run tilt-engine tests with coverage report
 	@echo "🧪 Running tilt-engine tests with coverage..."
 	pytest tests/tilt-engine/ -v --cov=tests/tilt-engine --cov-report=term-missing --cov-report=html
 
-test: ## Run all tests
-	@echo "🧪 Running all tests..."
+test: test-ts test-python test-shell ## Run TypeScript, Python and shell checks
+
+test-ts: ## Run TypeScript tests
+	@echo "🧪 Running TypeScript tests..."
+	cd cli && npm test
+
+test-python: ## Run Python tests
+	@echo "🧪 Running Python tests..."
 	pytest tests/ -v --tb=short
+
+test-shell: ## Check verification script syntax (no Docker/Tilt execution)
+	@echo "🧪 Checking shell verification script syntax..."
+	for script in scripts/verify-*.sh; do bash -n "$$script" || exit 1; done
 
 test-coverage: ## Run all tests with coverage
 	@echo "🧪 Running all tests with coverage..."

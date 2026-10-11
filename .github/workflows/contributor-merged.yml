@@ -149,6 +149,15 @@ jobs:
             lines.push('', MILESTONES[mergedCount]
               || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`);
             if (rankLine) lines.push('', rankLine);
+            // Link the open hall-of-fame issue so a new contributor can find their place on it.
+            try {
+              const hall = (await retry(() => github.rest.search.issuesAndPullRequests({
+                q: `repo:${owner}/${repo} is:issue is:open in:title "Hall of fame: community contributors"`, per_page: 1,
+              }))).data.items[0];
+              if (hall) lines.push('', `You will appear on the [Hall of fame](${hall.html_url}) once it refreshes. Take a look to see your place. 🏅`);
+            } catch (e) {
+              core.warning(`Could not look up the hall of fame issue: ${e.message}`);
+            }
             if (next.length) {
               lines.push('', 'If you want another one, these are open and unclaimed. Comment on one to claim it:');
               for (const i of next) lines.push(`- #${i.number} ${i.title}`);

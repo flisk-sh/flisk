@@ -46,4 +46,4 @@ A `windows-latest` workflow SHALL configure Node 22, install dependencies using 
 
 #### Scenario: Release readiness
 - **WHEN** the implementation is prepared for a Windows support release
-- **THEN** all checklist items are recorded as passed on a real Windows 11 AMD64 laptop before support is claimed
+- **THEN** all checklist items are recorded as passed on a real Windows 11 AMD64 machine before support is claimed

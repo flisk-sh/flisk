@@ -32,7 +32,7 @@ import { unknownHelpTarget } from "./utils/help-command.js";
 const program = new Command();
 program
     .name("tdk")
-    .description("TDK CLI — start services on your laptop.")
+    .description("TDK CLI — start services on your machine.")
     .version(pkg.version, "-v, --version", "Display version number")
     .option("--verbose", "Enable verbose output", false)
     .configureOutput({

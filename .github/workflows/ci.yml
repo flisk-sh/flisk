@@ -195,9 +195,15 @@ jobs:
             exit 1
           fi
           echo "port 5432 is free"
-      - run: npm test
+      - name: Run TypeScript tests through the contributor entry point
+        working-directory: .
+        run: make test-ts
         env:
           TDK_REQUIRE_TILT: '1'
+      - name: Check shell verification script syntax
+        working-directory: .
+        run: make test-shell
+      # test-python remains a local target until the clean-checkout failures in #700 are resolved.
 
   # Installs the npm package the way users do (npm install -g) and runs it,
   # so a release can't ship without the compiled CLI or its dependencies.

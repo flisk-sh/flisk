@@ -56,8 +56,8 @@ Would start 1 service from stack "shop"...
   - orders-api
 
 🔧 Backend API URLs:
-  - orders-api: http://api.pilot.localhost:8080/api/orders/health
-Host ports: HTTP 8080, HTTPS 8443, Postgres 15432
+  - orders-api: http://api.pilot.localhost/api/orders/health
+Host ports: HTTP 80, HTTPS 443, Postgres 15432
 Override with TDK_HTTP_PORT, TDK_HTTPS_PORT, or TDK_POSTGRES_PORT.
 Dry run - not starting services
 Would run: tilt up -f /path/to/pilot/.tdk/.tdk-out/Tiltfile -- --focus=shop orders-api

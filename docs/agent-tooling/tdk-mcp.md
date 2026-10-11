@@ -12,32 +12,39 @@ await tools.mcp__tdk__doctor({});
 
 The response includes `data.ready`, `data.host.canUp`, and individual checks with messages and suggested fixes. A passing host check does not mean an application service is already healthy; inspect project status for that.
 
-## Inspect a TDK project
-
-Project operations need to run from a project root containing `.tdk/project.json`. From that directory, list services and check stack readiness:
+If the MCP server is not running from the project directory, set its absolute path so Doctor also checks that project's service configuration:
 
 ```js
-await tools.mcp__tdk__resource_list({});
-await tools.mcp__tdk__status({});
+await tools.mcp__tdk__doctor({ projectPath: "/path/to/tdk-project" });
 ```
 
-The tools return an error such as `Could not find project root` if no TDK project is available. Open the project directory and retry.
+## Inspect a TDK project
+
+Project operations use the MCP server's current directory by default. To target a project from a projectless chat or another working directory, pass its absolute root in `projectPath`:
+
+```js
+await tools.mcp__tdk__resource_list({ projectPath: "/path/to/tdk-project" });
+await tools.mcp__tdk__status({ projectPath: "/path/to/tdk-project" });
+```
+
+The directory must contain `.tdk/project.json` or be within a TDK project. The tools return an error such as `Could not find project root` if no TDK project is available.
 
 ## Start, inspect logs, and stop
 
 Doctor should be run before startup. `up` starts the stack detached and returns without waiting for full readiness; use `status` to check Tilt readiness afterward.
 
 ```js
-await tools.mcp__tdk__doctor({});
-await tools.mcp__tdk__up({});
-await tools.mcp__tdk__status({});
-await tools.mcp__tdk__logs({ tail: 200 });
+const projectPath = "/path/to/tdk-project";
+await tools.mcp__tdk__doctor({ projectPath });
+await tools.mcp__tdk__up({ projectPath });
+await tools.mcp__tdk__status({ projectPath });
+await tools.mcp__tdk__logs({ projectPath, tail: 200 });
 ```
 
 To start selected services, include their names in `only`; TDK includes their dependencies and shared infrastructure. `up` also accepts a `stack`, a `waitSeconds` window for early failures, and `force` to replace an existing Tilt process. For log snapshots, `logs` accepts `services`, `since` (such as `5m`), and `tail` (maximum 10,000 lines). Stop the stack with:
 
 ```js
-await tools.mcp__tdk__down({});
+await tools.mcp__tdk__down({ projectPath: "/path/to/tdk-project" });
 ```
 
 ## Ask in outcomes

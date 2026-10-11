@@ -6,7 +6,7 @@ The security requirements are in [security.md](security.md): TDK is a local deve
 
 ## Threat model
 
-TDK runs on a developer's laptop. It reads a `service.json` for each service, generates Docker, Compose and Tilt files, and starts containers. The main assets are the project's `.env` secrets (`DB_PASSWORD`, `JWT_SECRET` and similar), the services running on the host's network, and the integrity of the CLI binary and npm package.
+TDK runs on a developer's machine. It reads a `service.json` for each service, generates Docker, Compose and Tilt files, and starts containers. The main assets are the project's `.env` secrets (`DB_PASSWORD`, `JWT_SECRET` and similar), the services running on the host's network, and the integrity of the CLI binary and npm package.
 
 | Threat | Where it comes from | Countermeasure | Status |
 | --- | --- | --- | --- |

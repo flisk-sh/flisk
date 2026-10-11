@@ -30,7 +30,7 @@ TDK currently targets Linux and macOS, with Unix assumptions in platform detecti
 - [Windows Docker daemon output may vary by Docker Desktop version] → Parse stable daemon OS/architecture fields conservatively and verify the Linux-container case in doctor tests; report actionable uncertainty rather than a false pass.
 - [Windows wildcard localhost DNS behavior varies by host configuration] → Test both base and sample names, detect loopback results, show exact hosts-file guidance, and print numeric URLs.
 - [Engine tar extraction flags vary across older `tar.exe` versions] → Installer falls back to temporary extraction and moves the top-level contents, then verifies the expected layout.
-- [CI cannot prove real Windows Docker/Tilt boot behavior] → Keep the documented Windows 11 AMD64 laptop checklist as a release gate.
+- [CI cannot prove real Windows Docker/Tilt boot behavior] → Keep the documented Windows 11 AMD64 machine checklist as a release gate.
 - [PowerShell profile selection differs between Windows PowerShell and PowerShell 7] → Select the current shell's corresponding profile path, create it when missing, and update only content between unique markers.
 
 ## Migration Plan
@@ -38,7 +38,7 @@ TDK currently targets Linux and macOS, with Unix assumptions in platform detecti
 1. Implement and test platform mapping and PATH resolution, then convert CLI call sites and doctor/upgrade/process behavior in the specified order.
 2. Add release binary/checksum packaging, Windows smoke CI, installer, completions, and documentation updates in their respective repositories.
 3. Verify Linux and macOS behavior remains intact and Windows CI passes before changing support claims.
-4. Run every acceptance item on a Windows 11 AMD64 laptop, then publish the release and mark Windows supported.
+4. Run every acceptance item on a Windows 11 AMD64 machine, then publish the release and mark Windows supported.
 5. If release validation fails, omit the Windows asset and revert support claims while retaining the proposal artifacts and fix the failing Windows-specific path before retrying.
 
 ## Open Questions

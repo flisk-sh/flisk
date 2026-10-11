@@ -6,12 +6,14 @@ import { createHostPortPlan } from "../host-port-plan.js";
 import { formatPortFallbackNotice } from "../port-fallback-notice.js";
 
 const free = async () => true;
+// Ports 80 and 443 are tried first; mark them busy to exercise the fallback range.
+const privilegedBusy = async (port: number) => port !== 80 && port !== 443;
 
 describe("formatPortFallbackNotice", () => {
   it("names the requested port, the chosen port and the env var that forces it", async () => {
     const plan = await createHostPortPlan({
       env: {},
-      isAvailable: async (port) => port !== 8080,
+      isAvailable: async (port) => (await privilegedBusy(port)) && port !== 8080,
     });
     const http = formatPortFallbackNotice(plan).find((line) => line.startsWith("HTTP:"));
     expect(http).toBe(
@@ -22,7 +24,7 @@ describe("formatPortFallbackNotice", () => {
   it("reports the same chosen port that doctor --json reports", async () => {
     const plan = await createHostPortPlan({
       env: {},
-      isAvailable: async (port) => port !== 8080,
+      isAvailable: async (port) => (await privilegedBusy(port)) && port !== 8080,
     });
     const doctor = createDoctorReport([], true, [], plan);
     expect(doctor.data.ports?.http.chosen).toBe(8081);
@@ -30,7 +32,7 @@ describe("formatPortFallbackNotice", () => {
   });
 
   it("lists every port that moved", async () => {
-    const plan = await createHostPortPlan({ env: {}, isAvailable: free });
+    const plan = await createHostPortPlan({ env: {}, isAvailable: privilegedBusy });
     expect(formatPortFallbackNotice(plan).map((line) => line.split(":")[0])).toEqual([
       "HTTP",
       "HTTPS",
@@ -44,6 +46,11 @@ describe("formatPortFallbackNotice", () => {
       isAvailable: free,
     });
     expect(formatPortFallbackNotice(plan)).toEqual([]);
+  });
+
+  it("lists only Postgres when ports 80 and 443 are free", async () => {
+    const plan = await createHostPortPlan({ env: {}, isAvailable: free });
+    expect(formatPortFallbackNotice(plan).map((line) => line.split(":")[0])).toEqual(["Postgres"]);
   });
 
   it("stays silent when the requested port was available and chosen", async () => {

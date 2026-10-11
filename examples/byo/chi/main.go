@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -29,6 +30,11 @@ func main() {
 		port = "8080"
 	}
 	// ":" + port listens on every interface, which Traefik needs inside the container network.
-	// nosemgrep: go.lang.security.audit.net.use-tls.use-tls -- TLS is terminated by Traefik; this hop stays inside the container network
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	// TLS is terminated by Traefik; this hop stays inside the container network.
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }

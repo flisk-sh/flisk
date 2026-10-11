@@ -1,4 +1,4 @@
-# One Python backend on your laptop
+# One Python backend on your machine
 
 This example is one authored `service.json` and one small FastAPI service on Python 3.12. TDK creates the local orchestration files; Docker builds the service and Tilt runs it. Live reload does not work yet: every edit rebuilds the image (see [Live reload](#live-reload)). No Kubernetes cluster is needed, and you do not need Bun, Node.js, or Python installed on your machine for the service itself.
 

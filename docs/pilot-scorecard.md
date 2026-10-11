@@ -71,7 +71,7 @@ These are documented limits that most often decide fit. A "yes" to any is a reas
 - Services are not TypeScript, Python, Go or Rust: they run as [bring-your-own resources](byo.md) with no generated code or live update.
 - Developers sit behind a TLS-intercepting proxy or use a private registry: [not tested](faq-teams.md#corporate-proxy-vpn-private-registry-custom-ca).
 - You want several projects running at once: [running more than two at once is not documented or tested](faq-teams.md#ports-and-running-two-stacks-at-once).
-- Machines have little RAM: sizing is [not measured](faq-teams.md#ram-and-cpu-on-a-16-gb-laptop) except by this scorecard on your own stack.
+- Machines have little RAM: sizing is [not measured](faq-teams.md#ram-and-cpu-on-a-16-gb-machine) except by this scorecard on your own stack.
 
 ## Sharing results
 

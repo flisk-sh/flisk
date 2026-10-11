@@ -11,6 +11,7 @@ import { findProjectRoot } from "./paths.js";
 import { isApiServiceType } from "./resource-kind.js";
 import { getProjectName, type HealthProbe } from "./service-urls.js";
 import { discoverResources, discoverResourcesFromRoot } from "./services.js";
+import type { SmokeResult } from "./smoke.js";
 import {
   effectiveRuntimeStatus,
   isTiltResourcePending,
@@ -604,6 +605,68 @@ export function summarizeServiceProbes(probes: HealthProbe[]): CheckResult {
     fix: notRouted
       ? "If `tdk up` just started, images may still be building: re-run `tdk doctor` in a minute. Otherwise check `docker ps` and the resource in the Tilt UI, and compare `tdk networks` with the URL above."
       : "Check container state and routing: docker ps, then tdk networks to compare the advertised URLs against Traefik's routers",
+  };
+}
+
+/**
+ * Summarizes the read-only smoke checks. A 404 here usually means the service never registered the route its service.json
+ * names, which the health ping cannot see because /health answers regardless.
+ */
+export function summarizeSmokeResults(results: SmokeResult[]): CheckResult {
+  if (results.length === 0) {
+    return {
+      name: "Service Smoke",
+      didPass: true,
+      isSkipped: true,
+      message: "No read-only smoke checks declared",
+    };
+  }
+  const failed = results.filter((result) => !result.ok);
+  if (failed.length === 0) {
+    return {
+      name: "Service Smoke",
+      didPass: true,
+      message: `All ${formatCount(results.length, "service")} pass their smoke checks`,
+    };
+  }
+  const details = failed.map((result) => result.failure ?? `${result.name}: failed`).join("\n    ");
+  return {
+    name: "Service Smoke",
+    didPass: false,
+    message: `${formatCount(failed.length, "service")} failing a smoke check (${results.length - failed.length}/${results.length} passing):\n    ${details}`,
+    fix: 'Add the route the smoke step expects, or correct its "path" in the service.json "smoke" block. Then re-run tdk doctor.',
+  };
+}
+
+/**
+ * Flags advertised links that answer 404. Only a 404 counts: a route that answers with any other status is reachable, and many APIs
+ * have no root route, so this is a warning and never fails the run on its own.
+ */
+export function summarizeAdvertisedProbes(probes: HealthProbe[]): CheckResult {
+  const answered = probes.filter((probe) => probe.status !== undefined);
+  if (answered.length === 0) {
+    return {
+      name: "Advertised Endpoints",
+      didPass: true,
+      isSkipped: true,
+      message: "No services responded - skipped advertised endpoint check",
+    };
+  }
+  const dead = answered.filter((probe) => probe.status === 404);
+  if (dead.length === 0) {
+    return {
+      name: "Advertised Endpoints",
+      didPass: true,
+      message: `${formatCount(answered.length, "advertised endpoint")} reachable`,
+    };
+  }
+  const details = dead.map((probe) => `${probe.name} (404)\n      ${probe.url}`).join("\n    ");
+  return {
+    name: "Advertised Endpoints",
+    didPass: true,
+    isWarning: true,
+    message: `${formatCount(dead.length, "advertised link")} returns 404:\n    ${details}`,
+    fix: 'Nothing handles this path, so the link is dead. Add a route for it, or declare a read-only "smoke" step on a real route in service.json. The URL tdk networks and the TDK App print stays the same until the CLI changes how it reports it.',
   };
 }
 

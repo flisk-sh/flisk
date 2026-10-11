@@ -2,9 +2,9 @@
 
 ## Buyer and job
 
-One buyer on every public page: an engineer or tech lead who already runs several services and is tired of local Compose, Dockerfiles, and a week of setup. TDK CLI starts those services on the developer's laptop. It does not deploy production and it is not a Compose file maintained by hand.
+One buyer on every public page: an engineer or tech lead who already runs several services and is tired of local Compose, Dockerfiles, and a week of setup. TDK CLI starts those services on the developer's machine. It does not deploy production and it is not a Compose file maintained by hand.
 
-Each service has one `service.json`; `tdk up` starts the local stack. No Kubernetes runs on the laptop. Production stays on Helm, Argo CD, or Kustomize.
+Each service has one `service.json`; `tdk up` starts the local stack. No Kubernetes runs on the machine. Production stays on Helm, Argo CD, or Kustomize.
 
 ## Naming
 
@@ -12,11 +12,11 @@ Each service has one `service.json`; `tdk up` starts the local stack. No Kuberne
 - Keep `tdk-landscape` alongside the product name in organization identity.
 - Do not write `Tilt Development Kit` or use bare `TDK` as the product name in titles.
 - Preserve repository names and `@tdk-landscape/tdk-cli-core`.
-- npm description/title: `TDK CLI — start services on your laptop.`
+- npm description/title: `TDK CLI — start services on your machine.`
 
 ## First screen
 
-- H1: `Start your services on your laptop.`
+- H1: `Start your services on your machine.`
 - Subhead: `Not a deploy. Not a Compose file. One service.json, then tdk up. No Kubernetes on the machine.`
 - Proof, with caveat in the same sentence: `14 services healthy in 4.6s on a 16 GB M1 once images exist.`
 - The 100 generated `/health` services are a fixture, not an ERP product.

@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Local-start positioning
-Every public first impression SHALL say that TDK CLI starts services on a developer's laptop. It SHALL identify one `service.json` per service and `tdk up` as the local start flow. It SHALL NOT present the product as a production deploy, a hand-maintained Compose file, or laptop Kubernetes.
+Every public first impression SHALL say that TDK CLI starts services on a developer's machine. It SHALL identify one `service.json` per service and `tdk up` as the local start flow. It SHALL NOT present the product as a production deploy, a hand-maintained Compose file, or machine Kubernetes.
 
 #### Scenario: Homepage first screen
 - **WHEN** an engineer opens the homepage
-- **THEN** the H1 is `Start your services on your laptop.`
+- **THEN** the H1 is `Start your services on your machine.`
 - **AND** the subhead is `Not a deploy. Not a Compose file. One service.json, then tdk up. No Kubernetes on the machine.`
 - **AND** proof says `14 services healthy in 4.6s on a 16 GB M1 once images exist.`
 
@@ -17,7 +17,7 @@ Public titles, About fields, npm metadata, and social copy SHALL use `TDK CLI`; 
 
 #### Scenario: npm package title
 - **WHEN** a reader opens `@tdk-landscape/tdk-cli-core`
-- **THEN** the title/description reads `TDK CLI — start services on your laptop.`
+- **THEN** the title/description reads `TDK CLI — start services on your machine.`
 - **AND** the package name remains unchanged
 
 ### Requirement: First-screen exclusions

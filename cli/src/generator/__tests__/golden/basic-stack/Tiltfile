@@ -85,6 +85,7 @@ load('ext://tdk-cli',
 'Watchers',
 'Infra',
 'Docker',
+'FrontendBuildPlan',
 'load_ui_enhancements',
 'APP_RESOURCES',
 'GLOBAL_CONFIG_EXPORT',
@@ -266,6 +267,13 @@ for _KNOWN_SVC in _app_resources_list:
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME)
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-run-only')
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-config-gen')
+                # A frontend whose build script is the standard `tsc && vite build` gets a
+                # non-blocking <service>-typecheck resource (see Docker frontend registration).
+                # Name it here, from the same plan and path, so focus mode can enable it.
+                if _KNOWN_RES.get('frontend', False) and not should_enable('backends-only'):
+                    _KNOWN_RES_DIR = PROJECT_ROOT + '/' + _KNOWN_RES.get('_resource_path', _KNOWN_SVC.get('path', '') + '/' + _KNOWN_RES_NAME)
+                    if FrontendBuildPlan(_KNOWN_RES_DIR + '/package.json')['typecheck']:
+                        _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-typecheck')
                 _KNOWN_RES_MANIFEST = _KNOWN_RES.get('_manifest', {})
                 _KNOWN_RES_SABLIER = _KNOWN_RES_MANIFEST.get('sablier', {})
                 # Mirrors _register_single_resource: the prebuild only exists for
@@ -280,6 +288,8 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
     for _R in FOCUS_ENABLED_RESOURCES:
         if _R in _KNOWN_TILT_RESOURCES:
             _FILTERED_RESOURCES.append(_R)
+            if _R + '-typecheck' in _KNOWN_TILT_RESOURCES:
+                _FILTERED_RESOURCES.append(_R + '-typecheck')
             # Focus expansion normally resolves stack names to concrete
             # resources before this loop, so the stack branch below is not
             # reached for the common `tdk up <stack>` path. Keep a deferred
@@ -301,6 +311,8 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
                 # enabled name it cannot find.
                 if _STACK_RES_NAME + '-image' in _DEFERRED_IMAGE_RESOURCES:
                     _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-image')
+                if _STACK_RES_NAME + '-typecheck' in _KNOWN_TILT_RESOURCES:
+                    _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-typecheck')
         else:
             _MATCHED = [kr for kr in _KNOWN_TILT_RESOURCES if kr != 'service-discovery-daemon' and kr.startswith(_R + '-')]
             _FILTERED_RESOURCES.extend(_MATCHED)

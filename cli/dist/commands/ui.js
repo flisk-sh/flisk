@@ -16,6 +16,7 @@ import { createStatusMessageController } from "../utils/status-message.js";
 import { getListRowFromMouseY, getTerminalRuleWidth } from "../utils/terminal-layout.js";
 import { isTiltAvailable } from "../utils/tilt.js";
 import { loadTiltEvents, stripTerminalControls, TiltEventsLoadError, } from "../utils/tilt-events.js";
+import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { formatUiKeyHint, formatUiKeyNames, UI_KEYMAP } from "../utils/ui-keymap.js";
 import { applyServiceStates, fetchServiceStates, } from "../utils/ui-service-state.js";
 // biome-ignore lint/correctness/noUnusedFunctionParameters: reserved callback prop kept in the component API
@@ -116,14 +117,14 @@ export const TUIApp = ({ animated = true }) => {
     const [serviceStates, setServiceStates] = useState({});
     useEffect(() => {
         let cancelled = false;
-        const tiltPort = Number.parseInt(process.env.TILT_PORT ?? "", 10);
+        const tiltPort = getTiltPollingPort(process.env.TILT_PORT);
         // A Tilt call can outlast the 5 s interval; never start a poll while the last one is still running.
         const run = singleFlight((next) => {
             if (cancelled)
                 return;
             setServiceStates((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
         });
-        const poll = () => run(() => fetchServiceStates(services, Number.isInteger(tiltPort) ? tiltPort : 10350));
+        const poll = () => run(() => fetchServiceStates(services, tiltPort));
         void poll();
         const timer = setInterval(() => void poll(), 5000);
         return () => {

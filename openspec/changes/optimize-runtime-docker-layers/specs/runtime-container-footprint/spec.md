@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Keeps the per-container CPU, memory and image-size cost of generated TDK runtimes small enough that a large landscape (100+ resources) can run on a 16 GB developer laptop without starving the container runtime.
+Keeps the per-container CPU, memory and image-size cost of generated TDK runtimes small enough that a large landscape (100+ resources) can run on a 16 GB developer machine without starving the container runtime.
 
 ## ADDED Requirements
 

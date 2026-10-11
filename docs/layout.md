@@ -77,7 +77,7 @@ The project name is `project.name` in `.tdk/project.json`, and `tdk project` too
 
 Services in different projects have different networks, so a service in `orders-repo` cannot reach one in `billing-repo` by name. That was concluded from the generated network names, not tested at runtime.
 
-Host ports: each project asks for Traefik on 8080/8443 and Postgres on 15432. When they are taken, TDK picks the next free port from a range of about a hundred ports for each of the three (8080 to 8180, 8443 to 8543, 15432 to 15532 in `host-port-plan.ts`); see the [FAQ](faq-teams.md#ports-and-running-two-stacks-at-once). Running more than two projects at once is not documented or tested ([#509](https://github.com/tdk-landscape/tdk-cli-core/issues/509)).
+Host ports: each project asks for Traefik on 80/443 and Postgres on 15432 (not 5432, which local databases often hold). When they are taken, TDK picks the next free port from a range of about a hundred ports for each of the three (8080 to 8180, 8443 to 8543, 15432 to 15532 in `host-port-plan.ts`); see the [FAQ](faq-teams.md#ports-and-running-two-stacks-at-once). Running more than two projects at once is not documented or tested ([#509](https://github.com/tdk-landscape/tdk-cli-core/issues/509)).
 
 ## Name and port clashes
 
@@ -124,7 +124,7 @@ To catch a `service.json` that was edited without regenerating, run `tdk config 
 
 ## Layouts for about 5, 20 and 50 services
 
-These are recommendations built from the checks above, not measured results. The only scale numbers TDK has are in the [claims registry](claims.md) and the [scale benchmarks](benchmarks/scale-bench.md): generated `/health` stubs, with images already built, 10 services healthy after 8 s, 50 after 24 s (829 MiB in total) and 100 after 112 s on a 16 GB machine. A real application is larger. **Memory, CPU and start time for real services are unmeasured**, and so is how many real services fit on a developer laptop ([#508](https://github.com/tdk-landscape/tdk-cli-core/issues/508)).
+These are recommendations built from the checks above, not measured results. The only scale numbers TDK has are in the [claims registry](claims.md) and the [scale benchmarks](benchmarks/scale-bench.md): generated `/health` stubs, with images already built, 10 services healthy after 8 s, 50 after 24 s (829 MiB in total) and 100 after 112 s on a 16 GB machine. A real application is larger. **Memory, CPU and start time for real services are unmeasured**, and so is how many real services fit on a developer machine ([#508](https://github.com/tdk-landscape/tdk-cli-core/issues/508)).
 
 ### About 5 services
 

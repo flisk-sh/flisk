@@ -1,10 +1,11 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+import { existsSync } from "node:fs";
 import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { ensureProjectRuntimeAssets, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { ensureProjectRuntimeAssets, generateMasterConfigs, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
@@ -255,6 +256,14 @@ export const upCommand = new Command("up")
                 if (addedEnvKeys.length > 0 && !options.quiet) {
                     console.log(chalk.gray(`Added ${addedEnvKeys.join(", ")} to .env (generated; existing values unchanged)`));
                 }
+            }
+            // A project made by `tdk import` has .tdk/project.json but no generated files yet. Generate them rather than letting
+            // Tilt fail on a missing Tiltfile.
+            if (foundRoot && !existsSync(join(projectRoot, ".tdk", ".tdk-out", "Tiltfile"))) {
+                if (!options.quiet) {
+                    console.log(chalk.gray("No generated Tiltfile yet; generating .tdk/.tdk-out/ ..."));
+                }
+                await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }
             const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
             if (copiedAssets.length > 0 && options.verbose && !options.quiet) {

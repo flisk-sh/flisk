@@ -8,7 +8,7 @@ Existing: `tdk doctor --json`, `tdk status --json`, `tdk resources --json`, WSL2
 
 ## Goals / non-goals
 
-- Goals: one host story for laptop, Dev Container, Codespaces, WSL2; one JSON API for agent harnesses; `doctor` that fails closed when Docker is unreachable.
+- Goals: one host story for machine, Dev Container, Codespaces, WSL2; one JSON API for agent harnesses; `doctor` that fails closed when Docker is unreachable.
 - Non-goals: running the stack in WebContainers; replacing Tilt; a VS Code extension; remote cluster deploy.
 
 ## Decisions
@@ -24,7 +24,7 @@ Existing: `tdk doctor --json`, `tdk status --json`, `tdk resources --json`, WSL2
 ## Risks
 
 - Socket-mounted Docker gives the Dev Container root-equivalent access to the host; docs must say so.
-- Agent Host Dev Container support is experimental; laptop `tdk up` must never depend on it.
+- Agent Host Dev Container support is experimental; machine `tdk up` must never depend on it.
 - Host detection by env var can misfire; `canUp` follows the single rule in decision 6 (host kind only matters for WebContainer and native Windows), and runtime reachability is decided by an actual probe, not by host kind.
 
 ## Open questions

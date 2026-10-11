@@ -36,6 +36,7 @@ load('./engine/topologies/tilt/resources/declaration.star', _Orchestrator='Orche
 load('./engine/topologies/tilt/resources/ordering.star', _Infra='Infra')
 load('./engine/topologies/tilt/resources/triggers.star', _Watchers='Watchers')
 load('./engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star', _resource_defers_start='resource_defers_start')
+load('./engine/topologies/platform/docker/build/frontend_build_plan.star', _frontend_build_plan='frontend_build_plan')
 
 # =============================================================================
 # SPECS (Tech stack and standards)
@@ -132,6 +133,7 @@ Watchers = _Watchers
 # True when a manifest's deferStart is actually active (licensed); decides whether a `<name>-image` prebuild resource exists.
 # The generated Tiltfile loads this from ext://tdk-cli, which resolves to this root Tiltfile.
 resource_defers_start = _resource_defers_start
+FrontendBuildPlan = _frontend_build_plan
 
 # Specs
 assert_tech_stack = _assert_tech_stack

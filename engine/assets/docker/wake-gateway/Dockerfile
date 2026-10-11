@@ -24,4 +24,5 @@ WORKDIR /app
 COPY decide.ts server.ts ./
 
 EXPOSE 9999
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD curl --fail --silent http://127.0.0.1:${PORT:-9999}/health || exit 1
 CMD ["bun", "run", "server.ts"]

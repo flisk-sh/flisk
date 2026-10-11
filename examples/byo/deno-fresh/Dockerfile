@@ -8,4 +8,5 @@ RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app
 RUN chown -R app:app /work/app
 USER app
 # Fresh 2's dev server is Vite: listen beyond loopback (--host) and on the port TDK assigns.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD sh -c 'deno eval --allow-net=127.0.0.1 "const r = await fetch(\"http://127.0.0.1:${PORT:-5173}\"); Deno.exit(r.ok ? 0 : 1)"'
 CMD ["sh", "-c", "deno task dev --host 0.0.0.0 --port ${PORT:-5173}"]

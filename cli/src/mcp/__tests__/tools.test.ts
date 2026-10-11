@@ -100,7 +100,7 @@ function fakeUp(options: { logs: string[]; exitAfter?: { atRead: number; code: n
   let reads = 0;
   let clock = 0;
   const deps: UpDeps = {
-    spawnUp: () => child as never,
+    spawnUp: vi.fn(() => child as never),
     readLog: () => {
       const text = options.logs[Math.min(reads, options.logs.length - 1)] ?? "";
       reads += 1;
@@ -144,6 +144,11 @@ describe("startUp", () => {
     const { deps } = fakeUp({ logs: [line] });
     expect((await startUp({}, deps)).isError).toBe(false);
   });
+  it("starts from an explicitly supplied project directory", async () => {
+    const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });
+    await startUp({ projectPath: "/work/erp" }, deps);
+    expect(deps.spawnUp).toHaveBeenCalledWith(["up", "--json"], "/tmp/x.log", "/work/erp");
+  });
 });
 
 describe("tool list", () => {
@@ -159,21 +164,27 @@ describe("tool list", () => {
     ]);
     for (const t of tools)
       expect(t.inputSchema).toMatchObject({ type: "object", additionalProperties: false });
+    for (const t of tools) expect(t.inputSchema.properties).toHaveProperty("projectPath");
     expect(JSON.stringify(tools.find((t) => t.name === "logs")?.inputSchema)).not.toContain(
       "follow",
     );
   });
-  it("routes a tool to its command", async () => {
-    const seen: string[][] = [];
-    const tools = createTdkTools(async (args) => {
-      seen.push(args);
+  it("routes a tool to its command and project directory", async () => {
+    const seen: { args: string[]; cwd?: string }[] = [];
+    const tools = createTdkTools(async (args, options) => {
+      seen.push({ args, cwd: options?.cwd });
       return { exitCode: 0, stdout: '{"schemaVersion":1,"data":[],"errors":[]}', stderr: "" };
     });
+    await tools.find((t) => t.name === "doctor")?.handler({ projectPath: "/work/erp" });
     await tools.find((t) => t.name === "resource_list")?.handler({ stack: "store" });
     await tools.find((t) => t.name === "status")?.handler({});
     expect(seen).toEqual([
-      ["resources", "--json", "--stack=store"],
-      ["status", "--json"],
+      { args: ["doctor", "--json"], cwd: "/work/erp" },
+      { args: ["resources", "--json", "--stack=store"], cwd: undefined },
+      { args: ["status", "--json"], cwd: undefined },
     ]);
+    await expect(
+      tools.find((t) => t.name === "doctor")?.handler({ projectPath: "relative" }),
+    ).rejects.toThrow("projectPath must be an absolute path");
   });
 });

@@ -23,6 +23,7 @@ import {
   REQUIRED_PACKAGE_SCRIPTS,
 } from "../utils/constants.js";
 import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.js";
+import { checkDiskSpace, dockerDesktopStuck } from "../utils/doctor-host.js";
 import {
   collectDoctorChecks,
   createDoctorReport,
@@ -34,7 +35,9 @@ import {
   checkPrivateNpmRegistry,
   checkTiltResourceHealth,
   projectConfigEnablesVerdaccio,
+  summarizeAdvertisedProbes,
   summarizeServiceProbes,
+  summarizeSmokeResults,
 } from "../utils/doctor-runtime.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import {
@@ -69,8 +72,13 @@ import {
   checkSchemaVersions,
   checkServicePorts,
 } from "../utils/service-config-checks.js";
-import { buildHealthTargets, pingHealthTargets } from "../utils/service-urls.js";
+import {
+  buildAdvertisedTargets,
+  buildHealthTargets,
+  pingHealthTargets,
+} from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
+import { buildSmokePlans, readOnlySmokePlans, runSmokePlans } from "../utils/smoke.js";
 import { evaluateTdkVersionFloor } from "../utils/tdk-version.js";
 import { findOnPath } from "../utils/which.js";
 
@@ -286,6 +294,10 @@ export async function checkDockerRuntime(): Promise<CheckResult> {
       };
     }
   }
+
+  // Docker Desktop open but its engine down or stuck: say so instead of "not running".
+  const stuck = dockerDesktopStuck(await succeeds("pgrep -f com.docker.backend"));
+  if (stuck) return stuck;
 
   // Docker not running: check for Colima, then Podman
   if (await succeeds("colima status")) {
@@ -1135,6 +1147,57 @@ async function checkServiceHealth(timeoutMs: number, ingressPort?: number): Prom
   return summarizeServiceProbes(await pingHealthTargets(targets, timeoutMs));
 }
 
+/**
+ * Runs the GET steps of each service's "smoke" block through its public URL. These are the checks `tdk up` already runs, minus the
+ * writes, so a service with an empty /health but a missing list route is caught before anyone clicks a dead link.
+ *
+ * Like the health ping, this only runs once services answer. A stopped stack is skipped, not failed.
+ */
+async function checkServiceSmoke(timeoutMs: number, ingressPort?: number): Promise<CheckResult> {
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  const resources = discoverResourcesFromRoot(projectRoot);
+  const plans = readOnlySmokePlans(buildSmokePlans(resources, ingressPort), {
+    timeoutSeconds: Math.ceil(timeoutMs / 1000),
+  });
+  if (plans.length === 0) {
+    return summarizeSmokeResults([]);
+  }
+
+  const probes = await pingHealthTargets(buildHealthTargets(resources, ingressPort), timeoutMs);
+  if (!probes.some((probe) => probe.status !== undefined)) {
+    return {
+      name: "Service Smoke",
+      didPass: true,
+      isSkipped: true,
+      message: "No services responded - skipped smoke checks",
+    };
+  }
+
+  return summarizeSmokeResults(await runSmokePlans(plans));
+}
+
+/**
+ * Requests the URL each routable service advertises, the same one `tdk networks` and the TDK App show, and warns on a 404.
+ * Like the other runtime checks, it only runs once services answer. A stopped stack is skipped, not reported.
+ */
+async function checkAdvertisedEndpoints(
+  timeoutMs: number,
+  ingressPort?: number,
+): Promise<CheckResult> {
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  const resources = discoverResourcesFromRoot(projectRoot);
+  const targets = buildAdvertisedTargets(resources, ingressPort);
+  if (targets.length === 0) {
+    return {
+      name: "Advertised Endpoints",
+      didPass: true,
+      isSkipped: true,
+      message: "No routable services to check",
+    };
+  }
+  return summarizeAdvertisedProbes(await pingHealthTargets(targets, timeoutMs));
+}
+
 export const doctorCommand = new Command("doctor")
   .description("Check environment readiness for TDK")
   .option("--json", "Output a versioned JSON readiness report", false)
@@ -1271,6 +1334,7 @@ export const doctorCommand = new Command("doctor")
               message: "Ingress port plan is unavailable",
             },
       checkDockerRuntime,
+      () => checkDiskSpace(),
       checkDockerOperatingSystem,
       checkTilt,
       checkDockerCompose,
@@ -1327,6 +1391,8 @@ export const doctorCommand = new Command("doctor")
     // Runs last: needs routable services (and working Traefik) to mean anything.
     if (options.ping) {
       projectChecks.push(() => checkServiceHealth(pingTimeout, hostPortPlan?.ingressHttp));
+      projectChecks.push(() => checkServiceSmoke(pingTimeout, hostPortPlan?.ingressHttp));
+      projectChecks.push(() => checkAdvertisedEndpoints(pingTimeout, hostPortPlan?.ingressHttp));
     }
 
     // Right after installing, people run `tdk doctor` before they have a

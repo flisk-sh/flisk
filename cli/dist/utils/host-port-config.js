@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_JSON } from "./constants.js";
-import { createHostPortPlan, isHostPortAvailable } from "./host-port-plan.js";
+import { createHostPortPlan, isHostPortAvailable, PREFERRED_HOST_PORTS, } from "./host-port-plan.js";
 const CONFIG_PATH = join(".tdk", ".tdk-out", "host-ports.json");
 export function isDockerPortOwnedByProject(dockerPs, projectPrefix, port) {
     return dockerPs.split("\n").some((line) => {
@@ -78,11 +78,20 @@ export async function getHostPortPlan(projectRoot, options = {}) {
         }
     }
     const ownedByProject = (port) => isDockerPortOwnedByProject(dockerPs, prefix, port);
-    const isAvailable = async (port) => (await isHostPortAvailable(port)) || ownedByProject(port);
+    const isPortFree = options.isPortFree ?? isHostPortAvailable;
+    const isAvailable = async (port) => (await isPortFree(port)) || ownedByProject(port);
     if (saved && !hasOverride) {
         for (const port of [saved.ingressHttp, saved.ingressHttps, saved.postgres]) {
             if (!(await isAvailable(port)))
                 return createHostPortPlan({ isAvailable });
+        }
+        // A plan saved on a fallback port (8080) moves back to the preferred one (80)
+        // once that is free, so URLs lose the port without deleting host-ports.json.
+        for (const [key, preferred] of Object.entries(PREFERRED_HOST_PORTS)) {
+            const savedPort = saved[key];
+            if (preferred !== undefined && savedPort !== preferred && (await isAvailable(preferred))) {
+                return createHostPortPlan({ isAvailable });
+            }
         }
         return saved;
     }

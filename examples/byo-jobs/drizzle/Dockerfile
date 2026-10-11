@@ -8,4 +8,6 @@ COPY schema.js drizzle.config.js ensure-db.js ./
 RUN npx drizzle-kit generate --name init
 RUN chown -R node:node .
 USER node
+# One-shot job: it has no server to probe and exits when the migration finishes, so the image disables the inherited check.
+HEALTHCHECK NONE
 CMD ["sh", "-c", "node ensure-db.js && npx drizzle-kit migrate"]

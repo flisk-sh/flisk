@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: MIT
 import { createServer } from "node:net";
 import { describe, expect, it } from "vitest";
-import { createHostPortPlan, formatHostPortPlan } from "../host-port-plan.js";
+import { createHostPortPlan, formatHostPortPlan, isPrivilegedBindFree } from "../host-port-plan.js";
 import { resolveSubdomainBases } from "../service-urls.js";
 
 describe("createHostPortPlan", () => {
   it("chooses bounded fallback ports when defaults are occupied", async () => {
     const plan = await createHostPortPlan({
       env: {},
-      isAvailable: async (port) => ![8080, 8443, 15432].includes(port),
+      isAvailable: async (port) => ![80, 443, 8080, 8443, 15432].includes(port),
       ranges: {
         ingressHttp: { start: 8080, end: 8081 },
         ingressHttps: { start: 8443, end: 8444 },
@@ -44,6 +44,23 @@ describe("createHostPortPlan", () => {
       expect(resolveSubdomainBases(plan.ingressHttp)).toEqual({
         appBase: "http://app.port-plan.localhost:8080",
         apiBase: "http://api.port-plan.localhost:8080",
+      });
+    } finally {
+      if (originalBaseUrl === undefined) delete process.env.TDK_SERVICE_BASE_URL;
+      else process.env.TDK_SERVICE_BASE_URL = originalBaseUrl;
+    }
+  });
+
+  it("uses ports 80 and 443 when free so routed URLs need no port", async () => {
+    const plan = await createHostPortPlan({ env: {}, isAvailable: async () => true });
+    expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([80, 443, 15432]);
+    expect(plan.reason.ingressHttp).toBe("requested port is free");
+    const originalBaseUrl = process.env.TDK_SERVICE_BASE_URL;
+    process.env.TDK_SERVICE_BASE_URL = "http://port-plan.localhost";
+    try {
+      expect(resolveSubdomainBases(plan.ingressHttp)).toEqual({
+        appBase: "http://app.port-plan.localhost",
+        apiBase: "http://api.port-plan.localhost",
       });
     } finally {
       if (originalBaseUrl === undefined) delete process.env.TDK_SERVICE_BASE_URL;
@@ -93,5 +110,18 @@ describe("createHostPortPlan", () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe("isPrivilegedBindFree", () => {
+  it("treats a refused privileged bind as free only on macOS", () => {
+    expect(isPrivilegedBindFree("EACCES", "darwin")).toBe(true);
+    expect(isPrivilegedBindFree("EACCES", "linux")).toBe(false);
+    expect(isPrivilegedBindFree("EACCES", "win32")).toBe(false);
+  });
+
+  it("never treats other bind errors as free", () => {
+    expect(isPrivilegedBindFree("EADDRINUSE", "darwin")).toBe(false);
+    expect(isPrivilegedBindFree(undefined, "darwin")).toBe(false);
   });
 });

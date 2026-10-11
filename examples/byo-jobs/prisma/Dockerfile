@@ -8,4 +8,6 @@ COPY prisma ./prisma
 RUN chown -R node:node .
 USER node
 # TDK's DATABASE_URL is already Prisma-style (?schema=public), so it is used as is.
+# One-shot job: it has no server to probe and exits when the migration finishes, so the image disables the inherited check.
+HEALTHCHECK NONE
 CMD ["npx", "prisma", "migrate", "deploy"]

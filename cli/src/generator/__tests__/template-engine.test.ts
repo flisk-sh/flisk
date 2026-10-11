@@ -354,6 +354,18 @@ describe("template-engine", () => {
       expect(tiltfile).toMatch(/'focus_enabled_resources':\s*FOCUS_ENABLED_RESOURCES/);
     });
 
+    it("focus mode enables a frontend's -typecheck resource alongside the service", () => {
+      // Regression: the <service>-typecheck resource is registered by the engine for a frontend with
+      // the standard `tsc && vite build` script. Focus mode only enables names it knows, so the template
+      // must name the same resource (from the same FrontendBuildPlan) and enable it with its service.
+      // Otherwise Tilt shows the typecheck as disabled and it never runs.
+      const tiltfile = loadTemplate("Tiltfile.hbs");
+      expect(tiltfile).toMatch(/'FrontendBuildPlan',/);
+      expect(tiltfile).toMatch(/_KNOWN_TILT_RESOURCES\.add\(_KNOWN_RES_NAME \+ '-typecheck'\)/);
+      expect(tiltfile).toMatch(/if _R \+ '-typecheck' in _KNOWN_TILT_RESOURCES:/);
+      expect(tiltfile).toMatch(/if _STACK_RES_NAME \+ '-typecheck' in _KNOWN_TILT_RESOURCES:/);
+    });
+
     it("standalone Traefik only starts sablier and wake-gateway when Sablier is licensed", () => {
       // Regression: the standalone compose always started the sablier container (read-write
       // Docker socket), built and ran the wake gateway, and had Traefik download the Sablier

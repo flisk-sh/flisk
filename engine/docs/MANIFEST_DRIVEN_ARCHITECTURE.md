@@ -6,7 +6,7 @@
 
 ### The Issue with Bulk Generation
 
-**Before** (`.tilt/provisioner/orchestrator/apply.star` lines 112-251):
+**Before** (`engine/topologies/tilt/resources/orchestrator/apply.star` lines 112-251):
 
 ```starlark
 # ❌ Bulk generation loops - No per-resource granularity
@@ -37,7 +37,7 @@ for resource in resource_config.get('resources', []):
 
 ### Architecture
 
-**After** (`.tilt/provisioner/orchestrator/apply.star` lines 114-136):
+**After** (`engine/topologies/tilt/resources/orchestrator/apply.star` lines 114-136):
 
 ```starlark
 # ✅ Manifest-driven: 1 manifest → 1 Tilt resource → 10 generators
@@ -62,7 +62,7 @@ for resource in resource_config.get('resources', []):
 
 ### New Module: `manifest_resource.star`
 
-**Path**: `.tilt/provisioner/orchestrator/generators/manifest_resource.star`
+**Path**: `engine/topologies/tilt/resources/orchestrator/generators/manifest_resource.star`
 
 **Exports**:
 - `ManifestResource.create_config_resource()` - Creates per-manifest Tilt resource
@@ -276,7 +276,7 @@ tilt describe uiresource user-management-backend | grep "Depends On"
 
 ### New Files
 
-1. **`.tilt/provisioner/orchestrator/generators/manifest_resource.star`**
+1. **`engine/topologies/tilt/resources/orchestrator/generators/manifest_resource.star`**
    - 215 lines
    - Exports: `ManifestResource` struct
    - Key functions:
@@ -285,19 +285,19 @@ tilt describe uiresource user-management-backend | grep "Depends On"
 
 ### Modified Files
 
-1. **`.tilt/provisioner/orchestrator/apply.star`**
+1. **`engine/topologies/tilt/resources/orchestrator/apply.star`**
    - Lines 22: Added `load('./generators/manifest_resource.star', 'ManifestResource')`
    - Lines 91-136: Refactored from bulk loops to per-manifest resources
    - Lines 215-216: Added config-gen resource as dependency
    - **Removed**: Lines 112-251 (bulk generation loops)
 
-2. **`.tilt/core/registry/libraries.star`**
+2. **`discovery/libraries.star`**
    - Line 8: Fixed import to include `PRODUCT_LIBS_FRONTEND`
 
 3. **`Tiltfile`**
    - Line 179: Fixed `Vite.generate_for_manifest` → `Vite.for_manifest`
 
-4. **`.tilt/C4-ARCHITECTURE.md`**
+4. **`engine/docs/C4-ARCHITECTURE.md`**
    - Added: Level 4A section documenting manifest-driven architecture
    - Added: Before/After comparison diagrams
    - Added: Tilt UI visibility examples

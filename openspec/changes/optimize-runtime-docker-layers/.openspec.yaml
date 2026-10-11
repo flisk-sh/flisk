@@ -1,3 +1,3 @@
 schema: spec-driven
 created: 2026-09-25
-goal: Cut per-container CPU/memory so a full-landscape tdk up fits on a 16GB laptop
+goal: Cut per-container CPU/memory so a full-landscape tdk up fits on a 16GB machine

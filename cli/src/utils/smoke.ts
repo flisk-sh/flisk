@@ -170,6 +170,41 @@ export function buildSmokePlans(
   return plans;
 }
 
+/** Caps each read-only smoke check so a doctor run cannot wait the full `tdk up` budget per service. */
+const DOCTOR_SMOKE_TIMEOUT_SECONDS = 10;
+
+/**
+ * The GET-only part of each smoke block, for `tdk doctor`. Doctor must never write to a service, and a step whose path reads
+ * a value saved by an earlier write (`{{name}}`) cannot run on its own, so both are dropped. A service with no such steps is left out.
+ * `bodyContains` is also cleared: it asserts on data that earlier writes created, so doctor would fail a healthy route whose data was removed.
+ * The status check stays, which is what shows a route exists.
+ */
+export function readOnlySmokePlans(
+  plans: SmokePlan[],
+  options: { timeoutSeconds?: number } = {},
+): SmokePlan[] {
+  const cap = options.timeoutSeconds ?? DOCTOR_SMOKE_TIMEOUT_SECONDS;
+  return plans.flatMap((plan) => {
+    const steps = plan.smoke.steps
+      .filter(
+        (step) =>
+          (step.method ?? "GET").toUpperCase() === "GET" &&
+          step.body === undefined &&
+          !step.path.includes("{{"),
+      )
+      .map((step) => ({ ...step, bodyContains: undefined }));
+    if (steps.length === 0) return [];
+    const budget = Math.min(plan.smoke.timeoutSeconds ?? DEFAULT_SMOKE_TIMEOUT_SECONDS, cap);
+    return [
+      {
+        name: plan.name,
+        baseUrl: plan.baseUrl,
+        smoke: { via: plan.smoke.via, timeoutSeconds: budget, steps },
+      },
+    ];
+  });
+}
+
 function readPath(value: unknown, path: string): unknown {
   const parts = path.replace(/^\$\.?/, "").match(/[^.[\]]+/g) ?? [];
   let current: unknown = value;
@@ -178,7 +213,11 @@ function readPath(value: unknown, path: string): unknown {
     // Own properties only: a path like "__proto__" must not reach inherited values.
     if (part === "__proto__" || part === "constructor" || part === "prototype") return undefined;
     if (!Object.hasOwn(current, part)) return undefined;
-    current = (current as Record<string, unknown>)[part];
+    // Resolve only own data properties. Besides avoiding inherited properties, this
+    // avoids invoking accessors on values supplied by smoke-test responses.
+    const descriptor = Object.getOwnPropertyDescriptor(current, part);
+    if (!descriptor || !("value" in descriptor)) return undefined;
+    current = descriptor.value;
   }
   return current;
 }

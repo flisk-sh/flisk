@@ -3,14 +3,17 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type { McpTool, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
 
-export type RunTdk = (args: string[], options?: { timeoutMs?: number }) => Promise<TdkRun>;
+export type RunTdk = (
+  args: string[],
+  options?: { timeoutMs?: number; cwd?: string },
+) => Promise<TdkRun>;
 
 export interface TdkRun {
   exitCode: number | null;
@@ -38,6 +41,7 @@ export const runTdkCli: RunTdk = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const [command, ...prefix] = cliInvocation();
     const child = spawn(command as string, [...prefix, ...args], {
+      cwd: options.cwd,
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, NO_COLOR: "1" },
     });
@@ -117,7 +121,7 @@ export function toToolResult(run: TdkRun): McpToolResult {
 
 export interface UpDeps {
   /** Starts `tdk up` detached, with output going to a log file. */
-  spawnUp: (args: string[], logFile: string) => ChildProcess;
+  spawnUp: (args: string[], logFile: string, cwd?: string) => ChildProcess;
   readLog: (logFile: string) => string;
   sleep: (ms: number) => Promise<void>;
   now: () => number;
@@ -125,10 +129,11 @@ export interface UpDeps {
 }
 
 export const defaultUpDeps: UpDeps = {
-  spawnUp(args, logFile) {
+  spawnUp(args, logFile, cwd) {
     const fd = openSync(logFile, "a");
     const [command, ...prefix] = cliInvocation();
     const child = spawn(command as string, [...prefix, ...args], {
+      cwd,
       detached: true,
       stdio: ["ignore", fd, fd],
       env: { ...process.env, NO_COLOR: "1" },
@@ -170,7 +175,7 @@ export async function startUp(
 ): Promise<McpToolResult> {
   const argv = buildUpArgs(args);
   const logFile = deps.logFile();
-  const child = deps.spawnUp(argv, logFile);
+  const child = deps.spawnUp(argv, logFile, projectPath(args.projectPath));
   let exited: number | null | undefined;
   child.once("exit", (code) => {
     exited = code;
@@ -234,17 +239,31 @@ const OBJECT = (properties: Record<string, unknown>) => ({
   additionalProperties: false,
 });
 
+const PROJECT_PATH = {
+  type: "string",
+  description: "Absolute path to the TDK project root; run this operation from that directory.",
+};
+
+function projectPath(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !isAbsolute(value)) {
+    throw new Error("projectPath must be an absolute path to a TDK project root");
+  }
+  return value;
+}
+
 export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDeps): McpTool[] {
   const viaCli =
     (build: (args: Record<string, unknown>) => string[]) => async (args: Record<string, unknown>) =>
-      toToolResult(await run(build(args)));
+      toToolResult(await run(build(args), { cwd: projectPath(args.projectPath) }));
 
   return [
     {
       name: "doctor",
       description:
-        "Check whether this machine can run the TDK stack. Returns data.ready and data.host.canUp; run it before `up`.",
+        "Check whether this machine can run the TDK stack. Optionally set projectPath to include checks for a specific TDK project. Returns data.ready and data.host.canUp; run it before `up`.",
       inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
         noPing: { type: "boolean", description: "Skip pinging running services' health endpoints" },
       }),
       handler: viaCli((args) => [
@@ -256,8 +275,9 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
     {
       name: "up",
       description:
-        "Start the stack (or part of it) detached and return without waiting for it to be ready. Poll `status` for data.tilt.readiness.ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
+        "Start the stack (or part of it) detached from the optional projectPath and return without waiting for it to be ready. Poll `status` for data.tilt.readiness.ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
       inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
         stack: { type: "string", description: "Only this stack" },
         only: {
           type: "array",
@@ -276,22 +296,23 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
     },
     {
       name: "down",
-      description: "Stop the running stack.",
-      inputSchema: OBJECT({}),
+      description: "Stop the running stack, optionally selecting its project with projectPath.",
+      inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
       handler: viaCli(() => ["down", "--json"]),
     },
     {
       name: "status",
       description:
-        "Stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers).",
-      inputSchema: OBJECT({}),
+        "Stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers). Optionally select the project with projectPath.",
+      inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
       handler: viaCli(() => ["status", "--json"]),
     },
     {
       name: "logs",
       description:
-        "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000). Not a stream.",
+        "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000). Optionally select the project with projectPath. Not a stream.",
       inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
         services: { type: "array", items: { type: "string" }, description: "Only these services" },
         tail: { type: "integer", minimum: 1, maximum: 10000 },
         since: {
@@ -303,8 +324,12 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
     },
     {
       name: "resource_list",
-      description: "List the project's services (resources) with their stack, type and port.",
-      inputSchema: OBJECT({ stack: { type: "string", description: "Only this stack" } }),
+      description:
+        "List the selected project's services (resources) with their stack, type and port. Set projectPath when the MCP server is not running from the project root.",
+      inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
+        stack: { type: "string", description: "Only this stack" },
+      }),
       handler: viaCli((args) => {
         const stack = optionalName(args.stack, "stack");
         return ["resources", "--json", ...(stack ? [`--stack=${stack}`] : [])];

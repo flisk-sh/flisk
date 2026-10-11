@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
@@ -21,6 +21,7 @@ export function cliInvocation(execPath = process.execPath, script = process.argv
 export const runTdkCli = (args, options = {}) => new Promise((resolve, reject) => {
     const [command, ...prefix] = cliInvocation();
     const child = spawn(command, [...prefix, ...args], {
+        cwd: options.cwd,
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, NO_COLOR: "1" },
     });
@@ -96,10 +97,11 @@ export function toToolResult(run) {
     }
 }
 export const defaultUpDeps = {
-    spawnUp(args, logFile) {
+    spawnUp(args, logFile, cwd) {
         const fd = openSync(logFile, "a");
         const [command, ...prefix] = cliInvocation();
         const child = spawn(command, [...prefix, ...args], {
+            cwd,
             detached: true,
             stdio: ["ignore", fd, fd],
             env: { ...process.env, NO_COLOR: "1" },
@@ -140,7 +142,7 @@ export function buildUpArgs(args) {
 export async function startUp(args, deps = defaultUpDeps) {
     const argv = buildUpArgs(args);
     const logFile = deps.logFile();
-    const child = deps.spawnUp(argv, logFile);
+    const child = deps.spawnUp(argv, logFile, projectPath(args.projectPath));
     let exited;
     child.once("exit", (code) => {
         exited = code;
@@ -203,13 +205,26 @@ const OBJECT = (properties) => ({
     properties,
     additionalProperties: false,
 });
+const PROJECT_PATH = {
+    type: "string",
+    description: "Absolute path to the TDK project root; run this operation from that directory.",
+};
+function projectPath(value) {
+    if (value === undefined)
+        return undefined;
+    if (typeof value !== "string" || !isAbsolute(value)) {
+        throw new Error("projectPath must be an absolute path to a TDK project root");
+    }
+    return value;
+}
 export function createTdkTools(run = runTdkCli, up = defaultUpDeps) {
-    const viaCli = (build) => async (args) => toToolResult(await run(build(args)));
+    const viaCli = (build) => async (args) => toToolResult(await run(build(args), { cwd: projectPath(args.projectPath) }));
     return [
         {
             name: "doctor",
-            description: "Check whether this machine can run the TDK stack. Returns data.ready and data.host.canUp; run it before `up`.",
+            description: "Check whether this machine can run the TDK stack. Optionally set projectPath to include checks for a specific TDK project. Returns data.ready and data.host.canUp; run it before `up`.",
             inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
                 noPing: { type: "boolean", description: "Skip pinging running services' health endpoints" },
             }),
             handler: viaCli((args) => [
@@ -220,8 +235,9 @@ export function createTdkTools(run = runTdkCli, up = defaultUpDeps) {
         },
         {
             name: "up",
-            description: "Start the stack (or part of it) detached and return without waiting for it to be ready. Poll `status` for data.tilt.readiness.ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
+            description: "Start the stack (or part of it) detached from the optional projectPath and return without waiting for it to be ready. Poll `status` for data.tilt.readiness.ready. Fails fast on an unknown service, an unsupported host, or a Tilt already running.",
             inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
                 stack: { type: "string", description: "Only this stack" },
                 only: {
                     type: "array",
@@ -238,20 +254,21 @@ export function createTdkTools(run = runTdkCli, up = defaultUpDeps) {
         },
         {
             name: "down",
-            description: "Stop the running stack.",
-            inputSchema: OBJECT({}),
+            description: "Stop the running stack, optionally selecting its project with projectPath.",
+            inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
             handler: viaCli(() => ["down", "--json"]),
         },
         {
             name: "status",
-            description: "Stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers).",
-            inputSchema: OBJECT({}),
+            description: "Stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers). Optionally select the project with projectPath.",
+            inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
             handler: viaCli(() => ["status", "--json"]),
         },
         {
             name: "logs",
-            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000). Not a stream.",
+            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000). Optionally select the project with projectPath. Not a stream.",
             inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
                 services: { type: "array", items: { type: "string" }, description: "Only these services" },
                 tail: { type: "integer", minimum: 1, maximum: 10000 },
                 since: {
@@ -263,8 +280,11 @@ export function createTdkTools(run = runTdkCli, up = defaultUpDeps) {
         },
         {
             name: "resource_list",
-            description: "List the project's services (resources) with their stack, type and port.",
-            inputSchema: OBJECT({ stack: { type: "string", description: "Only this stack" } }),
+            description: "List the selected project's services (resources) with their stack, type and port. Set projectPath when the MCP server is not running from the project root.",
+            inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
+                stack: { type: "string", description: "Only this stack" },
+            }),
             handler: viaCli((args) => {
                 const stack = optionalName(args.stack, "stack");
                 return ["resources", "--json", ...(stack ? [`--stack=${stack}`] : [])];

@@ -13,7 +13,7 @@
 
 ## 3. Document the Helm handoff
 
-- [x] 3.1 Write `docs/with-helm.md` with the required title, laptop/cluster diagram, complete ownership lists, and seven-row conceptual mapping with dependency/routing/workload caveats.
+- [x] 3.1 Write `docs/with-helm.md` with the required title, machine/cluster diagram, complete ownership lists, and seven-row conceptual mapping with dependency/routing/workload caveats.
 - [x] 3.2 Add a backend scaffold/manifest and same-image handwritten values worked example using the pinned app-template chart; explain user-owned build/push, image access, and deployment policy decisions.
 - [x] 3.3 Document frontend local routing versus cluster ingress and explicit worker job/cronjob decisions; state that existing Helm, Kustomize, Flux, and Argo workflows remain intact.
 - [x] 3.4 Add the guide's handwritten-values decision section and production support limits, with no claim that the deferred export command exists.
@@ -29,7 +29,7 @@
 ## 5. Coordinate website and repository guidance
 
 - [x] 5.1 Create an isolated companion implementation branch/worktree in `tdk-landscape/tdk-website` (branch `docs/helm-handoff` at `../tdk-website-helm-handoff-wt`), confirm no repository-specific AGENTS/CONTRIBUTING instructions are present, and record its branch with this change; PR delivery is not part of this local apply.
-- [x] 5.2 Update website hero to the canonical sentence plus “No cluster on the laptop. Helm stays for prod.”; remove generated file counts as value claims.
+- [x] 5.2 Update website hero to the canonical sentence plus “No cluster on the machine. Helm stays for prod.”; remove generated file counts as value claims.
 - [x] 5.3 Lead website configuration docs with annotated valid service JSON, authoritative schema/editor links for both manifests, and verification commands before generator details.
 - [x] 5.4 Add Helm/With Kubernetes next to Quickstart in navigation and a Helm/app-template comparison column identifying local generation/run versus Kubernetes rendering; link synchronized Helm guidance.
 - [x] 5.5 Add root AGENTS/contributor guidance against default Kubernetes manifest generation and require local-only/export-only intent for generator changes.

@@ -520,6 +520,8 @@ export interface GenerateMasterConfigsOptions {
    * .tiltignore without the header belongs to the team and is never overwritten.
    */
   discardHandEdits?: boolean;
+  /** Suppress progress lines on stdout, for callers that print machine output (`tdk up --json`). */
+  quiet?: boolean;
 }
 
 export async function generateMasterConfigs(
@@ -544,7 +546,7 @@ export async function generateMasterConfigs(
 
   await warnIfSablierUnlicensed(projectRoot);
 
-  if (ensureRootWorkspaceManifest(projectRoot, projectConfig)) {
+  if (ensureRootWorkspaceManifest(projectRoot, projectConfig) && !options.quiet) {
     console.log("✓ Generated: package.json (workspace root)");
   }
 
@@ -585,7 +587,7 @@ export async function generateMasterConfigs(
     const content = files[filename];
     const filePath = assertTdkGeneratedPath(projectRoot, path.join(".tdk", ".tdk-out", filename));
     writeTextFileAtomic(filePath, content);
-    console.log(`✓ Generated: .tdk/.tdk-out/${filename}`);
+    if (!options.quiet) console.log(`✓ Generated: .tdk/.tdk-out/${filename}`);
   }
 
   if (isStackFeatureEnabledInStacks(projectConfig.phases, DATABASE_MANAGEMENT_FEATURE)) {
@@ -596,7 +598,9 @@ export async function generateMasterConfigs(
     const composeDir = path.dirname(composePath);
     fs.mkdirSync(composeDir, { recursive: true });
     writeTextFileAtomic(composePath, generateDatabaseManagementCompose(projectConfig));
-    console.log("✓ Generated: services/platform/database-management/docker-compose.yml");
+    if (!options.quiet) {
+      console.log("✓ Generated: services/platform/database-management/docker-compose.yml");
+    }
   }
 
   // Copy .tiltignore to project root so Tilt uses it

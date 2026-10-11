@@ -1,6 +1,6 @@
 # Project overview
 
-TDK CLI — start services on your laptop. It organizes microservices using a **Project → Stack → Resource** hierarchy, then uses Tilt to build, run, and hot-reload them locally. It generates a Tiltfile, Dockerfiles, and supporting configuration; Tilt runs the local containers. See [TDK + Helm](with-helm.md) for the production handoff.
+TDK CLI — start services on your machine. It organizes microservices using a **Project → Stack → Resource** hierarchy, then uses Tilt to build, run, and hot-reload them locally. It generates a Tiltfile, Dockerfiles, and supporting configuration; Tilt runs the local containers. See [TDK + Helm](with-helm.md) for the production handoff.
 
 For a runnable one-service introduction, use [one-backend](../examples/one-backend/README.md). For a larger local multi-service project, see the [bundled TDK project example](../examples/tdk-example/README.md) or create a template with `tdk project example`.
 

@@ -1,5 +1,7 @@
 # TDK scale and cold-boot measurements
 
+> **Live report:** [tdk-landscape.github.io/tdk-cli-core](https://tdk-landscape.github.io/tdk-cli-core/) shows the latest `tdk up` warm and cold start measurements, per-service build times and the history. Published results are indexed in [`benchmarks/results/README.md`](../../benchmarks/results/README.md).
+
 These figures are implementation measurements, not the reason to use TDK. They describe generated `/health` fixtures rather than representative application workloads.
 
 Measured with [`scripts/benchmark/container-scale.ts`](../../scripts/benchmark/README.md) against the 100-service [`tdk-erp-system` fixture bench](https://github.com/tdk-landscape/tdk-erp-system), on a 16 GB machine (Docker VM: 7.75 GiB). Raw results are in [`benchmarks/results/`](../../benchmarks/results).

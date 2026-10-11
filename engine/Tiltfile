@@ -13,6 +13,7 @@
 load('./topologies/tilt/common/utils.star', _Utils='Utils')
 load('./topologies/tilt/discovery/loading.star', _Manifest='Manifest')
 load('./topologies/tilt/config/global.star', _Config='Config')
+load('./topologies/platform/docker/build/frontend_build_plan.star', _frontend_build_plan='frontend_build_plan')
 
 # Registry
 load('./topologies/tilt/discovery/registry.star',
@@ -49,6 +50,7 @@ load('./topologies/tilt/resources/orchestrator/apply_compose_resource_registrati
 Utils = _Utils
 Manifest = _Manifest
 Config = _Config
+FrontendBuildPlan = _frontend_build_plan
 
 # Registry Data
 GLOBAL_CONFIG_EXPORT = _GLOBAL_CONFIG_EXPORT

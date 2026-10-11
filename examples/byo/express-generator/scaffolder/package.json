@@ -1,0 +1,14 @@
+{
+  "name": "tdk-express-generator-scaffolder",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "express-generator": "4.16.1"
+  },
+  "overrides": {
+    "ejs": "^3.1.10",
+    "minimatch": "^3.1.4",
+    "mkdirp": "^0.5.6",
+    "minimist": "^0.2.4"
+  }
+}

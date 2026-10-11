@@ -4,7 +4,7 @@
 
 This SDK provides a **professional, layered architecture** for managing 5000+ lines of Tilt/Starlark configuration code.
 
-```
+```text
 .tilt/
 ├── core/                         # 🔧 Foundational Layer (Low-level)
 │   ├── utils.star                # Shared helpers, I/O, validation
@@ -156,6 +156,8 @@ load('./.tilt/providers/npmrc.star', 'PackageConfig')
 PackageConfig.generate_npmrc(path, registry_url, is_docker)
 PackageConfig.generate_bunfig(path, registry_url, is_docker)
 ```
+
+Generated registry files contain routing only. The default Verdaccio policy allows anonymous package reads; publishing requires a user login, for example `npm login --registry=http://localhost:4873`. Keep those credentials in the user's npm config rather than in generated project files.
 
 ---
 

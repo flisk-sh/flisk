@@ -13,7 +13,7 @@ This page says what TDK intends to do and not do over the next 12 months. It is 
 
 ## Not planned
 
-- **Not a production deploy tool.** TDK starts services on a developer laptop. It does not deploy to production.
+- **Not a production deploy tool.** TDK starts services on a developer machine. It does not deploy to production.
 - **Not a Compose file generator for production.** Generated Compose and Tilt files are for local use.
 - **Not a Kubernetes tool.** TDK does not target Kubernetes and has no plans to add it.
 

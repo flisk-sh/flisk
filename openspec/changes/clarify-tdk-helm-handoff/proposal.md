@@ -4,7 +4,7 @@ Helm users can spend days reading TDK and still mistake its generated local file
 
 ## What Changes
 
-- Lock the primary copy: “TDK runs many services on your laptop with Docker + Tilt. Helm still deploys the cluster.” Use it in the README, npm description, website hero, and GitHub About.
+- Lock the primary copy: “TDK runs many services on your machine with Docker + Tilt. Helm still deploys the cluster.” Use it in the README, npm description, website hero, and GitHub About.
 - Put when-not-to-use guidance before features, shorten README onboarding, and move benchmarks, repository maps, premium detail, and telemetry into linked docs.
 - Add `docs/with-helm.md`, an ownership diagram and conceptual mapping, a same-image app-template example, and explicit Helm / Flux / Argo handoff guidance.
 - Add small one-backend and companion Helm examples; retain landscape examples.

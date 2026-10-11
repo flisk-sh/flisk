@@ -89,14 +89,14 @@ def setup_utility_resources():
     )
     
     local_resource('prune-images',
-        cmd='./.tdk/.tdk-out/ext/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f',
+        cmd='./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f',
         resource_deps=[],
         labels=['dev.maintenance'],
         auto_init=False
     )
 
     local_resource('memory-optimizer',
-        cmd='./.tdk/.tdk-out/ext/assets/scripts/mac-m1-resource-monitor.sh && ./.tdk/.tdk-out/ext/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f && docker builder prune -af --filter "until=24h"',
+        cmd='./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/mac-m1-resource-monitor.sh && ./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f && docker builder prune -af --filter "until=24h"',
         resource_deps=[],
         labels=['dev.maintenance', 'mac-m1'],
         auto_init=False
@@ -121,12 +121,15 @@ def setup_utility_resources():
                 else
                     echo "$(date +%H:%M:%S) ✓ $count dangling images (threshold: 5)"
                 fi
+                # Tilt tags every build as tilt-<hash>, so superseded builds stay tagged
+                # and are never dangling. Keep the newest 2 per service; running images are skipped.
+                ./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 2 --force >/dev/null 2>&1 || true
                 sleep 300
             done
         ''',
         resource_deps=[],
         labels=['dev.maintenance', 'mac-m1'],
-        auto_init=False,
+        auto_init=True,
     )
 
     # Continuously reclaim heavyweight migrator images once migration succeeds.
@@ -134,7 +137,7 @@ def setup_utility_resources():
         serve_cmd='''
             echo "🧹 Migrator image cleanup started (every 45s)"
             while true; do
-                ./.tdk/.tdk-out/ext/assets/scripts/cleanup-completed-migrator-images.sh || true
+                ./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-completed-migrator-images.sh || true
                 sleep 45
             done
         ''',

@@ -47,3 +47,43 @@ Service manifests contain only `schemaVersion`, `appName`, `appType`, and `stack
 In the committed sample, the 100-service `tdk stacks` median is a non-monotonic outlier (0.818 seconds versus 0.487 at 10 services and 0.524 at 500; raw samples range from 0.518 to 0.968 seconds). Treat it as noise, not as a scaling result. The timestamped JSON is one sample; do not commit a new dated result for every run. Replace it only when intentionally publishing a new baseline.
 
 Results are specific to the recorded hardware, operating system, and Node runtime, so compare like-for-like environments. This is a diagnostic baseline, not a CI performance gate.
+
+## `tdk up` warm-start benchmark
+
+Times `tdk up` on a project, one cold run and warm runs, and records per-resource build times, the Docker VM's memory and the container health. It answers "how long does a start take, and what does a warm start save", for any TDK project. The published run is [`benchmarks/results/tdk-up-warm-start-2026-10-11/`](../../benchmarks/results/tdk-up-warm-start-2026-10-11/summary.md) (tdk-restaurant-example).
+
+**Requirements:** `tdk`, `tilt`, `docker` (Compose v2 and buildx), `jq` and Node.js 22.12 or newer on `PATH`. Docker Desktop (or another engine) must be running, and nothing else should be building images on the machine.
+
+**Run it** (from the TDK CLI repository, with the project path):
+
+```bash
+scripts/benchmark/tdk-up-warm-start.sh \
+  --project ../tdk-restaurant-example \
+  --out benchmarks/results/tdk-up-warm-start-$(date +%F) \
+  --cold-runs 1 --warm-runs 3 --sample-vm
+```
+
+- `--cold-runs 0` skips the cold run. `--warm-runs` sets the number of warm runs (default 3).
+- `--port` is the Tilt port of the project (default 10350). `--healthy` is the number of containers that must be healthy before a run counts as settled (default 8: six services, Traefik and Postgres for the restaurant example; set it to your project's count).
+- `--sample-vm` samples the Docker VM processes' memory every 3 seconds. The process names are macOS-specific; elsewhere the column reads "not sampled".
+
+**Side effects, read before you run it:**
+- A cold run removes the project's built images, matched by exact name: its golden layers (`<project>-l<n>[-<name>]`) and its service images (`<project_with_underscores>_<stack>_<service>`, from `services/<stack>/<service>`). It then runs `docker builder prune -af`, which clears the build cache for every project on the machine, so the next build of anything else is slower too.
+- Every run starts with `tdk down` in the project, which stops its containers and Tilt.
+
+**What it writes:** one directory per run (`cold-1/`, `warm-1/`, ...) with `durations.txt` (per-resource build times from `tilt-build-durations.mjs`), `run.txt`, `wall-seconds.txt`, `containers.txt`, `vm-samples.txt` and the `tdk up` log, plus `environment.txt` (tool versions and machine details). It then runs `summarize-tdk-up.mjs`, which writes `summary.md` (the tables), `summary.json` and `span.svg` (a chart).
+
+**How the numbers are defined:**
+- *Span* is from the first Tilt build step to the last build finishing. It is the build part of a start and excludes the time before Tilt starts.
+- *Wall* is from launching `tdk up` until every Tilt resource is idle and the expected containers are healthy. It includes Tilt's startup and is the number to compare with what a user waits for.
+- *Settled* requires a loaded resource list, no resource in progress or pending, and the expected healthy containers. A fixed sleep is not used, so a fast warm start is not reported as 60 seconds.
+
+**Outcomes:** each run's `run.txt` records one of `settled` (timed), `timeout` (no settled state within 30 minutes; the wall time is the limit, and `up.log` shows why), `down_failed` or `cleanup_failed` (the starting state could not be set up, so the run is not timed). The summary reports the outcome of every run and lists failed Tilt resources. A `timeout` is not a warm-start time and must not be reported as one.
+
+**Comparing results:** results depend on the machine, Docker's memory and CPU allocation, and the image cache. Compare runs on the same machine, with the same project and the same `--healthy`. A published result is one sample; re-run it before you rely on a difference of a few seconds. Do not commit a new dated result for each run. Publish one when you are recording a baseline.
+
+## CI report
+
+`.github/workflows/benchmarks.yml` runs this benchmark on the restaurant example after every change to `main` that can affect start-up (CLI, engine, discovery, benchmark scripts), and it can be started by hand from the Actions tab. It builds the CLI from the tested commit, measures one cold and three warm starts on a GitHub-hosted runner, and publishes an HTML report with tabs for warm and cold starts, per-service build times, the committed history and the environment: <https://tdk-landscape.github.io/tdk-cli-core/>.
+
+The same page is built locally by `node scripts/benchmark/build-report.mjs --run <run dir> --out <dir>`; it needs no network access.

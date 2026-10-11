@@ -6,4 +6,5 @@ export declare function exportHostPortPlan(plan: HostPortPlan): void;
 /** Reuse this project's last selection when its ports are still free or held by its own containers. */
 export declare function getHostPortPlan(projectRoot: string, options?: {
     inspectDocker?: boolean;
+    isPortFree?: (port: number) => Promise<boolean>;
 }): Promise<HostPortPlan>;

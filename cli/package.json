@@ -2,7 +2,7 @@
   "name": "tdk-cli-internal",
   "private": true,
   "version": "1.3.130",
-  "description": "TDK CLI — start services on your laptop.",
+  "description": "TDK CLI — start services on your machine.",
   "keywords": [
     "tdk",
     "tilt",

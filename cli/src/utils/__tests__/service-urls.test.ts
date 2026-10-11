@@ -68,6 +68,14 @@ describe("resolveSubdomainBases", () => {
     });
   });
 
+  it("leaves the default port out of the URL", () => {
+    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost";
+    expect(resolveSubdomainBases(80)).toEqual({
+      appBase: "http://app.demo.localhost",
+      apiBase: "http://api.demo.localhost",
+    });
+  });
+
   it("preserves an explicit port in the configured base URL", () => {
     process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost:9000";
     expect(resolveSubdomainBases(8081)).toEqual({

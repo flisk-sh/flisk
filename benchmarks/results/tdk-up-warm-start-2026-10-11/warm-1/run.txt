@@ -1,0 +1,8 @@
+name=warm-1
+kind=warm
+outcome=settled
+wall_seconds=50
+healthy_expected=8
+healthy_seen=8
+port=10350
+started=2026-10-10T22:56:04Z

@@ -179,7 +179,7 @@ def get_global_config():
             "golden_l2_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l2:latest",
             "golden_l3_backend_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l3-backend:latest",
             "golden_l3_frontend_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l3-frontend:latest",
-            "golden_l3_migrator_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l3-migrator:latest",
+            "golden_l3_migrator_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l3-backend:latest",
             "golden_l4_backend_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l4-backend:latest",
             "golden_l4_frontend_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l4-frontend:latest",
             "golden_l4_migrator_image": PlatformDockerConstants.PROJECT_NAME_HYPHEN + "-l4-migrator:latest",

@@ -21,6 +21,7 @@
 # =============================================================================
 
 load("../common/utils_debug.star", "debug_log")
+load("./build_concurrency.star", "configure_build_concurrency")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
 load("../../platform/docker/networking/sablier_container_cycle.star", "sablier_middleware_suffix")
@@ -441,6 +442,9 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
     # Running both at once causes compose/resource collisions and unstable startup.
     if should_enable('monitoring') and should_enable('elk'):
         fail("Incompatible flags: 'monitoring' and 'elk' cannot both be enabled at the same time. Disable one of them.")
+
+    # Size Tilt's parallel image builds to the Docker engine before any build is queued
+    configure_build_concurrency()
 
     # Build golden image before other infrastructure (if enabled)
     golden_image_resource = None

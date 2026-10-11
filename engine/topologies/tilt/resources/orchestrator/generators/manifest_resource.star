@@ -32,6 +32,7 @@ load('../../../generators/nginx_conf.star', 'Nginx')
 load('../../../generators/api_gateway.star', 'ApiGateway')
 load('../../../generators/tsconfig.star', 'TSConfig')
 load('../../../../platform/docker/index.star', 'Docker')
+load('../../../../platform/docker/build/frontend_build_plan.star', 'frontend_build_plan')
 load('../../../generators/npmrc.star', 'PackageConfig')
 load('../../libs.star', 'Libs')
 load('./env.star', 'EnvGenerators')
@@ -371,13 +372,16 @@ def _generate_all_configs_for_resource(
         target_path = resource_config.get('target_path', '/usr/share/nginx/html')
         use_nginx = 'nginx' in target_path or target_path == '/usr/share/nginx/html'
         port = resource_config.get('port', manifest.get('port', BASE_PORT_FRONTEND))
+        root = ctx.get('project_root', '')
+        plan = frontend_build_plan((root.rstrip('/') + '/' if root else '') + resource_path + '/package.json')
         dockerfile_content = Docker.frontend(
             res_path=resource_path,
             resource_name=resource_config['name'],
             port=port,
             target_path=target_path,
             use_nginx=use_nginx,
-            use_golden=should_enable('golden-image')
+            use_golden=should_enable('golden-image'),
+            build_cmd=plan['build_cmd'],
         )
     elif provider_owned:
         dockerfile_content = Docker.backend_language(

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Helm companion guide establishes ownership
-`docs/with-helm.md` SHALL be titled “TDK + Helm (they are not alternatives)” and SHALL diagram the laptop path from `service.json` through `tdk up` to Docker + Tilt + Traefik `*.localhost`, alongside the cluster path from the same image through Helm / Flux / Argo to Deployment + Service + Ingress. It SHALL distinguish TDK scaffolding, local Dockerfile layering, Tilt, local proxy/Postgres, and stack subsets from cluster replicas, probes, ingress class, PVCs, node selectors, IRSA, and HPA. It SHALL explicitly preserve existing bjw-s app-template, official, and homegrown charts and Kustomize workflows.
+`docs/with-helm.md` SHALL be titled “TDK + Helm (they are not alternatives)” and SHALL diagram the machine path from `service.json` through `tdk up` to Docker + Tilt + Traefik `*.localhost`, alongside the cluster path from the same image through Helm / Flux / Argo to Deployment + Service + Ingress. It SHALL distinguish TDK scaffolding, local Dockerfile layering, Tilt, local proxy/Postgres, and stack subsets from cluster replicas, probes, ingress class, PVCs, node selectors, IRSA, and HPA. It SHALL explicitly preserve existing bjw-s app-template, official, and homegrown charts and Kustomize workflows.
 
 #### Scenario: Helm user locates production ownership
 - **WHEN** a user reads the companion guide

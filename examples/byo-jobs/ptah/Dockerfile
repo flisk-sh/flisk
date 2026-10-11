@@ -7,4 +7,6 @@ COPY migrate.sh /migrate.sh
 RUN addgroup -g 1000 app && adduser -u 1000 -G app -D -H app
 USER app
 # The image's entrypoint is ptah itself, so replace it with the script.
+# One-shot job: it has no server to probe and exits when the migration finishes, so the image disables the inherited check.
+HEALTHCHECK NONE
 ENTRYPOINT ["/bin/sh", "/migrate.sh"]

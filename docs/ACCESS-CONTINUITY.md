@@ -20,7 +20,7 @@ These items are part of this plan. They have to be checked by a maintainer, beca
 
 - [ ] Every maintainer in `MAINTAINERS.md` is a GitHub repository admin.
 - [ ] Every maintainer in `MAINTAINERS.md` is an owner of the npm package.
-- [ ] A backup owner of the GitHub organization is named, with a recovery method stored outside any one person's laptop.
+- [ ] A backup owner of the GitHub organization is named, with a recovery method stored outside any one person's machine.
 - [ ] The npm account for the package has two-factor authentication, and recovery codes are stored somewhere a second maintainer can reach.
 
 ## If a maintainer is unavailable

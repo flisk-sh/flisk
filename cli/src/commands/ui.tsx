@@ -50,6 +50,7 @@ import {
   stripTerminalControls,
   TiltEventsLoadError,
 } from "../utils/tilt-events.js";
+import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { formatUiKeyHint, formatUiKeyNames, UI_KEYMAP } from "../utils/ui-keymap.js";
 import {
   applyServiceStates,
@@ -254,7 +255,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
   const [serviceStates, setServiceStates] = useState<ServiceStates>({});
   useEffect(() => {
     let cancelled = false;
-    const tiltPort = Number.parseInt(process.env.TILT_PORT ?? "", 10);
+    const tiltPort = getTiltPollingPort(process.env.TILT_PORT);
     // A Tilt call can outlast the 5 s interval; never start a poll while the last one is still running.
     const run = singleFlight<ServiceStates>((next) => {
       if (cancelled) return;
@@ -262,8 +263,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
         JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
       );
     });
-    const poll = (): Promise<void> =>
-      run(() => fetchServiceStates(services, Number.isInteger(tiltPort) ? tiltPort : 10350));
+    const poll = (): Promise<void> => run(() => fetchServiceStates(services, tiltPort));
     void poll();
     const timer = setInterval(() => void poll(), 5000);
     return () => {

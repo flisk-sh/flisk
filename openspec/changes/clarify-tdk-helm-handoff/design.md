@@ -21,12 +21,12 @@ Existing contracts include service-manifest schema validation, doctor environmen
 ## Decisions
 
 ### 1. One canonical message with subordinate copy
-Use exactly “TDK runs many services on your laptop with Docker + Tilt. Helm still deploys the cluster.” as the first product sentence on README, published npm metadata, website hero, and GitHub About. Retain the requested About description “Local microservice inner loop. Not a Helm chart.” as subordinate wording where space permits. Website supporting copy: “No cluster on the laptop. Helm stays for prod.” CLI help and human-readable doctor output identify the local inner loop before detail. Preserve machine-readable doctor output and existing exit codes. This resolves the brief's differing About suggestions by keeping the canonical sentence primary.
+Use exactly “TDK runs many services on your machine with Docker + Tilt. Helm still deploys the cluster.” as the first product sentence on README, published npm metadata, website hero, and GitHub About. Retain the requested About description “Local microservice inner loop. Not a Helm chart.” as subordinate wording where space permits. Website supporting copy: “No cluster on the machine. Helm stays for prod.” CLI help and human-readable doctor output identify the local inner loop before detail. Preserve machine-readable doctor output and existing exit codes. This resolves the brief's differing About suggestions by keeping the canonical sentence primary.
 
 Alternative: independently phrased descriptions are shorter but recreate the current ambiguity. Do not advertise generated file counts as user value.
 
 ### 2. A sectioned README with an unmistakable first sentence
-Keep the canonical one-sentence positioning at the top: “TDK runs many services on your laptop with Docker + Tilt. Helm still deploys the cluster.” Do not repeat the detailed Helm boundary or add a second architecture diagram in the README; `docs/with-helm.md` owns the service-manifest/values distinction and production workflow. Keep product-framework details brief: identify Bun/TypeScript as the default starter without making TDK sound like a Node framework.
+Keep the canonical one-sentence positioning at the top: “TDK runs many services on your machine with Docker + Tilt. Helm still deploys the cluster.” Do not repeat the detailed Helm boundary or add a second architecture diagram in the README; `docs/with-helm.md` owns the service-manifest/values distinction and production workflow. Keep product-framework details brief: identify Bun/TypeScript as the default starter without making TDK sound like a Node framework.
 
 Use the README as a useful GitHub landing page in this order: title and one-liner, the existing npm/CI/E2E/security/license badge row, Installation with npm and the prebuilt binary, exactly five runnable Quick start commands, when-not-to-use guidance, Docs links, requirements/support, then contributing and license. Keep architecture, feature detail, benchmark methodology, and extended comparisons in focused Markdown docs, linked from a new docs index.
 
@@ -36,7 +36,7 @@ Alternative: a short stub hides how to install and evaluate the CLI; restoring e
 `docs/with-helm.md` is titled “TDK + Helm (they are not alternatives)”. Use two paths:
 
 ```text
-Laptop: service.json -> tdk up -> Docker + Tilt + Traefik *.localhost
+Machine: service.json -> tdk up -> Docker + Tilt + Traefik *.localhost
 Cluster: same image -> Helm / Flux / Argo -> Deployment + Service + Ingress
 ```
 
@@ -47,7 +47,7 @@ Show a real backend scaffold command and its manifest, then one handwritten app-
 Alternative: exact field translation would falsely imply deployment equivalence.
 
 ### 4. Minimal examples and schema guidance use real contracts
-Keep `tdk project example`. Add `examples/one-backend/` with one authored `service.json` plus the minimum source/project files needed to run it, setup instructions, `tdk up`, expected URL, curl/health check, and cleanup. Generated local files are obtained by documented CLI commands; do not imply a manifest alone supplies application source. Add `examples/one-backend-helm/` with the same image's `values.yaml` and README; its Helm example is documentation, not a supported production chart. State that a laptop-only image must be published to a registry accessible to the cluster by the user's existing CI/build flow.
+Keep `tdk project example`. Add `examples/one-backend/` with one authored `service.json` plus the minimum source/project files needed to run it, setup instructions, `tdk up`, expected URL, curl/health check, and cleanup. Generated local files are obtained by documented CLI commands; do not imply a manifest alone supplies application source. Add `examples/one-backend-helm/` with the same image's `values.yaml` and README; its Helm example is documentation, not a supported production chart. State that a machine-only image must be published to a registry accessible to the cluster by the user's existing CI/build flow.
 
 On the website configuration page show annotated JSON first (annotations outside JSON or in a separate explanation), then generator details. For both `service.json` and `.tdk/project.json`, verify supported `$schema` fields or document editor `json.schemas` associations with authoritative schema paths. Test editor examples through the actual validator so `$schema` guidance does not change required-field behavior. Present `tdk config verify` accurately as checking generated project files against `.tdk/project.json`; present `tdk doctor` as environment readiness and service checks. Do not call either command a production Helm values linter or imply `config verify` validates `service.json`.
 

@@ -25,5 +25,10 @@ export declare function resolveServicePath(resource: DiscoveredResource): string
  * skipped rather than reported as unreachable.
  */
 export declare function buildHealthTargets(resources: DiscoveredResource[], ingressPort?: number): HealthTarget[];
+/**
+ * The URL `tdk up` and `tdk networks` advertise for each routable service, with no suffix. A service can answer /health while
+ * this URL is a 404 (nothing handles the bare path), which is the dead link users click.
+ */
+export declare function buildAdvertisedTargets(resources: DiscoveredResource[], ingressPort?: number): HealthTarget[];
 export declare function pingHealthTarget(target: HealthTarget, timeoutMs: number): Promise<HealthProbe>;
 export declare function pingHealthTargets(targets: HealthTarget[], timeoutMs: number): Promise<HealthProbe[]>;

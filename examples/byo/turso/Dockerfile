@@ -5,4 +5,7 @@ FROM ghcr.io/tursodatabase/libsql-server:latest@sha256:6dd3eb276d9d3604e4a48ac4a
 # sqld directly as the sqld user instead. The flags are what the wrapper passes for a primary node.
 USER sqld
 ENTRYPOINT []
+# The image has bash but no curl or wget, so probe the HTTP listener with a bash /dev/tcp connect.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+  CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/${PORT:-8080}"]
 CMD ["sh", "-c", "exec sqld --db-path ${SQLD_DB_PATH:-iku.db} --http-listen-addr 0.0.0.0:${PORT:-8080} --grpc-listen-addr 0.0.0.0:5001"]

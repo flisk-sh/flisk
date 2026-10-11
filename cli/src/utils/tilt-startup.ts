@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+import { STANDARD_PORTS } from "./constants.js";
 import { isValidPort } from "./validation.js";
 
 export type TiltPortParseResult =
@@ -10,7 +11,7 @@ export function parseTiltPort(value: string | undefined): TiltPortParseResult {
   if (value === undefined || value === "") return { ok: true, port: undefined };
 
   const port = Number(value);
-  if (!/^[0-9]+$/.test(value) || !isValidPort(port)) {
+  if (/[^0-9]/.test(value) || !isValidPort(port)) {
     return {
       ok: false,
       message: `Invalid TILT_PORT "${value}": expected an integer from 1 to 65535.`,
@@ -18,6 +19,12 @@ export function parseTiltPort(value: string | undefined): TiltPortParseResult {
   }
 
   return { ok: true, port };
+}
+
+/** Resolve the port for read-only polling, falling back when TILT_PORT is absent or invalid. */
+export function getTiltPollingPort(value: string | undefined): number {
+  const result = parseTiltPort(value);
+  return result.ok ? (result.port ?? STANDARD_PORTS.tiltUi) : STANDARD_PORTS.tiltUi;
 }
 
 export function secondUpAction(input: {

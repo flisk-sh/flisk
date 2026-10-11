@@ -6,6 +6,8 @@ export type TiltPortParseResult = {
     message: string;
 };
 export declare function parseTiltPort(value: string | undefined): TiltPortParseResult;
+/** Resolve the port for read-only polling, falling back when TILT_PORT is absent or invalid. */
+export declare function getTiltPollingPort(value: string | undefined): number;
 export declare function secondUpAction(input: {
     runningPorts: number[];
     force: boolean;

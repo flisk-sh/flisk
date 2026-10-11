@@ -1,4 +1,4 @@
-# One backend on your laptop
+# One backend on your machine
 
 This example is one authored `service.json` and one small Hono service. TDK creates the local orchestration files; Docker builds the service and Tilt runs it with hot reload. No Kubernetes cluster is needed.
 

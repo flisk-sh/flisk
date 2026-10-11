@@ -125,7 +125,7 @@ tilt up
 
 When Tilt starts, you'll see:
 
-```
+```text
 🔍 ═══════════════════════════════════════════════════════════════
 🔍  MANIFEST-DRIVEN RESOURCE DISCOVERY
 🔍 ═══════════════════════════════════════════════════════════════
@@ -159,15 +159,15 @@ When Tilt starts, you'll see:
 
 ## 📚 Related Files
 
-- **Discovery Engine**: `.tilt/core/registry.star` (lines 212-638)
-- **Manifest Loader**: `.tilt/core/manifest.star`
+- **Discovery Engine**: `discovery/registry.star`
+- **Manifest Loader**: `engine/topologies/tilt/manifest/loader.star`
 - **Tiltfile Integration**: `Tiltfile` (imports `APP_RESOURCES` from registry)
 
 ---
 
 ## 🔧 Advanced: Custom Discovery Paths
 
-Edit `.tilt/core/registry.star` to scan additional paths:
+Edit `discovery/registry.star` to scan additional paths:
 
 ```starlark
 GLOBAL_CONFIG = {

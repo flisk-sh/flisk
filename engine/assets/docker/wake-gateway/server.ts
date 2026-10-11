@@ -349,6 +349,9 @@ Bun.serve({
   // was raised. 255s is Bun's own max for this setting.
   idleTimeout: 255,
   fetch(req) {
+    if (req.method === "GET" && new URL(req.url).pathname === "/health") {
+      return new Response("ok");
+    }
     return handleWake(req).catch((err) => {
       console.error("wake gateway error:", err);
       return new Response(`wake gateway error: ${String(err)}`, { status: 500 });

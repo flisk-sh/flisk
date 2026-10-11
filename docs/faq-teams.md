@@ -22,7 +22,7 @@ Questions a team lead usually asks before moving client projects onto a new tool
 
 Core is MIT and needs no key. Premium is optional and adds Verdaccio, DDD scaffolding and Sablier idle stop. See the [licence matrix](FEATURES.md#license-matrix) and the [licence boundary](../GOVERNANCE.md#license-boundary-and-donation-scope). Check it against your client contracts yourself; this page is not legal advice.
 
-## Windows laptops
+## Windows machines
 
 Ubuntu on WSL2 with Docker Desktop is supported ([WSL2 guide](wsl2.md)). Native Windows can inspect the CLI, but `tdk up` needs Linux, Docker and Tilt.
 
@@ -36,11 +36,11 @@ Ubuntu on WSL2 with Docker Desktop is supported ([WSL2 guide](wsl2.md)). Native 
 
 ## Ports and running two stacks at once
 
-If the default host ports are taken, TDK picks the next free ports from bounded ranges (ingress 8080 to 8180, HTTPS 8443 to 8543, Postgres 15432 to 15532, read from `host-port-plan.ts`) and prints them in `tdk up` and `tdk networks`. Environment overrides exist, for example `TDK_POSTGRES_PORT`. The ranges are small, and running more than two projects at the same time is **not documented or tested** ([#509](https://github.com/tdk-landscape/tdk-cli-core/issues/509)).
+TDK asks for ingress ports 80 and 443 first, so routed URLs carry no port. If they are taken, or on Linux and WSL2 where a non-root user cannot check them, TDK picks the next free ports from bounded ranges (ingress 8080 to 8180, HTTPS 8443 to 8543, Postgres 15432 to 15532, read from `host-port-plan.ts`) and prints them in `tdk up` and `tdk networks`. Environment overrides exist, for example `TDK_POSTGRES_PORT`. The ranges are small, and running more than two projects at the same time is **not documented or tested** ([#509](https://github.com/tdk-landscape/tdk-cli-core/issues/509)).
 
-## RAM and CPU on a 16 GB laptop
+## RAM and CPU on a 16 GB machine
 
-**Not measured.** The only published numbers are the [claims registry](claims.md) entries (a 14-service warm start and a 100-service CI fixture); neither describes memory use on a developer laptop. The [pilot scorecard](pilot-scorecard.md) records memory and CPU for your own stack, and has one example record for a single scaffolded service (not a benchmark). Treat sizing as unknown until you measure your own stack ([#508](https://github.com/tdk-landscape/tdk-cli-core/issues/508)).
+**Not measured.** The only published numbers are the [claims registry](claims.md) entries (a 14-service warm start and a 100-service CI fixture); neither describes memory use on a developer machine. The [pilot scorecard](pilot-scorecard.md) records memory and CPU for your own stack, and has one example record for a single scaffolded service (not a benchmark). Treat sizing as unknown until you measure your own stack ([#508](https://github.com/tdk-landscape/tdk-cli-core/issues/508)).
 
 ## Onboarding a new developer, and showing it to the client
 

@@ -26,7 +26,7 @@ Source: https://x.com/conveebuilds/status/2106375152619667821
 - A browser test, HAR capture, or proving which database answered.
 - Changing retry rules for writes.
 - Storing request headers, cookies, or environment variables.
-- Uploading artifacts from a user's laptop. Upload is CI only.
+- Uploading artifacts from a user's machine. Upload is CI only.
 
 ## Impact
 

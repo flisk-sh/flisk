@@ -62,6 +62,8 @@ export interface GenerateMasterConfigsOptions {
      * .tiltignore without the header belongs to the team and is never overwritten.
      */
     discardHandEdits?: boolean;
+    /** Suppress progress lines on stdout, for callers that print machine output (`tdk up --json`). */
+    quiet?: boolean;
 }
 export declare function generateMasterConfigs(projectRoot: string, options?: GenerateMasterConfigsOptions): Promise<void>;
 export declare function findCliAssetRoot(): string | null;

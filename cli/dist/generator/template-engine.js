@@ -428,7 +428,7 @@ export async function generateMasterConfigs(projectRoot, options = {}) {
         throw new Error(`Refusing to generate config from unsafe service.json values:\n${unsafeFields.map((error) => `  ${error}`).join("\n")}`);
     }
     await warnIfSablierUnlicensed(projectRoot);
-    if (ensureRootWorkspaceManifest(projectRoot, projectConfig)) {
+    if (ensureRootWorkspaceManifest(projectRoot, projectConfig) && !options.quiet) {
         console.log("✓ Generated: package.json (workspace root)");
     }
     // Verdaccio is Premium, but unlike the old posture here, this is NOT the
@@ -461,14 +461,17 @@ export async function generateMasterConfigs(projectRoot, options = {}) {
         const content = files[filename];
         const filePath = assertTdkGeneratedPath(projectRoot, path.join(".tdk", ".tdk-out", filename));
         writeTextFileAtomic(filePath, content);
-        console.log(`✓ Generated: .tdk/.tdk-out/${filename}`);
+        if (!options.quiet)
+            console.log(`✓ Generated: .tdk/.tdk-out/${filename}`);
     }
     if (isStackFeatureEnabledInStacks(projectConfig.phases, DATABASE_MANAGEMENT_FEATURE)) {
         const composePath = assertTdkGeneratedPath(projectRoot, path.join("services", "platform", DATABASE_MANAGEMENT_FEATURE, DOCKER_COMPOSE_FILE));
         const composeDir = path.dirname(composePath);
         fs.mkdirSync(composeDir, { recursive: true });
         writeTextFileAtomic(composePath, generateDatabaseManagementCompose(projectConfig));
-        console.log("✓ Generated: services/platform/database-management/docker-compose.yml");
+        if (!options.quiet) {
+            console.log("✓ Generated: services/platform/database-management/docker-compose.yml");
+        }
     }
     // Copy .tiltignore to project root so Tilt uses it
     const tiltignoreSource = path.join(outputDir, TILTIGNORE_FILE);

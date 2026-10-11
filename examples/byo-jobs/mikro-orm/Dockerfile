@@ -8,4 +8,6 @@ COPY migrations ./migrations
 ENV MIKRO_ORM_CLI_CONFIG=./mikro-orm.config.js
 RUN chown -R node:node .
 USER node
+# One-shot job: it has no server to probe and exits when the migration finishes, so the image disables the inherited check.
+HEALTHCHECK NONE
 CMD ["npx", "mikro-orm", "migration:up"]

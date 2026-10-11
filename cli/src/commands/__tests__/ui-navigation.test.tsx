@@ -4,6 +4,7 @@ import { PassThrough } from "node:stream";
 import { render } from "ink";
 import { expect, it, vi } from "vitest";
 import { createTUITheme, TUIThemeContext } from "../../components/ui-theme.js";
+import { tiltGetUiResources } from "../../utils/up-readiness.js";
 import { TUIApp } from "../ui.js";
 
 const { discoverResourcesMock, loadTiltEventsMock, TiltEventsLoadErrorMock } = vi.hoisted(() => {
@@ -52,7 +53,7 @@ vi.mock("../../utils/services.js", () => ({
 }));
 vi.mock("../../utils/up-readiness.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/up-readiness.js")>()),
-  tiltGetUiResources: async () => null,
+  tiltGetUiResources: vi.fn(async () => null),
 }));
 vi.mock("../../utils/paths.js", () => ({
   findProjectRoot: () => "/tmp/test",
@@ -78,6 +79,40 @@ function streams() {
   });
   return { stdin, stdout, stderr, output: () => output };
 }
+
+it.each([
+  [undefined, 10350],
+  ["12345", 12345],
+  ["12345abc", 10350],
+  ["10350.5", 10350],
+  ["0", 10350],
+  ["-1", 10350],
+  ["65536", 10350],
+])("polls the validated port for TILT_PORT=%s", async (value, port) => {
+  vi.stubEnv("TILT_PORT", value);
+  vi.mocked(tiltGetUiResources).mockClear();
+  const io = streams();
+  const app = render(<TUIApp animated={false} />, {
+    stdin: io.stdin,
+    stdout: io.stdout,
+    stderr: io.stderr,
+    interactive: true,
+    exitOnCtrlC: false,
+    patchConsole: false,
+  });
+  try {
+    await vi.waitFor(() => expect(tiltGetUiResources).toHaveBeenCalledWith(port));
+    expect(vi.mocked(tiltGetUiResources).mock.calls.every(([actual]) => actual === port)).toBe(
+      true,
+    );
+  } finally {
+    app.unmount();
+    io.stdin.destroy();
+    io.stdout.destroy();
+    io.stderr.destroy();
+    vi.unstubAllEnvs();
+  }
+});
 
 it("navigates with vim keys and terminal page/home/end sequences while search receives text", async () => {
   const io = streams();

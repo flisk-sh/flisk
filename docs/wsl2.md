@@ -31,12 +31,15 @@ tdk up shop
 
 Leave `tdk up shop` running. From another Ubuntu terminal, check the routed API and UI, create an order, and wait for the NATS worker to mark it:
 
+Set `HTTP_PORT` to the HTTP port `tdk up` printed (80, or 8080 on WSL2 when 80 is not available):
+
 ```sh
 set -euo pipefail
-api=http://api.tdk-example.localhost:8080/api/orders
+: "${HTTP_PORT:?set HTTP_PORT to the port tdk up printed}"
+api=http://api.tdk-example.localhost:$HTTP_PORT/api/orders
 curl -fsS "$api/health"
 curl -fsS "$api/worker-ready"
-curl -fsS http://app.tdk-example.localhost:8080/orders-app/ >/dev/null
+curl -fsS http://app.tdk-example.localhost:$HTTP_PORT/orders-app/ >/dev/null
 order_id="$(curl -fsS -X POST "$api" -H 'content-type: application/json' \
   -d '{"item":"WSL2 smoke test"}' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).order.id)))')"
 echo "Created order $order_id"
@@ -63,5 +66,5 @@ The [WSL2 smoke workflow](https://github.com/tdk-landscape/tdk-cli-core/actions/
 ## Troubleshooting
 
 - If `docker version` cannot reach the server, enable the Ubuntu distribution under Docker Desktop's **Resources → WSL Integration** and restart Ubuntu.
-- TDK defaults to HTTP ingress port 8080 and selects a free fallback ingress and Postgres host port when needed. It prints the selected values; use the reported HTTP port in routed URLs if it differs from 8080. Set `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, or `TDK_POSTGRES_PORT` to override a selection; a conflicting override is reported without stopping the process using it.
+- TDK asks for HTTP ingress port 80 and uses it when it is free. Otherwise, or on WSL2 where a non-root user cannot check port 80, it selects a free port from 8080-8180, and it selects a fallback Postgres host port when needed. It prints the selected values; use the reported HTTP port in routed URLs if it differs from the URL without a port. Set `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, or `TDK_POSTGRES_PORT` to override a selection; a conflicting override is reported without stopping the process using it.
 - Use the API and app URLs printed by TDK if your project name differs from `tdk-example`.

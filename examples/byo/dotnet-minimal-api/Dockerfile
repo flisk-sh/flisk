@@ -10,4 +10,5 @@ COPY --from=build /out .
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app
 USER app
 # Kestrel must listen beyond loopback (0.0.0.0) and on the port TDK assigns.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD bash -c "exec 3<>/dev/tcp/127.0.0.1/${PORT:-8080}" || exit 1
 CMD ["sh", "-c", "ASPNETCORE_URLS=http://0.0.0.0:${PORT:-8080} exec dotnet App.dll"]

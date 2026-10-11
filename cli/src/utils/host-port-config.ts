@@ -4,7 +4,12 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_JSON } from "./constants.js";
-import { createHostPortPlan, type HostPortPlan, isHostPortAvailable } from "./host-port-plan.js";
+import {
+  createHostPortPlan,
+  type HostPortPlan,
+  isHostPortAvailable,
+  PREFERRED_HOST_PORTS,
+} from "./host-port-plan.js";
 
 const CONFIG_PATH = join(".tdk", ".tdk-out", "host-ports.json");
 
@@ -61,7 +66,7 @@ export function exportHostPortPlan(plan: HostPortPlan): void {
 /** Reuse this project's last selection when its ports are still free or held by its own containers. */
 export async function getHostPortPlan(
   projectRoot: string,
-  options: { inspectDocker?: boolean } = {},
+  options: { inspectDocker?: boolean; isPortFree?: (port: number) => Promise<boolean> } = {},
 ): Promise<HostPortPlan> {
   const saved = readSavedHostPortPlan(projectRoot);
   const hasOverride = ["TDK_HTTP_PORT", "TDK_HTTPS_PORT", "TDK_POSTGRES_PORT"].some(
@@ -91,11 +96,19 @@ export async function getHostPortPlan(
     }
   }
   const ownedByProject = (port: number) => isDockerPortOwnedByProject(dockerPs, prefix, port);
-  const isAvailable = async (port: number) =>
-    (await isHostPortAvailable(port)) || ownedByProject(port);
+  const isPortFree = options.isPortFree ?? isHostPortAvailable;
+  const isAvailable = async (port: number) => (await isPortFree(port)) || ownedByProject(port);
   if (saved && !hasOverride) {
     for (const port of [saved.ingressHttp, saved.ingressHttps, saved.postgres]) {
       if (!(await isAvailable(port))) return createHostPortPlan({ isAvailable });
+    }
+    // A plan saved on a fallback port (8080) moves back to the preferred one (80)
+    // once that is free, so URLs lose the port without deleting host-ports.json.
+    for (const [key, preferred] of Object.entries(PREFERRED_HOST_PORTS)) {
+      const savedPort = saved[key as keyof typeof PREFERRED_HOST_PORTS];
+      if (preferred !== undefined && savedPort !== preferred && (await isAvailable(preferred))) {
+        return createHostPortPlan({ isAvailable });
+      }
     }
     return saved;
   }

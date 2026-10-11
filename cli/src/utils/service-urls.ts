@@ -43,7 +43,11 @@ export function resolveSubdomainBases(ingressPort?: number): { appBase: string; 
   try {
     const u = new URL(raw.includes("://") ? raw : `http://${raw}`);
     const host = u.hostname;
-    const port = u.port || (ingressPort ? String(ingressPort) : "");
+    // URL drops a default port (80 for http, 443 for https), so u.port is empty
+    // for http://x.localhost:80. Keep it empty instead of re-adding ingressPort.
+    const defaultPort = u.protocol === "https:" ? "443" : "80";
+    const explicitPort = u.port || (ingressPort ? String(ingressPort) : "");
+    const port = explicitPort === defaultPort ? "" : explicitPort;
     if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
       return {
         appBase: `${u.protocol}//${host}${port ? `:${port}` : ""}`,
@@ -85,6 +89,25 @@ export function buildHealthTargets(
   resources: DiscoveredResource[],
   ingressPort?: number,
 ): HealthTarget[] {
+  return routableTargets(resources, ingressPort, (path) => appendHealthPath(path));
+}
+
+/**
+ * The URL `tdk up` and `tdk networks` advertise for each routable service, with no suffix. A service can answer /health while
+ * this URL is a 404 (nothing handles the bare path), which is the dead link users click.
+ */
+export function buildAdvertisedTargets(
+  resources: DiscoveredResource[],
+  ingressPort?: number,
+): HealthTarget[] {
+  return routableTargets(resources, ingressPort, (path) => path);
+}
+
+function routableTargets(
+  resources: DiscoveredResource[],
+  ingressPort: number | undefined,
+  toPath: (path: string) => string,
+): HealthTarget[] {
   const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
 
   return resources
@@ -99,7 +122,7 @@ export function buildHealthTargets(
       return {
         name: resource.name,
         appType: resource.config.appType,
-        url: `${base}${appendHealthPath(resolveServicePath(resource))}`,
+        url: `${base}${toPath(resolveServicePath(resource))}`,
       };
     });
 }

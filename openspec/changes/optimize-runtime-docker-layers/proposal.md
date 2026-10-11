@@ -2,7 +2,7 @@
 
 ## Why
 
-A full-landscape `tdk up` of `tdk-erp-system` (107 resources, 110 containers) saturated a 16 GB MacBook Air on 2026-09-25. Load average reached 30–43, only 99 MB of memory was free with 8 GB compressed, and `docker ps` took 6–13 s, which made `tdk doctor` and `tdk down` fail their own 10 s Docker check. A single idle backend is cheap (0.3–1.2% CPU, about 20 MiB in its cgroup). The overload comes from per-container overhead that the generated runtime layers multiply by 110: a redundant second Bun process, a 10 s exec-based healthcheck, and tooling nobody uses baked into the golden images. Cutting that overhead at the layer level makes large landscapes usable on the laptops TDK targets.
+A full-landscape `tdk up` of `tdk-erp-system` (107 resources, 110 containers) saturated a 16 GB MacBook Air on 2026-09-25. Load average reached 30–43, only 99 MB of memory was free with 8 GB compressed, and `docker ps` took 6–13 s, which made `tdk doctor` and `tdk down` fail their own 10 s Docker check. A single idle backend is cheap (0.3–1.2% CPU, about 20 MiB in its cgroup). The overload comes from per-container overhead that the generated runtime layers multiply by 110: a redundant second Bun process, a 10 s exec-based healthcheck, and tooling nobody uses baked into the golden images. Cutting that overhead at the layer level makes large landscapes usable on the machines TDK targets.
 
 ## What Changes
 

@@ -46,5 +46,5 @@
 
 - [ ] 7.1 Run targeted CLI unit tests for platform mapping, upgrade asset naming, and PATH lookup on Windows CI; run relevant existing Unix tests/build checks for regressions.
 - [ ] 7.2 Verify the PowerShell installer, documentation, Windows binary, checksums, ZIP, and smoke workflow are present and agree on names and paths.
-- [ ] 7.3 Complete the provided acceptance checklist on a real Windows 11 AMD64 laptop: install, version, doctor, project scaffold, up/Tilt UI, networks/browser health URL, down, upgrade dry-run, npm installation, and Ubuntu/macOS regression confirmation.
+- [ ] 7.3 Complete the provided acceptance checklist on a real Windows 11 AMD64 machine: install, version, doctor, project scaffold, up/Tilt UI, networks/browser health URL, down, upgrade dry-run, npm installation, and Ubuntu/macOS regression confirmation.
 - [ ] 7.4 Claim Windows support only after Windows CI and all real-device acceptance items pass; record any failure and keep support claims gated until fixed.

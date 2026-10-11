@@ -265,7 +265,7 @@ All **read from source, not reproduced**.
 ℹ Fix: Stop the foreign container(s), e.g. `docker stop <container name>`, or shut down the other TDK/Tilt project using that Traefik. Then re-run `tdk up`.
 ```
 
-- **Cause:** a Docker container that is not this project's already publishes the ingress ports (8080 and 8443 by default).
+- **Cause:** a Docker container that is not this project's already publishes the ingress ports (80 and 443 when they are free, otherwise 8080 and 8443).
 - **Fix:** stop that container only if it is yours to stop, or move TDK to other ports with `TDK_HTTP_PORT`, `TDK_HTTPS_PORT` and `TDK_POSTGRES_PORT`. On a shared Docker daemon the container may belong to someone else.
 - **Defined in:** [`doctor-runtime.ts`](../cli/src/utils/doctor-runtime.ts) (`checkIngressPorts`).
 - **Checked:** read from source, not reproduced; it needs a second container on the ingress port.
@@ -281,7 +281,7 @@ All **read from source, not reproduced**.
 The same check prints `Stop the process bound to port 80, or stop local nginx/caddy. Then: tdk doctor` when the first port found taken is 80, and for 443 `Stop the process bound to port 443. Then: tdk doctor`. The names in the middle line come from `HOST_PORTS` in the source; the exact label text was not captured.
 
 - **Cause:** something other than this project holds 5432, 80 or 443 (a local Postgres is the case the message is written for). With Docker holding 5432, the line says `is published by container <name>`.
-- **Fix:** stop the program, or choose other host ports with `TDK_POSTGRES_PORT`. Default host ports are 8080, 8443 and 15432, and TDK picks the next free one when a default is busy; see [the FAQ](faq-teams.md#ports-and-running-two-stacks-at-once). How the 5432 check relates to the default of 15432 was not investigated.
+- **Fix:** stop the program, or choose other host ports with `TDK_POSTGRES_PORT`. The default host ports are 80 and 443 for HTTP and HTTPS, and 15432 for Postgres (TDK does not try 5432). TDK picks the next free one when a default is busy; see [the FAQ](faq-teams.md#ports-and-running-two-stacks-at-once). How the 5432 check relates to the default of 15432 was not investigated.
 - **Defined in:** [`doctor-runtime.ts`](../cli/src/utils/doctor-runtime.ts) (`checkHostPorts`).
 - **Checked:** read from source, not reproduced.
 

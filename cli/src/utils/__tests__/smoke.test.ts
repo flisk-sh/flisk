@@ -8,6 +8,7 @@ import type { DiscoveredResource } from "../../types/index.js";
 import {
   buildSmokePlans,
   formatSmokeFailure,
+  readOnlySmokePlans,
   runSmokePlan,
   SMOKE_RECORD_BODY_MAX_BYTES,
   type SmokeConfig,
@@ -474,5 +475,66 @@ describe("smoke records", () => {
     const result = await runSmokePlan(PLAN, { fetch, ...clock() });
     expect(result.ok).toBe(true);
     expect(result.recordPath).toBeUndefined();
+  });
+});
+
+describe("readOnlySmokePlans", () => {
+  const plan: SmokePlan = {
+    name: "reservation-api",
+    baseUrl: "http://api.shop.localhost/api/reservation",
+    smoke: {
+      via: "proxy",
+      timeoutSeconds: 60,
+      steps: [
+        {
+          name: "create",
+          method: "POST",
+          path: "/api/v1/reservations",
+          body: { guests: 2 },
+          expect: 201,
+        },
+        { name: "read back", path: "/api/v1/reservations/{{id}}", expect: 200 },
+        {
+          name: "list",
+          method: "get",
+          path: "/api/v1/reservations",
+          expect: 200,
+          bodyContains: "guests",
+        },
+      ],
+    },
+  };
+
+  it("keeps only GET steps that need no saved value", () => {
+    const [kept] = readOnlySmokePlans([plan]);
+    expect(kept.smoke.steps.map((step) => step.name)).toEqual(["list"]);
+  });
+
+  it("clears bodyContains so doctor checks the route, not data that earlier writes created", () => {
+    const [kept] = readOnlySmokePlans([plan]);
+    expect(kept.smoke.steps[0].expect).toBe(200);
+    expect(kept.smoke.steps[0].bodyContains).toBeUndefined();
+  });
+
+  it("leaves out a service that has no read-only steps", () => {
+    const writesOnly: SmokePlan = {
+      ...plan,
+      smoke: { via: "proxy", steps: [plan.smoke.steps[0]] },
+    };
+    expect(readOnlySmokePlans([writesOnly])).toEqual([]);
+  });
+
+  it("caps the budget so a doctor run does not wait the full up budget", () => {
+    const [kept] = readOnlySmokePlans([plan]);
+    expect(kept.smoke.timeoutSeconds).toBe(10);
+    const [short] = readOnlySmokePlans([{ ...plan, smoke: { ...plan.smoke, timeoutSeconds: 3 } }], {
+      timeoutSeconds: 10,
+    });
+    expect(short.smoke.timeoutSeconds).toBe(3);
+  });
+
+  it("drops the ready-poll so doctor does not block on a starting service", () => {
+    const [kept] = readOnlySmokePlans([{ ...plan, readyPath: "/health" }]);
+    expect(kept.readyPath).toBeUndefined();
   });
 });

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import pkg from "../../package.json" with { type: "json" };
 
 const TDK_BANNER = `
-  ${chalk.bold.cyan("tdk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("TDK CLI — start services on your laptop.")}
+  ${chalk.bold.cyan("tdk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("TDK CLI — start services on your machine.")}
 `;
 
 const COMMAND_GROUPS = [

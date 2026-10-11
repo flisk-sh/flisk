@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Canonical product sentence across discovery surfaces
-The README's first product sentence, published npm description, website hero, and GitHub About SHALL use “TDK runs many services on your laptop with Docker + Tilt. Helm still deploys the cluster.” Website supporting copy SHALL state “No cluster on the laptop. Helm stays for prod.” npm-facing onboarding SHALL retain skip guidance for users whose Helm setup already works. Discovery copy SHALL describe one manifest leading to a running local stack and SHALL NOT advertise generated file counts as the product value.
+The README's first product sentence, published npm description, website hero, and GitHub About SHALL use “TDK runs many services on your machine with Docker + Tilt. Helm still deploys the cluster.” Website supporting copy SHALL state “No cluster on the machine. Helm stays for prod.” npm-facing onboarding SHALL retain skip guidance for users whose Helm setup already works. Discovery copy SHALL describe one manifest leading to a running local stack and SHALL NOT advertise generated file counts as the product value.
 
 #### Scenario: Helm user encounters TDK
 - **WHEN** a reader opens any primary discovery surface
-- **THEN** the primary sentence identifies laptop Docker + Tilt execution and preserves Helm's cluster role
+- **THEN** the primary sentence identifies machine Docker + Tilt execution and preserves Helm's cluster role
 
 ### Requirement: README prioritizes fit and a short working path
 README SHALL place when-not-to-use guidance before when-to-use guidance and features, with at most six combined fit bullets. It SHALL explicitly advise skipping TDK when Helm, Compose, or existing Tilt already supplies a working environment. Its opening sequence SHALL contain five verified onboarding commands followed by “How this sits next to Helm” and service schema links, before badges and detailed installation material. Benchmarks, monorepo maps, premium lists, and telemetry SHALL live in linked docs. Platform support and prerequisites SHALL remain readily reachable.

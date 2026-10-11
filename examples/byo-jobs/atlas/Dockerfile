@@ -5,4 +5,6 @@ COPY --from=arigaio/atlas:latest /atlas /usr/local/bin/atlas
 COPY schema.hcl migrate.sh /
 RUN addgroup -g 1000 app && adduser -u 1000 -G app -D -H app
 USER app
+# One-shot job: it has no server to probe and exits when the migration finishes, so the image disables the inherited check.
+HEALTHCHECK NONE
 CMD ["sh", "/migrate.sh"]

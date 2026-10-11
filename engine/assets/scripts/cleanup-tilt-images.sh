@@ -81,13 +81,13 @@ for repo in $REPOS; do
   while IFS= read -r row; do
     [[ -z "$row" ]] && continue
     if (( i < KEEP_COUNT )); then
-      ((i++))
+      ((++i))
       continue
     fi
     image_id="$(awk '{print $3}' <<< "$row")"
     tag="$(awk '{print $2}' <<< "$row")"
     TO_DELETE+=("$image_id|$repo:$tag")
-    ((i++))
+    ((++i))
   done <<< "$repo_blob"
 done
 
