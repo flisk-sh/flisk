@@ -11,8 +11,9 @@ import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
  * Groups the shared platform Postgres for `tdk status`.
  *
  * One Postgres instance serves the whole project. Each stack that uses it gets its own database named
- * `<project>_<stack>` (see #584), and the services in that stack use that database. This is pure: it takes discovered
- * stacks and does no I/O, so it can be tested without Docker or Tilt.
+ * `<project>_<stack>` (see #584), and the services in that stack use that database. `groupSharedPostgres` is pure: it
+ * takes discovered stacks and does no I/O, so it can be tested without Docker or Tilt. `readProjectName` is the only
+ * function here that reads a file.
  */
 
 export interface SharedInfraDatabase {

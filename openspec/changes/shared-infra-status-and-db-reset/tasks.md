@@ -2,10 +2,10 @@
 
 ## 1. Grouping and `tdk status` (this PR)
 
-- [ ] 1.1 Add `cli/src/utils/shared-infra.ts` with a pure grouping function over discovered stacks.
-- [ ] 1.2 Unit tests: one stack, two stacks sharing one instance, a stack with no shared usage, `dependsOn` alias `database-management`, empty project.
-- [ ] 1.3 Render the grouping in `tdk status` (human output) and in `--json` as `sharedInfra`.
-- [ ] 1.4 Verify by exit code: `./node_modules/.bin/biome check . ; echo $?` and `./node_modules/.bin/tsc --noEmit ; echo $?`, then `npm run build` and the status tests.
+- [x] 1.1 Add `cli/src/utils/shared-infra.ts` with a pure grouping function over discovered stacks.
+- [x] 1.2 Unit tests: one stack, two stacks sharing one instance, a stack with no shared usage, `dependsOn` alias `database-management`, empty project.
+- [x] 1.3 Render the grouping in `tdk status` (human output) and in `--json` as `sharedInfra`.
+- [x] 1.4 Verify by exit code: `./node_modules/.bin/biome check . ; echo $?` and `./node_modules/.bin/tsc --noEmit ; echo $?`, then `npm run build` and the status tests.
 
 ## 2. Per-stack database reset (follow-up PR)
 

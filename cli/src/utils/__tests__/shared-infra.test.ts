@@ -1,9 +1,12 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { DiscoveredResource, DiscoveredStack } from "../../types/index.js";
-import { groupSharedPostgres, usesSharedPostgres } from "../shared-infra.js";
+import { groupSharedPostgres, readProjectName, usesSharedPostgres } from "../shared-infra.js";
 
 function resource(
   name: string,
@@ -81,5 +84,33 @@ describe("groupSharedPostgres", () => {
     expect(group?.databases).toEqual([
       { name: "pilot_shop", stack: "shop", services: ["orders-api"] },
     ]);
+  });
+});
+
+describe("readProjectName", () => {
+  it("reads project.name from .tdk/project.json", () => {
+    const root = mkdtempSync(join(tmpdir(), "shared-infra-"));
+    try {
+      mkdirSync(join(root, ".tdk"));
+      writeFileSync(
+        join(root, ".tdk", "project.json"),
+        JSON.stringify({ project: { name: "auth-user" } }),
+      );
+      expect(readProjectName(root)).toBe("auth-user");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns null when the file is missing or has no project name", () => {
+    const root = mkdtempSync(join(tmpdir(), "shared-infra-"));
+    try {
+      expect(readProjectName(root)).toBeNull();
+      mkdirSync(join(root, ".tdk"));
+      writeFileSync(join(root, ".tdk", "project.json"), "{}");
+      expect(readProjectName(root)).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
