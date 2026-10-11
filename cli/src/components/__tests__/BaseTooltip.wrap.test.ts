@@ -11,10 +11,6 @@ describe("wrapContent", () => {
   });
 
   it("wraps a long word in the middle of a sentence without empty lines", () => {
-    expect(wrapContent("a supercalifragilistic b", 10)).toEqual([
-      "a",
-      "supercalifragilistic",
-      "b",
-    ]);
+    expect(wrapContent("a supercalifragilistic b", 10)).toEqual(["a", "supercalifragilistic", "b"]);
   });
 });
