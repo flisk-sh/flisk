@@ -1,10 +1,10 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { resolveRuntimeIngressPort } from "../host-port-config.js";
+import { isPortHeldByProjectContainers, resolveRuntimeIngressPort } from "../host-port-config.js";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 function project(savedHttp: number | null, name = "tdk-restaurant-example"): string {
-  const root = mkdtempSync(join(tmpdir(), "tdk-runtime-port-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "tdk-runtime-port-")));
   dirs.push(root);
   mkdirSync(join(root, ".tdk", ".tdk-out"), { recursive: true });
   writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ project: { name } }));
@@ -32,7 +32,9 @@ function project(savedHttp: number | null, name = "tdk-restaurant-example"): str
   return root;
 }
 
-const dockerPs =
+/** One `docker ps` line: name|ports|compose working directory. */
+const line = (name: string, ports: string, workingDir: string) => `${name}|${ports}|${workingDir}`;
+const ps =
   (...lines: string[]) =>
   () =>
     lines.join("\n");
@@ -40,34 +42,50 @@ const dockerPs =
 describe("resolveRuntimeIngressPort", () => {
   it("probes the saved port while this project's Traefik holds it, even though 80 is free", () => {
     const root = project(8080);
-    const ps = dockerPs(
-      "tdk_restaurant_example_traefik|127.0.0.1:8080->80/tcp, 127.0.0.1:8443->443/tcp",
+    const docker = ps(
+      line(
+        "tdk_restaurant_example_traefik",
+        "127.0.0.1:8080->80/tcp",
+        join(root, ".tdk", ".tdk-out"),
+      ),
     );
-    expect(resolveRuntimeIngressPort(root, 80, ps)).toBe(8080);
+    expect(resolveRuntimeIngressPort(root, 80, docker)).toBe(8080);
   });
 
-  it("keeps the planned port when the saved port is not held by this project", () => {
+  it("keeps the planned port when the saved port is held by another project", () => {
     const root = project(8080);
-    expect(
-      resolveRuntimeIngressPort(root, 80, dockerPs("other_project_traefik|127.0.0.1:8080->80/tcp")),
-    ).toBe(80);
-    expect(resolveRuntimeIngressPort(root, 80, dockerPs())).toBe(80);
+    const other = project(8080, "other-project");
+    const docker = ps(
+      line("other_project_traefik", "127.0.0.1:8080->80/tcp", join(other, ".tdk", ".tdk-out")),
+    );
+    expect(resolveRuntimeIngressPort(root, 80, docker)).toBe(80);
+    expect(resolveRuntimeIngressPort(root, 80, ps())).toBe(80);
   });
 
-  it("keeps the planned port without a saved plan, when they already agree, or when Docker fails", () => {
-    expect(
-      resolveRuntimeIngressPort(
-        project(null),
-        80,
-        dockerPs("tdk_restaurant_example_traefik|:8080->80/tcp"),
+  it("does not mistake a project whose name starts with this one's for this project", () => {
+    // tdk-shop-extra's containers are named tdk_shop_extra_*, which a tdk_shop_ prefix match would claim.
+    const shop = project(8080, "tdk-shop");
+    const shopExtra = project(8080, "tdk-shop-extra");
+    const docker = ps(
+      line("tdk_shop_extra_traefik", "127.0.0.1:8080->80/tcp", join(shopExtra, ".tdk", ".tdk-out")),
+    );
+    expect(resolveRuntimeIngressPort(shop, 80, docker)).toBe(80);
+    expect(resolveRuntimeIngressPort(shopExtra, 80, docker)).toBe(8080);
+  });
+
+  it("keeps the planned port without a saved plan, when they agree, or when Docker fails", () => {
+    const withoutPlan = project(null);
+    const claim = ps(
+      line(
+        "tdk_restaurant_example_traefik",
+        ":8080->80/tcp",
+        join(withoutPlan, ".tdk", ".tdk-out"),
       ),
-    ).toBe(80);
+    );
+    expect(resolveRuntimeIngressPort(withoutPlan, 80, claim)).toBe(80);
+    const agreed = project(80);
     expect(
-      resolveRuntimeIngressPort(
-        project(80),
-        80,
-        dockerPs("tdk_restaurant_example_traefik|:80->80/tcp"),
-      ),
+      resolveRuntimeIngressPort(agreed, 80, ps(line("t_traefik", ":80->80/tcp", agreed))),
     ).toBe(80);
     expect(
       resolveRuntimeIngressPort(project(8080), 80, () => {
@@ -77,16 +95,61 @@ describe("resolveRuntimeIngressPort", () => {
   });
 
   it("passes through an undefined planned port", () => {
-    expect(resolveRuntimeIngressPort(project(null), undefined, dockerPs())).toBeUndefined();
+    expect(resolveRuntimeIngressPort(project(null), undefined, ps())).toBeUndefined();
+  });
+});
+
+describe("isPortHeldByProjectContainers", () => {
+  it("requires the compose working directory to be inside the project and the port to match", () => {
+    const root = project(null);
+    const inside = join(root, ".tdk", ".tdk-out");
+    expect(
+      isPortHeldByProjectContainers(line("a", "0.0.0.0:8080->80/tcp", inside), root, 8080),
+    ).toBe(true);
+    expect(
+      isPortHeldByProjectContainers(line("a", "0.0.0.0:8080->80/tcp", inside), root, 8081),
+    ).toBe(false);
+    expect(isPortHeldByProjectContainers(line("a", "0.0.0.0:8080->80/tcp", root), root, 8080)).toBe(
+      true,
+    );
+    expect(
+      isPortHeldByProjectContainers(
+        line("a", "0.0.0.0:8080->80/tcp", `${root}-sibling`),
+        root,
+        8080,
+      ),
+    ).toBe(false);
+    expect(
+      isPortHeldByProjectContainers(
+        line("a", "0.0.0.0:8080->80/tcp", "/somewhere/else"),
+        root,
+        8080,
+      ),
+    ).toBe(false);
   });
 
-  it("matches only this project's container prefix, not a similarly named project", () => {
-    const root = project(8080, "tdk-shop");
+  it("never counts a container without a compose label", () => {
+    const root = project(null);
     expect(
-      resolveRuntimeIngressPort(root, 80, dockerPs("tdk_shop_extra_traefik|:8080->80/tcp")),
-    ).toBe(8080);
+      isPortHeldByProjectContainers(
+        line("tdk_restaurant_example_traefik", ":8080->80/tcp", ""),
+        root,
+        8080,
+      ),
+    ).toBe(false);
     expect(
-      resolveRuntimeIngressPort(root, 80, dockerPs("tdk_shopping_traefik|:8080->80/tcp")),
-    ).toBe(80);
+      isPortHeldByProjectContainers("tdk_restaurant_example_traefik|:8080->80/tcp", root, 8080),
+    ).toBe(false);
+    expect(isPortHeldByProjectContainers("", root, 8080)).toBe(false);
+  });
+
+  it("matches a project reached through a symlink", () => {
+    const root = project(null);
+    const link = join(tmpdir(), `tdk-link-${process.pid}-${Date.now()}`);
+    symlinkSync(root, link);
+    dirs.push(link);
+    expect(
+      isPortHeldByProjectContainers(line("a", ":8080->80/tcp", join(root, ".tdk")), link, 8080),
+    ).toBe(true);
   });
 });

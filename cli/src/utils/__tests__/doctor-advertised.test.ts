@@ -63,4 +63,13 @@ describe("summarizeAdvertisedProbes", () => {
     expect(result.message).toContain("http://api.shop.localhost/api/reservation");
     expect(result.fix).toContain("smoke");
   });
+
+  it("says the service may be healthy and agrees in number", () => {
+    const one = summarizeAdvertisedProbes([probe("reservation", 404), probe("menu", 200)]);
+    expect(one.message).toMatch(/^1 advertised link returns 404 \(the service may be healthy/);
+    const two = summarizeAdvertisedProbes([probe("reservation", 404), probe("menu", 404)]);
+    expect(two.message).toMatch(/^2 advertised links return 404 /);
+    expect(two.fix).toContain("/health is fine");
+    expect(two.fix).toContain("no root route");
+  });
 });

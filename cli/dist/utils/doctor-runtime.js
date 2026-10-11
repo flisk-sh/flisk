@@ -518,8 +518,8 @@ export function summarizeAdvertisedProbes(probes) {
         name: "Advertised Endpoints",
         didPass: true,
         isWarning: true,
-        message: `${formatCount(dead.length, "advertised link")} returns 404:\n    ${details}`,
-        fix: 'Nothing handles this path, so the link is dead. Add a route for it, or declare a read-only "smoke" step on a real route in service.json. The URL tdk networks and the TDK App print stays the same until the CLI changes how it reports it.',
+        message: `${formatCount(dead.length, "advertised link")} ${dead.length === 1 ? "returns" : "return"} 404 (the service may be healthy, but nothing answers at this exact path):\n    ${details}`,
+        fix: 'Nothing handles this exact path, so opening the link shows a 404 even when /health is fine. If this API has no root route, you can leave it. Otherwise add a GET route for it (for example one that returns the service name), or declare a read-only "smoke" step on a real route in service.json. The URL tdk networks and the TDK App print stays the same until the CLI changes how it reports it.',
     };
 }
 /**

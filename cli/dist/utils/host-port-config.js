@@ -1,8 +1,8 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { join, resolve, sep } from "node:path";
 import { PROJECT_JSON } from "./constants.js";
 import { createHostPortPlan, isHostPortAvailable, PREFERRED_HOST_PORTS, } from "./host-port-plan.js";
 const CONFIG_PATH = join(".tdk", ".tdk-out", "host-ports.json");
@@ -47,17 +47,26 @@ export function exportHostPortPlan(plan) {
     process.env.TDK_HTTPS_PORT = String(plan.ingressHttps);
     process.env.TDK_POSTGRES_PORT = String(plan.postgres);
 }
-/** Prefix this project's containers share, for example tdk_restaurant_example. */
-function projectContainerPrefix(projectRoot) {
+const COMPOSE_WORKING_DIR_LABEL = "com.docker.compose.project.working_dir";
+/**
+ * True when a container whose Compose working directory is inside this project publishes the port. A container-name prefix is not
+ * enough: tdk_shop_ also matches the containers of a different project called tdk-shop-extra. Compose records the directory each
+ * project was started from, so that identifies the project exactly. Containers without the label never count.
+ */
+export function isPortHeldByProjectContainers(dockerPs, projectRoot, port) {
+    const roots = new Set([resolve(projectRoot)]);
     try {
-        const project = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
-        return String(project?.project?.name ?? "tdk-project")
-            .replace(/-/g, "_")
-            .toLowerCase();
+        roots.add(realpathSync(projectRoot));
     }
     catch {
-        return "tdk_project";
+        // The project root is already known to exist; keep the unresolved path.
     }
+    return dockerPs.split("\n").some((line) => {
+        const [, ports = "", workingDir = ""] = line.split("|");
+        if (!workingDir || !ports.includes(`:${port}->`))
+            return false;
+        return [...roots].some((root) => workingDir === root || workingDir.startsWith(`${root}${sep}`));
+    });
 }
 /**
  * The HTTP ingress port to probe while a stack is running. getHostPortPlan moves a saved fallback port (8080) back to the
@@ -65,15 +74,12 @@ function projectContainerPrefix(projectRoot) {
  * bound to the saved port, so probing the planned one finds nothing and every runtime check is skipped. When this project's own
  * containers hold the saved port, probe that one.
  */
-export function resolveRuntimeIngressPort(projectRoot, plannedPort, readDockerPs = () => execFileSync("docker", ["ps", "--format", "{{.Names}}|{{.Ports}}"], {
-    encoding: "utf-8",
-    timeout: 5000,
-})) {
+export function resolveRuntimeIngressPort(projectRoot, plannedPort, readDockerPs = () => execFileSync("docker", ["ps", "--format", `{{.Names}}|{{.Ports}}|{{.Label "${COMPOSE_WORKING_DIR_LABEL}"}}`], { encoding: "utf-8", timeout: 5000 })) {
     const saved = readSavedHostPortPlan(projectRoot);
     if (!saved || saved.ingressHttp === plannedPort)
         return plannedPort;
     try {
-        if (isDockerPortOwnedByProject(readDockerPs(), projectContainerPrefix(projectRoot), saved.ingressHttp)) {
+        if (isPortHeldByProjectContainers(readDockerPs(), projectRoot, saved.ingressHttp)) {
             return saved.ingressHttp;
         }
     }
