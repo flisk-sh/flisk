@@ -49,13 +49,13 @@ export const BaseTooltip: React.FC<BaseTooltipProps> = ({
   );
 };
 
-function wrapContent(content: string, maxWidth: number): string[] {
+export function wrapContent(content: string, maxWidth: number): string[] {
   const words = content.split(" ");
   const lines: string[] = [];
   let currentLine = "";
 
   for (const word of words) {
-    if ((currentLine + word).length > maxWidth - 2) {
+    if (currentLine && (currentLine + word).length > maxWidth - 2) {
       lines.push(currentLine.trim());
       currentLine = `${word} `;
     } else {
