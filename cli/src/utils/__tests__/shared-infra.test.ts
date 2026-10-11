@@ -5,15 +5,21 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { DiscoveredResource, DiscoveredStack } from "../../types/index.js";
+import type { DiscoveredResource, DiscoveredStack, ResourceConfig } from "../../types/index.js";
 import { groupSharedPostgres, readProjectName, usesSharedPostgres } from "../shared-infra.js";
 
 function resource(
   name: string,
   stack: string,
-  config: { featuresEnabled?: string[]; dependsOn?: string[] } = {},
+  config: Partial<ResourceConfig> = {},
 ): DiscoveredResource {
-  return { name, path: `/p/${name}`, configPath: `/p/${name}/service.json`, stack, config };
+  return {
+    name,
+    path: `/p/${name}`,
+    configPath: `/p/${name}/service.json`,
+    stack,
+    config: config as ResourceConfig,
+  };
 }
 
 function stack(name: string, resources: DiscoveredResource[]): DiscoveredStack {
