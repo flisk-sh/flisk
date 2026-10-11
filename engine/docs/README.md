@@ -132,10 +132,10 @@ TSConfig.prisma(path, resource_name, db_name, write_fn)
 ```starlark
 load('./engine/topologies/platform/docker/index.star', 'Docker')
 
-Docker.frontend(path, name, target_path, use_nginx)
-Docker.backend(path, resource_name, start_command)
+Docker.frontend(path, resource_name, port, target_path, build_cmd, cmd, use_nginx)
+Docker.backend(path, resource_name, port, build_cmd, cmd)
 Docker.migrator(path, resource_name)
-Docker.backend_compose(path, resource_name, resource, manifest)
+Docker.backend_compose(resource_path, resource_name, res, manifest)
 ```
 
 #### `engine/topologies/tilt/generators/npmrc.star` - Registry Configuration

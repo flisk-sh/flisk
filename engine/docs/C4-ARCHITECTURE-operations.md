@@ -5,11 +5,12 @@
 ### **Core Layer** (Foundation)
 
 ```
-core/
-├── utils.star              # Shared utilities, I/O, validation
-├── manifest.star           # Service manifest loading & Smart Defaults
-├── registry.star           # Single Source of Truth for all services
-└── dependency-sync.star    # Automatic config regeneration
+discovery/
+├── loading.star            # Shared manifest loading & Smart Defaults
+└── registry.star           # Single Source of Truth for all services
+
+engine/topologies/tilt/common/
+└── utils.star              # Shared utilities, I/O, validation
 ```
 
 **Responsibilities**:
@@ -27,22 +28,20 @@ core/
 ### **Provider Layer** (Config Generators)
 
 ```
-providers/
-├── docker/
-│   ├── layers/
-│   │   ├── l1_base_layers.star       # OS base + runtime env
-│   │   ├── l2_dependency_layers.star # Package manifest + install
-│   │   ├── l3_builder_layers.star    # Compilation stage
-│   │   └── l4_runtime_layers.star    # Final runtime
-│   ├── compose.star                  # docker-compose generation
-│   ├── dockerignore.star             # .dockerignore generation
-│   └── golden-image.star             # Golden image workflow
-├── typescript/
-│   ├── backend_tsconfig.star         # Backend TypeScript config
-│   ├── frontend_tsconfig.star        # Frontend TypeScript config
-│   └── prisma_config.star            # Prisma-specific config
-├── vite.star                         # Vite dev server config
-└── npmrc.star                        # Package registry config
+engine/topologies/platform/docker/
+├── layers/
+│   ├── l1_base_layers.star       # OS base + runtime env
+│   ├── l2_dependency_layers.star # Package manifest + install
+│   ├── l3_builder_layers.star    # Compilation stage
+│   └── l4_runtime_layers.star    # Final runtime
+├── compose/compose.star          # docker-compose generation
+├── config/dockerignore.star      # .dockerignore generation
+└── build/golden_image.star       # Golden image workflow
+
+engine/topologies/tilt/generators/
+├── typescript/                   # TypeScript configs (backend, frontend, prisma)
+├── vite_config.star              # Vite dev server config
+└── npmrc.star                    # Package registry config
 ```
 
 **Responsibilities**:
@@ -59,7 +58,7 @@ providers/
 ### **Lifecycle Layer** (Orchestration)
 
 ```
-lifecycle/
+engine/topologies/tilt/resources/
 ├── libs.star              # Shared library management
 ├── databases.star         # Database virtualization (per-service DBs)
 ├── orchestrator.star      # Service coordination & dependencies
@@ -81,8 +80,11 @@ lifecycle/
 ### **Configuration Layer**
 
 ```
-config.star               # Global config & Focus Mode
-focus-mode.star           # Service filtering (--focus=user)
+engine/topologies/tilt/config/
+├── global.star               # Global config & Focus Mode
+├── profiles.star             # Focus profiles and filtering
+├── defaults.star             # Default values
+└── feature_flags.star        # Feature flags
 ```
 
 **Responsibilities**:
@@ -121,7 +123,7 @@ graph TD
 ```mermaid
 graph LR
     subgraph "Single Source of Truth"
-        M[service.manifest.json]
+        M[service.json]
     end
     
     subgraph "Generated Configs"
@@ -194,7 +196,7 @@ Package name → Directory path (automatic)
 
 ### **2. Single Source of Truth**
 ```
-service.manifest.json → Everything else
+service.json → Everything else
 
 One file defines:
 - Service name, type, domain

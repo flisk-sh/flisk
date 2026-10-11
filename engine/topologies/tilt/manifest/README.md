@@ -1,7 +1,7 @@
 # 📋 Manifest Module
 
 **Status:** ✅ All Phases Complete! (Phase 1-5)  
-**Location:** `.tilt/topologies/tilt/manifest/`  
+**Location:** `engine/topologies/tilt/manifest/`  
 **Purpose:** Clean, modular manifest parsing, loading, validation, and discovery integration system
 
 ---

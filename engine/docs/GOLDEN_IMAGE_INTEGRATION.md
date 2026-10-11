@@ -6,9 +6,9 @@ The TDK Landscape monorepo now includes a **Golden Image** workflow that signifi
 
 ## Architecture Integration
 
-### 1. Provider Layer (`.tilt/providers/docker/`)
+### 1. Provider Layer (`engine/topologies/platform/docker/`)
 
-**File**: `.tilt/providers/docker/golden-image.star`
+**File**: `engine/topologies/platform/docker/build/golden_image.star`
 
 The golden image provider follows the established Tilt SDK pattern:
 
@@ -21,7 +21,7 @@ GoldenImage = struct(
 )
 ```
 
-**Exported via**: `.tilt/providers/docker/index.star`
+**Exported via**: `engine/topologies/platform/docker/index.star`
 ```starlark
 Docker = struct(
     # ... existing functions
@@ -29,7 +29,7 @@ Docker = struct(
 )
 ```
 
-### 2. Infrastructure Layer (`.tilt/provisioner/infra-loader.star`)
+### 2. Infrastructure Layer (`engine/topologies/tilt/resources/infra-loader.star`)
 
 The golden image is treated as **infrastructure**, building before application services:
 
@@ -52,7 +52,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn, docker_provid
 - `_load_golden_image()` - Creates `local_resource` for building the image
 - `_generate_golden_dockerfile()` - Auto-generates `docker/golden.Dockerfile` if missing
 
-### 3. Orchestrator Integration (`.tilt/provisioner/orchestrator/apply.star`)
+### 3. Orchestrator Integration (`engine/topologies/tilt/resources/orchestrator/apply.star`)
 
 Services automatically depend on the golden image:
 
@@ -69,7 +69,7 @@ if should_enable('golden-image') and ctx.get('golden_image_resource'):
 
 This ensures the golden image builds before any service Dockerfiles are processed.
 
-### 4. Layer Generator Updates (`.tilt/providers/docker/layers/l1_base_layers.star`)
+### 4. Layer Generator Updates (`engine/topologies/platform/docker/layers/l1_base_layers.star`)
 
 The L1 base layer now intelligently uses the golden image:
 
@@ -92,7 +92,7 @@ def L1_generate_os_base(base_image = None, maintainer = "TDK Landscape", use_gol
     ...
 ```
 
-### 5. Configuration (`.tilt/core/registry/config.star`)
+### 5. Configuration (`engine/topologies/tilt/config/global.star`)
 
 Golden image is **enabled by default**. Verdaccio is Premium and off by
 default - it requires TDK_LICENSE_KEY (see project-features.ts):
@@ -218,7 +218,7 @@ vim docker/golden.Dockerfile
 
 **Option 2: Update Generator** (permanent):
 ```bash
-vim .tilt/providers/docker/golden-image.star
+vim engine/topologies/platform/docker/build/golden_image.star
 # Edit _generate_golden_dockerfile() function
 # Delete docker/golden.Dockerfile
 # Restart Tilt to regenerate
@@ -244,20 +244,18 @@ tdk/
 ├── docker/
 │   ├── golden.Dockerfile          # Auto-generated base image
 │   └── README.md                   # Usage guide
-├── .tilt/
-│   ├── providers/
-│   │   └── docker/
-│   │       ├── golden-image.star  # Provider implementation
-│   │       ├── index.star         # Exports GoldenImage
-│   │       └── layers/
-│   │           └── l1_base_layers.star  # Uses golden image
-│   ├── lifecycle/
-│   │   ├── infra-loader.star      # Builds golden image
-│   │   └── orchestrator/
-│   │       └── apply.star         # Adds resource deps
-│   └── core/
-│       └── registry/
-│           └── config.star        # DEFAULTS configuration
+├── engine/topologies/
+│   ├── platform/docker/
+│   │   ├── build/golden_image.star  # Provider implementation
+│   │   ├── index.star               # Exports GoldenImage
+│   │   └── layers/
+│   │       └── l1_base_layers.star  # Uses golden image
+│   └── tilt/
+│       ├── config/global.star       # DEFAULTS configuration
+│       └── resources/
+│           ├── infra-loader.star    # Builds golden image
+│           └── orchestrator/
+│               └── apply.star       # Adds resource deps
 └── Tiltfile                        # Main integration
 ```
 
@@ -328,7 +326,7 @@ def L4_generate_orchestrator(res_path, use_golden_image = True, ...):
     ...
 ```
 
-**In service manifest** (`.tilt/service.manifest.json`):
+**In service manifest** (`service.json`):
 ```json
 {
   "useGoldenImage": false
