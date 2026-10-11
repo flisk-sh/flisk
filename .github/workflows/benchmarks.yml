@@ -64,7 +64,10 @@ jobs:
           bun install --frozen-lockfile
           (cd cli && npm run build)
           chmod +x cli/bin/tdk.js
-          echo "$GITHUB_WORKSPACE/cli/bin" >> "$GITHUB_PATH"
+          # The package's bin entry is tdk.js; expose it as `tdk`, the name every later step runs.
+          mkdir -p "$RUNNER_TEMP/tdk-bin"
+          ln -sf "$GITHUB_WORKSPACE/cli/bin/tdk.js" "$RUNNER_TEMP/tdk-bin/tdk"
+          echo "$RUNNER_TEMP/tdk-bin" >> "$GITHUB_PATH"
 
       - name: Install Tilt
         run: |
