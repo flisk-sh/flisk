@@ -63,6 +63,45 @@ export function exportHostPortPlan(plan: HostPortPlan): void {
   process.env.TDK_POSTGRES_PORT = String(plan.postgres);
 }
 
+/** Prefix this project's containers share, for example tdk_restaurant_example. */
+function projectContainerPrefix(projectRoot: string): string {
+  try {
+    const project = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
+    return String(project?.project?.name ?? "tdk-project")
+      .replace(/-/g, "_")
+      .toLowerCase();
+  } catch {
+    return "tdk_project";
+  }
+}
+
+/**
+ * The HTTP ingress port to probe while a stack is running. getHostPortPlan moves a saved fallback port (8080) back to the
+ * preferred one (80) as soon as that is free, which is right for the next `tdk up` but wrong for a running stack: Traefik is still
+ * bound to the saved port, so probing the planned one finds nothing and every runtime check is skipped. When this project's own
+ * containers hold the saved port, probe that one.
+ */
+export function resolveRuntimeIngressPort(
+  projectRoot: string,
+  plannedPort: number | undefined,
+  readDockerPs: () => string = () =>
+    execFileSync("docker", ["ps", "--format", "{{.Names}}|{{.Ports}}"], {
+      encoding: "utf-8",
+      timeout: 5000,
+    }),
+): number | undefined {
+  const saved = readSavedHostPortPlan(projectRoot);
+  if (!saved || saved.ingressHttp === plannedPort) return plannedPort;
+  try {
+    if (isDockerPortOwnedByProject(readDockerPs(), projectContainerPrefix(projectRoot), saved.ingressHttp)) {
+      return saved.ingressHttp;
+    }
+  } catch {
+    // Docker unavailable: keep the planned port.
+  }
+  return plannedPort;
+}
+
 /** Reuse this project's last selection when its ports are still free or held by its own containers. */
 export async function getHostPortPlan(
   projectRoot: string,
