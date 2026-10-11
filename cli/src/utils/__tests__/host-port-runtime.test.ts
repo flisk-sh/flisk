@@ -32,24 +32,43 @@ function project(savedHttp: number | null, name = "tdk-restaurant-example"): str
   return root;
 }
 
-const dockerPs = (...lines: string[]) => () => lines.join("\n");
+const dockerPs =
+  (...lines: string[]) =>
+  () =>
+    lines.join("\n");
 
 describe("resolveRuntimeIngressPort", () => {
   it("probes the saved port while this project's Traefik holds it, even though 80 is free", () => {
     const root = project(8080);
-    const ps = dockerPs("tdk_restaurant_example_traefik|127.0.0.1:8080->80/tcp, 127.0.0.1:8443->443/tcp");
+    const ps = dockerPs(
+      "tdk_restaurant_example_traefik|127.0.0.1:8080->80/tcp, 127.0.0.1:8443->443/tcp",
+    );
     expect(resolveRuntimeIngressPort(root, 80, ps)).toBe(8080);
   });
 
   it("keeps the planned port when the saved port is not held by this project", () => {
     const root = project(8080);
-    expect(resolveRuntimeIngressPort(root, 80, dockerPs("other_project_traefik|127.0.0.1:8080->80/tcp"))).toBe(80);
+    expect(
+      resolveRuntimeIngressPort(root, 80, dockerPs("other_project_traefik|127.0.0.1:8080->80/tcp")),
+    ).toBe(80);
     expect(resolveRuntimeIngressPort(root, 80, dockerPs())).toBe(80);
   });
 
   it("keeps the planned port without a saved plan, when they already agree, or when Docker fails", () => {
-    expect(resolveRuntimeIngressPort(project(null), 80, dockerPs("tdk_restaurant_example_traefik|:8080->80/tcp"))).toBe(80);
-    expect(resolveRuntimeIngressPort(project(80), 80, dockerPs("tdk_restaurant_example_traefik|:80->80/tcp"))).toBe(80);
+    expect(
+      resolveRuntimeIngressPort(
+        project(null),
+        80,
+        dockerPs("tdk_restaurant_example_traefik|:8080->80/tcp"),
+      ),
+    ).toBe(80);
+    expect(
+      resolveRuntimeIngressPort(
+        project(80),
+        80,
+        dockerPs("tdk_restaurant_example_traefik|:80->80/tcp"),
+      ),
+    ).toBe(80);
     expect(
       resolveRuntimeIngressPort(project(8080), 80, () => {
         throw new Error("docker: command not found");
@@ -63,7 +82,11 @@ describe("resolveRuntimeIngressPort", () => {
 
   it("matches only this project's container prefix, not a similarly named project", () => {
     const root = project(8080, "tdk-shop");
-    expect(resolveRuntimeIngressPort(root, 80, dockerPs("tdk_shop_extra_traefik|:8080->80/tcp"))).toBe(8080);
-    expect(resolveRuntimeIngressPort(root, 80, dockerPs("tdk_shopping_traefik|:8080->80/tcp"))).toBe(80);
+    expect(
+      resolveRuntimeIngressPort(root, 80, dockerPs("tdk_shop_extra_traefik|:8080->80/tcp")),
+    ).toBe(8080);
+    expect(
+      resolveRuntimeIngressPort(root, 80, dockerPs("tdk_shopping_traefik|:8080->80/tcp")),
+    ).toBe(80);
   });
 });

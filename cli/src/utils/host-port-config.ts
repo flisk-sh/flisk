@@ -93,7 +93,13 @@ export function resolveRuntimeIngressPort(
   const saved = readSavedHostPortPlan(projectRoot);
   if (!saved || saved.ingressHttp === plannedPort) return plannedPort;
   try {
-    if (isDockerPortOwnedByProject(readDockerPs(), projectContainerPrefix(projectRoot), saved.ingressHttp)) {
+    if (
+      isDockerPortOwnedByProject(
+        readDockerPs(),
+        projectContainerPrefix(projectRoot),
+        saved.ingressHttp,
+      )
+    ) {
       return saved.ingressHttp;
     }
   } catch {

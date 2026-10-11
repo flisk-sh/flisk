@@ -18,7 +18,7 @@ import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicate
 import { validateEnvFile } from "../utils/env-validator.js";
 import { execAsync, isExecTimeout } from "../utils/exec-async.js";
 import { formatCount } from "../utils/formatting.js";
-import { getHostPortPlan } from "../utils/host-port-config.js";
+import { getHostPortPlan, resolveRuntimeIngressPort } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
@@ -1131,9 +1131,13 @@ export const doctorCommand = new Command("doctor")
     ];
     // Runs last: needs routable services (and working Traefik) to mean anything.
     if (options.ping) {
-        projectChecks.push(() => checkServiceHealth(pingTimeout, hostPortPlan?.ingressHttp));
-        projectChecks.push(() => checkServiceSmoke(pingTimeout, hostPortPlan?.ingressHttp));
-        projectChecks.push(() => checkAdvertisedEndpoints(pingTimeout, hostPortPlan?.ingressHttp));
+        // Probe the port a running stack is actually on, not the one the next `tdk up` would pick.
+        const pingPort = projectRoot
+            ? resolveRuntimeIngressPort(projectRoot, hostPortPlan?.ingressHttp)
+            : hostPortPlan?.ingressHttp;
+        projectChecks.push(() => checkServiceHealth(pingTimeout, pingPort));
+        projectChecks.push(() => checkServiceSmoke(pingTimeout, pingPort));
+        projectChecks.push(() => checkAdvertisedEndpoints(pingTimeout, pingPort));
     }
     // Right after installing, people run `tdk doctor` before they have a
     // project. Only the machine checks mean anything there; the project checks
