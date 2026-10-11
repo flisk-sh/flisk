@@ -44,6 +44,16 @@ describe("usesSharedPostgres", () => {
     expect(usesSharedPostgres(resource("api", "shop", { dependsOn: ["redis"] }))).toBe(false);
     expect(usesSharedPostgres({ name: "api", path: "/p", configPath: "/p/s.json" })).toBe(false);
   });
+
+  it("ignores malformed featuresEnabled and dependsOn values instead of throwing", () => {
+    const malformed = [
+      resource("api", "shop", { featuresEnabled: "database-management" as unknown as string[] }),
+      resource("api", "shop", { dependsOn: "postgres" as unknown as string[] }),
+      resource("api", "shop", { dependsOn: 42 as unknown as string[] }),
+    ];
+    expect(() => malformed.map(usesSharedPostgres)).not.toThrow();
+    expect(malformed.map(usesSharedPostgres)).toEqual([false, false, false]);
+  });
 });
 
 describe("groupSharedPostgres", () => {

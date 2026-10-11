@@ -9,9 +9,12 @@ export function usesSharedPostgres(resource) {
     const config = resource.config;
     if (!config)
         return false;
-    if (config.featuresEnabled?.includes(DATABASE_MANAGEMENT_FEATURE))
+    // service.json is not type-checked here, so a malformed value must not throw inside `tdk status`.
+    if (Array.isArray(config.featuresEnabled) &&
+        config.featuresEnabled.includes(DATABASE_MANAGEMENT_FEATURE))
         return true;
-    return (config.dependsOn ?? []).some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name));
+    const dependsOn = Array.isArray(config.dependsOn) ? config.dependsOn : [];
+    return dependsOn.some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name));
 }
 export function groupSharedPostgres(projectName, stacks) {
     const prefix = projectName.replace(/-/g, "_");

@@ -31,10 +31,14 @@ export interface SharedPostgresInstance {
 export function usesSharedPostgres(resource: DiscoveredResource): boolean {
   const config = resource.config;
   if (!config) return false;
-  if (config.featuresEnabled?.includes(DATABASE_MANAGEMENT_FEATURE)) return true;
-  return (config.dependsOn ?? []).some((name) =>
-    (POSTGRES_DEPENDENCY_NAMES as readonly string[]).includes(name),
-  );
+  // service.json is not type-checked here, so a malformed value must not throw inside `tdk status`.
+  if (
+    Array.isArray(config.featuresEnabled) &&
+    config.featuresEnabled.includes(DATABASE_MANAGEMENT_FEATURE)
+  )
+    return true;
+  const dependsOn = Array.isArray(config.dependsOn) ? config.dependsOn : [];
+  return dependsOn.some((name) => (POSTGRES_DEPENDENCY_NAMES as readonly string[]).includes(name));
 }
 
 export function groupSharedPostgres(
