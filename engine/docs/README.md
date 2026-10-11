@@ -204,13 +204,13 @@ should_enable = Config.create_should_enable_wrapper(...)
 ## 🧠 Why This Structure?
 
 ### 1. **Encapsulation**
-When a developer needs to fix a Vite config bug, they go directly to `.tilt/providers/vite.star` — not search through 5000 lines.
+When a developer needs to fix a Vite config bug, they go directly to `engine/topologies/tilt/generators/vite_config.star` — not search through 5000 lines.
 
 ### 2. **Prevents Frozen Hash Table**
 Splitting into small files reduces the chance of mutating an object that's already "frozen" by another load.
 
 ### 3. **Easy Testing**
-You can load only `.tilt/core/utils.star` in a test script without loading heavy Docker logic.
+You can load only `engine/topologies/tilt/common/utils.star` in a test script without loading heavy Docker logic.
 
 ### 4. **Scalability**
 Adding a new generator (e.g., for Kubernetes) = create new file in `providers/`.
@@ -221,11 +221,10 @@ Adding a new generator (e.g., for Kubernetes) = create new file in `providers/`.
 
 | Module | Lines | Purpose |
 |--------|-------|---------|
-| `core/utils.star` | ~400 | Shared utilities |
-| `core/manifest.star` | ~350 | Manifest loading |
-| `core/registry.star` | ~500 | Service definitions |
-| `core/dependency-sync.star` | ~350 | Config sync engine |
-| `providers/vite.star` | ~550 | Vite generation |
+| `engine/topologies/tilt/common/utils.star` | ~400 | Shared utilities |
+| `discovery/loading.star` | ~350 | Manifest loading |
+| `discovery/registry.star` | ~500 | Service definitions |
+| `engine/topologies/tilt/generators/vite_config.star` | ~550 | Vite generation |
 | `providers/typescript/` | ~300 | TSConfig generation (modular) |
 | `providers/docker/` | ~500 | Docker generation (modularized) |
 | `providers/npmrc.star` | ~100 | Registry configs |
@@ -240,7 +239,7 @@ Adding a new generator (e.g., for Kubernetes) = create new file in `providers/`.
 
 ### Adding a New Service
 
-1. Add to `.tilt/core/registry.star`:
+1. Add to `discovery/registry.star`:
 ```starlark
 APP_RESOURCES.append({
     'name': 'my-service',
