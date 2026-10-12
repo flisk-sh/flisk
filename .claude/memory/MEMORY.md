@@ -5,7 +5,6 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 ## Verify before you push
 - Lint and typecheck from `cli/` by exit code, not by `| tail`: `./node_modules/.bin/biome check . ; echo $?` and `./node_modules/.bin/tsc --noEmit ; echo $?`. `npx biome` runs an unrelated v0.3.3 package that exits 0 without checking.
 - Run `npm run build` before vitest when `src/` changed: the e2e tests spawn `cli/bin/tdk.js`, which imports `dist/`.
-- 2026-10-12 (#1046): Native Windows cannot execute the root POSIX `prepare` hook during `bun install`; use the frozen install with `--ignore-scripts`, then run build, typecheck, lint, and tests explicitly.
 - 2026-10-07 (#124): `scripts/benchmark/cli-startup.mjs` measures `tdk status` including its read-only Tilt availability probe; when Tilt is absent from `PATH`, each sample can spend about 10 seconds in that probe. Use the benchmark script's `--skip-status` for smoke runs and treat default status timings as probe-dominated.
 - On Windows, TypeScript preserves CRLF inside multiline template literals in generated `cli/dist` even with `--newLine lf`; normalize emitted files to LF before staging.
 - BSD sed (macOS) has no `\b`; use python `re.sub` or perl for renames and confirm with `grep -c`.
@@ -15,6 +14,7 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 - 2026-10-08 (#88): In doctor-runtime tests on Windows, runHostCommand uses execFileSync instead of the injected exec callback; mock execFileSync or stub process.platform when a test needs to provide command output.
 
 ## PR and CI traps
+- 2026-10-12 (#1046): Native Windows cannot execute the root POSIX `prepare` hook during `bun install`; use the frozen install with `--ignore-scripts`, then run build, typecheck, lint, and tests explicitly.
 - 2026-10-08 (#443): In the Windows sparse checkout, project-templates.test.ts fails because its examples/ fixture is omitted, while tilt.test.ts expects POSIX / paths. Report those failures as checkout/platform-specific rather than as a Linux full-checkout baseline.
 - `cli/dist/` is gitignored but tracked file by file: after `npm run build`, `git add -f` new dist files. A missing one fails `README quickstart on a clean machine` with `ERR_MODULE_NOT_FOUND`.
 - Never commit a `cli/node_modules` symlink (`.gitignore` does not match a symlink). It stalls `bun install` and makes Lint/Test/Typecheck look cancelled.

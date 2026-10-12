@@ -39,10 +39,12 @@ describe("tdk mcp over stdio", () => {
 
     const response = new Promise<InitializeResponse>((resolve, reject) => {
       const lines = createInterface({ input: spawned.stdout });
+      // The full suite runs many CLI-spawning tests in parallel, so this budget is deliberately above vitest's
+      // single-test timing. A passing run answers in well under a second.
       const timeout = setTimeout(() => {
         lines.close();
         reject(new Error(`timed out waiting for initialize response; stderr: ${stderr}`));
-      }, 5_000);
+      }, 15_000);
 
       spawned.once("error", (error) => {
         clearTimeout(timeout);
@@ -50,13 +52,21 @@ describe("tdk mcp over stdio", () => {
         reject(error);
       });
       spawned.once("exit", (code, signal) => {
-        if (code === null && signal === null) return;
         clearTimeout(timeout);
         lines.close();
         reject(new Error(`tdk mcp exited before initialize: ${code ?? signal}; stderr: ${stderr}`));
       });
       lines.on("line", (line) => {
-        const message = JSON.parse(line) as InitializeResponse;
+        // stdout carries only JSON-RPC messages; anything else is a protocol violation worth naming.
+        let message: InitializeResponse;
+        try {
+          message = JSON.parse(line) as InitializeResponse;
+        } catch {
+          clearTimeout(timeout);
+          lines.close();
+          reject(new Error(`tdk mcp wrote non-JSON to stdout: ${line}; stderr: ${stderr}`));
+          return;
+        }
         if (message.id !== 1046) return;
         clearTimeout(timeout);
         lines.close();
