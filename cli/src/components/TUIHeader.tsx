@@ -4,6 +4,8 @@ import { Box, Text } from "ink";
 import type React from "react";
 import { useTUITheme } from "./ui-theme.js";
 
+const TRUNCATE = "truncate-end" as const;
+
 interface TUIHeaderProps {
   projectRoot: string;
   resourceCount: number;
@@ -34,19 +36,19 @@ export const TUIHeader: React.FC<TUIHeaderProps> = ({
         {splitHeading ? (
           <>
             <Box width={contentWidth}>
-              <Text color={theme.accent} bold wrap="truncate-end">
+              <Text color={theme.accent} bold wrap={TRUNCATE}>
                 {title}
               </Text>
             </Box>
             <Box width={contentWidth}>
-              <Text color={theme.success} wrap="truncate-end">
+              <Text color={theme.success} wrap={TRUNCATE}>
                 {resourceLabel}
               </Text>
             </Box>
           </>
         ) : (
           <Box width={contentWidth}>
-            <Text wrap="truncate-end">
+            <Text wrap={TRUNCATE}>
               <Text color={theme.accent} bold>
                 {title}
               </Text>
@@ -56,7 +58,7 @@ export const TUIHeader: React.FC<TUIHeaderProps> = ({
           </Box>
         )}
         <Box width={contentWidth}>
-          <Text color={theme.foreground} wrap="truncate-end">
+          <Text color={theme.foreground} wrap={TRUNCATE}>
             {projectRoot}
           </Text>
         </Box>
@@ -71,17 +73,17 @@ export const TUIHeader: React.FC<TUIHeaderProps> = ({
     return (
       <Box flexDirection="column" paddingX={paddingX} width={terminalWidth}>
         <Box width={contentWidth}>
-          <Text color={theme.accent} bold wrap="truncate-end">
+          <Text color={theme.accent} bold wrap={TRUNCATE}>
             {title}
           </Text>
         </Box>
         <Box width={contentWidth}>
-          <Text color={theme.success} wrap="truncate-end">
+          <Text color={theme.success} wrap={TRUNCATE}>
             {resourceLabel}
           </Text>
         </Box>
         <Box width={contentWidth}>
-          <Text color={theme.foreground} wrap="truncate-end">
+          <Text color={theme.foreground} wrap={TRUNCATE}>
             {projectRoot}
           </Text>
         </Box>
@@ -98,7 +100,7 @@ export const TUIHeader: React.FC<TUIHeaderProps> = ({
       </Text>
       <Text color={theme.muted}> | </Text>
       <Box flexShrink={0} width={rootWidth}>
-        <Text color={theme.foreground} wrap="truncate-end">
+        <Text color={theme.foreground} wrap={TRUNCATE}>
           {projectRoot}
         </Text>
       </Box>
