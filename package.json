@@ -67,7 +67,12 @@
     "monorepo",
     "hot-reload",
     "bun",
-    "kubernetes-alternative"
+    "kubernetes-alternative",
+    "docker-compose-alternative",
+    "live-reload",
+    "no-kubernetes",
+    "service-orchestration",
+    "tiltfile"
   ],
   "license": "MIT",
   "dependencies": {
