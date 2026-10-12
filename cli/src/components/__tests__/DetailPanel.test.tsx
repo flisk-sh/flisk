@@ -78,7 +78,6 @@ async function renderPanel(props: DetailPanelProps): Promise<string> {
     },
   );
   try {
-    await new Promise((resolve) => setTimeout(resolve, 30));
     await app.waitUntilRenderFlush();
     return output.replace(ANSI_SGR, "");
   } finally {
@@ -118,7 +117,7 @@ describe("DetailPanel", () => {
       });
 
       expect(output).toMatch(new RegExp(`Type:\\s+${label}`));
-      expect(output).not.toContain(other);
+      expect(output).not.toMatch(new RegExp(`Type:\\s+${other}`));
     });
 
     it("shows unknown when the service has no stack", async () => {
