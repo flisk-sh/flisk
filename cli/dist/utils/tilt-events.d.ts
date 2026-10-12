@@ -17,9 +17,10 @@ export interface TiltEventSnapshot {
     resources: TiltResourceSummary[];
     events: TiltTimelineEvent[];
 }
+export type TiltEventsFailureKind = "unavailable" | "error";
 export declare class TiltEventsLoadError extends Error {
-    readonly kind: "unavailable" | "error";
-    constructor(message: string, kind: "unavailable" | "error");
+    readonly kind: TiltEventsFailureKind;
+    constructor(message: string, kind: TiltEventsFailureKind);
 }
 export declare function stripTerminalControls(value: string): string;
 export declare function parseTiltUiResourceList(value: unknown): TiltEventSnapshot;
