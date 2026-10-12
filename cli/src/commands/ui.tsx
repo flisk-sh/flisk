@@ -44,7 +44,11 @@ import { singleFlight } from "../utils/single-flight.js";
 import { createStatusMessageController } from "../utils/status-message.js";
 import { getListRowFromMouseY, getTerminalRuleWidth } from "../utils/terminal-layout.js";
 import { isTiltAvailable } from "../utils/tilt.js";
-import type { TiltEventSnapshot, TiltResourceSummary } from "../utils/tilt-events.js";
+import type {
+  TiltEventSnapshot,
+  TiltEventsFailureKind,
+  TiltResourceSummary,
+} from "../utils/tilt-events.js";
 import {
   loadTiltEvents,
   stripTerminalControls,
@@ -236,7 +240,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
   const [showEnabledOnly, setShowEnabledOnly] = useState(true);
   const [eventSnapshot, setEventSnapshot] = useState<TiltEventSnapshot | null>(null);
   const [eventLoadState, setEventLoadState] = useState<
-    "idle" | "loading" | "ready" | "unavailable" | "error"
+    "idle" | "loading" | "ready" | TiltEventsFailureKind
   >("idle");
   const [eventLoadError, setEventLoadError] = useState<string | null>(null);
   const eventRequestRef = useRef(0);

@@ -28,10 +28,12 @@ export interface TiltEventSnapshot {
   events: TiltTimelineEvent[];
 }
 
+export type TiltEventsFailureKind = "unavailable" | "error";
+
 export class TiltEventsLoadError extends Error {
   constructor(
     message: string,
-    readonly kind: "unavailable" | "error",
+    readonly kind: TiltEventsFailureKind,
   ) {
     super(message);
     this.name = "TiltEventsLoadError";
@@ -205,7 +207,7 @@ export async function loadTiltEvents(): Promise<TiltEventSnapshot> {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const kind =
+    const kind: TiltEventsFailureKind =
       /ENOENT|not found|no such file|connection refused|failed to connect|could not connect|unable to connect|Tilt is not running/i.test(
         message,
       )
@@ -215,7 +217,7 @@ export async function loadTiltEvents(): Promise<TiltEventSnapshot> {
   }
   if (result.exitCode !== 0) {
     const message = result.stderr.trim() || `tilt get exited with code ${result.exitCode}`;
-    const kind =
+    const kind: TiltEventsFailureKind =
       /connection refused|failed to connect|could not connect|unable to connect|Tilt is not running|no running Tilt/i.test(
         message,
       )
