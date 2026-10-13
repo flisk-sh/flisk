@@ -63,6 +63,27 @@ mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 expected="$out/expected-containers.txt"
 
+# Preflight: fail fast if the project or tools look wrong, before any long tdk up.
+preflight() {
+  echo "=== preflight ==="
+  echo "tdk: $(tdk --version 2>/dev/null || echo MISSING)"
+  echo "tilt: $(tilt version 2>/dev/null | head -1 || echo MISSING)"
+  echo "docker: $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo MISSING)"
+  docker info >/dev/null 2>&1 || { echo "FAIL: docker daemon not responding" >&2; exit 1; }
+  [ -f "$project/.tdk/project.json" ] || { echo "FAIL: missing $project/.tdk/project.json" >&2; exit 1; }
+  [ -d "$project/services" ] || { echo "FAIL: missing $project/services" >&2; exit 1; }
+  expected_containers > "$expected"
+  expected_count=$(wc -l < "$expected" | tr -d ' ')
+  echo "project: $slug"
+  echo "expected containers ($expected_count):"
+  sed 's/^/  /' "$expected"
+  if [ "$expected_count" -lt "$healthy" ]; then
+    echo "FAIL: --healthy $healthy is higher than the $expected_count expected containers" >&2
+    exit 1
+  fi
+  echo "preflight OK (healthy target $healthy of $expected_count containers)"
+}
+
 settled() {
   # Settled: at least one resource was loaded; no resource is in progress, pending or in error; and at least the
   # expected number of this project's containers (exact names, see expected_containers) are healthy.
@@ -122,7 +143,7 @@ expected_containers() {
 cold_cleanup() {
   # Returns non-zero when the cleanup could not finish, so the run is recorded as failed.
   list="$1"
-  ids=$(docker images --format '{{.Repository}}	{{.ID}}' \
+  ids=$(docker images --format '{{.Repository}}\t{{.ID}}' \
     | awk -F'\t' -v L="$list" -v R="$slug_re" 'BEGIN { while ((getline r < L) > 0) want[r] = 1 } ($1 in want) || ($1 ~ ("^" R "-l[0-9]+(-[a-z-]+)?$")) { print $2 }' \
     | sort -u)
   if [ -n "$ids" ]; then
@@ -164,8 +185,8 @@ run_once() {
   (cd "$project" && tdk up > "$dir/up.log" 2>&1) &
   waited=0
   outcome=timeout
-  # Progress line every ~60 s so a long run is not silent in CI logs.
-  progress_every=60
+  # Progress every ~30 s so a long run is not silent.
+  progress_every=30
   while :; do
     if [ "$sample_vm" = 1 ]; then
       echo "$(date +%T) $(vm_memory_mib)" >> "$dir/vm-samples.txt"
@@ -174,10 +195,9 @@ run_once() {
     if [ "$waited" -ge 1800 ]; then break; fi
     if [ $((waited % progress_every)) -eq 0 ] && [ "$waited" -gt 0 ]; then
       echo "$name: still waiting (${waited}s) $(progress_snapshot)"
-      # Show recent tdk up output so the Actions log has real activity, not just counters.
       if [ -s "$dir/up.log" ]; then
         echo "$name: recent tdk up output:"
-        tail -n 8 "$dir/up.log" | sed 's/^/  /'
+        tail -n 5 "$dir/up.log" | sed 's/^/  /'
       fi
     fi
     sleep 3; waited=$((waited + 3))
@@ -190,6 +210,7 @@ run_once() {
   docker ps --format '{{.Names}} {{.Status}}' | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want)' > "$dir/containers.txt" || true
   write_run "$outcome" "$wall"
   echo "$name: $outcome after $wall s"
+  [ "$outcome" = settled ] || return 1
 }
 
 {
@@ -205,10 +226,20 @@ run_once() {
   echo "sample_vm: $sample_vm"
 } > "$out/environment.txt"
 
+preflight
+
+failed=0
 i=1
-while [ "$i" -le "$cold_runs" ]; do run_once "cold-$i" cold; i=$((i + 1)); done
+while [ "$i" -le "$cold_runs" ]; do
+  run_once "cold-$i" cold || failed=1
+  i=$((i + 1))
+done
 i=1
-while [ "$i" -le "$warm_runs" ]; do run_once "warm-$i" warm; i=$((i + 1)); done
+while [ "$i" -le "$warm_runs" ]; do
+  run_once "warm-$i" warm || failed=1
+  i=$((i + 1))
+done
 (cd "$project" && tdk down > "$out/final-down.log" 2>&1) || true
 
-node "$here/summarize-tdk-up.mjs" "$out"
+node "$here/summarize-tdk-up.mjs" "$out" || true
+exit "$failed"
