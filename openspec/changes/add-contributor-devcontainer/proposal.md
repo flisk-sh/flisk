@@ -6,10 +6,10 @@ CONTRIBUTING.md currently requires Bun, Node.js 22.12+, and (for full local stac
 
 ## What Changes
 
-- Add a lightweight `.devcontainer/devcontainer.json` (plus a Dockerfile only if the official image is insufficient) that provides Node.js 22 and Bun, then runs `cd cli && bun install` via `postCreateCommand`.
+- Add a lightweight `.devcontainer/devcontainer.json` (plus a Dockerfile only if the official image is insufficient) that provides Node.js 22 and Bun, then runs `bun install` at the repository root via `postCreateCommand`.
 - Keep the default configuration light: no Docker-in-Docker and no Tilt. Most `cli/` work can typecheck, lint, and test without them.
 - Optionally provide a second configuration (or feature toggle) that adds the Docker-in-Docker feature and Tilt so contributors can try `tdk up` when needed. Document when to use each.
-- Verify that `cd cli && bun run typecheck && bun run lint && bun run test` (or the equivalent npm scripts) pass inside the container.
+- Verify that `bun run typecheck && bun run lint && bun run test` (root scripts) pass inside the container.
 - Add an “Open in GitHub Codespaces” badge and short section to `CONTRIBUTING.md` (and the short contributor guide if appropriate).
 - Note in the PR what was tested (Codespaces and/or “Dev Containers: Reopen in Container”).
 

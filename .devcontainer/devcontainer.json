@@ -10,13 +10,8 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "dbaeumer.vscode-eslint",
-        "biomejs.biome",
-        "ms-vscode.vscode-typescript-next"
-      ],
-      "settings": {
-        "typescript.tsdk": "cli/node_modules/typescript/lib"
-      }
+        "biomejs.biome"
+      ]
     }
   }
 }

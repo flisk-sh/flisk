@@ -5,7 +5,7 @@ The repository SHALL contain a `.devcontainer/devcontainer.json` that provides N
 
 #### Scenario: New contributor opens the repository
 - **WHEN** a contributor opens the repository in GitHub Codespaces or uses “Dev Containers: Reopen in Container” in VS Code
-- **THEN** the container starts with Node.js 22 and Bun on PATH, project dependencies are installed, and `cd cli && bun run typecheck && bun run lint && bun run test` (or the equivalent scripts defined by the package) exit zero
+- **THEN** the container starts with Node.js 22 and Bun on PATH, project dependencies are installed, and `bun run typecheck && bun run lint && bun run test` at the repository root (or the equivalent scripts defined by the package) exit zero
 
 ### Requirement: Default configuration stays light
 The default Dev Container configuration SHALL NOT require Docker-in-Docker or Tilt. Full-stack experimentation (`tdk up`) SHALL be optional and clearly documented as a separate step or configuration.
