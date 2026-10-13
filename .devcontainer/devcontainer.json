@@ -1,0 +1,22 @@
+{
+  "name": "TDK CLI Core contributor",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/bun:1": {
+      "version": "latest"
+    }
+  },
+  "postCreateCommand": "bun install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "biomejs.biome",
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        "typescript.tsdk": "cli/node_modules/typescript/lib"
+      }
+    }
+  }
+}

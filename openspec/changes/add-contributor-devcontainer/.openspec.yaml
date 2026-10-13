@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-13
+goal: Give contributors a lightweight Dev Container and Codespaces entry point with Node.js 22 and Bun for CLI typecheck, lint and test.

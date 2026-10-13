@@ -2,7 +2,23 @@
 
 Follow these steps once. They set up the tools used by the TDK CLI and its checks.
 
-## You need
+## Fastest way: Dev Container / Codespaces
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tdk-landscape/tdk-cli-core?quickstart=1)
+
+Or clone the repo and use **Dev Containers: Reopen in Container** in VS Code.
+
+The default container gives you Node.js 22 and Bun and runs `bun install` for you. After it starts you can immediately run:
+
+```bash
+bun run typecheck
+bun run lint
+bun run test
+```
+
+Docker and Tilt are optional and not part of the default container. Add them only if you need to exercise a full local stack.
+
+## You need (local install)
 
 - Git
 - [Bun](https://bun.sh)

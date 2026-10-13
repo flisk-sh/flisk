@@ -15,6 +15,22 @@ The focused [frontend provider guide](docs/frontend-framework-providers.md) has 
 
 ## Quick setup
 
+**Fastest way (recommended):** open the repository in a ready-to-use environment.
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tdk-landscape/tdk-cli-core?quickstart=1)
+
+Or in VS Code: clone the repo, then **Dev Containers: Reopen in Container**.
+
+The lightweight Dev Container provides Node.js 22 and Bun and runs `bun install` automatically. Most CLI changes only need:
+
+```bash
+bun run typecheck && bun run lint && bun run test
+```
+
+Docker and Tilt are **not** included in the default container (they are only needed when you want to try a full `tdk up`). See `.devcontainer/devcontainer.json` and the optional notes in the contributor guide if you need the heavier path.
+
+**Local install (alternative):**
+
 You need Git, [Bun](https://bun.sh) and Node.js 22.12+. Docker and Tilt are not needed for most changes.
 
 ```bash
