@@ -143,7 +143,7 @@ expected_containers() {
 cold_cleanup() {
   # Returns non-zero when the cleanup could not finish, so the run is recorded as failed.
   list="$1"
-  ids=$(docker images --format '{{.Repository}}\t{{.ID}}' \
+  ids=$(docker images --format '{{.Repository}}	{{.ID}}' \
     | awk -F'\t' -v L="$list" -v R="$slug_re" 'BEGIN { while ((getline r < L) > 0) want[r] = 1 } ($1 in want) || ($1 ~ ("^" R "-l[0-9]+(-[a-z-]+)?$")) { print $2 }' \
     | sort -u)
   if [ -n "$ids" ]; then
