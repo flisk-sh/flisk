@@ -22,6 +22,8 @@ def generate_standalone_traefik_compose(sablier_enabled = False, http_host_port 
     """
     network = PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC
     name = PlatformDockerConstants.PROJECT_NAME
+    log_level = "DEBUG" if sablier_enabled else "INFO"
+    plugins_volume = "      - plugins-storage:/plugins-storage\n" if sablier_enabled else ""
     return """###############################################################################
 # SYSTEM-GENERATED - DO NOT EDIT
 # Standalone Traefik for TDK projects without platform/introvertic proxy files.
@@ -47,14 +49,14 @@ services:
       - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--log.level=INFO"
+      - "--log.level={log_level}"
 {sablier_flags}    ports:
       - "{bind_address}:{http_host_port}:80"
       - "{bind_address}:{https_host_port}:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./{dynamic_dir_name}:/etc/traefik/dynamic:ro
-    networks:
+{plugins_volume}    networks:
       - traefik-public
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
@@ -63,6 +65,8 @@ services:
   traefik-public:
     name: {network}
     external: true
+volumes:
+  plugins-storage:
 """.format(
         name=name,
         network=network,
@@ -86,6 +90,8 @@ services:
         gateway_port=PlatformDockerConstants.TRAEFIK_WAKE_GATEWAY_PORT,
         tilt_dev_dir=os.environ.get("HOME", "") + "/.tilt-dev",
         project_root_mount=_project_root_mount(),
+        log_level=log_level,
+        plugins_volume=plugins_volume,
     )
 
 
