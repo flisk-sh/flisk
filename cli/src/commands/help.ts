@@ -85,7 +85,7 @@ const COMMAND_GROUPS = [
         alias: "--check-assets",
       },
       { name: "completion", desc: "Generate shell completions", alias: "--install --shell zsh" },
-      { name: "upgrade, update", desc: "Self-update to latest version", alias: "--force" },
+      { name: "upgrade, update", desc: "Self-update to latest version", alias: "--force --all" },
       { name: "version, -v", desc: "Display version number", alias: "" },
       { name: "help", desc: "Show help", alias: "[command]" },
     ],
@@ -163,6 +163,7 @@ export function showHelp(): void {
   ${chalk.cyan("$")} tdk networks                      # Show Traefik-routed URLs
   ${chalk.cyan("$")} tdk doctor                        # Check your environment
   ${chalk.cyan("$")} tdk upgrade                       # Self-update
+  ${chalk.cyan("$")} tdk upgrade --all                 # Update all TDK installs on PATH
   `),
   );
   console.log(chalk.gray(`  ${"═".repeat(50)}`));

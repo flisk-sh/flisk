@@ -25,3 +25,32 @@ export function findOnPath(command) {
     }
     return null;
 }
+export function findAllOnPath(command) {
+    const pathEnv = process.env.PATH ?? process.env.Path ?? "";
+    const windows = isWindows();
+    const names = pathLookups(command, windows);
+    if (windows && !extname(command)) {
+        for (const extension of (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")) {
+            const suffix = extension.toLowerCase();
+            if (suffix && !names.includes(`${command}${suffix}`))
+                names.push(`${command}${suffix}`);
+        }
+    }
+    const found = [];
+    const seen = new Set();
+    for (const dir of pathEnv.split(delimiter)) {
+        if (!dir)
+            continue;
+        for (const name of names) {
+            const candidate = join(dir, name);
+            if (!existsSync(candidate))
+                continue;
+            const key = windows ? candidate.toLowerCase() : candidate;
+            if (!seen.has(key)) {
+                seen.add(key);
+                found.push(candidate);
+            }
+        }
+    }
+    return found;
+}
