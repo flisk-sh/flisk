@@ -107,6 +107,17 @@ def _cmd_instruction(command):
     return "CMD [" + ", ".join(["\"" + part + "\"" for part in command.split()]) + "]\n"
 
 
+def _backend_healthcheck_instruction(port, manifest = None):
+    # Probe the service over HTTP, not the runtime binary: `bun --version` passes even when the server has crashed.
+    # Workers and bring-your-own services without healthCheckPath serve no HTTP, so they get no probe (HEALTHCHECK NONE).
+    if manifest and (manifest.get('appType') == 'worker' or (manifest.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath'))):
+        return "HEALTHCHECK NONE\n"
+    health_path = manifest.get('healthCheckPath', '/health') if manifest else '/health'
+    # fetch() is built into bun, so no extra package is needed in the image. Path is schema-limited to [a-z0-9/-].
+    probe = "fetch('http://127.0.0.1:" + str(port) + health_path + "').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+    return "HEALTHCHECK " + dockerfile_healthcheck_flags() + " CMD bun -e \"" + probe + "\" || exit 1\n"
+
+
 def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun run start', use_infisical = False, resource_name = 'service', use_golden = True, use_prisma = True, has_prisma_config = False, manifest = None):
     """
     Generate the backend runtime layer for deployed services.
@@ -174,7 +185,7 @@ def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun r
     
     # Only add healthcheck if not using golden image (already in golden L4)
     if not use_golden:
-        parts.append("HEALTHCHECK " + dockerfile_healthcheck_flags() + " CMD bun --version || exit 1\n")
+        parts.append(_backend_healthcheck_instruction(port, manifest))
     
     if use_infisical:
         # Use InfisicalDocker generator for proper secret injection setup
