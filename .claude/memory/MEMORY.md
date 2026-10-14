@@ -52,3 +52,4 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 - 2026-10-09 (#966): workflows with `working-directory: cli` must invoke repository-root helpers as `node ../scripts/...`; workflows checking out only an external fixture cannot use those helpers from the workspace root.
 - 2026-10-09 (#966): install workflow-only npm tools with `npm ci` from a committed lockfile into a scoped prefix, not globally; runner toolcache paths can make Git dependency installs fail with `ENOTDIR` during rename.
 - 2026-10-09 (#972): committed `cli/dist/*.map` files are one-line generated JSON and repeated PR conflict hotspots; TypeScript source and declaration maps are disabled so builds stop reintroducing them.
+- 2026-10-14: The warm-start benchmark must ignore `*-typecheck` Tilt resources when deciding startup is settled; they are non-blocking and may remain busy after all target containers are healthy.

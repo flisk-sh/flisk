@@ -85,10 +85,11 @@ preflight() {
 }
 
 settled() {
-  # Settled: at least one resource was loaded; no resource is in progress, pending or in error; and at least the
-  # expected number of this project's containers (exact names, see expected_containers) are healthy.
+  # Settled: at least one resource was loaded; no blocking resource is in progress, pending or in error; and at
+  # least the expected number of this project's containers (exact names, see expected_containers) are healthy.
+  # Frontend typechecks are deliberately non-blocking local resources and can outlast app startup.
   state=$(tilt get uiresources --port "$port" -o json 2>/dev/null) || state=""
-  busy=$(printf '%s' "$state" | jq '[.items[] | select(.status.updateStatus=="in_progress" or .status.updateStatus=="pending" or .status.updateStatus=="error")] | length' 2>/dev/null || echo 1)
+  busy=$(printf '%s' "$state" | jq '[.items[] | select((.metadata.name | endswith("-typecheck") | not) and (.status.updateStatus=="in_progress" or .status.updateStatus=="pending" or .status.updateStatus=="error"))] | length' 2>/dev/null || echo 1)
   loaded=$(printf '%s' "$state" | jq '.items | length' 2>/dev/null || echo 0)
   ok=$(docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want) && /\(healthy\)/ { c++ } END { print c + 0 }')
   [ "${busy:-1}" = "0" ] && [ "${loaded:-0}" -gt 0 ] && [ "${ok:-0}" -ge "$healthy" ]
@@ -98,7 +99,7 @@ settled() {
 # Prints a ready-to-use fragment: busy=N healthy=N/N busy_names=...
 progress_snapshot() {
   state=$(tilt get uiresources --port "$port" -o json 2>/dev/null) || state=""
-  busy=$(printf '%s' "$state" | jq -r '[.items[] | select(.status.updateStatus=="in_progress" or .status.updateStatus=="pending" or .status.updateStatus=="error") | .metadata.name] | join(",")' 2>/dev/null || echo "")
+  busy=$(printf '%s' "$state" | jq -r '[.items[] | select((.metadata.name | endswith("-typecheck") | not) and (.status.updateStatus=="in_progress" or .status.updateStatus=="pending" or .status.updateStatus=="error")) | .metadata.name] | join(",")' 2>/dev/null || echo "")
   if [ -z "$busy" ]; then
     busy_count=0
     busy_short="none"
