@@ -3,6 +3,7 @@
 import type { CheckResult } from "../types/index.js";
 import type { HostInfo } from "./agent-host.js";
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
+import type { DoctorAction } from "./doctor-fix.js";
 import type { HostPortPlan } from "./host-port-plan.js";
 
 export interface DoctorError {
@@ -16,6 +17,8 @@ export interface DoctorReport {
     ready: boolean;
     inProject: boolean;
     checks: CheckResult[];
+    /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
+    actions?: DoctorAction[];
     host?: HostInfo & { containerRuntimeReachable: boolean | null };
     ports?: {
       http: { requested: number; chosen: number | null; explicit: boolean; reason: string };

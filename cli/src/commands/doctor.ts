@@ -6,6 +6,7 @@ import { join, normalize, relative } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
+import { readProjectConfig } from "../generator/template-engine.js";
 import type { CheckResult } from "../types/index.js";
 import {
   DEVCONTAINER_DOCKER_FIX,
@@ -23,6 +24,13 @@ import {
   REQUIRED_PACKAGE_SCRIPTS,
 } from "../utils/constants.js";
 import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.js";
+import {
+  applyDoctorFixes,
+  checkDuplicateTdkInstalls,
+  type DoctorAction,
+  hasFailedActions,
+  planDoctorFixes,
+} from "../utils/doctor-fix.js";
 import { checkDiskSpace, dockerDesktopStuck } from "../utils/doctor-host.js";
 import {
   collectDoctorChecks,
@@ -60,6 +68,7 @@ import { formatCount } from "../utils/formatting.js";
 import { getHostPortPlan, resolveRuntimeIngressPort } from "../utils/host-port-config.js";
 import { createHostPortPlan, type HostPortPlan } from "../utils/host-port-plan.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
+import { promptConfirm } from "../utils/prompt.js";
 import {
   EnvUnreadableError,
   envSecretValues,
@@ -1206,6 +1215,27 @@ async function checkAdvertisedEndpoints(
   return summarizeAdvertisedProbes(await pingHealthTargets(targets, timeoutMs));
 }
 
+function printFixActions(actions: DoctorAction[], dryRun: boolean): void {
+  if (actions.length === 0) {
+    console.log(`${chalk.green("✓")} Nothing to repair\n`);
+    return;
+  }
+  for (const action of actions) {
+    const label =
+      action.status === "planned"
+        ? `${chalk.cyan("would run")}`
+        : action.status === "applied"
+          ? chalk.green("ran")
+          : action.status === "failed"
+            ? chalk.red("failed")
+            : chalk.gray("skipped");
+    const detail = action.status === "planned" ? "" : ` (${action.reason})`;
+    console.log(`${label}: ${action.command}${detail}`);
+  }
+  if (dryRun) console.log(chalk.gray("\nDry run: nothing was changed."));
+  console.log("");
+}
+
 export const doctorCommand = new Command("doctor")
   .description("Check environment readiness for TDK")
   .option("--json", "Output a versioned JSON readiness report", false)
@@ -1220,6 +1250,9 @@ export const doctorCommand = new Command("doctor")
   })
   .option("--no-ping", "Skip pinging running services' /health endpoints")
   .option("--strict", "Fail warnings such as a WSL project under /mnt/c")
+  .option("--fix", "Repair this project's unused Docker networks and leftover doctor probes", false)
+  .option("--dry-run", "With --fix: list the repairs without changing anything", false)
+  .option("-y, --yes", "With --fix: apply every repair without asking", false)
   .option(
     "--ping-timeout <ms>",
     "Per-service ping timeout in milliseconds",
@@ -1234,6 +1267,15 @@ export const doctorCommand = new Command("doctor")
       pingTimeout <= 0
     ) {
       const message = "--ping-timeout must be a positive integer number of milliseconds";
+      if (options.json)
+        console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
+      console.error(message);
+      process.exit(2);
+      return;
+    }
+
+    if ((options.dryRun || options.yes) && !options.fix) {
+      const message = `${options.dryRun ? "--dry-run" : "--yes"} only applies with --fix`;
       if (options.json)
         console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
       console.error(message);
@@ -1307,6 +1349,47 @@ export const doctorCommand = new Command("doctor")
     }
 
     const projectRoot = findProjectRoot();
+
+    // Repairs run before the checks so the checks report the state after the fix.
+    let fixActions: DoctorAction[] | undefined;
+    if (options.fix) {
+      try {
+        let projectName: string | undefined;
+        if (projectRoot) {
+          try {
+            projectName = readProjectConfig(projectRoot).project.name;
+          } catch {
+            // An unreadable config is reported by the project checks below.
+          }
+        }
+        const planned = await planDoctorFixes(projectName);
+        fixActions = await applyDoctorFixes(planned, {
+          dryRun: options.dryRun,
+          confirm:
+            options.yes || (!options.json && process.stdin.isTTY)
+              ? async (action) =>
+                  options.yes ||
+                  (await promptConfirm({
+                    message: `Run \`${action.command}\` (${action.check}, ${action.reason})?`,
+                  }))
+              : undefined,
+        });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        fixActions = [
+          {
+            id: "plan-fixes",
+            check: "Docker networks",
+            scope: "project",
+            command: "docker network ls",
+            status: "failed",
+            reason: `could not list Docker networks: ${reason.split(/\r?\n/)[0]}`,
+          },
+        ];
+      }
+      if (!options.json) printFixActions(fixActions, options.dryRun);
+    }
+
     let hostPortPlan: HostPortPlan | null;
     let portPlanError: string | undefined;
     try {
@@ -1352,6 +1435,7 @@ export const doctorCommand = new Command("doctor")
       () => checkPublishedBindAddress(process.env, options.strict),
       // Each project needs several networks; a full address pool fails `tdk up` late.
       () => checkDockerNetworkCapacity(),
+      () => checkDuplicateTdkInstalls(),
     ];
     const projectChecks: Array<() => CheckResult | Promise<CheckResult>> = [
       () => checkTdkVersion(),
@@ -1429,6 +1513,9 @@ export const doctorCommand = new Command("doctor")
       hostPortPlan,
       host,
     );
+    if (fixActions) report.data.actions = fixActions;
+    const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
+    if (fixFailed) report.data.ready = false;
     const exitCode = getDoctorExitCode(report);
     const allPassed = report.data.ready;
     if (options.json) {

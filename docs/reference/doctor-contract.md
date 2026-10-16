@@ -17,3 +17,28 @@ JSON stdout contains exactly one document: `schemaVersion: 1`, `data: {ready, in
 Migration: invalid timeout previously exited 1, and unexpected errors had no stable doctor contract. CI should now distinguish 1 (fix the environment) from 2 (fix invocation or investigate a check failure). Existing successful and blocking environment exits remain 0 and 1. The new JSON flag is additive; text output remains available.
 
 JSON schema changes are additive within schema version 1. Removing/renaming fields or changing their meaning requires an explicit versioned transition and migration documentation. Consumers should ignore unknown fields and reject unsupported schema versions.
+
+## `--fix`
+
+`tdk doctor --fix` repairs before it checks, so the checks and the exit code describe the state after the repair. It never runs `sudo`.
+
+| Flag | Meaning |
+| --- | --- |
+| `--fix` | Plan and apply repairs. Asks before each one when stdin is a terminal; without a terminal and without `--yes`, a repair is skipped, not applied. |
+| `--dry-run` | List the repairs without changing anything. Requires `--fix`. |
+| `-y`, `--yes` | Apply every repair without asking. Requires `--fix`. |
+
+`--dry-run` or `--yes` without `--fix` exits 2.
+
+Repairs available today, both `docker network rm` of a network with no containers attached:
+
+- `scope: "project"`: one of this project's own networks (the exact names `tdk up` creates, from the project name in `tdk.json`).
+- `scope: "probe"`: a `tdk_doctor_probe_<pid>` network left by an interrupted doctor run, unless that `pid` is still running.
+
+Networks of other projects, and networks with containers attached, are never planned. Outside a project only probes are repaired.
+
+With `--fix`, `data.actions` is added (additive within schema version 1): an array of `{id, check, scope, command, status, reason}` with `status` one of `planned` (dry run), `applied`, `skipped` or `failed`. A `failed` action makes the report not ready and the exit code 1. Not yet implemented from the original proposal (tdk-landscape/tdk-cli-core#1214): repairs for Tilt/host port collisions, stale Tilt processes, crash-looping containers, disk space and `--scope=machine`.
+
+## Duplicate installs
+
+A `TDK installs` check warns (non-blocking) when more than one distinct `tdk` binary is on `PATH`, naming each path and version.

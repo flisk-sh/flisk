@@ -322,6 +322,9 @@ Checks for:
 
 - `--no-ping`: Skip pinging running services' `/health` endpoints. Useful when checking host tools or static configurations without probing runtime services.
 - `--ping-timeout <ms>`: Per-service health check timeout in milliseconds (must be a positive integer, defaults to `5000`).
+- `--fix`: Before the checks run, remove unused Docker networks that belong to this project (the exact names `tdk up` creates) and leftover `tdk_doctor_probe_*` networks from interrupted runs. Asks before each removal. Never touches another project's networks, never runs `sudo`.
+- `--dry-run`: With `--fix`, list the commands without running them.
+- `-y, --yes`: With `--fix`, run every repair without asking. Without a terminal and without `--yes`, repairs are skipped.
 
 When checks fail, `tdk doctor` prints each issue with `✗` in red. It prints `ℹ Fix: ...` when a check provides remediation.
 The general Tilt-resource fix points to the URL printed by `tdk up`; the default port can be auto-switched when occupied, and `TILT_PORT` can override it.

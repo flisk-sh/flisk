@@ -1,5 +1,6 @@
 import type { CheckResult } from "../types/index.js";
 import type { HostInfo } from "./agent-host.js";
+import type { DoctorAction } from "./doctor-fix.js";
 import type { HostPortPlan } from "./host-port-plan.js";
 export interface DoctorError {
     code: "USAGE" | "INTERNAL" | "ENV_UNREADABLE";
@@ -11,6 +12,8 @@ export interface DoctorReport {
         ready: boolean;
         inProject: boolean;
         checks: CheckResult[];
+        /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
+        actions?: DoctorAction[];
         host?: HostInfo & {
             containerRuntimeReachable: boolean | null;
         };

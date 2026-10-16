@@ -363,6 +363,9 @@ tdk doctor --ping-timeout 2000
 | --- | --- |
 | `--no-ping` | Skip pinging running services' `/health` endpoints |
 | `--ping-timeout <ms>` | Per-service ping timeout (default 5000) |
+| `--fix` | Remove this project's unused Docker networks and leftover doctor probes (asks first) |
+| `--dry-run` | With `--fix`, print the commands without running them |
+| `-y, --yes` | With `--fix`, do not ask before each repair |
 | `--strict` | Fail on warnings, such as a WSL project under `/mnt/c` |
 | `--json` | Versioned JSON readiness report |
 
