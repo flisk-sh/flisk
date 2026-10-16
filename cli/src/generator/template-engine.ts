@@ -640,6 +640,27 @@ export async function generateMasterConfigs(
 // vendor a working copy into .tdk/.tdk-out/tdk-cli-ext/ at generation time.
 // This makes `tdk up` work offline and on any machine - no hardcoded paths,
 // no dependency on a private GitHub repo.
+// The engine's own unit tests (for example wake-gateway/decide.test.ts, which imports bun:test) are
+// not needed to run a stack. Vendoring them under .tdk/.tdk-out makes a Node project's test runner
+// (Vitest, Jest) discover them and fail, so they are left out of the vendored copy.
+const TEST_FILE_PATTERN = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
+
+export function isTestFile(filePath: string): boolean {
+  return TEST_FILE_PATTERN.test(filePath);
+}
+
+function removeVendoredTestFiles(dir: string): void {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      removeVendoredTestFiles(entryPath);
+    } else if (isTestFile(entryPath)) {
+      fs.rmSync(entryPath, { force: true });
+    }
+  }
+}
+
 const TDK_EXTENSION_DIRS = ["engine", "discovery", "specs", "ext"] as string[];
 const PROJECT_RUNTIME_ASSET_DIRS = [["shared-platform-engineering", "docker-templates"]] as const;
 const REQUIRED_DOCKER_TEMPLATE_FILES = [
@@ -784,8 +805,11 @@ async function vendorTdkExtension(projectRoot: string): Promise<void> {
   }
   fs.copyFileSync(path.join(sourceRoot, "Tiltfile"), path.join(vendoredDir, "Tiltfile"));
   for (const dir of TDK_EXTENSION_DIRS) {
+    // A project vendored by an older TDK already holds test files; cpSync only adds, so drop them.
+    removeVendoredTestFiles(path.join(vendoredDir, dir));
     fs.cpSync(path.join(sourceRoot, dir), path.join(vendoredDir, dir), {
       recursive: true,
+      filter: (source) => !isTestFile(source),
     });
   }
   console.log(`✓ Vendored TDK extension → .tdk/.tdk-out/tdk-cli-ext/`);

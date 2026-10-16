@@ -10,6 +10,7 @@ import type { ProjectConfig } from "../../types/index.js";
 import {
   generateDatabaseManagementCompose,
   generateMasterConfigs,
+  isTestFile,
   loadTemplate,
   TemplateEngine,
   verifyMasterConfigs,
@@ -188,6 +189,76 @@ describe("template-engine", () => {
       expect(verifyMasterConfigs(projectRoot).errors.join("\n")).toContain(
         "Out of sync: .tiltignore",
       );
+    } finally {
+      if (oldExtensionSource === undefined) delete process.env.TDK_EXTENSION_SOURCE;
+      else process.env.TDK_EXTENSION_SOURCE = oldExtensionSource;
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  }, 15000);
+
+  it("does not vendor the engine's own test files into .tdk/.tdk-out (#1204)", async () => {
+    expect(isTestFile("engine/assets/docker/wake-gateway/decide.test.ts")).toBe(true);
+    expect(isTestFile("a/b.spec.mjs")).toBe(true);
+    expect(isTestFile("engine/assets/docker/wake-gateway/decide.ts")).toBe(false);
+    expect(isTestFile("engine/latest.star")).toBe(false);
+
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-vendor-tests-"));
+    const oldExtensionSource = process.env.TDK_EXTENSION_SOURCE;
+    process.env.TDK_EXTENSION_SOURCE = repoRoot;
+    try {
+      fs.mkdirSync(path.join(projectRoot, ".tdk"), { recursive: true });
+      fs.writeFileSync(
+        path.join(projectRoot, ".tdk", "project.json"),
+        JSON.stringify({
+          version: "1.0",
+          project: { name: "vendor-tests", version: "1.0.0" },
+          phases: {
+            pre_alpha: { name: "Pre-Alpha", description: "", enabledStacks: [] },
+            alpha: { name: "Alpha", description: "", enabledStacks: [] },
+            beta: { name: "Beta", description: "", enabledStacks: [] },
+            out_of_scope: { name: "Out of Scope", description: "", enabledStacks: [] },
+          },
+          optional_infra: {
+            monitoring: false,
+            elk: false,
+            debezium: false,
+            golden_image: false,
+            verdaccio: false,
+          },
+          discovery: { paths: ["services/*/*"] },
+          overrides: {},
+        }),
+      );
+      await generateMasterConfigs(projectRoot);
+
+      const vendored = path.join(projectRoot, ".tdk", ".tdk-out", "tdk-cli-ext");
+      const walk = (dir: string): string[] =>
+        fs
+          .readdirSync(dir, { withFileTypes: true })
+          .flatMap((entry) =>
+            entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)],
+          );
+      const files = walk(vendored);
+      expect(files.length).toBeGreaterThan(0);
+      expect(files.filter(isTestFile)).toEqual([]);
+      expect(fs.existsSync(path.join(vendored, "Tiltfile"))).toBe(true);
+
+      // A project vendored by an older TDK already holds a test file: regenerating removes it
+      // and keeps the other engine files.
+      const stale = path.join(
+        vendored,
+        "engine",
+        "assets",
+        "docker",
+        "wake-gateway",
+        "decide.test.ts",
+      );
+      fs.mkdirSync(path.dirname(stale), { recursive: true });
+      fs.writeFileSync(stale, 'import { test } from "bun:test";\n');
+      await generateMasterConfigs(projectRoot);
+      expect(fs.existsSync(stale)).toBe(false);
+      expect(walk(vendored).filter(isTestFile)).toEqual([]);
+      expect(walk(vendored).length).toBe(files.length);
     } finally {
       if (oldExtensionSource === undefined) delete process.env.TDK_EXTENSION_SOURCE;
       else process.env.TDK_EXTENSION_SOURCE = oldExtensionSource;
