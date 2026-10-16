@@ -112,6 +112,8 @@ def test_standalone_compose_enables_file_provider_and_wake_gateway(tmp_path):
     assert "--providers.file.directory=/etc/traefik/dynamic" in yaml_text
     assert "--providers.file.watch=true" in yaml_text
     assert "--experimental.plugins.sablier.modulename=github.com/sablierapp/sablier-traefik-plugin" in yaml_text
+    # v1.3.1 fails Traefik's plugin integrity check and disables every plugin (#1235).
+    assert "--experimental.plugins.sablier.version=v1.3.0" in yaml_text
     assert "/etc/traefik/dynamic:ro" in yaml_text
     assert "wake-gateway:" in yaml_text
     assert "/root/.tilt-dev:ro" in yaml_text
