@@ -529,7 +529,10 @@ services:
     for entry in resource_entries:
         for line in entry.split("\n"):
             if line.strip().startswith("# tdk-agent-volume: "):
-                volume_names.append(line.strip()[len("# tdk-agent-volume: "):])
+                name = line.strip()[len("# tdk-agent-volume: "):]
+                # Replicas of one agent repeat the marker; Compose rejects a duplicate key under volumes:.
+                if name not in volume_names:
+                    volume_names.append(name)
     volumes_section = ""
     if volume_names:
         volumes_section = "\nvolumes:\n" + "".join(["  {}:\n".format(name) for name in volume_names])

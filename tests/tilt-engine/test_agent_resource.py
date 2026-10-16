@@ -57,6 +57,7 @@ r = {
     'files_yaml': generate_app_compose_from_entries('services/shop', [files_entry]),
     'postgres_yaml': generate_app_compose_from_entries('services/shop', [postgres_entry]),
     'plain_yaml': generate_app_compose_from_entries('services/shop', [plain_entry]),
+    'replicas_yaml': generate_app_compose_from_entries('services/shop', [files_entry, files_entry]),
 }
 """
 
@@ -147,3 +148,13 @@ def test_files_durability_creates_the_state_directory_owned_by_bun(tmp_path):
 
     assert "RUN mkdir -p /var/lib/tdk-agent && chown bun:bun /var/lib/tdk-agent" in result["agent"]
     assert "tdk-agent" not in result["plain"]
+
+
+@TILT_REQUIRED
+def test_replicas_of_one_agent_declare_its_volume_once(tmp_path):
+    # Each replica repeats the volume marker; a duplicate key under volumes: is rejected by Docker Compose.
+    result = run_tilt(tmp_path, COMPOSE_BODY)
+    yaml_text = result["replicas_yaml"]
+
+    assert yaml_text.count("\nvolumes:\n") == 1
+    assert yaml_text.split("\nvolumes:\n")[1].count("  bot-agent-state:") == 1
