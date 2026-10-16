@@ -126,3 +126,24 @@ def test_an_ordinary_backend_gets_no_agent_volume_or_environment(tmp_path):
     assert "AGENT_" not in yaml_text
     assert "agent-state" not in yaml_text
     assert "\nvolumes:" not in yaml_text
+
+
+RUNTIME_BODY = """
+load('@ENGINE/topologies/platform/docker/layers/l4_runtime_layers.star', 'L4_generate_backend_runtime')
+
+agent_manifest = {'appType': 'backend', 'port': 4010, 'agent': {'runtime': 'custom', 'durability': 'files'}}
+plain_manifest = {'appType': 'backend', 'port': 4012}
+r = {
+    'agent': L4_generate_backend_runtime('services/shop/bot', port=4010, manifest=agent_manifest),
+    'plain': L4_generate_backend_runtime('services/shop/api', port=4012, manifest=plain_manifest),
+}
+"""
+
+
+@TILT_REQUIRED
+def test_files_durability_creates_the_state_directory_owned_by_bun(tmp_path):
+    # Without this, a new named volume is root-owned and the agent's first checkpoint fails with EACCES.
+    result = run_tilt(tmp_path, RUNTIME_BODY)
+
+    assert "RUN mkdir -p /var/lib/tdk-agent && chown bun:bun /var/lib/tdk-agent" in result["agent"]
+    assert "tdk-agent" not in result["plain"]
