@@ -298,7 +298,7 @@ export const resourceCommand = new Command("resource")
     .option("--port <port>", "Port for the resource, within its type's range (default: next free port in that range)")
     .option("--feature <feature...>", "Enable a resource feature (for example: prisma)")
     .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
-    .option("--durability <kind>", "Where agent sessions are checkpointed (for agent only): files (default, a named volume that survives tdk down) or postgres (the project database)")
+    .option("--durability <kind>", "Where agent sessions are checkpointed (for agent only): files (default, a named volume that survives tdk down)")
     .action(async (name, options) => {
     if (options.frameworks) {
         for (const f of listFrontendFrameworks()) {

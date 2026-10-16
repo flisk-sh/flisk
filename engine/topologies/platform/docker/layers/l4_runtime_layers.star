@@ -173,6 +173,14 @@ def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun r
         parts.append("RUN apk add --no-cache hugo\n")
         parts.append("USER bun\n")
 
+    # A files-durability agent keeps its checkpoints in /var/lib/tdk-agent, a named volume. Docker seeds a new volume with the
+    # image directory's owner, so create the directory owned by bun, or the agent cannot write its first checkpoint (EACCES).
+    agent_cfg = manifest.get('agent') if manifest else None
+    if type(agent_cfg) == 'dict' and agent_cfg.get('durability', 'files') == 'files':
+        parts.append("USER root\n")
+        parts.append("RUN mkdir -p /var/lib/tdk-agent && chown bun:bun /var/lib/tdk-agent\n")
+        parts.append("USER bun\n")
+
     if has_prisma_config:
         # Prisma v7 migrate deploy reads datasource.url from prisma.config.ts in CWD
         parts.append(prisma_config_copy(res_path))

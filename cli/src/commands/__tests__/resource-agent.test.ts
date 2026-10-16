@@ -58,7 +58,7 @@ describe("the agent resource type", () => {
     expect(resolveAgentRuntime().id).toBe("custom");
     expect(() => resolveAgentRuntime("libfx")).toThrow(/Unknown agent runtime "libfx"/);
     expect(resolveAgentDurability()).toBe("files");
-    expect(resolveAgentDurability("postgres")).toBe("postgres");
+    expect(() => resolveAgentDurability("postgres")).toThrow(/Unknown --durability "postgres"/);
     expect(() => resolveAgentDurability("redis")).toThrow(/Unknown --durability "redis"/);
   });
 
@@ -68,7 +68,7 @@ describe("the agent resource type", () => {
     );
     expect(schema.properties.appType.enum).toContain("agent");
     expect(schema.properties.type.enum).toContain("agent");
-    expect(schema.properties.agent.properties.durability.enum).toEqual(["files", "postgres"]);
+    expect(schema.properties.agent.properties.durability.enum).toEqual(["files"]);
     expect(schema.properties.agent.properties.runtime.enum).toEqual(["custom"]);
 
     // The engine normalises an agent manifest once, where service.json is loaded, so every backend code path (routing,
@@ -150,17 +150,17 @@ describe("tdk resource --type agent", () => {
     expect(existsSync(join(dir("support-agent"), "tsconfig.json"))).toBe(true);
   }, 30000);
 
-  it("records postgres durability when asked, and checks the runtime index contract", () => {
+  it("rejects postgres durability until the scaffold has a Postgres session store", () => {
     const result = tdk(
       ["resource", "pg-agent", "--type", "agent", "--durability", "postgres", "--stack", "shop"],
       projectRoot,
     );
-    expect(result.status, result.stderr).toBe(0);
-    expect(json("pg-agent", "service.json").agent).toEqual({
-      runtime: "custom",
-      durability: "postgres",
-    });
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toMatch(/Unknown --durability "postgres"/);
+    expect(existsSync(dir("pg-agent"))).toBe(false);
+  }, 30000);
 
+  it("scaffolds the runtime index contract", () => {
     const index = readFileSync(join(dir("support-agent"), "src", "index.ts"), "utf-8");
     // Health is liveness, readiness is the store, and sessions route by header.
     expect(index).toContain("url.pathname === '/health'");
@@ -177,10 +177,6 @@ describe("tdk resource --type agent", () => {
     // No vendor is privileged: the scaffold imports nothing beyond Node built-ins.
     expect(index).not.toMatch(/from '(openai|@anthropic-ai|@ai-sdk|libfx|@mastra|langchain)/);
     expect(index).not.toMatch(/from '(?!node:)[^']+'/);
-
-    const pgIndex = readFileSync(join(dir("pg-agent"), "src", "index.ts"), "utf-8");
-    expect(pgIndex).toContain("'postgres'");
-    expect(pgIndex).toContain("DATABASE_URL");
   }, 30000);
 
   it("rejects an unknown runtime, durability, or an agent flag on another type, before writing anything", () => {

@@ -13,13 +13,12 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from '
 import { join } from 'node:path';
 
 // Contract with TDK (see docs/ai-agents.md):
-//   AGENT_DURABILITY  files | postgres   (set by tdk from service.json agent.durability)
+//   AGENT_DURABILITY  files   (set by tdk from service.json agent.durability)
 //   AGENT_STATE_DIR   where files-durability checkpoints live (a named volume that survives tdk down)
-//   DATABASE_URL      set by tdk for postgres durability
 //   PORT              port to listen on
 // /health: the process is alive. /ready: the checkpoint store is reachable. Idle is healthy, so /health never checks the store.
 
-const DURABILITY = process.env.AGENT_DURABILITY === 'postgres' ? 'postgres' : 'files';
+const DURABILITY = 'files';
 const STATE_DIR = process.env.AGENT_STATE_DIR || join(process.cwd(), '.agent-state');
 const PORT = Number(process.env.PORT || 3000);
 const DRAIN_TIMEOUT_MS = 10_000;
@@ -30,10 +29,9 @@ interface Checkpoint {
 }
 
 // Session store. files: one JSON checkpoint per session, written atomically (temp file, then rename), so a kill
-// mid-write leaves the previous checkpoint intact. postgres: not implemented in this scaffold; see TODO below.
+// mid-write leaves the previous checkpoint intact.
 const store = {
   ready(): boolean {
-    if (DURABILITY === 'postgres') return Boolean(process.env.DATABASE_URL);
     try {
       mkdirSync(STATE_DIR, { recursive: true });
       return true;
@@ -42,12 +40,10 @@ const store = {
     }
   },
   load(sessionId: string): Checkpoint {
-    if (DURABILITY === 'postgres') throw new Error('postgres session store is not implemented in this scaffold');
     const file = join(STATE_DIR, sessionId + '.json');
     return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { sessionId, messages: [] };
   },
   save(checkpoint: Checkpoint): void {
-    if (DURABILITY === 'postgres') throw new Error('postgres session store is not implemented in this scaffold');
     mkdirSync(STATE_DIR, { recursive: true });
     const file = join(STATE_DIR, checkpoint.sessionId + '.json');
     const tmp = file + '.' + process.pid + '.tmp';
@@ -81,7 +77,7 @@ async function readJson(req: IncomingMessage): Promise<any> {
 
 const server = createServer(async (req, res) => {
   inFlight++;
-  res.on('finish', () => inFlight--);
+  res.on('close', () => inFlight--);
   const url = new URL(req.url ?? '/', 'http://localhost');
 
   try {

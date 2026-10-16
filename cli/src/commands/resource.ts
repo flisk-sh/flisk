@@ -435,7 +435,7 @@ export const resourceCommand = new Command("resource")
   .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
   .option(
     "--durability <kind>",
-    "Where agent sessions are checkpointed (for agent only): files (default, a named volume that survives tdk down) or postgres (the project database)",
+    "Where agent sessions are checkpointed (for agent only): files (default, a named volume that survives tdk down)",
   )
   .action(async (name, options) => {
     if (options.frameworks) {

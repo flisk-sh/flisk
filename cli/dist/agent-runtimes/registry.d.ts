@@ -5,7 +5,7 @@ import type { BackendFrameworkProvider } from "../backend-frameworks/types.js";
  */
 export declare const AGENT_RUNTIMES: Record<string, BackendFrameworkProvider>;
 export declare const DEFAULT_AGENT_RUNTIME = "custom";
-export declare const AGENT_DURABILITY_OPTIONS: readonly ["files", "postgres"];
+export declare const AGENT_DURABILITY_OPTIONS: readonly ["files"];
 export type AgentDurability = (typeof AGENT_DURABILITY_OPTIONS)[number];
 export declare function resolveAgentRuntime(runtimeId?: string): BackendFrameworkProvider;
 export declare function resolveAgentDurability(value?: string): AgentDurability;
