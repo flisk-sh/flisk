@@ -11,7 +11,7 @@ load('../databases.star', 'Database')
 load('./apply_runtime_flags.star', 'RuntimeFlags')
 load('./apply_resource_validation.star', 'ResourceValidation')
 load('./apply_manifest_orchestration.star', 'ManifestOrchestration')
-load('./apply_compose_resource_registration.star', 'ComposeResourceRegistration')
+load('./apply_compose_resource_registration.star', 'ComposeResourceRegistration', 'resource_needs_database')
 load('./apply_migrator_orchestration.star', 'MigratorOrchestration')
 
 
@@ -53,11 +53,10 @@ def apply_app_service(resource_config, ctx):
 
     ResourceValidation.validate(resource_config)
 
-    # Only provision database if service has a backend resource (not just frontend)
+    # Provision the database when a resource receives DATABASE_URL (backend or bring-your-own), not for frontends only.
     has_backend = False
     for resource in resource_config.get('resources', []):
-        manifest = resource.get('_manifest', {})
-        if manifest.get('appType') == 'backend':
+        if resource_needs_database(resource.get('_manifest', {})):
             has_backend = True
             break
     

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
 import { completionCommand } from "../completion.js";
+import { runtimeCommand } from "../runtime.js";
 
 describe("tdk completion", () => {
   it.each(["bash", "zsh", "fish", "powershell"])(
@@ -40,5 +41,35 @@ describe("tdk completion", () => {
       log.mockRestore();
       exit.mockRestore();
     }
+  });
+
+  describe("JSON flags", () => {
+    async function generate(shell: string): Promise<string> {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      try {
+        await completionCommand.parseAsync(["node", "tdk", "--shell", shell], { from: "node" });
+        return log.mock.calls.map(([value]) => String(value)).join("\n");
+      } finally {
+        log.mockRestore();
+      }
+    }
+
+    it("runtime still has the --json option that the scripts complete", () => {
+      expect(runtimeCommand.options.map((option) => option.long)).toContain("--json");
+    });
+
+    it("offers runtime --json in the bash script", async () => {
+      expect(await generate("bash")).toMatch(/runtime\)[\s\S]*?compgen -W "[^"]*--json[^"]*"/);
+    });
+
+    it("offers runtime --json in the zsh script", async () => {
+      expect(await generate("zsh")).toMatch(/runtime\)[\s\S]*?'--json\[/);
+    });
+
+    it("offers runtime --json in the fish script", async () => {
+      expect(await generate("fish")).toContain(
+        "complete -c tdk -n '__fish_seen_subcommand_from runtime' -l json",
+      );
+    });
   });
 });
