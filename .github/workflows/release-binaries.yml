@@ -230,7 +230,7 @@ jobs:
       contents: write
       id-token: write
       issues: write
-      pull-requests: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -346,7 +346,9 @@ jobs:
       - name: Commit the version bump
         if: needs.build.outputs.bumped == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          # A PR opened with github.token never starts pull_request workflows, so the required checks would
+          # never report. RELEASE_PAT (a fine-grained PAT or GitHub App token) fixes that.
+          GH_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
@@ -367,13 +369,20 @@ jobs:
           git add package.json cli/package.json
           if [ -f CHANGELOG.md ]; then git add CHANGELOG.md; fi
           git commit -m "Release ${VERSION} (automatic version bump)"
+          # main requires the example-e2e and windows-smoke checks, which a direct push from github.token never
+          # reports, so the bump goes through a pull request that runs them. The commit only changes version
+          # fields and the changelog, so the published artifacts and their checksums are unaffected.
+          branch="release/bump-${VERSION}"
+          # The checkout keeps no credentials, so push with the token explicitly.
           remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if ! git push "$remote" HEAD:main; then
-            git fetch --depth=50 "$remote" main
-            if ! { git rebase FETCH_HEAD && git push "$remote" HEAD:main; }; then
-              echo "::notice::Released ${VERSION}. The version bump was not pushed to main (branch protection or a newer commit). This is harmless: the next release starts from the newest npm version and its notes skip entries already published. CHANGELOG.md is not rolled over until the bot may push to main."
-            fi
+          git push --force "$remote" "HEAD:refs/heads/${branch}"
+          if ! gh pr view "$branch" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
+              --title "Release ${VERSION} (automatic version bump)" \
+              --body "Version bump to ${VERSION}, opened by the release workflow after it published the release to npm and GitHub. Merges once the required checks pass."
           fi
+          gh pr merge "$branch" --repo "$GITHUB_REPOSITORY" --squash --auto --delete-branch || \
+            echo "::warning::Released ${VERSION}, but could not enable auto-merge for the version bump PR ${branch}."
 
       # OpenSSF Scorecard's Signed-Releases check looks at the GitHub releases of THIS repository, while the binaries live in
       # tdk-cli-releases. So this repository gets a release per version that carries the binaries' checksums and a keyless
