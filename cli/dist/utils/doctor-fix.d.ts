@@ -47,4 +47,9 @@ export interface TdkInstall {
 export declare function findTdkInstalls(paths?: string[], readVersion?: (path: string) => Promise<string | null>): Promise<TdkInstall[]>;
 /** Two `tdk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
 export declare function checkDuplicateTdkInstalls(installs?: TdkInstall[]): Promise<CheckResult>;
+/**
+ * PIDs of `tilt up` processes for this project. The process list shows the Tiltfile path as it was typed at launch,
+ * which may or may not be the symlink-resolved path, so both spellings are looked up.
+ */
+export declare function projectTiltPids(projectRoot: string, find?: (tiltfilePath: string) => number[]): number[];
 export {};

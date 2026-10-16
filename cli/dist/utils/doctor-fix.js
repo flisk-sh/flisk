@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
+import { join } from "node:path";
 import { promisify } from "node:util";
-import { projectNetworkNames } from "./down-cleanup.js";
+import { findProjectTiltUpPids, projectNetworkNames } from "./down-cleanup.js";
 import { findAllOnPath } from "./which.js";
 const execFilePromise = promisify(execFile);
 const DOCKER_TIMEOUT_MS = 15_000;
@@ -208,4 +209,23 @@ export async function checkDuplicateTdkInstalls(installs) {
         message: `${found.length} tdk installs on PATH${versions.size > 1 ? " with different versions" : ""}: ${list}`,
         fix: "Keep one: remove the others, or run tdk upgrade. The first on PATH is the one your shell runs; tools that launch /usr/local/bin/tdk directly may use another",
     };
+}
+/**
+ * PIDs of `tilt up` processes for this project. The process list shows the Tiltfile path as it was typed at launch,
+ * which may or may not be the symlink-resolved path, so both spellings are looked up.
+ */
+export function projectTiltPids(projectRoot, find = findProjectTiltUpPids) {
+    const roots = new Set([projectRoot]);
+    try {
+        roots.add(realpathSync(projectRoot));
+    }
+    catch {
+        // Keep the path as given.
+    }
+    const pids = new Set();
+    for (const root of roots) {
+        for (const pid of find(join(root, ".tdk", ".tdk-out", "Tiltfile")))
+            pids.add(pid);
+    }
+    return [...pids];
 }

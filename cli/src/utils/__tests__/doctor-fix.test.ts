@@ -1,5 +1,8 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   applyDoctorFixes,
@@ -9,6 +12,7 @@ import {
   type DoctorFixDeps,
   hasFailedActions,
   planDoctorFixes,
+  projectTiltPids,
 } from "../doctor-fix.js";
 
 function fakeDocker(networks: DockerNetwork[], alive: number[] = [], failing: string[] = []) {
@@ -211,5 +215,22 @@ describe("createDockerFixDeps", () => {
       throw Object.assign(new Error("failed"), { stderr: "has active endpoints\nmore detail" });
     });
     await expect(deps.removeNetwork("x")).rejects.toThrow(/^has active endpoints$/);
+  });
+});
+
+describe("projectTiltPids", () => {
+  it("finds a Tilt launched through a symlinked project path or the resolved one", () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "doctor-fix-")));
+    const real = join(base, "real");
+    mkdirSync(real);
+    const link = join(base, "link");
+    symlinkSync(real, link);
+    const launched = new Map([
+      [join(link, ".tdk", ".tdk-out", "Tiltfile"), [11]],
+      [join(real, ".tdk", ".tdk-out", "Tiltfile"), [12]],
+    ]);
+    const find = (path: string) => launched.get(path) ?? [];
+    expect(projectTiltPids(link, find).sort()).toEqual([11, 12]);
+    expect(projectTiltPids(join(base, "nope"), find)).toEqual([]);
   });
 });
