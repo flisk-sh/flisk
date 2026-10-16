@@ -42,3 +42,7 @@ With `--fix`, `data.actions` is added (additive within schema version 1): an arr
 ## Duplicate installs
 
 A `TDK installs` check warns (non-blocking) when more than one distinct `tdk` binary is on `PATH`, naming each path and version.
+
+## Crash-looping containers
+
+A `Crash-looping containers` check (blocking) lists containers of this project, matched by compose project name (`<project>_...` or `<project>-...`), that are `restarting`, or have restarted at least 5 times and either are not running or were started in the last 10 minutes. An old restart count on a container that has been up for a while is not reported. Each finding shows the last 3 log lines (with `.env` secret values redacted) and, when the logs name a known cause (missing database, missing module, port in use, unreachable dependency, missing environment variable, exit 137), a hint in `fix`. It reports only; there is no automatic repair yet. It is skipped when Docker is unavailable or the project has no containers.

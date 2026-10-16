@@ -24,6 +24,7 @@ import {
   REQUIRED_PACKAGE_SCRIPTS,
 } from "../utils/constants.js";
 import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.js";
+import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import {
   applyDoctorFixes,
   checkDuplicateTdkInstalls,
@@ -85,6 +86,7 @@ import {
 import {
   buildAdvertisedTargets,
   buildHealthTargets,
+  getProjectName,
   pingHealthTargets,
 } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
@@ -1486,6 +1488,23 @@ export const doctorCommand = new Command("doctor")
       },
       // Runtime checks: skip gracefully if the stack isn't started yet.
       checkContainerResourceHealth,
+      // A container restarted thousands of times is invisible in `docker ps` until someone looks.
+      () => {
+        const root = findProjectRoot() ?? process.cwd();
+        let secrets: string[] = [];
+        try {
+          secrets = envSecretValues(root);
+        } catch {
+          // Without the secret values, log lines cannot be shown safely.
+          return {
+            name: "Crash-looping containers",
+            didPass: true,
+            isSkipped: true,
+            message: "Could not read .env - skipped crash-loop check",
+          };
+        }
+        return checkCrashLoopingContainers(getProjectName(), secrets);
+      },
       // When Tilt is up, surface red resources (Traefik/apps never started).
       checkTiltResourceHealth,
     ];
