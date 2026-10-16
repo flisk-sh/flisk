@@ -62,6 +62,7 @@ import {
   checkSharedStackRoutes,
   checkTiltInstances,
 } from "../utils/doctor-wiring.js";
+import { findProjectTiltUpPids } from "../utils/down-cleanup.js";
 import { validateEnvFile } from "../utils/env-validator.js";
 import { type ExecAsync, execAsync, isExecTimeout } from "../utils/exec-async.js";
 import { formatCount } from "../utils/formatting.js";
@@ -1362,7 +1363,16 @@ export const doctorCommand = new Command("doctor")
             // An unreadable config is reported by the project checks below.
           }
         }
-        const planned = await planDoctorFixes(projectName);
+        const tiltPids = projectRoot
+          ? findProjectTiltUpPids(join(projectRoot, ".tdk", ".tdk-out", "Tiltfile"))
+          : [];
+        const planned = await planDoctorFixes(
+          projectName,
+          undefined,
+          tiltPids.length > 0
+            ? `Tilt is running for this project (pid ${tiltPids.join(", ")}); run tdk down first`
+            : undefined,
+        );
         fixActions = await applyDoctorFixes(planned, {
           dryRun: options.dryRun,
           confirm:

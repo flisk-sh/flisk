@@ -27,9 +27,9 @@ export declare function createDockerFixDeps(run?: DockerRunner): DoctorFixDeps;
 export declare const dockerFixDeps: DoctorFixDeps;
 /**
  * What `--fix` would do. Only unused networks that are either a leftover doctor probe or one of this project's own
- * (the exact names the engine creates) are planned; another project's networks are never listed here.
+ * (the exact names the engine creates, and only while `projectBusy` is unset) are planned; another project's networks are never listed here.
  */
-export declare function planDoctorFixes(projectName: string | undefined, deps?: DoctorFixDeps): Promise<DoctorAction[]>;
+export declare function planDoctorFixes(projectName: string | undefined, deps?: DoctorFixDeps, projectBusy?: string): Promise<DoctorAction[]>;
 export interface ApplyOptions {
     dryRun: boolean;
     /** Ask before each destructive action; resolves false to decline. Absent means confirmation is unavailable. */

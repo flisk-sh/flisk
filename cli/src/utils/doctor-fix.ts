@@ -107,11 +107,12 @@ export const dockerFixDeps = createDockerFixDeps();
 
 /**
  * What `--fix` would do. Only unused networks that are either a leftover doctor probe or one of this project's own
- * (the exact names the engine creates) are planned; another project's networks are never listed here.
+ * (the exact names the engine creates, and only while `projectBusy` is unset) are planned; another project's networks are never listed here.
  */
 export async function planDoctorFixes(
   projectName: string | undefined,
   deps: DoctorFixDeps = dockerFixDeps,
+  projectBusy?: string,
 ): Promise<DoctorAction[]> {
   const networks = await deps.listNetworks();
   const actions: DoctorAction[] = [];
@@ -140,6 +141,10 @@ export async function planDoctorFixes(
     if (network.containers > 0) {
       action.status = "skipped";
       action.reason = `${network.containers} container(s) still attached`;
+    } else if (scope === "project" && projectBusy) {
+      // A starting stack creates its networks before any container joins them, so "unused" is not safe to remove.
+      action.status = "skipped";
+      action.reason = projectBusy;
     } else if (probe && deps.isProcessAlive(Number(probe[1]))) {
       // The doctor run that created it may still be using it.
       action.status = "skipped";

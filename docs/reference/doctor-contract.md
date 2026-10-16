@@ -35,7 +35,7 @@ Repairs available today, both `docker network rm` of a network with no container
 - `scope: "project"`: one of this project's own networks (the exact names `tdk up` creates, from the project name in `tdk.json`).
 - `scope: "probe"`: a `tdk_doctor_probe_<pid>` network left by an interrupted doctor run, unless that `pid` is still running.
 
-Networks of other projects, and networks with containers attached, are never planned. Outside a project only probes are repaired.
+Networks of other projects, and networks with containers attached, are never planned. Project networks are also skipped while a Tilt runs for the project, because a starting stack creates its networks before any container joins them. Outside a project only probes are repaired.
 
 With `--fix`, `data.actions` is added (additive within schema version 1): an array of `{id, check, scope, command, status, reason}` with `status` one of `planned` (dry run), `applied`, `skipped` or `failed`. A `failed` action makes the report not ready and the exit code 1. Not yet implemented from the original proposal (tdk-landscape/tdk-cli-core#1214): repairs for Tilt/host port collisions, stale Tilt processes, crash-looping containers, disk space and `--scope=machine`.
 

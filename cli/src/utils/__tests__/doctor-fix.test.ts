@@ -46,6 +46,16 @@ describe("planDoctorFixes", () => {
     expect(await planDoctorFixes("it-ai-search", deps)).toEqual([]);
   });
 
+  it("skips project networks while Tilt runs, but still plans probes", async () => {
+    const { deps } = fakeDocker([net("it_ai_search_backend"), net("tdk_doctor_probe_5")]);
+    const plan = await planDoctorFixes("it-ai-search", deps, "Tilt is running");
+    expect(plan.map((a) => [a.scope, a.status])).toEqual([
+      ["project", "skipped"],
+      ["probe", "planned"],
+    ]);
+    expect(plan[0]?.reason).toBe("Tilt is running");
+  });
+
   it("skips a network that still has containers", async () => {
     const { deps } = fakeDocker([net("it_ai_search_database", 2)]);
     const [action] = await planDoctorFixes("it-ai-search", deps);
