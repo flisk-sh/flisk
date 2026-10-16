@@ -31,6 +31,7 @@
 - [Running TDK in CI](ci.md): a GitHub Actions workflow for your repository: `tdk config verify`, then `tdk up` and a health wait
 - [Gradual adoption](gradual-adoption.md): what TDK adds to an existing repository, what to commit, and how to remove it
 - [Troubleshooting](troubleshooting.md): tdk and Tilt messages as printed, with cause, fix and how each was checked
+- [Troubleshoot L2 (dependency layer)](troubleshoot-l2.md): Docker build failures in package manifests, lockfiles, and dependency caching
 - [Leaving TDK](leaving-tdk.md): what `tdk eject` really does, what stays usable without TDK, what you lose
 - [Local data: reset, seed, snapshot](data.md): where Postgres data lives and how to reset it
 - [Testing webhooks locally](local-webhooks.md): a proposed recipe for replaying duplicate, retried and tampered provider deliveries without the provider

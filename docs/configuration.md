@@ -73,6 +73,47 @@ For VS Code, associate both filenames with their schema in workspace settings. T
 
 The service schema is also in [`engine/schemas/service-schema.json`](../engine/schemas/service-schema.json), and the current project configuration schema is [`engine/schemas/project-schema.json`](../engine/schemas/project-schema.json). Run `tdk config verify` to check generated project files, validate discovered service manifests, and compare generated service files with their snapshots. It does not validate Helm values. `tdk doctor` checks local readiness and service concerns. See [generated service files](generated-files.md).
 
+### Which diagnostic command should I run?
+
+Use `tdk doctor` to check whether your development environment is ready. Use `tdk config verify` to validate project configuration and check generated-file consistency. These commands answer different questions and are not substitutes for each other.
+
+| What you want to check | Command | What it helps identify |
+| --- | --- | --- |
+| Local environment readiness | `tdk doctor` | Missing tools, Docker readiness, port conflicts, and reported service or environment issues |
+| Project configuration and generated-file consistency | `tdk config verify` | Invalid service manifests, missing or out-of-sync generated project files, and generated service-file drift |
+
+#### Example: Check environment readiness
+
+If TDK cannot start your development environment, run:
+
+```sh
+tdk doctor
+```
+
+Review the reported checks and suggested fixes. For example, if Docker is not running, start Docker Desktop or another supported container runtime and run the command again.
+
+See the [doctor readiness contract](reference/doctor-contract.md) for the exact checks, exit codes, and JSON output.
+
+#### Example: Check configuration consistency
+
+If you suspect your configuration or generated files are out of sync, run:
+
+```sh
+tdk config verify
+```
+
+Review any validation errors or reported differences. For example, if a generated project file has been edited manually, verification can report that it is out of sync and show a diff. Use the reported remediation guidance to address the problem; verification does not automatically regenerate files.
+
+For example, verification may report an out-of-sync generated file and recommend running:
+
+```sh
+tdk config regenerate
+```
+
+Regenerate only after reviewing the reported differences and confirming that regeneration is appropriate for your changes.
+
+See the [machine-readable CLI reference](reference/machine-readable-cli.md) for the verification result fields and exit behavior. For generated-file drift and regeneration guidance, see [generated service files](generated-files.md).
+
 ### The service schema and how it is published
 
 `engine/schemas/service-schema.json` is the source of truth; the copy at `https://tdk-landscape.github.io/schema.service.json` is a

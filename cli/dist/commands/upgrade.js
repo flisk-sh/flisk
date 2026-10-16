@@ -15,7 +15,7 @@ import { binaryAssetName, executableName, isWindows } from "../utils/platform.js
 import { promptConfirm } from "../utils/prompt.js";
 import { startSpinner } from "../utils/spinner.js";
 import { extractTarball } from "../utils/tar.js";
-import { findOnPath } from "../utils/which.js";
+import { findAllOnPath, findOnPath } from "../utils/which.js";
 function isStandaloneBinary(tdkPath) {
     if (isWindows() && tdkPath.toLowerCase().endsWith(".exe"))
         return true;
@@ -87,6 +87,45 @@ function detectInstallation() {
         logVerbose("Installation detection error", err);
         return { method: "unknown" };
     }
+}
+function detectInstallationForPath(tdkPath) {
+    try {
+        const realPath = realpathSync(tdkPath);
+        if (realPath.includes("tdk-cli")) {
+            const possibleGitRoot = resolve(realPath, "..", "..", "..");
+            if (existsSync(join(possibleGitRoot, ".git"))) {
+                return { method: "git", path: possibleGitRoot };
+            }
+        }
+        if (tdkPath.includes("node_modules") || tdkPath.includes(".npm") || tdkPath.includes(".bun")) {
+            return { method: tdkPath.includes(".bun") ? "bun" : "npm", path: tdkPath };
+        }
+        if (isStandaloneBinary(realPath))
+            return { method: "binary", path: realPath };
+    }
+    catch (err) {
+        logVerbose(`Installation detection failed for ${tdkPath}`, err);
+    }
+    return { method: "unknown", path: tdkPath };
+}
+function detectAllInstallations() {
+    const candidates = findAllOnPath(executableName()).map(detectInstallationForPath);
+    const current = detectInstallation();
+    if (current.method !== "unknown")
+        candidates.unshift(current);
+    const unique = new Map();
+    for (const install of candidates) {
+        if (install.method === "unknown" || !install.path)
+            continue;
+        let key = install.path;
+        try {
+            if (install.method === "binary")
+                key = realpathSync(install.path);
+        }
+        catch { }
+        unique.set(`${install.method}:${key}`, install);
+    }
+    return [...unique.values()];
 }
 const BINARY_RELEASE_REPO = "tdk-landscape/tdk-cli-releases";
 const ENGINE_ASSET_NAME = "tdk-cli-engine.tar.gz";
@@ -355,8 +394,75 @@ export async function upgradeViaBun() {
         return false;
     }
 }
+async function upgradeAllInstallations(dryRun) {
+    const installations = detectAllInstallations();
+    if (!installations.length) {
+        console.error(chalk.red("Could not find any TDK installations on PATH."));
+        return false;
+    }
+    console.log(chalk.blue(`Found ${installations.length} TDK installation${installations.length === 1 ? "" : "s"}:`));
+    for (const install of installations) {
+        console.log(chalk.gray(`   ${install.method}: ${install.path}`));
+    }
+    if (dryRun) {
+        console.log(chalk.yellow("\nDry run: no installations were changed."));
+        return true;
+    }
+    const binaryInstallations = installations.filter((install) => install.method === "binary" && install.path);
+    const release = binaryInstallations.length ? await getLatestBinaryRelease() : null;
+    if (binaryInstallations.length && !release) {
+        console.error(chalk.red("Could not find a compatible TDK binary release for this platform."));
+        return false;
+    }
+    let success = true;
+    const completed = new Set();
+    for (const install of installations) {
+        const key = install.method === "npm" || install.method === "bun"
+            ? install.method
+            : `${install.method}:${install.path}`;
+        if (completed.has(key))
+            continue;
+        completed.add(key);
+        if (install.method === "git" && install.path) {
+            console.log(chalk.cyan(`\nUpdating git install at ${install.path}`));
+            success = (await upgradeViaGit(install.path)) && success;
+        }
+        else if (install.method === "binary" && install.path && release) {
+            const latest = release.tag.replace(/^v/, "").split("-")[0];
+            let current = "";
+            try {
+                current = execFileSync(install.path, ["version"], {
+                    encoding: "utf-8",
+                    timeout: 10_000,
+                }).trim();
+            }
+            catch { }
+            if (current === latest) {
+                console.log(chalk.green(`\n${install.path} is already current (${current}).`));
+            }
+            else {
+                console.log(chalk.cyan(`\nUpdating ${install.path} (${current || "unknown"} → ${latest})`));
+                success = (await upgradeViaBinary(install.path, release)) && success;
+            }
+        }
+        else if (install.method === "npm") {
+            console.log(chalk.cyan("\nUpdating the npm installation..."));
+            success = (await upgradeViaNpm()) && success;
+        }
+        else if (install.method === "bun") {
+            console.log(chalk.cyan("\nUpdating the Bun installation..."));
+            success = (await upgradeViaBun()) && success;
+        }
+    }
+    if (success)
+        console.log(chalk.green.bold("\nAll TDK installations on PATH are up to date."));
+    else
+        console.error(chalk.red("\nAt least one TDK installation could not be updated."));
+    return success;
+}
 async function upgradeViaGit(path) {
-    const spinner = startSpinner("Pulling latest changes from git...");
+    const spinner = startSpinner("Updating the git installation from the default branch...");
+    let rebaseInProgress = false;
     try {
         execFileSync("git", ["rev-parse", "--git-dir"], {
             cwd: path,
@@ -368,16 +474,57 @@ async function upgradeViaGit(path) {
             stdio: "pipe",
             timeout: 30000,
         });
+        const dirty = execFileSync("git", ["status", "--porcelain"], {
+            cwd: path,
+            encoding: "utf-8",
+        }).trim();
+        if (dirty) {
+            throw new Error("The TDK source checkout has local changes. Commit or stash them, then run `tdk upgrade` again.");
+        }
         const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
             cwd: path,
             encoding: "utf-8",
         }).trim();
-        spinner.text = `Pulling latest on ${branch}...`;
-        execFileSync("git", ["pull", "origin", branch], {
-            cwd: path,
-            stdio: "pipe",
-            timeout: 30000,
-        });
+        let defaultRef = "";
+        try {
+            defaultRef = execFileSync("git", ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"], {
+                cwd: path,
+                encoding: "utf-8",
+                stdio: "pipe",
+            }).trim();
+        }
+        catch {
+            for (const candidate of ["origin/main", "origin/master"]) {
+                try {
+                    execFileSync("git", ["rev-parse", "--verify", candidate], { cwd: path, stdio: "pipe" });
+                    defaultRef = candidate;
+                    break;
+                }
+                catch { }
+            }
+        }
+        if (!defaultRef?.startsWith("origin/")) {
+            throw new Error("Could not find the default branch for origin (expected origin/HEAD, origin/main, or origin/master).");
+        }
+        const defaultBranch = defaultRef.slice("origin/".length);
+        if (branch === defaultBranch) {
+            spinner.text = `Fast-forwarding ${branch} from origin/${defaultBranch}...`;
+            execFileSync("git", ["pull", "--ff-only", "origin", defaultBranch], {
+                cwd: path,
+                stdio: "pipe",
+                timeout: 30000,
+            });
+        }
+        else {
+            spinner.text = `Rebasing ${branch} onto origin/${defaultBranch}...`;
+            rebaseInProgress = true;
+            execFileSync("git", ["rebase", defaultRef], {
+                cwd: path,
+                stdio: "pipe",
+                timeout: 60000,
+            });
+            rebaseInProgress = false;
+        }
         if (existsSync(join(path, "cli", PACKAGE_JSON))) {
             spinner.text = "Rebuilding CLI...";
             execFileSync(findOnPath("bun") ?? "bun", ["install"], {
@@ -397,10 +544,16 @@ async function upgradeViaGit(path) {
             stdio: "pipe",
             timeout: 30000,
         });
-        spinner.succeed("Upgraded successfully via git pull");
+        spinner.succeed(`Upgraded successfully from origin/${defaultBranch}`);
         return true;
     }
     catch (err) {
+        if (rebaseInProgress) {
+            try {
+                execFileSync("git", ["rebase", "--abort"], { cwd: path, stdio: "pipe" });
+            }
+            catch { }
+        }
         spinner.fail(`Git upgrade failed: ${getErrorMessage(err)}`);
         return false;
     }
@@ -409,6 +562,7 @@ export const upgradeCommand = new Command("upgrade")
     .alias("update")
     .description("Upgrade TDK CLI to the latest version")
     .option("-f, --force", "Force upgrade even if already on latest", false)
+    .option("--all", "Upgrade every TDK installation found on PATH", false)
     .option("--dry-run", "Show what would be upgraded without actually doing it", false)
     .option("-y, --yes", "Skip confirmation prompt", false)
     .action(async (options) => {
@@ -418,6 +572,27 @@ export const upgradeCommand = new Command("upgrade")
     const installInfo = detectInstallation();
     console.log(chalk.gray(`Installation method: ${installInfo.method}`));
     console.log();
+    if (options.all) {
+        const installations = detectAllInstallations();
+        if (!installations.length) {
+            console.error(chalk.red("Could not find any TDK installations on PATH."));
+            process.exit(1);
+        }
+        if (!options.dryRun && !options.yes) {
+            const confirm = await promptConfirm({
+                message: `Upgrade all ${installations.length} TDK installations on PATH?`,
+                initial: true,
+            });
+            if (!confirm) {
+                showCancelled();
+                process.exit(0);
+            }
+        }
+        const success = await upgradeAllInstallations(options.dryRun);
+        if (!success)
+            process.exit(1);
+        return;
+    }
     const windowsNpmMessage = windowsNpmUpgradeMessage(process.platform, installInfo);
     if (windowsNpmMessage) {
         console.log(windowsNpmMessage);
@@ -459,7 +634,7 @@ export const upgradeCommand = new Command("upgrade")
         }
     }
     else if (installInfo.method === "git" && installInfo.path) {
-        console.log(chalk.blue("📦 Git installation detected - will pull latest from origin"));
+        console.log(chalk.blue("📦 Git installation detected - will update from origin's default branch"));
         try {
             execFileSync("git", ["fetch", "origin"], { cwd: installInfo.path, stdio: "pipe" });
             const localHash = execFileSync("git", ["rev-parse", "HEAD"], {
@@ -516,7 +691,7 @@ export const upgradeCommand = new Command("upgrade")
             console.log(chalk.gray(`   Path: ${installInfo.path}`));
         }
         if (installInfo.method === "git") {
-            console.log(chalk.gray("   Action: git pull origin main && bun install && bun link --force"));
+            console.log(chalk.gray("   Action: fetch origin, update from origin/HEAD, rebuild, and relink"));
         }
         else if (installInfo.method === "binary" && binaryRelease) {
             console.log(chalk.gray(`   Action: Download and replace with ${binaryRelease.downloadUrl}`));
@@ -565,7 +740,8 @@ export const upgradeCommand = new Command("upgrade")
     if (!success) {
         console.error(chalk.red("\nUpgrade failed"));
         if (installInfo.method === "git") {
-            console.log(chalk.cyan(`   cd ${installInfo.path} && git pull && bun link --force`));
+            console.log(chalk.cyan(`   Check local changes with: git -C ${installInfo.path} status --short`));
+            console.log(chalk.cyan("   Commit or stash them, then retry: tdk upgrade"));
         }
         else if (installInfo.method === "binary" && binaryRelease && installInfo.path) {
             const engineDir = join(dirname(installInfo.path), "tdk-cli");

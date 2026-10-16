@@ -21,6 +21,10 @@ Run: tdk upgrade
 - `tdk up --dry-run` runs the same check and exits 1 on a failure, as it does for generated-file drift; nothing is started either way.
 - `tdk up --ignore-version` skips the check and prints a warning. Use it only to get past a pin you know is stale; `tdk doctor` still reports it.
 
+## Upgrade every TDK installation
+
+If PATH contains more than one TDK install, run `tdk upgrade --all` to update each detected installation. Preview the paths first with `tdk upgrade --all --dry-run`. Git-linked installs update from the remote default branch, even when the local checkout is on a branch that no longer exists remotely. The command leaves local modifications untouched and asks you to commit or stash them first.
+
 ## Install a specific version
 
 - npm: `npm install -g @tdk-landscape/tdk-cli-core@1.3.80`

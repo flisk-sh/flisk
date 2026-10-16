@@ -48,7 +48,9 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 - 2026-10-07 (#670): The archived public `tdk` root (`1714637`) is separate from the filtered `tdk-cli` history imported into `main`. Keep README chronology clear about both histories and the later repository and npm dates.
 - Verification scripts must remove every tag of `app_<project>` images (Tilt adds a `tilt-<hash>` tag) and the project's containers and networks.
 - `PAGES_SYNC_TOKEN` is not set, so the schema publish workflow succeeds but does nothing.
+- 2026-10-14: A git-linked TDK install can point at a local feature branch whose remote ref was deleted; upgrades must target `origin/HEAD` and preserve the checkout when it has uncommitted changes.
 - npm publication can succeed before cached registry metadata shows the new version (2026-10-05, importer 0.1.1): wait for ordinary `npm view` and fresh-cache `npx` to see it before removing release gates; verify the registry tarball against the workflow artifact.
 - 2026-10-09 (#966): workflows with `working-directory: cli` must invoke repository-root helpers as `node ../scripts/...`; workflows checking out only an external fixture cannot use those helpers from the workspace root.
 - 2026-10-09 (#966): install workflow-only npm tools with `npm ci` from a committed lockfile into a scoped prefix, not globally; runner toolcache paths can make Git dependency installs fail with `ENOTDIR` during rename.
 - 2026-10-09 (#972): committed `cli/dist/*.map` files are one-line generated JSON and repeated PR conflict hotspots; TypeScript source and declaration maps are disabled so builds stop reintroducing them.
+- 2026-10-14: The warm-start benchmark must ignore `*-typecheck` Tilt resources when deciding startup is settled; they are non-blocking and may remain busy after all target containers are healthy.

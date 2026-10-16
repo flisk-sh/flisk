@@ -105,6 +105,7 @@ FAIL tilt    Tilt CLI not found
 - **Fix:** start Docker Desktop, OrbStack or Colima, or install Tilt, then `tdk doctor`.
 - **Defined in:** [`cold-preflight.ts`](../cli/src/utils/cold-preflight.ts) and `DOCTOR_FIXES` in [`doctor.ts`](../cli/src/commands/doctor.ts).
 - **Checked:** Tilt missing reproduced; Docker down simulated. Other texts in the same family, **read from source, not reproduced**, from [`errors.ts`](../cli/src/utils/errors.ts): `Tilt CLI is not installed`, `Docker (or a compatible container runtime) is not running`, `Docker is running but not responding (`docker ps` hung for 10s)` (fix: quit and reopen Docker Desktop, or `colima restart`), all under `TDK can't start - missing prerequisites:`.
+- **See also:** [Troubleshoot L2 (dependency layer) build failures](troubleshoot-l2.md) for package installation, lockfile synchronization, and Docker layer caching issues.
 
 ### `Out of sync: ...` from `tdk config verify`
 

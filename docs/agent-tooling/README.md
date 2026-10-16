@@ -116,3 +116,9 @@ The server exposes these six tools, backed by the corresponding TDK CLI commands
 | `down` | Stop the running stack. | None |
 
 For example, an MCP client that calls tools directly can run `doctor`, `up`, and `status` in sequence; keep checking `status` until `data.tilt.readiness.ready` is true. See the [TDK MCP quick guide](tdk-mcp.md) for call examples, the [machine-readable CLI reference](../reference/machine-readable-cli.md) for JSON output and exit codes, and the [doctor contract](../reference/doctor-contract.md) for doctor details.
+
+## Reporting problems found while using the TDK MCP
+
+TDK is open source. When an agent or a person using `tdk mcp` hits a framework problem, open an issue in [tdk-landscape/tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core/issues) with the tdk version, a minimal reproduction, and the expected behavior. If you have a fix, open a pull request against the same repository.
+
+Example: [#1204](https://github.com/tdk-landscape/tdk-cli-core/issues/1204) reports that `tdk project` output under `.tdk/.tdk-out` is picked up by Vitest in Node and TypeScript projects.

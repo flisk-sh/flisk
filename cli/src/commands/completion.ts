@@ -124,6 +124,7 @@ _tdk() {
         upgrade)
             _arguments
                 '--force[Force upgrade even if on latest]'
+                '--all[Upgrade every TDK installation found on PATH]'
                 '--dry-run[Show what would be upgraded]'
             ;;
     esac
@@ -245,6 +246,7 @@ complete -c tdk -n '__fish_seen_subcommand_from runtime' -l json -d 'Print the c
 
 # upgrade command options
 complete -c tdk -n '__fish_seen_subcommand_from upgrade' -l force -d 'Force upgrade even if on latest'
+complete -c tdk -n '__fish_seen_subcommand_from upgrade' -l all -d 'Upgrade every TDK installation found on PATH'
 complete -c tdk -n '__fish_seen_subcommand_from upgrade' -l dry-run -d 'Show what would be upgraded'
 `;
 
