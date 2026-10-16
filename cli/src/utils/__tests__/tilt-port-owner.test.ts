@@ -1,5 +1,8 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { findTiltPortOwner, isForeignTilt } from "../tilt-port-owner.js";
 
@@ -45,5 +48,14 @@ describe("isForeignTilt", () => {
     expect(isForeignTilt({ pid: 1, root: "/work/other" }, "/work/mine")).toBe(true);
     expect(isForeignTilt({ pid: 1, root: "/work/mine" }, "/work/mine")).toBe(false);
     expect(isForeignTilt(null, "/work/mine")).toBe(false);
+  });
+
+  it("is not foreign when the Tilt path reaches the project through a symlink", () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "tilt-owner-")));
+    const real = join(base, "real");
+    mkdirSync(real);
+    const link = join(base, "link");
+    symlinkSync(real, link);
+    expect(isForeignTilt({ pid: 1, root: link }, real)).toBe(false);
   });
 });

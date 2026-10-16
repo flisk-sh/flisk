@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseTiltProcesses } from "./doctor-wiring.js";
 const run = (command, args) => execFileSync(command, args, {
@@ -33,7 +34,16 @@ export function findTiltPortOwner(port, platform = process.platform, commandRunn
     }
     return null;
 }
+/** Symlinked checkouts (macOS /tmp -> /private/tmp) must not make a project look foreign to itself. */
+function canonical(path) {
+    try {
+        return realpathSync(path);
+    }
+    catch {
+        return resolve(path);
+    }
+}
 /** Whether `owner` is another project's Tilt, as opposed to this project's or unknown. */
 export function isForeignTilt(owner, projectRoot) {
-    return owner !== null && resolve(owner.root) !== resolve(projectRoot);
+    return owner !== null && canonical(owner.root) !== canonical(projectRoot);
 }

@@ -32,6 +32,7 @@ export interface ContainerState {
   restartCount: number;
   status: string;
   startedAt: string;
+  finishedAt?: string;
   exitCode: number;
 }
 
@@ -45,9 +46,14 @@ export function belongsToProject(composeProject: string, projectName: string): b
 export function isCrashLooping(state: ContainerState, now = Date.now()): boolean {
   if (state.status === "restarting") return true;
   if (state.restartCount < CRASH_LOOP_RESTARTS) return false;
-  if (state.status !== "running") return true;
-  const started = Date.parse(state.startedAt);
-  return Number.isNaN(started) || now - started < RECENT_START_MS;
+  if (state.status === "running") {
+    const started = Date.parse(state.startedAt);
+    return Number.isNaN(started) || now - started < RECENT_START_MS;
+  }
+  // Stopped: only a recent failure is a loop that gave up (restart policy exhausted). A container stopped by hand
+  // keeps its old restart count, and that is history.
+  const finished = Date.parse(state.finishedAt ?? "");
+  return state.exitCode !== 0 && !Number.isNaN(finished) && now - finished < RECENT_START_MS;
 }
 
 /** A hint for a cause that the last log lines name. Null when they do not say. */
@@ -80,7 +86,7 @@ export function crashLoopHint(logs: string, state: ContainerState): string | nul
 function parseStates(output: string): ContainerState[] {
   const states: ContainerState[] = [];
   for (const line of output.split(/\r?\n/)) {
-    const [name, restarts, status, startedAt, exitCode] = line.split("\t");
+    const [name, restarts, status, startedAt, exitCode, finishedAt] = line.split("\t");
     if (!name || restarts === undefined) continue;
     states.push({
       name: name.replace(/^\//, ""),
@@ -88,6 +94,7 @@ function parseStates(output: string): ContainerState[] {
       status: status ?? "",
       startedAt: startedAt ?? "",
       exitCode: Number(exitCode) || 0,
+      finishedAt: finishedAt ?? "",
     });
   }
   return states;
@@ -132,7 +139,7 @@ export async function checkCrashLoopingContainers(
       await run([
         "inspect",
         "--format",
-        "{{.Name}}\t{{.RestartCount}}\t{{.State.Status}}\t{{.State.StartedAt}}\t{{.State.ExitCode}}",
+        "{{.Name}}\t{{.RestartCount}}\t{{.State.Status}}\t{{.State.StartedAt}}\t{{.State.ExitCode}}\t{{.State.FinishedAt}}",
         ...candidates,
       ]),
     );

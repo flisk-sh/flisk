@@ -8,6 +8,7 @@ export interface ContainerState {
     restartCount: number;
     status: string;
     startedAt: string;
+    finishedAt?: string;
     exitCode: number;
 }
 /** Whether this container's compose project belongs to the TDK project, however the engine spelled the separator. */

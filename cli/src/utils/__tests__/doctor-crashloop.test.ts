@@ -34,7 +34,40 @@ describe("isCrashLooping", () => {
   it("flags a restarting container and a recent loop, not old history", () => {
     expect(isCrashLooping(state({ status: "restarting" }), NOW)).toBe(true);
     expect(isCrashLooping(state({ restartCount: 2932 }), NOW)).toBe(true);
-    expect(isCrashLooping(state({ restartCount: 6, status: "exited" }), NOW)).toBe(true);
+    expect(
+      isCrashLooping(
+        state({
+          restartCount: 6,
+          status: "exited",
+          exitCode: 1,
+          finishedAt: "2026-10-16T11:58:00Z",
+        }),
+        NOW,
+      ),
+    ).toBe(true);
+    // Stopped long ago, or cleanly: old history, not a loop.
+    expect(
+      isCrashLooping(
+        state({
+          restartCount: 2932,
+          status: "exited",
+          exitCode: 1,
+          finishedAt: "2026-09-01T00:00:00Z",
+        }),
+        NOW,
+      ),
+    ).toBe(false);
+    expect(
+      isCrashLooping(
+        state({
+          restartCount: 6,
+          status: "exited",
+          exitCode: 0,
+          finishedAt: "2026-10-16T11:58:00Z",
+        }),
+        NOW,
+      ),
+    ).toBe(false);
     expect(isCrashLooping(state({ restartCount: 4 }), NOW)).toBe(false);
     expect(isCrashLooping(state({ restartCount: 9, startedAt: "2026-10-10T00:00:00Z" }), NOW)).toBe(
       false,
