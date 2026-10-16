@@ -113,8 +113,10 @@ def _backend_healthcheck_instruction(port, manifest = None):
     if manifest and (manifest.get('appType') == 'worker' or (manifest.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath'))):
         return "HEALTHCHECK NONE\n"
     health_path = manifest.get('healthCheckPath', '/health') if manifest else '/health'
+    # The Dockerfile generator passes the manifest but not the port, so the service's own port wins over the 4000 default.
+    probe_port = manifest.get('port', port) if manifest else port
     # fetch() is built into bun, so no extra package is needed in the image. Path is schema-limited to [a-z0-9/-].
-    probe = "fetch('http://127.0.0.1:" + str(port) + health_path + "').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+    probe = "fetch('http://127.0.0.1:" + str(probe_port) + health_path + "').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
     return "HEALTHCHECK " + dockerfile_healthcheck_flags() + " CMD bun -e \"" + probe + "\" || exit 1\n"
 
 
