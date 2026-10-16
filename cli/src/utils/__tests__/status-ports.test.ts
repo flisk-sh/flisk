@@ -20,6 +20,14 @@ describe("buildServicePorts", () => {
   it("has no url for resources without a route", () => {
     expect(buildServicePorts(resource("jobs", "worker", 6000), 8080).url).toBeNull();
   });
+  it("gives an unrouted resource with a known port a direct loopback url", () => {
+    expect(buildServicePorts(resource("sourcing-api", "bring-your-own", 4002), 8080).directUrl).toBe("http://localhost:4002");
+    expect(buildServicePorts(resource("sourcing-api", "bring-your-own", 4002), 8080).url).toBeNull();
+  });
+  it("has no direct url for an unrouted resource without a port, or for a routed one", () => {
+    expect(buildServicePorts(resource("jobs", "worker"), 8080).directUrl).toBeNull();
+    expect(buildServicePorts(resource("orders-api", "backend", 4000), 8080).directUrl).toBeNull();
+  });
   it("reports a null containerPort when none is known", () => {
     expect(buildServicePorts(resource("web", "frontend"), 8080).containerPort).toBeNull();
   });

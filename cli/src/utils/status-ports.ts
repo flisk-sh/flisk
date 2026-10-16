@@ -13,6 +13,8 @@ export interface ServicePorts {
   containerPort: number | null;
   /** A direct host mapping. TDK publishes services only through the ingress, so this is null today. */
   hostPort: number | null;
+  /** Loopback address for a resource with no route but a known port, such as a bring-your-own app. Null otherwise. */
+  directUrl: string | null;
 }
 
 export interface StackPort {
@@ -33,7 +35,9 @@ export function buildServicePorts(
     const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
     url = `${isApiServiceType(appType) ? apiBase : appBase}${resolveServicePath(resource)}`;
   }
-  return { url, containerPort: resource.port ?? resource.config?.port ?? null, hostPort: null };
+  const containerPort = resource.port ?? resource.config?.port ?? null;
+  const directUrl = !routable && containerPort ? `http://localhost:${containerPort}` : null;
+  return { url, containerPort, hostPort: null, directUrl };
 }
 
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */
