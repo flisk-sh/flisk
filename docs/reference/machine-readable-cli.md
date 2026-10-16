@@ -21,7 +21,7 @@ Command data:
 - `stacks`: `stacks` with `name` and `resourceCount`. `--services` adds `services` (service names; its length equals `resourceCount`), and `--verbose` adds `description`; `--services` alone does not include `description`. A project with no stacks returns `stacks: []`. Outside a project it emits the same envelope as `resources --json` (`data: null`, one `errors` entry, exit 2).
 - `networks`: `services` with stable service name, stack, base path, URL, optional Windows loopback URL, service port, and reachability state (`running`, `stopped`, or `unknown`). An empty list means no discovered resource currently has a routable base path.
 - `doctor`: `ready`, `inProject`, ordered `checks`, and a `ports` plan with `http`, `https`, and `postgres` entries. Each port entry contains canonical `requested`, selected `chosen`, `explicit`, and `reason` fields. Doctor is read-only and does not persist the plan, unless `--fix` is given (see [doctor-contract.md](doctor-contract.md)). Structured `errors` cover usage/internal failures. Check entries preserve `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. `isSkipped` indicates that a check could not run meaningfully; skipped checks are non-blocking, even when `didPass` is `false`.
-- `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), and `tiltUrl` (`http://localhost:<port>`). `tdk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `ok` is `false` with `tiltUrl` and `failures` (`code`: `UP_TIMEOUT` or `UP_RESOURCE_FAILED`). On smoke-check failure, `ok` is `false` (`code`: `UP_SMOKE_FAILED`) and Tilt is stopped. See the examples below.
+- `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), and `tiltUrl` (`http://localhost:<port>`). `tdk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `data.ok` is `false` with `data.tiltUrl` and `data.failures` (a list of affected resources, each with `name` and `message`), and `errors[].code` is `UP_TIMEOUT` or `UP_RESOURCE_FAILED`. On smoke-check failure, `data.ok` is `false`, `errors[].code` is `UP_SMOKE_FAILED`, and Tilt is stopped. Parsers should read the failure category from `errors[].code` and the affected resources from `data.failures`. See the examples below.
 - `up --dry-run`: `ok`, `dryRun` (`true`), `stack` (the stack name argument, or `null`), `services` (the services the run would start, in discovery order) and `command` (the `tilt up` command line that would run). With `--only`, it also has `requested` (the names you passed) and `declaredDependencies` (services pulled in because a requested service lists them in `dependsOn`). See the example below.
 - `logs`: `services` (selected service names), `tail` (defaults to `200`, accepts `1`–`10000`), `since` (duration such as `30s`, `5m`, or `1h`, or `null` when omitted), and `lines` (normalized log entries). Each line contains `time`, `resource`, `level`, `source`, and `text`; the first four fields may be `null`, while `text` is a string.
 
@@ -100,7 +100,7 @@ Example output for `tdk up --json`:
 }
 ```
 
-With `--only` (for example, `tdk up --json --only orders-api`), the response also includes `requested` (the services explicitly requested) and `dependencies` (the additional services started because of `dependsOn` declarations):
+With `--only` (for example, `tdk up --json --only orders-api`), the response also includes `requested` (the services explicitly requested) and `dependencies` (the additional services Tilt enabled that you did not name). `services` lists every service Tilt actually enabled, which is `requested` plus `dependencies`:
 
 ```json
 {
@@ -118,6 +118,8 @@ With `--only` (for example, `tdk up --json --only orders-api`), the response als
 ```
 
 Success means startup reached the command's ready state: every expected non-deferred Tilt resource is built and running, and its Docker health check (if declared) has passed. Tilt continues running in the background after the JSON output is emitted, so scripting workflows should run the command in the background (for example, `tdk up --json &`).
+
+With `--only`, the readiness guarantee applies to the requested services only (excluding any that are deferred). Dependency services appear in `services` and `dependencies` because Tilt enabled them, but they are not checked for readiness, so a dependency that is still starting or has failed does not change `ok`. Consumers that need a dependency to be ready must check it themselves.
 
 If one or more resources fail to start or the readiness timeout expires (`TDK_UP_READY_TIMEOUT_MS`, default 15 minutes), `data.ok` is `false` with `data.tiltUrl` and `data.failures`, and `errors` reports `UP_RESOURCE_FAILED` or `UP_TIMEOUT`:
 
