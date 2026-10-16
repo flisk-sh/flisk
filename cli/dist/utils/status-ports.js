@@ -9,7 +9,9 @@ export function buildServicePorts(resource, ingressHttp) {
         const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
         url = `${isApiServiceType(appType) ? apiBase : appBase}${resolveServicePath(resource)}`;
     }
-    return { url, containerPort: resource.port ?? resource.config?.port ?? null, hostPort: null };
+    const containerPort = resource.port ?? resource.config?.port ?? null;
+    const directUrl = !routable && containerPort ? `http://localhost:${containerPort}` : null;
+    return { url, containerPort, hostPort: null, directUrl };
 }
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */
 export function buildStackPorts(plan, tiltPort) {
