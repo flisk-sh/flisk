@@ -8,7 +8,7 @@ export interface DiscoveredResource {
     port?: number;
     type?: ResourceType;
 }
-export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "bring-your-own"];
+export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "bring-your-own"];
 export interface ResourceConfigFields {
     appName: string;
     appType: (typeof RESOURCE_CONFIG_APP_TYPES)[number];
@@ -47,6 +47,14 @@ export interface ResourceConfigFields {
     dockerfile?: string;
     /** Optional Docker image name instead of building from Dockerfile */
     image?: string;
+    /** agent only: how the agent runtime is scaffolded and where its session state lives. See agent-runtimes/. */
+    agent?: AgentConfig;
+}
+export interface AgentConfig {
+    /** Runtime scaffold the resource was created with. `custom` is the only one today and carries no vendor dependency. */
+    runtime?: string;
+    /** `files`: sessions in a named volume that survives `tdk down`. `postgres`: sessions in the project database (DATABASE_URL). */
+    durability?: "files" | "postgres";
 }
 export interface ResourceConfig extends ResourceConfigFields {
     [key: string]: unknown;
@@ -78,8 +86,8 @@ export interface FileGenerationTask {
     description: string;
     emoji: string;
 }
-export type ResourceType = "frontend" | "backend" | "library" | "sdk" | "worker" | "migrator" | "mcp" | "bring-your-own";
-export declare const CREATABLE_RESOURCE_TYPES: readonly ["backend", "frontend", "worker", "mcp", "bring-your-own"];
+export type ResourceType = "frontend" | "backend" | "library" | "sdk" | "worker" | "migrator" | "mcp" | "agent" | "bring-your-own";
+export declare const CREATABLE_RESOURCE_TYPES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";
@@ -287,7 +295,7 @@ export interface PackageInfo {
     version: string;
     fullPackage: JsonObject;
 }
-export type PortAssignableResourceType = Extract<CreatableResourceType, "backend" | "frontend" | "worker" | "migrator" | "mcp" | "bring-your-own">;
+export type PortAssignableResourceType = Extract<CreatableResourceType, "backend" | "frontend" | "worker" | "migrator" | "mcp" | "agent" | "bring-your-own">;
 export type MasterConfigFileName = typeof TECH_STACK_FILE | typeof RESOURCE_DEFAULTS_FILE | "spec.master";
 /**
  * Type guard to validate filename is a known master config file.

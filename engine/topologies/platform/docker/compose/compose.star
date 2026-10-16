@@ -271,6 +271,17 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     no_http_healthcheck_section = NO_HTTP_HEALTHCHECK if (is_worker or health_path == None) else ""
     # Backends with a health path get it in the env, so the shared golden image's HEALTHCHECK can probe it.
     health_env = "      - TDK_HEALTH_PATH={}\n".format(health_path) if health_path else ""
+    # An agent with files durability keeps its session checkpoints in a named volume. The volume is declared at the top of the
+    # generated file (generate_app_compose_from_entries reads the marker line below), so tdk down keeps it.
+    agent_env = ""
+    agent_volume_section = ""
+    if manifest and type(manifest.get('agent')) == 'dict':
+        agent_durability = manifest['agent'].get('durability', 'files')
+        agent_env = "      - AGENT_DURABILITY={}\n".format(agent_durability)
+        if agent_durability == 'files':
+            agent_volume = res_name + '-agent-state'
+            agent_env += "      - AGENT_STATE_DIR=/var/lib/tdk-agent\n"
+            agent_volume_section = "    # tdk-agent-volume: {vol}\n    volumes:\n      - {vol}:/var/lib/tdk-agent\n".format(vol=agent_volume)
 
     if is_worker or is_proxy_disabled_byo:
         traefik_labels = '      - "traefik.enable=false"'
@@ -311,7 +322,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {infisical_env}
       - RESOURCE_NAME={stack}
       - PORT={port_anchor}
-{health_env}      - INSTANCE_ID={instance_label}
+{health_env}{agent_env}      - INSTANCE_ID={instance_label}
       - NATS_QUEUE_GROUP={nats_queue}
       - TILT_DATABASE_URL={db_url_for_tilt}
       - TILT_NATS_URL={nats_url}
@@ -322,7 +333,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
       # migration/CLI issue) without touching the generator or any service code.
       - AUTO_MIGRATE=${{AUTO_MIGRATE:-true}}
 {auth_env}{secrets_env}
-    labels:
+{agent_volume_section}    labels:
 {traefik_labels}
     networks:
       - {network_traefik_public}
@@ -368,6 +379,8 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         traefik_labels=traefik_labels,
         healthcheck_section=healthcheck_section,
         health_env=health_env,
+        agent_env=agent_env,
+        agent_volume_section=agent_volume_section,
         infisical_env=infisical_env,
         auth_env=auth_env,
         secrets_env=secrets_env,
@@ -510,6 +523,17 @@ x-frontend-memory-limit: &frontend-memory-limit
 services:
 """.format(port_anchors=port_anchors)
 
+    # Named volumes used by services (agent session state) must be declared at the top level. Services mark them with a
+    # "# tdk-agent-volume: <name>" line, so the declaration follows the services without a separate registry.
+    volume_names = []
+    for entry in resource_entries:
+        for line in entry.split("\n"):
+            if line.strip().startswith("# tdk-agent-volume: "):
+                volume_names.append(line.strip()[len("# tdk-agent-volume: "):])
+    volumes_section = ""
+    if volume_names:
+        volumes_section = "\nvolumes:\n" + "".join(["  {}:\n".format(name) for name in volume_names])
+
     footer = """
 networks:
   {network_traefik_public}:
@@ -520,11 +544,12 @@ networks:
     external: true
   {network_infisical}:
     external: true
-""".format(
+{volumes_section}""".format(
         network_traefik_public=PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
         network_database=PlatformDockerConstants.NETWORK_DATABASE,
         network_infisical=PlatformDockerConstants.NETWORK_INFISICAL,
+        volumes_section=volumes_section,
     )
 
     content = header + "\n".join(resource_entries) + footer

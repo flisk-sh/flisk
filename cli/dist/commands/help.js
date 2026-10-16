@@ -131,6 +131,7 @@ export function showHelp() {
   ${chalk.cyan("$")} tdk project                       # Create master configs
   ${chalk.cyan("$")} tdk resource api --type backend   # Create a backend service
   ${chalk.cyan("$")} tdk resource app --type frontend  # Create a frontend app
+  ${chalk.cyan("$")} tdk resource bot --type agent     # Create an AI agent (sessions survive tdk down)
   ${chalk.cyan("$")} tdk stacks --services             # List stacks with their resources
   ${chalk.cyan("$")} tdk up my-stack                   # Start a stack
   ${chalk.cyan("$")} tdk networks                      # Show Traefik-routed URLs

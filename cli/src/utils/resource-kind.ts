@@ -5,5 +5,5 @@
  * Protocol endpoint, which the engine builds, routes and health-checks exactly like a backend).
  */
 export function isApiServiceType(appType: string | undefined): boolean {
-  return appType === "backend" || appType === "mcp";
+  return appType === "backend" || appType === "mcp" || appType === "agent";
 }

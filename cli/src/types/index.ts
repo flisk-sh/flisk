@@ -20,6 +20,7 @@ export const RESOURCE_CONFIG_APP_TYPES = [
   "worker",
   "migrator",
   "mcp",
+  "agent",
   "bring-your-own",
 ] as const;
 
@@ -57,6 +58,15 @@ export interface ResourceConfigFields {
   dockerfile?: string;
   /** Optional Docker image name instead of building from Dockerfile */
   image?: string;
+  /** agent only: how the agent runtime is scaffolded and where its session state lives. See agent-runtimes/. */
+  agent?: AgentConfig;
+}
+
+export interface AgentConfig {
+  /** Runtime scaffold the resource was created with. `custom` is the only one today and carries no vendor dependency. */
+  runtime?: string;
+  /** `files`: sessions in a named volume that survives `tdk down`. `postgres`: sessions in the project database (DATABASE_URL). */
+  durability?: "files" | "postgres";
 }
 
 export interface ResourceConfig extends ResourceConfigFields {
@@ -104,6 +114,7 @@ export type ResourceType =
   | "worker"
   | "migrator"
   | "mcp"
+  | "agent"
   | "bring-your-own";
 
 export const CREATABLE_RESOURCE_TYPES = [
@@ -111,6 +122,7 @@ export const CREATABLE_RESOURCE_TYPES = [
   "frontend",
   "worker",
   "mcp",
+  "agent",
   "bring-your-own",
 ] as const;
 
@@ -392,7 +404,7 @@ export interface PackageInfo {
 
 export type PortAssignableResourceType = Extract<
   CreatableResourceType,
-  "backend" | "frontend" | "worker" | "migrator" | "mcp" | "bring-your-own"
+  "backend" | "frontend" | "worker" | "migrator" | "mcp" | "agent" | "bring-your-own"
 >;
 
 // ============================================================================

@@ -232,7 +232,7 @@ export function checkDuplicateResourceNames(projectRoot = findProjectRoot() ?? p
         fix: 'Give each resource its own "appName" in its service.json. The name becomes the Compose service and the Traefik router, so two resources with one name collide',
     };
 }
-/** A resource that gets a Traefik route to its own `port`: a backend, an mcp server, or a bring-your-own resource that is not opted out. */
+/** A resource that gets a Traefik route to its own `port`: a backend, an mcp server, an agent, or a bring-your-own resource that is not opted out. */
 function isRoutedToPort(resource) {
     const appType = resource.config?.appType;
     if (isApiServiceType(appType))

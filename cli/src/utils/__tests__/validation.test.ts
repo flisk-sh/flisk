@@ -212,6 +212,7 @@ describe("VALID_RESOURCE_TYPES", () => {
       "worker",
       "migrator",
       "mcp",
+      "agent",
       "bring-your-own",
     ];
     expect(VALID_RESOURCE_TYPES.sort()).toEqual(expected.sort());

@@ -34,6 +34,12 @@ export declare const PORT_RANGES: {
         readonly max: 5999;
         readonly range: "4000-5999";
     };
+    readonly agent: {
+        readonly base: 4000;
+        readonly min: 4000;
+        readonly max: 5999;
+        readonly range: "4000-5999";
+    };
     readonly "bring-your-own": {
         readonly base: 4000;
         readonly min: 4000;

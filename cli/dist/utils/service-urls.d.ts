@@ -1,7 +1,7 @@
 import type { DiscoveredResource } from "../types/index.js";
 export interface HealthTarget {
     name: string;
-    appType: "frontend" | "backend" | "mcp";
+    appType: "frontend" | "backend" | "mcp" | "agent";
     url: string;
 }
 export interface HealthProbe extends HealthTarget {

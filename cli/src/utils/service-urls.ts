@@ -9,7 +9,7 @@ import { isApiServiceType } from "./resource-kind.js";
 
 export interface HealthTarget {
   name: string;
-  appType: "frontend" | "backend" | "mcp";
+  appType: "frontend" | "backend" | "mcp" | "agent";
   url: string;
 }
 
@@ -114,8 +114,9 @@ function routableTargets(
     .filter(
       (
         resource,
-      ): resource is DiscoveredResource & { config: { appType: "frontend" | "backend" | "mcp" } } =>
-        resource.config?.appType === "frontend" || isApiServiceType(resource.config?.appType),
+      ): resource is DiscoveredResource & {
+        config: { appType: "frontend" | "backend" | "mcp" | "agent" };
+      } => resource.config?.appType === "frontend" || isApiServiceType(resource.config?.appType),
     )
     .map((resource) => {
       const base = isApiServiceType(resource.config.appType) ? apiBase : appBase;

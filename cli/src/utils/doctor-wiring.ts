@@ -291,7 +291,7 @@ export function checkDuplicateResourceNames(
   };
 }
 
-/** A resource that gets a Traefik route to its own `port`: a backend, an mcp server, or a bring-your-own resource that is not opted out. */
+/** A resource that gets a Traefik route to its own `port`: a backend, an mcp server, an agent, or a bring-your-own resource that is not opted out. */
 function isRoutedToPort(resource: DiscoveredResource): boolean {
   const appType = resource.config?.appType;
   if (isApiServiceType(appType)) return true;

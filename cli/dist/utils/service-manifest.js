@@ -15,6 +15,7 @@ const DEPRECATED_FIELDS = {
 };
 const KNOWN_SERVICE_FIELDS = new Set([
     "$schema",
+    "agent",
     "apiBasePath",
     "apiPath",
     "appName",

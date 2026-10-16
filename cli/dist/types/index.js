@@ -9,6 +9,7 @@ export const RESOURCE_CONFIG_APP_TYPES = [
     "worker",
     "migrator",
     "mcp",
+    "agent",
     "bring-your-own",
 ];
 export const CREATABLE_RESOURCE_TYPES = [
@@ -16,6 +17,7 @@ export const CREATABLE_RESOURCE_TYPES = [
     "frontend",
     "worker",
     "mcp",
+    "agent",
     "bring-your-own",
 ];
 export function isCreatableResourceType(value) {

@@ -79,6 +79,15 @@ def load_from_file(path):
     if type(manifest) == "dict" and manifest.get("appType") == "mcp":
         manifest["appType"] = "backend"
         manifest["mcp"] = True
+
+    # An `agent` resource is a long-running AI agent: a Bun HTTP service (/health, /ready, SIGTERM drain) that is built, routed
+    # and health-checked as a backend, so it reuses the backend code paths and boots health-gated. Its settings are kept under
+    # manifest["agent"] for the generators (state volume, AGENT_* environment), with durability defaulting to files.
+    if type(manifest) == "dict" and manifest.get("appType") == "agent":
+        agent = dict(manifest.get("agent") or {})
+        agent["durability"] = agent.get("durability") or "files"
+        manifest["appType"] = "backend"
+        manifest["agent"] = agent
     
     return struct(manifest=manifest, error=None)
 

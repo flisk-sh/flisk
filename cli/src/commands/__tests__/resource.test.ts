@@ -578,8 +578,9 @@ describe("resource command", () => {
       expect(CREATABLE_RESOURCE_TYPES).toContain("frontend");
       expect(CREATABLE_RESOURCE_TYPES).toContain("worker");
       expect(CREATABLE_RESOURCE_TYPES).toContain("mcp");
+      expect(CREATABLE_RESOURCE_TYPES).toContain("agent");
       expect(CREATABLE_RESOURCE_TYPES).toContain("bring-your-own");
-      expect(CREATABLE_RESOURCE_TYPES).toHaveLength(5);
+      expect(CREATABLE_RESOURCE_TYPES).toHaveLength(6);
     });
   });
 });

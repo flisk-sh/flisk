@@ -1,5 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+
+import { resolveAgentRuntime } from "../agent-runtimes/registry.js";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
 import { TdkError } from "../utils/errors.js";
 import { elysiaBackendProvider } from "./elysia.js";
@@ -70,6 +72,22 @@ export function resolveBackendFramework(
       ]);
     }
     return mcpBackendProvider;
+  }
+
+  // `agent` is scaffolded by an agent runtime (src/agent-runtimes/), not a framework. Only the default runtime is reachable here:
+  // `tdk resource` validates --runtime before it scaffolds, so the package.json and tsconfig always match the chosen runtime.
+  if (resourceType === "agent") {
+    if (frameworkId !== undefined) {
+      throw new TdkError("--framework cannot be combined with --type agent.", [
+        "An agent resource is scaffolded by an agent runtime; use --runtime <id> instead",
+      ]);
+    }
+    if (language?.createFiles) {
+      throw new TdkError(`--language ${language.id} cannot be combined with --type agent.`, [
+        "An agent resource is a Bun service; drop --language",
+      ]);
+    }
+    return resolveAgentRuntime();
   }
 
   if (resourceType !== "backend" || frameworkId === undefined) return undefined;

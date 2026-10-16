@@ -5,6 +5,11 @@ import { existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import {
+  DEFAULT_AGENT_RUNTIME,
+  resolveAgentDurability,
+  resolveAgentRuntime,
+} from "../agent-runtimes/registry.js";
 import { resolveBackendFramework } from "../backend-frameworks/registry.js";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
 import { resolveBackendLanguage } from "../backend-languages/registry.js";
@@ -20,6 +25,7 @@ import {
   getWorkerIndexTemplate,
 } from "../generator/resource-templates.js";
 import type {
+  AgentConfig,
   CreatableResourceType,
   FileGenerationTask,
   PortAssignableResourceType,
@@ -106,6 +112,10 @@ export const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificConfig> = 
   mcp: {
     healthCheckPath: "/health",
   },
+  // /ready is the readiness route (checkpoint store reachable); /health is liveness only, so an idle agent stays healthy.
+  agent: {
+    healthCheckPath: "/health",
+  },
   [BRING_YOUR_OWN_TYPE]: {
     healthCheckPath: "/health",
   },
@@ -155,6 +165,7 @@ export function createServiceJson(
   extraFeatures: string[] = [],
   frameworkId?: string,
   languageId?: string,
+  agent?: AgentConfig,
 ) {
   const framework = resolveFrontendFramework(type, frameworkId);
   // Only an explicit selection is persisted: a missing `language` has always meant Bun.
@@ -197,8 +208,11 @@ export function createServiceJson(
     stack,
     port,
     ...(framework ? { framework: framework.id } : {}),
-    ...(backendFramework && type !== "mcp" ? { framework: backendFramework.id } : {}),
+    ...(backendFramework && type !== "mcp" && type !== "agent"
+      ? { framework: backendFramework.id }
+      : {}),
     ...(language ? { language: language.id } : {}),
+    ...(type === "agent" && agent ? { agent } : {}),
   };
 }
 
@@ -384,7 +398,7 @@ export const resourceCommand = new Command("resource")
   .argument("[name]", "Resource name (kebab-case)")
   .option(
     "-t, --type <type>",
-    "Resource type: backend, frontend, worker, mcp, bring-your-own, sdk",
+    "Resource type: backend, frontend, worker, mcp, agent, bring-your-own, sdk",
     "backend",
   )
   .option(
@@ -418,6 +432,11 @@ export const resourceCommand = new Command("resource")
     "Port for the resource, within its type's range (default: next free port in that range)",
   )
   .option("--feature <feature...>", "Enable a resource feature (for example: prisma)")
+  .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
+  .option(
+    "--durability <kind>",
+    "Where agent sessions are checkpointed (for agent only): files (default, a named volume that survives tdk down) or postgres (the project database)",
+  )
   .action(async (name, options) => {
     if (options.frameworks) {
       for (const f of listFrontendFrameworks()) {
@@ -456,6 +475,23 @@ export const resourceCommand = new Command("resource")
       }
 
       const resourceType = parseResourceType(options.type);
+      if (
+        resourceType !== "agent" &&
+        (options.runtime !== undefined || options.durability !== undefined)
+      ) {
+        throw new TdkError("--runtime and --durability can only be used with --type agent.", [
+          "Drop --runtime and --durability, or pass --type agent",
+        ]);
+      }
+      // Validate the agent options before anything is written, so a bad flag leaves no half-scaffolded directory.
+      let agentConfig: AgentConfig | undefined;
+      if (resourceType === "agent") {
+        resolveAgentRuntime(options.runtime);
+        agentConfig = {
+          runtime: options.runtime ?? DEFAULT_AGENT_RUNTIME,
+          durability: resolveAgentDurability(options.durability),
+        };
+      }
 
       let frameworkOption: string | undefined = options.framework;
       if (
@@ -491,7 +527,9 @@ export const resourceCommand = new Command("resource")
       // The id passed on to the file generators. An mcp resource has one fixed scaffold and no `framework` setting, so it passes none
       // (its provider is selected by the resource type itself).
       const scaffoldFrameworkId =
-        resourceType === "mcp" ? undefined : (frontendFramework?.id ?? backendFramework?.id);
+        resourceType === "mcp" || resourceType === "agent"
+          ? undefined
+          : (frontendFramework?.id ?? backendFramework?.id);
 
       let dddEnabled = false;
       if (options.ddd) {
@@ -576,6 +614,7 @@ export const resourceCommand = new Command("resource")
           frontend: `apps/${resourceName}`,
           worker: `workers/${resourceName}`,
           mcp: `services/${stackName}/${resourceName}`,
+          agent: `services/${stackName}/${resourceName}`,
           [BRING_YOUR_OWN_TYPE]: `services/${stackName}/${resourceName}`,
           sdk: `packages/${resourceName}`,
         };
@@ -821,6 +860,7 @@ This file contains the resource configuration for TDK.
         [...(dddEnabled ? ["ddd"] : []), ...requestedFeatures],
         scaffoldFrameworkId,
         options.language === undefined ? undefined : backendLanguage?.id,
+        agentConfig,
       );
       const packageJson = createPackageJson(
         resourceName,
@@ -872,13 +912,17 @@ This file contains the resource configuration for TDK.
       ];
 
       // Add source files based on resource type
-      if (resourceType === "backend" || resourceType === "mcp") {
+      if (resourceType === "backend" || resourceType === "mcp" || resourceType === "agent") {
         tasks.push({
           type: "text",
           filename: "src/index.ts",
           content: (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName),
           description:
-            resourceType === "mcp" ? "Generating MCP server source" : "Generating backend source",
+            resourceType === "mcp"
+              ? "Generating MCP server source"
+              : resourceType === "agent"
+                ? "Generating agent source"
+                : "Generating backend source",
           emoji: "💻",
         });
       } else if (resourceType === "frontend") {

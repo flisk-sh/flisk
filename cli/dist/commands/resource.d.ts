@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
-import type { CreatableResourceType, PortAssignableResourceType } from "../types/index.js";
+import type { AgentConfig, CreatableResourceType, PortAssignableResourceType } from "../types/index.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 export declare const BASE_TEMPLATE: {
     readonly port: 0;
@@ -33,7 +33,7 @@ export declare function resolveResourcePort(resourceType: PortAssignableResource
         port?: number;
     };
 }>): number;
-export declare function createServiceJson(name: string, type: CreatableResourceType, stack: string, port: number, extraFeatures?: string[], frameworkId?: string, languageId?: string): any;
+export declare function createServiceJson(name: string, type: CreatableResourceType, stack: string, port: number, extraFeatures?: string[], frameworkId?: string, languageId?: string, agent?: AgentConfig): any;
 export declare function createByoServiceJson(name: string, stack: string, port: number, options: {
     healthCheckPath: string;
     dockerfile: string;
