@@ -2,7 +2,7 @@
 
 This guide covers failures in **L2**, the dependency resolution and package caching layer of TDK's Docker image stack. It explains what L2 caches, how dependency manifest inputs and `CACHE_BUSTER` control cache invalidation, and how to diagnose and resolve errors when package installation fails or cache invalidation does not behave as expected.
 
-Outputs on this page were captured on a developer workstation running macOS with Docker Desktop 29.8.2 and Bun 1.3.11, except Case 3A (native bindings), which was not re-run. Package counts, step numbers, durations and timestamps vary by project and machine.
+Outputs on this page were captured on a developer workstation running macOS with Docker Desktop 29.8.2 and Bun 1.3.11. In Case 3A, the symptom, the build-toolchain fix and the `ldd` check were run; the `gcompat` fix and the glibc `Exec format error` variant were not. Package counts, step numbers, durations and timestamps vary by project and machine.
 
 ---
 
@@ -259,24 +259,24 @@ A dependency installs cleanly on the developer's laptop (e.g. macOS Darwin on Ap
 
 #### Case 3A: Native C++ bindings fail in Alpine Linux (musl libc vs glibc)
 
-**Symptom:**
+**Symptom** (captured with `bun add bcrypt@5.0.1` in the `<project>-l2` golden image, Alpine on arm64):
 ```text
-error: Error loading shared library /test/node_modules/<pkg>/vendor/linux-arm64/binding.node: Exec format error
- code: "ERR_DLOPEN_FAILED"
-
-Building the binary locally
-gyp info using node-gyp@8.4.1
-gyp ERR! find Python You need to install the latest version of Python.
-gyp ERR! stack Error: Could not find any Python installation to use
-gyp ERR! configure error 
-gyp ERR! not ok 
-error: postinstall script from "<pkg>" exited with 1
+node-pre-gyp http GET https://github.com/kelektiv/node.bcrypt.js/releases/download/v5.0.1/bcrypt_lib-v5.0.1-napi-v3-linux-arm64-musl.tar.gz
+node-pre-gyp ERR! install response status 404 Not Found on https://github.com/kelektiv/node.bcrypt.js/releases/download/v5.0.1/bcrypt_lib-v5.0.1-napi-v3-linux-arm64-musl.tar.gz
+node-pre-gyp WARN Pre-built binaries not installable for bcrypt@5.0.1 and node@24.3.0 (node-v137 ABI, musl) (falling back to source compile with node-gyp)
+gyp ERR! find Python
+gyp ERR! find Python checking if "python3" can be used
+gyp ERR! find Python - executable path is ""
+gyp ERR! find Python - "" could not be run
+...
+error: install script from "bcrypt" exited with 1
 ```
+A package that ships a glibc-only prebuilt binary can instead fail at load time with `ERR_DLOPEN_FAILED` / `Exec format error`. That variant was not reproduced for this guide.
 
 - **Cause:**
   1. **musl vs glibc:** The host machine is macOS or a glibc-based Linux distribution. The container runs **Alpine Linux** (`oven/bun:1.3.11-alpine`), which uses **musl libc**.
-  2. Prebuilt binaries downloaded for glibc fail to load under musl with `Exec format error` / `ERR_DLOPEN_FAILED`.
-  3. When the package falls back to compiling from source via `node-gyp`, compilation fails because `python3`, `make`, and `g++` were deliberately removed from TDK's L2 base image to keep the image lightweight (-67 MB, as noted in `golden_image_dockerfile.star`).
+  2. Prebuilt binaries built for glibc fail to load under musl with `Exec format error` / `ERR_DLOPEN_FAILED`.
+  3. When the package falls back to compiling from source via `node-gyp`, compilation fails because `python3`, `make`, and `g++` were deliberately removed from TDK's L2 base image to keep the image lightweight (-67 MB, as noted in `golden_image_dockerfile.star`); the `find Python` lines above show this.
 - **Fix:**
   1. Prefer pure JavaScript or TypeScript libraries, or packages that supply official Alpine musl prebuilds (e.g. `@prisma/client`, `esbuild`, `@biomejs/biome`).
   2. If the native package requires glibc compatibility, install `gcompat` in a custom layer:
@@ -287,11 +287,13 @@ error: postinstall script from "<pkg>" exited with 1
      ```dockerfile
      RUN apk add --no-cache python3 make g++
      ```
+     With the toolchain installed, `bun add bcrypt@5.0.1` built from source in the `<project>-l2` image (58 packages installed in 30s) and `require('bcrypt')` loaded.
 - **Command that confirms it:**
   Inspect missing shared libraries inside the container:
   ```bash
   docker run --rm <image-name> ldd /app/node_modules/<package>/<binary>.node
   ```
+  For a musl build it lists `libc.musl-*` entries. `ldd` does not load Bun's runtime, so it also prints `Error relocating ...: napi_* symbol not found` lines for Node-API addons; those are expected and are not the failure being diagnosed.
 
 #### Case 3B: Private registry (Verdaccio) or credentials unreachable inside container
 
