@@ -649,6 +649,18 @@ export function isTestFile(filePath: string): boolean {
   return TEST_FILE_PATTERN.test(filePath);
 }
 
+function removeVendoredTestFiles(dir: string): void {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      removeVendoredTestFiles(entryPath);
+    } else if (isTestFile(entryPath)) {
+      fs.rmSync(entryPath, { force: true });
+    }
+  }
+}
+
 const TDK_EXTENSION_DIRS = ["engine", "discovery", "specs", "ext"] as string[];
 const PROJECT_RUNTIME_ASSET_DIRS = [["shared-platform-engineering", "docker-templates"]] as const;
 const REQUIRED_DOCKER_TEMPLATE_FILES = [
@@ -793,6 +805,8 @@ async function vendorTdkExtension(projectRoot: string): Promise<void> {
   }
   fs.copyFileSync(path.join(sourceRoot, "Tiltfile"), path.join(vendoredDir, "Tiltfile"));
   for (const dir of TDK_EXTENSION_DIRS) {
+    // A project vendored by an older TDK already holds test files; cpSync only adds, so drop them.
+    removeVendoredTestFiles(path.join(vendoredDir, dir));
     fs.cpSync(path.join(sourceRoot, dir), path.join(vendoredDir, dir), {
       recursive: true,
       filter: (source) => !isTestFile(source),

@@ -242,6 +242,23 @@ describe("template-engine", () => {
       expect(files.length).toBeGreaterThan(0);
       expect(files.filter(isTestFile)).toEqual([]);
       expect(fs.existsSync(path.join(vendored, "Tiltfile"))).toBe(true);
+
+      // A project vendored by an older TDK already holds a test file: regenerating removes it
+      // and keeps the other engine files.
+      const stale = path.join(
+        vendored,
+        "engine",
+        "assets",
+        "docker",
+        "wake-gateway",
+        "decide.test.ts",
+      );
+      fs.mkdirSync(path.dirname(stale), { recursive: true });
+      fs.writeFileSync(stale, 'import { test } from "bun:test";\n');
+      await generateMasterConfigs(projectRoot);
+      expect(fs.existsSync(stale)).toBe(false);
+      expect(walk(vendored).filter(isTestFile)).toEqual([]);
+      expect(walk(vendored).length).toBe(files.length);
     } finally {
       if (oldExtensionSource === undefined) delete process.env.TDK_EXTENSION_SOURCE;
       else process.env.TDK_EXTENSION_SOURCE = oldExtensionSource;
