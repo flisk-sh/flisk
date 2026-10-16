@@ -2,7 +2,7 @@
 
 This guide covers failures in **L2**, the dependency resolution and package caching layer of TDK's Docker image stack. It explains what L2 caches, how dependency manifest inputs and `CACHE_BUSTER` control cache invalidation, and how to diagnose and resolve errors when package installation fails or cache invalidation does not behave as expected.
 
-Outputs on this page were captured on a developer workstation running macOS with Docker Desktop 29.8.2 and Bun 1.3.11. In Case 3A, only the symptom was captured; the fixes and the `ldd` check were not run. Package counts, step numbers, durations and timestamps vary by project and machine.
+Outputs on this page were captured on a developer workstation running macOS with Docker Desktop 29.8.2 and Bun 1.3.11. In Case 3A, the symptom, the build-toolchain fix and the `ldd` check were run; the `gcompat` fix and the glibc `Exec format error` variant were not. Package counts, step numbers, durations and timestamps vary by project and machine.
 
 ---
 
@@ -287,11 +287,13 @@ A package that ships a glibc-only prebuilt binary can instead fail at load time 
      ```dockerfile
      RUN apk add --no-cache python3 make g++
      ```
+     With the toolchain installed, `bun add bcrypt@5.0.1` built from source in the `<project>-l2` image (58 packages installed in 30s) and `require('bcrypt')` loaded.
 - **Command that confirms it:**
   Inspect missing shared libraries inside the container:
   ```bash
   docker run --rm <image-name> ldd /app/node_modules/<package>/<binary>.node
   ```
+  For a musl build it lists `libc.musl-*` entries. `ldd` does not load Bun's runtime, so it also prints `Error relocating ...: napi_* symbol not found` lines for Node-API addons; those are expected and are not the failure being diagnosed.
 
 #### Case 3B: Private registry (Verdaccio) or credentials unreachable inside container
 
