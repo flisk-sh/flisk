@@ -395,16 +395,62 @@ Runs a Model Context Protocol server over stdio for coding agents. No flags. See
 
 ### `tdk completion [shell]`
 
-```bash
-tdk completion zsh > ~/.zfunc/_tdk
-tdk completion --shell bash --install
-```
+Generates tab completion for `bash`, `zsh`, `fish` and `powershell`. Without a shell argument, `tdk completion` uses the shell named in `$SHELL` when it is one of these four, and `bash` otherwise.
 
 | Flag | Effect |
 | --- | --- |
 | `[shell]`, `-s`, `--shell <shell>` | `bash`, `zsh`, `fish`, `powershell` |
-| `-o`, `--output <path>` | Write to a file (default stdout) |
-| `--install` | Add to your shell config |
+| `-o`, `--output <path>` | Write the script to a file instead of stdout |
+| `--install` | Write the script to the shell's completion folder (PowerShell: add it to your profile) and print the line to add to your shell config |
+
+`--install` does not edit `~/.bashrc` or `~/.zshrc`. Run the shell's setup below, then open a new terminal.
+
+#### bash
+
+```bash
+tdk completion --shell bash --install
+echo 'source ~/.bash_completion.d/tdk-completion.bash' >> ~/.bashrc
+source ~/.bashrc
+```
+
+The first command writes `~/.bash_completion.d/tdk-completion.bash`. The second makes new shells load it.
+
+#### zsh
+
+```bash
+tdk completion --shell zsh --install
+cat >> ~/.zshrc <<'EOF'
+fpath+=(~/.zsh/completions)
+autoload -U compinit && compinit
+EOF
+source ~/.zshrc
+```
+
+The first command writes `~/.zsh/completions/_tdk`. The `fpath` line has to come before `compinit`. If your `~/.zshrc` already calls `compinit`, add only the `fpath+=(...)` line above it.
+
+#### fish
+
+```fish
+tdk completion --shell fish --install
+```
+
+This writes `~/.config/fish/completions/tdk.fish`, which fish loads by itself. Open a new fish session.
+
+#### PowerShell
+
+```powershell
+tdk completion --shell powershell --install
+```
+
+This adds a block marked `# TDK-CLI-COMPLETION-START` / `# TDK-CLI-COMPLETION-END` to your PowerShell profile (`Documents\PowerShell` for PowerShell 7, `Documents\WindowsPowerShell` otherwise). Close and reopen PowerShell. PowerShell completes the command names only; bash, zsh and fish also complete flags.
+
+#### Check that it works
+
+Type `tdk do` and press Tab. The shell should offer `doctor` and `down`. If nothing happens, check that you opened a new terminal after the setup above.
+
+#### After you upgrade
+
+Run the same `--install` command again after `tdk upgrade`. It overwrites the old file (PowerShell: it replaces the marked block), so the completions match the new version. Without `--install`, `tdk completion <shell> > <file>` or `--output <file>` writes the script wherever you want it, and you load it yourself.
 
 ### `tdk maintainers check [file]`
 

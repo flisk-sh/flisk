@@ -189,7 +189,7 @@ The frontend provider owns root `index.html` and starter source. After TDK gener
 | `tdk config verify` | ✅ Check generated files match `.tdk/project.json` |
 | `tdk config enable-infra <service>` | ➕ Enable an optional infrastructure service (`disable-infra` to turn it off) |
 | `tdk doctor` | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports) |
-| `tdk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish`) |
+| `tdk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#tdk-completion-shell) |
 | `tdk upgrade` | ⬆️ Self-update to the latest version (`--dry-run`, `--force`, `--all`) |
 | `tdk version` | ℹ️ Show version |
 | `tdk --help` | ❓ Show help |
