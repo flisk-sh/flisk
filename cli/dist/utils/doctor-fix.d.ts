@@ -40,6 +40,11 @@ export interface DoctorFixDeps {
 type DockerRunner = (args: string[]) => Promise<string>;
 /** `ps -o etime=` ("[[dd-]hh:]mm:ss") in seconds. */
 export declare function parseElapsed(etime: string): number | null;
+/**
+ * Whether any of `ports` answers as a Tilt UI. A busy Tilt can miss one request, and a wrong "stale" ends in a kill,
+ * so a port gets a second try before it counts as silent.
+ */
+export declare function anyTiltAnswers(ports: number[], probe?: (port: number) => Promise<string | null>, attempts?: number, wait?: (ms: number) => Promise<void>): Promise<boolean>;
 export declare function createDockerFixDeps(run?: DockerRunner): DoctorFixDeps;
 export declare const dockerFixDeps: DoctorFixDeps;
 export interface PlanContext {

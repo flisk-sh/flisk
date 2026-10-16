@@ -87,6 +87,25 @@ export function parseElapsed(etime: string): number | null {
   return ((Number(days) * 24 + Number(hours)) * 60 + Number(minutes)) * 60 + Number(seconds);
 }
 
+/**
+ * Whether any of `ports` answers as a Tilt UI. A busy Tilt can miss one request, and a wrong "stale" ends in a kill,
+ * so a port gets a second try before it counts as silent.
+ */
+export async function anyTiltAnswers(
+  ports: number[],
+  probe: (port: number) => Promise<string | null> = tiltGetUiResources,
+  attempts = 2,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) await wait(1000);
+    for (const port of ports) {
+      if ((await probe(port)) !== null) return true;
+    }
+  }
+  return false;
+}
+
 async function tiltProcessStatus(pid: number): Promise<"healthy" | "stale" | "unknown"> {
   if (process.platform === "win32") return "unknown";
   try {
@@ -103,10 +122,7 @@ async function tiltProcessStatus(pid: number): Promise<"healthy" | "stale" | "un
       { encoding: "utf-8", timeout: 5000 },
     );
     const ports = [...stdout.matchAll(/^n.*:(\d+)$/gm)].map((m) => Number(m[1]));
-    for (const port of ports) {
-      if ((await tiltGetUiResources(port)) !== null) return "healthy";
-    }
-    return "stale";
+    return (await anyTiltAnswers(ports)) ? "healthy" : "stale";
   } catch {
     // No lsof, or the process is gone: do not guess.
     return "unknown";

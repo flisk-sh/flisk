@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  anyTiltAnswers,
   applyDoctorFixes,
   checkDuplicateTdkInstalls,
   createDockerFixDeps,
@@ -379,5 +380,32 @@ describe("disk reclaim", () => {
     const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
     expect(pruned).toEqual(["builder", "images"]);
     expect(result.every((a) => a.status === "applied")).toBe(true);
+  });
+});
+
+describe("anyTiltAnswers", () => {
+  const noWait = async () => {};
+
+  it("is healthy when one port answers", async () => {
+    const probe = async (port: number) => (port === 10350 ? "{}" : null);
+    expect(await anyTiltAnswers([9999, 10350], probe, 2, noWait)).toBe(true);
+  });
+
+  it("retries once, so a single missed request does not look stale", async () => {
+    let calls = 0;
+    const probe = async () => (++calls === 1 ? null : "{}");
+    expect(await anyTiltAnswers([10350], probe, 2, noWait)).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it("is silent only when every port misses every attempt", async () => {
+    let calls = 0;
+    const probe = async () => {
+      calls++;
+      return null;
+    };
+    expect(await anyTiltAnswers([1, 2], probe, 2, noWait)).toBe(false);
+    expect(calls).toBe(4);
+    expect(await anyTiltAnswers([], probe, 2, noWait)).toBe(false);
   });
 });
