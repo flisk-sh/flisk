@@ -1,0 +1,38 @@
+name: 🏅 OSS score gate
+
+# Fails a pull request when the repo's published OpenSSF Scorecard is below MIN_SCORE. Scorecard
+# publishes for main on push and weekly, so this gate checks that published score, not the PR's own code.
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  gate:
+    name: OSS score gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      MIN_SCORE: "7.0"
+    steps:
+      - name: Read the published Scorecard score
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          json=$(curl -fsSL --retry 3 "https://api.securityscorecards.dev/projects/github.com/${REPO}")
+          score=$(printf '%s' "$json" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).score')
+          date=$(printf '%s' "$json" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).date')
+          echo "Published OpenSSF Scorecard: ${score} (as of ${date}); minimum ${MIN_SCORE}."
+          echo "score=${score}" >> "$GITHUB_ENV"
+      - name: Fail when the score is below the minimum
+        run: |
+          if node -e 'process.exit(Number(process.env.score) >= Number(process.env.MIN_SCORE) ? 0 : 1)'; then
+            echo "OSS score gate passed."
+          else
+            echo "::error::OpenSSF Scorecard ${score} is below the minimum ${MIN_SCORE}."
+            exit 1
+          fi
