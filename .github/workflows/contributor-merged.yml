@@ -110,6 +110,14 @@ jobs:
               if (!before) rankLine += ` That sets your starting rank: **${thisRank.name}**. 🥋`;
               else if (thisRank.value > before.value) rankLine += ` **Rank up!** Your highest rank goes from ${before.name} to **${thisRank.name}**. 🥋🎊`;
               else rankLine += ` Your highest rank is still **${before.name}**. Take a harder one to rank up.`;
+              // Link to open issues one step above the highest rank reached, so the next fix is easy to find.
+              const highest = before && before.value > thisRank.value ? before : thisRank;
+              const nextValue = highest.value === 99 ? 101 : highest.value + 1; // no value 100: 1 kyu leads to 1 dan
+              const nextName = nextValue < 100 ? `${100 - nextValue} kyu` : nextValue > 100 ? `${nextValue - 100} dan` : null;
+              if (nextName) {
+                const label = encodeURIComponent(`rank: ${nextName}`);
+                rankLine += ` Next up: [open ${nextName} issues](${base}/issues?q=is%3Aissue+is%3Aopen+label%3A%22${label}%22).`;
+              }
             }
 
             // Offer harder work as people merge more: easy -> medium -> hard.
