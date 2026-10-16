@@ -562,11 +562,21 @@ def _register_dc_resources(resource_configs, resource_path, compose_project_name
         _register_single_resource(config, resource_path, compose_project_name, auto_init_apps)
 
 
+# appTypes whose containers get DATABASE_URL and therefore need their logical database provisioned. Bring-your-own
+# containers receive DATABASE_URL too (docs/byo.md), so without provisioning they point at a database that never exists.
+DATABASE_APP_TYPES = ['backend', 'bring-your-own']
+
+
+def resource_needs_database(manifest):
+    """True when a resource of this manifest receives DATABASE_URL and needs its database provisioned."""
+    return (manifest or {}).get('appType') in DATABASE_APP_TYPES
+
+
 def _has_backend_resource(resource_config, resource_manifests):
-    """Check if service has a backend resource."""
+    """Check if service has a resource that needs the provisioned database (backend or bring-your-own)."""
     for resource in resource_config.get('resources', []):
         manifest = resource_manifests.get(resource['name'], {})
-        if manifest.get('appType') == 'backend':
+        if resource_needs_database(manifest):
             return True
     return False
 
