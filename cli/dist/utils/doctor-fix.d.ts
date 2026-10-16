@@ -4,8 +4,11 @@ export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
 export interface DoctorAction {
     id: string;
     check: string;
-    /** `project`: owned by the current project. `probe`: a doctor probe, owned by no project. */
-    scope: "project" | "probe";
+    /**
+     * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
+     * TDK project's resource, only ever planned with `--scope=machine`.
+     */
+    scope: "project" | "probe" | "machine";
     /** The exact command a user could run by hand. */
     command: string;
     status: DoctorActionStatus;
@@ -21,15 +24,27 @@ export interface DoctorFixDeps {
     listNetworks(): Promise<DockerNetwork[]>;
     removeNetwork(name: string): Promise<void>;
     isProcessAlive(pid: number): boolean;
+    /** Whether a Tilt process serves its UI: `stale` only when it has run a while and nothing it listens on answers. */
+    tiltStatus(pid: number): Promise<"healthy" | "stale" | "unknown">;
+    stopProcess(pid: number): void;
 }
 type DockerRunner = (args: string[]) => Promise<string>;
+/** `ps -o etime=` ("[[dd-]hh:]mm:ss") in seconds. */
+export declare function parseElapsed(etime: string): number | null;
 export declare function createDockerFixDeps(run?: DockerRunner): DoctorFixDeps;
 export declare const dockerFixDeps: DoctorFixDeps;
+export interface PlanContext {
+    /** `tilt up` processes for this project (see `projectTiltPids`). */
+    tiltPids?: number[];
+    /** `--scope=machine`: also plan unused networks of other TDK projects. */
+    machine?: boolean;
+}
 /**
- * What `--fix` would do. Only unused networks that are either a leftover doctor probe or one of this project's own
- * (the exact names the engine creates, and only while `projectBusy` is unset) are planned; another project's networks are never listed here.
+ * What `--fix` would do: stop this project's stale Tilt; remove unused networks that are a leftover doctor probe or
+ * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other TDK projects' unused
+ * networks are planned only with `context.machine`, each naming its owner.
  */
-export declare function planDoctorFixes(projectName: string | undefined, deps?: DoctorFixDeps, projectBusy?: string): Promise<DoctorAction[]>;
+export declare function planDoctorFixes(projectName: string | undefined, deps?: DoctorFixDeps, context?: PlanContext): Promise<DoctorAction[]>;
 export interface ApplyOptions {
     dryRun: boolean;
     /** Ask before each destructive action; resolves false to decline. Absent means confirmation is unavailable. */

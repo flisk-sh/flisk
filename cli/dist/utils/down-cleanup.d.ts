@@ -1,6 +1,14 @@
 type CommandRunner = (command: string, args: string[]) => string;
 /** The engine prefixes networks with the project name, hyphens turned into underscores. */
 export declare function projectNetworkNames(projectName: string): string[];
+/**
+ * Prefixes of TDK projects among `networkNames`, from the networks the engine creates. Generic suffixes such as
+ * `backend` also occur in non-TDK compose projects, so a prefix counts only if it has a Traefik network, which
+ * only TDK creates.
+ */
+export declare function tdkNetworkPrefixes(networkNames: string[]): Set<string>;
+/** The TDK project prefix a network belongs to (`umami` for `umami_backend`), or null. */
+export declare function tdkNetworkOwner(name: string, prefixes: Set<string>): string | null;
 export interface PruneNetworksResult {
     removed: string[];
     /** Networks that exist but Docker refused to remove, usually because a container is still attached. */

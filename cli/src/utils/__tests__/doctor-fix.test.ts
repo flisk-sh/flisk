@@ -11,12 +11,19 @@ import {
   type DockerNetwork,
   type DoctorFixDeps,
   hasFailedActions,
+  parseElapsed,
   planDoctorFixes,
   projectTiltPids,
 } from "../doctor-fix.js";
 
-function fakeDocker(networks: DockerNetwork[], alive: number[] = [], failing: string[] = []) {
+function fakeDocker(
+  networks: DockerNetwork[],
+  alive: number[] = [],
+  failing: string[] = [],
+  tilt: Record<number, "healthy" | "stale" | "unknown"> = {},
+) {
   const removed: string[] = [];
+  const stopped: number[] = [];
   const deps: DoctorFixDeps = {
     listNetworks: async () => networks,
     removeNetwork: async (name) => {
@@ -24,8 +31,12 @@ function fakeDocker(networks: DockerNetwork[], alive: number[] = [], failing: st
       removed.push(name);
     },
     isProcessAlive: (pid) => alive.includes(pid),
+    tiltStatus: async (pid) => tilt[pid] ?? "unknown",
+    stopProcess: (pid) => {
+      stopped.push(pid);
+    },
   };
-  return { deps, removed };
+  return { deps, removed, stopped };
 }
 
 const net = (name: string, containers = 0): DockerNetwork => ({ name, containers });
@@ -52,12 +63,12 @@ describe("planDoctorFixes", () => {
 
   it("skips project networks while Tilt runs, but still plans probes", async () => {
     const { deps } = fakeDocker([net("it_ai_search_backend"), net("tdk_doctor_probe_5")]);
-    const plan = await planDoctorFixes("it-ai-search", deps, "Tilt is running");
+    const plan = await planDoctorFixes("it-ai-search", deps, { tiltPids: [7] });
     expect(plan.map((a) => [a.scope, a.status])).toEqual([
       ["project", "skipped"],
       ["probe", "planned"],
     ]);
-    expect(plan[0]?.reason).toBe("Tilt is running");
+    expect(plan[0]?.reason).toContain("Tilt is running for this project (pid 7)");
   });
 
   it("skips a network that still has containers", async () => {
@@ -156,6 +167,8 @@ describe("applyDoctorFixes", () => {
         );
       },
       isProcessAlive: () => false,
+      tiltStatus: async () => "unknown",
+      stopProcess: () => {},
     };
     await applyDoctorFixes(
       await planDoctorFixes("it-ai-search", deps),
@@ -232,5 +245,76 @@ describe("projectTiltPids", () => {
     const find = (path: string) => launched.get(path) ?? [];
     expect(projectTiltPids(link, find).sort()).toEqual([11, 12]);
     expect(projectTiltPids(join(base, "nope"), find)).toEqual([]);
+  });
+});
+
+describe("stale Tilt", () => {
+  it("plans to stop a Tilt whose UI does not answer, and frees the project's networks in the same run", async () => {
+    const { deps } = fakeDocker([net("it_ai_search_backend")], [], [], { 7: "stale" });
+    const plan = await planDoctorFixes("it-ai-search", deps, { tiltPids: [7] });
+    expect(plan.map((a) => [a.id, a.status])).toEqual([
+      ["stop-tilt:7", "planned"],
+      ["remove-network:it_ai_search_backend", "planned"],
+    ]);
+    expect(plan[0]?.command).toBe("kill -TERM 7");
+  });
+
+  it("leaves a healthy or unknown Tilt alone and protects the networks", async () => {
+    for (const status of ["healthy", "unknown"] as const) {
+      const { deps } = fakeDocker([net("it_ai_search_backend")], [], [], { 7: status });
+      const plan = await planDoctorFixes("it-ai-search", deps, { tiltPids: [7] });
+      expect(plan.map((a) => [a.id, a.status])).toEqual([
+        ["remove-network:it_ai_search_backend", "skipped"],
+      ]);
+    }
+  });
+
+  it("stops the process only after confirmation", async () => {
+    const { deps, stopped } = fakeDocker([], [], [], { 7: "stale" });
+    const plan = await planDoctorFixes("p", deps, { tiltPids: [7] });
+    await applyDoctorFixes(plan, { dryRun: false, confirm: async () => false }, deps);
+    expect(stopped).toEqual([]);
+    const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
+    expect(stopped).toEqual([7]);
+    expect(result[0]?.status).toBe("applied");
+  });
+});
+
+describe("--scope=machine", () => {
+  const machineNets = [
+    net("umami_traefik-public"),
+    net("umami_backend"),
+    net("umami_database", 1),
+    net("shop_backend"),
+    net("shop_database"),
+    net("it_ai_search_backend"),
+  ];
+
+  it("plans other TDK projects' unused networks naming the owner", async () => {
+    const { deps } = fakeDocker(machineNets);
+    const plan = await planDoctorFixes("it-ai-search", deps, { machine: true });
+    const byId = Object.fromEntries(plan.map((a) => [a.id, a]));
+    expect(byId["remove-network:umami_backend"]?.scope).toBe("machine");
+    expect(byId["remove-network:umami_backend"]?.reason).toContain('project "umami"');
+    expect(byId["remove-network:umami_traefik-public"]?.status).toBe("planned");
+    expect(byId["remove-network:umami_database"]?.status).toBe("skipped");
+    expect(byId["remove-network:it_ai_search_backend"]?.scope).toBe("project");
+  });
+
+  it("never touches networks of a project without a Traefik network, or without the flag", async () => {
+    const { deps } = fakeDocker(machineNets);
+    const withFlag = await planDoctorFixes("it-ai-search", deps, { machine: true });
+    expect(withFlag.some((a) => a.id.includes("shop_"))).toBe(false);
+    const without = await planDoctorFixes("it-ai-search", deps);
+    expect(without.map((a) => a.id)).toEqual(["remove-network:it_ai_search_backend"]);
+  });
+});
+
+describe("parseElapsed", () => {
+  it("reads ps etime", () => {
+    expect(parseElapsed("01:05")).toBe(65);
+    expect(parseElapsed("02:01:05")).toBe(7265);
+    expect(parseElapsed("1-00:00:10")).toBe(86410);
+    expect(parseElapsed("nope")).toBeNull();
   });
 });

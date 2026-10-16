@@ -5,7 +5,13 @@ import { realpathSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CheckResult } from "../types/index.js";
-import { findProjectTiltUpPids, projectNetworkNames } from "./down-cleanup.js";
+import {
+  findProjectTiltUpPids,
+  projectNetworkNames,
+  tdkNetworkOwner,
+  tdkNetworkPrefixes,
+} from "./down-cleanup.js";
+import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
 
 const execFilePromise = promisify(execFile);
@@ -20,8 +26,11 @@ export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
 export interface DoctorAction {
   id: string;
   check: string;
-  /** `project`: owned by the current project. `probe`: a doctor probe, owned by no project. */
-  scope: "project" | "probe";
+  /**
+   * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
+   * TDK project's resource, only ever planned with `--scope=machine`.
+   */
+  scope: "project" | "probe" | "machine";
   /** The exact command a user could run by hand. */
   command: string;
   status: DoctorActionStatus;
@@ -39,6 +48,9 @@ export interface DoctorFixDeps {
   listNetworks(): Promise<DockerNetwork[]>;
   removeNetwork(name: string): Promise<void>;
   isProcessAlive(pid: number): boolean;
+  /** Whether a Tilt process serves its UI: `stale` only when it has run a while and nothing it listens on answers. */
+  tiltStatus(pid: number): Promise<"healthy" | "stale" | "unknown">;
+  stopProcess(pid: number): void;
 }
 
 type DockerRunner = (args: string[]) => Promise<string>;
@@ -55,6 +67,42 @@ const runDocker: DockerRunner = async (args) => {
 function firstLine(error: unknown): string {
   const stderr = String((error as { stderr?: Buffer | string }).stderr ?? error).trim();
   return stderr.split(/\r?\n/)[0] ?? "";
+}
+
+const STALE_TILT_MIN_AGE_S = 120;
+
+/** `ps -o etime=` ("[[dd-]hh:]mm:ss") in seconds. */
+export function parseElapsed(etime: string): number | null {
+  const match = /^\s*(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)\s*$/.exec(etime);
+  if (!match) return null;
+  const [, days = "0", hours = "0", minutes = "0", seconds = "0"] = match;
+  return ((Number(days) * 24 + Number(hours)) * 60 + Number(minutes)) * 60 + Number(seconds);
+}
+
+async function tiltProcessStatus(pid: number): Promise<"healthy" | "stale" | "unknown"> {
+  if (process.platform === "win32") return "unknown";
+  try {
+    const { stdout: etime } = await execFilePromise("ps", ["-p", String(pid), "-o", "etime="], {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    const age = parseElapsed(etime);
+    // A Tilt that is still starting has not bound its port yet.
+    if (age === null || age < STALE_TILT_MIN_AGE_S) return "unknown";
+    const { stdout } = await execFilePromise(
+      "lsof",
+      ["-nP", "-a", "-p", String(pid), "-iTCP", "-sTCP:LISTEN", "-Fn"],
+      { encoding: "utf-8", timeout: 5000 },
+    );
+    const ports = [...stdout.matchAll(/^n.*:(\d+)$/gm)].map((m) => Number(m[1]));
+    for (const port of ports) {
+      if ((await tiltGetUiResources(port)) !== null) return "healthy";
+    }
+    return "stale";
+  } catch {
+    // No lsof, or the process is gone: do not guess.
+    return "unknown";
+  }
 }
 
 export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDeps {
@@ -92,6 +140,12 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         throw new Error(firstLine(error));
       }
     },
+    async tiltStatus(pid) {
+      return tiltProcessStatus(pid);
+    },
+    stopProcess(pid) {
+      process.kill(pid, "SIGTERM");
+    },
     isProcessAlive(pid) {
       try {
         process.kill(pid, 0);
@@ -106,28 +160,65 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
 
 export const dockerFixDeps = createDockerFixDeps();
 
+export interface PlanContext {
+  /** `tilt up` processes for this project (see `projectTiltPids`). */
+  tiltPids?: number[];
+  /** `--scope=machine`: also plan unused networks of other TDK projects. */
+  machine?: boolean;
+}
+
 /**
- * What `--fix` would do. Only unused networks that are either a leftover doctor probe or one of this project's own
- * (the exact names the engine creates, and only while `projectBusy` is unset) are planned; another project's networks are never listed here.
+ * What `--fix` would do: stop this project's stale Tilt; remove unused networks that are a leftover doctor probe or
+ * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other TDK projects' unused
+ * networks are planned only with `context.machine`, each naming its owner.
  */
 export async function planDoctorFixes(
   projectName: string | undefined,
   deps: DoctorFixDeps = dockerFixDeps,
-  projectBusy?: string,
+  context: PlanContext = {},
 ): Promise<DoctorAction[]> {
-  const networks = await deps.listNetworks();
   const actions: DoctorAction[] = [];
+
+  // A Tilt that has run a while without serving its UI is stale and may be stopped; any other Tilt of this project is
+  // running or starting, and its networks are not to be touched.
+  const liveTilt: number[] = [];
+  for (const pid of context.tiltPids ?? []) {
+    if ((await deps.tiltStatus(pid)) === "stale") {
+      actions.push({
+        id: `stop-tilt:${pid}`,
+        check: "Tilt processes",
+        scope: "project",
+        command: `kill -TERM ${pid}`,
+        status: "planned",
+        reason: "this project's Tilt is running but its UI does not answer",
+      });
+    } else {
+      liveTilt.push(pid);
+    }
+  }
+  const projectBusy =
+    liveTilt.length > 0
+      ? `Tilt is running for this project (pid ${liveTilt.join(", ")}); run tdk down first`
+      : undefined;
+
+  const networks = await deps.listNetworks();
   const own = new Set(projectName ? projectNetworkNames(projectName) : []);
+  const prefixes = tdkNetworkPrefixes(networks.map((network) => network.name));
   for (const network of networks) {
     const probe = PROBE_NETWORK.exec(network.name);
     let scope: DoctorAction["scope"];
     let check: string;
+    let reason = "unused network";
     if (probe) {
       scope = "probe";
       check = "Orphaned probe networks";
     } else if (own.has(network.name)) {
       scope = "project";
       check = "Docker networks";
+    } else if (context.machine && tdkNetworkOwner(network.name, prefixes)) {
+      scope = "machine";
+      check = "Docker networks";
+      reason = `unused network of project "${tdkNetworkOwner(network.name, prefixes)}"`;
     } else {
       continue;
     }
@@ -137,7 +228,7 @@ export async function planDoctorFixes(
       scope,
       command: `docker network rm ${network.name}`,
       status: "planned",
-      reason: "unused network",
+      reason,
     };
     if (network.containers > 0) {
       action.status = "skipped";
@@ -192,9 +283,13 @@ export async function applyDoctorFixes(
       results.push({ ...action, status: "skipped", reason: "not confirmed" });
       continue;
     }
-    const name = action.id.slice("remove-network:".length);
     try {
-      await deps.removeNetwork(name);
+      if (action.id.startsWith("stop-tilt:")) {
+        deps.stopProcess(Number(action.id.slice("stop-tilt:".length)));
+        results.push({ ...action, status: "applied", reason: "stopped" });
+        continue;
+      }
+      await deps.removeNetwork(action.id.slice("remove-network:".length));
       results.push({ ...action, status: "applied", reason: "removed" });
     } catch (error) {
       results.push({ ...action, status: "failed", reason: firstLine(error) });
