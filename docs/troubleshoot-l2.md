@@ -2,7 +2,7 @@
 
 This guide covers failures in **L2**, the dependency resolution and package caching layer of TDK's Docker image stack. It explains what L2 caches, how dependency manifest inputs and `CACHE_BUSTER` control cache invalidation, and how to diagnose and resolve errors when package installation fails or cache invalidation does not behave as expected.
 
-All errors and terminal outputs shown on this page were reproduced on a developer workstation running macOS with Docker Desktop.
+Output blocks marked as exact were captured from a developer workstation running macOS with Docker Desktop. Output in the cache-invalidation example under Failure 2 is illustrative: it shows the shape of Docker's messages, with `...` and `<pkg>` standing in for values that vary by project.
 
 ---
 
@@ -191,7 +191,7 @@ npm error Missing: is-odd@0.1.2 from lock file
 ### 2. A dependency change does not invalidate the cache when it should
 
 #### Symptom:
-You updated a dependency (such as publishing a bugfix to a local workspace package, bumping an internal library in Verdaccio, or changing a dependency on disk), but when running `tdk up` or building the container, Docker outputs:
+You updated a dependency (such as publishing a bugfix to a local workspace package, bumping an internal library in Verdaccio, or changing a dependency on disk), but when running `tdk up` or building the container, Docker outputs (illustrative; the step numbers and layer names vary):
 ```text
 => CACHED [4/5] COPY package.json ./package.json
 => CACHED [5/5] RUN chmod +x /usr/local/bin/install-deps.sh && /usr/local/bin/install-deps.sh
