@@ -212,6 +212,9 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
   const theme = useTUITheme();
   const { exit } = useApp();
   const { stdout } = useStdout();
+  // Ink 8 types stdout as a generic WritableStream; the TTY size fields exist at runtime.
+  type TtySize = Partial<Pick<NodeJS.WriteStream, "columns" | "rows">>;
+  const ttyStdout = stdout as TtySize;
   const { stdin, setRawMode } = useStdin();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [selectedStack, setSelectedStack] = useState<string | null>(null);
@@ -222,8 +225,8 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
-  const [terminalWidth, setTerminalWidth] = useState(stdout.columns || 120);
-  const [terminalRows, setTerminalRows] = useState(stdout.rows || 24);
+  const [terminalWidth, setTerminalWidth] = useState(ttyStdout.columns || 120);
+  const [terminalRows, setTerminalRows] = useState(ttyStdout.rows || 24);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [mouseEnabled, setMouseEnabled] = useState(true);
   const [listTop, setListTop] = useState<number | null>(null);
@@ -554,8 +557,9 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
   ]);
 
   const handleResize = useCallback(() => {
-    setTerminalWidth(stdout.columns || 120);
-    setTerminalRows(stdout.rows || 24);
+    const tty = stdout as TtySize;
+    setTerminalWidth(tty.columns || 120);
+    setTerminalRows(tty.rows || 24);
   }, [stdout]);
 
   useEffect(() => {
@@ -770,7 +774,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
   );
 
   return (
-    <Box flexDirection="column" height={stdout.rows || 24}>
+    <Box flexDirection="column" height={ttyStdout.rows || 24}>
       {header}
 
       {isSearching && (
