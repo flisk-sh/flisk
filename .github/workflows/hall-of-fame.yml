@@ -73,7 +73,7 @@ jobs:
               MARK,
               'Everyone outside the maintainer team who has had a PR merged. Updated automatically on every merge.',
               '',
-              'Ranks come from the `rank:` label of the issues your PRs fixed. The easiest is 8 kyu, then 7 down to 1 kyu, then 1 dan and up, where the hardest is the highest dan. Pick a harder issue to rank up.',
+              'Ranks come from the `rank:` label of the issues your PRs fixed. The easiest is 8 kyu, then 7 down to 1 kyu, then 1 dan, which is the hardest. Pick a harder issue to rank up.',
               '',
               '| Contributor | Merged PRs | Issues fixed | Highest rank |',
               '| --- | ---: | ---: | --- |',
