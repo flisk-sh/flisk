@@ -21,6 +21,7 @@ Command data:
 - `stacks`: `stacks` with `name` and `resourceCount`. `--services` adds `services` (service names; its length equals `resourceCount`), and `--verbose` adds `description`; `--services` alone does not include `description`. A project with no stacks returns `stacks: []`. Outside a project it emits the same envelope as `resources --json` (`data: null`, one `errors` entry, exit 2).
 - `networks`: `services` with stable service name, stack, base path, URL, optional Windows loopback URL, service port, and reachability state (`running`, `stopped`, or `unknown`). An empty list means no discovered resource currently has a routable base path.
 - `doctor`: `ready`, `inProject`, ordered `checks`, and a `ports` plan with `http`, `https`, and `postgres` entries. Each port entry contains canonical `requested`, selected `chosen`, `explicit`, and `reason` fields. Doctor is read-only and does not persist the plan, unless `--fix` is given (see [doctor-contract.md](doctor-contract.md)). Structured `errors` cover usage/internal failures. Check entries preserve `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. `isSkipped` indicates that a check could not run meaningfully; skipped checks are non-blocking, even when `didPass` is `false`.
+- `up --dry-run`: `ok`, `dryRun` (`true`), `stack` (the stack name argument, or `null`), `services` (the services the run would start, in discovery order) and `command` (the `tilt up` command line that would run). With `--only`, it also has `requested` (the names you passed) and `declaredDependencies` (services pulled in because a requested service lists them in `dependsOn`). See the example below.
 - `logs`: `services` (selected service names), `tail` (defaults to `200`, accepts `1`–`10000`), `since` (duration such as `30s`, `5m`, or `1h`, or `null` when omitted), and `lines` (normalized log entries). Each line contains `time`, `resource`, `level`, `source`, and `text`; the first four fields may be `null`, while `text` is a string.
 
 Example output for `tdk logs --json --service orders-api --tail 50 --since 5m`:
@@ -62,5 +63,25 @@ else
   jq -r '.errors[]?.message, .data.resources[]? | strings' status.json >&2
 fi
 ```
+
+Example output for `tdk up --dry-run --json --only orders-api`, where `orders-api` lists `orders-db` in `dependsOn`:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": true,
+    "dryRun": true,
+    "stack": null,
+    "services": ["orders-api", "orders-db"],
+    "requested": ["orders-api"],
+    "declaredDependencies": ["orders-db"],
+    "command": "tilt up -f <path to Tiltfile> -- --focus=orders-api orders-api orders-db"
+  },
+  "errors": []
+}
+```
+
+A dry run reports the plan and exits. It does not start Tilt or any services. Read `services` as the list that would start, and `declaredDependencies` as the part of it that comes from `dependsOn` in `service.json`. Shared infrastructure that Tilt always enables, such as Postgres and Traefik, is not listed. The `command` string contains the Tiltfile path on your machine, and is just `tilt up` when neither a stack nor `--only` is given. Without `--only`, `requested` and `declaredDependencies` are absent. This is an illustrative example, and a dry run still runs the checks that `tdk up` runs first (for example, it refuses a project whose generated files were edited by hand). If one of them fails, `data` is `{"ok": false}` and `errors` explains why.
 
 New resources created by `tdk resource` include a per-file `$schema` reference to the hosted service manifest schema. VS Code's JSON language service uses that reference for completion and validation; the generator leaves `.vscode/settings.json` untouched, so existing project editor settings remain intact. Resource registration adds the reference only when one is absent and preserves a user's existing `$schema` value.
