@@ -237,3 +237,23 @@ def test_prebuild_dockerignore_mirrors_docker_build_only_and_ignore(tmp_path):
 def test_resolve_manifest_dependency_names_dedupes_and_skips_empty(tmp_path):
     manifest = {"dependsOn": []}
     assert _run_resolve_names(tmp_path, manifest, {}) == []
+
+
+def test_scaffolded_service_gets_default_syncs_only_on_the_normalized_resource(tmp_path):
+    """A scaffolded service.json has no `syncs`; the parser fills them in on the normalized resource only.
+
+    `Tiltfile.hbs` decides which `<name>-image` prebuilds to enable and must read the same `syncs` that
+    `_register_single_resource` uses (the resource's), not `_manifest` (the original service.json), or a
+    scaffolded deferStart service's image is registered but never enabled (#1235).
+    """
+    r = run_starlark(
+        tmp_path,
+        "load('@MANIFEST/parser.star', 'ManifestParser')\n"
+        "m = {'appName': 'cold-api', 'appType': 'backend', 'stack': 'cold-start', 'port': 4000,\n"
+        "     'sablier': {'enable': True, 'deferStart': True},\n"
+        "     'traefik': {'pathPrefix': '/api/cold', 'priority': 100}}\n"
+        "n = ManifestParser.normalize(m, 'services/cold-start/cold-api')\n"
+        "r = {'normalized': n.get('syncs'), 'original': n['_manifest'].get('syncs')}\n",
+    )
+    assert r["normalized"], "the parser must compute default syncs for a backend"
+    assert r["original"] in (None, []), "the original manifest has no syncs unless the author wrote them"
