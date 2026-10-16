@@ -55,7 +55,8 @@ export function crashLoopHint(logs, state) {
     if (/ECONNREFUSED|connection refused|could not connect/i.test(logs)) {
         return "a dependency is not reachable: check that the service it connects to is running and healthy";
     }
-    if (/(is not set|is required|missing required|undefined).*(env|environment|variable)|environment variable.*(missing|not set|required)/i.test(logs)) {
+    if (/\b(?:environment variable|env var)\b.*\b(?:missing|not set|required|undefined)\b/i.test(logs) ||
+        /\b[A-Z][A-Z0-9_]{2,}\b (?:is )?(?:not set|required|missing)\b/.test(logs)) {
         return "a required environment variable is missing: check the project's .env";
     }
     if (state.exitCode === 137)

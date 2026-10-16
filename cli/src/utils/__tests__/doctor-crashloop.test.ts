@@ -86,6 +86,18 @@ describe("crashLoopHint", () => {
     expect(crashLoopHint("connect ECONNREFUSED 10.0.0.2:5432", state({}))).toContain("dependency");
     expect(crashLoopHint("", state({ exitCode: 137 }))).toContain("memory");
   });
+  it("hints at a missing environment variable only when the logs say so", () => {
+    expect(crashLoopHint("Error: DATABASE_URL is not set", state({}))).toContain(
+      "environment variable",
+    );
+    expect(crashLoopHint("environment variable JWT_SECRET missing", state({}))).toContain(
+      "environment variable",
+    );
+    // A Node crash that merely mentions undefined and env is not a missing variable.
+    expect(
+      crashLoopHint("TypeError: Cannot read properties of undefined (reading 'env')", state({})),
+    ).toBeNull();
+  });
   it("gives no hint when the logs do not say", () => {
     expect(crashLoopHint("something odd", state({}))).toBeNull();
   });
