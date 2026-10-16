@@ -23,6 +23,7 @@ Command data:
 - `doctor`: `ready`, `inProject`, ordered `checks`, and a `ports` plan with `http`, `https`, and `postgres` entries. Each port entry contains canonical `requested`, selected `chosen`, `explicit`, and `reason` fields. Doctor is read-only and does not persist the plan, unless `--fix` is given (see [doctor-contract.md](doctor-contract.md)). Structured `errors` cover usage/internal failures. Check entries preserve `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. `isSkipped` indicates that a check could not run meaningfully; skipped checks are non-blocking, even when `didPass` is `false`.
 - `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), and `tiltUrl` (`http://localhost:<port>`). `tdk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `data.ok` is `false` with `data.tiltUrl` and `data.failures` (a list of affected resources, each with `name` and `message`), and `errors[].code` is `UP_TIMEOUT` or `UP_RESOURCE_FAILED`. On smoke-check failure, `data.ok` is `false`, `errors[].code` is `UP_SMOKE_FAILED`, and Tilt is stopped. Parsers should read the failure category from `errors[].code` and the affected resources from `data.failures`. See the examples below.
 - `up --dry-run`: `ok`, `dryRun` (`true`), `stack` (the stack name argument, or `null`), `services` (the services the run would start, in discovery order) and `command` (the `tilt up` command line that would run). With `--only`, it also has `requested` (the names you passed) and `declaredDependencies` (services pulled in because a requested service lists them in `dependsOn`). See the example below.
+- `down`: `ok` (`true`) and `stoppedTilt` (the process IDs of any `tilt up` run that `tdk down` ended first; an empty list when none was running). With `--prune-networks`, it also has `removedNetworks` (the project's Docker networks that were removed) and `keptNetworks` (networks left in place, each with `name` and `reason`, for example because a container is still attached). `tdk down --dry-run --json` returns `ok` and `dryRun` (`true`) and stops nothing. See the examples below.
 - `logs`: `services` (selected service names), `tail` (defaults to `200`, accepts `1`–`10000`), `since` (duration such as `30s`, `5m`, or `1h`, or `null` when omitted), and `lines` (normalized log entries). Each line contains `time`, `resource`, `level`, `source`, and `text`; the first four fields may be `null`, while `text` is a string.
 
 Example output for `tdk logs --json --service orders-api --tail 50 --since 5m`:
@@ -161,5 +162,59 @@ When services declare a `smoke` check, the checks are executed against public in
   ]
 }
 ```
+
+Example output for `tdk down --json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": true,
+    "stoppedTilt": [48213]
+  },
+  "errors": []
+}
+```
+
+With `--prune-networks` (`tdk down --json --prune-networks`), the response also lists what happened to the project's Docker networks. A network that still has a container attached is kept, and `reason` is the first line of the Docker error:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": true,
+    "stoppedTilt": [],
+    "removedNetworks": ["orders_default"],
+    "keptNetworks": [
+      {
+        "name": "orders_shared",
+        "reason": "Error response from daemon: error while removing network: network orders_shared has active endpoints"
+      }
+    ]
+  },
+  "errors": []
+}
+```
+
+`removedNetworks` and `keptNetworks` are only present when `--prune-networks` is given and the networks could be checked. Without the flag, or when the project root or its configuration cannot be read, both fields are absent, so check for them before reading them. In JSON mode the human-readable "Removed networks" and "Kept network" lines are not printed, and a failed network cleanup does not change `ok`. The process ID and network names above are illustrative.
+
+A failed shutdown is reported in the same envelope. If `tilt down` exits with a non-zero code, or a prerequisite check fails (Docker or Tilt missing or not responding), `tdk down` writes the details to stderr, exits with that code (the code from `tilt down`, or `1` for a missing prerequisite), and stdout contains one object with `data.ok` set to `false` and a `DOWN_FAILED` error:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": false
+  },
+  "errors": [
+    {
+      "code": "DOWN_FAILED",
+      "message": "tdk down exited with code 1"
+    }
+  ]
+}
+```
+
+`message` ends with the exit code of the command. A failed shutdown has no `stoppedTilt` or network fields, and containers may still be running, so run `tdk status --json` or `tdk doctor --json` to see what is left. Outside a project, `tdk down --json` does not use this shape: `data` is `null`, `errors` has one `COMMAND_FAILED` entry with `suggestions`, and the exit code is `1`.
 
 New resources created by `tdk resource` include a per-file `$schema` reference to the hosted service manifest schema. VS Code's JSON language service uses that reference for completion and validation; the generator leaves `.vscode/settings.json` untouched, so existing project editor settings remain intact. Resource registration adds the reference only when one is absent and preserves a user's existing `$schema` value.
