@@ -524,6 +524,11 @@ describe("template-engine", () => {
         /if _STACK_RES_NAME \+ '-image' in _DEFERRED_IMAGE_RESOURCES:\s*\n\s*_FILTERED_RESOURCES\.append\(_STACK_RES_NAME \+ '-image'\)/,
       );
       expect(tiltfile).toContain("if resource_defers_start(_KNOWN_RES_MANIFEST) and");
+      // `_manifest` is the original service.json, which has no `syncs` unless written by hand; the
+      // resource carries the normalized default that registration uses. Gating on the original left a
+      // scaffolded deferStart service's `-image` registered but never enabled (#1235).
+      expect(tiltfile).toContain("and _KNOWN_RES.get('syncs'):");
+      expect(tiltfile).not.toContain("_KNOWN_RES_MANIFEST.get('syncs')");
       // Config.apply_focus expands a stack target into concrete service
       // resources before this template filter sees it. Deferred image
       // prebuilds must follow that concrete-resource path too.

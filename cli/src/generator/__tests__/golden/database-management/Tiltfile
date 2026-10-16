@@ -278,7 +278,12 @@ for _KNOWN_SVC in _app_resources_list:
                 _KNOWN_RES_SABLIER = _KNOWN_RES_MANIFEST.get('sablier', {})
                 # Mirrors _register_single_resource: the prebuild only exists for
                 # a resource that gets a docker_build (has syncs, not a library/sdk/BYO).
-                if resource_defers_start(_KNOWN_RES_MANIFEST) and _KNOWN_RES_MANIFEST.get('appType', 'backend') not in ['library', 'sdk', 'bring-your-own'] and _KNOWN_RES_MANIFEST.get('syncs'):
+                # Read `syncs` from the resource, not from `_manifest`: `_manifest` is the
+                # ORIGINAL service.json, which has no `syncs` unless the author wrote one,
+                # while the resource carries the normalized default that registration uses.
+                # Reading the original left a scaffolded deferStart service's `<name>-image`
+                # registered but never enabled, so `tdk up <stack>` never built its image.
+                if resource_defers_start(_KNOWN_RES_MANIFEST) and _KNOWN_RES_MANIFEST.get('appType', 'backend') not in ['library', 'sdk', 'bring-your-own'] and _KNOWN_RES.get('syncs'):
                     _DEFERRED_IMAGE_RESOURCES.add(_KNOWN_RES_NAME + '-image')
                 if _KNOWN_SVC_STACK:
                     _STACK_TO_RESOURCE_NAMES.setdefault(_KNOWN_SVC_STACK, [])
