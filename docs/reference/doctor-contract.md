@@ -35,11 +35,12 @@ Repairs available today:
 - `scope: "project"`: one of this project's own networks (the exact names `tdk up` creates, from the project name in `tdk.json`).
 - `scope: "project"`, `kill -TERM <pid>`: this project's `tilt up` that has run at least 2 minutes and listens on no port that answers as a Tilt UI. Never another project's Tilt. Project networks are removed in the same run once it is stopped.
 - `scope: "machine"`, `docker network rm`: only with `--scope=machine`; an unused network of another TDK project, identified by a `<project>_traefik-public` or `<project>_traefik-private` network, naming the project in `reason`. Networks of non-TDK compose projects are never planned. `--scope` other than `project` or `machine`, or without `--fix`, exits 2.
+- `scope: "host"`: only while free disk space (home directory) is below 10 GB. `docker builder prune -f` when the build cache has reclaimable data, and `docker image prune -f` when untagged images exist; `reason` shows the free space and the size or count. Never `docker volume prune` and never `image prune -a`; each is asked about first.
 - `scope: "probe"`: a `tdk_doctor_probe_<pid>` network left by an interrupted doctor run, unless that `pid` is still running.
 
 Without `--scope=machine`, networks of other projects are never planned. Networks with containers attached are never planned. Project networks are also skipped while a Tilt runs for the project, because a starting stack creates its networks before any container joins them. Outside a project only probes are repaired.
 
-With `--fix`, `data.actions` is added (additive within schema version 1): an array of `{id, check, scope, command, status, reason}` with `status` one of `planned` (dry run), `applied`, `skipped` or `failed`. A `failed` action makes the report not ready and the exit code 1. Not yet implemented from the original proposal (tdk-landscape/tdk-cli-core#1214): repairs for host port collisions, crash-looping containers and disk space.
+With `--fix`, `data.actions` is added (additive within schema version 1): an array of `{id, check, scope, command, status, reason}` with `status` one of `planned` (dry run), `applied`, `skipped` or `failed`. A `failed` action makes the report not ready and the exit code 1. Not yet implemented from the original proposal (tdk-landscape/tdk-cli-core#1214): repairs for host port collisions, a `--fix` for known crash-loop causes, and creating fewer networks by default.
 
 ## Duplicate installs
 

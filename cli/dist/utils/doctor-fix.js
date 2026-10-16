@@ -1,9 +1,11 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
-import { realpathSync } from "node:fs";
+import { realpathSync, statfsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { DISK_WARN_GIB } from "./doctor-host.js";
 import { findProjectTiltUpPids, projectNetworkNames, tdkNetworkOwner, tdkNetworkPrefixes, } from "./down-cleanup.js";
 import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
@@ -93,6 +95,48 @@ export function createDockerFixDeps(run = runDocker) {
                 throw new Error(firstLine(error));
             }
         },
+        freeDiskGib() {
+            try {
+                const stats = statfsSync(homedir());
+                return (Number(stats.bavail) * Number(stats.bsize)) / 1024 ** 3;
+            }
+            catch {
+                return null;
+            }
+        },
+        async reclaimable() {
+            let buildCache = null;
+            try {
+                const df = await run(["system", "df", "--format", "{{.Type}}\t{{.Reclaimable}}"]);
+                for (const line of df.split(/\r?\n/)) {
+                    const [type, size] = line.split("\t");
+                    // "1.531GB" or "1.5GB (39%)"; the percentage is of the whole, not useful here.
+                    if (type === "Build Cache" && size)
+                        buildCache = size.replace(/\s*\(.*\)/, "").trim();
+                }
+            }
+            catch {
+                // Leave unknown.
+            }
+            let danglingImages = 0;
+            try {
+                const ids = await run(["images", "-q", "-f", "dangling=true"]);
+                danglingImages = ids.split(/\r?\n/).filter(Boolean).length;
+            }
+            catch {
+                // Leave zero.
+            }
+            return { buildCache, danglingImages };
+        },
+        async prune(kind) {
+            try {
+                // Never `volume prune`, never `-a`: only the build cache and untagged images.
+                await run(kind === "builder" ? ["builder", "prune", "-f"] : ["image", "prune", "-f"]);
+            }
+            catch (error) {
+                throw new Error(firstLine(error));
+            }
+        },
         async tiltStatus(pid) {
             return tiltProcessStatus(pid);
         },
@@ -141,6 +185,31 @@ export async function planDoctorFixes(projectName, deps = dockerFixDeps, context
         ? `Tilt is running for this project (pid ${liveTilt.join(", ")}); run tdk down first`
         : undefined;
     const networks = await deps.listNetworks();
+    const freeGib = deps.freeDiskGib();
+    if (freeGib !== null && freeGib < DISK_WARN_GIB) {
+        const { buildCache, danglingImages } = await deps.reclaimable();
+        const low = `${freeGib.toFixed(1)} GB free`;
+        if (buildCache && !/^0(\.0+)?\s*B$/i.test(buildCache)) {
+            actions.push({
+                id: "prune:builder",
+                check: "Disk Space",
+                scope: "host",
+                command: "docker builder prune -f",
+                status: "planned",
+                reason: `${low}; ${buildCache} of build cache reclaimable`,
+            });
+        }
+        if (danglingImages > 0) {
+            actions.push({
+                id: "prune:images",
+                check: "Disk Space",
+                scope: "host",
+                command: "docker image prune -f",
+                status: "planned",
+                reason: `${low}; ${danglingImages} untagged image${danglingImages === 1 ? "" : "s"}`,
+            });
+        }
+    }
     const own = new Set(projectName ? projectNetworkNames(projectName) : []);
     const prefixes = tdkNetworkPrefixes(networks.map((network) => network.name));
     for (const network of networks) {
@@ -218,6 +287,11 @@ export async function applyDoctorFixes(actions, options, deps = dockerFixDeps) {
             continue;
         }
         try {
+            if (action.id.startsWith("prune:")) {
+                await deps.prune(action.id === "prune:builder" ? "builder" : "images");
+                results.push({ ...action, status: "applied", reason: "pruned" });
+                continue;
+            }
             if (action.id.startsWith("stop-tilt:")) {
                 deps.stopProcess(Number(action.id.slice("stop-tilt:".length)));
                 results.push({ ...action, status: "applied", reason: "stopped" });

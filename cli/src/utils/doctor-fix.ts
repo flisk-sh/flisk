@@ -1,10 +1,12 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
-import { realpathSync } from "node:fs";
+import { realpathSync, statfsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CheckResult } from "../types/index.js";
+import { DISK_WARN_GIB } from "./doctor-host.js";
 import {
   findProjectTiltUpPids,
   projectNetworkNames,
@@ -28,9 +30,10 @@ export interface DoctorAction {
   check: string;
   /**
    * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
-   * TDK project's resource, only ever planned with `--scope=machine`.
+   * TDK project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
+   * (Docker build cache, dangling images), only planned while free disk space is low.
    */
-  scope: "project" | "probe" | "machine";
+  scope: "project" | "probe" | "machine" | "host";
   /** The exact command a user could run by hand. */
   command: string;
   status: DoctorActionStatus;
@@ -51,6 +54,11 @@ export interface DoctorFixDeps {
   /** Whether a Tilt process serves its UI: `stale` only when it has run a while and nothing it listens on answers. */
   tiltStatus(pid: number): Promise<"healthy" | "stale" | "unknown">;
   stopProcess(pid: number): void;
+  /** Free GiB on the disk Docker data lives on (the home directory's), or null when unreadable. */
+  freeDiskGib(): number | null;
+  /** What `docker builder prune` and `docker image prune` (dangling only) would reclaim. */
+  reclaimable(): Promise<{ buildCache: string | null; danglingImages: number }>;
+  prune(kind: "builder" | "images"): Promise<void>;
 }
 
 type DockerRunner = (args: string[]) => Promise<string>;
@@ -140,6 +148,43 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         throw new Error(firstLine(error));
       }
     },
+    freeDiskGib() {
+      try {
+        const stats = statfsSync(homedir());
+        return (Number(stats.bavail) * Number(stats.bsize)) / 1024 ** 3;
+      } catch {
+        return null;
+      }
+    },
+    async reclaimable() {
+      let buildCache: string | null = null;
+      try {
+        const df = await run(["system", "df", "--format", "{{.Type}}\t{{.Reclaimable}}"]);
+        for (const line of df.split(/\r?\n/)) {
+          const [type, size] = line.split("\t");
+          // "1.531GB" or "1.5GB (39%)"; the percentage is of the whole, not useful here.
+          if (type === "Build Cache" && size) buildCache = size.replace(/\s*\(.*\)/, "").trim();
+        }
+      } catch {
+        // Leave unknown.
+      }
+      let danglingImages = 0;
+      try {
+        const ids = await run(["images", "-q", "-f", "dangling=true"]);
+        danglingImages = ids.split(/\r?\n/).filter(Boolean).length;
+      } catch {
+        // Leave zero.
+      }
+      return { buildCache, danglingImages };
+    },
+    async prune(kind) {
+      try {
+        // Never `volume prune`, never `-a`: only the build cache and untagged images.
+        await run(kind === "builder" ? ["builder", "prune", "-f"] : ["image", "prune", "-f"]);
+      } catch (error) {
+        throw new Error(firstLine(error));
+      }
+    },
     async tiltStatus(pid) {
       return tiltProcessStatus(pid);
     },
@@ -202,6 +247,31 @@ export async function planDoctorFixes(
       : undefined;
 
   const networks = await deps.listNetworks();
+  const freeGib = deps.freeDiskGib();
+  if (freeGib !== null && freeGib < DISK_WARN_GIB) {
+    const { buildCache, danglingImages } = await deps.reclaimable();
+    const low = `${freeGib.toFixed(1)} GB free`;
+    if (buildCache && !/^0(\.0+)?\s*B$/i.test(buildCache)) {
+      actions.push({
+        id: "prune:builder",
+        check: "Disk Space",
+        scope: "host",
+        command: "docker builder prune -f",
+        status: "planned",
+        reason: `${low}; ${buildCache} of build cache reclaimable`,
+      });
+    }
+    if (danglingImages > 0) {
+      actions.push({
+        id: "prune:images",
+        check: "Disk Space",
+        scope: "host",
+        command: "docker image prune -f",
+        status: "planned",
+        reason: `${low}; ${danglingImages} untagged image${danglingImages === 1 ? "" : "s"}`,
+      });
+    }
+  }
   const own = new Set(projectName ? projectNetworkNames(projectName) : []);
   const prefixes = tdkNetworkPrefixes(networks.map((network) => network.name));
   for (const network of networks) {
@@ -284,6 +354,11 @@ export async function applyDoctorFixes(
       continue;
     }
     try {
+      if (action.id.startsWith("prune:")) {
+        await deps.prune(action.id === "prune:builder" ? "builder" : "images");
+        results.push({ ...action, status: "applied", reason: "pruned" });
+        continue;
+      }
       if (action.id.startsWith("stop-tilt:")) {
         deps.stopProcess(Number(action.id.slice("stop-tilt:".length)));
         results.push({ ...action, status: "applied", reason: "stopped" });

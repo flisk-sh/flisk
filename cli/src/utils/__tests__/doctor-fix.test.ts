@@ -21,8 +21,12 @@ function fakeDocker(
   alive: number[] = [],
   failing: string[] = [],
   tilt: Record<number, "healthy" | "stale" | "unknown"> = {},
+  disk: { freeGib: number | null; buildCache?: string | null; dangling?: number } = {
+    freeGib: 100,
+  },
 ) {
   const removed: string[] = [];
+  const pruned: string[] = [];
   const stopped: number[] = [];
   const deps: DoctorFixDeps = {
     listNetworks: async () => networks,
@@ -35,8 +39,16 @@ function fakeDocker(
     stopProcess: (pid) => {
       stopped.push(pid);
     },
+    freeDiskGib: () => disk.freeGib,
+    reclaimable: async () => ({
+      buildCache: disk.buildCache ?? null,
+      danglingImages: disk.dangling ?? 0,
+    }),
+    prune: async (kind) => {
+      pruned.push(kind);
+    },
   };
-  return { deps, removed, stopped };
+  return { deps, removed, stopped, pruned };
 }
 
 const net = (name: string, containers = 0): DockerNetwork => ({ name, containers });
@@ -169,6 +181,9 @@ describe("applyDoctorFixes", () => {
       isProcessAlive: () => false,
       tiltStatus: async () => "unknown",
       stopProcess: () => {},
+      freeDiskGib: () => 100,
+      reclaimable: async () => ({ buildCache: null, danglingImages: 0 }),
+      prune: async () => {},
     };
     await applyDoctorFixes(
       await planDoctorFixes("it-ai-search", deps),
@@ -316,5 +331,53 @@ describe("parseElapsed", () => {
     expect(parseElapsed("02:01:05")).toBe(7265);
     expect(parseElapsed("1-00:00:10")).toBe(86410);
     expect(parseElapsed("nope")).toBeNull();
+  });
+});
+
+describe("disk reclaim", () => {
+  it("plans nothing while there is plenty of disk", async () => {
+    const { deps } = fakeDocker([], [], [], {}, { freeGib: 50, buildCache: "3GB", dangling: 4 });
+    expect(await planDoctorFixes("p", deps)).toEqual([]);
+  });
+
+  it("plans the build cache and untagged images, with sizes, when disk is low", async () => {
+    const { deps } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 4.2, buildCache: "1.531GB", dangling: 3 },
+    );
+    const plan = await planDoctorFixes("p", deps);
+    expect(plan.map((a) => [a.id, a.scope, a.command])).toEqual([
+      ["prune:builder", "host", "docker builder prune -f"],
+      ["prune:images", "host", "docker image prune -f"],
+    ]);
+    expect(plan[0]?.reason).toContain("4.2 GB free; 1.531GB of build cache");
+    expect(plan[1]?.reason).toContain("3 untagged images");
+  });
+
+  it("skips what has nothing to reclaim, and never plans volumes or a full image prune", async () => {
+    const { deps } = fakeDocker([], [], [], {}, { freeGib: 1, buildCache: "0B", dangling: 0 });
+    expect(await planDoctorFixes("p", deps)).toEqual([]);
+    const full = fakeDocker([], [], [], {}, { freeGib: 1, buildCache: "2GB", dangling: 2 });
+    const commands = (await planDoctorFixes("p", full.deps)).map((a) => a.command).join(" ");
+    expect(commands).not.toMatch(/volume|-a\b/);
+  });
+
+  it("prunes only after confirmation", async () => {
+    const { deps, pruned } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3, buildCache: "1GB", dangling: 1 },
+    );
+    const plan = await planDoctorFixes("p", deps);
+    await applyDoctorFixes(plan, { dryRun: false, confirm: async () => false }, deps);
+    expect(pruned).toEqual([]);
+    const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
+    expect(pruned).toEqual(["builder", "images"]);
+    expect(result.every((a) => a.status === "applied")).toBe(true);
   });
 });

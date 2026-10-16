@@ -6,9 +6,10 @@ export interface DoctorAction {
     check: string;
     /**
      * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
-     * TDK project's resource, only ever planned with `--scope=machine`.
+     * TDK project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
+     * (Docker build cache, dangling images), only planned while free disk space is low.
      */
-    scope: "project" | "probe" | "machine";
+    scope: "project" | "probe" | "machine" | "host";
     /** The exact command a user could run by hand. */
     command: string;
     status: DoctorActionStatus;
@@ -27,6 +28,14 @@ export interface DoctorFixDeps {
     /** Whether a Tilt process serves its UI: `stale` only when it has run a while and nothing it listens on answers. */
     tiltStatus(pid: number): Promise<"healthy" | "stale" | "unknown">;
     stopProcess(pid: number): void;
+    /** Free GiB on the disk Docker data lives on (the home directory's), or null when unreadable. */
+    freeDiskGib(): number | null;
+    /** What `docker builder prune` and `docker image prune` (dangling only) would reclaim. */
+    reclaimable(): Promise<{
+        buildCache: string | null;
+        danglingImages: number;
+    }>;
+    prune(kind: "builder" | "images"): Promise<void>;
 }
 type DockerRunner = (args: string[]) => Promise<string>;
 /** `ps -o etime=` ("[[dd-]hh:]mm:ss") in seconds. */
