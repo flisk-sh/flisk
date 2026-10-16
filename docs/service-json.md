@@ -86,6 +86,52 @@ The `language` and `framework` properties intentionally use an open id pattern i
 
 `healthCheckPath` is an inside-the-container readiness probe. A `smoke` block is different: it verifies the public route printed by `tdk up`, and can perform a safe write/read-back flow. Do not use a full URL in a smoke step; its `path` is appended to the public URL.
 
+### Example: one service that depends on another
+
+Say `orders-backend` calls `inventory-backend` and should start after it. Put each manifest in its own directory under `services/`:
+
+```text
+services/
+  inventory-backend/service.json
+  orders-backend/service.json
+```
+
+`services/inventory-backend/service.json` has no dependencies:
+
+```json
+{
+  "schemaVersion": 1,
+  "appName": "inventory-backend",
+  "appType": "backend",
+  "stack": "shop",
+  "port": 4001,
+  "healthCheckPath": "/health",
+  "dependsOn": []
+}
+```
+
+`services/orders-backend/service.json` lists the service it needs in `dependsOn`:
+
+```json
+{
+  "schemaVersion": 1,
+  "appName": "orders-backend",
+  "appType": "backend",
+  "stack": "shop",
+  "port": 4000,
+  "healthCheckPath": "/health",
+  "dependsOn": ["inventory-backend"]
+}
+```
+
+What this does on `tdk up`:
+
+- The generated Tiltfile gives `orders-backend` a Tilt `resource_deps` entry for `inventory-backend`, so Tilt starts `orders-backend` after `inventory-backend` is ready. Tilt decides when a resource is ready; for a container that has a health check, such as the `healthCheckPath` above, that is when the check passes.
+- `tdk up --only orders-backend` also starts `inventory-backend`, because a requested service brings in the services it lists in `dependsOn`. `tdk up --dry-run --json --only orders-backend` shows this under `declaredDependencies`.
+- A `dependsOn` name that matches no service is reported as an error when the manifests are checked. `postgres` and `database-management` are the exception: they refer to the shared platform Postgres.
+
+This is only local startup ordering for `tdk up`. It does not describe how you deploy the services, and it does not make `orders-backend` retry or wait if `inventory-backend` stops later. Each manifest field is described in the table above; see [`tdk up`](cheat-sheet.md#tdk-up-stack-name-alias-deploy) for `--only` and [Machine-readable CLI](reference/machine-readable-cli.md) for the JSON output.
+
 ## Build and container fields
 
 | Field | Type and default | Applies to | Description |
