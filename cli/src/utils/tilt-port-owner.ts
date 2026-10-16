@@ -60,3 +60,27 @@ function canonical(path: string): string {
 export function isForeignTilt(owner: TiltPortOwner | null, projectRoot: string): boolean {
   return owner !== null && canonical(owner.root) !== canonical(projectRoot);
 }
+
+export interface ClassifiedTiltPorts {
+  /** Ports whose Tilt is this project's, or whose owner cannot be told (treated as before: this environment). */
+  running: number[];
+  /** Ports held by another project's Tilt. */
+  foreign: { port: number; root: string }[];
+}
+
+/** Split the candidate Tilt UI ports that answer into this project's and other projects'. */
+export async function classifyTiltPorts(
+  candidatePorts: number[],
+  projectRoot: string,
+  isServing: (port: number) => Promise<boolean>,
+  ownerOf: (port: number) => TiltPortOwner | null = findTiltPortOwner,
+): Promise<ClassifiedTiltPorts> {
+  const result: ClassifiedTiltPorts = { running: [], foreign: [] };
+  for (const port of candidatePorts) {
+    if (!(await isServing(port))) continue;
+    const owner = ownerOf(port);
+    if (owner && isForeignTilt(owner, projectRoot)) result.foreign.push({ port, root: owner.root });
+    else result.running.push(port);
+  }
+  return result;
+}

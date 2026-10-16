@@ -1,11 +1,19 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
-import { realpathSync } from "node:fs";
+import { realpathSync, statfsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CheckResult } from "../types/index.js";
-import { findProjectTiltUpPids, projectNetworkNames } from "./down-cleanup.js";
+import { DISK_WARN_GIB } from "./doctor-host.js";
+import {
+  findProjectTiltUpPids,
+  projectNetworkNames,
+  tdkNetworkOwner,
+  tdkNetworkPrefixes,
+} from "./down-cleanup.js";
+import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
 
 const execFilePromise = promisify(execFile);
@@ -20,8 +28,12 @@ export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
 export interface DoctorAction {
   id: string;
   check: string;
-  /** `project`: owned by the current project. `probe`: a doctor probe, owned by no project. */
-  scope: "project" | "probe";
+  /**
+   * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
+   * TDK project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
+   * (Docker build cache, dangling images), only planned while free disk space is low.
+   */
+  scope: "project" | "probe" | "machine" | "host";
   /** The exact command a user could run by hand. */
   command: string;
   status: DoctorActionStatus;
@@ -39,6 +51,14 @@ export interface DoctorFixDeps {
   listNetworks(): Promise<DockerNetwork[]>;
   removeNetwork(name: string): Promise<void>;
   isProcessAlive(pid: number): boolean;
+  /** Whether a Tilt process serves its UI: `stale` only when it has run a while and nothing it listens on answers. */
+  tiltStatus(pid: number): Promise<"healthy" | "stale" | "unknown">;
+  stopProcess(pid: number): void;
+  /** Free GiB on the disk Docker data lives on (the home directory's), or null when unreadable. */
+  freeDiskGib(): number | null;
+  /** What `docker builder prune` and `docker image prune` (dangling only) would reclaim. */
+  reclaimable(): Promise<{ buildCache: string | null; danglingImages: number }>;
+  prune(kind: "builder" | "images"): Promise<void>;
 }
 
 type DockerRunner = (args: string[]) => Promise<string>;
@@ -55,6 +75,58 @@ const runDocker: DockerRunner = async (args) => {
 function firstLine(error: unknown): string {
   const stderr = String((error as { stderr?: Buffer | string }).stderr ?? error).trim();
   return stderr.split(/\r?\n/)[0] ?? "";
+}
+
+const STALE_TILT_MIN_AGE_S = 120;
+
+/** `ps -o etime=` ("[[dd-]hh:]mm:ss") in seconds. */
+export function parseElapsed(etime: string): number | null {
+  const match = /^\s*(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)\s*$/.exec(etime);
+  if (!match) return null;
+  const [, days = "0", hours = "0", minutes = "0", seconds = "0"] = match;
+  return ((Number(days) * 24 + Number(hours)) * 60 + Number(minutes)) * 60 + Number(seconds);
+}
+
+/**
+ * Whether any of `ports` answers as a Tilt UI. A busy Tilt can miss one request, and a wrong "stale" ends in a kill,
+ * so a port gets a second try before it counts as silent.
+ */
+export async function anyTiltAnswers(
+  ports: number[],
+  probe: (port: number) => Promise<string | null> = tiltGetUiResources,
+  attempts = 2,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) await wait(1000);
+    for (const port of ports) {
+      if ((await probe(port)) !== null) return true;
+    }
+  }
+  return false;
+}
+
+async function tiltProcessStatus(pid: number): Promise<"healthy" | "stale" | "unknown"> {
+  if (process.platform === "win32") return "unknown";
+  try {
+    const { stdout: etime } = await execFilePromise("ps", ["-p", String(pid), "-o", "etime="], {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    const age = parseElapsed(etime);
+    // A Tilt that is still starting has not bound its port yet.
+    if (age === null || age < STALE_TILT_MIN_AGE_S) return "unknown";
+    const { stdout } = await execFilePromise(
+      "lsof",
+      ["-nP", "-a", "-p", String(pid), "-iTCP", "-sTCP:LISTEN", "-Fn"],
+      { encoding: "utf-8", timeout: 5000 },
+    );
+    const ports = [...stdout.matchAll(/^n.*:(\d+)$/gm)].map((m) => Number(m[1]));
+    return (await anyTiltAnswers(ports)) ? "healthy" : "stale";
+  } catch {
+    // No lsof, or the process is gone: do not guess.
+    return "unknown";
+  }
 }
 
 export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDeps {
@@ -92,6 +164,49 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         throw new Error(firstLine(error));
       }
     },
+    freeDiskGib() {
+      try {
+        const stats = statfsSync(homedir());
+        return (Number(stats.bavail) * Number(stats.bsize)) / 1024 ** 3;
+      } catch {
+        return null;
+      }
+    },
+    async reclaimable() {
+      let buildCache: string | null = null;
+      try {
+        const df = await run(["system", "df", "--format", "{{.Type}}\t{{.Reclaimable}}"]);
+        for (const line of df.split(/\r?\n/)) {
+          const [type, size] = line.split("\t");
+          // "1.531GB" or "1.5GB (39%)"; the percentage is of the whole, not useful here.
+          if (type === "Build Cache" && size) buildCache = size.replace(/\s*\(.*\)/, "").trim();
+        }
+      } catch {
+        // Leave unknown.
+      }
+      let danglingImages = 0;
+      try {
+        const ids = await run(["images", "-q", "-f", "dangling=true"]);
+        danglingImages = ids.split(/\r?\n/).filter(Boolean).length;
+      } catch {
+        // Leave zero.
+      }
+      return { buildCache, danglingImages };
+    },
+    async prune(kind) {
+      try {
+        // Never `volume prune`, never `-a`: only the build cache and untagged images.
+        await run(kind === "builder" ? ["builder", "prune", "-f"] : ["image", "prune", "-f"]);
+      } catch (error) {
+        throw new Error(firstLine(error));
+      }
+    },
+    async tiltStatus(pid) {
+      return tiltProcessStatus(pid);
+    },
+    stopProcess(pid) {
+      process.kill(pid, "SIGTERM");
+    },
     isProcessAlive(pid) {
       try {
         process.kill(pid, 0);
@@ -106,28 +221,90 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
 
 export const dockerFixDeps = createDockerFixDeps();
 
+export interface PlanContext {
+  /** `tilt up` processes for this project (see `projectTiltPids`). */
+  tiltPids?: number[];
+  /** `--scope=machine`: also plan unused networks of other TDK projects. */
+  machine?: boolean;
+}
+
 /**
- * What `--fix` would do. Only unused networks that are either a leftover doctor probe or one of this project's own
- * (the exact names the engine creates, and only while `projectBusy` is unset) are planned; another project's networks are never listed here.
+ * What `--fix` would do: stop this project's stale Tilt; remove unused networks that are a leftover doctor probe or
+ * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other TDK projects' unused
+ * networks are planned only with `context.machine`, each naming its owner.
  */
 export async function planDoctorFixes(
   projectName: string | undefined,
   deps: DoctorFixDeps = dockerFixDeps,
-  projectBusy?: string,
+  context: PlanContext = {},
 ): Promise<DoctorAction[]> {
-  const networks = await deps.listNetworks();
   const actions: DoctorAction[] = [];
+
+  // A Tilt that has run a while without serving its UI is stale and may be stopped; any other Tilt of this project is
+  // running or starting, and its networks are not to be touched.
+  const liveTilt: number[] = [];
+  for (const pid of context.tiltPids ?? []) {
+    if ((await deps.tiltStatus(pid)) === "stale") {
+      actions.push({
+        id: `stop-tilt:${pid}`,
+        check: "Tilt processes",
+        scope: "project",
+        command: `kill -TERM ${pid}`,
+        status: "planned",
+        reason: "this project's Tilt is running but its UI does not answer",
+      });
+    } else {
+      liveTilt.push(pid);
+    }
+  }
+  const projectBusy =
+    liveTilt.length > 0
+      ? `Tilt is running for this project (pid ${liveTilt.join(", ")}); run tdk down first`
+      : undefined;
+
+  const networks = await deps.listNetworks();
+  const freeGib = deps.freeDiskGib();
+  if (freeGib !== null && freeGib < DISK_WARN_GIB) {
+    const { buildCache, danglingImages } = await deps.reclaimable();
+    const low = `${freeGib.toFixed(1)} GB free`;
+    if (buildCache && !/^0(\.0+)?\s*B$/i.test(buildCache)) {
+      actions.push({
+        id: "prune:builder",
+        check: "Disk Space",
+        scope: "host",
+        command: "docker builder prune -f",
+        status: "planned",
+        reason: `${low}; ${buildCache} of build cache reclaimable`,
+      });
+    }
+    if (danglingImages > 0) {
+      actions.push({
+        id: "prune:images",
+        check: "Disk Space",
+        scope: "host",
+        command: "docker image prune -f",
+        status: "planned",
+        reason: `${low}; ${danglingImages} untagged image${danglingImages === 1 ? "" : "s"}`,
+      });
+    }
+  }
   const own = new Set(projectName ? projectNetworkNames(projectName) : []);
+  const prefixes = tdkNetworkPrefixes(networks.map((network) => network.name));
   for (const network of networks) {
     const probe = PROBE_NETWORK.exec(network.name);
     let scope: DoctorAction["scope"];
     let check: string;
+    let reason = "unused network";
     if (probe) {
       scope = "probe";
       check = "Orphaned probe networks";
     } else if (own.has(network.name)) {
       scope = "project";
       check = "Docker networks";
+    } else if (context.machine && tdkNetworkOwner(network.name, prefixes)) {
+      scope = "machine";
+      check = "Docker networks";
+      reason = `unused network of project "${tdkNetworkOwner(network.name, prefixes)}"`;
     } else {
       continue;
     }
@@ -137,7 +314,7 @@ export async function planDoctorFixes(
       scope,
       command: `docker network rm ${network.name}`,
       status: "planned",
-      reason: "unused network",
+      reason,
     };
     if (network.containers > 0) {
       action.status = "skipped";
@@ -192,9 +369,18 @@ export async function applyDoctorFixes(
       results.push({ ...action, status: "skipped", reason: "not confirmed" });
       continue;
     }
-    const name = action.id.slice("remove-network:".length);
     try {
-      await deps.removeNetwork(name);
+      if (action.id.startsWith("prune:")) {
+        await deps.prune(action.id === "prune:builder" ? "builder" : "images");
+        results.push({ ...action, status: "applied", reason: "pruned" });
+        continue;
+      }
+      if (action.id.startsWith("stop-tilt:")) {
+        deps.stopProcess(Number(action.id.slice("stop-tilt:".length)));
+        results.push({ ...action, status: "applied", reason: "stopped" });
+        continue;
+      }
+      await deps.removeNetwork(action.id.slice("remove-network:".length));
       results.push({ ...action, status: "applied", reason: "removed" });
     } catch (error) {
       results.push({ ...action, status: "failed", reason: firstLine(error) });

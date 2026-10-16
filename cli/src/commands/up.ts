@@ -59,7 +59,7 @@ import {
 } from "../utils/startup-report.js";
 import { evaluateTdkVersionFloor } from "../utils/tdk-version.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
-import { findTiltPortOwner, isForeignTilt } from "../utils/tilt-port-owner.js";
+import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import {
   parseTiltPort,
@@ -470,18 +470,11 @@ export const upCommand = new Command("up")
       const basePort = STANDARD_PORTS.tiltUi;
       const watchedPort = configuredTiltPort ?? basePort;
       const candidatePorts = options.only ? [...new Set([basePort, watchedPort])] : [watchedPort];
-      const running: number[] = [];
-      const foreign: { port: number; root: string }[] = [];
-      for (const candidate of candidatePorts) {
-        if ((await tiltGetUiResources(candidate)) === null) continue;
-        // A Tilt on this port may belong to another project; that is not "this environment is running".
-        const owner = findTiltPortOwner(candidate);
-        if (owner && isForeignTilt(owner, projectRoot)) {
-          foreign.push({ port: candidate, root: owner.root });
-        } else {
-          running.push(candidate);
-        }
-      }
+      const { running, foreign } = await classifyTiltPorts(
+        candidatePorts,
+        projectRoot,
+        async (candidate) => (await tiltGetUiResources(candidate)) !== null,
+      );
       if (foreign.length > 0 && configuredTiltPort !== undefined) {
         const other = foreign[0];
         const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run tdk down in that project.`;

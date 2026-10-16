@@ -24,6 +24,32 @@ export function projectNetworkNames(projectName: string): string[] {
   return PROJECT_NETWORK_SUFFIXES.map((suffix) => `${prefix}_${suffix}`);
 }
 
+/**
+ * Prefixes of TDK projects among `networkNames`, from the networks the engine creates. Generic suffixes such as
+ * `backend` also occur in non-TDK compose projects, so a prefix counts only if it has a Traefik network, which
+ * only TDK creates.
+ */
+export function tdkNetworkPrefixes(networkNames: string[]): Set<string> {
+  const prefixes = new Set<string>();
+  for (const name of networkNames) {
+    for (const marker of ["traefik-public", "traefik-private"]) {
+      if (name.endsWith(`_${marker}`)) prefixes.add(name.slice(0, -(marker.length + 1)));
+    }
+  }
+  return prefixes;
+}
+
+/** The TDK project prefix a network belongs to (`umami` for `umami_backend`), or null. */
+export function tdkNetworkOwner(name: string, prefixes: Set<string>): string | null {
+  for (const suffix of PROJECT_NETWORK_SUFFIXES) {
+    if (name.endsWith(`_${suffix}`)) {
+      const prefix = name.slice(0, -(suffix.length + 1));
+      if (prefixes.has(prefix)) return prefix;
+    }
+  }
+  return null;
+}
+
 export interface PruneNetworksResult {
   removed: string[];
   /** Networks that exist but Docker refused to remove, usually because a container is still attached. */
