@@ -167,16 +167,14 @@ describe("buildTiltDownArgs", () => {
     expect(args).toContain("-f");
   });
 
-  it("should include --force flag when force is set", async () => {
+  it("should not pass --force to tilt down even when force is set", async () => {
+    // Regression test for issue #1216: tilt down has no --force flag and fails
+    // with "unknown flag: --force" if passed.
     const { buildTiltDownArgs } = await import("../tilt.js");
-    const args = buildTiltDownArgs({ force: true });
-    expect(args).toContain("--force");
-  });
-
-  it("should not include --force flag when force is not set", async () => {
-    const { buildTiltDownArgs } = await import("../tilt.js");
-    const args = buildTiltDownArgs({});
-    expect(args).not.toContain("--force");
+    const argsWithForce = buildTiltDownArgs({ force: true });
+    const argsWithoutForce = buildTiltDownArgs({});
+    expect(argsWithForce).not.toContain("--force");
+    expect(argsWithoutForce).not.toContain("--force");
   });
 
   it("passes every stack to the Tiltfile after -- so tilt down registers stack compose projects", async () => {

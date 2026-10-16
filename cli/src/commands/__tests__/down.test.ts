@@ -140,4 +140,31 @@ describe("tdk down", () => {
       log.mockRestore();
     }
   });
+
+  it("hands the force option to buildTiltDownArgs (which decides what reaches tilt down)", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-force-test-"));
+    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
+    writeFileSync(join(tempDir, ".tdk", "project.json"), "{}");
+    process.chdir(tempDir);
+    getContainerRuntimeStatusMock.mockReturnValue("running");
+    isTiltAvailableMock.mockResolvedValue(true);
+    buildTiltDownArgsMock.mockReturnValue(["-f", "/fake/Tiltfile"]);
+    runTiltMock.mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      await downCommand.parseAsync(["node", "tdk", "--force"], { from: "node" });
+
+      expect(buildTiltDownArgsMock).toHaveBeenCalledWith(expect.objectContaining({ force: true }));
+      expect(runTiltMock).toHaveBeenCalledWith(
+        "down",
+        ["-f", "/fake/Tiltfile"],
+        expect.any(Object),
+      );
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(tempDir, { recursive: true, force: true });
+      log.mockRestore();
+    }
+  });
 });

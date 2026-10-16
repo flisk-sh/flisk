@@ -132,9 +132,9 @@ export function buildTiltDownArgs(
   const args: string[] = [];
   addTiltfilePath(args);
 
-  if (options.force) {
-    args.push("--force");
-  }
+  // Note: `tilt down` has no `--force` flag. The `-f/--force` option is accepted
+  // by `tdk down` for script compatibility and skipping confirmation, but must
+  // not be passed to `tilt down` as Tilt will exit with an "unknown flag: --force" error.
 
   // `tilt down` re-evaluates the Tiltfile and removes only the resources that evaluation registers. Without `--focus`
   // the Tiltfile falls back to its default phase and never registers a stack's own compose project, so `tdk up shop`
