@@ -218,7 +218,13 @@ def _apply_manifest_defaults(manifest, resource_path):
     for key, default_value in MANIFEST_DEFAULTS.items():
         if key not in result or result[key] == None:
             result[key] = default_value
-    
+
+    # A bring-your-own service may not speak HTTP, so only an explicit healthCheckPath gives it one. compose.star and
+    # l4_runtime_layers.star read a missing path as "no HTTP probe"; the default above would otherwise hide that.
+    # (ManifestParser.normalize applies the same rule, but `tdk up` does not load manifests through it.)
+    if result.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath'):
+        result.pop('healthCheckPath', None)
+
     # 🎯 CEO REVIEW: Traefik-native port strategy
     # Port is constant per appType, not dynamically assigned
     # Traefik routes by hostname (e.g., booking.backend.{project}.local), not port

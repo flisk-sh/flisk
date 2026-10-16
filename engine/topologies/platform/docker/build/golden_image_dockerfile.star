@@ -165,9 +165,10 @@ ENV BUN_OPTIONS=--smol
 
 USER bun
 
-# Backend-specific healthcheck (checks Bun runtime)
+# Backend-specific healthcheck: probes the service over HTTP. The image is shared by every backend,
+# so the port and path come from the container env (PORT is set by compose, TDK_HEALTH_PATH is optional).
 HEALTHCHECK {hc_flags} \
-  CMD bun --version || exit 1
+  CMD bun -e "fetch('http://127.0.0.1:'+process.env.PORT+(process.env.TDK_HEALTH_PATH||'/health')).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" || exit 1
 
 WORKDIR /app
 
@@ -194,9 +195,9 @@ RUN addgroup -S app && adduser -S app -G app
 
 USER app
 
-# Backend-specific healthcheck (checks Node.js runtime)
+# Backend-specific healthcheck: probes the service over HTTP (port and path from container env, see the Bun stage)
 HEALTHCHECK {hc_flags} \
-  CMD node --version || exit 1
+  CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+(process.env.TDK_HEALTH_PATH||'/health')).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" || exit 1
 
 WORKDIR /app
 

@@ -202,7 +202,7 @@ RUNTIME_CONFIGS = {
         'lockfile': 'bun.lock',
     },
     'node': {
-        'image_base': 'node:20-alpine',
+        'image_base': 'node:22-alpine',
         'package_manager': 'npm',
         'lockfile': 'package-lock.json',
     },
