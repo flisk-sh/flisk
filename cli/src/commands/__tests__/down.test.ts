@@ -141,7 +141,7 @@ describe("tdk down", () => {
     }
   });
 
-  it("passes force option to buildTiltDownArgs without forwarding it to tilt down", async () => {
+  it("hands the force option to buildTiltDownArgs (which decides what reaches tilt down)", async () => {
     const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-force-test-"));
     mkdirSync(join(tempDir, ".tdk"), { recursive: true });
     writeFileSync(join(tempDir, ".tdk", "project.json"), "{}");
