@@ -176,6 +176,7 @@ def focus_mode_config() -> dict:
 def pytest_configure(config):
     """Configure pytest with custom markers."""
     config.addinivalue_line("markers", "snapshot: Tests for resource snapshot functionality")
+    config.addinivalue_line("markers", "docker: Tests that start a real container (need Docker and network)")
     config.addinivalue_line("markers", "daemon: Tests for discovery daemon")
     config.addinivalue_line("markers", "health: Tests for health check endpoints")
     config.addinivalue_line("markers", "ide: Tests for IDE components")

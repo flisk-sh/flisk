@@ -123,8 +123,13 @@ _SABLIER_DEPENDS_ON = """    depends_on:
 _SABLIER_FLAGS = """      # On-demand scaling: routes to stopped containers (opt-in via a
       # resource's `sablier:` manifest block), keeps idle services from
       # burning memory. Requires Traefik >=3.6 (see allownonrunning below).
+      # Pinned to v1.3.0: Traefik v3.7.14 fails v1.3.1's integrity check ("plugin
+      # integrity check failed"), which disables ALL plugins, so every
+      # `<name>-sablier` middleware is "invalid middleware type" and the route
+      # never comes up. v1.3.0 and v1.2.0 load. Bump only after checking with
+      # tests/tilt-engine/test_sablier_plugin_loads.py (needs Docker + network).
       - "--experimental.plugins.sablier.modulename=github.com/sablierapp/sablier-traefik-plugin"
-      - "--experimental.plugins.sablier.version=v1.3.1"
+      - "--experimental.plugins.sablier.version=v1.3.0"
 """
 
 _SABLIER_SERVICES = """  sablier:
