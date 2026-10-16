@@ -29,6 +29,7 @@ import { buildSmokePlans, formatSmokeFailure, runSmokePlans } from "../utils/smo
 import { buildStartupReport, formatStartupReport, isStartupStalled, } from "../utils/startup-report.js";
 import { evaluateTdkVersionFloor } from "../utils/tdk-version.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
+import { findTiltPortOwner, isForeignTilt } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import { parseTiltPort, resolveTiltPort, secondUpAction, stopTiltForUp, } from "../utils/tilt-startup.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
@@ -369,13 +370,35 @@ export const upCommand = new Command("up")
         const watchedPort = configuredTiltPort ?? basePort;
         const candidatePorts = options.only ? [...new Set([basePort, watchedPort])] : [watchedPort];
         const running = [];
+        const foreign = [];
         for (const candidate of candidatePorts) {
-            if ((await tiltGetUiResources(candidate)) !== null)
+            if ((await tiltGetUiResources(candidate)) === null)
+                continue;
+            // A Tilt on this port may belong to another project; that is not "this environment is running".
+            const owner = findTiltPortOwner(candidate);
+            if (owner && isForeignTilt(owner, projectRoot)) {
+                foreign.push({ port: candidate, root: owner.root });
+            }
+            else {
                 running.push(candidate);
+            }
         }
+        if (foreign.length > 0 && configuredTiltPort !== undefined) {
+            const other = foreign[0];
+            const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run tdk down in that project.`;
+            emit?.({ ok: false }, [{ code: "TILT_PORT_IN_USE", message }]);
+            showErrorAndExit(message);
+        }
+        if (!options.quiet) {
+            for (const other of foreign) {
+                console.log(chalk.yellow(`⚠️  Tilt on port ${other.port} belongs to another project (${other.root}); this project will use another port.`));
+            }
+        }
+        // --force replaces this project's Tilt; it must never stop another project's.
+        const force = options.force && foreign.length === 0;
         const decision = secondUpAction({
             runningPorts: running,
-            force: options.force,
+            force,
             only: Boolean(options.only),
         });
         if (decision.action === "already-running") {
@@ -400,7 +423,7 @@ export const upCommand = new Command("up")
         }
         const resolution = await resolveTiltPort({
             configuredPort: configuredTiltPort,
-            force: options.force,
+            force,
             basePort,
             findAvailablePort,
         });
@@ -410,7 +433,7 @@ export const upCommand = new Command("up")
             console.log(chalk.blue(`🔄 Auto-switching to port ${port}\n`));
         }
         process.env.TILT_PORT = port.toString();
-        await stopTiltForUp({ force: options.force, quiet: options.quiet, port }, {
+        await stopTiltForUp({ force, quiet: options.quiet, port }, {
             stop: stopTiltOnPort,
             log: (message) => console.log(chalk.yellow(message)),
             wait: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
