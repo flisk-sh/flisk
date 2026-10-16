@@ -6,7 +6,7 @@ name: 🙋 Issue claims
 # out code, and comment text is matched in JS, never passed to a shell.
 
 on:
-  issue_comment:
+  issue_comment: # zizmor: ignore[dangerous-triggers] never checks out code; the comment body is only matched as text in JS, never run or passed to a shell
     types: [created]
   schedule:
     - cron: "17 6 * * *"
