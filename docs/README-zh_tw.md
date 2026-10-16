@@ -107,6 +107,8 @@ TDK 比本儲存庫及其 npm 套件所顯示的更早。開發始於 2026 年 4
 
 **生態系地圖：** 範例、文章、相關工具與筆記位於 [awesome-tdk-framework](https://github.com/tdk-landscape/awesome-tdk-framework)。如果你執行的是這個 CLI，請為本儲存庫（`tdk-cli-core`）加星；其餘內容請透過 awesome 清單瀏覽。
 
+**分享:** [X](https://twitter.com/intent/tweet?text=%E6%88%91%E5%89%9B%E7%94%A8%20TDK%20CLI%20%E4%B8%80%E6%A2%9D%E6%8C%87%E4%BB%A4%E5%B0%B1%E5%95%9F%E5%8B%95%E4%BA%86%E6%9C%AC%E5%9C%B0%E6%9C%8D%E5%8B%99%EF%BC%8C%E9%9D%9E%E5%B8%B8%E5%A5%BD%E7%94%A8%EF%BC%81%E5%AE%83%E5%85%8D%E8%B2%BB%E4%B8%94%E9%96%8B%E6%BA%90%EF%BC%8C%E6%8E%A8%E8%96%A6%E7%9C%8B%E7%9C%8B%EF%BC%9A&url=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Mastodon](https://mastodon.social/share?text=%E6%88%91%E5%89%9B%E7%94%A8%20TDK%20CLI%20%E4%B8%80%E6%A2%9D%E6%8C%87%E4%BB%A4%E5%B0%B1%E5%95%9F%E5%8B%95%E4%BA%86%E6%9C%AC%E5%9C%B0%E6%9C%8D%E5%8B%99%EF%BC%8C%E9%9D%9E%E5%B8%B8%E5%A5%BD%E7%94%A8%EF%BC%81%E5%AE%83%E5%85%8D%E8%B2%BB%E4%B8%94%E9%96%8B%E6%BA%90%EF%BC%8C%E6%8E%A8%E8%96%A6%E7%9C%8B%E7%9C%8B%EF%BC%9A%20https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Reddit](https://www.reddit.com/submit?title=TDK%20CLI%EF%BC%9A%E4%B8%80%E6%A2%9D%E6%8C%87%E4%BB%A4%E5%95%9F%E5%8B%95%E6%9C%AC%E5%9C%B0%E6%9C%8D%E5%8B%99&url=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core)
+
 ## 貢獻與授權
 
 歡迎貢獻。請從 [貢獻指南（中文）](contributing/translations/CONTRIBUTING-zh_tw.md) 與[貢獻者指南](contributing/README.md)開始。想審查 pull request？請參閱[審查 pull request](contributing/04-review-a-pr.md)（英文）。請依照 [SECURITY.md](../SECURITY.md) 回報安全性問題。
