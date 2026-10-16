@@ -1017,6 +1017,7 @@ export const doctorCommand = new Command("doctor")
     .option("--strict", "Fail warnings such as a WSL project under /mnt/c")
     .option("--fix", "Repair this project's unused Docker networks and leftover doctor probes", false)
     .option("--dry-run", "With --fix: list the repairs without changing anything", false)
+    .option("--scope <scope>", "With --fix: project (default) or machine, which also removes unused networks of other TDK projects", "project")
     .option("-y, --yes", "With --fix: apply every repair without asking", false)
     .option("--ping-timeout <ms>", "Per-service ping timeout in milliseconds", String(DEFAULT_PING_TIMEOUT_MS))
     .action(async (options) => {
@@ -1032,8 +1033,14 @@ export const doctorCommand = new Command("doctor")
         process.exit(2);
         return;
     }
-    if ((options.dryRun || options.yes) && !options.fix) {
-        const message = `${options.dryRun ? "--dry-run" : "--yes"} only applies with --fix`;
+    const scopeInvalid = !["project", "machine"].includes(options.scope);
+    const scopeWithoutFix = options.scope !== "project" && !options.fix;
+    if (scopeInvalid || scopeWithoutFix || ((options.dryRun || options.yes) && !options.fix)) {
+        const message = scopeInvalid
+            ? `--scope must be project or machine, got "${options.scope}"`
+            : scopeWithoutFix
+                ? "--scope only applies with --fix"
+                : `${options.dryRun ? "--dry-run" : "--yes"} only applies with --fix`;
         if (options.json)
             console.log(JSON.stringify(createDoctorReport([], false, [{ code: "USAGE", message }])));
         console.error(message);
@@ -1100,9 +1107,10 @@ export const doctorCommand = new Command("doctor")
                 }
             }
             const tiltPids = projectRoot ? projectTiltPids(projectRoot) : [];
-            const planned = await planDoctorFixes(projectName, undefined, tiltPids.length > 0
-                ? `Tilt is running for this project (pid ${tiltPids.join(", ")}); run tdk down first`
-                : undefined);
+            const planned = await planDoctorFixes(projectName, undefined, {
+                tiltPids,
+                machine: options.scope === "machine",
+            });
             fixActions = await applyDoctorFixes(planned, {
                 dryRun: options.dryRun,
                 confirm: options.yes || (!options.json && process.stdin.isTTY)

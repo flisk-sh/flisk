@@ -47,3 +47,17 @@ function canonical(path) {
 export function isForeignTilt(owner, projectRoot) {
     return owner !== null && canonical(owner.root) !== canonical(projectRoot);
 }
+/** Split the candidate Tilt UI ports that answer into this project's and other projects'. */
+export async function classifyTiltPorts(candidatePorts, projectRoot, isServing, ownerOf = findTiltPortOwner) {
+    const result = { running: [], foreign: [] };
+    for (const port of candidatePorts) {
+        if (!(await isServing(port)))
+            continue;
+        const owner = ownerOf(port);
+        if (owner && isForeignTilt(owner, projectRoot))
+            result.foreign.push({ port, root: owner.root });
+        else
+            result.running.push(port);
+    }
+    return result;
+}

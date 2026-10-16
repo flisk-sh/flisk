@@ -11,4 +11,15 @@ export interface TiltPortOwner {
 export declare function findTiltPortOwner(port: number, platform?: NodeJS.Platform, commandRunner?: CommandRunner): TiltPortOwner | null;
 /** Whether `owner` is another project's Tilt, as opposed to this project's or unknown. */
 export declare function isForeignTilt(owner: TiltPortOwner | null, projectRoot: string): boolean;
+export interface ClassifiedTiltPorts {
+    /** Ports whose Tilt is this project's, or whose owner cannot be told (treated as before: this environment). */
+    running: number[];
+    /** Ports held by another project's Tilt. */
+    foreign: {
+        port: number;
+        root: string;
+    }[];
+}
+/** Split the candidate Tilt UI ports that answer into this project's and other projects'. */
+export declare function classifyTiltPorts(candidatePorts: number[], projectRoot: string, isServing: (port: number) => Promise<boolean>, ownerOf?: (port: number) => TiltPortOwner | null): Promise<ClassifiedTiltPorts>;
 export {};

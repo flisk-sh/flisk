@@ -5,18 +5,30 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  anyTiltAnswers,
   applyDoctorFixes,
   checkDuplicateTdkInstalls,
   createDockerFixDeps,
   type DockerNetwork,
   type DoctorFixDeps,
   hasFailedActions,
+  parseElapsed,
   planDoctorFixes,
   projectTiltPids,
 } from "../doctor-fix.js";
 
-function fakeDocker(networks: DockerNetwork[], alive: number[] = [], failing: string[] = []) {
+function fakeDocker(
+  networks: DockerNetwork[],
+  alive: number[] = [],
+  failing: string[] = [],
+  tilt: Record<number, "healthy" | "stale" | "unknown"> = {},
+  disk: { freeGib: number | null; buildCache?: string | null; dangling?: number } = {
+    freeGib: 100,
+  },
+) {
   const removed: string[] = [];
+  const pruned: string[] = [];
+  const stopped: number[] = [];
   const deps: DoctorFixDeps = {
     listNetworks: async () => networks,
     removeNetwork: async (name) => {
@@ -24,8 +36,20 @@ function fakeDocker(networks: DockerNetwork[], alive: number[] = [], failing: st
       removed.push(name);
     },
     isProcessAlive: (pid) => alive.includes(pid),
+    tiltStatus: async (pid) => tilt[pid] ?? "unknown",
+    stopProcess: (pid) => {
+      stopped.push(pid);
+    },
+    freeDiskGib: () => disk.freeGib,
+    reclaimable: async () => ({
+      buildCache: disk.buildCache ?? null,
+      danglingImages: disk.dangling ?? 0,
+    }),
+    prune: async (kind) => {
+      pruned.push(kind);
+    },
   };
-  return { deps, removed };
+  return { deps, removed, stopped, pruned };
 }
 
 const net = (name: string, containers = 0): DockerNetwork => ({ name, containers });
@@ -52,12 +76,12 @@ describe("planDoctorFixes", () => {
 
   it("skips project networks while Tilt runs, but still plans probes", async () => {
     const { deps } = fakeDocker([net("it_ai_search_backend"), net("tdk_doctor_probe_5")]);
-    const plan = await planDoctorFixes("it-ai-search", deps, "Tilt is running");
+    const plan = await planDoctorFixes("it-ai-search", deps, { tiltPids: [7] });
     expect(plan.map((a) => [a.scope, a.status])).toEqual([
       ["project", "skipped"],
       ["probe", "planned"],
     ]);
-    expect(plan[0]?.reason).toBe("Tilt is running");
+    expect(plan[0]?.reason).toContain("Tilt is running for this project (pid 7)");
   });
 
   it("skips a network that still has containers", async () => {
@@ -156,6 +180,11 @@ describe("applyDoctorFixes", () => {
         );
       },
       isProcessAlive: () => false,
+      tiltStatus: async () => "unknown",
+      stopProcess: () => {},
+      freeDiskGib: () => 100,
+      reclaimable: async () => ({ buildCache: null, danglingImages: 0 }),
+      prune: async () => {},
     };
     await applyDoctorFixes(
       await planDoctorFixes("it-ai-search", deps),
@@ -232,5 +261,151 @@ describe("projectTiltPids", () => {
     const find = (path: string) => launched.get(path) ?? [];
     expect(projectTiltPids(link, find).sort()).toEqual([11, 12]);
     expect(projectTiltPids(join(base, "nope"), find)).toEqual([]);
+  });
+});
+
+describe("stale Tilt", () => {
+  it("plans to stop a Tilt whose UI does not answer, and frees the project's networks in the same run", async () => {
+    const { deps } = fakeDocker([net("it_ai_search_backend")], [], [], { 7: "stale" });
+    const plan = await planDoctorFixes("it-ai-search", deps, { tiltPids: [7] });
+    expect(plan.map((a) => [a.id, a.status])).toEqual([
+      ["stop-tilt:7", "planned"],
+      ["remove-network:it_ai_search_backend", "planned"],
+    ]);
+    expect(plan[0]?.command).toBe("kill -TERM 7");
+  });
+
+  it("leaves a healthy or unknown Tilt alone and protects the networks", async () => {
+    for (const status of ["healthy", "unknown"] as const) {
+      const { deps } = fakeDocker([net("it_ai_search_backend")], [], [], { 7: status });
+      const plan = await planDoctorFixes("it-ai-search", deps, { tiltPids: [7] });
+      expect(plan.map((a) => [a.id, a.status])).toEqual([
+        ["remove-network:it_ai_search_backend", "skipped"],
+      ]);
+    }
+  });
+
+  it("stops the process only after confirmation", async () => {
+    const { deps, stopped } = fakeDocker([], [], [], { 7: "stale" });
+    const plan = await planDoctorFixes("p", deps, { tiltPids: [7] });
+    await applyDoctorFixes(plan, { dryRun: false, confirm: async () => false }, deps);
+    expect(stopped).toEqual([]);
+    const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
+    expect(stopped).toEqual([7]);
+    expect(result[0]?.status).toBe("applied");
+  });
+});
+
+describe("--scope=machine", () => {
+  const machineNets = [
+    net("umami_traefik-public"),
+    net("umami_backend"),
+    net("umami_database", 1),
+    net("shop_backend"),
+    net("shop_database"),
+    net("it_ai_search_backend"),
+  ];
+
+  it("plans other TDK projects' unused networks naming the owner", async () => {
+    const { deps } = fakeDocker(machineNets);
+    const plan = await planDoctorFixes("it-ai-search", deps, { machine: true });
+    const byId = Object.fromEntries(plan.map((a) => [a.id, a]));
+    expect(byId["remove-network:umami_backend"]?.scope).toBe("machine");
+    expect(byId["remove-network:umami_backend"]?.reason).toContain('project "umami"');
+    expect(byId["remove-network:umami_traefik-public"]?.status).toBe("planned");
+    expect(byId["remove-network:umami_database"]?.status).toBe("skipped");
+    expect(byId["remove-network:it_ai_search_backend"]?.scope).toBe("project");
+  });
+
+  it("never touches networks of a project without a Traefik network, or without the flag", async () => {
+    const { deps } = fakeDocker(machineNets);
+    const withFlag = await planDoctorFixes("it-ai-search", deps, { machine: true });
+    expect(withFlag.some((a) => a.id.includes("shop_"))).toBe(false);
+    const without = await planDoctorFixes("it-ai-search", deps);
+    expect(without.map((a) => a.id)).toEqual(["remove-network:it_ai_search_backend"]);
+  });
+});
+
+describe("parseElapsed", () => {
+  it("reads ps etime", () => {
+    expect(parseElapsed("01:05")).toBe(65);
+    expect(parseElapsed("02:01:05")).toBe(7265);
+    expect(parseElapsed("1-00:00:10")).toBe(86410);
+    expect(parseElapsed("nope")).toBeNull();
+  });
+});
+
+describe("disk reclaim", () => {
+  it("plans nothing while there is plenty of disk", async () => {
+    const { deps } = fakeDocker([], [], [], {}, { freeGib: 50, buildCache: "3GB", dangling: 4 });
+    expect(await planDoctorFixes("p", deps)).toEqual([]);
+  });
+
+  it("plans the build cache and untagged images, with sizes, when disk is low", async () => {
+    const { deps } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 4.2, buildCache: "1.531GB", dangling: 3 },
+    );
+    const plan = await planDoctorFixes("p", deps);
+    expect(plan.map((a) => [a.id, a.scope, a.command])).toEqual([
+      ["prune:builder", "host", "docker builder prune -f"],
+      ["prune:images", "host", "docker image prune -f"],
+    ]);
+    expect(plan[0]?.reason).toContain("4.2 GB free; 1.531GB of build cache");
+    expect(plan[1]?.reason).toContain("3 untagged images");
+  });
+
+  it("skips what has nothing to reclaim, and never plans volumes or a full image prune", async () => {
+    const { deps } = fakeDocker([], [], [], {}, { freeGib: 1, buildCache: "0B", dangling: 0 });
+    expect(await planDoctorFixes("p", deps)).toEqual([]);
+    const full = fakeDocker([], [], [], {}, { freeGib: 1, buildCache: "2GB", dangling: 2 });
+    const commands = (await planDoctorFixes("p", full.deps)).map((a) => a.command).join(" ");
+    expect(commands).not.toMatch(/volume|-a\b/);
+  });
+
+  it("prunes only after confirmation", async () => {
+    const { deps, pruned } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3, buildCache: "1GB", dangling: 1 },
+    );
+    const plan = await planDoctorFixes("p", deps);
+    await applyDoctorFixes(plan, { dryRun: false, confirm: async () => false }, deps);
+    expect(pruned).toEqual([]);
+    const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
+    expect(pruned).toEqual(["builder", "images"]);
+    expect(result.every((a) => a.status === "applied")).toBe(true);
+  });
+});
+
+describe("anyTiltAnswers", () => {
+  const noWait = async () => {};
+
+  it("is healthy when one port answers", async () => {
+    const probe = async (port: number) => (port === 10350 ? "{}" : null);
+    expect(await anyTiltAnswers([9999, 10350], probe, 2, noWait)).toBe(true);
+  });
+
+  it("retries once, so a single missed request does not look stale", async () => {
+    let calls = 0;
+    const probe = async () => (++calls === 1 ? null : "{}");
+    expect(await anyTiltAnswers([10350], probe, 2, noWait)).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it("is silent only when every port misses every attempt", async () => {
+    let calls = 0;
+    const probe = async () => {
+      calls++;
+      return null;
+    };
+    expect(await anyTiltAnswers([1, 2], probe, 2, noWait)).toBe(false);
+    expect(calls).toBe(4);
+    expect(await anyTiltAnswers([], probe, 2, noWait)).toBe(false);
   });
 });
