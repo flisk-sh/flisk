@@ -58,7 +58,7 @@ jobs:
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Build the CLI from this commit
-        run: |
+        run: | # zizmor: ignore[github-env] adds a fixed directory under RUNNER_TEMP; no input from the triggering run reaches it
           bun install --frozen-lockfile
           (cd cli && npm run build)
           chmod +x cli/bin/tdk.js
