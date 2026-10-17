@@ -87,4 +87,49 @@ describe("tdk config verify --json", () => {
       fs.rmSync(projectRoot, { recursive: true, force: true });
     }
   }, 20_000);
+
+  it("names a malformed service.json in the single JSON report and exits 1", () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-config-verify-bad-service-"));
+    try {
+      fs.mkdirSync(path.join(projectRoot, ".tdk"), { recursive: true });
+      fs.writeFileSync(
+        path.join(projectRoot, ".tdk", "project.json"),
+        JSON.stringify({
+          version: "1.0",
+          project: { name: "verify-bad-service", version: "1.0.0" },
+          phases: Object.fromEntries(
+            ["pre_alpha", "alpha", "beta", "out_of_scope"].map((name) => [
+              name,
+              { name, description: "", enabledStacks: [] },
+            ]),
+          ),
+          optional_infra: {
+            monitoring: false,
+            elk: false,
+            debezium: false,
+            golden_image: false,
+            verdaccio: false,
+          },
+          discovery: { paths: ["services/*/*"] },
+        }),
+      );
+      const serviceDir = path.join(projectRoot, "services", "shop", "api");
+      fs.mkdirSync(serviceDir, { recursive: true });
+      fs.writeFileSync(path.join(serviceDir, "service.json"), "{invalid\n");
+
+      const result = runVerify(projectRoot);
+
+      expect(result.status).toBe(1);
+      // The CLI may also warn on stderr about the skipped manifest; only stdout has to stay machine-readable.
+      const lines = result.stdout.trim().split(/\r?\n/);
+      expect(lines).toHaveLength(1);
+      const report = JSON.parse(lines[0]);
+      expect(report).toMatchObject({ schemaVersion: 1, data: { valid: false }, errors: [] });
+      expect(report.data.errors).toContainEqual(
+        expect.stringMatching(/^services\/shop\/api\/service\.json: invalid JSON \(/),
+      );
+    } finally {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  }, 20_000);
 });
