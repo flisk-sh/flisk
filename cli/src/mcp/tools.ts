@@ -372,22 +372,20 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
       name: "get_agent_sessions",
       description:
         "Inspect session checkpoints from a running AI agent resource. Set projectPath when the MCP server is not running from the project root.",
-      inputSchema: OBJECT({
-        projectPath: PROJECT_PATH,
-        resource: { type: "string", description: "Name of the agent resource" },
-        sessionId: { type: "string", description: "Optional session ID to fetch" },
-      }),
+      inputSchema: {
+        ...OBJECT({
+          projectPath: PROJECT_PATH,
+          resource: { type: "string", description: "Name of the agent resource" },
+          sessionId: { type: "string", description: "Session ID to fetch (required)" },
+        }),
+        required: ["resource", "sessionId"],
+      },
       handler: viaCli((args) => {
         const resource = optionalName(args.resource, "resource");
         if (!resource) throw new Error("resource is required");
         const sessionId = optionalName(args.sessionId, "sessionId");
-        return [
-          "agent",
-          "sessions",
-          resource,
-          ...(sessionId ? [`--session-id=${sessionId}`] : []),
-          "--json",
-        ];
+        if (!sessionId) throw new Error("sessionId is required");
+        return ["agent", "sessions", resource, `--session-id=${sessionId}`, "--json"];
       }),
     },
   ];

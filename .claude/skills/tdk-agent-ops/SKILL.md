@@ -35,5 +35,5 @@ When building, adding, or modifying services in this workspace, **do not hand-wr
    - Check logs: `tdk logs --tail 200 --json` (or tool `logs`)
    - Restart a service: `tdk restart <resource> --json` (or tool `restart_resource`)
    - List agents: `tdk resources --type agent --json` (or tool `list_agents`)
-   - Inspect agent sessions: `tdk agent sessions <resource> --json` (or tool `get_agent_sessions`)
+   - Inspect agent sessions: `tdk agent sessions <resource> --session-id <id> --json` (or tool `get_agent_sessions` with `resource` and `sessionId`; the id is required, otherwise `SESSION_ID_REQUIRED`)
    - Stop services: `tdk down --json` (or tool `down`)

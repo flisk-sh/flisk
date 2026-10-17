@@ -200,5 +200,11 @@ describe("tool list", () => {
     await expect(tools.find((t) => t.name === "get_agent_sessions")?.handler({})).rejects.toThrow(
       "resource is required",
     );
+    await expect(
+      tools.find((t) => t.name === "get_agent_sessions")?.handler({ resource: "bot" }),
+    ).rejects.toThrow("sessionId is required");
+    expect(tools.find((t) => t.name === "get_agent_sessions")?.inputSchema).toMatchObject({
+      required: ["resource", "sessionId"],
+    });
   });
 });

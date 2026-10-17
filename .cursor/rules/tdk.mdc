@@ -18,4 +18,4 @@ When operating in a TDK workspace:
   - `tdk status --json`: Inspect ports, Traefik routes, and readiness.
   - `tdk doctor --json`: Run environment diagnostics.
   - `tdk restart <name>`: Trigger live reload for a resource.
-  - `tdk agent sessions <name>`: Inspect agent checkpoints.
+  - `tdk agent sessions <name> --session-id <id>`: Inspect one session checkpoint (the id is required).

@@ -98,7 +98,10 @@ describe("tdk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(port);
     try {
-      const res = await runTdkAsync(["agent", "sessions", "bot", "--json"], tmp);
+      const res = await runTdkAsync(
+        ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
+        tmp,
+      );
       expect(res.status).toBe(0);
       const envelope = JSON.parse(res.stdout);
       expect(envelope.data).toEqual({ agent: "bot", port, session: payload });
@@ -116,9 +119,69 @@ describe("tdk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(port);
     try {
-      const res = await runTdkAsync(["agent", "sessions", "bot", "--json"], tmp);
+      const res = await runTdkAsync(
+        ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
+        tmp,
+      );
       expect(res.status).toBe(0);
       expect(JSON.parse(res.stdout).data.session).toEqual([{ id: "a" }]);
+    } finally {
+      server.close();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("requires --session-id and sends no request when it is missing", async () => {
+    let requests = 0;
+    const server = http.createServer((_req, res) => {
+      requests += 1;
+      res.end("{}");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+    const tmp = agentProject(port);
+    try {
+      const res = await runTdkAsync(["agent", "sessions", "bot", "--json"], tmp);
+      expect(res.status).toBe(1);
+      const envelope = JSON.parse(res.stdout);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors).toHaveLength(1);
+      expect(envelope.errors[0].code).toBe("SESSION_ID_REQUIRED");
+      expect(requests).toBe(0);
+    } finally {
+      server.close();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps UNKNOWN_RESOURCE ahead of SESSION_ID_REQUIRED", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-order-"));
+    fs.mkdirSync(path.join(tmp, ".tdk"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, ".tdk", "project.json"), "{}\n");
+    try {
+      const res = runTdk(["agent", "sessions", "nonexistent", "--json"], tmp);
+      expect(JSON.parse(res.stdout).errors[0].code).toBe("UNKNOWN_RESOURCE");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("forwards the session id as the x-session-id header", async () => {
+    let seen: string | undefined;
+    const server = http.createServer((req, res) => {
+      seen = String(req.headers["x-session-id"]);
+      res.end("{}");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+    const tmp = agentProject(port);
+    try {
+      const res = await runTdkAsync(
+        ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
+        tmp,
+      );
+      expect(res.status).toBe(0);
+      expect(seen).toBe("s1");
     } finally {
       server.close();
       fs.rmSync(tmp, { recursive: true, force: true });

@@ -16,7 +16,7 @@ export const agentCommand = new Command("agent").description(
 agentCommand
   .command("sessions <resource>")
   .description("Inspect session checkpoints from a running AI agent resource")
-  .option("--session-id <id>", "Specific session ID to fetch")
+  .option("--session-id <id>", "Session ID to fetch (required)")
   .option("--json", "Output one JSON object and exit", false)
   .action(async (resourceName: string, options) => {
     const action = async (): Promise<void> => {
@@ -66,10 +66,24 @@ agentCommand
         throw new TdkError(msg);
       }
 
-      const headers: Record<string, string> = {};
-      if (options.sessionId) {
-        headers["x-session-id"] = String(options.sessionId);
+      // The agent runtime keys GET /session by x-session-id and has no list endpoint, so a missing id
+      // would only come back as a confusing 400. Fail before any request. Checked after resource
+      // validation so UNKNOWN_RESOURCE, NOT_AN_AGENT and NO_PORT keep their precedence.
+      const sessionId = typeof options.sessionId === "string" ? options.sessionId.trim() : "";
+      if (!sessionId) {
+        const msg = `--session-id is required: the agent "${resourceName}" returns the checkpoint of one session.`;
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              createMachineEnvelope(null, [{ code: "SESSION_ID_REQUIRED", message: msg }]),
+            ),
+          );
+          process.exit(1);
+        }
+        throw new TdkError(msg, [`Run: tdk agent sessions ${resourceName} --session-id <id>`]);
       }
+
+      const headers: Record<string, string> = { "x-session-id": sessionId };
 
       let res: Response;
       let bodyText: string;

@@ -17,7 +17,7 @@ When modifying, adding, or testing services in this workspace:
   - Create services: `tdk resource <name> --type agent|backend|worker|mcp`
   - Start the stack: `tdk up [stack]` or call the `up` MCP tool
   - Inspect status: `tdk status --json` or call the `status` MCP tool
-  - Inspect agent sessions: `tdk agent sessions <resource>` or call `get_agent_sessions`
+  - Inspect agent sessions: `tdk agent sessions <resource> --session-id <id>` or call `get_agent_sessions` (`sessionId` is required)
   - Restart services: `tdk restart <resource>` or call `restart_resource`
   - Check diagnostics: `tdk doctor --json`
 - The `agent` resource type manages its own process contract (`/health` for liveness, `/ready` for checkpoint store reachable, session routing via `x-session-id`, checkpoints survive restarts).
