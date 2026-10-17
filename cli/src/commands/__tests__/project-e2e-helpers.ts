@@ -1,6 +1,8 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawnSync } from "node:child_process";
+import { cpSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
@@ -29,6 +31,18 @@ export function runTdkAllowFailure(args: string[], cwd: string): string {
     env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
   });
   return `${result.stdout}${result.stderr}`;
+}
+
+/**
+ * Copies a project that `tdk project --yes` already generated into a fresh temp directory. Scaffolding costs
+ * several seconds per run, so a file generates one base project in `beforeAll` and each test copies it instead.
+ * Only use a copy for a test that starts from a generated project; a test that checks generation itself must
+ * generate its own.
+ */
+export function copyProject(source: string): string {
+  const target = mkdtempSync(join(tmpdir(), "tdk-project-copy-"));
+  cpSync(source, target, { recursive: true });
+  return target;
 }
 
 export function starlarkSection(content: string, name: string): string {
