@@ -10,7 +10,7 @@ import { repoRoot, runTdk } from "./project-e2e-helpers.js";
 const schema = JSON.parse(
   readFileSync(join(repoRoot, "engine", "schemas", "project-schema.json"), "utf-8"),
 );
-const validateProject = new Ajv({ allErrors: true, strict: false }).compile(schema);
+const validateProject = new Ajv({ allErrors: false, strict: false }).compile(schema);
 
 // The project schema is only an editor hint: the CLI stays the runtime source of truth. This keeps the hint in step with the
 // file `tdk project` really writes, the same way service-schema-contract.test.ts does for service.json.
