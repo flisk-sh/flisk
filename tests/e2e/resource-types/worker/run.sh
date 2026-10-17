@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Copyright (c) 2026 TDK Landscape contributors
+# SPDX-License-Identifier: MIT
+# A worker resource on a live stack (openspec task 3.6, #1290). Runs nightly, on release and by hand; see suite.json.
+#
+#   tests/e2e/resource-types/worker/run.sh all              every case in order, then cleanup
+#   tests/e2e/resource-types/worker/run.sh W1 W2            single cases
+set -euo pipefail
+
+SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../lib/lib.sh
+source "$SUITE_DIR/../../lib/lib.sh"
+# shellcheck source=../common.sh
+source "$SUITE_DIR/../common.sh"
+e2e_init worker worker
+STACK=shop
+RES=worker
+RESOURCES=("$RES")
+
+W1() { # scaffold the worker in a project
+  log "W1 scaffold a worker"
+  common_scaffold worker "$RES" --stack "$STACK" --yes
+}
+
+W2() { # tdk up, then the worker is listed as a worker in tdk status
+  log "W2 tdk up and status lists $RES as a worker"
+  : >"$DIR/up.log"
+  start_stack "$STACK"
+  wait_status_url "$RES"
+  common_wait_status "$RES" worker
+}
+
+e2e_main "$@"

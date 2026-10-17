@@ -1,0 +1,18 @@
+{
+  "group": "resource-types",
+  "suite": "worker",
+  "description": "A worker resource on a live stack: scaffold with tdk resource --type worker, tdk up, and the worker is listed as a worker in tdk status (openspec task 3.6, #1290).",
+  "paths": [
+    "cli/src/commands/resource.ts",
+    "cli/src/utils/constants.ts",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/resource-types/worker/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": ["W1", "W2"],
+  "triggers": ["nightly", "release", "manual"],
+  "timeoutMinutes": 25,
+  "needsSecrets": []
+}

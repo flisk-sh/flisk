@@ -1,0 +1,25 @@
+{
+  "group": "resource-types",
+  "suite": "migrator",
+  "description": "A migrator resource on a live stack: scaffold with tdk resource --type migrator, tdk up, and the migrator is listed as a migrator in tdk status (openspec task 3.6, #1290). The Postgres, migrator, API order is a follow-up.",
+  "paths": [
+    "cli/src/commands/resource.ts",
+    "cli/src/utils/constants.ts",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/resource-types/migrator/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": [
+    "M1",
+    "M2"
+  ],
+  "triggers": [
+    "nightly",
+    "release",
+    "manual"
+  ],
+  "timeoutMinutes": 25,
+  "needsSecrets": []
+}
