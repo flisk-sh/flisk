@@ -167,7 +167,7 @@ jobs:
 
       - name: Verify checksums, version, and bundled runtime layout
         env:
-          VERSION: 0.0.0-deliberate-break
+          VERSION: ${{ needs.build.outputs.version }}
         shell: bash
         run: tests/e2e/platforms/windows-binary/run.sh WB1
 
