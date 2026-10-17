@@ -12,11 +12,12 @@ set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LANGUAGE="${LANGUAGE:-bun}"
+FRAMEWORK="${FRAMEWORK:-}" # empty keeps the language's default framework
 # shellcheck source=../../../lib/lib.sh
 source "$SUITE_DIR/../../lib/lib.sh"
 # shellcheck source=../common.sh
 source "$SUITE_DIR/../common.sh"
-e2e_init backend "backend-$LANGUAGE"
+e2e_init backend "backend-$LANGUAGE${FRAMEWORK:+-$FRAMEWORK}"
 STACK=shop
 API=api
 RESOURCES=("$API")
@@ -24,8 +25,8 @@ RESOURCES=("$API")
 api_healthy() { [ "$(traefik_request "$API" /health -o /dev/null -w '%{http_code}')" = "200" ]; }
 
 B1() { # scaffold a backend in the language under test
-  log "B1 scaffold a $LANGUAGE backend"
-  common_scaffold backend "$API" --language "$LANGUAGE" --stack "$STACK" --yes
+  log "B1 scaffold a $LANGUAGE backend${FRAMEWORK:+ with $FRAMEWORK}"
+  common_scaffold backend "$API" --language "$LANGUAGE" ${FRAMEWORK:+--framework "$FRAMEWORK"} --stack "$STACK" --yes
   [ -d "$DIR/services/$STACK/$API" ] || die "scaffolded backend directory missing under services/$STACK/$API"
 }
 

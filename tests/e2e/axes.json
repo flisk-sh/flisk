@@ -80,25 +80,25 @@
 			"defaults": ["hono"],
 			"values": {
 				"hono": {
-					"allow": "#1293"
+					"leg": "resource-types/backend"
 				},
 				"express": {
-					"allow": "#1293"
+					"leg": "resource-types/backend"
 				},
 				"elysia": {
-					"allow": "#1293"
+					"leg": "resource-types/backend"
 				},
 				"fastify": {
-					"allow": "#1293"
+					"leg": "resource-types/backend"
 				},
 				"h3": {
-					"allow": "#1293"
+					"leg": "resource-types/backend"
 				},
 				"koa": {
-					"allow": "#1293"
+					"leg": "resource-types/backend"
 				},
 				"nestjs": {
-					"allow": "#1293"
+					"leg": "resource-types/backend"
 				}
 			},
 			"interactions": []

@@ -17,10 +17,11 @@ function fixture(suites) {
   return dir;
 }
 
-const leg = (suite, timeoutMinutes, language = "") => ({
+const leg = (suite, timeoutMinutes, language = "", framework = "") => ({
   suite,
   language,
-  label: language ? `${suite}-${language}` : suite,
+  framework,
+  label: [suite, language, framework].filter(Boolean).join("-"),
   timeoutMinutes,
 });
 
@@ -51,6 +52,21 @@ test("the backend suite gets one leg per language, and the other suites are unch
       leg("backend", 25, "python"),
     ]);
     assert.deepEqual(selectSuites(dir, "resource-types", "nightly", ["go"]), [leg("backend", 25, "go")]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the backend suite adds one bun leg per non-default framework, and never the default", () => {
+  const dir = fixture([["resource-types", "backend", { suite: "backend", triggers: ["nightly"], timeoutMinutes: 25 }]]);
+  try {
+    assert.deepEqual(selectSuites(dir, "resource-types", "nightly", ["bun", "python"], ["hono", "express", "koa"]), [
+      leg("backend", 25, "bun"),
+      leg("backend", 25, "python"),
+      leg("backend", 25, "bun", "express"),
+      leg("backend", 25, "bun", "koa"),
+    ]);
+    assert.deepEqual(selectSuites(dir, "resource-types", "nightly", ["bun"], []), [leg("backend", 25, "bun")]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

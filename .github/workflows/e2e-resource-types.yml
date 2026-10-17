@@ -71,12 +71,15 @@ jobs:
           esac
           # Pull requests run the two most used backend languages; nightly, release and manual runs run every language the
           # registry declares. The backend suite gets one leg per language.
+          # Framework legs (one bun leg per non-default HTTP framework) run with the full set, not on pull requests.
           if [ "$trigger" = "pr" ]; then
             languages="bun,python"
+            frameworks=""
           else
             languages="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.language | join(",")')"
+            frameworks="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.httpFramework | join(",")')"
           fi
-          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger" "$languages")"
+          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger" "$languages" "$frameworks")"
           echo "trigger=$trigger"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
@@ -151,6 +154,7 @@ jobs:
         env:
           SUITE: ${{ matrix.suite }}
           LANGUAGE: ${{ matrix.language }}
+          FRAMEWORK: ${{ matrix.framework }}
         run: tests/e2e/resource-types/"$SUITE"/run.sh all
 
       - name: Collect diagnostics
