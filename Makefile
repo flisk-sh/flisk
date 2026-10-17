@@ -26,10 +26,12 @@ test-python: ## Run Python tests
 	@echo "🧪 Running Python tests..."
 	pytest tests/ -v --tb=short
 
-test-shell: ## Check shell script syntax, e2e suite definitions and e2e helper unit tests (no Docker/Tilt execution)
+test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventory and e2e helper unit tests (no Docker/Tilt execution)
 	@echo "🧪 Checking shell verification script syntax..."
 	for script in scripts/verify-*.sh tests/e2e/lib/lib.sh tests/e2e/*/*/run.sh; do bash -n "$$script" || exit 1; done
 	node tests/e2e/lib/validate-suites.mjs
+	node scripts/check-ci-inventory.mjs
+	node --test scripts/check-ci-inventory.test.mjs
 	node tests/e2e/lib/check-axes.mjs
 	node --test tests/e2e/lib/__tests__/check-axes.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
