@@ -150,7 +150,7 @@
 			"job": "dependency-review",
 			"tier": "security",
 			"required": false,
-			"reason": "Dependency review on lockfile changes; disabled until vars.DEPENDENCY_REVIEW is set (#1284)",
+			"reason": "Dependency review on lockfile changes; runs when vars.DEPENDENCY_REVIEW is true (#1284)",
 			"owner": "maintainers"
 		},
 		{
@@ -162,7 +162,15 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "ci.yml",
+			"workflow": "security.yml",
+			"job": "changes",
+			"tier": "gate",
+			"required": false,
+			"reason": "Scanner change detection on PRs; sets code, deps and infra for the scanners (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "security.yml",
 			"job": "trivy",
 			"tier": "security",
 			"required": false,
@@ -170,7 +178,7 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "ci.yml",
+			"workflow": "security.yml",
 			"job": "osv-scanner",
 			"tier": "security",
 			"required": false,
@@ -178,7 +186,7 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "ci.yml",
+			"workflow": "security.yml",
 			"job": "semgrep",
 			"tier": "security",
 			"required": false,
@@ -203,10 +211,18 @@
 		},
 		{
 			"workflow": "codeql.yml",
+			"job": "changes",
+			"tier": "gate",
+			"required": false,
+			"reason": "Workflow change detection; gates the actions leg of analyze on PRs (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "codeql.yml",
 			"job": "analyze",
 			"tier": "security",
 			"required": false,
-			"reason": "Code scanning; weekly, and on PRs",
+			"reason": "Code scanning; javascript-typescript on every PR, actions only when workflows change (#1284); weekly",
 			"owner": "maintainers"
 		},
 		{
