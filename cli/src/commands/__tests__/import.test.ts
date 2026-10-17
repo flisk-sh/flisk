@@ -82,6 +82,12 @@ describe("tdk import", () => {
       expect(isVersionAtLeast("1.3.103", MIN_CORE_VERSION)).toBe(false);
       expect(isVersionAtLeast("1.2.99", MIN_CORE_VERSION)).toBe(false);
       expect(isVersionAtLeast("invalid", MIN_CORE_VERSION)).toBe(false);
+      // Prerelease handling (CodeRabbit review): 1.3.104-rc.1 is strictly less than 1.3.104
+      expect(isVersionAtLeast("1.3.104-rc.1", MIN_CORE_VERSION)).toBe(false);
+      expect(isVersionAtLeast("1.3.104-alpha", MIN_CORE_VERSION)).toBe(false);
+      expect(isVersionAtLeast("1.3.105-rc.1", MIN_CORE_VERSION)).toBe(true);
+      expect(isVersionAtLeast("1.4.0-rc.1", MIN_CORE_VERSION)).toBe(true);
+      expect(isVersionAtLeast("1.3.104+build123", MIN_CORE_VERSION)).toBe(true);
     });
 
     it("allows execution when core meets or exceeds MIN_CORE_VERSION", () => {
