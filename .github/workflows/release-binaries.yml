@@ -53,8 +53,15 @@ jobs:
 
   build:
     needs: changes
-    # Pushes to main and manual runs always build; a pull request builds only when release inputs changed.
-    if: github.event_name != 'pull_request' || needs.changes.outputs.release == 'true'
+    # Pushes to main and manual runs build; a pull request builds only when release inputs changed.
+    # The merge of the automatic version-bump PR touches package.json, but it carries no new code:
+    # releasing it would find its own version already on npm and publish an empty next version,
+    # whose bump PR would start the next release, and so on. Skip it (skipping build skips smoke and publish).
+    if: >-
+      (github.event_name != 'pull_request' || needs.changes.outputs.release == 'true')
+      && !(github.event_name == 'push'
+      && startsWith(github.event.head_commit.message, 'Release ')
+      && contains(github.event.head_commit.message, '(automatic version bump)'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
