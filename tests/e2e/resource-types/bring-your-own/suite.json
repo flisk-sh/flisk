@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "bring-your-own",
-  "description": "A bring-your-own app or pair in each byoVariant on its own check: example (the container alone, verify-byo-example.sh), tdk (through tdk up and Traefik with TDK's Postgres, verify-byo-tdk.sh), job (a one-shot through tdk up, verify-byo-job.sh) and pair (a dependency and an app through tdk up, verify-byo-pair.sh). The matrix runs one leg per variant (#1297).",
+  "description": "A bring-your-own app, job, pair or Python service in each byoVariant on its own check: example (the container alone), tdk (through tdk up and Traefik with TDK's Postgres), job (a one-shot through tdk up), pair (a dependency and an app through tdk up), python-dry-run (the resource contract and up --dry-run, no Docker) and python-boot (the Python fixture boots and answers its health route). The matrix runs one leg per variant (#1297).",
   "paths": [
     "docs/byo.md",
     "cli/src/commands/resource.ts",
@@ -10,13 +10,18 @@
     "tests/e2e/resource-types/bring-your-own/**",
     ".github/workflows/e2e-resource-types.yml",
     "examples/byo/**",
-    "examples/byo-jobs/**"
+    "examples/byo-jobs/**",
+    "cli/src/commands/up.ts",
+    "engine/schemas/service-schema.json",
+    "tests/e2e/fixtures/byo-python-health/**"
   ],
   "cases": [
     "BY1",
     "BY2",
     "BY3",
-    "BY4"
+    "BY4",
+    "BY5",
+    "BY6"
   ],
   "variants": [
     {
@@ -38,6 +43,16 @@
       "id": "pair",
       "case": "BY4",
       "args": "turso 4500 /health turso-app LIBSQL_URL /health"
+    },
+    {
+      "id": "python-dry-run",
+      "case": "BY5",
+      "args": ""
+    },
+    {
+      "id": "python-boot",
+      "case": "BY6",
+      "args": ""
     }
   ],
   "triggers": [

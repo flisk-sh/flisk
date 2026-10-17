@@ -15,7 +15,6 @@ export const TRACKED = [
 	"benchmarks.yml",
 	"scorecard.yml",
 	"codeql.yml",
-	"byo-boot-e2e.yml",
 	"smoke-e2e.yml",
 ];
 export const WINDOW = 3;
