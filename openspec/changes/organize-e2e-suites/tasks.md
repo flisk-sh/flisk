@@ -26,7 +26,7 @@
 
 ## 3b. Matrix axes (appType, language, framework, and the rest)
 
-- [ ] 3b.1 Write `tests/e2e/resource-types/common.sh` with the shared cases (scaffold, status wait, restart with replaced-container wait, one error envelope), parameterized by `appType`
+- [ ] 3b.1 Write `tests/e2e/resource-types/common.sh` with the shared cases (scaffold, status wait, restart with replaced-container wait, one error envelope), parameterized by `appType` (`common.sh` is in this PR with the four shared cases; the agent suite does not use it yet, so 3b.4 is still open and nothing is proved live)
 - [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set (the `appType` matrix is in this PR as the suite matrix; the per-type axis waits on `common.sh` (3b.1))
 - [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
 - [ ] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases
