@@ -10,13 +10,13 @@
 
 ## 2. Group workflows
 
-- [ ] 2.1 Add `e2e-resource-types.yml`: changes job from `suite.json` paths, matrix of selected suites, failure artifacts, always-running `e2e-resource-types` gate (`e2e-resource-types.yml` with plan, matrix and gate jobs is in this PR; failure artifacts are per suite; the `changes` job for path selection is still the workflow's own paths filter)
+- [x] 2.1 Add `e2e-resource-types.yml`: changes job from `suite.json` paths, matrix of selected suites, failure artifacts, always-running `e2e-resource-types` gate (`e2e-resource-types.yml` with plan, matrix and gate jobs is in this PR; failure artifacts are per suite; the `changes` job for path selection is still the workflow's own paths filter) [merged in #1312 and proven live: the plan job builds the matrix from suite.json and the gate always runs]
 - [ ] 2.2 Make the gate also report the currently required check names until branch protection is switched
-- [ ] 2.3 Remove `agent-e2e.yml` once the group workflow runs the agent suite (`agent-e2e.yml` is removed in this PR; the agent suite runs through the matrix as `run.sh all`)
+- [x] 2.3 Remove `agent-e2e.yml` once the group workflow runs the agent suite (`agent-e2e.yml` is removed in this PR; the agent suite runs through the matrix as `run.sh all`) [agent-e2e.yml was removed in #1312; the agent leg passes through the matrix]
 
 ## 3. Resource-type coverage
 
-- [ ] 3.1 Add the coverage unit test (valid resource types vs `tests/e2e/resource-types/*` and `allowlist.json` with issue links)
+- [x] 3.1 Add the coverage unit test (valid resource types vs `tests/e2e/resource-types/*` and `allowlist.json` with issue links) [covered by tests/e2e/axes.json and check-axes.mjs (#1306): every appType from VALID_RESOURCE_TYPES is a leg or an allowlist entry with an issue]
 - [ ] 3.2 Move `scripts/verify-mcp.sh` into `resource-types/mcp` and run it in CI
 - [ ] 3.3 Move `scripts/verify-frontend-frameworks.sh` into `resource-types/frontend` (one matrix leg per framework group)
 - [ ] 3.4 Move `tests/e2e/byo-python*.test.sh` and `scripts/verify-byo-{example,job,pair,tdk}.sh` into `resource-types/bring-your-own`
@@ -26,13 +26,13 @@
 
 ## 3b. Matrix axes (appType, language, framework, and the rest)
 
-- [ ] 3b.1 Write `tests/e2e/resource-types/common.sh` with the shared cases (scaffold, status wait, restart with replaced-container wait, one error envelope), parameterized by `appType` (`common.sh` is in this PR with the four shared cases; the agent suite does not use it yet, so 3b.4 is still open and nothing is proved live)
-- [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set (the `appType` matrix is in this PR as the suite matrix; the per-type axis waits on `common.sh` (3b.1))
+- [x] 3b.1 Write `tests/e2e/resource-types/common.sh` with the shared cases (scaffold, status wait, restart with replaced-container wait, one error envelope), parameterized by `appType` (`common.sh` is in this PR with the four shared cases; the agent suite does not use it yet, so 3b.4 is still open and nothing is proved live) [common.sh merged (#1316, #1318) and used by the agent, backend, worker and migrator suites]
+- [x] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set (the `appType` matrix is in this PR as the suite matrix; the per-type axis waits on `common.sh` (3b.1)) [the matrix is keyed by suite with fail-fast off and max-parallel 4 (#1312); the backend suite also expands per language]
 - [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
 - [x] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases (#1319: A1 and A6 use `common.sh`; the live agent leg passed; sessions, MCP, drain and durability stay as contract cases)
 - [x] 3b.5 Generate the matrix axes from the registries (`VALID_RESOURCE_TYPES`, backend languages, frontend frameworks) in the `changes` job, and extend the coverage check to every registry with an allowlist (#1322: `tests/e2e/lib/registry-axes.mjs` reads the registries and the `changes` job exposes them as the `axes` output; 3b.6 is the first consumer)
 - [x] 3b.6 Add the `backend` × language axis (bun, python, go, rust, and node once #1276 merges) with fail-fast off and max-parallel set
-- [ ] 3b.7 Write `tests/e2e/axes.json` (axis, source, groups, defaults, known interactions with reasons) and extend the coverage check to every axis with a source (`axes.json` and its coverage check are in #1306; still to do: extend the check to every registry)
+- [x] 3b.7 Write `tests/e2e/axes.json` (axis, source, groups, defaults, known interactions with reasons) and extend the coverage check to every axis with a source (`axes.json` and its coverage check are in #1306; still to do: extend the check to every registry) [axes.json and its coverage check merged (#1306), language values point at real legs (#1332)]
 
 ## 4. Other groups (one suite per PR)
 
@@ -54,7 +54,7 @@
 - [ ] 4b.8 Merge the Windows smoke in `release-binaries.yml` and `windows-smoke.yml` into `e2e-platforms / windows`, called by the release workflow
 - [ ] 4b.9 Narrow bot event types (`ai-review-buttons`, `ai-conflict-buttons`, `ai-spec-buttons`, `hall-of-fame`, `contributor-*`, `journey-map`) (`ai-review-buttons` and `ai-conflict-buttons` were already narrow; concurrency added in #1307; `hall-of-fame` and `contributor-merged` listen for `closed` and cannot narrow further)
 - [ ] 4b.10 Make `update-pr-branches.yml` update only approved or auto-merge pull requests until the merge queue is on; add a `merge_group` trigger to the gate workflows
-- [ ] 4b.11 Add a secret preflight that ends with a neutral result and a warning; add the red-job tracker (three consecutive failures open an issue, three passes close it) (secret preflight for `cold-start-e2e` is in #1308 and the red-job tracker in #1309; the preflight skips with a warning because GitHub has no neutral job result)
+- [x] 4b.11 Add a secret preflight that ends with a neutral result and a warning; add the red-job tracker (three consecutive failures open an issue, three passes close it) (secret preflight for `cold-start-e2e` is in #1308 and the red-job tracker in #1309; the preflight skips with a warning because GitHub has no neutral job result) [preflight merged in #1308 (it skips with a warning, as GitHub has no neutral job result) and the red-job tracker in #1309; the tracker has not yet opened or closed a real issue]
 - [ ] 4b.12 Add the weekly `ci-report` workflow (p50/p90, failure, cancellation and skip rates, flaky cases, time to aggregate result, per-tier budgets)
 - [ ] 4b.13 Each pull request in this section posts before and after numbers for the jobs it changes
 
