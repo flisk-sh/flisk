@@ -4,13 +4,15 @@ Unit tests run in one `cli` vitest job today. This page describes how to split t
 
 ## What a unit test is here
 
-A unit test lives in `cli/src/**/__tests__/` and does not start Docker, Tilt or a stack. Three kinds exist, and only the first is a unit test:
+A unit test lives in `cli/src/**/__tests__/` and does not boot a live stack. Three kinds exist:
 
 | Kind | File pattern | Runs in |
 |---|---|---|
 | unit | `*.test.ts` that mocks I/O | the unit matrix |
 | CLI integration | `*-e2e.test.ts` that spawns `tdk` on a temp project, no stack | the vitest run; not a live-stack group |
-| stack-backed | anything that boots Tilt or Compose | a live-stack e2e suite, see [write an e2e test](05-write-e2e.md) |
+| stack-backed | anything that boots a running Tilt or Compose stack | a live-stack e2e suite, see [write an e2e test](05-write-e2e.md) |
+
+Some tests run a real tool without a stack, such as Tilt for the Starlark generator tests. They are not fully mocked. They stay in the unit job until they are split out, so do not describe them as mocked.
 
 If a test needs a running stack, it is not a unit test. Move it to an e2e suite instead of skipping it.
 
@@ -41,7 +43,7 @@ A test that mocks I/O restores the mock in `afterEach` (`vi.restoreAllMocks()`),
 
 ## Split the suite into legs
 
-Vitest can split one run across legs with `--shard`. The matrix is the set of shard indexes, and each leg runs one slice:
+Vitest can split one run across legs with `--shard`. The matrix is the set of shard indexes, and each leg runs one slice and writes a blob report. A final job merges the blobs:
 
 ```yaml
 unit:
@@ -50,15 +52,23 @@ unit:
     matrix:
       shard: [1, 2, 3, 4]
   steps:
-    - run: npx vitest run --shard=${{ matrix.shard }}/4 --reporter=json --outputFile=results-${{ matrix.shard }}.json
+    # checkout, Bun and Node setup, and `bun install --frozen-lockfile` run first, as in the Test job of ci.yml
+    - working-directory: cli
+      run: npx vitest run --shard=${{ matrix.shard }}/4 --reporter=blob
+    - uses: actions/upload-artifact@v7
+      with:
+        name: unit-blob-${{ matrix.shard }}
+        path: cli/.vitest-reports/
 ```
+
+The final job downloads the blobs and runs `npx vitest --merge-reports` in `cli`. Check that this produces the merged coverage the gate needs before the gate depends on it.
 
 Rules for legs:
 
 - **Keep legs equal in time.** Vitest shards split by file, not by time, so keep one file per concern. Check each leg's duration in the job summary and raise the shard count when the slowest leg is twice the fastest.
 - **Do not share state between legs.** A leg must not depend on a file another leg wrote. Tests that touch the built `cli/dist` stay out of the matrix and keep their own job.
 - **Keep the pull-request run fast.** The unit matrix runs on every pull request. Anything slower than a few minutes moves to `nightly`.
-- **Merge the reports.** Each leg uploads its JSON report. One final job merges them for the PR summary and the coverage table.
+- **Merge the reports once.** The final job merges the blob reports for the PR summary and the coverage table. Legs do not post comments.
 - **Gate once.** A final `gate` job fails when any leg failed, and that job is the required check. A skipped leg must not pass.
 
 ## Add a unit test
@@ -71,7 +81,7 @@ Rules for legs:
 
 ## Coverage per area
 
-Coverage is measured per area, not globally. Each leg uploads its coverage JSON, and the gate compares each area with its recorded baseline (see the ratchet item in the initiative). An area is one of: command implementations, validation, discovery, stack and project handling, install and update.
+Coverage is measured per area, not globally. Each leg writes its coverage data, the final job merges it, and the gate compares each area with its recorded baseline (see the ratchet item in the initiative). An area is one of: command implementations, validation, discovery, stack and project handling, install and update.
 
 ## Check it locally
 

@@ -45,7 +45,7 @@ node tests/e2e/lib/suite-matrix.mjs resource-types pr "bun,python"
 }
 ```
 
-The builder expands a suite into legs in one of three ways: A suite can also list `"variants": [{"id": "..."}]` in place of a single leg; `bring-your-own` does this. `validate-suites.mjs` rejects keys it does not know, so check spelling.
+The builder expands a suite into legs in one of four ways:
 
 | Shape | Example | Legs |
 |---|---|---|
@@ -53,6 +53,8 @@ The builder expands a suite into legs in one of three ways: A suite can also lis
 | one per axis value | `backend` | one per language from `registry-axes.mjs` |
 | one per axis value, with a default | `backend` bun | one more bun leg per non-default HTTP framework |
 | one per variant | `bring-your-own` | one leg per `variants` entry in `suite.json`, with `BYO_VARIANT` set to its id |
+
+A suite lists `"variants": [{"id": "..."}]` in `suite.json` instead of a single leg; `bring-your-own` does this. `validate-suites.mjs` rejects keys it does not know, so check spelling.
 
 Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`, and `BYO_VARIANT` for variant suites), so the suite's `run.sh` reads what it needs and nothing else. A leg's `label` names the job in the UI (`resource-types / backend-bun`), so it is what reviewers search for.
 
@@ -85,7 +87,7 @@ Use this when a new family of tests (for example `packaging` or `failure-recover
 2. Copy `.github/workflows/e2e-resource-types.yml` to `.github/workflows/<group>-e2e.yml`. Change the name, the `paths` filter, the `concurrency` group, and the `suite-matrix.mjs` group argument in the `plan` job. Keep the `plan` job, `fail-fast: false`, and the `gate` job.
 3. Add a `gate` job that always runs and fails when the plan or any leg failed. This is the one check to make required in branch protection, so a skipped matrix cannot pass unnoticed.
 4. Set `max-parallel` to a number the runner pool can handle (the resource-types group uses 4).
-5. Upload failure evidence from each leg (see the failure-artifacts rule below).
+5. Upload failure evidence from each leg with the same `if: failure()` step that `e2e-resource-types.yml` uses.
 
 ## Rules for matrix legs
 
@@ -95,7 +97,7 @@ Use this when a new family of tests (for example `packaging` or `failure-recover
 - **Set `timeout-minutes` per suite,** from `suite.json`, not in the workflow.
 - **Retry only infrastructure steps** (image pulls, package installs). Never retry a step that asserts behaviour. See [write an e2e test](05-write-e2e.md) for the case rules.
 - **Keep the `pr` set small.** Put every other axis value on `nightly`, `release` and `manual`. A pull request should get feedback in minutes.
-- **Failure evidence is part of the leg.** On failure, upload the Docker and Tilt logs, `docker ps -a`, the health output and the generated files as one artifact named after the leg label.
+- **Failure evidence is part of the leg.** The group workflow runs `run.sh diagnostics` and uploads `tdk-e2e/<suite>/artifacts` with an `if: failure()` step, named `e2e-resource-types-<label>-<run_id>` and kept 14 days. A new group copies that step.
 
 ## Checking the matrix locally
 
