@@ -563,6 +563,14 @@
 			"required": false,
 			"reason": "Compares branch protection on main with the required-checks snapshot daily; opens one issue on drift",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "cold-start-e2e.yml",
+			"job": "license",
+			"tier": "gate",
+			"required": false,
+			"reason": "Checks TDK_LICENSE_KEY and skips the licensed cold-start job with a warning when it is missing (#1288)",
+			"owner": "maintainers"
 		}
 	]
 }
