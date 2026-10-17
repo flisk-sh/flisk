@@ -65,7 +65,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           bun-version: latest
 
@@ -80,10 +80,10 @@ jobs:
       # The Linux compiled-binary project-generation smoke test runs tdk doctor,
       # which requires Tilt and the TDK host ports to be available.
       - name: Install Tilt for the Linux release binary smoke test
-        uses: ./.github/actions/setup-tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Free required host ports for the Linux release binary smoke test
-        uses: ./.github/actions/free-postgres-port
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           ports: "80 443 5432"
 
@@ -223,7 +223,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           bun-version: latest
 

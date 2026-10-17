@@ -77,7 +77,7 @@ jobs:
           # A fork's branch does not exist in this repository, so fork PRs use the default PR merge ref.
           ref: ${{ (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref) || github.ref }}
           persist-credentials: true # zizmor: ignore[artipacked] needed to push the autofix commit
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - run: bun install --frozen-lockfile
       # Applies Biome's safe fixes and rebuilds cli/dist, then commits both.
       # A push made with GITHUB_TOKEN doesn't start CI by itself, so the step
@@ -118,7 +118,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
 
@@ -136,7 +136,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - run: bun install --frozen-lockfile
       - run: bun run fuzz
 
@@ -170,15 +170,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - name: Install Tilt for Starlark generator tests
-        uses: ./.github/actions/setup-tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
       - run: bun install --frozen-lockfile
       - name: Free host Postgres port before project integration tests
-        uses: ./.github/actions/free-postgres-port
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
       - name: Run TypeScript tests through the contributor entry point
         working-directory: .
         run: make test-ts
@@ -202,7 +202,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
@@ -231,10 +231,10 @@ jobs:
           node scripts/install-global.mjs "$RUNNER_TEMP"/tdk-landscape-tdk-cli-core-*.tgz
 
       - name: Install Tilt
-        uses: ./.github/actions/setup-tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Free port 5432 (runner's preinstalled Postgres)
-        uses: ./.github/actions/free-postgres-port
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Run the installed CLI
         working-directory: ${{ runner.temp }}

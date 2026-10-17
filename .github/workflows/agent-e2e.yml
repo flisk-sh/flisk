@@ -71,14 +71,14 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Testing @tdk-landscape/tdk-cli-core@$version"
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install Tilt
-        uses: ./.github/actions/setup-tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       # Same fix as quickstart-e2e: the runner's preinstalled Postgres holds 5432, which collides with the stack's.
       - name: Free port 5432 (runner's preinstalled Postgres)
-        uses: ./.github/actions/free-postgres-port
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install TDK
         env:
