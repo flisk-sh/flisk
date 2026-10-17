@@ -65,13 +65,20 @@ jobs:
             workflow_run) trigger="release" ;;
             *) trigger="manual" ;;
           esac
-          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger")"
+          # Pull requests run the two most used backend languages; nightly, release and manual runs run every language the
+          # registry declares. The backend suite gets one leg per language.
+          if [ "$trigger" = "pr" ]; then
+            languages="bun,python"
+          else
+            languages="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.language | join(",")')"
+          fi
+          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger" "$languages")"
           echo "trigger=$trigger"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
 
   resource-types:
-    name: 🤖 ${{ matrix.suite }}
+    name: 🤖 ${{ matrix.label }}
     needs: plan
     if: needs.plan.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
@@ -139,6 +146,7 @@ jobs:
       - name: Run the suite
         env:
           SUITE: ${{ matrix.suite }}
+          LANGUAGE: ${{ matrix.language }}
         run: tests/e2e/resource-types/"$SUITE"/run.sh all
 
       - name: Collect diagnostics
@@ -150,7 +158,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: e2e-resource-types-${{ matrix.suite }}-${{ github.run_id }}
+          name: e2e-resource-types-${{ matrix.label }}-${{ github.run_id }}
           path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
           if-no-files-found: warn
           retention-days: 14

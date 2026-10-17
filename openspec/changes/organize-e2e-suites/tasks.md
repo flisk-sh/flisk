@@ -20,7 +20,7 @@
 - [ ] 3.2 Move `scripts/verify-mcp.sh` into `resource-types/mcp` and run it in CI
 - [ ] 3.3 Move `scripts/verify-frontend-frameworks.sh` into `resource-types/frontend` (one matrix leg per framework group)
 - [ ] 3.4 Move `tests/e2e/byo-python*.test.sh` and `scripts/verify-byo-{example,job,pair,tdk}.sh` into `resource-types/bring-your-own`
-- [ ] 3.5 Add a `resource-types/backend` suite from the backend parts of quickstart (scaffold, routed health, restart, error envelope)
+- [ ] 3.5 Add a `resource-types/backend` suite from the backend parts of quickstart (scaffold, routed health, restart, error envelope) (the `resource-types/backend` suite (B1 scaffold, B2 tdk up and status, B3 routed health) is in this PR; the live legs are the proof)
 - [ ] 3.6 Add `resource-types/worker` (processes a job) and `resource-types/migrator` (migration completes before the API, per the migrator rule)
 - [ ] 3.7 Add `resource-types/library` and `resource-types/sdk` (consumed build), or allowlist them with tracking issues
 
@@ -31,7 +31,7 @@
 - [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
 - [x] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases (#1319: A1 and A6 use `common.sh`; the live agent leg passed; sessions, MCP, drain and durability stay as contract cases)
 - [ ] 3b.5 Generate the matrix axes from the registries (`VALID_RESOURCE_TYPES`, backend languages, frontend frameworks) in the `changes` job, and extend the coverage check to every registry with an allowlist (in this PR: `tests/e2e/lib/registry-axes.mjs` reads the registries and the `changes` job exposes them as the `axes` output; the matrix consumes them in 3b.6)
-- [ ] 3b.6 Add the `backend` × language axis (bun, python, go, rust, and node once #1276 merges) with fail-fast off and max-parallel set
+- [ ] 3b.6 Add the `backend` × language axis (bun, python, go, rust, and node once #1276 merges) with fail-fast off and max-parallel set (the backend suite runs one leg per language: bun and python on pull requests, all registry languages nightly and on release; the live legs are the proof)
 - [ ] 3b.7 Write `tests/e2e/axes.json` (axis, source, groups, defaults, known interactions with reasons) and extend the coverage check to every axis with a source (`axes.json` and its coverage check are in #1306; still to do: extend the check to every registry)
 
 ## 4. Other groups (one suite per PR)
