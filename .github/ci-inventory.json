@@ -563,6 +563,14 @@
 			"required": false,
 			"reason": "Compares branch protection on main with the required-checks snapshot daily; opens one issue on drift",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "red-job-tracker.yml",
+			"job": "track",
+			"tier": "report",
+			"required": false,
+			"reason": "Opens or closes one issue per scheduled or main job that fails three runs in a row (#1288)",
+			"owner": "maintainers"
 		}
 	]
 }
