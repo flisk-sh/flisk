@@ -35,6 +35,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node tests/e2e/lib/check-axes.mjs
 	node --test tests/e2e/lib/__tests__/suite-matrix.test.mjs
 	node --test tests/e2e/lib/__tests__/check-axes.test.mjs
+	node --test scripts/red-job-tracker.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 
 test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, tdk)
