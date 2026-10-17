@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 import { TdkError } from "./errors.js";
 
+export const SCHEMA_VERSION = 1 as const;
+
 export interface MachineError {
   code: string;
   message: string;
@@ -9,7 +11,7 @@ export interface MachineError {
 }
 
 export interface MachineEnvelope<T> {
-  schemaVersion: 1;
+  schemaVersion: typeof SCHEMA_VERSION;
   data: T | null;
   errors: MachineError[];
 }
@@ -18,7 +20,7 @@ export function createMachineEnvelope<T>(
   data: T | null,
   errors: MachineError[] = [],
 ): MachineEnvelope<T> {
-  return { schemaVersion: 1, data, errors };
+  return { schemaVersion: SCHEMA_VERSION, data, errors };
 }
 
 export function toMachineError(error: unknown): { error: MachineError; exitCode: number } {

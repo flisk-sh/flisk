@@ -162,10 +162,11 @@ function requireGeneratedViteConfig(configPath) {
         "Run tdk up <stack> once, or point this script at your own Vite config to build on the host.";
     return `bun -e 'if(!require("fs").existsSync(${JSON.stringify(configPath)})){console.error(${JSON.stringify(message)});process.exit(1)}'`;
 }
-export function createPackageJson(name, type, frameworkId, prismaEnabled = false) {
+export function createPackageJson(name, type, frameworkId, prismaEnabled = false, agentConfig) {
     const isFrontend = type === "frontend";
     const framework = resolveFrontendFramework(type, frameworkId);
     const backendFramework = resolveBackendFramework(type, frameworkId);
+    const isPostgresAgent = type === "agent" && agentConfig?.durability === "postgres";
     return {
         name: `@project/${name}`,
         version: "0.0.1",
@@ -192,11 +193,15 @@ export function createPackageJson(name, type, frameworkId, prismaEnabled = false
         dependencies: {
             ...(isFrontend ? {} : (backendFramework?.dependencies ?? { hono: "^4.0.0" })),
             ...(framework?.dependencies ?? {}),
-            ...(prismaEnabled
+            ...(prismaEnabled || isPostgresAgent
                 ? {
-                    prisma: "^7.5.0",
-                    "@prisma/client": "^7.5.0",
-                    "@prisma/adapter-pg": "^7.5.0",
+                    ...(prismaEnabled
+                        ? {
+                            prisma: "^7.5.0",
+                            "@prisma/client": "^7.5.0",
+                            "@prisma/adapter-pg": "^7.5.0",
+                        }
+                        : {}),
                     pg: "^8.13.0",
                 }
                 : {}),
@@ -298,7 +303,7 @@ export const resourceCommand = new Command("resource")
     .option("--port <port>", "Port for the resource, within its type's range (default: next free port in that range)")
     .option("--feature <feature...>", "Enable a resource feature (for example: prisma)")
     .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
-    .option("--durability <kind>", "Where agent sessions are checkpointed (for agent only): files (default, a named volume that survives tdk down)")
+    .option("--durability <kind>", "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres")
     .action(async (name, options) => {
     if (options.frameworks) {
         for (const f of listFrontendFrameworks()) {
@@ -636,7 +641,7 @@ This file contains the resource configuration for TDK.
         const requestedFeatures = Array.isArray(options.feature) ? options.feature : [];
         const prismaEnabled = requestedFeatures.includes("prisma");
         const serviceJson = createServiceJson(resourceName, resourceType, stackName, assignedPort, [...(dddEnabled ? ["ddd"] : []), ...requestedFeatures], scaffoldFrameworkId, options.language === undefined ? undefined : backendLanguage?.id, agentConfig);
-        const packageJson = createPackageJson(resourceName, resourceType, scaffoldFrameworkId, prismaEnabled);
+        const packageJson = createPackageJson(resourceName, resourceType, scaffoldFrameworkId, prismaEnabled, agentConfig);
         if (prismaEnabled && resourceType === "backend") {
             serviceJson.dependsOn = [`${resourceName}-migrator`];
         }
@@ -674,10 +679,13 @@ This file contains the resource configuration for TDK.
         ];
         // Add source files based on resource type
         if (resourceType === "backend" || resourceType === "mcp" || resourceType === "agent") {
+            const indexContent = resourceType === "agent"
+                ? (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName, agentConfig?.durability)
+                : (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName);
             tasks.push({
                 type: "text",
                 filename: "src/index.ts",
-                content: (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName),
+                content: indexContent,
                 description: resourceType === "mcp"
                     ? "Generating MCP server source"
                     : resourceType === "agent"

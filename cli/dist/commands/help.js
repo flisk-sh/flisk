@@ -42,6 +42,11 @@ const COMMAND_GROUPS = [
         commands: [
             { name: "resource", desc: "Create new resource with templates", alias: "" },
             { name: "resources", desc: "List all resources with filtering", alias: "--stack, --ports" },
+            {
+                name: "agent",
+                desc: "Inspect and operate AI agent resources",
+                alias: "sessions <resource>",
+            },
         ],
     },
     {
@@ -50,6 +55,7 @@ const COMMAND_GROUPS = [
         commands: [
             { name: "up, deploy", desc: "Start services (optionally by stack)", alias: "[stack-name]" },
             { name: "down", desc: "Stop all tilt resources", alias: "" },
+            { name: "restart", desc: "Restart a running resource in the stack", alias: "<resource>" },
             { name: "status", desc: "Show status of services and stacks", alias: "" },
             { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },
         ],

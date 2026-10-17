@@ -4,6 +4,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
+import { createMachineEnvelope, SCHEMA_VERSION } from "../utils/machine-output.js";
 import type { McpTool, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
@@ -160,6 +161,7 @@ export function buildUpArgs(args: Record<string, unknown>): string[] {
   if (stack) out.push(stack);
   if (only.length > 0) out.push(...only.map((name) => `--only=${name}`));
   if (flag(args.force, "force")) out.push("--force");
+  if (flag(args.dryRun, "dryRun")) out.push("--dry-run");
   out.push("--json");
   return out;
 }
@@ -200,17 +202,13 @@ export async function startUp(
   }
   child.unref();
   return {
-    data: {
-      schemaVersion: 1,
-      data: {
-        ok: true,
-        started: true,
-        pid: child.pid ?? null,
-        logFile,
-        next: "Poll the status tool until data.tilt.readiness.ready is true. Call down to stop it.",
-      },
-      errors: [],
-    },
+    data: createMachineEnvelope({
+      ok: true,
+      started: true,
+      pid: child.pid ?? null,
+      logFile,
+      next: "Poll the status tool until data.tilt.readiness.ready is true. Call down to stop it.",
+    }),
     isError: false,
   };
 }
@@ -286,6 +284,7 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
             "Start only these services plus what they depend on and shared infrastructure",
         },
         force: { type: "boolean", description: "Replace a Tilt that is already running" },
+        dryRun: { type: "boolean", description: "Show what would be started without starting" },
         waitSeconds: {
           type: "number",
           description:
@@ -297,8 +296,15 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
     {
       name: "down",
       description: "Stop the running stack, optionally selecting its project with projectPath.",
-      inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
-      handler: viaCli(() => ["down", "--json"]),
+      inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
+        dryRun: { type: "boolean", description: "Show what would be stopped without stopping" },
+      }),
+      handler: viaCli((args) => [
+        "down",
+        "--json",
+        ...(flag(args.dryRun, "dryRun") ? ["--dry-run"] : []),
+      ]),
     },
     {
       name: "status",
@@ -333,6 +339,55 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
       handler: viaCli((args) => {
         const stack = optionalName(args.stack, "stack");
         return ["resources", "--json", ...(stack ? [`--stack=${stack}`] : [])];
+      }),
+    },
+    {
+      name: "restart_resource",
+      description:
+        "Restart a running resource in the stack (or trigger its rebuild). Set projectPath when the MCP server is not running from the project root.",
+      inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
+        resource: { type: "string", description: "Name of the resource to restart" },
+      }),
+      handler: viaCli((args) => {
+        const resource = optionalName(args.resource, "resource");
+        if (!resource) throw new Error("resource is required");
+        return ["restart", resource, "--json"];
+      }),
+    },
+    {
+      name: "list_agents",
+      description:
+        "List AI agent resources (appType: 'agent') in the project with their stack, runtime, durability and port. Set projectPath when the MCP server is not running from the project root.",
+      inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
+        stack: { type: "string", description: "Only this stack" },
+      }),
+      handler: viaCli((args) => {
+        const stack = optionalName(args.stack, "stack");
+        return ["resources", "--type=agent", "--json", ...(stack ? [`--stack=${stack}`] : [])];
+      }),
+    },
+    {
+      name: "get_agent_sessions",
+      description:
+        "Inspect session checkpoints from a running AI agent resource. Set projectPath when the MCP server is not running from the project root.",
+      inputSchema: OBJECT({
+        projectPath: PROJECT_PATH,
+        resource: { type: "string", description: "Name of the agent resource" },
+        sessionId: { type: "string", description: "Optional session ID to fetch" },
+      }),
+      handler: viaCli((args) => {
+        const resource = optionalName(args.resource, "resource");
+        if (!resource) throw new Error("resource is required");
+        const sessionId = optionalName(args.sessionId, "sessionId");
+        return [
+          "agent",
+          "sessions",
+          resource,
+          ...(sessionId ? [`--session-id=${sessionId}`] : []),
+          "--json",
+        ];
       }),
     },
   ];

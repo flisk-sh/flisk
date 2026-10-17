@@ -1,10 +1,11 @@
+export declare const SCHEMA_VERSION: 1;
 export interface MachineError {
     code: string;
     message: string;
     suggestions?: string[];
 }
 export interface MachineEnvelope<T> {
-    schemaVersion: 1;
+    schemaVersion: typeof SCHEMA_VERSION;
     data: T | null;
     errors: MachineError[];
 }

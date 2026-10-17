@@ -14,9 +14,7 @@ export const AGENT_RUNTIMES: Record<string, BackendFrameworkProvider> = {
 };
 
 export const DEFAULT_AGENT_RUNTIME = "custom";
-// `postgres` is deliberately absent: the scaffold has no Postgres session store yet (#1256), so offering it would produce an
-// agent that answers every turn with a 500. Add it here together with the store.
-export const AGENT_DURABILITY_OPTIONS = ["files"] as const;
+export const AGENT_DURABILITY_OPTIONS = ["files", "postgres"] as const;
 export type AgentDurability = (typeof AGENT_DURABILITY_OPTIONS)[number];
 
 export function resolveAgentRuntime(runtimeId?: string): BackendFrameworkProvider {

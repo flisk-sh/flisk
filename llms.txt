@@ -1,42 +1,13 @@
 # TDK CLI Core
 
-> TDK is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
->
-> Complementary index: See also the TDK product-level index for website, docs, examples, and skills at https://tdk-landscape.github.io/tdk-website/llms.txt. This repository contract provides CLI-specific architecture, commands, and schemas for agents working directly in source trees.
+> TDK is the local runtime for full-stack and AI-agent systems.
 
-## Core Concepts & Capabilities
+Agent-specific contracts and guides live in [`docs/agents/`](docs/agents/).
 
-- **Local Runtime, Not a Deployment Tool**: TDK configures and runs services locally on your machine via Docker and Tilt. It does not replace Helm, Argo CD, or Kubernetes in production.
-- **Resource Types**: `backend`, `frontend`, `worker`, `mcp`, `agent`, `bring-your-own` (plus config types `library`, `sdk`, `migrator`).
-- **AI Agent Systems**:
-  - `agent` resource type: Long-running agent process with `files` durability (named volume surviving `tdk down`, removed explicitly with `docker volume rm`), sticky session routing via `x-session-id`, graceful SIGTERM turn draining, `/health` (container liveness via `healthCheckPath`) and `/ready` (caller readiness check).
-  - `mcp` resource type: Standard Model Context Protocol servers over Streamable HTTP (`/mcp`) routed via Traefik.
-  - `tdk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate TDK (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`).
-- **Zero-Config Port Management**: Automatically assigns conflict-free ports and exposes services via Traefik at `*.localhost` (port 80 or 8080-8180).
+The product website already publishes a site-level index:
+https://tdk-landscape.github.io/tdk-website/llms.txt
 
-## Essential CLI Commands
-
-- `tdk project --yes`: Initialize a TDK project in the current directory (`.tdk/project.json`).
-- `tdk resource <name> --type <backend|frontend|worker|mcp|agent> --stack <stack> [--yes]`: Scaffold a new service.
-  - For agents: `tdk resource <name> --type agent --stack <stack> [--runtime custom] [--durability files]`
-  - For MCP servers: `tdk resource <name> --type mcp --stack <stack>`
-- `tdk up [stack] [--only <service...>] [--dry-run] [--json]`: Start local containers and live reload.
-- `tdk down [stack] [--json]`: Stop services and clean up containers (keeps named volumes; remove explicitly with `docker volume rm <volume-name>`).
-- `tdk status [--json]`: Report health, readiness, and active URLs.
-- `tdk doctor [--fix] [--json]`: Verify container engine (Docker/Podman/Colima), ports, and system prerequisites.
-- `tdk logs [--service <name>] [--tail <n>] [--json]`: Inspect service output.
-- `tdk mcp`: Launch the TDK MCP server over stdio for coding assistants.
-
-## Key Schemas & Specifications
-
-- Service Schema: `engine/schemas/service-schema.json`
-- Project Schema: `engine/schemas/project-schema.json`
-- Machine-Readable Contracts: `docs/reference/machine-readable-cli.md`
-
-## Documentation & Guides
-
-- [AI Agents in TDK](docs/ai-agents.md): Comprehensive guide on running agent systems with checkpointing and session routing.
-- [Agent Framework Comparison](docs/compare-honest.md#ai-agent-frameworks-and-workflow-engines-libfx-langgraph-mastra-vercel-workflows-temporal): Where TDK sits vs. libfx, LangGraph, Mastra, Vercel Workflows, and Temporal.
-- [Agent Hosts](docs/agent-hosts.md): Running TDK in Dev Containers, Codespaces, and remote agent environments.
-- [MCP Resources](docs/mcp.md): Scaffolding Model Context Protocol servers.
-- [Mega Cheat Sheet](docs/cheat-sheet.md): Comprehensive reference of all commands and options.
+See also:
+- [AI agents guide](docs/agents/ai-agents.md)
+- [LLM full context](docs/agents/llms-full.txt)
+- [Website llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt)

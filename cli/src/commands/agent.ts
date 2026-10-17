@@ -74,7 +74,6 @@ agentCommand
         res = await fetch(`http://127.0.0.1:${port}/session`, {
           method: "GET",
           headers,
-          signal: AbortSignal.timeout(10_000),
         });
       } catch {
         const msg = `Agent "${resourceName}" is not responding on port ${port}. Is the stack running?`;
@@ -121,7 +120,7 @@ agentCommand
             createMachineEnvelope({
               agent: resourceName,
               port,
-              session: body,
+              ...(body as Record<string, unknown>),
             }),
           ),
         );

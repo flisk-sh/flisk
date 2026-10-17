@@ -4,6 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import pkg from "../package.json" with { type: "json" };
+import { agentCommand } from "./commands/agent.js";
 import { completionCommand } from "./commands/completion.js";
 import { configCommand } from "./commands/config.js";
 import { doctorCommand } from "./commands/doctor.js";
@@ -19,6 +20,7 @@ import { projectCommand } from "./commands/project.js";
 import { projectsCommand } from "./commands/projects.js";
 import { resourceCommand } from "./commands/resource.js";
 import { resourcesCommand } from "./commands/resources.js";
+import { restartCommand } from "./commands/restart.js";
 import { runtimeCommand } from "./commands/runtime.js";
 import { stackCommand } from "./commands/stack.js";
 import { stacksCommand } from "./commands/stacks.js";
@@ -67,6 +69,8 @@ program.addCommand(doctorCommand);
 program.addCommand(completionCommand);
 program.addCommand(upgradeCommand);
 program.addCommand(networksCommand);
+program.addCommand(agentCommand);
+program.addCommand(restartCommand);
 // Default: show help if no command provided
 if (process.argv.length === 2) {
     const result = await runColdPreflight();

@@ -13,7 +13,7 @@ _tdk_completions() {
     prev="\${COMP_WORDS[COMP_CWORD-1]}"
     
     # Main commands
-    local commands="project projects stack stacks resource resources up down status ui doctor runtime version completion help upgrade mcp logs eject import config maintainers networks traefik"
+    local commands="project projects stack stacks resource resources agent restart up down status ui doctor runtime version completion help upgrade mcp logs eject import config maintainers networks traefik"
     
     # Options for specific commands
     case "\${prev}" in
@@ -136,6 +136,8 @@ _tdk_commands() {
         'stacks:List all stacks'
         'resource:Create new resource'
         'resources:List all resources'
+        'agent:Inspect and operate AI agent resources'
+        'restart:Restart a running resource in the stack'
         'up:Start services'
         'down:Stop all services'
         'status:Show resource status'
@@ -189,6 +191,8 @@ complete -c tdk -n '__fish_use_subcommand' -a 'stack' -d 'Organize resources int
 complete -c tdk -n '__fish_use_subcommand' -a 'stacks' -d 'List all stacks'
 complete -c tdk -n '__fish_use_subcommand' -a 'resource' -d 'Create new resource'
 complete -c tdk -n '__fish_use_subcommand' -a 'resources' -d 'List all resources'
+complete -c tdk -n '__fish_use_subcommand' -a 'agent' -d 'Inspect and operate AI agent resources'
+complete -c tdk -n '__fish_use_subcommand' -a 'restart' -d 'Restart a running resource in the stack'
 complete -c tdk -n '__fish_use_subcommand' -a 'up' -d 'Start services'
 complete -c tdk -n '__fish_use_subcommand' -a 'down' -d 'Stop all services'
 complete -c tdk -n '__fish_use_subcommand' -a 'status' -d 'Show resource status'

@@ -262,10 +262,12 @@ export function createPackageJson(
   type: string,
   frameworkId?: string,
   prismaEnabled = false,
+  agentConfig?: AgentConfig,
 ) {
   const isFrontend = type === "frontend";
   const framework = resolveFrontendFramework(type, frameworkId);
   const backendFramework = resolveBackendFramework(type, frameworkId);
+  const isPostgresAgent = type === "agent" && agentConfig?.durability === "postgres";
 
   return {
     name: `@project/${name}`,
@@ -297,11 +299,15 @@ export function createPackageJson(
     dependencies: {
       ...(isFrontend ? {} : (backendFramework?.dependencies ?? { hono: "^4.0.0" })),
       ...(framework?.dependencies ?? {}),
-      ...(prismaEnabled
+      ...(prismaEnabled || isPostgresAgent
         ? {
-            prisma: "^7.5.0",
-            "@prisma/client": "^7.5.0",
-            "@prisma/adapter-pg": "^7.5.0",
+            ...(prismaEnabled
+              ? {
+                  prisma: "^7.5.0",
+                  "@prisma/client": "^7.5.0",
+                  "@prisma/adapter-pg": "^7.5.0",
+                }
+              : {}),
             pg: "^8.13.0",
           }
         : {}),
@@ -435,7 +441,7 @@ export const resourceCommand = new Command("resource")
   .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
   .option(
     "--durability <kind>",
-    "Where agent sessions are checkpointed (for agent only): files (default, a named volume that survives tdk down)",
+    "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres",
   )
   .action(async (name, options) => {
     if (options.frameworks) {
@@ -867,6 +873,7 @@ This file contains the resource configuration for TDK.
         resourceType,
         scaffoldFrameworkId,
         prismaEnabled,
+        agentConfig,
       );
       if (prismaEnabled && resourceType === "backend") {
         serviceJson.dependsOn = [`${resourceName}-migrator`];
@@ -913,10 +920,17 @@ This file contains the resource configuration for TDK.
 
       // Add source files based on resource type
       if (resourceType === "backend" || resourceType === "mcp" || resourceType === "agent") {
+        const indexContent =
+          resourceType === "agent"
+            ? (backendFramework?.createIndex ?? getBackendIndexTemplate)(
+                resourceName,
+                agentConfig?.durability,
+              )
+            : (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName);
         tasks.push({
           type: "text",
           filename: "src/index.ts",
-          content: (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName),
+          content: indexContent,
           description:
             resourceType === "mcp"
               ? "Generating MCP server source"

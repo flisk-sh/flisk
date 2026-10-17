@@ -1,12 +1,14 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { writeSync } from "node:fs";
+import {
+  createMachineEnvelope,
+  type MachineEnvelope,
+  type MachineError,
+  SCHEMA_VERSION,
+} from "./machine-output.js";
 
-export interface JsonError {
-  code: string;
-  message: string;
-  suggestions?: string[];
-}
+export type JsonError = MachineError;
 
 export type JsonEmitter = (data: Record<string, unknown>, errors?: JsonError[]) => void;
 
@@ -20,7 +22,7 @@ export function createJsonEmitter(failureCode: string, command: string): JsonEmi
   const emit: JsonEmitter = (data, errors = []) => {
     if (emitted) return;
     emitted = true;
-    writeSync(1, `${JSON.stringify({ schemaVersion: 1, data, errors })}\n`);
+    writeSync(1, `${JSON.stringify(createMachineEnvelope(data, errors))}\n`);
   };
   process.once("exit", (code) => {
     emit({ ok: false }, [

@@ -14,6 +14,7 @@ const exampleRoot = resolve(
 describe("PROJECT_TEMPLATES", () => {
   it("offers every public example repo", () => {
     expect(Object.keys(PROJECT_TEMPLATES).sort()).toEqual([
+      "agent-stack",
       "ecommerce",
       "erp",
       "example",
