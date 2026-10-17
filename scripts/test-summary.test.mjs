@@ -5,7 +5,15 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { e2eRuns, isFailing, MARKER, render, shouldPost, unitCounts } from "./test-summary.mjs";
+import {
+  coverageChanged,
+  e2eRuns,
+  isFailing,
+  MARKER,
+  render,
+  shouldPost,
+  unitCounts,
+} from "./test-summary.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const file = (name) => path.join(root, "cli", "src", "utils", "__tests__", name);
@@ -130,10 +138,30 @@ test("e2eRuns keeps the newest run of each e2e-tier workflow and ignores other w
   ]);
 });
 
-test("a summary is created only when something failed, and edited once it exists", () => {
-  assert.equal(shouldPost({ existing: false, failing: false }), false);
-  assert.equal(shouldPost({ existing: false, failing: true }), true);
-  assert.equal(shouldPost({ existing: true, failing: false }), true);
+test("a summary is created when something failed or coverage changed, and edited once it exists", () => {
+  assert.equal(shouldPost({ existing: false, failing: false, changed: false }), false);
+  assert.equal(shouldPost({ existing: false, failing: true, changed: false }), true);
+  assert.equal(shouldPost({ existing: false, failing: false, changed: true }), true);
+  assert.equal(shouldPost({ existing: true, failing: false, changed: false }), true);
+});
+
+test("isFailing counts an E2E run that failed, even when the unit tests passed", () => {
+  const unit = unitCounts(vitestReport());
+  const e2e = [{ path: "x", name: "Smoke", result: "failure", url: "u" }];
+  assert.equal(isFailing({ unit, ratchet: ratchet(), e2e, testResult: "success" }), true);
+  assert.equal(isFailing({ unit, ratchet: ratchet(), e2e: [], testResult: "success" }), false);
+  assert.equal(isFailing({ unit, ratchet: ratchet(), e2e: null, testResult: "success" }), false);
+});
+
+test("coverageChanged is true only when a line or branch figure rose above its baseline", () => {
+  assert.equal(coverageChanged(ratchet()), false);
+  assert.equal(coverageChanged(null), false);
+  const raised = ratchet();
+  raised.areas.validation.metrics.lines = { actual: 100, baseline: 98.5 };
+  assert.equal(coverageChanged(raised), true);
+  const tiny = ratchet();
+  tiny.areas.validation.metrics.branches = { actual: 95.835, baseline: 95.83 };
+  assert.equal(coverageChanged(tiny), false);
 });
 
 test("render puts the counts, the failed names and the links in one marked comment", () => {

@@ -79,14 +79,51 @@ function firstLine(text) {
   return line.length > 240 ? `${line.slice(0, 237)}...` : line;
 }
 
-// Per-area coverage with the baseline floor, from the ratchet's JSON report.
-export function areaRows(ratchet) {
-  return Object.entries(ratchet?.areas ?? {}).map(([name, area]) => ({
-    name,
-    files: area.files,
-    lines: area.metrics.lines,
-    branches: area.metrics.branches,
-  }));
+// Lines the diff adds under cli/src, from `git diff -U0` text: repo-relative file -> Set of new line numbers.
+export function parseAddedLines(diffText) {
+  const added = new Map();
+  let file = null;
+  for (const line of diffText.split("\n")) {
+    if (line.startsWith("+++ ")) {
+      const name = line.slice(4);
+      file = name === "/dev/null" ? null : name.replace(/^b\//, "");
+      continue;
+    }
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
+    if (!hunk || !file) continue;
+    const start = Number(hunk[1]);
+    const count = hunk[2] === undefined ? 1 : Number(hunk[2]);
+    if (!added.has(file)) added.set(file, new Set());
+    for (let n = start; n < start + count; n++) added.get(file).add(n);
+  }
+  return added;
+}
+
+const isTestFile = (rel) => /__tests__\/|\.test\.[cm]?[jt]sx?$/.test(rel);
+
+// Changed-line coverage: of the executable lines the change adds under cli/src (tests excluded), how many a unit test ran.
+// A line is executable when a statement starts on it, and covered when a statement starting there ran (istanbul JSON).
+export function changedLineCoverage(coverageFinal, added) {
+  let total = 0;
+  let covered = 0;
+  const files = [];
+  for (const [abs, data] of Object.entries(coverageFinal)) {
+    const rel = relative(abs);
+    const lines = added.get(rel);
+    if (!lines || !rel.startsWith("cli/src/") || isTestFile(rel)) continue;
+    const ran = new Map();
+    for (const [id, loc] of Object.entries(data.statementMap ?? {})) {
+      const line = loc.start.line;
+      if (!lines.has(line)) continue;
+      ran.set(line, (ran.get(line) ?? false) || data.s[id] > 0);
+    }
+    if (ran.size === 0) continue;
+    const uncovered = [...ran].filter(([, hit]) => !hit).map(([line]) => line).sort((a, b) => a - b);
+    total += ran.size;
+    covered += ran.size - uncovered.length;
+    if (uncovered.length > 0) files.push({ file: rel, uncovered });
+  }
+  return { total, covered, percent: total === 0 ? null : (covered * 100) / total, files };
 }
 
 // E2E workflow runs: the newest run of each workflow file in the CI inventory's e2e tier, for this commit.
@@ -109,22 +146,33 @@ export function e2eRuns(runs, inventory) {
   return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function isFailing({ unit, ratchet, testResult }) {
+export function isFailing({ unit, ratchet, e2e, testResult }) {
   if (testResult && !["success", "skipped"].includes(testResult)) return true;
   if (unit && (unit.fail > 0 || unit.suiteErrors.length > 0)) return true;
+  if (e2e?.some(({ result }) => result === "failure" || result === "timed_out")) return true;
   return Boolean(ratchet && ratchet.failures.length > 0);
 }
 
-// Whether to create or edit the comment. A PR with no summary yet gets one only when something failed, so a green PR
-// with no coverage change stays quiet. Once a summary exists, it is kept current on every run.
-export function shouldPost({ existing, failing }) {
-  return existing || failing;
+// Whether a line or branch figure moved against the ratchet baseline by at least 0.01 points (the displayed precision).
+// The ratchet only fails below the baseline, so this is true when coverage rose without the baseline being updated.
+export function coverageChanged(ratchet) {
+  return Object.values(ratchet?.areas ?? {}).some((area) =>
+    ["lines", "branches"].some((metric) => {
+      const { actual, baseline } = area.metrics?.[metric] ?? {};
+      return actual !== undefined && baseline != null && actual - baseline >= 0.01;
+    }),
+  );
 }
 
-const signed = (value) => (value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2));
+// Whether to create or edit the comment. A PR with no summary yet gets one when something failed or coverage changed
+// materially, so a green PR with no change stays quiet. Once a summary exists, it is kept current on every run.
+export function shouldPost({ existing, failing, changed = false }) {
+  return existing || failing || changed;
+}
 
-export function render({ unit, ratchet, coverage, e2e, testResult, runUrl, sha }) {
-  const failing = isFailing({ unit, ratchet, testResult });
+
+export function render({ unit, ratchet, coverage, changed, e2e, testResult, runUrl, sha }) {
+  const failing = isFailing({ unit, ratchet, e2e, testResult });
   const lines = [
     MARKER,
     `### ${failing ? "❌" : "✅"} Test summary for \`${sha.slice(0, 7)}\``,
@@ -163,18 +211,26 @@ export function render({ unit, ratchet, coverage, e2e, testResult, runUrl, sha }
     );
   }
 
-  lines.push("**Coverage (lines / branches, against the per-area baseline)**", "");
-  if (ratchet) {
-    lines.push(
-      "| Area | Files | Lines | Δ vs baseline | Branches | Δ vs baseline |",
-      "|---|---:|---:|---:|---:|---:|",
-    );
-    for (const row of areaRows(ratchet)) {
+  lines.push("**Coverage of changed lines** (executable lines this change adds under `cli/src`)", "");
+  if (changed === null) {
+    lines.push("Not collected: the change could not be diffed against its base. See the run.", "");
+  } else if (changed.total === 0) {
+    lines.push("No executable lines changed under `cli/src`.", "");
+  } else {
+    lines.push(`**${changed.percent.toFixed(2)}%** (${changed.covered}/${changed.total} changed lines run by a unit test).`, "");
+    if (changed.files.length > 0) {
+      const shown = changed.files.slice(0, MAX_FAILED).map((f) => `- \`${f.file}\`: ${f.uncovered.join(", ")}`);
+      const more = changed.files.length > MAX_FAILED ? [`- …and ${changed.files.length - MAX_FAILED} more files`] : [];
       lines.push(
-        `| ${row.name} | ${row.files} | ${cell(row.lines)} | ${delta(row.lines)} | ${cell(row.branches)} | ${delta(row.branches)} |`,
+        `<details><summary>Changed lines no unit test ran (${changed.files.length} files)</summary>`,
+        "",
+        ...shown,
+        ...more,
+        "",
+        "</details>",
+        "",
       );
     }
-    lines.push("");
   }
   if (coverage) {
     lines.push(
@@ -182,7 +238,10 @@ export function render({ unit, ratchet, coverage, e2e, testResult, runUrl, sha }
       "",
     );
   }
-  if (!ratchet && !coverage) {
+  if (ratchet && ratchet.failures.length > 0) {
+    lines.push("**Coverage ratchet failed**", "", ...ratchet.failures.map((f) => `- ${f}`), "");
+  }
+  if (!coverage && !ratchet) {
     lines.push("Not produced: the coverage report did not finish. See the run.", "");
   }
 
@@ -211,16 +270,6 @@ export function render({ unit, ratchet, coverage, e2e, testResult, runUrl, sha }
     `_Updated ${new Date().toISOString()} by scripts/test-summary.mjs._`,
   );
   return `${lines.join("\n")}\n`;
-}
-
-function cell(metric) {
-  return metric.actual === undefined ? "n/a" : `${metric.actual.toFixed(2)}%`;
-}
-
-function delta(metric) {
-  if (metric.actual === undefined || metric.baseline === null || metric.baseline === undefined)
-    return "n/a";
-  return `${signed(metric.actual - metric.baseline)} pts`;
 }
 
 function escapeHtml(text) {
@@ -304,6 +353,8 @@ function main() {
   const vitest = readJsonIfPresent(path.join(opts.unit, "vitest.json"));
   const ratchet = readJsonIfPresent(path.join(opts.unit, "coverage-ratchet.json"));
   const coverage = readJsonIfPresent(path.join(opts.unit, "coverage-summary.json"))?.total ?? null;
+  const coverageFinal = readJsonIfPresent(path.join(opts.unit, "coverage-final.json"));
+  const changed = coverageFinal && opts.diffBase ? changedLinesFor(coverageFinal, diffFrom(opts.diffBase)) : null;
   const unit = vitest ? unitCounts(vitest) : null;
 
   let e2e = null;
@@ -327,8 +378,9 @@ function main() {
   process.stdout.write(body);
   if (!opts.post) return;
   const existingId = findExistingId(opts.repo, opts.pr);
-  const failing = isFailing({ unit, ratchet, testResult: opts.testResult });
-  if (!shouldPost({ existing: existingId !== null, failing })) {
+  const failing = isFailing({ unit, ratchet, e2e, testResult: opts.testResult });
+  const changed = coverageChanged(ratchet);
+  if (!shouldPost({ existing: existingId !== null, failing, changed })) {
     console.error("test-summary: all checks passed and no summary exists yet; no comment posted");
     return;
   }

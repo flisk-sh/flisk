@@ -213,7 +213,9 @@ jobs:
         working-directory: .
         run: make test-shell
       # Report-only: writes text, HTML and JSON-summary reports to cli/coverage/ and sets no threshold.
+      # Runs after an earlier test failure too, so the PR summary gets Vitest's JSON report with the failed test names (#1385).
       - name: Unit test coverage report
+        if: ${{ !cancelled() }}
         run: bun run test:coverage
         env:
           TDK_REQUIRE_TILT: '1'
