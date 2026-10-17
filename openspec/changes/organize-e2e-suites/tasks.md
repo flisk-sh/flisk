@@ -22,7 +22,7 @@
 - [ ] 3.4 Move `tests/e2e/byo-python*.test.sh` and `scripts/verify-byo-{example,job,pair,tdk}.sh` into `resource-types/bring-your-own`
 - [x] 3.5 Add a `resource-types/backend` suite from the backend parts of quickstart (scaffold, routed health, restart, error envelope) (the `resource-types/backend` suite (B1 scaffold, B2 tdk up and status, B3 routed health) is in this PR; the live legs are the proof)
 - [ ] 3.6 Add `resource-types/worker` (processes a job) and `resource-types/migrator` (migration completes before the API, per the migrator rule) (partial, both suites passed live on run 39040922743: `resource-types/worker` scaffolds, starts, shows in status, and its container runs and logs its start line (W3); `resource-types/migrator` registers a service.json with appType migrator, because `tdk resource --type migrator` is not accepted, and shows in tdk status; both run nightly and on release only; still open: a worker that processes a job (the scaffold is a stub), and the migrator ordering check through tdk up, which is blocked: docs/data.md says the order between migrator, seed and API is not guaranteed and the explicit dependsOn on Postgres is still open as #531, so a test would assert behaviour TDK does not provide)
-- [ ] 3.7 Add `resource-types/library` and `resource-types/sdk` (consumed build), or allowlist them with tracking issues
+- [x] 3.7 Add `resource-types/library` and `resource-types/sdk` (consumed build), or allowlist them with tracking issues (took the allowlist route: library and sdk are allowlisted in tests/e2e/axes.json against #1295, which tracks their suites; no suite exists yet)
 
 ## 3b. Matrix axes (appType, language, framework, and the rest)
 
