@@ -23,7 +23,7 @@ jobs:
 
   changes:
     name: 🔎 Detect Changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     outputs:
       lockfile: ${{ steps.filter.outputs.lockfile }}
@@ -53,7 +53,7 @@ jobs:
 
   spellcheck:
     name: 🔤 Spell check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -63,7 +63,7 @@ jobs:
 
   lint:
     name: 🛡️ Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
@@ -113,7 +113,7 @@ jobs:
 
   typecheck:
     name: 🦴 Typecheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
@@ -131,7 +131,7 @@ jobs:
 
   fuzz:
     name: 🧬 Fuzz
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
@@ -149,7 +149,7 @@ jobs:
 
   published-schema:
     name: 📜 Published service schema
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
@@ -163,7 +163,7 @@ jobs:
 
   test:
     name: 🧪 Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
@@ -200,7 +200,7 @@ jobs:
   # so a release can't ship without the compiled CLI or its dependencies.
   package-smoke:
     name: 📦 Package Smoke Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
@@ -255,7 +255,7 @@ jobs:
 
   secret-scan:
     name: 🔑 Secret Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     if: github.event_name == 'pull_request'
     steps:
@@ -273,7 +273,7 @@ jobs:
   # repository variable DEPENDENCY_REVIEW set to true (Settings > Variables).
   dependency-review:
     name: 🔒 Dependency Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     needs: changes
     if: vars.DEPENDENCY_REVIEW == 'true' && needs.changes.outputs.lockfile == 'true' && github.event_name == 'pull_request'
@@ -287,7 +287,7 @@ jobs:
 
   workflow-audit:
     name: 🛠️ Workflow Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     needs: changes
     if: needs.changes.outputs.workflows == 'true' || github.event_name == 'workflow_dispatch'
@@ -310,7 +310,7 @@ jobs:
     name: 🐳 Trivy (dependencies, Dockerfiles, IaC)
     # Fork PRs get a read-only token, which cannot upload SARIF.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -336,7 +336,7 @@ jobs:
   osv-scanner:
     name: 📦 OSV-Scanner (lockfile vulnerabilities)
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -362,7 +362,7 @@ jobs:
   semgrep:
     name: 🔎 Semgrep (SAST)
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -385,7 +385,7 @@ jobs:
 
   summary:
     name: 📋 Summary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     if: always()
     needs: [lint, spellcheck, typecheck, test, package-smoke, secret-scan, dependency-review, workflow-audit]

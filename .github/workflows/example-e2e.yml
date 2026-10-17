@@ -22,7 +22,7 @@ jobs:
 
   example-e2e:
     name: example-e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
