@@ -123,6 +123,26 @@ A vitest test imports the list of valid resource types and compares it with the 
 ### Matrix first: one job per kind of test, one axis per kind of variant
 Without this rule the workflow count grows with every provider: Python and Go already have their own workflows, and #1276 adds Node. The rule is that tests with the same steps share one job, and variants are matrix values. The axes are resource type (`appType`), backend language, frontend framework, example app, and host platform. Axes with a registry in the CLI are generated from it at run time (`VALID_RESOURCE_TYPES`, `cli/src/backend-languages/registry.ts`, `cli/src/frontend-frameworks/`), so a provider pull request such as #1276 gets its e2e leg without editing YAML. A coverage check fails when a registry entry has neither a matrix value nor an allowlist entry with an issue link. Nested axes stay shallow: `backend` × language and `frontend` × framework group are the only two-level axes. On a pull request, the `changes` job selects only the values whose files changed. Nightly and release runs use every value. The matrix does not merge tests that do different things: a dev-loop journey and a resource contract stay separate jobs even when both are written in Go. Alternative: one workflow per variant, which is today's sprawl. Rejected, because a new provider would need new YAML, new required checks and copied setup.
 
+The axes found in the code today, which seed `tests/e2e/axes.json`:
+
+| Axis | Source of truth | Values today | Replaces |
+|---|---|---|---|
+| `appType` | `VALID_RESOURCE_TYPES` in `cli/src/utils/constants.ts` | backend, frontend, worker, migrator, mcp, agent, library, sdk, bring-your-own | `agent-e2e.yml`, `scripts/verify-mcp.sh`, missing suites |
+| `language` | `cli/src/backend-languages/registry.ts` | bun, python, go, rust (+ node in #1276) | `go-dev-loop-e2e.yml`, part of `python-example-e2e.yml` |
+| `httpFramework` | `cli/src/backend-frameworks/registry.ts` | hono (default), express, fastify, nestjs | no live coverage today |
+| `frontendFramework` | `cli/src/frontend-frameworks/registry.ts` | react, vue, svelte, solid, preact, qwik, lit, vanilla, tanstack-router | `scripts/verify-frontend-frameworks.sh` (never run in CI) |
+| `agentRuntime` | `cli/src/agent-runtimes/registry.ts` | custom | — |
+| `agentDurability` | `tdk resource --durability` | files, postgres | postgres has no live coverage today |
+| `feature` | `featuresEnabled` | prisma | — |
+| `infraService` | `OPTIONAL_INFRA_SERVICES` | monitoring, elk, debezium, golden_image, verdaccio | no live coverage today |
+| `byoVariant` | `examples/byo*`, `scripts/verify-byo-*.sh` | python, example, job, pair, tdk | `byo-e2e.yml`, `byo-boot-e2e.yml`, four unrun scripts |
+| `example` | `examples/*` plus the saas-starter and restaurant repositories | default (`tdk-example`), one-backend, one-backend-python, one-backend-helm, saas-starter, restaurant | `example-e2e.yml`, `examples-e2e.yml`, `python-example-e2e.yml` |
+| `platform` | runner labels | ubuntu, windows, wsl2 | `windows-smoke.yml`, `wsl2-smoke.yml`, the Windows job in `release-binaries.yml` |
+| `installChannel` | how the CLI under test is installed | pr-tarball, npm, release-binary | install steps copied across e2e workflows |
+| `journey` | `tests/e2e/journeys/*` | quickstart, smoke, dev-loop, cold-start | four workflows |
+
+One axis at a time, with the others at their defaults, keeps the leg count linear. Today's values give about 50 legs nightly instead of a product in the hundreds of thousands. A pull request touching one provider runs one or two legs.
+
 ### Resource types are one matrix keyed by `appType`
 Instead of nine resource-type suites with copied setup and copied common cases, `e2e-resource-types.yml` has one job with an `appType` axis. `tests/e2e/resource-types/common.sh` holds the cases every type shares (scaffold, status wait, restart, error envelope), parameterized by type. Each type's folder adds only its contract cases (agent sessions and MCP tools, a routed health check for backend and frontend, a processed job for worker, a completed run for migrator, a consumed build for library and sdk). Savings come from three places. Each leg is the same short definition, so adding a type costs a folder, not a workflow. Setup happens once per run through the packed tarball and composite actions. A pull request runs only the legs its paths select. Nightly and release runs add one combined leg that boots every compatible type in one stack, so nine boots become one for interaction coverage. Isolated legs stay on pull requests because a combined failure does not point at a type. `max-parallel` keeps the matrix within the shared 20-job limit. The agent suite moves first and becomes the `agent` leg. Its cases beyond the common set (sessions, MCP, drain, durability) stay in `resource-types/agent/`.
 

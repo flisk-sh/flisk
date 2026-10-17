@@ -38,7 +38,7 @@ Each resource-type suite SHALL cover scaffolding with `tdk resource`, a bounded 
 - **THEN** the suite lists the routed health case as not applicable and checks the migration's completion instead
 
 ### Requirement: Resource-type suites run as one matrix keyed by appType
-`e2e-resource-types.yml` SHALL define one job, parameterized by `appType`, and run it as a matrix whose values are the selected resource types. Adding a resource type SHALL add a matrix value and a folder, not a workflow or a job. Stackless CLI checks are not a leg: they stay in `cli-integration`.
+The resource-types group SHALL be one job whose primary axis is `appType`, following the general variant rule in `e2e-suite-organization`. Each type's own variant kinds (backend language and HTTP framework, frontend framework, agent runtime and durability, resource feature, BYO variant) SHALL be secondary axes of that type's leg, not separate jobs. Adding a resource type SHALL add a matrix value and a folder. Stackless CLI checks stay in `cli-integration`.
 
 #### Scenario: New resource type
 - **WHEN** a contributor adds `appType: queue` with a `tests/e2e/resource-types/queue/` folder holding a contract case and `suite.json`

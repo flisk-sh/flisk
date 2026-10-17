@@ -60,7 +60,7 @@ Each group SHALL have one reusable workflow, `e2e-<group>.yml`, that runs its su
 - **THEN** it ends with a warning that names the secret and a neutral result, as `ci-pipeline-efficiency` requires, rather than failing
 
 ### Requirement: Variants are matrix axes, not workflows
-Tests that run the same steps for different variants SHALL be one job with a matrix axis per variant kind: resource type, backend language, frontend framework, example app, and host platform. Adding a variant SHALL add a matrix value, never a new workflow or job.
+Every group, not only resource types, SHALL run tests that share steps as one job with a matrix axis per kind of variant. The kinds are listed in `tests/e2e/axes.json` with their source of truth. Adding a variant SHALL add a matrix value, never a new workflow or job.
 
 #### Scenario: New backend language
 - **WHEN** a pull request adds `node` to the backend language registry, as #1276 does
@@ -69,6 +69,28 @@ Tests that run the same steps for different variants SHALL be one job with a mat
 #### Scenario: Existing per-variant workflows
 - **WHEN** the `examples` group is migrated
 - **THEN** `python-example-e2e.yml`, `example-e2e.yml` and `examples-e2e.yml` become values of one `example` axis, and `go-dev-loop-e2e.yml` becomes the `go` value of the dev-loop journey's language axis
+
+### Requirement: The axis catalog names every kind of variant
+`tests/e2e/axes.json` SHALL list each axis with its values' source and the groups that use it. At minimum: `appType`, backend `language`, backend `httpFramework`, `frontendFramework`, `agentRuntime`, `agentDurability`, resource `feature`, `infraService`, `byoVariant`, `example`, `platform`, `installChannel` and `journey`. A check SHALL fail when a value in a source has no leg and no allowlist entry with an issue link.
+
+#### Scenario: New infra service
+- **WHEN** a pull request adds `nats` to `OPTIONAL_INFRA_SERVICES`
+- **THEN** the `infraService` axis gains `nats` and the coverage check fails until a contract case or an allowlist entry exists
+
+#### Scenario: New platform
+- **WHEN** maintainers add macOS runners
+- **THEN** `macos` becomes a value of the `platform` axis in `e2e-platforms`, not a new workflow
+
+### Requirement: Axes are not crossed blindly
+A leg SHALL vary one axis at a time, with every other axis at its default. Combinations of two axes SHALL run only when listed as known interactions (matrix `include` entries) in `axes.json`, each with a reason. Pull request runs SHALL use only the changed values. Nightly runs SHALL use every value of every axis plus the listed interactions, and never the full product of all axes.
+
+#### Scenario: Frontend framework change
+- **WHEN** a pull request changes `cli/src/frontend-frameworks/svelte.ts`
+- **THEN** one leg runs, `frontend` with `frontendFramework=svelte`, with the default backend language and platform
+
+#### Scenario: Known interaction
+- **WHEN** `axes.json` lists `language=python` × `feature=prisma` as an interaction because of the Prisma client's runtime
+- **THEN** that combination runs nightly and when either value's files change, and other language and feature pairs do not
 
 ### Requirement: Matrix axes are generated from the CLI's registries
 Each axis that has a source of truth in the CLI SHALL be generated from it at run time: resource types from `VALID_RESOURCE_TYPES`, backend languages from `cli/src/backend-languages/registry.ts`, and frontend frameworks from `cli/src/frontend-frameworks/`. A check on every pull request SHALL fail when a registry entry has no matrix value and no allowlist entry with an issue link.
