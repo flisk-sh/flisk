@@ -9,7 +9,7 @@ A unit test lives in `cli/src/**/__tests__/` and does not start Docker, Tilt or 
 | Kind | File pattern | Runs in |
 |---|---|---|
 | unit | `*.test.ts` that mocks I/O | the unit matrix |
-| CLI integration | `*-e2e.test.ts` that spawns `tdk` on a temp project, no stack | the `cli-integration` group |
+| CLI integration | `*-e2e.test.ts` that spawns `tdk` on a temp project, no stack | the vitest run; not a live-stack group |
 | stack-backed | anything that boots Tilt or Compose | a live-stack e2e suite, see [write an e2e test](05-write-e2e.md) |
 
 If a test needs a running stack, it is not a unit test. Move it to an e2e suite instead of skipping it.
@@ -55,7 +55,7 @@ unit:
 
 Rules for legs:
 
-- **Keep legs equal in time.** Vitest balances by file, so keep one file per concern. Check each leg's duration in the job summary and raise the shard count when the slowest leg is twice the fastest.
+- **Keep legs equal in time.** Vitest shards split by file, not by time, so keep one file per concern. Check each leg's duration in the job summary and raise the shard count when the slowest leg is twice the fastest.
 - **Do not share state between legs.** A leg must not depend on a file another leg wrote. Tests that touch the built `cli/dist` stay out of the matrix and keep their own job.
 - **Keep the pull-request run fast.** The unit matrix runs on every pull request. Anything slower than a few minutes moves to `nightly`.
 - **Merge the reports.** Each leg uploads its JSON report. One final job merges them for the PR summary and the coverage table.

@@ -54,13 +54,13 @@ The builder expands a suite into legs in one of three ways: A suite can also lis
 | one per axis value, with a default | `backend` bun | one more bun leg per non-default HTTP framework |
 | one per variant | `bring-your-own` | one leg per `variants` entry in `suite.json`, with `BYO_VARIANT` set to its id |
 
-Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`), so the suite's `run.sh` reads what it needs and nothing else. A leg's `label` names the job in the UI (`resource-types / backend-bun`), so it is what reviewers search for.
+Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`, and `BYO_VARIANT` for variant suites), so the suite's `run.sh` reads what it needs and nothing else. A leg's `label` names the job in the UI (`resource-types / backend-bun`), so it is what reviewers search for.
 
 ## Triggers decide what runs where
 
 | Trigger | When | What the matrix covers |
 |---|---|---|
-| `pr` | pull requests that touch a suite's `paths` | the fast set: the two most used languages, no extra frameworks |
+| `pr` | pull requests that touch the workflow's `pull_request.paths` filter | the fast set: the two most used languages, no extra frameworks |
 | `nightly` | the scheduled run; installs `latest` from npm | every axis value the registry declares |
 | `release` | after a release is published (`workflow_run`); installs the version just published | the same as nightly |
 | `manual` | `workflow_dispatch`; installs the `version` input (default `latest`) | the same as nightly |
@@ -70,7 +70,7 @@ The validator also accepts a `weekly` trigger, but no group workflow runs it yet
 ## Add a suite to an existing group
 
 1. Create `tests/e2e/<group>/<suite>/` with `run.sh` (executable) and `suite.json`. Copy the shape of [`resource-types/backend`](../../tests/e2e/resource-types/backend/suite.json).
-2. List its `paths` so a pull request that changes the code it covers selects it.
+2. Add the code it covers to the workflow's `pull_request.paths` filter. The `paths` in `suite.json` are validated but nothing reads them yet, so keep the two lists in sync by hand.
 3. Choose `triggers`. Start with `["pr", "nightly", "release", "manual"]` only if the suite is fast; otherwise use `["nightly", "release", "manual"]`.
 4. Run `make test-shell`. `validate-suites.mjs` checks the folder, the keys, and that each listed case exists.
 5. Run the builder locally to see the legs it will produce (the command above).
