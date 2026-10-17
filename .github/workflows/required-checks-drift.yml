@@ -61,10 +61,18 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           title="Required checks differ from branch protection on main"
-          body="$(printf 'The inventory check failed against live branch protection on main. Update .github/ci-inventory.json or refresh .github/required-checks.json, then close this issue.\n\n```\n%s\n```\n\nRun: %s\n' "$(tail -n 30 drift.log)" "$RUN_URL")"
+          {
+            echo "The inventory check failed against live branch protection on main. Update .github/ci-inventory.json or refresh .github/required-checks.json, then close this issue."
+            echo
+            echo '```'
+            tail -n 30 drift.log
+            echo '```'
+            echo
+            echo "Run: $RUN_URL"
+          } > body.md
           existing="$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')"
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
+            gh issue comment "$existing" --body-file body.md
           else
-            gh issue create --title "$title" --body "$body"
+            gh issue create --title "$title" --body-file body.md
           fi
