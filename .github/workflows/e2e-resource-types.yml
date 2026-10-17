@@ -136,12 +136,16 @@ jobs:
           echo "tdk: $(tdk --version)"
 
       # The suite runs every case in order; each case is grouped in the log so a red case is easy to find.
-      - name: Run the ${{ matrix.suite }} suite
-        run: tests/e2e/resource-types/${{ matrix.suite }}/run.sh all
+      - name: Run the suite
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: tests/e2e/resource-types/"$SUITE"/run.sh all
 
       - name: Collect diagnostics
         if: failure()
-        run: tests/e2e/resource-types/${{ matrix.suite }}/run.sh diagnostics
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: tests/e2e/resource-types/"$SUITE"/run.sh diagnostics
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -152,7 +156,9 @@ jobs:
           retention-days: 14
       - name: Tear down
         if: always()
-        run: tests/e2e/resource-types/${{ matrix.suite }}/run.sh cleanup
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: tests/e2e/resource-types/"$SUITE"/run.sh cleanup
 
   # Always runs, so the gate reports a result even when no suite is selected. A selected suite that failed or was cancelled
   # fails the gate; a suite that was not selected does not.
