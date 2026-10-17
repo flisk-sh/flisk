@@ -6,6 +6,14 @@ export { captureExit, type ExitCapture, makeResource } from "./doubles.js";
 export { type Envelope, parseEnvelope } from "./parse-envelope.js";
 export { type RunTdkOptions, type RunTdkResult, runTdk, tdkBin } from "./run-tdk.js";
 export {
+  engineFile,
+  evaluateStarlark,
+  resolveTiltAvailability,
+  type StarlarkOptions,
+  type StarlarkRun,
+  tiltAvailable,
+} from "./starlark.js";
+export {
   createTempDir,
   createTempProject,
   type ServiceSpec,
