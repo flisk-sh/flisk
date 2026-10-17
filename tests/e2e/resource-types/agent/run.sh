@@ -16,6 +16,8 @@ set -euo pipefail
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/lib.sh
 source "$SUITE_DIR/../../lib/lib.sh"
+# shellcheck source=../common.sh
+source "$SUITE_DIR/../common.sh"
 e2e_init agent agente2e
 STACK=shop
 AGENT=bot
@@ -45,10 +47,7 @@ agent_stub() { with_stub "$(agent_port)" "$@"; } # <mode> [args...]: a stub stan
 
 A1() { # scaffold the project and the agent
   log "A1 scaffold: tdk project --yes, tdk resource $AGENT --type agent"
-  rm -rf "$DIR"; mkdir -p "$DIR"
-  (cd "$DIR" && git init -q .)
-  run a1-project project --yes; [ "$RC" -eq 0 ] || die "tdk project --yes exited $RC"
-  run a1-resource resource "$AGENT" --type agent --stack "$STACK" --yes; [ "$RC" -eq 0 ] || die "tdk resource exited $RC"
+  common_scaffold agent "$AGENT" --stack "$STACK" --yes
   local src="$DIR/services/$STACK/$AGENT/src/index.ts"
   [ -f "$src" ] || die "scaffolded agent source missing: $src"
   # The scaffold tells you to replace runTurn. Do what a user does: report which instance answered (for the sticky-routing
@@ -123,12 +122,9 @@ A5() { # sticky routing: same session id -> same instance
 A6() { # tdk restart, healthy again, checkpoint intact
   log "A6 tdk restart $AGENT"
   local before; before="$(agent_container)"
-  run a6-restart restart "$AGENT" --json
-  [ "$RC" -eq 0 ] || die "tdk restart exited $RC"
-  assert envelope "$OUT/a6-restart.out"
-  assert check "$OUT/a6-restart.out" "j.errors.length === 0 && j.data.resource === '$AGENT' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
-  # Tilt rebuilds and recreates the container; wait for a ready agent that is a different container.
-  agent_restarted "$before"
+  # Tilt rebuilds and recreates the container; common_restart waits for a different container, then for /ready.
+  common_restart "$AGENT" "$before" "agent $AGENT answers /ready 200 through Traefik" agent_ready
+  poll_until "tdk agent sessions answers again after restart" "$READY_TIMEOUT" session_answers
   run a6-sessions agent sessions "$AGENT" --session-id s1 --json
   [ "$RC" -eq 0 ] || die "tdk agent sessions after restart exited $RC"
   assert check "$OUT/a6-sessions.out" "j.data.session.messages.length === 2 && j.data.session.messages[0].content === 'hello'" "checkpoint s1 survived the restart"

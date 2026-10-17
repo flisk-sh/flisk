@@ -29,7 +29,7 @@
 - [ ] 3b.1 Write `tests/e2e/resource-types/common.sh` with the shared cases (scaffold, status wait, restart with replaced-container wait, one error envelope), parameterized by `appType` (`common.sh` is in this PR with the four shared cases; the agent suite does not use it yet, so 3b.4 is still open and nothing is proved live)
 - [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set (the `appType` matrix is in this PR as the suite matrix; the per-type axis waits on `common.sh` (3b.1))
 - [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
-- [ ] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases
+- [ ] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases (A1 scaffold and A6 restart now use `common.sh` in the agent suite, in this PR; the live agent leg is the proof; sessions, MCP, drain and durability stay as contract cases)
 - [ ] 3b.5 Generate the matrix axes from the registries (`VALID_RESOURCE_TYPES`, backend languages, frontend frameworks) in the `changes` job, and extend the coverage check to every registry with an allowlist
 - [ ] 3b.6 Add the `backend` × language axis (bun, python, go, rust, and node once #1276 merges) with fail-fast off and max-parallel set
 - [ ] 3b.7 Write `tests/e2e/axes.json` (axis, source, groups, defaults, known interactions with reasons) and extend the coverage check to every axis with a source (`axes.json` and its coverage check are in #1306; still to do: extend the check to every registry)
