@@ -30,13 +30,14 @@ W2() { # tdk up, then the worker is listed as a worker in tdk status
   common_wait_status "$RES" worker
 }
 
-worker_running() { [ -n "$(running_container "$RES")" ]; }
-worker_logged_start() { docker logs "$(running_container "$RES")" 2>&1 | grep -q "$RES worker started"; }
+# The scaffolded worker is a stub that logs one line and exits, so its container may already have stopped: read the logs of
+# the newest container for the resource, running or not, and bound the wait.
+worker_container() { docker ps -aq --filter "name=${PROJECT}-.*-$RES-" | head -1; }
+worker_logged_start() { local c; c="$(worker_container)"; [ -n "$c" ] && docker logs "$c" 2>&1 | grep -q "$RES worker started"; }
 
-W3() { # the worker container is running and logged its start line
-  log "W3 the $RES container is running and logged its start line"
-  poll_until "$RES container is running" "$READY_TIMEOUT" worker_running
-  poll_until "$RES logged 'worker started'" 120 worker_logged_start
+W3() { # the worker's container logged its start line
+  log "W3 the $RES container logged its start line"
+  poll_until "$RES logged 'worker started'" 180 worker_logged_start
 }
 
 e2e_main "$@"
