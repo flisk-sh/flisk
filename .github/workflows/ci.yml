@@ -221,6 +221,7 @@ jobs:
           TDK_REQUIRE_TILT: '1'
       # Fails when a high-risk area drops below its baseline in cli/coverage-baseline.json (the ratchet).
       - name: Coverage ratchet for high-risk areas
+        if: ${{ !cancelled() }}
         run: node scripts/coverage-ratchet.mjs --json test-results/coverage-ratchet.json
       - name: Coverage summary
         if: always()
@@ -245,7 +246,7 @@ jobs:
         if: always()
         run: |
           mkdir -p test-results
-          cp -f coverage/coverage-summary.json test-results/ || true
+          cp -f coverage/coverage-summary.json coverage/coverage-final.json test-results/ || true
       - name: Upload the unit test results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -268,8 +269,10 @@ jobs:
       actions: read # lists the E2E workflow runs of the pull request's head commit
       pull-requests: write # creates or edits the summary comment
     steps:
+      # Full history, so the base commit of the pull request is present for the changed-line coverage diff.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Download the unit test results
@@ -284,13 +287,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           TEST_RESULT: ${{ needs.test.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          args=(--unit unit-results --test-result "$TEST_RESULT" --run-url "$RUN_URL" --repo "$REPO" --sha "$HEAD_SHA")
+          args=(--unit unit-results --test-result "$TEST_RESULT" --run-url "$RUN_URL" --repo "$REPO" --sha "$HEAD_SHA" --diff-base "$BASE_SHA")
           if [ "$SAME_REPO" = "true" ]; then args+=(--pr "$PR_NUMBER" --post); fi
           node scripts/test-summary.mjs "${args[@]}" > summary.md
           cat summary.md >> "$GITHUB_STEP_SUMMARY"

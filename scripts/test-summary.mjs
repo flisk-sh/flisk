@@ -8,9 +8,10 @@
 // summary no matter how many pushes it gets. The Markdown goes to stdout in both modes.
 //
 //   node scripts/test-summary.mjs --unit <dir> [--test-result <job result>] [--run-url <url>]
-//       [--repo <owner/name> --sha <head sha>] [--e2e-json <file>] [--pr <number> --post]
+//       [--repo <owner/name> --sha <head sha>] [--e2e-json <file>] [--diff-base <sha>] [--pr <number> --post]
 //
-// --unit holds vitest.json, coverage-summary.json and coverage-ratchet.json (written by the Test job).
+// --unit holds vitest.json, coverage-summary.json, coverage-final.json and coverage-ratchet.json (written by the Test job).
+// --diff-base <sha> gives the changed-line coverage: the lines `git diff <sha> HEAD -- cli/src` adds, run from a checkout.
 // --repo and --sha fetch the E2E workflow runs of that commit with gh; --e2e-json reads them from a file instead.
 // Needs GH_TOKEN for --post and for the E2E lookup.
 
@@ -118,7 +119,10 @@ export function changedLineCoverage(coverageFinal, added) {
       ran.set(line, (ran.get(line) ?? false) || data.s[id] > 0);
     }
     if (ran.size === 0) continue;
-    const uncovered = [...ran].filter(([, hit]) => !hit).map(([line]) => line).sort((a, b) => a - b);
+    const uncovered = [...ran]
+      .filter(([, hit]) => !hit)
+      .map(([line]) => line)
+      .sort((a, b) => a - b);
     total += ran.size;
     covered += ran.size - uncovered.length;
     if (uncovered.length > 0) files.push({ file: rel, uncovered });
@@ -166,10 +170,9 @@ export function coverageChanged(ratchet) {
 
 // Whether to create or edit the comment. A PR with no summary yet gets one when something failed or coverage changed
 // materially, so a green PR with no change stays quiet. Once a summary exists, it is kept current on every run.
-export function shouldPost({ existing, failing, changed = false }) {
-  return existing || failing || changed;
+export function shouldPost({ existing, failing, moved = false }) {
+  return existing || failing || moved;
 }
-
 
 export function render({ unit, ratchet, coverage, changed, e2e, testResult, runUrl, sha }) {
   const failing = isFailing({ unit, ratchet, e2e, testResult });
@@ -211,16 +214,27 @@ export function render({ unit, ratchet, coverage, changed, e2e, testResult, runU
     );
   }
 
-  lines.push("**Coverage of changed lines** (executable lines this change adds under `cli/src`)", "");
-  if (changed === null) {
+  lines.push(
+    "**Coverage of changed lines** (executable lines this change adds under `cli/src`)",
+    "",
+  );
+  if (!changed) {
     lines.push("Not collected: the change could not be diffed against its base. See the run.", "");
   } else if (changed.total === 0) {
     lines.push("No executable lines changed under `cli/src`.", "");
   } else {
-    lines.push(`**${changed.percent.toFixed(2)}%** (${changed.covered}/${changed.total} changed lines run by a unit test).`, "");
+    lines.push(
+      `**${changed.percent.toFixed(2)}%** (${changed.covered}/${changed.total} changed lines run by a unit test).`,
+      "",
+    );
     if (changed.files.length > 0) {
-      const shown = changed.files.slice(0, MAX_FAILED).map((f) => `- \`${f.file}\`: ${f.uncovered.join(", ")}`);
-      const more = changed.files.length > MAX_FAILED ? [`- …and ${changed.files.length - MAX_FAILED} more files`] : [];
+      const shown = changed.files
+        .slice(0, MAX_FAILED)
+        .map((f) => `- \`${f.file}\`: ${f.uncovered.join(", ")}`);
+      const more =
+        changed.files.length > MAX_FAILED
+          ? [`- …and ${changed.files.length - MAX_FAILED} more files`]
+          : [];
       lines.push(
         `<details><summary>Changed lines no unit test ran (${changed.files.length} files)</summary>`,
         "",
@@ -319,6 +333,24 @@ export function findExistingId(repo, pr) {
   return first ? Number(first.trim()) : null;
 }
 
+// The changed-line result from the coverage JSON and the lines the change adds (`git diff -U0 <base> HEAD -- cli/src`).
+export function changedLinesFor(coverageFinal, diffText) {
+  return changedLineCoverage(coverageFinal, parseAddedLines(diffText));
+}
+
+// The diff of this checkout's HEAD against the base commit, or null when git cannot produce it.
+function diffFrom(base) {
+  try {
+    return execFileSync("git", ["diff", "-U0", base, "HEAD", "--", "cli/src"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch {
+    return null;
+  }
+}
+
 function parseArgs(argv) {
   const opts = {
     unit: null,
@@ -327,6 +359,7 @@ function parseArgs(argv) {
     repo: "",
     sha: "",
     e2eJson: null,
+    diffBase: "",
     pr: "",
     post: false,
   };
@@ -339,6 +372,7 @@ function parseArgs(argv) {
     else if (arg === "--repo") opts.repo = value();
     else if (arg === "--sha") opts.sha = value();
     else if (arg === "--e2e-json") opts.e2eJson = path.resolve(value());
+    else if (arg === "--diff-base") opts.diffBase = value();
     else if (arg === "--pr") opts.pr = value();
     else if (arg === "--post") opts.post = true;
     else throw new Error(`unknown argument: ${arg}`);
@@ -354,7 +388,9 @@ function main() {
   const ratchet = readJsonIfPresent(path.join(opts.unit, "coverage-ratchet.json"));
   const coverage = readJsonIfPresent(path.join(opts.unit, "coverage-summary.json"))?.total ?? null;
   const coverageFinal = readJsonIfPresent(path.join(opts.unit, "coverage-final.json"));
-  const changed = coverageFinal && opts.diffBase ? changedLinesFor(coverageFinal, diffFrom(opts.diffBase)) : null;
+  const diffText = opts.diffBase ? diffFrom(opts.diffBase) : null;
+  const changed =
+    coverageFinal && diffText !== null ? changedLinesFor(coverageFinal, diffText) : null;
   const unit = vitest ? unitCounts(vitest) : null;
 
   let e2e = null;
@@ -368,6 +404,7 @@ function main() {
     unit,
     ratchet,
     coverage,
+    changed,
     e2e,
     testResult: opts.testResult,
     runUrl: opts.runUrl,
@@ -379,8 +416,8 @@ function main() {
   if (!opts.post) return;
   const existingId = findExistingId(opts.repo, opts.pr);
   const failing = isFailing({ unit, ratchet, e2e, testResult: opts.testResult });
-  const changed = coverageChanged(ratchet);
-  if (!shouldPost({ existing: existingId !== null, failing, changed })) {
+  const moved = coverageChanged(ratchet);
+  if (!shouldPost({ existing: existingId !== null, failing, moved })) {
     console.error("test-summary: all checks passed and no summary exists yet; no comment posted");
     return;
   }

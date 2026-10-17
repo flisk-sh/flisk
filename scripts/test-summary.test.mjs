@@ -6,10 +6,12 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  changedLineCoverage,
   coverageChanged,
   e2eRuns,
   isFailing,
   MARKER,
+  parseAddedLines,
   render,
   shouldPost,
   unitCounts,
@@ -139,10 +141,10 @@ test("e2eRuns keeps the newest run of each e2e-tier workflow and ignores other w
 });
 
 test("a summary is created when something failed or coverage changed, and edited once it exists", () => {
-  assert.equal(shouldPost({ existing: false, failing: false, changed: false }), false);
-  assert.equal(shouldPost({ existing: false, failing: true, changed: false }), true);
-  assert.equal(shouldPost({ existing: false, failing: false, changed: true }), true);
-  assert.equal(shouldPost({ existing: true, failing: false, changed: false }), true);
+  assert.equal(shouldPost({ existing: false, failing: false, moved: false }), false);
+  assert.equal(shouldPost({ existing: false, failing: true, moved: false }), true);
+  assert.equal(shouldPost({ existing: false, failing: false, moved: true }), true);
+  assert.equal(shouldPost({ existing: true, failing: false, moved: false }), true);
 });
 
 test("isFailing counts an E2E run that failed, even when the unit tests passed", () => {
@@ -170,6 +172,12 @@ test("render puts the counts, the failed names and the links in one marked comme
     unit,
     ratchet: ratchet(),
     coverage: { lines: { pct: 42.5, covered: 425, total: 1000 }, branches: { pct: 30.1 } },
+    changed: {
+      total: 4,
+      covered: 3,
+      percent: 75,
+      files: [{ file: "cli/src/utils/x.ts", uncovered: [12] }],
+    },
     e2e: [{ path: "x", name: "Smoke", result: "success", url: "https://example.test/run/2" }],
     testResult: "failure",
     runUrl: "https://example.test/run/1",
@@ -179,8 +187,10 @@ test("render puts the counts, the failed names and the links in one marked comme
   assert.match(body, /### ❌ Test summary for `0123456`/);
   assert.match(body, /\| 2 \| 1 \| 1 \| 4 \|/);
   assert.match(body, /`cli\/src\/utils\/__tests__\/probe.test.ts` › fails probe/);
-  assert.match(body, /\| validation \| 1 \| 100\.00% \| \+0\.00 pts \| 95\.83% \| \+0\.00 pts \|/);
+  assert.match(body, /\*\*75\.00%\*\* \(3\/4 changed lines run by a unit test\)/);
+  assert.match(body, /`cli\/src\/utils\/x\.ts`: 12/);
   assert.match(body, /lines 42\.5% \(425\/1000\)/);
+  assert.doesNotMatch(body, /Δ vs baseline/);
   assert.match(body, /\| Smoke \| ✅ success \| \[open\]\(https:\/\/example\.test\/run\/2\) \|/);
   assert.match(body, /\[workflow run\]\(https:\/\/example\.test\/run\/1\)/);
 });
@@ -231,4 +241,61 @@ test("render escapes HTML in failure messages and bounds the failed list", () =>
   assert.match(body, /Failed tests \(25\)/);
   assert.match(body, /&lt;b&gt;x&lt;\/b&gt; &amp; y/);
   assert.match(body, /…and 5 more/);
+});
+
+test("parseAddedLines reads the new line numbers of each hunk, keyed by repo-relative file", () => {
+  const diff = [
+    "diff --git a/cli/src/a.ts b/cli/src/a.ts",
+    "--- a/cli/src/a.ts",
+    "+++ b/cli/src/a.ts",
+    "@@ -3,0 +4,2 @@ context",
+    "+one",
+    "+two",
+    "@@ -10 +20 @@",
+    "-old",
+    "+new",
+    "diff --git a/cli/src/gone.ts b/cli/src/gone.ts",
+    "+++ /dev/null",
+    "@@ -1,2 +0,0 @@",
+  ].join("\n");
+  const added = parseAddedLines(diff);
+  assert.deepEqual(
+    [...added.get("cli/src/a.ts")].sort((x, y) => x - y),
+    [4, 5, 20],
+  );
+  assert.equal(added.has("cli/src/gone.ts"), false);
+});
+
+// A statement map and hit counts shaped like istanbul's coverage-final.json.
+function coverageEntry(file, statements) {
+  const statementMap = {};
+  const s = {};
+  statements.forEach(([line, hits], i) => {
+    statementMap[i] = { start: { line }, end: { line } };
+    s[i] = hits;
+  });
+  return { [path.join(root, file)]: { path: path.join(root, file), statementMap, s } };
+}
+
+test("changedLineCoverage counts only added executable lines, and a line is covered when a statement on it ran", () => {
+  const coverage = {
+    ...coverageEntry("cli/src/a.ts", [
+      [4, 1],
+      [5, 0],
+      [5, 2],
+      [6, 0],
+      [9, 0],
+    ]),
+    ...coverageEntry("cli/src/a.test.ts", [[4, 0]]),
+  };
+  const added = new Map([
+    ["cli/src/a.ts", new Set([4, 5, 6])],
+    ["cli/src/a.test.ts", new Set([4])],
+    ["cli/docs/x.ts", new Set([1])],
+  ]);
+  const result = changedLineCoverage(coverage, added);
+  assert.equal(result.total, 3);
+  assert.equal(result.covered, 2);
+  assert.deepEqual(result.files, [{ file: "cli/src/a.ts", uncovered: [6] }]);
+  assert.equal(changedLineCoverage(coverage, new Map()).percent, null);
 });
