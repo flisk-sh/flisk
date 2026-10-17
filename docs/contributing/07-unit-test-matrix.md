@@ -75,11 +75,25 @@ Rules for legs:
 - **Merge the reports once.** The final job merges the blob reports for the PR summary and the coverage table. Legs do not post comments.
 - **Gate once.** A final `gate` job fails when any leg failed, and that job is the required check. A skipped leg must not pass.
 
+## Test cross-cutting flags once
+
+`--json`, `--dry-run` and `--yes` behave the same way in every command that has them. Do not copy a flag test into each command's test file. The flag contract is tested once, in a table, and each command is a row:
+
+| Flag | The contract every row must meet |
+|---|---|
+| `--json` | exactly one envelope on stdout (`schemaVersion`, `data`, `errors`); on failure `data` is `null` and the exit code is non-zero; no JSON on stderr |
+| `--dry-run` | exit 0, prints the `Dry run - ...` line, leaves the project directory unchanged, and starts no Docker, Tilt or network process |
+| `--yes` | finishes with stdin closed, so nothing waits on a prompt |
+
+A completeness test reads each exported `Command` and fails when it registers one of these flags but has no row in the table. A new command cannot add `--json` without joining the contract.
+
+A command's own test file then covers only what is specific to that command (what `down` stops, what `upgrade` compares). Share the setup code too: build a project with `createTempProject`, run it with `runTdk`, and read the envelope with `parseEnvelope` from `cli/src/test-support/`, instead of copying `mkdtempSync` and `spawnSync` into every file. These helpers and the contract tests are tracked in #1395 and #1396; until they land, follow the same table shape in your own file.
+
 ## Add a unit test
 
 1. Put the test next to the code under `cli/src/<area>/__tests__/<name>.test.ts`.
 2. Start with the happy path, then cover meaningful empty, error and boundary cases. Add recovery cases when the function's state or side effects make them relevant.
-3. Use `it.each` for any input space with more than two rows.
+3. Use `it.each` for any input space with more than two rows. If you are testing a shared flag, add a row to the flag contract table instead of a new test.
 4. Mock only the boundary (process, filesystem, prompt, network). Do not mock the function under test.
 5. Run it alone with `cd cli && npx vitest run <path>`, then the full suite with `make test-ts`.
 
