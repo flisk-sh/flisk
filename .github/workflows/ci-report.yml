@@ -1,0 +1,54 @@
+# Weekly CI cost and health report (#1289): per job run count, p50 and p90, failure, cancellation and skip rates, flaky cases,
+# pull request time to the aggregate result, and every job over its tier's budget. Posted to the job summary and as a comment
+# on the "Weekly CI report" issue (created on the first run). Runs on the default branch only; no pull request code.
+name: 📈 CI report
+
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Report CI cost and health
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      # The report reads the inventory and the workflow files with the yaml package.
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Build the report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/ci-report.mjs > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post the report on the Weekly CI report issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Weekly CI report"
+          number="$(gh issue list --state open --search "in:title \"$title\"" --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file report.md
+          else
+            gh issue create --title "$title" --body-file report.md
+          fi

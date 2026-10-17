@@ -55,7 +55,7 @@
 - [ ] 4b.9 Narrow bot event types (`ai-review-buttons`, `ai-conflict-buttons`, `ai-spec-buttons`, `hall-of-fame`, `contributor-*`, `journey-map`) (`ai-review-buttons` and `ai-conflict-buttons` were already narrow; concurrency added in #1307; `hall-of-fame` and `contributor-merged` listen for `closed` and cannot narrow further)
 - [ ] 4b.10 Make `update-pr-branches.yml` update only approved or auto-merge pull requests until the merge queue is on; add a `merge_group` trigger to the gate workflows
 - [x] 4b.11 Add a secret preflight that ends with a neutral result and a warning; add the red-job tracker (three consecutive failures open an issue, three passes close it) (secret preflight for `cold-start-e2e` is in #1308 and the red-job tracker in #1309; the preflight skips with a warning because GitHub has no neutral job result) [preflight merged in #1308 (it skips with a warning, as GitHub has no neutral job result) and the red-job tracker in #1309; the tracker has not yet opened or closed a real issue]
-- [ ] 4b.12 Add the weekly `ci-report` workflow (p50/p90, failure, cancellation and skip rates, flaky cases, time to aggregate result, per-tier budgets)
+- [ ] 4b.12 Add the weekly `ci-report` workflow (p50/p90, failure, cancellation and skip rates, flaky cases, time to aggregate result, per-tier budgets) (script and weekly workflow are in this PR; a local run over the last 7 days found no job or pull request aggregate over budget; the first posted report needs a dispatch after merge; the pull request aggregate is the later of the ci.yml summary and the e2e gate)
 - [ ] 4b.13 Each pull request in this section posts before and after numbers for the jobs it changes
 
 ## 5. Contributor guide and skill

@@ -566,6 +566,14 @@
 			"reason": "Fails when the plan or any selected suite fails (#1290)",
 			"required": false,
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci-report.yml",
+			"job": "report",
+			"tier": "report",
+			"required": false,
+			"reason": "Weekly CI cost and health report; posts to the job summary and the Weekly CI report issue (#1289)",
+			"owner": "maintainers"
 		}
 	]
 }
