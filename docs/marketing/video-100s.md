@@ -58,7 +58,7 @@ The `tdk` on the default PATH may be an older release than `origin/main`. Re-che
 
 > "Hand-edit a generated file, and TDK stops the stack."
 
-- On screen: edit a generated file under `.tdk/.tdk-out/`, then run `tdk config verify`. It reports the file as out of sync and exits 1.
+- On screen: edit a generated file under `.tdk/.tdk-out/`, then run `tdk config verify`. It reports the mismatch and exits 1. The exact message for a generated service file is not confirmed here; check the output on the recording machine before showing it.
 - Then `tdk up one-backend`: exit code 2, names the edited file, and suggests `tdk config regenerate`.
 - Then `tdk config regenerate` restores the file.
 - Commands: `tdk config verify`, `tdk up one-backend`, `tdk config regenerate`.
