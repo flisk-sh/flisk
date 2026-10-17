@@ -30,6 +30,8 @@ test-shell: ## Check shell script syntax, e2e suite definitions and e2e helper u
 	@echo "🧪 Checking shell verification script syntax..."
 	for script in scripts/verify-*.sh tests/e2e/lib/lib.sh tests/e2e/*/*/run.sh; do bash -n "$$script" || exit 1; done
 	node tests/e2e/lib/validate-suites.mjs
+	node tests/e2e/lib/check-axes.mjs
+	node --test tests/e2e/lib/__tests__/check-axes.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 
 test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, tdk)
