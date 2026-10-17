@@ -135,14 +135,15 @@ jobs:
           name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/rc-tarball
 
-      - name: Install the candidate tarball and check its version
+      - name: Install the candidate tarball
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          tarball: ${{ runner.temp }}/rc-tarball/tdk-cli.tgz
+
+      - name: Check the candidate version
         env:
           VERSION: ${{ needs.package.outputs.version }}
-        run: |
-          set -euo pipefail
-          node scripts/install-global.mjs "$RUNNER_TEMP/rc-tarball/tdk-cli.tgz"
-          test "$(tdk --version)" = "$VERSION"
-          tdk --version
+        run: test "$(tdk --version)" = "$VERSION"
 
       - name: Run the quickstart cases (Q1-Q4)
         env:
@@ -190,14 +191,15 @@ jobs:
           name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/rc-tarball
 
-      - name: Install the candidate tarball and check its version
+      - name: Install the candidate tarball
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          tarball: ${{ runner.temp }}/rc-tarball/tdk-cli.tgz
+
+      - name: Check the candidate version
         env:
           VERSION: ${{ needs.package.outputs.version }}
-        run: |
-          set -euo pipefail
-          node scripts/install-global.mjs "$RUNNER_TEMP/rc-tarball/tdk-cli.tgz"
-          test "$(tdk --version)" = "$VERSION"
-          tdk --version
+        run: test "$(tdk --version)" = "$VERSION"
 
       - name: Tool versions and commit
         run: |

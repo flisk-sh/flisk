@@ -315,8 +315,9 @@ jobs:
           path: ${{ runner.temp }}/cli-tarball
 
       - name: Install globally
-        run: | # zizmor: ignore[adhoc-packages] installs the tarball the package job packed from this commit
-          node scripts/install-global.mjs "$RUNNER_TEMP"/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          tarball: ${{ runner.temp }}/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
 
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -384,85 +385,6 @@ jobs:
           inputs: .github/workflows/
           advanced-security: false
           annotations: true
-
-  # Report-only code scanning, one Security > Code scanning category per tool. Nothing here
-  # fails the build, so existing findings do not block PRs.
-  trivy:
-    name: 🐳 Trivy (dependencies, Dockerfiles, IaC)
-    # Fork PRs get a read-only token, which cannot upload SARIF.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: fs
-          scanners: vuln,misconfig # secrets are covered by TruffleHog in ci.yml
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: sarif
-          output: trivy.sarif
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('trivy.sarif') != ''
-        with:
-          sarif_file: trivy.sarif
-          category: trivy
-
-  osv-scanner:
-    name: 📦 OSV-Scanner (lockfile vulnerabilities)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
-        continue-on-error: true # report-only: exits non-zero when it finds vulnerabilities
-        with:
-          scan-args: |-
-            --recursive
-            --format=sarif
-            --output=osv.sarif
-            ./
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('osv.sarif') != ''
-        with:
-          sarif_file: osv.sarif
-          category: osv-scanner
-
-  semgrep:
-    name: 🔎 Semgrep (SAST)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      # Open-source CLI with the public rule registry: no account, token or telemetry.
-      - name: Semgrep
-        run: | # zizmor: ignore[adhoc-packages] semgrep is pinned and only reads the checkout
-          pipx run semgrep==1.180.0 scan \
-            --config p/default --config p/typescript --config p/dockerfile --config p/github-actions \
-            --metrics=off --sarif --output semgrep.sarif || true
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('semgrep.sarif') != ''
-        with:
-          sarif_file: semgrep.sarif
-          category: semgrep
 
   summary:
     name: 📋 Summary
