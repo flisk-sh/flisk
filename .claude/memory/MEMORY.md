@@ -28,6 +28,8 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 
 - 2026-10-17 (#1396): `tdk upgrade --yes` updates the git-installed CLI checkout and rebuilds it; never run it from a test or a probe. Its flag-contract row stays exempt for that reason.
 
+- 2026-10-17 (#1384): `tdk project` and `tdk up` stop at the machine checks (Docker, Compose, Tilt, Bun) in a bare `node:22` container and exit 1 before scaffolding, so a lifecycle smoke can only exercise `tdk --help` there. `scripts/package-lifecycle-smoke.sh` is the reference for running a packed tarball in a clean container.
+
 ## Engine and generators
 - 2026-10-17 (agent E2E): a new named volume is seeded with the image directory's owner, so a path the non-root `bun` user writes to must be created with `chown bun:bun` in the image (EACCES on the first write otherwise). `docker kill` does not auto-restart under `restart: unless-stopped` (manual-stop semantics); `kill -9 1` from `docker exec` is a no-op (PID 1 ignores its own namespace's SIGKILL). Test crash recovery with `docker kill` then `docker start`, and say that auto-restart was not observed.
 - 2026-10-17 (agent resource type): a new `appType` must be added to every exact list or it fails late: `CREATABLE_RESOURCE_TYPES` and its `toHaveLength` in `resource.test.ts`, the exact `VALID_RESOURCE_TYPES` list in `validation.test.ts`, `KNOWN_SERVICE_FIELDS` in `service-manifest.ts` (a new service.json key otherwise prints "unknown field is preserved" on `tdk up`), and `RESOURCE_CONFIG_FIELDS` in `service-schema-contract.test.ts`.

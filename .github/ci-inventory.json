@@ -490,6 +490,25 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "package-lifecycle-smoke.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for package-lifecycle-smoke",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "package-lifecycle-smoke.yml",
+			"job": "lifecycle-smoke",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Packed tarball install, version, upgrade and uninstall in a clean node:22 container (#1384)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "wsl2-smoke.yml",
 			"job": "wsl2-smoke",
 			"tier": "e2e",
