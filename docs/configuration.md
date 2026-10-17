@@ -54,6 +54,57 @@ A short drawing of the pass and fail paths: [Smoke check](smoke.md).
 
 ## `.tdk/project.json`
 
+`tdk project` creates this file. Here is a minimal valid one; the explanations are outside the file so it remains parseable:
+
+```json
+{
+  "version": "1.0",
+  "project": {
+    "name": "shop-app",
+    "version": "1.0.0"
+  },
+  "phases": {
+    "pre_alpha": {
+      "name": "Pre-Alpha",
+      "description": "Core services",
+      "enabledStacks": ["shop"]
+    },
+    "alpha": {
+      "name": "Alpha",
+      "description": "Essential business services",
+      "enabledStacks": []
+    },
+    "beta": {
+      "name": "Beta",
+      "description": "Extended features",
+      "enabledStacks": []
+    },
+    "out_of_scope": {
+      "name": "Out of Scope",
+      "description": "Future releases",
+      "enabledStacks": []
+    }
+  },
+  "optional_infra": {
+    "monitoring": false,
+    "elk": false,
+    "debezium": false,
+    "golden_image": true,
+    "verdaccio": false
+  },
+  "discovery": {
+    "paths": ["services/*/*"]
+  }
+}
+```
+
+- `project`: the project name and version.
+- `phases`: all four phases (`pre_alpha`, `alpha`, `beta`, `out_of_scope`) are required, and `enabledStacks` lists the stacks assigned to each phase.
+- `optional_infra`: switches for optional platform services such as monitoring and the golden image.
+- `discovery.paths`: where TDK looks for each service's `service.json`. `services/*/*` matches `services/<stack>/<resource>/service.json`.
+
+The schema only gives your editor completion and hints. The CLI stays the source of truth when it reads this file at runtime.
+
 For VS Code, associate both filenames with their schema in workspace settings. The project schema provides editor assistance for the current project configuration shape; it does not add or change CLI validation.
 
 ```json
