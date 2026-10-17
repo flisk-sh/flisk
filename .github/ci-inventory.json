@@ -1,0 +1,568 @@
+{
+	"$comment": "Every CI job, its tier and whether branch protection requires it. Checked by scripts/check-ci-inventory.mjs. Tracker: #1279; this file: #1281.",
+	"jobs": [
+		{
+			"workflow": "agent-e2e.yml",
+			"job": "agent-e2e",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Agent resource; moves to resource-types in phase 1 (#1280)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ai-conflict-buttons.yml",
+			"job": "comment",
+			"tier": "bot",
+			"required": false,
+			"reason": "Conflict buttons on PR events; event types tracked in #1286",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ai-conflict-buttons.yml",
+			"job": "backfill",
+			"tier": "bot",
+			"required": false,
+			"reason": "Manual backfill of conflict buttons",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ai-review-buttons.yml",
+			"job": "append",
+			"tier": "bot",
+			"required": false,
+			"reason": "Review buttons on PR events; event types tracked in #1286",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ai-review-buttons.yml",
+			"job": "backfill",
+			"tier": "bot",
+			"required": false,
+			"reason": "Manual backfill of review buttons",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ai-spec-buttons.yml",
+			"job": "append",
+			"tier": "bot",
+			"required": false,
+			"reason": "Spec buttons on issue events; event types tracked in #1286",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "benchmarks.yml",
+			"job": "measure",
+			"tier": "report",
+			"required": false,
+			"reason": "Warm and cold start benchmark; moves to nightly in #1285",
+			"owner": "maintainers",
+			"exempt": {
+				"push-trigger": "#1285"
+			}
+		},
+		{
+			"workflow": "benchmarks.yml",
+			"job": "publish",
+			"tier": "report",
+			"required": false,
+			"reason": "Publishes the benchmark report",
+			"owner": "maintainers",
+			"exempt": {
+				"push-trigger": "#1285"
+			}
+		},
+		{
+			"workflow": "byo-boot-e2e.yml",
+			"job": "byo-python-boot",
+			"tier": "e2e",
+			"required": false,
+			"reason": "BYO boot; moves to resource-types in #1297",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "byo-e2e.yml",
+			"job": "byo-python",
+			"tier": "e2e",
+			"required": false,
+			"reason": "BYO dry run; moves to resource-types in #1297",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the other jobs",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "changes",
+			"tier": "gate",
+			"required": false,
+			"reason": "Single change-detection job for the run",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "spellcheck",
+			"tier": "gate",
+			"required": false,
+			"reason": "Spell check on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "lint",
+			"tier": "gate",
+			"required": false,
+			"reason": "Biome lint on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "typecheck",
+			"tier": "gate",
+			"required": false,
+			"reason": "Typecheck on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "fuzz",
+			"tier": "test",
+			"required": false,
+			"reason": "Fuzz tests on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "published-schema",
+			"tier": "gate",
+			"required": false,
+			"reason": "Offline check of the published service schema",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "test",
+			"tier": "test",
+			"required": false,
+			"reason": "TypeScript tests on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "package-smoke",
+			"tier": "test",
+			"required": false,
+			"reason": "Packs and installs the CLI on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "secret-scan",
+			"tier": "gate",
+			"required": false,
+			"reason": "Secret scan on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "dependency-review",
+			"tier": "security",
+			"required": false,
+			"reason": "Dependency review on lockfile changes; disabled until vars.DEPENDENCY_REVIEW is set (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "workflow-audit",
+			"tier": "gate",
+			"required": false,
+			"reason": "Workflow audit on workflow changes",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "trivy",
+			"tier": "security",
+			"required": false,
+			"reason": "Container and IaC scan; path-gated on PRs (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "osv-scanner",
+			"tier": "security",
+			"required": false,
+			"reason": "Lockfile vulnerability scan; path-gated on PRs (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "semgrep",
+			"tier": "security",
+			"required": false,
+			"reason": "SAST; path-gated on PRs (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "summary",
+			"tier": "gate",
+			"required": false,
+			"reason": "Aggregate gate: fails when a selected job failed",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "code-health.yml",
+			"job": "health",
+			"tier": "report",
+			"required": false,
+			"reason": "Code health report on PRs; push trigger tracked in #1285",
+			"owner": "maintainers",
+			"exempt": {
+				"push-trigger": "#1285"
+			}
+		},
+		{
+			"workflow": "codeql.yml",
+			"job": "analyze",
+			"tier": "security",
+			"required": false,
+			"reason": "Code scanning; weekly, and on PRs",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "cold-start-e2e.yml",
+			"job": "cold-start",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Licensed deferred start; needs TDK_LICENSE_KEY; neutral when missing (#1288)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "contributor-merged.yml",
+			"job": "thank",
+			"tier": "bot",
+			"required": false,
+			"reason": "Thank-you note on merged PRs; types tracked in #1286",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "contributor-welcome.yml",
+			"job": "welcome",
+			"tier": "bot",
+			"required": false,
+			"reason": "Welcome note on new PRs and issues; concurrency tracked in #1286",
+			"owner": "maintainers",
+			"exempt": {
+				"concurrency": "#1279"
+			}
+		},
+		{
+			"workflow": "contributor-welcome.yml",
+			"job": "not-fixed",
+			"tier": "bot",
+			"required": false,
+			"reason": "Note on issues that are not fixed",
+			"owner": "maintainers",
+			"exempt": {
+				"concurrency": "#1279"
+			}
+		},
+		{
+			"workflow": "dco.yml",
+			"job": "dco",
+			"tier": "gate",
+			"required": false,
+			"reason": "DCO sign-off on every PR; concurrency tracked in #1286",
+			"owner": "maintainers",
+			"exempt": {
+				"concurrency": "#1279"
+			}
+		},
+		{
+			"workflow": "docs-only.yml",
+			"job": "detect",
+			"tier": "gate",
+			"required": false,
+			"reason": "Reusable docs-only detection; removed in #1283",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "erp-scale-e2e.yml",
+			"job": "erp",
+			"tier": "e2e",
+			"required": false,
+			"reason": "ERP fixture at 100 services; manual and weekly; moves in #1301",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "example-e2e.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the example",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "example-e2e.yml",
+			"job": "example-e2e",
+			"tier": "e2e",
+			"required": true,
+			"reason": "Default example boots; required; moves to e2e-examples in #1299",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "examples-e2e.yml",
+			"job": "example",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Example apps on real routes; nightly; moves in #1299",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "go-dev-loop-e2e.yml",
+			"job": "go-dev-loop",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Go live reload; moves to journeys in #1298",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "hall-of-fame.yml",
+			"job": "update",
+			"tier": "bot",
+			"required": false,
+			"reason": "Contributor table on PR events; types tracked in #1286",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "issue-claims.yml",
+			"job": "claim",
+			"tier": "bot",
+			"required": false,
+			"reason": "Assigns claimed issues",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "issue-claims.yml",
+			"job": "sweep",
+			"tier": "bot",
+			"required": false,
+			"reason": "Releases quiet claims on a schedule",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "journey-map.yml",
+			"job": "map",
+			"tier": "bot",
+			"required": false,
+			"reason": "Refreshes the journey map",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "npm-downloads-graph.yml",
+			"job": "graph",
+			"tier": "report",
+			"required": false,
+			"reason": "Downloads graph (scheduled)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "oss-score-gate.yml",
+			"job": "gate",
+			"tier": "gate",
+			"required": false,
+			"reason": "OSS score gate on every PR; concurrency tracked in #1286",
+			"owner": "maintainers",
+			"exempt": {
+				"concurrency": "#1279"
+			}
+		},
+		{
+			"workflow": "pr-area-labels.yml",
+			"job": "label",
+			"tier": "bot",
+			"required": false,
+			"reason": "Area labels from changed paths",
+			"owner": "maintainers",
+			"exempt": {
+				"concurrency": "#1279"
+			}
+		},
+		{
+			"workflow": "publish-service-schema.yml",
+			"job": "publish",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes the service schema",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1279"
+			}
+		},
+		{
+			"workflow": "publish-tdk-import.yml",
+			"job": "build",
+			"tier": "release",
+			"required": false,
+			"reason": "Builds tdk-import (manual)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1279"
+			}
+		},
+		{
+			"workflow": "publish-tdk-import.yml",
+			"job": "publish",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes tdk-import (manual)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1279"
+			}
+		},
+		{
+			"workflow": "python-example-e2e.yml",
+			"job": "python-example-e2e",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Python provider example; moves in #1299",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "quickstart-e2e.yml",
+			"job": "quickstart",
+			"tier": "e2e",
+			"required": false,
+			"reason": "README quickstart; moves to journeys in #1298",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "changes",
+			"tier": "release",
+			"required": false,
+			"reason": "Decides whether release binaries build on a PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "build",
+			"tier": "release",
+			"required": false,
+			"reason": "Builds release binaries",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1279"
+			}
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "windows-smoke",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Duplicate check name of windows-smoke.yml; removed in #1300",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1300"
+			}
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "publish",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes the npm package and binaries after release",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1279"
+			}
+		},
+		{
+			"workflow": "scorecard.yml",
+			"job": "scorecard",
+			"tier": "report",
+			"required": false,
+			"reason": "OpenSSF Scorecard; weekly, push trigger tracked in #1285",
+			"owner": "maintainers",
+			"exempt": {
+				"push-trigger": "#1285"
+			}
+		},
+		{
+			"workflow": "smoke-e2e.yml",
+			"job": "smoke-e2e",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Smoke runner; moves to journeys in #1298",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "sync-tdk-skills.yml",
+			"job": "sync",
+			"tier": "bot",
+			"required": false,
+			"reason": "Syncs shared skills (manual or dispatch)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "update-pr-branches.yml",
+			"job": "update",
+			"tier": "bot",
+			"required": false,
+			"reason": "Updates open PRs after merges; replaced by the merge queue (#1287)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "windows-smoke.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for windows-smoke",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283",
+				"concurrency": "#1279"
+			}
+		},
+		{
+			"workflow": "windows-smoke.yml",
+			"job": "windows-smoke",
+			"tier": "e2e",
+			"required": true,
+			"reason": "Windows CLI smoke; required; moved to e2e-platforms in #1300",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1300",
+				"concurrency": "#1279"
+			}
+		},
+		{
+			"workflow": "wsl2-smoke.yml",
+			"job": "wsl2-smoke",
+			"tier": "e2e",
+			"required": false,
+			"reason": "WSL2 smoke; moved to e2e-platforms in #1300",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "required-checks-drift.yml",
+			"job": "drift",
+			"tier": "report",
+			"required": false,
+			"reason": "Compares branch protection on main with the required-checks snapshot daily; opens one issue on drift",
+			"owner": "maintainers"
+		}
+	]
+}
