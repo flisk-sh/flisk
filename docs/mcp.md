@@ -64,14 +64,15 @@ scaffold, the type lists, the rejected combinations and the engine normalization
 
 Also checked with the official MCP TypeScript SDK **client** (`@modelcontextprotocol/sdk`, `StreamableHTTPClientTransport`), not just
 `curl`: it connected, listed the `echo` tool and called it, using the real URL `http://api.<project>.localhost:<port>/api/<name>/mcp`.
-Node resolved `api.<project>.localhost` on its own (to `::1`), so no `Host` override was needed. Run it yourself:
+Node resolved `api.<project>.localhost` on its own (to `::1`), so no `Host` override was needed. This is the `resource-types/mcp`
+suite, which runs on CI nightly, after each release and by hand. Run it yourself:
 
 ```bash
-scripts/verify-mcp.sh
+make test-e2e GROUP=resource-types SUITE=mcp
 ```
 
 It scaffolds a throwaway `mcp` resource, starts it through `tdk up`, runs that client against it, and removes only what it created. It
-needs Docker, Tilt, a built CLI, Node 18+ and network access (it installs the SDK into a temporary folder).
+needs Docker, Tilt, `tdk` on `PATH`, Node 22+ and network access (it installs the SDK into a temporary folder).
 
 Not checked:
 

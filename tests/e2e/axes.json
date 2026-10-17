@@ -30,7 +30,7 @@
 					"leg": "resource-types/migrator"
 				},
 				"mcp": {
-					"allow": "#1296"
+					"leg": "resource-types/mcp"
 				},
 				"agent": {
 					"leg": "resource-types/agent"

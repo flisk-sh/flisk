@@ -17,7 +17,7 @@
 ## 3. Resource-type coverage
 
 - [x] 3.1 Add the coverage unit test (valid resource types vs `tests/e2e/resource-types/*` and `allowlist.json` with issue links) [covered by tests/e2e/axes.json and check-axes.mjs (#1306): every appType from VALID_RESOURCE_TYPES is a leg or an allowlist entry with an issue]
-- [ ] 3.2 Move `scripts/verify-mcp.sh` into `resource-types/mcp` and run it in CI
+- [ ] 3.2 Move `scripts/verify-mcp.sh` into `resource-types/mcp` and run it in CI (the `resource-types/mcp` suite replaces `scripts/verify-mcp.sh`, which is removed, in this PR; its first live run is the proof)
 - [ ] 3.3 Move `scripts/verify-frontend-frameworks.sh` into `resource-types/frontend` (one matrix leg per framework group)
 - [ ] 3.4 Move `tests/e2e/byo-python*.test.sh` and `scripts/verify-byo-{example,job,pair,tdk}.sh` into `resource-types/bring-your-own`
 - [x] 3.5 Add a `resource-types/backend` suite from the backend parts of quickstart (scaffold, routed health, restart, error envelope) (the `resource-types/backend` suite (B1 scaffold, B2 tdk up and status, B3 routed health) is in this PR; the live legs are the proof)

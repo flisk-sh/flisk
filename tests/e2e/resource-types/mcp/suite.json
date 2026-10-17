@@ -1,0 +1,18 @@
+{
+  "group": "resource-types",
+  "suite": "mcp",
+  "description": "An mcp resource on a live stack: scaffold with tdk resource --type mcp, tdk up, healthy through Traefik, and the official MCP TypeScript SDK client connects, lists the tools and calls echo (moved from scripts/verify-mcp.sh, #1296).",
+  "paths": [
+    "cli/src/backend-frameworks/mcp.ts",
+    "cli/src/commands/resource.ts",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/resource-types/mcp/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": ["P1", "P2", "P3"],
+  "triggers": ["nightly", "release", "manual"],
+  "timeoutMinutes": 25,
+  "needsSecrets": []
+}
