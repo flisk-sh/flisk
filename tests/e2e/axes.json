@@ -263,7 +263,10 @@
 					"leg": "resource-types/bring-your-own"
 				},
 				"byo-jobs": {
-					"allow": "#1297"
+					"leg": "resource-types/bring-your-own"
+				},
+				"byo-pair": {
+					"leg": "resource-types/bring-your-own"
 				}
 			},
 			"interactions": []

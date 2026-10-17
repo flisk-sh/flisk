@@ -1,32 +1,43 @@
 {
   "group": "resource-types",
   "suite": "bring-your-own",
-  "description": "A bring-your-own app in each byoVariant on its own check: example (the container alone, PORT and a health route, verify-byo-example.sh) and tdk (through tdk up and Traefik with TDK's Postgres and DATABASE_URL, verify-byo-tdk.sh). The matrix runs one leg per variant (#1297).",
+  "description": "A bring-your-own app or pair in each byoVariant on its own check: example (the container alone, verify-byo-example.sh), tdk (through tdk up and Traefik with TDK's Postgres, verify-byo-tdk.sh), job (a one-shot through tdk up, verify-byo-job.sh) and pair (a dependency and an app through tdk up, verify-byo-pair.sh). The matrix runs one leg per variant (#1297).",
   "paths": [
-    "examples/byo/**",
     "docs/byo.md",
     "cli/src/commands/resource.ts",
     "engine/**",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/bring-your-own/**",
-    ".github/workflows/e2e-resource-types.yml"
+    ".github/workflows/e2e-resource-types.yml",
+    "examples/byo/**",
+    "examples/byo-jobs/**"
   ],
   "cases": [
     "BY1",
-    "BY2"
+    "BY2",
+    "BY3",
+    "BY4"
   ],
   "variants": [
     {
       "id": "example",
-      "name": "echo",
       "case": "BY1",
-      "health": "/health"
+      "args": "echo /health"
     },
     {
       "id": "tdk",
-      "name": "full-stack-fastapi-template",
       "case": "BY2",
-      "health": "/api/v1/utils/health-check/"
+      "args": "full-stack-fastapi-template /api/v1/utils/health-check/"
+    },
+    {
+      "id": "job",
+      "case": "BY3",
+      "args": "dbmate"
+    },
+    {
+      "id": "pair",
+      "case": "BY4",
+      "args": "turso 4500 /health turso-app LIBSQL_URL /health"
     }
   ],
   "triggers": [

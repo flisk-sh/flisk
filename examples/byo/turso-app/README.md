@@ -19,7 +19,7 @@ This example cannot run alone, because its health route needs the database. Run 
 throwaway project (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=600 scripts/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
 ```
 
 ## Register it in a TDK project

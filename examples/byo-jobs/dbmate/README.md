@@ -18,7 +18,7 @@ Needs Docker, Tilt and a built CLI. Runs a real `tdk up`, expects the container 
 expects `select item from orders` to return `tea`:
 
 ```bash
-scripts/verify-byo-job.sh dbmate
+tests/e2e/resource-types/bring-your-own/verify-byo-job.sh dbmate
 ```
 
 ## Register it in a TDK project

@@ -9,11 +9,11 @@
 # Checks, in order: the container exits 0, it was not restarted (restart policy "no"), and the
 # query in verify.sql returns the text in verify.expect against TDK's Postgres.
 #
-# Usage: scripts/verify-byo-job.sh <name>
+# Usage: tests/e2e/resource-types/bring-your-own/verify-byo-job.sh <name>
 set -euo pipefail
 
 name="${1:?usage: verify-byo-job.sh <name>}"
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/../../../.." && pwd)"
 src="$root/examples/byo-jobs/$name"
 [ -d "$src" ] || { echo "no such example: $src" >&2; exit 2; }
 

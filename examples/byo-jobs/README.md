@@ -5,7 +5,7 @@ resource with `"restart": "no"` (see [docs/byo.md](../../docs/byo.md#one-shot-jo
 [`examples/byo/`](../byo/README.md), they do not serve HTTP, so they are checked with a real `tdk up`:
 
 ```bash
-scripts/verify-byo-job.sh dbmate
+tests/e2e/resource-types/bring-your-own/verify-byo-job.sh dbmate
 ```
 
 The check uses a throwaway project with unique names and alternate ports, starts it with `tdk up`, and requires the

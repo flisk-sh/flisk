@@ -48,7 +48,7 @@ export function checkSuiteJson(suite, group, name) {
       problems.push("variants must be a non-empty array when present");
     } else {
       for (const v of suite.variants) {
-        if (!v || typeof v.id !== "string" || typeof v.name !== "string" || typeof v.case !== "string") problems.push("each variant needs string id, name and case");
+        if (!v || typeof v.id !== "string" || typeof v.case !== "string" || typeof v.args !== "string") problems.push("each variant needs string id, case and args");
         else if (!suite.cases.includes(v.case)) problems.push(`variant ${v.id} names case ${v.case}, which is not in cases`);
       }
     }

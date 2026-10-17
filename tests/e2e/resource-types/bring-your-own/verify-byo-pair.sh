@@ -10,8 +10,8 @@
 # The app's Dockerfile must contain an `ENV <VAR>=http://<dep-name>:<dep-port>` line; this script rewrites the host name in
 # its scratch copy to the dependency's unique run name (resource names must be unique across projects sharing one Docker daemon).
 #
-# Usage: scripts/verify-byo-pair.sh <dep-example> <dep-port> <dep-health> <app-example> <env-var> [app-health]
-#   e.g. scripts/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
+# Usage: tests/e2e/resource-types/bring-your-own/verify-byo-pair.sh <dep-example> <dep-port> <dep-health> <app-example> <env-var> [app-health]
+#   e.g. tests/e2e/resource-types/bring-your-own/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
 set -euo pipefail
 
 dep="${1:?usage: verify-byo-pair.sh <dep-example> <dep-port> <dep-health> <app-example> <env-var> [app-health]}"
@@ -20,15 +20,15 @@ dep_health="${3:?dep health path}"
 app="${4:?app example}"
 envvar="${5:?env var holding the dependency URL}"
 app_health="${6:-/health}"
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/../../../.." && pwd)"
 for e in "$dep" "$app"; do [ -d "$root/examples/byo/$e" ] || { echo "no such example: $e" >&2; exit 2; }; done
 
-proj="pair${app//[^a-z0-9]/}$$"
-proj="${proj:0:20}"
-dep_name="dep${dep//[^a-z0-9]/}$$"
-dep_name="${dep_name:0:20}"
-app_name="app${app//[^a-z0-9]/}$$"
-app_name="${app_name:0:20}"
+# Truncate the name, not the PID: a long example name would otherwise cut the PID off, so runs would share names and volumes.
+pid="$$"
+short() { local base="$1"; echo "${base:0:$((20 - ${#pid}))}$pid"; }
+proj="$(short "pair${app//[^a-z0-9]/}")"
+dep_name="$(short "dep${dep//[^a-z0-9]/}")"
+app_name="$(short "app${app//[^a-z0-9]/}")"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))

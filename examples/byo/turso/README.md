@@ -28,7 +28,7 @@ VERIFY_WAIT_SECONDS=60 tests/e2e/resource-types/bring-your-own/verify-byo-exampl
 The server together with an app that uses it, through a real `tdk up` and Traefik:
 
 ```bash
-VERIFY_WAIT_SECONDS=600 scripts/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
 ```
 
 ## Register it in a TDK project

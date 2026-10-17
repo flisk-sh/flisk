@@ -19,7 +19,7 @@ An app that needs another resource (a database server, for example [turso-app](t
 cannot run alone. Check the pair in one project, through a real `tdk up`:
 
 ```bash
-scripts/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
+tests/e2e/resource-types/bring-your-own/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
 ```
 
 An app that needs TDK's own Postgres cannot run alone either. Check it through a real `tdk up` and Traefik instead, which gives it TDK's

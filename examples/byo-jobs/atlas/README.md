@@ -19,7 +19,7 @@ Needs Docker, Tilt and a built CLI. Runs a real `tdk up`, expects the container 
 the `orders` table to exist:
 
 ```bash
-scripts/verify-byo-job.sh atlas
+tests/e2e/resource-types/bring-your-own/verify-byo-job.sh atlas
 ```
 
 ## Register it in a TDK project
