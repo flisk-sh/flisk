@@ -1,7 +1,12 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, describe, expect, it } from "vitest";
-import { createTempDir, createTempProject, parseEnvelope, runTdk } from "../../test-support/index.js";
+import {
+  createTempDir,
+  createTempProject,
+  parseEnvelope,
+  runTdk,
+} from "../../test-support/index.js";
 
 describe("tdk resources and stacks --json", () => {
   function createProject(includeResources = true): string {

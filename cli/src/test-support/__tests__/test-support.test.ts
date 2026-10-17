@@ -21,7 +21,9 @@ describe("runTdk", () => {
 
   it("throws with the command and directory when the spawn fails", () => {
     const missing = path.join(createTempDir(), "does-not-exist");
-    expect(() => runTdk(["stacks"], { cwd: missing })).toThrow(/Could not run `tdk stacks`.*ENOENT/s);
+    expect(() => runTdk(["stacks"], { cwd: missing })).toThrow(
+      /Could not run `tdk stacks`.*ENOENT/s,
+    );
   });
 
   it("throws when the child is killed by the timeout", () => {
@@ -48,14 +50,18 @@ describe("createTempProject", () => {
       files: { "notes/readme.txt": "hi" },
     });
 
-    expect(JSON.parse(fs.readFileSync(path.join(root, ".tdk", "project.json"), "utf-8"))).toEqual({});
+    expect(JSON.parse(fs.readFileSync(path.join(root, ".tdk", "project.json"), "utf-8"))).toEqual(
+      {},
+    );
     expect(
       JSON.parse(fs.readFileSync(path.join(root, "services/api/gateway/service.json"), "utf-8")),
     ).toEqual({ appName: "gateway", stack: "api", appType: "backend", port: 3100 });
     expect(
       JSON.parse(fs.readFileSync(path.join(root, "services/worker/queue/service.json"), "utf-8")),
     ).toEqual({ appName: "queue", appType: "worker" });
-    expect(fs.readFileSync(path.join(root, "services/broken/service.json"), "utf-8")).toBe("{invalid\n");
+    expect(fs.readFileSync(path.join(root, "services/broken/service.json"), "utf-8")).toBe(
+      "{invalid\n",
+    );
     expect(fs.readFileSync(path.join(root, ".tdk/.tdk-out/spec.master"), "utf-8")).toBe("");
     expect(fs.readFileSync(path.join(root, "notes/readme.txt"), "utf-8")).toBe("hi");
   });
@@ -100,7 +106,9 @@ describe("parseEnvelope", () => {
 
   it("rejects JSON without the envelope keys", () => {
     expect(() => parseEnvelope(JSON.stringify({ schemaVersion: 1, data: null }))).toThrow();
-    expect(() => parseEnvelope(JSON.stringify({ schemaVersion: 1, data: 1, errors: [], x: 1 }))).toThrow();
+    expect(() =>
+      parseEnvelope(JSON.stringify({ schemaVersion: 1, data: 1, errors: [], x: 1 })),
+    ).toThrow();
     expect(() => parseEnvelope("null")).toThrow();
   });
 });
