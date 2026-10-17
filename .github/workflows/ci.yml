@@ -110,6 +110,9 @@ jobs:
             echo "::notice::Pushed a commit with Biome fixes and a rebuilt cli/dist; started CI on it."
           fi
       - run: bun run lint
+      # Fails when a test file re-declares a shared helper instead of importing it from test-support (#1402).
+      - name: Check test helpers are not duplicated
+        run: node ../scripts/check-test-helper-allowlist.mjs
 
   typecheck:
     name: 🦴 Typecheck
