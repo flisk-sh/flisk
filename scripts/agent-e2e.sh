@@ -86,8 +86,13 @@ via_traefik() { # <path> [curl args...]
   curl -sS --max-time 20 --resolve "$host:$port:127.0.0.1" "$@" "$base$path"
 }
 direct() { curl -sS --max-time 20 "$@"; } # <curl args...> <url>
-turn_via_traefik() { # <session id> <input> -> body on stdout
-  via_traefik /turn -X POST -H "x-session-id: $1" -H 'content-type: application/json' -d "{\"input\":\"$2\"}"
+turn_via_traefik() { # <session id> <input> -> body on stdout; fails on anything but HTTP 200
+  local out code
+  out="$(via_traefik /turn -X POST -H "x-session-id: $1" -H 'content-type: application/json' -d "{\"input\":\"$2\"}" -w '\n%{http_code}')"
+  code="${out##*$'\n'}"; out="${out%$'\n'*}"
+  echo "$out"
+  # A gateway 404/502 body would otherwise pass as a reply, and a later check would blame the agent for losing data.
+  [ "$code" = 200 ] || { echo "POST /turn (x-session-id: $1) returned HTTP $code: $out" >&2; return 1; }
 }
 agent_ready() { [ "$(via_traefik /ready -o /dev/null -w '%{http_code}')" = "200" ]; }
 wait_agent_ready() { poll_until "agent $AGENT answers /ready 200 through Traefik" "$READY_TIMEOUT" agent_ready; }
@@ -229,7 +234,8 @@ A7() {
     wait_agent_ready
     poll_until "tdk agent sessions answers after restart" "$READY_TIMEOUT" session_answers
   fi
-  turn_via_traefik s-durable "remember me" >"$OUT/a7-turn.out"; cat "$OUT/a7-turn.out"; echo
+  turn_via_traefik s-durable "remember me" >"$OUT/a7-turn.out" || die "could not write the checkpoint before the down/up cycle"
+  cat "$OUT/a7-turn.out"; echo
   assert check "$OUT/a7-turn.out" "j.sessionId === 's-durable'" "the turn to persist reached the agent"
   stack_cycle() { # down, up, wait
     run "a7-down-$1" down; [ "$RC" -eq 0 ] || die "tdk down exited $RC"
