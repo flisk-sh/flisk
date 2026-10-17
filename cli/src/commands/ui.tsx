@@ -1202,7 +1202,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
 };
 
 /** Compose footer guidance for the current tab and terminal character set. */
-function createHelpHint(
+export function createHelpHint(
   activeTab: TabId,
   selectedStack: string | null,
   selectedService: string | null,
