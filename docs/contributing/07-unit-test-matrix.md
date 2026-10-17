@@ -56,7 +56,7 @@ unit:
 Rules for legs:
 
 - **Keep legs equal in time.** Vitest balances by file, so keep one file per concern. Check each leg's duration in the job summary and raise the shard count when the slowest leg is twice the fastest.
-- **Do not share state between legs.** A leg must not depend on a file another leg wrote. Tests that touch the built `cli/dist` stay out of the matrix and run in the build job.
+- **Do not share state between legs.** A leg must not depend on a file another leg wrote. Tests that touch the built `cli/dist` stay out of the matrix and keep their own job.
 - **Keep the pull-request run fast.** The unit matrix runs on every pull request. Anything slower than a few minutes moves to `nightly`.
 - **Merge the reports.** Each leg uploads its JSON report. One final job merges them for the PR summary and the coverage table.
 - **Gate once.** A final `gate` job fails when any leg failed, and that job is the required check. A skipped leg must not pass.

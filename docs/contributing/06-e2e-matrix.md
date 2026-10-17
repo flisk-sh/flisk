@@ -49,7 +49,7 @@ The builder expands a suite into legs in one of three ways:
 
 | Shape | Example | Legs |
 |---|---|---|
-| one leg | `agent`, `journeys/quickstart` | one, labelled with the suite name |
+| one leg | `agent` | one, labelled with the suite name |
 | one per axis value | `backend` | one per language from `registry-axes.mjs` |
 | one per axis value, with a default | `backend` bun | one more bun leg per non-default HTTP framework |
 
@@ -60,9 +60,9 @@ Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`), so the s
 | Trigger | When | What the matrix covers |
 |---|---|---|
 | `pr` | pull requests that touch a suite's `paths` | the fast set: the two most used languages, no extra frameworks |
-| `nightly` | the scheduled run | every axis value the registry declares |
-| `release` | after a release is published (`workflow_run`) | the same as nightly, against the published npm package |
-| `manual` | `workflow_dispatch` | the same as nightly, with `version` and `runner` inputs |
+| `nightly` | the scheduled run; installs `latest` from npm | every axis value the registry declares |
+| `release` | after a release is published (`workflow_run`); installs the version just published | the same as nightly |
+| `manual` | `workflow_dispatch`; installs the `version` input (default `latest`) | the same as nightly |
 
 A suite that needs secrets cannot have `pr`, because pull requests from forks get none. A `scale` suite cannot have `pr` either. These are checked by `tests/e2e/lib/validate-suites.mjs` in `make test-shell`.
 
