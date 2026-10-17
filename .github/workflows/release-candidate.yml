@@ -33,6 +33,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
+          package-manager-cache: false
       # Every language, HTTP framework and frontend the registry declares: a release candidate covers the full release-blocking set.
       - name: Build the resource-type matrix for the release trigger
         id: matrix
@@ -74,6 +75,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
+          package-manager-cache: false
 
       - run: bun install --frozen-lockfile
 
@@ -122,6 +124,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
+          package-manager-cache: false
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -176,6 +179,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
+          package-manager-cache: false
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
