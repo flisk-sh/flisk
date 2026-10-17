@@ -24,6 +24,13 @@
 - [ ] 3.6 Add `resource-types/worker` (processes a job) and `resource-types/migrator` (migration completes before the API, per the migrator rule)
 - [ ] 3.7 Add `resource-types/library` and `resource-types/sdk` (consumed build), or allowlist them with tracking issues
 
+## 3b. appType matrix
+
+- [ ] 3b.1 Write `tests/e2e/resource-types/common.sh` with the shared cases (scaffold, status wait, restart with replaced-container wait, one error envelope), parameterized by `appType`
+- [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set
+- [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
+- [ ] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases
+
 ## 4. Other groups (one suite per PR)
 
 - [ ] 4.1 journeys: quickstart, smoke, dev-loop-go, cold-start (keep its never-on-PR secret rule)
@@ -31,6 +38,22 @@
 - [ ] 4.3 platforms: windows, wsl2
 - [ ] 4.4 scale: erp, benchmarks (manual, weekly, main)
 - [ ] 4.5 Each move PR lists cases before and after, and shows a passing run plus a deliberate-break run
+
+## 4b. Every CI job
+
+- [ ] 4b.1 Write `.github/ci-inventory.json` for all 36 workflows and their jobs (tier, trigger reason, owner) and a check that fails on missing or stale entries and on rule violations; generate `docs/ci.md` from it
+- [ ] 4b.2 Add composite actions `setup-bun` (cache keyed on `bun.lock`), `setup-tilt`, `free-postgres-port` and `install-tdk`; replace the 14 inline Tilt blocks and 7 port 5432 blocks
+- [ ] 4b.3 Set `timeout-minutes` on every job from measured p90; add concurrency groups to `dco.yml`, `oss-score-gate.yml` and `windows-smoke.yml`
+- [ ] 4b.4 Replace `docs-only.yml` and every per-workflow detection job with one `changes` job in `ci.yml`; make `summary` the single aggregate gate, still reporting `example-e2e` and `windows-smoke`
+- [ ] 4b.5 Pack the CLI once per pull request run and have package smoke and e2e legs install the artifact
+- [ ] 4b.6 Path-gate Trivy, OSV-Scanner, Semgrep and CodeQL's `actions` leg on pull requests; keep full runs on `main` and nightly. Enable or remove the always-skipped dependency review
+- [ ] 4b.7 Move benchmarks off `push` (nightly on latest `main`, after release, manual); Scorecard to weekly and manual; `code-health` off `push`; open an issue for the warm-run timeout
+- [ ] 4b.8 Merge the Windows smoke in `release-binaries.yml` and `windows-smoke.yml` into `e2e-platforms / windows`, called by the release workflow
+- [ ] 4b.9 Narrow bot event types (`ai-review-buttons`, `ai-conflict-buttons`, `ai-spec-buttons`, `hall-of-fame`, `contributor-*`, `journey-map`)
+- [ ] 4b.10 Make `update-pr-branches.yml` update only approved or auto-merge pull requests until the merge queue is on; add a `merge_group` trigger to the gate workflows
+- [ ] 4b.11 Add a secret preflight that ends with a neutral result and a warning; add the red-job tracker (three consecutive failures open an issue, three passes close it)
+- [ ] 4b.12 Add the weekly `ci-report` workflow (p50/p90, failure, cancellation and skip rates, flaky cases, time to aggregate result, per-tier budgets)
+- [ ] 4b.13 Each pull request in this section posts before and after numbers for the jobs it changes
 
 ## 5. Contributor guide and skill
 
@@ -42,6 +65,6 @@
 
 ## 6. Cutover
 
-- [ ] 6.1 Maintainers switch branch protection to the `e2e-<group>` gate names
+- [ ] 6.1 Maintainers switch branch protection to the single aggregate gate, enable the merge queue, and configure `TDK_LICENSE_KEY` or accept a neutral `cold-start`
 - [ ] 6.2 Remove the compatibility check names and the old workflow files and scripts
 - [ ] 6.3 Run `openspec validate organize-e2e-suites --strict`

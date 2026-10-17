@@ -45,7 +45,7 @@ Helpers for polling, running commands with exit code and elapsed time, JSON enve
 - **THEN** it sources the shared polling helper rather than defining its own
 
 ### Requirement: One workflow per group
-CI SHALL run each group from one workflow named `e2e-<group>.yml`, with the group's suites as a matrix. Each suite SHALL declare the paths that trigger it on pull requests. Every group SHALL also run nightly and after each successful release, except groups marked manual or weekly because of cost. Each workflow SHALL have a job that always runs and reports the combined result, so a path-filtered required check is never left pending. Failure artifacts SHALL be uploaded for every failed suite.
+Each group SHALL have one reusable workflow, `e2e-<group>.yml`, that runs its suites as a matrix. `ci.yml` SHALL call it on pull requests with the selected suites and the packed CLI. It SHALL also have its own schedule, after-release and manual triggers, which select every suite unless the group is marked manual or weekly. A gate job SHALL always run and report the group's result, and failed suites SHALL upload artifacts.
 
 #### Scenario: Pull request touches the MCP server
 - **WHEN** a pull request changes `cli/src/mcp/**`
@@ -54,6 +54,10 @@ CI SHALL run each group from one workflow named `e2e-<group>.yml`, with the grou
 #### Scenario: Release published
 - **WHEN** the release workflow completes successfully
 - **THEN** every non-manual group runs against the published package
+
+#### Scenario: Suite needs a secret that is not configured
+- **WHEN** a suite with `needsSecrets` runs and the secret is absent
+- **THEN** it ends with a warning that names the secret and a neutral result, as `ci-pipeline-efficiency` requires, rather than failing
 
 ### Requirement: Migration keeps coverage and check names working
 Moving an existing test into a group SHALL keep every assertion it made before. Until branch protection is updated, the check names that are currently required SHALL still be reported.
