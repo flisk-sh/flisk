@@ -12,7 +12,7 @@
 			"defaults": ["backend"],
 			"values": {
 				"backend": {
-					"allow": "#1294"
+					"leg": "resource-types/backend"
 				},
 				"frontend": {
 					"allow": "#1291"
@@ -24,10 +24,10 @@
 					"allow": "#1295"
 				},
 				"worker": {
-					"allow": "#1294"
+					"leg": "resource-types/worker"
 				},
 				"migrator": {
-					"allow": "#1294"
+					"leg": "resource-types/migrator"
 				},
 				"mcp": {
 					"allow": "#1296"
