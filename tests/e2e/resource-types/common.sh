@@ -4,9 +4,10 @@
 # Cases every resource type shares (#1290, openspec task 3b.1), parameterized by the resource's appType. A suite sources this
 # after tests/e2e/lib/lib.sh and calls the helpers with its own resource name and type:
 #
-#   common_scaffold <appType> <resource>    scaffold the project and the resource (A1 pattern)
+#   common_scaffold <appType> <resource> [<extra tdk resource args>...]  scaffold the project and the resource (A1 pattern)
 #   common_wait_status <resource> <type>    bounded wait until `tdk status --json` lists the resource with that type (A2 pattern)
-#   common_restart <resource> <id before>   tdk restart, then wait for a different running container (A6 pattern)
+#   common_restart <resource> <id before> [<ready command...>]  tdk restart, wait for a different running container, then for the
+#                                                             ready command when one is given (A6 pattern)
 #   common_error_envelope <code> <cmd...>   the command exits 1 and prints one error envelope with that code
 #
 # The agent suite still has its own copies of these cases; it moves onto this file in a later change (3b.4). Nothing here runs
@@ -14,14 +15,14 @@
 
 # Assumes lib.sh is loaded: run, RC, OUT, DIR, assert, die, log, poll_until, wait_restarted, status_json.
 
-common_scaffold() { # <appType> <resource>
-  local type="$1" name="$2"
+common_scaffold() { # <appType> <resource> [<extra tdk resource args>...]
+  local type="$1" name="$2"; shift 2
   log "scaffold: tdk project --yes, tdk resource $name --type $type"
   rm -rf "$DIR"; mkdir -p "$DIR"
   (cd "$DIR" && git init -q .)
   run "scaffold-project" project --yes
   [ "$RC" -eq 0 ] || die "tdk project --yes exited $RC"
-  run "scaffold-$name" resource "$name" --type "$type"
+  run "scaffold-$name" resource "$name" --type "$type" "$@"
   [ "$RC" -eq 0 ] || die "tdk resource $name --type $type exited $RC"
 }
 
@@ -34,14 +35,14 @@ common_wait_status() { # <resource> <type>
   assert check "$OUT/status-$name.out" "j.errors.length === 0 && j.data.resources.some(r => r.name === '$name' && r.type === '$type')" "tdk status --json lists $name as $type"
 }
 
-common_restart() { # <resource> <container id from before the restart>
-  local name="$1" before="$2"
+common_restart() { # <resource> <container id from before the restart> [<ready command...>]
+  local name="$1" before="$2"; shift 2
   run "restart-$name" restart "$name" --json
   [ "$RC" -eq 0 ] || die "tdk restart $name exited $RC"
   assert envelope "$OUT/restart-$name.out"
   assert check "$OUT/restart-$name.out" "j.errors.length === 0 && j.data.resource === '$name' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
   # Tilt replaces the container; wait for a different running one before the next case reads it.
-  wait_restarted "$name" "$before"
+  wait_restarted "$name" "$before" "$@"
 }
 
 common_error_envelope() { # <code> <command...>
