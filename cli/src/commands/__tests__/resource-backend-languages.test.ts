@@ -153,6 +153,9 @@ describe("tdk resource --language", () => {
       healthCheckPath: "/health",
     });
     expect(listFiles(root)).toEqual(["go.mod", "main.go", "main_test.go", "service.json"]);
+    const goTest = readFileSync(join(root, "main_test.go"), "utf-8");
+    expect(goTest).toContain("func TestRoot(");
+    expect(goTest).toContain('httptest.NewRequest(http.MethodGet, "/", nil)');
     expect(readFileSync(join(root, "go.mod"), "utf-8")).toContain("module go-api");
     const main = readFileSync(join(root, "main.go"), "utf-8");
     expect(main).toContain('os.Getenv("PORT")');
