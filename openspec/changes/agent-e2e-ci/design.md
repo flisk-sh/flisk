@@ -15,8 +15,11 @@
 ### Test code location
 Assertions live in a script (`scripts/agent-e2e.sh` plus small Node helpers for JSON-RPC and stub servers), not inline YAML, so contributors can run them locally against a stack. JSON failure cases use the existing `machine-output-contract` helper to assert exactly one parseable envelope on stdout and nothing else.
 
+### Decision: `tdk agent sessions` goes through Traefik
+The first CI run showed the agent's port is not published on the host (`hostPort: null`), so the original `127.0.0.1:<port>/session` call could never work on a real stack. The CLI now uses the route `tdk status` reports as `url`, resolved via `buildServicePorts` and the host port plan. `*.localhost` is dialed as loopback with a `Host` header. Traefik 502/503/504 and plain-text 404 map to `AGENT_NOT_RUNNING`.
+
 ### Error-path fixtures
-- Timeout and stalled body: a Node stub bound to the agent port after the real container is stopped. One accepts and never replies; one sends headers then stalls the body. Elapsed time is measured and asserted within 9-15s.
+- Timeout and stalled body: a Node stub standing in for the ingress (the CLI is pointed at it with `TDK_SERVICE_BASE_URL`) after the real container is stopped. One accepts and never replies; one sends headers then stalls the body. Elapsed time is measured and asserted within 9-15s.
 - `AGENT_REQUEST_FAILED`: stub returning 400/500 with `{"error": "..."}`; assert status and text appear in the message.
 - `TILT_NOT_RUNNING` after `tdk down`; `TILT_TRIGGER_FAILED` via `tdk restart no-such-resource --json`.
 

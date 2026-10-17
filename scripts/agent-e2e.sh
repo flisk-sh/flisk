@@ -132,16 +132,16 @@ A2() { # tdk up, poll until the agent is ready
   assert check "$OUT/a2-status.out" "j.errors.length === 0 && j.data.resources.some(r => r.name === '$AGENT' && r.type === 'agent')" "tdk status --json lists $AGENT as an agent"
 }
 
-A3() { # /health and /ready, direct and through Traefik
-  log "A3 /health and /ready, direct and through Traefik"
+A3() { # /health and /ready through Traefik; the agent publishes no host port
+  log "A3 /health and /ready through Traefik"
   local port; port="$(agent_port)"
   echo "agent port: $port; traefik url: $(traefik_url)"
   local code
   code="$(via_traefik /health -o /dev/null -w '%{http_code}')"; echo "traefik GET /health -> $code"; [ "$code" = 200 ] || die "traefik /health returned $code"
   code="$(via_traefik /ready -o /dev/null -w '%{http_code}')"; echo "traefik GET /ready -> $code"; [ "$code" = 200 ] || die "traefik /ready returned $code"
-  # Direct: the container's published port on the loopback interface, the one `tdk agent sessions` calls.
-  code="$(direct "http://127.0.0.1:$port/health" -o /dev/null -w '%{http_code}')"; echo "direct GET :$port/health -> $code"; [ "$code" = 200 ] || die "direct /health returned $code"
-  code="$(direct "http://127.0.0.1:$port/ready" -o /dev/null -w '%{http_code}')"; echo "direct GET :$port/ready -> $code"; [ "$code" = 200 ] || die "direct /ready returned $code"
+  # The agent container publishes no host port: Traefik is the only way in, and `tdk agent sessions` uses the same route.
+  code="$(direct "http://127.0.0.1:$port/health" -o /dev/null -w '%{http_code}' || true)"; echo "direct GET :$port/health -> ${code:-000} (expected: not published)"
+  [ "${code:-000}" != 200 ] || die "agent port $port answers on the host; the docs say agents are reached through Traefik"
 }
 
 A4() { # a checkpoint through Traefik, read back with tdk agent sessions
@@ -178,8 +178,9 @@ A6() { # tdk restart, healthy again, checkpoint intact
   assert envelope "$OUT/a6-restart.out"
   assert check "$OUT/a6-restart.out" "j.errors.length === 0 && j.data.resource === '$AGENT' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
   # Tilt rebuilds and recreates the container; wait for a ready agent that is a different container.
-  poll_until "agent is ready again after restart" "$READY_TIMEOUT" bash -c "[ \"\$(docker ps -q --filter 'name=${PROJECT}-.*-$AGENT-' --filter status=running | head -1)\" != '$before' ] && [ \"\$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:$(agent_port)/ready)\" = 200 ]" || \
-    poll_until "agent is ready again after restart (same container)" 60 agent_ready
+  poll_until "agent container replaced after restart" "$READY_TIMEOUT" bash -c "[ \"\$(docker ps -q --filter 'name=${PROJECT}-.*-$AGENT-' --filter status=running | head -1)\" != '$before' ]" || \
+    echo "container id unchanged after restart; falling back to readiness only"
+  wait_agent_ready
   run a6-sessions agent sessions "$AGENT" --session-id s1 --json
   [ "$RC" -eq 0 ] || die "tdk agent sessions after restart exited $RC"
   assert check "$OUT/a6-sessions.out" "j.data.session.messages.length === 2 && j.data.session.messages[0].content === 'hello'" "checkpoint s1 survived the restart"
@@ -237,7 +238,7 @@ A7() {
 
 # ---------------------------------------------------------------------------------------------------------------- B: error paths
 
-# Stop the real container (Tilt stays up) so the agent port is free for the stubs.
+# Stop the real container (Tilt stays up) so Traefik has no live backend for the agent.
 B0() {
   log "B0 stop the agent container (Tilt stays up)"
   local cid; cid="$(running_container)"; [ -n "$cid" ] || die "no running $AGENT container"
@@ -247,13 +248,14 @@ B0() {
   tilt get uiresources >/dev/null 2>&1 || die "Tilt is not reachable after stopping the container"
 }
 
-with_stub() { # <mode> <args...> -- <command...>  runs the command while a stub holds the agent port
+with_stub() { # <mode> <args...>  starts a stub standing in for the ingress; the CLI is pointed at it via TDK_SERVICE_BASE_URL
   local port; port="$(agent_port)"
   node "$helpers/stub.mjs" "$1" "$port" "${@:2}" >"$OUT/stub.log" 2>&1 &
   STUB_PID=$!
   poll_until "stub to listen on $port" 20 grep -q listening "$OUT/stub.log"
+  export TDK_SERVICE_BASE_URL="http://127.0.0.1:$port"
 }
-stop_stub() { kill "$STUB_PID" 2>/dev/null || true; wait "$STUB_PID" 2>/dev/null || true; }
+stop_stub() { unset TDK_SERVICE_BASE_URL; kill "$STUB_PID" 2>/dev/null || true; wait "$STUB_PID" 2>/dev/null || true; }
 
 B1() { # AGENT_NOT_RUNNING with nothing listening
   log "B1 AGENT_NOT_RUNNING (container stopped)"

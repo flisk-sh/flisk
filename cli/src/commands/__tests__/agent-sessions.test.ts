@@ -8,6 +8,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { agentSessionRequest } from "../agent.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliPath = path.join(repoRoot, "cli", "bin", "tdk.js");
@@ -77,9 +78,12 @@ describe("tdk agent sessions", () => {
     return tmp;
   }
 
-  function runTdkAsync(args: string[], cwd: string) {
+  function runTdkAsync(args: string[], cwd: string, baseUrl?: string) {
     return new Promise<{ status: number | null; stdout: string }>((resolve) => {
-      const child = spawn(process.execPath, [cliPath, ...args], { cwd });
+      const child = spawn(process.execPath, [cliPath, ...args], {
+        cwd,
+        env: { ...process.env, ...(baseUrl ? { TDK_SERVICE_BASE_URL: baseUrl } : {}) },
+      });
       let stdout = "";
       child.stdout.on("data", (chunk) => {
         stdout += chunk;
@@ -101,6 +105,7 @@ describe("tdk agent sessions", () => {
       const res = await runTdkAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
+        `http://127.0.0.1:${port}`,
       );
       expect(res.status).toBe(0);
       const envelope = JSON.parse(res.stdout);
@@ -122,6 +127,7 @@ describe("tdk agent sessions", () => {
       const res = await runTdkAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
+        `http://127.0.0.1:${port}`,
       );
       expect(res.status).toBe(0);
       expect(JSON.parse(res.stdout).data.session).toEqual([{ id: "a" }]);
@@ -141,7 +147,11 @@ describe("tdk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(port);
     try {
-      const res = await runTdkAsync(["agent", "sessions", "bot", "--json"], tmp);
+      const res = await runTdkAsync(
+        ["agent", "sessions", "bot", "--json"],
+        tmp,
+        `http://127.0.0.1:${port}`,
+      );
       expect(res.status).toBe(1);
       const envelope = JSON.parse(res.stdout);
       expect(envelope.data).toBeNull();
@@ -179,9 +189,95 @@ describe("tdk agent sessions", () => {
       const res = await runTdkAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
+        `http://127.0.0.1:${port}`,
       );
       expect(res.status).toBe(0);
       expect(seen).toBe("s1");
+    } finally {
+      server.close();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("reaches the agent through its ingress route, not the agent's own port", async () => {
+    let seenPath: string | undefined;
+    const server = http.createServer((req, res) => {
+      seenPath = req.url;
+      res.end("{}");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const ingressPort = (server.address() as AddressInfo).port;
+    // The agent's own port (4999) has no listener: a CLI that still dials it would report AGENT_NOT_RUNNING.
+    const tmp = agentProject(4999);
+    try {
+      const res = await runTdkAsync(
+        ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
+        tmp,
+        `http://127.0.0.1:${ingressPort}`,
+      );
+      expect(res.status).toBe(0);
+      expect(seenPath).toBe("/api/bot/session");
+      expect(JSON.parse(res.stdout).data.port).toBe(4999);
+    } finally {
+      server.close();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the route host in the Host header and dials loopback for *.localhost routes", () => {
+    const req = agentSessionRequest("http://api.demo.localhost:8080/api/bot", "s1");
+    expect(req.url).toBe("http://127.0.0.1:8080/api/bot/session");
+    expect(req.headers).toEqual({ "x-session-id": "s1", host: "api.demo.localhost:8080" });
+    const plain = agentSessionRequest("http://127.0.0.1:9000/api/bot/", "s2");
+    expect(plain.url).toBe("http://127.0.0.1:9000/api/bot/session");
+    expect(plain.headers).toEqual({ "x-session-id": "s2" });
+  });
+
+  for (const [label, status, body, code] of [
+    ["a 502 from the gateway", 502, "Bad Gateway", "AGENT_NOT_RUNNING"],
+    ["a plain-text 404 from the gateway", 404, "404 page not found", "AGENT_NOT_RUNNING"],
+    ["a JSON 404 from the agent", 404, '{"error":"no such session"}', "AGENT_REQUEST_FAILED"],
+  ] as const) {
+    it(`reports ${code} for ${label}`, async () => {
+      const server = http.createServer((_req, res) => {
+        res.statusCode = status;
+        res.end(body);
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const port = (server.address() as AddressInfo).port;
+      const tmp = agentProject(4999);
+      try {
+        const res = await runTdkAsync(
+          ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
+          tmp,
+          `http://127.0.0.1:${port}`,
+        );
+        expect(res.status).toBe(1);
+        expect(JSON.parse(res.stdout).errors[0].code).toBe(code);
+      } finally {
+        server.close();
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    });
+  }
+
+  it("sends the route's host in the Host header for *.localhost routes", async () => {
+    let seenHost: string | undefined;
+    const server = http.createServer((req, res) => {
+      seenHost = req.headers.host;
+      res.end("{}");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+    const tmp = agentProject(4999);
+    try {
+      const res = await runTdkAsync(
+        ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
+        tmp,
+        `http://demo.localhost:${port}`,
+      );
+      expect(res.status).toBe(0);
+      expect(seenHost).toBe(`api.demo.localhost:${port}`);
     } finally {
       server.close();
       fs.rmSync(tmp, { recursive: true, force: true });
