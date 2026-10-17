@@ -33,7 +33,7 @@ Q1() { # scaffold the quickstart project: a backend, a React frontend and a Vue 
     # frontend Docker build copies.
     printf 'y\n' | tdk resource storefront --type frontend --stack shop
     printf 'y\n' | tdk resource vue-app --type frontend --framework vue --stack shop
-    FRONTENDS="storefront:root vue-app:no-such-mount"
+    FRONTENDS="storefront:root vue-app:app"
     export FRONTENDS
     echo "FRONTENDS=storefront:root vue-app:app" >> "${GITHUB_ENV:-/dev/null}"
   else
