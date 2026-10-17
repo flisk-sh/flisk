@@ -93,3 +93,5 @@ test("GitHub's generic exit-code line is not reported as the error; the real err
 		"##[error]Error: TDK_LICENSE_KEY does not grant sablier",
 	);
 });
+
+test("deliberate break for #1288 evidence", () => assert.equal(1, 2));
