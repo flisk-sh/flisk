@@ -39,7 +39,7 @@ jobs:
 
       - name: Install CLI dependencies
         working-directory: cli
-        run: scripts/e2e/retry-infra.sh "bun install" -- bun install --frozen-lockfile
+        run: ../scripts/e2e/retry-infra.sh "bun install" -- bun install --frozen-lockfile
 
       # Edits the scaffolded service, breaks it, fixes it and touches go.mod, and fails if the app is down for a whole compile,
       # the compiler error is missing from the Tilt log, or a dependency change does not rebuild the image.
