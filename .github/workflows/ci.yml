@@ -213,13 +213,16 @@ jobs:
         working-directory: .
         run: make test-shell
       # Report-only: writes text, HTML and JSON-summary reports to cli/coverage/ and sets no threshold.
+      # Runs after an earlier test failure too, so the PR summary gets Vitest's JSON report with the failed test names (#1385).
       - name: Unit test coverage report
+        if: ${{ !cancelled() }}
         run: bun run test:coverage
         env:
           TDK_REQUIRE_TILT: '1'
       # Fails when a high-risk area drops below its baseline in cli/coverage-baseline.json (the ratchet).
       - name: Coverage ratchet for high-risk areas
-        run: node scripts/coverage-ratchet.mjs
+        if: ${{ !cancelled() }}
+        run: node scripts/coverage-ratchet.mjs --json test-results/coverage-ratchet.json
       - name: Coverage summary
         if: always()
         run: |
@@ -238,7 +241,65 @@ jobs:
           path: cli/coverage/
           retention-days: 14
           if-no-files-found: warn
-      # test-python remains a local target until the clean-checkout failures in #700 are resolved.
+      # The inputs of the PR summary (#1385): Vitest's JSON reporter output, the coverage summary and the ratchet's JSON report.
+      - name: Collect the unit test results for the PR summary
+        if: always()
+        run: |
+          mkdir -p test-results
+          cp -f coverage/coverage-summary.json coverage/coverage-final.json test-results/ || true
+      - name: Upload the unit test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: unit-test-results
+          path: cli/test-results/
+          retention-days: 14
+          if-no-files-found: warn
+
+  # Writes the test summary to the job summary and creates or edits the one PR comment with it (#1385). Reads only the JSON the
+  # Test job uploads. A fork's token is read-only, so a fork PR gets the job summary and no comment.
+  pr-summary:
+    name: 📝 PR test summary
+    runs-on: ubuntu-latest
+    needs: [changes, test]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read # lists the E2E workflow runs of the pull request's head commit
+      pull-requests: write # creates or edits the summary comment
+    steps:
+      # Full history, so the base commit of the pull request is present for the changed-line coverage diff.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the unit test results
+        id: unit
+        continue-on-error: true # the Test job may have stopped before its report step; the summary says so
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: unit-test-results
+          path: unit-results
+
+      - name: Write the test summary and the PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          TEST_RESULT: ${{ needs.test.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          args=(--unit unit-results --test-result "$TEST_RESULT" --run-url "$RUN_URL" --repo "$REPO" --sha "$HEAD_SHA" --diff-base "$BASE_SHA")
+          if [ "$SAME_REPO" = "true" ]; then args+=(--pr "$PR_NUMBER" --post); fi
+          node scripts/test-summary.mjs "${args[@]}" > summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+  # test-python remains a local target until the clean-checkout failures in #700 are resolved.
 
   # Builds and packs the CLI once per run. package-smoke installs this tarball instead of packing its own.
   package:
@@ -315,8 +376,9 @@ jobs:
           path: ${{ runner.temp }}/cli-tarball
 
       - name: Install globally
-        run: | # zizmor: ignore[adhoc-packages] installs the tarball the package job packed from this commit
-          node scripts/install-global.mjs "$RUNNER_TEMP"/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          tarball: ${{ runner.temp }}/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
 
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -384,85 +446,6 @@ jobs:
           inputs: .github/workflows/
           advanced-security: false
           annotations: true
-
-  # Report-only code scanning, one Security > Code scanning category per tool. Nothing here
-  # fails the build, so existing findings do not block PRs.
-  trivy:
-    name: 🐳 Trivy (dependencies, Dockerfiles, IaC)
-    # Fork PRs get a read-only token, which cannot upload SARIF.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: fs
-          scanners: vuln,misconfig # secrets are covered by TruffleHog in ci.yml
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: sarif
-          output: trivy.sarif
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('trivy.sarif') != ''
-        with:
-          sarif_file: trivy.sarif
-          category: trivy
-
-  osv-scanner:
-    name: 📦 OSV-Scanner (lockfile vulnerabilities)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
-        continue-on-error: true # report-only: exits non-zero when it finds vulnerabilities
-        with:
-          scan-args: |-
-            --recursive
-            --format=sarif
-            --output=osv.sarif
-            ./
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('osv.sarif') != ''
-        with:
-          sarif_file: osv.sarif
-          category: osv-scanner
-
-  semgrep:
-    name: 🔎 Semgrep (SAST)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      # Open-source CLI with the public rule registry: no account, token or telemetry.
-      - name: Semgrep
-        run: | # zizmor: ignore[adhoc-packages] semgrep is pinned and only reads the checkout
-          pipx run semgrep==1.180.0 scan \
-            --config p/default --config p/typescript --config p/dockerfile --config p/github-actions \
-            --metrics=off --sarif --output semgrep.sarif || true
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('semgrep.sarif') != ''
-        with:
-          sarif_file: semgrep.sarif
-          category: semgrep
 
   summary:
     name: 📋 Summary

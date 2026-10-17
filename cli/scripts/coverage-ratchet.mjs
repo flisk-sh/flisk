@@ -10,6 +10,8 @@
 //   node scripts/coverage-ratchet.mjs --update            rewrite the baseline from the current report (review the diff;
 //                                                         lowering a number needs its own commit with a reason)
 //   --summary <file> / --baseline <file>                  read or write other files (used to test the gate itself)
+//   --json <file>                                         also write the per-area measurements and failures as JSON
+//                                                         (read by scripts/test-summary.mjs for the PR comment)
 //
 // Exit codes: 0 pass, 1 regression or a bad baseline, 2 the coverage summary is missing or unreadable.
 
@@ -50,12 +52,14 @@ function parseArgs(argv) {
     summary: path.join(cliDir, "coverage", "coverage-summary.json"),
     baseline: path.join(cliDir, "coverage-baseline.json"),
     update: false,
+    json: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--update") opts.update = true;
     else if (arg === "--summary") opts.summary = path.resolve(argv[++i]);
     else if (arg === "--baseline") opts.baseline = path.resolve(argv[++i]);
+    else if (arg === "--json") opts.json = path.resolve(argv[++i]);
     else throw new Error(`unknown argument: ${arg}`);
   }
   return opts;
@@ -138,6 +142,7 @@ function main() {
   const baseline = readJson(opts.baseline, "coverage baseline");
   const failures = [];
   const rows = [];
+  const report = {};
 
   for (const area of AREAS) {
     const floor = baseline.areas?.[area.name];
@@ -155,9 +160,11 @@ function main() {
       continue;
     }
     const cells = [];
+    report[area.name] = { files: now.files, metrics: {} };
     for (const metric of METRICS) {
       const floorValue = floor[metric];
       const actual = now[metric];
+      report[area.name].metrics[metric] = { actual, baseline: floorValue };
       cells.push(`${metric} ${actual.toFixed(2)}% (baseline ${floorValue.toFixed(2)}%)`);
       if (actual < floorValue) {
         const drop = (floorValue - actual).toFixed(2);
@@ -173,6 +180,10 @@ function main() {
     if (!AREAS.some((area) => area.name === name)) {
       failures.push(`baseline names area "${name}", which this script does not define`);
     }
+  }
+
+  if (opts.json) {
+    writeFileSync(opts.json, `${JSON.stringify({ areas: report, failures }, null, 2)}\n`);
   }
 
   console.log("coverage-ratchet: per-area coverage");

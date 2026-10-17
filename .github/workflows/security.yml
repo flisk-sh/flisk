@@ -1,0 +1,167 @@
+# Report-only code scanners: Trivy, OSV-Scanner and Semgrep upload SARIF to Security > Code scanning and never fail the build.
+# On pull requests each scanner runs only when its paths changed (a skipped job still reports its check name). On push to
+# main, on the nightly schedule and by hand they run in full.
+name: 🛡️ Security Scans
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 3 * * *" # nightly, full scan of the latest main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Pull requests only. Push, schedule and dispatch runs leave the outputs empty, and every scanner's `if` treats that as "run".
+  changes:
+    name: 🔎 Detect Scanner Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2 # every job finishes in under 20s; fail fast if one hangs
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists the files of a pull request
+    outputs:
+      # Any changed file outside the docs patterns. Same patterns as ci.yml's docs-only check.
+      code: ${{ steps.code.outputs.code }}
+      # Lockfiles and manifests that the dependency scanners read.
+      deps: ${{ steps.filter.outputs.deps }}
+      # Dockerfiles and infrastructure-as-code that Trivy's misconfiguration scan reads.
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: code
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!openspec/**'
+              - '!LICENSE'
+
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: filter
+        with:
+          filters: |
+            deps:
+              - 'bun.lock'
+              - 'package.json'
+              - 'cli/package.json'
+              - '**/package-lock.json'
+              - '**/yarn.lock'
+              - '**/pnpm-lock.yaml'
+              - '**/go.mod'
+              - '**/go.sum'
+              - '**/Cargo.lock'
+              - '**/Pipfile.lock'
+              - '**/poetry.lock'
+              - '**/requirements*.txt'
+              - '**/Gemfile.lock'
+              - '**/composer.lock'
+            infra:
+              - '**/Dockerfile*'
+              - '**/*.dockerfile'
+              - '**/*.tf'
+              - '**/*.tfvars'
+              - '**/docker-compose*.y*ml'
+              - '**/k8s/**'
+              - '**/helm/**'
+
+  # Fork PRs get a read-only token, which cannot upload SARIF.
+  trivy:
+    name: 🐳 Trivy (dependencies, Dockerfiles, IaC)
+    needs: changes
+    # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
+    # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.deps != 'false' || needs.changes.outputs.infra != 'false') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # upload SARIF results
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,misconfig # secrets are covered by TruffleHog in ci.yml
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy.sarif
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: always() && hashFiles('trivy.sarif') != ''
+        with:
+          sarif_file: trivy.sarif
+          category: trivy
+
+  osv-scanner:
+    name: 📦 OSV-Scanner (lockfile vulnerabilities)
+    needs: changes
+    # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
+    # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.deps != 'false') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write # upload SARIF results
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+        continue-on-error: true # report-only: exits non-zero when it finds vulnerabilities
+        with:
+          scan-args: |-
+            --recursive
+            --format=sarif
+            --output=osv.sarif
+            ./
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: always() && hashFiles('osv.sarif') != ''
+        with:
+          sarif_file: osv.sarif
+          category: osv-scanner
+
+  semgrep:
+    name: 🔎 Semgrep (SAST)
+    needs: changes
+    # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
+    # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.code != 'false') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write # upload SARIF results
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # Open-source CLI with the public rule registry: no account, token or telemetry.
+      - name: Semgrep
+        run: | # zizmor: ignore[adhoc-packages] semgrep is pinned and only reads the checkout
+          pipx run semgrep==1.180.0 scan \
+            --config p/default --config p/typescript --config p/dockerfile --config p/github-actions \
+            --metrics=off --sarif --output semgrep.sarif || true
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: always() && hashFiles('semgrep.sarif') != ''
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
