@@ -376,8 +376,9 @@ jobs:
           path: ${{ runner.temp }}/cli-tarball
 
       - name: Install globally
-        run: | # zizmor: ignore[adhoc-packages] installs the tarball the package job packed from this commit
-          node scripts/install-global.mjs "$RUNNER_TEMP"/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          tarball: ${{ runner.temp }}/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
 
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit

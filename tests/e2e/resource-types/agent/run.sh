@@ -9,7 +9,8 @@
 #   tests/e2e/resource-types/agent/run.sh all                   every case in order, then cleanup
 #   tests/e2e/resource-types/agent/run.sh list | self-check | diagnostics | cleanup
 #
-# Needs: tdk on PATH, Docker, Tilt, Node 22+, jq, curl. D1-D3 need only the repository checkout.
+# Needs: tdk on PATH, Docker, Tilt, Node 22+, jq, curl. The distribution and docs checks (D1-D3) need no stack: they live in
+# tests/e2e/static/skills-and-docs.sh and run in make test-shell, not here.
 # Scratch state lives under $E2E_ROOT/agent (see tests/e2e/lib/lib.sh for the variables and overrides).
 set -euo pipefail
 
