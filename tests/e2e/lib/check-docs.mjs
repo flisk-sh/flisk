@@ -1,8 +1,8 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
-// Section D3 of agent-e2e.sh: relative links and anchors in README.md, AGENTS.md and docs/** resolve; nothing refers to the
+// Case D3 of the agent suite: relative links and anchors in README.md, AGENTS.md and docs/** resolve; nothing refers to the
 // removed root llms.txt / llms-full.txt or docs/ai-agents.md; the docs/agents/llms*.txt files link only to things that exist.
-// Run from the repository root: node scripts/agent-e2e/check-docs.mjs
+// Run from the repository root: node tests/e2e/lib/check-docs.mjs
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
