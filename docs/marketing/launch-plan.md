@@ -37,6 +37,15 @@ Replace the TBD names before Tue Oct 27. A slot with no name means the launch do
 - If a question is a real bug or a feature request, open or link a GitHub issue and say so in the reply.
 - If a comment is hostile, reply once with facts or leave it. Do not argue past two replies.
 
+## Prior coverage (check before posting)
+
+Found before the launch. Links were supplied by the owner; the HN search turned up nothing for TDK, so the HN history is still unchecked.
+
+| Item | Link | Date | What it claims | Action before Oct 28 |
+| --- | --- | --- | --- | --- |
+| dev.to article: "We ran 100 microservices on a 16GB laptop" | https://dev.to/mynameis0d3c53a3/we-ran-100-microservices-on-a-16gb-laptop-no-kubernetes-590e | Sep 27 | 10 services healthy in 8 s (161 MiB), 50 in 24 s (829 MiB), 100 in 112 s (1.6 GiB); 0 crashes, 0 OOM; benchmark script and raw JSON in the repo | Check each number against the committed benchmark JSON and `docs/claims.md`. The Show HN draft uses different figures (14 services in 4.6 s; 100 stubs in 472 s on a CI runner). Use one set of numbers, and say which hardware it came from. Link this article from the first comment as the longer write-up. |
+| Two earlier Show HN posts | TBD (owner to supply links) | TBD | TBD | Check whether either is still on the front page or drew discussion. If so, the Oct 28 post needs a new angle, or move it. HN flags a resubmission of the same URL. |
+
 ## Rules check (must be done on Tue Oct 27)
 
 Status: **not verified**. Reddit was not reachable from the session that wrote this plan (the in-app browser refused reddit.com and WebFetch could not reach old.reddit.com). The owner must open each page below and fill in the table before posting.
