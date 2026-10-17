@@ -1,6 +1,6 @@
 # Tasks
 
-## 1. Foundation (after #1272 lands)
+## 1. Foundation
 
 - [ ] 1.1 Extract shared helpers from `scripts/agent-e2e.sh` and `scripts/agent-e2e/*.mjs` into `tests/e2e/lib/` (`lib.sh`, `assert-json.mjs`, `mcp-client.mjs`, `stub.mjs`, `traefik` helper, `wait_restarted`), with unit tests for the `.mjs` helpers
 - [ ] 1.2 Define `suite.json` (paths, cases, triggers, timeoutMinutes, needsSecrets) and a validator

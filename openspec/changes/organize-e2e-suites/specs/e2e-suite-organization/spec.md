@@ -30,6 +30,13 @@ Every live-stack suite SHALL provide a `run.sh` that takes case ids as arguments
 - **WHEN** a polled condition is not met before its deadline
 - **THEN** the case fails with the waited-for description and prints recent stack logs and container state
 
+### Requirement: Each case sets up its own preconditions
+A case SHALL NOT rely on the state an earlier case left behind. When it needs a running resource, data or a stopped container, it SHALL check for that state and create it. A request whose result a later assertion depends on SHALL fail the case when it does not succeed, rather than passing its error body on.
+
+#### Scenario: Error-path case stopped the resource earlier
+- **WHEN** a durability case runs after an error-path case that stopped the agent container
+- **THEN** the durability case brings the agent back before writing its checkpoint, and fails on the write itself if the write is rejected
+
 ### Requirement: Suites reuse a shared helper library
 Helpers for polling, running commands with exit code and elapsed time, JSON envelope assertions, MCP stdio calls, HTTP stubs, Traefik requests and diagnostics SHALL live in `tests/e2e/lib/`. A suite SHALL NOT keep its own copy of a helper that exists there.
 

@@ -22,7 +22,7 @@ TDK's end-to-end tests grew one at a time and now live in five places with no sh
 - `e2e-contributor-guide`: the contributor documentation and the repository skill for writing e2e tests, using the agent suite as the worked example.
 
 ### Modified Capabilities
-None. No e2e behavior is specified in `openspec/specs` today. `agent-e2e-ci` (#1268) is an open change that this one depends on and does not alter.
+None. No e2e behavior is specified in `openspec/specs` today. `agent-e2e-ci` (#1268) added the agent suite this change builds on and is not altered.
 
 ## Impact
 
@@ -31,4 +31,4 @@ None. No e2e behavior is specified in `openspec/specs` today. `agent-e2e-ci` (#1
 - **New:** `tests/e2e/lib/`, `tests/e2e/<group>/<suite>/run.sh`, `e2e-<group>.yml` workflows, `docs/contributing/05-write-e2e.md`, `.claude/skills/tdk-e2e-author/`, and a coverage check.
 - **Changed:** `Makefile` (`make test-e2e GROUP=… SUITE=…`), `CONTRIBUTING.md` (Tests section links the guide), `docs/contributing/02-feature-recipes.md` (each recipe names its e2e), `scripts/sync-tdk-skills.sh` (keeps repo-local skills).
 - **Admin:** branch protection's required checks (maintainer action).
-- **Depends on:** [PR #1272](https://github.com/tdk-landscape/tdk-cli-core/pull/1272) landing first, since the agent suite is the reference.
+- **Builds on:** [PR #1272](https://github.com/tdk-landscape/tdk-cli-core/pull/1272) (merged), whose agent suite is the reference.
