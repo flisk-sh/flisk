@@ -72,6 +72,19 @@ test("the backend suite adds one bun leg per non-default framework, and never th
   }
 });
 
+test("the frontend suite gets one leg per framework, with the framework set on each", () => {
+  const dir = fixture([["resource-types", "frontend", { suite: "frontend", triggers: ["nightly"], timeoutMinutes: 30 }]]);
+  try {
+    const legs = selectSuites(dir, "resource-types", "nightly", [], [], ["react", "vue"]);
+    assert.deepEqual(legs, [
+      { suite: "frontend", language: "", framework: "react", label: "frontend-react", timeoutMinutes: 30 },
+      { suite: "frontend", language: "", framework: "vue", label: "frontend-vue", timeoutMinutes: 30 },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("an event no suite lists selects nothing, and a missing group is empty", () => {
   const dir = fixture([["resource-types", "agent", { suite: "agent", triggers: ["pr"], timeoutMinutes: 30 }]]);
   try {

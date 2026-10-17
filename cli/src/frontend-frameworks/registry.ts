@@ -38,7 +38,7 @@ export const META_FRAMEWORK_IDS = [
   "tanstack-start",
 ] as const;
 
-// Providers that have passed scripts/verify-frontend-frameworks.sh (that script's default list must match this).
+// Providers that have passed the resource-types/frontend e2e suite (one leg per framework, see tests/e2e/axes.json).
 export const VERIFIED_FRONTEND_FRAMEWORKS: readonly string[] = [
   "react",
   "vue",

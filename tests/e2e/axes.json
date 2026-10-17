@@ -8,8 +8,12 @@
 				"end": "] as const",
 				"kind": "array"
 			},
-			"groups": ["resource-types"],
-			"defaults": ["backend"],
+			"groups": [
+				"resource-types"
+			],
+			"defaults": [
+				"backend"
+			],
 			"values": {
 				"backend": {
 					"leg": "resource-types/backend"
@@ -48,8 +52,12 @@
 				"end": "\n};",
 				"kind": "map"
 			},
-			"groups": ["resource-types"],
-			"defaults": ["bun"],
+			"groups": [
+				"resource-types"
+			],
+			"defaults": [
+				"bun"
+			],
 			"values": {
 				"bun": {
 					"leg": "resource-types/backend"
@@ -76,8 +84,12 @@
 				"end": "\n};",
 				"kind": "map"
 			},
-			"groups": ["resource-types"],
-			"defaults": ["hono"],
+			"groups": [
+				"resource-types"
+			],
+			"defaults": [
+				"hono"
+			],
 			"values": {
 				"hono": {
 					"leg": "resource-types/backend"
@@ -110,35 +122,39 @@
 				"end": "\n};",
 				"kind": "map"
 			},
-			"groups": ["resource-types"],
-			"defaults": ["react"],
+			"groups": [
+				"resource-types"
+			],
+			"defaults": [
+				"react"
+			],
 			"values": {
 				"react": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"vue": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"svelte": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"preact": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"lit": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"solid": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"qwik": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"vanilla": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				},
 				"tanstack-router": {
-					"allow": "#1291"
+					"leg": "resource-types/frontend"
 				}
 			},
 			"interactions": []
@@ -150,8 +166,12 @@
 				"end": "\n};",
 				"kind": "map"
 			},
-			"groups": ["resource-types"],
-			"defaults": ["custom"],
+			"groups": [
+				"resource-types"
+			],
+			"defaults": [
+				"custom"
+			],
 			"values": {
 				"custom": {
 					"leg": "resource-types/agent"
@@ -166,8 +186,12 @@
 				"end": "] as const",
 				"kind": "array"
 			},
-			"groups": ["resource-types"],
-			"defaults": ["files"],
+			"groups": [
+				"resource-types"
+			],
+			"defaults": [
+				"files"
+			],
 			"values": {
 				"files": {
 					"leg": "resource-types/agent"
@@ -180,7 +204,9 @@
 		},
 		"feature": {
 			"source": null,
-			"groups": ["resource-types"],
+			"groups": [
+				"resource-types"
+			],
 			"defaults": [],
 			"values": {
 				"database-management": {
@@ -199,7 +225,10 @@
 				"end": "] as const",
 				"kind": "array"
 			},
-			"groups": ["resource-types", "examples"],
+			"groups": [
+				"resource-types",
+				"examples"
+			],
 			"defaults": [],
 			"values": {
 				"monitoring": {
@@ -222,8 +251,13 @@
 		},
 		"byoVariant": {
 			"source": null,
-			"groups": ["resource-types", "examples"],
-			"defaults": ["byo"],
+			"groups": [
+				"resource-types",
+				"examples"
+			],
+			"defaults": [
+				"byo"
+			],
 			"values": {
 				"byo": {
 					"allow": "#1297"
@@ -236,8 +270,12 @@
 		},
 		"example": {
 			"source": null,
-			"groups": ["examples"],
-			"defaults": ["one-backend"],
+			"groups": [
+				"examples"
+			],
+			"defaults": [
+				"one-backend"
+			],
 			"values": {
 				"one-backend": {
 					"allow": "#1299"
@@ -256,8 +294,12 @@
 		},
 		"platform": {
 			"source": null,
-			"groups": ["platforms"],
-			"defaults": ["linux"],
+			"groups": [
+				"platforms"
+			],
+			"defaults": [
+				"linux"
+			],
 			"values": {
 				"linux": {
 					"allow": "#1300"
@@ -273,8 +315,13 @@
 		},
 		"installChannel": {
 			"source": null,
-			"groups": ["journeys", "examples"],
-			"defaults": ["local"],
+			"groups": [
+				"journeys",
+				"examples"
+			],
+			"defaults": [
+				"local"
+			],
 			"values": {
 				"local": {
 					"allow": "#1291"
@@ -290,7 +337,9 @@
 		},
 		"journey": {
 			"source": null,
-			"groups": ["journeys"],
+			"groups": [
+				"journeys"
+			],
 			"defaults": [],
 			"values": {
 				"quickstart": {

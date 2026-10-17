@@ -75,11 +75,13 @@ jobs:
           if [ "$trigger" = "pr" ]; then
             languages="bun,python"
             frameworks=""
+            frontends=""
           else
             languages="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.language | join(",")')"
             frameworks="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.httpFramework | join(",")')"
+            frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
           fi
-          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger" "$languages" "$frameworks")"
+          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger" "$languages" "$frameworks" "$frontends")"
           echo "trigger=$trigger"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"

@@ -39,13 +39,11 @@ describe("frontend framework inventory", () => {
     expect(listFrontendFrameworks().every((f) => f.verified)).toBe(true);
   });
 
-  it("keeps the verify script's default list in sync with the registry", () => {
-    const script = readFileSync(
-      resolve(__dirname, "../../../../scripts/verify-frontend-frameworks.sh"),
-      "utf8",
-    );
-    const m = script.match(/frameworks=\(([^)]*)\)\nfi/);
-    expect((m?.[1] ?? "").split(/\s+/).sort()).toEqual(Object.keys(FRONTEND_FRAMEWORKS).sort());
+  it("the frontend e2e suite's matrix is built from the registry's framework list", () => {
+    // The matrix reads the framework axis from the registry (tests/e2e/lib/registry-axes.mjs), so every provider gets a leg.
+    const axes = readFileSync(resolve(__dirname, "../../../../tests/e2e/axes.json"), "utf8");
+    const values = Object.keys(JSON.parse(axes).axes.frontendFramework.values).sort();
+    expect(values).toEqual(Object.keys(FRONTEND_FRAMEWORKS).sort());
   });
 });
 

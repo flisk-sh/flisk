@@ -39,7 +39,7 @@ Create a resource with `tdk resource web --type frontend --framework <id> --stac
 
 ## Verify every provider through `tdk up`
 
-`scripts/verify-frontend-frameworks.sh` scaffolds one frontend per framework in a throwaway project, runs a single `tdk up app`, and for each framework checks that the Traefik route `app.<project>.localhost/<project>-<framework>/` returns 200, serves the module script, and serves the built asset as JavaScript. It removes its own containers, networks and `app_<project>` images when it ends.
+The `resource-types/frontend` e2e suite (`tests/e2e/resource-types/frontend/`) scaffolds one frontend per framework in a throwaway project, runs `tdk up`, and for each framework (one matrix leg each) checks that the Traefik route `app.<project>.localhost/<project>-<framework>/` returns 200, serves the module script, and serves the built asset as JavaScript. It removes its own containers, networks and `app_<project>` images when it ends.
 
 Last run (2026-10-03): `PASS all 8 frontend frameworks: react vue svelte preact lit solid qwik vanilla`.
 
@@ -47,7 +47,7 @@ Not covered: client-side behaviour in a browser (the script checks HTML and asse
 
 ## Meta-frameworks are bring-your-own
 
-`tdk resource --frameworks` prints the inventory: only registered, verified Vite SPA providers. A provider is not listed as supported until it is registered in `registry.ts`, appears in `VERIFIED_FRONTEND_FRAMEWORKS` and in the default list of `scripts/verify-frontend-frameworks.sh` (a unit test keeps the registry and the script's list in sync). Next, Nuxt, SvelteKit, Astro, Angular, Remix and TanStack Start own their config and a server, so `--framework <id>` fails with a handoff. Create the app with the framework's own CLI, then register it:
+`tdk resource --frameworks` prints the inventory: only registered, verified Vite SPA providers. A provider is not listed as supported until it is registered in `registry.ts`, appears in `VERIFIED_FRONTEND_FRAMEWORKS` and in the `frontendFramework` axis of `tests/e2e/axes.json` (a unit test keeps the axis in step with the registry, and the matrix is built from the registry). Next, Nuxt, SvelteKit, Astro, Angular, Remix and TanStack Start own their config and a server, so `--framework <id>` fails with a handoff. Create the app with the framework's own CLI, then register it:
 
 ```bash
 tdk resource web --type bring-your-own --stack app --yes
@@ -68,6 +68,6 @@ tanstack create shop-web --router-only   # or the Start template
 tdk resource shop-web --type bring-your-own --stack shop --yes
 ```
 
-Verified: `scripts/verify-frontend-frameworks.sh tanstack-router` -> `PASS tanstack-router: through tdk up and Traefik, GET /<project>-tanstack-router/ -> 200, .../index.js -> 200 application/javascript` (this run also caught that `import.meta.env` needs `/// <reference types="vite/client" />`, now in the scaffold).
+Verified (by the old script, before it moved to the suite): `scripts/verify-frontend-frameworks.sh tanstack-router` -> `PASS tanstack-router: through tdk up and Traefik, GET /<project>-tanstack-router/ -> 200, .../index.js -> 200 application/javascript` (this run also caught that `import.meta.env` needs `/// <reference types="vite/client" />`, now in the scaffold).
 
 Not run: a TanStack Start app, and the `tanstack create` plus `--type bring-your-own` commands above.
