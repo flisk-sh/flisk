@@ -1,0 +1,19 @@
+{
+  "group": "journeys",
+  "suite": "quickstart",
+  "description": "The README quickstart on a clean machine (moved from quickstart-e2e.yml, #1298): scaffold a backend and two frontends, tdk up, every /health answering through Traefik, each frontend serving its built app, and the time to a healthy stack recorded. The workflow keeps its triggers and check name until the e2e-journeys cutover.",
+  "paths": [
+    "cli/**",
+    "engine/**",
+    "discovery/**",
+    "Tiltfile",
+    "package.json",
+    "tests/e2e/lib/**",
+    "tests/e2e/journeys/quickstart/**",
+    ".github/workflows/quickstart-e2e.yml"
+  ],
+  "cases": ["Q1", "Q2", "Q3", "Q4"],
+  "triggers": ["pr", "nightly", "release", "manual"],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}
