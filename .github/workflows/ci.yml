@@ -317,7 +317,7 @@ jobs:
       - name: Install globally
         uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
-          tarball: ${{ runner.temp }}/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
+          tarball: ${{ runner.temp }}/cli-tarball/deliberate-break-*.tgz
 
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
