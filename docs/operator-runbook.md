@@ -50,7 +50,7 @@ tdk import <dir> --dry-run
 tdk import <dir> --yes
 ```
 
-Start the imported stack with TDK core **1.3.145 or later**. 1.3.104 added `buildContext` ([tdk-cli-core#525](https://github.com/tdk-landscape/tdk-cli-core/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.tdk/project.json` but none yet ([tdk-cli-core#1018](https://github.com/tdk-landscape/tdk-cli-core/pull/1018)). The importer does not detect or enforce the installed core version, and `tdk import` does not check it either.
+Start the imported stack with TDK core **1.3.145 or later**. 1.3.104 added `buildContext` ([tdk-cli-core#525](https://github.com/tdk-landscape/tdk-cli-core/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.tdk/project.json` but none yet ([tdk-cli-core#1018](https://github.com/tdk-landscape/tdk-cli-core/pull/1018)). `tdk import` enforces that the installed core is at least 1.3.104 before writing; if an older core is encountered, it exits before writing and prints the upgrade command (`tdk upgrade`).
 
 Put the environment values the services need in the project `.env`; values in the Compose file are never copied. Evidence of the importer running through a real `tdk up`: [#1007](https://github.com/tdk-landscape/tdk-cli-core/issues/1007).
 

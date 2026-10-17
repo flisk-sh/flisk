@@ -144,7 +144,6 @@ tdk import ./legacy --yes
 
 | Flag | Effect |
 | --- | --- |
-| `--scope machine` | With `--fix`, also remove other TDK projects' unused networks (asks per network) |
 | `--dry-run` | Print the plan and write nothing |
 | `--yes` | Write without prompting |
 | `--force` | Overwrite an existing `service.json` |
