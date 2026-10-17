@@ -6,6 +6,7 @@ import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, runCommand, TdkError } from "../utils/errors.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
+const SESSION_REQUEST_TIMEOUT_MS = 10_000;
 export const agentCommand = new Command("agent").description("Inspect and operate AI agent resources");
 agentCommand
     .command("sessions <resource>")
@@ -54,11 +55,15 @@ agentCommand
             headers["x-session-id"] = String(options.sessionId);
         }
         let res;
+        let bodyText;
         try {
+            // One signal covers both the connection and the body read, so a hung agent cannot block the CLI.
             res = await fetch(`http://127.0.0.1:${port}/session`, {
                 method: "GET",
                 headers,
+                signal: AbortSignal.timeout(SESSION_REQUEST_TIMEOUT_MS),
             });
+            bodyText = await res.text();
         }
         catch {
             const msg = `Agent "${resourceName}" is not responding on port ${port}. Is the stack running?`;
@@ -68,7 +73,6 @@ agentCommand
             }
             throw new TdkError(msg, ["Start the stack with: tdk up"]);
         }
-        const bodyText = await res.text();
         let body = {};
         try {
             body = bodyText ? JSON.parse(bodyText) : {};
@@ -93,7 +97,7 @@ agentCommand
             console.log(JSON.stringify(createMachineEnvelope({
                 agent: resourceName,
                 port,
-                ...body,
+                session: body,
             })));
             return;
         }

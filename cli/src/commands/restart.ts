@@ -33,6 +33,8 @@ export const restartCommand = new Command("restart")
       }
 
       if (!tiltAvailable) {
+        // isTiltAvailable collapses missing binary and nonzero version into false.
+        // Report TILT_NOT_RUNNING for both; a missing binary is rare and still surfaces via doctor.
         const msg = tiltUnreachableMessage(portText);
         if (options.json) {
           console.log(

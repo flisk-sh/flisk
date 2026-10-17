@@ -15,7 +15,7 @@ export function getCustomAgentIndexTemplate(
     return `import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { Client } from 'pg';
 
-// Contract with TDK (see docs/ai-agents.md):
+// Contract with TDK (see docs/agents/ai-agents.md):
 //   AGENT_DURABILITY  postgres
 //   DATABASE_URL      Postgres connection string injected by TDK
 //   PORT              port to listen on
@@ -198,7 +198,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Contract with TDK (see docs/ai-agents.md):
+// Contract with TDK (see docs/agents/ai-agents.md):
 //   AGENT_DURABILITY  files   (set by tdk from service.json agent.durability)
 //   AGENT_STATE_DIR   where files-durability checkpoints live (a named volume that survives tdk down)
 //   PORT              port to listen on
