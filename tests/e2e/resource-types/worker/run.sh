@@ -30,4 +30,13 @@ W2() { # tdk up, then the worker is listed as a worker in tdk status
   common_wait_status "$RES" worker
 }
 
+worker_running() { [ -n "$(running_container "$RES")" ]; }
+worker_logged_start() { docker logs "$(running_container "$RES")" 2>&1 | grep -q "$RES worker started"; }
+
+W3() { # the worker container is running and logged its start line
+  log "W3 the $RES container is running and logged its start line"
+  poll_until "$RES container is running" "$READY_TIMEOUT" worker_running
+  poll_until "$RES logged 'worker started'" 120 worker_logged_start
+}
+
 e2e_main "$@"

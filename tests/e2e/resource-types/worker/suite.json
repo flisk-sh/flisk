@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "worker",
-  "description": "A worker resource on a live stack: scaffold with tdk resource --type worker, tdk up, and the worker is listed as a worker in tdk status (openspec task 3.6, #1290).",
+  "description": "A worker resource on a live stack: scaffold with tdk resource --type worker, tdk up, the worker is listed as a worker in tdk status, and its container is running and logged its start line (openspec task 3.6, #1290). The scaffolded worker is a stub, so processing a job is not covered.",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/utils/constants.ts",
@@ -11,8 +11,16 @@
     "tests/e2e/resource-types/worker/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["W1", "W2"],
-  "triggers": ["nightly", "release", "manual"],
+  "cases": [
+    "W1",
+    "W2",
+    "W3"
+  ],
+  "triggers": [
+    "nightly",
+    "release",
+    "manual"
+  ],
   "timeoutMinutes": 25,
   "needsSecrets": []
 }
