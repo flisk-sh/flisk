@@ -5,8 +5,8 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, runCommand, TdkError } from "../utils/errors.js";
-import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
+import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { buildServicePorts } from "../utils/status-ports.js";
 
@@ -25,7 +25,11 @@ export function httpGet(
       res.on("data", (chunk: Buffer) => chunks.push(chunk));
       res.on("end", () => {
         const status = res.statusCode ?? 0;
-        resolve({ ok: status >= 200 && status < 300, status, text: Buffer.concat(chunks).toString("utf-8") });
+        resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          text: Buffer.concat(chunks).toString("utf-8"),
+        });
       });
       res.on("error", reject);
     });
@@ -175,7 +179,10 @@ agentCommand
       // Traefik answers 502/503/504 when the route has no live container and a plain-text 404 when it has no route at
       // all. An agent's own errors are JSON, so a non-JSON 404 is the gateway, not the agent.
       const gatewayText = typeof body === "object" && body !== null && "raw" in body;
-      if (!res.ok && ([502, 503, 504].includes(res.status) || (res.status === 404 && gatewayText))) {
+      if (
+        !res.ok &&
+        ([502, 503, 504].includes(res.status) || (res.status === 404 && gatewayText))
+      ) {
         return notRunning();
       }
 
