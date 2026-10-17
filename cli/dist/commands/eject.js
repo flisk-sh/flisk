@@ -4,7 +4,7 @@ import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { confirmOrCancel } from "../utils/command-helpers.js";
+import { confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
 import { errorFactories, runCommand } from "../utils/errors.js";
 import { findProjectRoot } from "../utils/paths.js";
 // Same location `tdk up` hands to Tilt (see getTiltfilePath in utils/tilt.ts), relative to the project root.
@@ -72,7 +72,8 @@ export const ejectCommand = new Command("eject")
         const userTiltfile = existsSync(rootTiltfile) ? ["Tiltfile"] : [];
         const ejectedPath = join(projectRoot, "EJECTED.md");
         const willCreate = existsSync(ejectedPath) ? [] : ["EJECTED.md"];
-        if (options.dryRun) {
+        // eject's plan is a file list, not the standard "Dry run - ..." pair, so it supplies its own printer.
+        if (handleDryRun(options, "", "", () => {
             console.log("Generated files, left where they are (git-ignored):");
             for (const path of files)
                 console.log(`  ${path}`);
@@ -86,6 +87,7 @@ export const ejectCommand = new Command("eject")
                 console.log(`  ${path}`);
             if (willCreate.length === 0)
                 console.log("  (none)");
+        })) {
             return;
         }
         if (!options.yes &&
