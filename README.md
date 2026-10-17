@@ -22,7 +22,7 @@ LLMs are brilliant at writing application logic, but notoriously terrible at mai
 
 **TDK CLI Core** bridges the gap. You write the clean web application logic, and TDK instantly autodetects your stack to generate, link, and orchestrate the local environment for you. 
 
-### ⚡ Zero-Config Local Stacks in 3 Seconds
+### ⚡ Zero-Config Local Stacks in About 14 Seconds
 No vendor lock-in. No tedious plumbing. Run a single command to natively orchestrate **72 different integration tiers** including:
 * **Runtimes & Frameworks:** Bun, Node, Python, Go, Rust, React, Vue, Svelte, Elysia, Fastify, NestJS
 * **Databases & Tooling:** Prisma, Drizzle, Atlas, Dbmate
