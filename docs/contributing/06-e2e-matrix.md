@@ -45,13 +45,14 @@ node tests/e2e/lib/suite-matrix.mjs resource-types pr "bun,python"
 }
 ```
 
-The builder expands a suite into legs in one of three ways:
+The builder expands a suite into legs in one of three ways: A suite can also list `"variants": [{"id": "..."}]` in place of a single leg; `bring-your-own` does this. `validate-suites.mjs` rejects keys it does not know, so check spelling.
 
 | Shape | Example | Legs |
 |---|---|---|
 | one leg | `agent` | one, labelled with the suite name |
 | one per axis value | `backend` | one per language from `registry-axes.mjs` |
 | one per axis value, with a default | `backend` bun | one more bun leg per non-default HTTP framework |
+| one per variant | `bring-your-own` | one leg per `variants` entry in `suite.json`, with `BYO_VARIANT` set to its id |
 
 Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`), so the suite's `run.sh` reads what it needs and nothing else. A leg's `label` names the job in the UI (`resource-types / backend-bun`), so it is what reviewers search for.
 
@@ -64,7 +65,7 @@ Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`), so the s
 | `release` | after a release is published (`workflow_run`); installs the version just published | the same as nightly |
 | `manual` | `workflow_dispatch`; installs the `version` input (default `latest`) | the same as nightly |
 
-A suite that needs secrets cannot have `pr`, because pull requests from forks get none. A `scale` suite cannot have `pr` either. These are checked by `tests/e2e/lib/validate-suites.mjs` in `make test-shell`.
+The validator also accepts a `weekly` trigger, but no group workflow runs it yet, so do not rely on it. A suite that needs secrets cannot have `pr`, because pull requests from forks get none. A `scale` suite cannot have `pr` either. These are checked by `tests/e2e/lib/validate-suites.mjs` in `make test-shell`.
 
 ## Add a suite to an existing group
 
