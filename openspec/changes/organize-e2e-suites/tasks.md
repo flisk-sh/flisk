@@ -30,8 +30,8 @@
 - [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set (the `appType` matrix is in this PR as the suite matrix; the per-type axis waits on `common.sh` (3b.1))
 - [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
 - [x] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases (#1319: A1 and A6 use `common.sh`; the live agent leg passed; sessions, MCP, drain and durability stay as contract cases)
-- [ ] 3b.5 Generate the matrix axes from the registries (`VALID_RESOURCE_TYPES`, backend languages, frontend frameworks) in the `changes` job, and extend the coverage check to every registry with an allowlist (in this PR: `tests/e2e/lib/registry-axes.mjs` reads the registries and the `changes` job exposes them as the `axes` output; the matrix consumes them in 3b.6)
-- [ ] 3b.6 Add the `backend` × language axis (bun, python, go, rust, and node once #1276 merges) with fail-fast off and max-parallel set (the backend suite runs one leg per language: bun and python on pull requests, all registry languages nightly and on release; the live legs are the proof)
+- [x] 3b.5 Generate the matrix axes from the registries (`VALID_RESOURCE_TYPES`, backend languages, frontend frameworks) in the `changes` job, and extend the coverage check to every registry with an allowlist (#1322: `tests/e2e/lib/registry-axes.mjs` reads the registries and the `changes` job exposes them as the `axes` output; 3b.6 is the first consumer)
+- [ ] 3b.6 Add the `backend` × language axis (bun, python, go, rust, and node once #1276 merges) with fail-fast off and max-parallel set
 - [ ] 3b.7 Write `tests/e2e/axes.json` (axis, source, groups, defaults, known interactions with reasons) and extend the coverage check to every axis with a source (`axes.json` and its coverage check are in #1306; still to do: extend the check to every registry)
 
 ## 4. Other groups (one suite per PR)
