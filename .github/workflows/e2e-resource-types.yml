@@ -162,6 +162,13 @@ jobs:
           BYO_VARIANT: ${{ matrix.variant }}
         run: tests/e2e/resource-types/"$SUITE"/run.sh all
 
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: ${{ matrix.label }}
+
       - name: Collect diagnostics
         if: failure()
         env:

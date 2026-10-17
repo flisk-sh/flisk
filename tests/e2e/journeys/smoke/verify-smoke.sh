@@ -71,7 +71,7 @@ d["smoke"] = {
     "via": "proxy",
     "timeoutSeconds": 20 if "missing" in os.environ["SMOKE_READ"] else 600,
     "steps": [
-        {"name": "create", "method": "POST", "path": "/records", "body": {"name": "smoke"}, "expect": 299, "save": {"id": "$.id"}},
+        {"name": "create", "method": "POST", "path": "/records", "body": {"name": "smoke"}, "expect": 201, "save": {"id": "$.id"}},
         {"name": "read back", "path": os.environ["SMOKE_READ"], "expect": 200, "bodyContains": "smoke"},
     ],
 }

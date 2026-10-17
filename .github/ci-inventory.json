@@ -59,21 +59,10 @@
 		},
 		{
 			"workflow": "ci.yml",
-			"job": "docs",
-			"tier": "gate",
-			"required": false,
-			"reason": "Detects docs-only PRs for the other jobs",
-			"owner": "maintainers",
-			"exempt": {
-				"check-name": "#1283"
-			}
-		},
-		{
-			"workflow": "ci.yml",
 			"job": "changes",
 			"tier": "gate",
 			"required": false,
-			"reason": "Single change-detection job for the run",
+			"reason": "Single change-detection job for the run; sets docs_only for the other jobs (#1283)",
 			"owner": "maintainers"
 		},
 		{
@@ -122,6 +111,14 @@
 			"tier": "test",
 			"required": false,
 			"reason": "TypeScript tests on every PR",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "package",
+			"tier": "test",
+			"required": false,
+			"reason": "Builds and packs the CLI once per run; package-smoke installs the tarball (#1283)",
 			"owner": "maintainers"
 		},
 		{
@@ -249,7 +246,7 @@
 			"job": "detect",
 			"tier": "gate",
 			"required": false,
-			"reason": "Reusable docs-only detection; removed in #1283",
+			"reason": "Docs-only detection still called by example-e2e, windows-smoke and package-lifecycle-smoke; ci.yml uses its changes job (#1283)",
 			"owner": "maintainers"
 		},
 		{

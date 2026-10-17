@@ -117,6 +117,13 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: quickstart
+
       # When the health poll times out, "404 for 20 minutes" says nothing about
       # why. Dump what a person would look at first.
       - name: Diagnostics on failure

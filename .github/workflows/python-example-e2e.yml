@@ -61,6 +61,13 @@ jobs:
       - name: Run pytest in the generated image
         run: tests/e2e/examples/python/run.sh P4
 
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: python-example
+
       - name: Upload failure logs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
