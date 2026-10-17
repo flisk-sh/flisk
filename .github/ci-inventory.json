@@ -259,10 +259,7 @@
 			"tier": "bot",
 			"required": false,
 			"reason": "Welcome note on new PRs and issues; concurrency tracked in #1286",
-			"owner": "maintainers",
-			"exempt": {
-				"concurrency": "#1279"
-			}
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "contributor-welcome.yml",
@@ -270,10 +267,7 @@
 			"tier": "bot",
 			"required": false,
 			"reason": "Note on issues that are not fixed",
-			"owner": "maintainers",
-			"exempt": {
-				"concurrency": "#1279"
-			}
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "dco.yml",
@@ -281,10 +275,7 @@
 			"tier": "gate",
 			"required": false,
 			"reason": "DCO sign-off on every PR; concurrency tracked in #1286",
-			"owner": "maintainers",
-			"exempt": {
-				"concurrency": "#1279"
-			}
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "docs-only.yml",
@@ -383,10 +374,7 @@
 			"tier": "gate",
 			"required": false,
 			"reason": "OSS score gate on every PR; concurrency tracked in #1286",
-			"owner": "maintainers",
-			"exempt": {
-				"concurrency": "#1279"
-			}
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "pr-area-labels.yml",
@@ -394,10 +382,7 @@
 			"tier": "bot",
 			"required": false,
 			"reason": "Area labels from changed paths",
-			"owner": "maintainers",
-			"exempt": {
-				"concurrency": "#1279"
-			}
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "publish-service-schema.yml",
@@ -532,8 +517,7 @@
 			"reason": "Detects docs-only PRs for windows-smoke",
 			"owner": "maintainers",
 			"exempt": {
-				"check-name": "#1283",
-				"concurrency": "#1279"
+				"check-name": "#1283"
 			}
 		},
 		{
@@ -544,8 +528,7 @@
 			"reason": "Windows CLI smoke; required; moved to e2e-platforms in #1300",
 			"owner": "maintainers",
 			"exempt": {
-				"check-name": "#1300",
-				"concurrency": "#1279"
+				"check-name": "#1300"
 			}
 		},
 		{
@@ -570,6 +553,14 @@
 			"tier": "report",
 			"required": false,
 			"reason": "Opens or closes one issue per scheduled or main job that fails three runs in a row (#1288)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "cold-start-e2e.yml",
+			"job": "license",
+			"tier": "gate",
+			"required": false,
+			"reason": "Checks TDK_LICENSE_KEY and skips the licensed cold-start job with a warning when it is missing (#1288)",
 			"owner": "maintainers"
 		}
 	]

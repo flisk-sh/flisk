@@ -1,0 +1,199 @@
+{
+	"$comment": "Every matrix axis of the e2e suites, its source of truth in cli/, the groups that use it, its default values, and how each value is covered: a leg (a live-stack suite under tests/e2e/<group>/<suite>) or an allowlist entry with the issue that adds the leg. Checked by tests/e2e/lib/check-axes.mjs (#1291, tracker #1279). Axes without a source file (source: null) list their values by hand; the check still requires every value to be covered.",
+	"axes": {
+		"appType": {
+			"source": {
+				"file": "cli/src/utils/constants.ts",
+				"start": "export const VALID_RESOURCE_TYPES",
+				"end": "] as const",
+				"kind": "array"
+			},
+			"groups": ["resource-types"],
+			"defaults": ["backend"],
+			"values": {
+				"backend": { "allow": "#1294" },
+				"frontend": { "allow": "#1291" },
+				"library": { "allow": "#1295" },
+				"sdk": { "allow": "#1295" },
+				"worker": { "allow": "#1294" },
+				"migrator": { "allow": "#1294" },
+				"mcp": { "allow": "#1296" },
+				"agent": { "leg": "resource-types/agent" },
+				"bring-your-own": { "allow": "#1297" }
+			},
+			"interactions": []
+		},
+		"language": {
+			"source": {
+				"file": "cli/src/backend-languages/registry.ts",
+				"start": "export const BACKEND_LANGUAGES",
+				"end": "\n};",
+				"kind": "map"
+			},
+			"groups": ["resource-types"],
+			"defaults": ["bun"],
+			"values": {
+				"bun": { "allow": "#1292" },
+				"python": { "allow": "#1292" },
+				"go": { "allow": "#1292" },
+				"rust": { "allow": "#1292" }
+			},
+			"interactions": []
+		},
+		"httpFramework": {
+			"source": {
+				"file": "cli/src/backend-frameworks/registry.ts",
+				"start": "export const BACKEND_FRAMEWORKS",
+				"end": "\n};",
+				"kind": "map"
+			},
+			"groups": ["resource-types"],
+			"defaults": ["hono"],
+			"values": {
+				"hono": { "allow": "#1293" },
+				"express": { "allow": "#1293" },
+				"elysia": { "allow": "#1293" },
+				"fastify": { "allow": "#1293" },
+				"h3": { "allow": "#1293" },
+				"koa": { "allow": "#1293" },
+				"nestjs": { "allow": "#1293" }
+			},
+			"interactions": []
+		},
+		"frontendFramework": {
+			"source": {
+				"file": "cli/src/frontend-frameworks/registry.ts",
+				"start": "export const FRONTEND_FRAMEWORKS",
+				"end": "\n};",
+				"kind": "map"
+			},
+			"groups": ["resource-types"],
+			"defaults": ["react"],
+			"values": {
+				"react": { "allow": "#1291" },
+				"vue": { "allow": "#1291" },
+				"svelte": { "allow": "#1291" },
+				"preact": { "allow": "#1291" },
+				"lit": { "allow": "#1291" },
+				"solid": { "allow": "#1291" },
+				"qwik": { "allow": "#1291" },
+				"vanilla": { "allow": "#1291" },
+				"tanstack-router": { "allow": "#1291" }
+			},
+			"interactions": []
+		},
+		"agentRuntime": {
+			"source": {
+				"file": "cli/src/agent-runtimes/registry.ts",
+				"start": "export const AGENT_RUNTIMES",
+				"end": "\n};",
+				"kind": "map"
+			},
+			"groups": ["resource-types"],
+			"defaults": ["custom"],
+			"values": {
+				"custom": { "leg": "resource-types/agent" }
+			},
+			"interactions": []
+		},
+		"agentDurability": {
+			"source": {
+				"file": "cli/src/agent-runtimes/registry.ts",
+				"start": "export const AGENT_DURABILITY_OPTIONS",
+				"end": "] as const",
+				"kind": "array"
+			},
+			"groups": ["resource-types"],
+			"defaults": ["files"],
+			"values": {
+				"files": { "leg": "resource-types/agent" },
+				"postgres": { "leg": "resource-types/agent" }
+			},
+			"interactions": []
+		},
+		"feature": {
+			"source": null,
+			"groups": ["resource-types"],
+			"defaults": [],
+			"values": {
+				"database-management": { "allow": "#1291" },
+				"prisma": { "allow": "#1291" }
+			},
+			"interactions": []
+		},
+		"infraService": {
+			"source": {
+				"file": "cli/src/utils/constants.ts",
+				"start": "export const OPTIONAL_INFRA_SERVICES",
+				"end": "] as const",
+				"kind": "array"
+			},
+			"groups": ["resource-types", "examples"],
+			"defaults": [],
+			"values": {
+				"monitoring": { "allow": "#1291" },
+				"elk": { "allow": "#1291" },
+				"debezium": { "allow": "#1291" },
+				"golden_image": { "allow": "#1291" },
+				"verdaccio": { "allow": "#1291" }
+			},
+			"interactions": []
+		},
+		"byoVariant": {
+			"source": null,
+			"groups": ["resource-types", "examples"],
+			"defaults": ["byo"],
+			"values": {
+				"byo": { "allow": "#1297" },
+				"byo-jobs": { "allow": "#1297" }
+			},
+			"interactions": []
+		},
+		"example": {
+			"source": null,
+			"groups": ["examples"],
+			"defaults": ["one-backend"],
+			"values": {
+				"one-backend": { "allow": "#1299" },
+				"one-backend-helm": { "allow": "#1299" },
+				"one-backend-python": { "allow": "#1299" },
+				"tdk-example": { "allow": "#1299" }
+			},
+			"interactions": []
+		},
+		"platform": {
+			"source": null,
+			"groups": ["platforms"],
+			"defaults": ["linux"],
+			"values": {
+				"linux": { "allow": "#1300" },
+				"windows": { "allow": "#1300" },
+				"wsl2": { "allow": "#1300" }
+			},
+			"interactions": []
+		},
+		"installChannel": {
+			"source": null,
+			"groups": ["journeys", "examples"],
+			"defaults": ["local"],
+			"values": {
+				"local": { "allow": "#1291" },
+				"npm": { "allow": "#1291" },
+				"release": { "allow": "#1291" }
+			},
+			"interactions": []
+		},
+		"journey": {
+			"source": null,
+			"groups": ["journeys"],
+			"defaults": [],
+			"values": {
+				"quickstart": { "allow": "#1298" },
+				"smoke": { "allow": "#1298" },
+				"dev-loop": { "allow": "#1298" },
+				"cold-start": { "allow": "#1298" }
+			},
+			"interactions": []
+		}
+	}
+}

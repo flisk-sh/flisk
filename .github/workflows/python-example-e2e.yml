@@ -37,21 +37,15 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install Tilt
-        run: |
-          curl -fsSL -o tilt.tgz https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz
-          echo "e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f  tilt.tgz" | sha256sum -c -
-          if [ "$(id -u)" -eq 0 ]; then tar -xzf tilt.tgz -C /usr/local/bin tilt; else sudo tar -xzf tilt.tgz -C /usr/local/bin tilt; fi
-          rm -f tilt.tgz
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Free required host ports
-        run: |
-          sudo systemctl stop postgresql.socket 'postgresql@*.socket' 2>/dev/null || true
-          sudo systemctl stop postgresql.service 'postgresql@*.service' 2>/dev/null || true
-          sudo DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y 'postgresql*' >/dev/null 2>&1 || true
-          sudo fuser -k 80/tcp 443/tcp 5432/tcp 2>/dev/null || true
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          ports: "80 443 5432"
 
       - name: Pack and install the candidate TDK package
         run: | # zizmor: ignore[adhoc-packages] installs our own freshly packed tarball

@@ -26,9 +26,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Secrets are not readable in a job-level `if`, so the check runs first and its output gates the job. Without the
+  # secret the licensed job is skipped with a warning that names it, instead of failing on every run.
+  license:
+    name: Check TDK_LICENSE_KEY
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      TDK_LICENSE_KEY: ${{ secrets.TDK_LICENSE_KEY }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "$TDK_LICENSE_KEY" ]; then
+            echo "::warning title=TDK_LICENSE_KEY not configured::Skipped the licensed cold-start E2E. Add the TDK_LICENSE_KEY Actions secret with a key granting sablier to run it."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
   cold-start:
     name: 🧊 Wake a deferred backend during bring-up
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    needs: license
+    if: needs.license.outputs.configured == 'true' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -41,14 +63,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-
-      - name: Require the Sablier CI license
-        run: |
-          if [ -z "$TDK_LICENSE_KEY" ]; then
-            echo "::error::Configure the TDK_LICENSE_KEY Actions secret with a key granting sablier to run this licensed end-to-end test."
-            exit 1
-          fi
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Choose the CLI version to test
         id: version
@@ -68,24 +83,10 @@ jobs:
           echo "Testing @tdk-landscape/tdk-cli-core@$version"
 
       - name: Install Tilt
-        run: |
-          curl -fsSL -o tilt.tgz https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz
-          echo "e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f  tilt.tgz" | sha256sum -c -
-          if [ "$(id -u)" -eq 0 ]; then tar -xzf tilt.tgz -C /usr/local/bin tilt; else sudo tar -xzf tilt.tgz -C /usr/local/bin tilt; fi
-          rm -f tilt.tgz
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Free port 5432 (runner's preinstalled Postgres)
-        run: |
-          sudo systemctl stop postgresql.socket 'postgresql@*.socket' 2>/dev/null || true
-          sudo systemctl stop postgresql.service 'postgresql@*.service' 2>/dev/null || true
-          sudo DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y 'postgresql*' 2>&1 | sudo tee /tmp/pg-purge.log > /dev/null || true
-          sudo fuser -k 5432/tcp 2>/dev/null || true
-          sleep 2
-          if sudo ss -ltn 2>/dev/null | grep -q ':5432 '; then
-            sudo ss -ltnp | grep ':5432 ' || true
-            echo "::error::port 5432 is still in use"
-            exit 1
-          fi
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install TDK
         env:
