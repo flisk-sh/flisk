@@ -28,6 +28,9 @@ jobs:
     outputs:
       lockfile: ${{ steps.filter.outputs.lockfile }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      # The matrix axis values the CLI's registries declare (tests/e2e/lib/registry-axes.mjs), as JSON. A matrix built from it
+      # cannot drift from the code.
+      axes: ${{ steps.axes.outputs.axes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -43,6 +46,10 @@ jobs:
               - 'cli/package.json'
             workflows:
               - '.github/workflows/**'
+
+      - name: Read the matrix axes from the registries
+        id: axes
+        run: echo "axes=$(node tests/e2e/lib/registry-axes.mjs)" >> "$GITHUB_OUTPUT"
 
   spellcheck:
     name: 🔤 Spell check
