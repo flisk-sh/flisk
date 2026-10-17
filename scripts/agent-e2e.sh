@@ -67,6 +67,16 @@ agent_port() { status_json | jq -r --arg n "$AGENT" '.data.resources[] | select(
 traefik_url() { status_json | jq -r --arg n "$AGENT" '.data.resources[] | select(.name==$n) | .url'; }
 container_id() { docker ps -aq --filter "name=${PROJECT}-.*-$AGENT-" | head -1; }
 running_container() { docker ps -q --filter "name=${PROJECT}-.*-$AGENT-" --filter status=running | head -1; }
+container_replaced() { local now; now="$(running_container)"; [ -n "$now" ] && [ "$now" != "$1" ]; } # <container id from before the restart>
+# After a restart the old container keeps answering /ready until Tilt replaces it, so readiness alone proves nothing. Wait
+# (bounded) for a different running container, then for /ready, then for the CLI path itself to answer, so the next case
+# never lands in the gap while the route has no live backend.
+session_answers() { (cd "$DIR" && tdk agent sessions "$AGENT" --session-id s1 --json) >/dev/null 2>&1; }
+wait_restarted() {
+  poll_until "agent container replaced after restart" 30 container_replaced "$1" || echo "container id unchanged after restart; relying on readiness"
+  wait_agent_ready
+  poll_until "tdk agent sessions answers again after restart" "$READY_TIMEOUT" session_answers
+}
 
 # curl through Traefik: the route is api.<project>.localhost:<http port>/api/<agent>; resolve the host to loopback ourselves.
 via_traefik() { # <path> [curl args...]
@@ -178,9 +188,7 @@ A6() { # tdk restart, healthy again, checkpoint intact
   assert envelope "$OUT/a6-restart.out"
   assert check "$OUT/a6-restart.out" "j.errors.length === 0 && j.data.resource === '$AGENT' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
   # Tilt rebuilds and recreates the container; wait for a ready agent that is a different container.
-  poll_until "agent container replaced after restart" "$READY_TIMEOUT" bash -c "[ \"\$(docker ps -q --filter 'name=${PROJECT}-.*-$AGENT-' --filter status=running | head -1)\" != '$before' ]" || \
-    echo "container id unchanged after restart; falling back to readiness only"
-  wait_agent_ready
+  wait_restarted "$before"
   run a6-sessions agent sessions "$AGENT" --session-id s1 --json
   [ "$RC" -eq 0 ] || die "tdk agent sessions after restart exited $RC"
   assert check "$OUT/a6-sessions.out" "j.data.session.messages.length === 2 && j.data.session.messages[0].content === 'hello'" "checkpoint s1 survived the restart"
@@ -385,10 +393,11 @@ C2() { # each tool's payload equals the CLI --json envelope
   mcp c2r '[{"tool":"restart_resource","arguments":{"resource":"bot"}}]'
   structured c2r 0
   assert check "$OUT/c2r.out" "j.calls[0].result.isError === false" "restart_resource succeeds"
-  wait_agent_ready
+  wait_restarted "$before"
+  before="$(running_container)"
   run c2-cli-restart restart "$AGENT" --json
   assert equal "$OUT/c2r.0.json" "$OUT/c2-cli-restart.out"
-  wait_agent_ready
+  wait_restarted "$before"
 }
 
 C3() { # projectPath from another cwd; an unknown resource is a structured tool error and the server survives
