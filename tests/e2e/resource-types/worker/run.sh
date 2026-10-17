@@ -26,7 +26,7 @@ W2() { # tdk up, then the worker is listed as a worker in tdk status
   log "W2 tdk up and status lists $RES as a worker"
   : >"$DIR/up.log"
   start_stack "$STACK"
-  wait_status_url "$RES"
+  # A worker serves no route, so tdk status gives it no Traefik url; wait for its status entry, not for a url.
   common_wait_status "$RES" worker
 }
 
