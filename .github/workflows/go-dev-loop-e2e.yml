@@ -39,9 +39,16 @@ jobs:
 
       - name: Install CLI dependencies
         working-directory: cli
-        run: bun install --frozen-lockfile
+        run: scripts/e2e/retry-infra.sh "bun install" -- bun install --frozen-lockfile
 
       # Edits the scaffolded service, breaks it, fixes it and touches go.mod, and fails if the app is down for a whole compile,
       # the compiler error is missing from the Tilt log, or a dependency change does not rebuild the image.
       - name: Run the Go dev loop check
         run: tests/e2e/journeys/dev-loop/run.sh DL1
+
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: go-dev-loop

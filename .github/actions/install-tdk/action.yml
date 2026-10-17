@@ -21,13 +21,13 @@ runs:
       run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
         set -euo pipefail
         if [ "$TDK_VERSION" = "local" ]; then
-          bun install --frozen-lockfile
+          scripts/e2e/retry-infra.sh "bun install" -- bun install --frozen-lockfile
           tarball="$(npm pack --silent | tail -1)"
-          node scripts/install-global.mjs "./$tarball"
+          scripts/e2e/retry-infra.sh "install the packed CLI" -- node scripts/install-global.mjs "./$tarball"
         else
           if [ "$TDK_VERSION" != "latest" ]; then
             scripts/wait-for-npm-version.sh "@tdk-landscape/tdk-cli-core" "$TDK_VERSION"
           fi
-          node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
+          scripts/e2e/retry-infra.sh "install the published CLI" -- node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
         fi
         tdk --version

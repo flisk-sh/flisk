@@ -58,6 +58,13 @@ jobs:
       - name: Boot, health check, and prove the routed worker write path
         run: tests/e2e/examples/default/run.sh D4
 
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: example-default
+
       - name: Diagnostics on failure
         if: failure() || cancelled()
         run: |
