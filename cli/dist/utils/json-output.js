@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { writeSync } from "node:fs";
+import { createMachineEnvelope, } from "./machine-output.js";
 /**
  * Returns an emitter that writes at most one `{schemaVersion, data, errors}` object to stdout. If the process
  * exits before anything was emitted (a preflight `process.exit`, Tilt ending early), a failure object is written
@@ -12,7 +13,7 @@ export function createJsonEmitter(failureCode, command) {
         if (emitted)
             return;
         emitted = true;
-        writeSync(1, `${JSON.stringify({ schemaVersion: 1, data, errors })}\n`);
+        writeSync(1, `${JSON.stringify(createMachineEnvelope(data, errors))}\n`);
     };
     process.once("exit", (code) => {
         emit({ ok: false }, [

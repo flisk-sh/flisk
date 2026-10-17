@@ -58,7 +58,8 @@ describe("the agent resource type", () => {
     expect(resolveAgentRuntime().id).toBe("custom");
     expect(() => resolveAgentRuntime("libfx")).toThrow(/Unknown agent runtime "libfx"/);
     expect(resolveAgentDurability()).toBe("files");
-    expect(() => resolveAgentDurability("postgres")).toThrow(/Unknown --durability "postgres"/);
+    expect(resolveAgentDurability("files")).toBe("files");
+    expect(resolveAgentDurability("postgres")).toBe("postgres");
     expect(() => resolveAgentDurability("redis")).toThrow(/Unknown --durability "redis"/);
   });
 
@@ -68,7 +69,7 @@ describe("the agent resource type", () => {
     );
     expect(schema.properties.appType.enum).toContain("agent");
     expect(schema.properties.type.enum).toContain("agent");
-    expect(schema.properties.agent.properties.durability.enum).toEqual(["files"]);
+    expect(schema.properties.agent.properties.durability.enum).toEqual(["files", "postgres"]);
     expect(schema.properties.agent.properties.runtime.enum).toEqual(["custom"]);
 
     // The engine normalises an agent manifest once, where service.json is loaded, so every backend code path (routing,
@@ -95,6 +96,21 @@ describe("the agent resource type", () => {
     // tdk down must not remove volumes: no compose invocation in the CLI passes -v or --volumes.
     const down = readFileSync(join(repoRoot, "cli", "src", "commands", "down.ts"), "utf-8");
     expect(down).not.toMatch(/["']-v["']|--volumes/);
+  });
+
+  it("renders custom agent templates for files and postgres durability", () => {
+    const customRuntime = AGENT_RUNTIMES.custom;
+    const filesIndex = customRuntime.createIndex("files-bot", "files");
+    expect(filesIndex).toContain("AGENT_STATE_DIR");
+    expect(filesIndex).toContain("renameSync(tmp, file)");
+    expect(filesIndex).not.toContain("from 'pg'");
+
+    const pgIndex = customRuntime.createIndex("pg-bot", "postgres");
+    expect(pgIndex).toContain("from 'pg'");
+    expect(pgIndex).toContain("tdk_agent_sessions");
+    expect(pgIndex).toContain("DATABASE_URL");
+    expect(pgIndex).toContain("CREATE TABLE IF NOT EXISTS tdk_agent_sessions");
+    expect(pgIndex).toContain("ON CONFLICT (session_id) DO UPDATE");
   });
 });
 
@@ -150,14 +166,32 @@ describe("tdk resource --type agent", () => {
     expect(existsSync(join(dir("support-agent"), "tsconfig.json"))).toBe(true);
   }, 30000);
 
-  it("rejects postgres durability until the scaffold has a Postgres session store", () => {
+  it("scaffolds an agent with postgres durability", () => {
     const result = tdk(
       ["resource", "pg-agent", "--type", "agent", "--durability", "postgres", "--stack", "shop"],
       projectRoot,
     );
-    expect(result.status).not.toBe(0);
-    expect(`${result.stdout}${result.stderr}`).toMatch(/Unknown --durability "postgres"/);
-    expect(existsSync(dir("pg-agent"))).toBe(false);
+    expect(result.status).toBe(0);
+    expect(existsSync(dir("pg-agent"))).toBe(true);
+
+    const service = json("pg-agent", "service.json");
+    expect(service).toMatchObject({
+      agent: {
+        runtime: "custom",
+        durability: "postgres",
+      },
+    });
+
+    const pkg = json("pg-agent", "package.json");
+    expect(pkg.dependencies).toMatchObject({
+      pg: "^8.13.0",
+    });
+
+    const index = readFileSync(join(dir("pg-agent"), "src", "index.ts"), "utf-8");
+    expect(index).toContain("from 'pg'");
+    expect(index).toContain("tdk_agent_sessions");
+    expect(index).toContain("DATABASE_URL");
+    expect(index).toContain("url.pathname === '/ready'");
   }, 30000);
 
   it("scaffolds the runtime index contract", () => {

@@ -5,6 +5,7 @@ import type { HostInfo } from "./agent-host.js";
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
 import type { DoctorAction } from "./doctor-fix.js";
 import type { HostPortPlan } from "./host-port-plan.js";
+import { SCHEMA_VERSION } from "./machine-output.js";
 
 export interface DoctorError {
   code: "USAGE" | "INTERNAL" | "ENV_UNREADABLE";
@@ -12,7 +13,7 @@ export interface DoctorError {
 }
 
 export interface DoctorReport {
-  schemaVersion: 1;
+  schemaVersion: typeof SCHEMA_VERSION;
   data: {
     ready: boolean;
     inProject: boolean;
@@ -71,7 +72,7 @@ export function createDoctorReport(
   host?: HostInfo,
 ): DoctorReport {
   return {
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     data: {
       ready:
         errors.length === 0 &&

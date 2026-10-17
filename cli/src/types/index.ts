@@ -65,8 +65,8 @@ export interface ResourceConfigFields {
 export interface AgentConfig {
   /** Runtime scaffold the resource was created with. `custom` is the only one today and carries no vendor dependency. */
   runtime?: string;
-  /** `files`: sessions in a named volume that survives `tdk down`. */
-  durability?: "files";
+  /** Where agent sessions are checkpointed. `files`: named volume; `postgres`: project Postgres via DATABASE_URL. */
+  durability?: "files" | "postgres";
 }
 
 export interface ResourceConfig extends ResourceConfigFields {

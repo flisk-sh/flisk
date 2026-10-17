@@ -1,8 +1,5 @@
-export interface JsonError {
-    code: string;
-    message: string;
-    suggestions?: string[];
-}
+import { type MachineError } from "./machine-output.js";
+export type JsonError = MachineError;
 export type JsonEmitter = (data: Record<string, unknown>, errors?: JsonError[]) => void;
 /**
  * Returns an emitter that writes at most one `{schemaVersion, data, errors}` object to stdout. If the process

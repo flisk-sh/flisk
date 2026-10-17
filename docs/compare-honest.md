@@ -14,6 +14,28 @@ TDK writes the Tiltfile that configures Tilt's service watcher and live-update l
 
 Those tools target a cluster. TDK does not; it runs a local Docker + Tilt development loop. Production deployment remains in your Helm or Kubernetes workflow.
 
+## AI agent frameworks and workflow engines (libfx, LangGraph, Mastra, Vercel Workflows, Temporal)
+
+When developers ask how TDK compares with modern agent runtimes and durability engines:
+
+**TDK does not implement durable execution; it hosts it.**
+
+TDK is the local runtime and topology orchestrator for agent *systems*. Tools like `libfx`, LangGraph, Mastra, Vercel Workflows, and Temporal define how steps run, retry, or checkpoint. TDK defines how the agent process, its checkpoint volume, its MCP tool servers, databases, queues, and gateways run together locally.
+
+### Who owns what
+
+| Capability | Agent Framework / Workflow Engine (`libfx`, LangGraph, Mastra, Vercel Workflows, Temporal) | Local Orchestrator (TDK CLI) |
+| --- | --- | --- |
+| **Agent logic & model calls** | Owns (prompts, tool invocations, turn loop) | Neutral (scaffolds vendor-agnostic runner) |
+| **Durability & checkpoints** | Owns execution state & step replays | Provides persistent named volumes / database instances |
+| **Session routing** | Defines session IDs | Traefik routes sticky session headers (`x-session-id`) |
+| **Tool execution (MCP)** | Calls MCP servers | Scaffolds and hosts `--type mcp` resources with Traefik routing |
+| **Local infrastructure** | None (expects URLs/credentials in env) | Provisions Postgres, NATS, Traefik, wires `@ref()` env |
+| **Hot reload & dev loop** | Relies on runner | Tilt syncs supported code changes into containers without full rebuilds (process reloaders or image rebuilds handle other changes) |
+| **Lifecycle & shutdown** | Implements drain handlers | Sends SIGTERM and gates container startup via Docker health check (`/health`) |
+
+If you are using `libfx` or LangGraph, you still need a local database, persistent checkpoint volumes across restarts, and a gateway so other services can reach the agent. TDK is where those pieces run locally.
+
 ## Known limits
 
 - The community is small.

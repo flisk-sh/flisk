@@ -14,14 +14,9 @@ import {
 
 describe("argument building", () => {
   it("builds up arguments, one --only= per service so a value is never a flag", () => {
-    expect(buildUpArgs({ stack: "store", only: ["api", "web"], force: true })).toEqual([
-      "up",
-      "store",
-      "--only=api",
-      "--only=web",
-      "--force",
-      "--json",
-    ]);
+    expect(
+      buildUpArgs({ stack: "store", only: ["api", "web"], force: true, dryRun: true }),
+    ).toEqual(["up", "store", "--only=api", "--only=web", "--force", "--dry-run", "--json"]);
     expect(buildUpArgs({})).toEqual(["up", "--json"]);
   });
   it.each([
@@ -152,7 +147,7 @@ describe("startUp", () => {
 });
 
 describe("tool list", () => {
-  it("exposes the six tools with object schemas and no streaming logs", () => {
+  it("exposes tools with object schemas and no streaming logs", () => {
     const tools = createTdkTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     expect(tools.map((t) => t.name)).toEqual([
       "doctor",
@@ -161,6 +156,9 @@ describe("tool list", () => {
       "status",
       "logs",
       "resource_list",
+      "restart_resource",
+      "list_agents",
+      "get_agent_sessions",
     ]);
     for (const t of tools)
       expect(t.inputSchema).toMatchObject({ type: "object", additionalProperties: false });
@@ -178,13 +176,29 @@ describe("tool list", () => {
     await tools.find((t) => t.name === "doctor")?.handler({ projectPath: "/work/erp" });
     await tools.find((t) => t.name === "resource_list")?.handler({ stack: "store" });
     await tools.find((t) => t.name === "status")?.handler({});
+    await tools.find((t) => t.name === "down")?.handler({ dryRun: true });
+    await tools.find((t) => t.name === "restart_resource")?.handler({ resource: "api" });
+    await tools.find((t) => t.name === "list_agents")?.handler({ stack: "shop" });
+    await tools
+      .find((t) => t.name === "get_agent_sessions")
+      ?.handler({ resource: "bot", sessionId: "sess-1" });
     expect(seen).toEqual([
       { args: ["doctor", "--json"], cwd: "/work/erp" },
       { args: ["resources", "--json", "--stack=store"], cwd: undefined },
       { args: ["status", "--json"], cwd: undefined },
+      { args: ["down", "--json", "--dry-run"], cwd: undefined },
+      { args: ["restart", "api", "--json"], cwd: undefined },
+      { args: ["resources", "--type=agent", "--json", "--stack=shop"], cwd: undefined },
+      { args: ["agent", "sessions", "bot", "--session-id=sess-1", "--json"], cwd: undefined },
     ]);
     await expect(
       tools.find((t) => t.name === "doctor")?.handler({ projectPath: "relative" }),
     ).rejects.toThrow("projectPath must be an absolute path");
+    await expect(tools.find((t) => t.name === "restart_resource")?.handler({})).rejects.toThrow(
+      "resource is required",
+    );
+    await expect(tools.find((t) => t.name === "get_agent_sessions")?.handler({})).rejects.toThrow(
+      "resource is required",
+    );
   });
 });

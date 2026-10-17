@@ -63,7 +63,7 @@ export declare function createByoServiceJson(name: string, stack: string, port: 
     exposeViaProxy?: boolean | undefined;
     restart?: string | undefined;
 };
-export declare function createPackageJson(name: string, type: string, frameworkId?: string, prismaEnabled?: boolean): {
+export declare function createPackageJson(name: string, type: string, frameworkId?: string, prismaEnabled?: boolean, agentConfig?: AgentConfig): {
     name: string;
     version: string;
     type: string;

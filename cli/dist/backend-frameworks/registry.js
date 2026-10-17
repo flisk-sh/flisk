@@ -60,7 +60,7 @@ export function resolveBackendFramework(resourceType, frameworkId, language) {
     // `agent` is scaffolded by an agent runtime (src/agent-runtimes/), not a framework. Only the default runtime is reachable here:
     // `tdk resource` validates --runtime before it scaffolds, so the package.json and tsconfig always match the chosen runtime.
     if (resourceType === "agent") {
-        if (frameworkId !== undefined) {
+        if (frameworkId !== undefined && frameworkId !== "custom") {
             throw new TdkError("--framework cannot be combined with --type agent.", [
                 "An agent resource is scaffolded by an agent runtime; use --runtime <id> instead",
             ]);

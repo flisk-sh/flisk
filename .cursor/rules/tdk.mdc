@@ -1,0 +1,21 @@
+---
+description: Instructs Cursor AI agent to use TDK commands instead of hand-writing Dockerfiles or Compose manifests
+globs: ["services/**", "Tiltfile", "service.json", ".tdk/**"]
+alwaysApply: false
+---
+
+# TDK Workspace Rules for Cursor
+
+When operating in a TDK workspace:
+- **Never hand-write Dockerfiles or Compose files.** Let TDK generate and maintain container manifests.
+- **Scaffold resources with TDK:**
+  - AI Agents: `tdk resource <name> --type agent [--durability files|postgres]`
+  - MCP tool servers: `tdk resource <name> --type mcp`
+  - Backend services: `tdk resource <name> --type backend`
+- **Operate the stack with TDK CLI or MCP tools:**
+  - `tdk up`: Start services and dependencies.
+  - `tdk down`: Stop services.
+  - `tdk status --json`: Inspect ports, Traefik routes, and readiness.
+  - `tdk doctor --json`: Run environment diagnostics.
+  - `tdk restart <name>`: Trigger live reload for a resource.
+  - `tdk agent sessions <name>`: Inspect agent checkpoints.

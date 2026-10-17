@@ -25,4 +25,8 @@ export const PROJECT_TEMPLATES = {
         bundledPath: "examples/tdk-example",
         description: "Hono + Postgres + NATS worker + Vite example with a routed write path",
     },
+    "agent-stack": {
+        repo: "https://github.com/tdk-landscape/tdk-agent-stack.git",
+        description: "AI agent stack: Bun agent + MCP tool server + Postgres + NATS",
+    },
 };

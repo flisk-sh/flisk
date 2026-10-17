@@ -1,4 +1,5 @@
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
+import { SCHEMA_VERSION } from "./machine-output.js";
 /** Wait for concurrent probes to finish even if one throws, so they can release resources. */
 export async function collectDoctorChecks(machineChecks, projectChecks) {
     const checks = [];
@@ -28,7 +29,7 @@ function containerRuntimeReachable(checks) {
 /** Produce the same readiness decision for human and machine consumers. */
 export function createDoctorReport(checks, inProject, errors = [], portPlan, host) {
     return {
-        schemaVersion: 1,
+        schemaVersion: SCHEMA_VERSION,
         data: {
             ready: errors.length === 0 &&
                 checks.every((check) => check.didPass || check.isSkipped || check.isWarning),

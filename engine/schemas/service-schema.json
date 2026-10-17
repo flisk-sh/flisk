@@ -503,10 +503,11 @@
           ]
         },
         "durability": {
-          "description": "files: sessions live in a named volume that tdk down keeps (remove it with docker volume rm).",
+          "description": "files: sessions live in a named volume that tdk down keeps. postgres: sessions live in Postgres via DATABASE_URL.",
           "type": "string",
           "enum": [
-            "files"
+            "files",
+            "postgres"
           ],
           "default": "files"
         }
