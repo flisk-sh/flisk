@@ -26,9 +26,21 @@ asset_ok() { # <html file> -> prints "<asset> <status> <content type>"; returns 
   asset="$(grep -oE 'src="[^"]*\.js"' "$1" | head -1 | sed 's/^src="//; s/"$//' || true)"
   [ -n "$asset" ] || { echo "none"; return 1; }
   case "$asset" in /*) ;; *) asset="/$RES/$asset" ;; esac
-  info="$(traefik_request "$RES" "$asset" -o /dev/null -w '%{http_code} %{content_type}' || true)"
+  # The page's src is an absolute path that already includes the base (/<resource>/...), as a browser would request it, so it
+  # is fetched from the host root, not appended to the resource's url (which already ends in /<resource>).
+  info="$(route_root_request "$asset" -o /dev/null -w '%{http_code} %{content_type}' || true)"
   echo "$asset $info"
   case "$info" in "200 "*javascript*) return 0 ;; *) return 1 ;; esac
+}
+# The host root for a resource url: the url minus its /<resource> base path. Traefik routes on that path.
+route_root_request() { # <path> [curl args...]: GET the path from the host root through Traefik
+  local path="$1"; shift
+  local base root host port
+  base="$(resource_url "$RES")"
+  root="${base%/"$RES"}"
+  host="$(echo "$root" | sed -E 's#^https?://([^:/]+).*#\1#')"
+  port="$(echo "$root" | sed -nE 's#^https?://[^:/]+:([0-9]+).*#\1#p')"; port="${port:-80}"
+  curl -sS --max-time 20 --resolve "$host:$port:127.0.0.1" "$@" "$root$path"
 }
 route_ok() { [ "$(traefik_request "$RES" "/" -o /dev/null -w '%{http_code}' || true)" = "200" ]; }
 
