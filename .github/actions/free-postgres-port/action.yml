@@ -1,0 +1,33 @@
+name: Free host ports from the runner's Postgres
+description: Stop and purge the Postgres preinstalled on the runner, then fail unless every listed TCP port is free. Linux runners.
+inputs:
+  ports:
+    description: Space-separated TCP ports to free and check
+    required: false
+    default: "5432"
+runs:
+  using: composite
+  steps:
+    - name: Free host ports
+      shell: bash
+      env:
+        PORTS: ${{ inputs.ports }}
+      run: |
+        sudo systemctl stop postgresql.socket 'postgresql@*.socket' 2>/dev/null || true
+        sudo systemctl stop postgresql.service 'postgresql@*.service' 2>/dev/null || true
+        sudo DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y 'postgresql*' 2>&1 | sudo tee /tmp/pg-purge.log > /dev/null || true
+        for port in $PORTS; do sudo fuser -k "$port/tcp" 2>/dev/null || true; done
+        sleep 2
+        busy=0
+        for port in $PORTS; do
+          if sudo ss -ltn 2>/dev/null | grep -q ":$port "; then
+            echo "::error::port $port is still in use after purging postgresql"
+            sudo ss -ltnp | grep ":$port " || true
+            busy=1
+          fi
+        done
+        if [ "$busy" -ne 0 ]; then
+          tail -50 /tmp/pg-purge.log || true
+          exit 1
+        fi
+        echo "ports $PORTS are free"
