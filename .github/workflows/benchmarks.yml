@@ -1,5 +1,6 @@
-# Runs the tdk up warm and cold start benchmark on the restaurant example after every change to main
-# that can affect start-up, then publishes an HTML report to GitHub Pages.
+# Runs the tdk up warm and cold start benchmark on the restaurant example nightly on the latest main and
+# after each release (not on every push: a run takes about an hour), then publishes an HTML report to
+# GitHub Pages. Manual runs measure but do not publish.
 #
 # The job builds the CLI from the commit being tested (not the published npm package), so the numbers
 # say what main does. Results are for a clean GitHub-hosted runner; they are not comparable with the
@@ -7,17 +8,13 @@
 name: 📊 Benchmarks report
 
 on:
-  push:
+  schedule:
+    - cron: "30 2 * * *" # nightly, on the latest main
+  # Measure each release right after it is published. Read-only token, no secrets, main branch only.
+  workflow_run: # zizmor: ignore[dangerous-triggers]
+    workflows: ["Release binaries and npm package"]
+    types: [completed]
     branches: [main]
-    paths:
-      - "cli/**"
-      - "engine/**"
-      - "discovery/**"
-      - "scripts/benchmark/**"
-      - "benchmarks/**"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/benchmarks.yml"
   workflow_dispatch:
     inputs:
       cold_runs:
@@ -39,6 +36,7 @@ concurrency:
 jobs:
   measure:
     name: ⏱️ Measure tdk up on the restaurant example
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
@@ -130,7 +128,7 @@ jobs:
   publish:
     name: 🌐 Publish the report to GitHub Pages
     needs: measure
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_run'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

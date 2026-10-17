@@ -50,7 +50,7 @@
 - [ ] 4b.4 Replace `docs-only.yml` and every per-workflow detection job with one `changes` job in `ci.yml`; make `summary` the single aggregate gate, still reporting `example-e2e` and `windows-smoke`
 - [ ] 4b.5 Pack the CLI once per pull request run and have package smoke and e2e legs install the artifact
 - [ ] 4b.6 Path-gate Trivy, OSV-Scanner, Semgrep and CodeQL's `actions` leg on pull requests; keep full runs on `main` and nightly. Enable or remove the always-skipped dependency review
-- [ ] 4b.7 Move benchmarks off `push` (nightly on latest `main`, after release, manual); Scorecard to weekly and manual; `code-health` off `push`; open an issue for the warm-run timeout
+- [ ] 4b.7 Move benchmarks off `push` (nightly on latest `main`, after release, manual); Scorecard to weekly and manual; `code-health` off `push`; open an issue for the warm-run timeout (benchmarks nightly and after release, and scorecard and code-health off push, are in this PR; the warm-run timeout is tracked in #1355; the benchmark's first nightly run is the proof)
 - [ ] 4b.8 Merge the Windows smoke in `release-binaries.yml` and `windows-smoke.yml` into `e2e-platforms / windows`, called by the release workflow
 - [ ] 4b.9 Narrow bot event types (`ai-review-buttons`, `ai-conflict-buttons`, `ai-spec-buttons`, `hall-of-fame`, `contributor-*`, `journey-map`) (`ai-review-buttons` and `ai-conflict-buttons` were already narrow; concurrency added in #1307; `hall-of-fame` and `contributor-merged` listen for `closed` and cannot narrow further)
 - [ ] 4b.10 Make `update-pr-branches.yml` update only approved or auto-merge pull requests until the merge queue is on; add a `merge_group` trigger to the gate workflows
