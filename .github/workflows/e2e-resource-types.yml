@@ -11,6 +11,10 @@ on:
         description: "CLI version to test (latest or exact version; local checkout is used for pull requests)"
         type: string
         default: ""
+      runner:
+        description: "Runner label for every job (default ubuntu-latest); try ubuntu-26.04 before ubuntu-latest moves to it (#1277)"
+        type: string
+        default: "ubuntu-latest"
   pull_request:
     branches: [main]
     paths:
@@ -45,7 +49,7 @@ jobs:
   plan:
     name: Plan the resource-type suites
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
     timeout-minutes: 3
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
@@ -81,7 +85,7 @@ jobs:
     name: resource-types / ${{ matrix.label }}
     needs: plan
     if: needs.plan.outputs.matrix != '{"include":[]}'
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
     timeout-minutes: ${{ matrix.timeoutMinutes }}
     strategy:
       fail-fast: false
