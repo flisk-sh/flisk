@@ -14,8 +14,35 @@
     "tests/e2e/resource-types/agent/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["D1", "D2", "D3", "A1", "A2", "A3", "A4", "A5", "A6", "C1", "C2", "C3", "A8", "B0", "B1", "B2", "B3", "B4", "A4b", "B5", "B6", "B7", "A7", "B8"],
-  "triggers": ["pr", "nightly", "release", "manual"],
+  "cases": [
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6",
+    "C1",
+    "C2",
+    "C3",
+    "A8",
+    "B0",
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "A4b",
+    "B5",
+    "B6",
+    "B7",
+    "A7",
+    "B8"
+  ],
+  "triggers": [
+    "pr",
+    "nightly",
+    "release",
+    "manual"
+  ],
   "timeoutMinutes": 30,
   "needsSecrets": []
 }
