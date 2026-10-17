@@ -33,6 +33,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node scripts/check-ci-inventory.mjs
 	node --test scripts/check-ci-inventory.test.mjs
 	node tests/e2e/lib/check-axes.mjs
+	node --test tests/e2e/lib/__tests__/suite-matrix.test.mjs
 	node --test tests/e2e/lib/__tests__/check-axes.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 

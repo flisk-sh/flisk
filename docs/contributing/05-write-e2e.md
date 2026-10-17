@@ -133,7 +133,7 @@ Without `CASES`, `make test-e2e` runs every case in order, collects diagnostics 
 
 ## How CI runs it
 
-Today `agent-e2e.yml` runs each case as its own step: on pull requests that touch the suite's paths, nightly, after each release, and by hand. On a pull request it tests that pull request's own packed CLI. The planned group workflows (`e2e-<group>.yml`) will read `suite.json` for paths, cases, triggers and timeout, so adding a suite will not need YAML.
+Today `e2e-resource-types.yml` runs each suite as one matrix leg that calls `run.sh all`: on pull requests that touch the suite's paths, nightly, after each release, and by hand. On a pull request it tests that pull request's own packed CLI. The group workflow reads `suite.json` for triggers and timeout (through `tests/e2e/lib/suite-matrix.mjs`), so adding a resource-type suite does not need YAML.
 
 ## Prove it can fail
 

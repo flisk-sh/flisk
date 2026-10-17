@@ -10,9 +10,9 @@
 
 ## 2. Group workflows
 
-- [ ] 2.1 Add `e2e-resource-types.yml`: changes job from `suite.json` paths, matrix of selected suites, failure artifacts, always-running `e2e-resource-types` gate
+- [ ] 2.1 Add `e2e-resource-types.yml`: changes job from `suite.json` paths, matrix of selected suites, failure artifacts, always-running `e2e-resource-types` gate (`e2e-resource-types.yml` with plan, matrix and gate jobs is in this PR; failure artifacts are per suite; the `changes` job for path selection is still the workflow's own paths filter)
 - [ ] 2.2 Make the gate also report the currently required check names until branch protection is switched
-- [ ] 2.3 Remove `agent-e2e.yml` once the group workflow runs the agent suite
+- [ ] 2.3 Remove `agent-e2e.yml` once the group workflow runs the agent suite (`agent-e2e.yml` is removed in this PR; the agent suite runs through the matrix as `run.sh all`)
 
 ## 3. Resource-type coverage
 
@@ -27,7 +27,7 @@
 ## 3b. Matrix axes (appType, language, framework, and the rest)
 
 - [ ] 3b.1 Write `tests/e2e/resource-types/common.sh` with the shared cases (scaffold, status wait, restart with replaced-container wait, one error envelope), parameterized by `appType`
-- [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set
+- [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set (the `appType` matrix is in this PR as the suite matrix; the per-type axis waits on `common.sh` (3b.1))
 - [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
 - [ ] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases
 - [ ] 3b.5 Generate the matrix axes from the registries (`VALID_RESOURCE_TYPES`, backend languages, frontend frameworks) in the `changes` job, and extend the coverage check to every registry with an allowlist
