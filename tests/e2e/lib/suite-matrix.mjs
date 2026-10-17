@@ -31,6 +31,10 @@ export const DEFAULT_FRAMEWORK = "hono";
 // The frontend suite gets one leg per frontend framework, with FRAMEWORK set to it.
 function legsOf(suite, languages, frameworks, frontends) {
   const { timeoutMinutes } = suite;
+  // The bring-your-own suite gets one leg per variant (suite.json "variants"), with BYO_VARIANT set to its id (#1297).
+  if (Array.isArray(suite.variants)) {
+    return suite.variants.map((variant) => ({ suite: suite.suite, language: "", framework: "", variant: variant.id, label: `bring-your-own-${variant.id}`, timeoutMinutes }));
+  }
   if (suite.suite === "frontend" && frontends.length > 0) {
     return frontends.map((framework) => ({ suite: suite.suite, language: "", framework, label: `frontend-${framework}`, timeoutMinutes }));
   }

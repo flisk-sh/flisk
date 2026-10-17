@@ -9,7 +9,7 @@
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/`:
 
 ```bash
-scripts/verify-byo-example.sh create-analog /
+tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-analog /
 ```
 
 ## Register it in a TDK project

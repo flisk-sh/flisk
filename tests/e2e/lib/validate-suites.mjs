@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 export const GROUPS = ["resource-types", "journeys", "examples", "platforms", "scale"];
 export const TRIGGERS = ["pr", "nightly", "release", "manual", "weekly"];
-const KEYS = ["group", "suite", "description", "paths", "cases", "triggers", "timeoutMinutes", "needsSecrets"];
+const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "needsSecrets"];
 const CASE_ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 const isStringArray = (value) => Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
@@ -41,6 +41,17 @@ export function checkSuiteJson(suite, group, name) {
   }
   if (!Number.isInteger(suite.timeoutMinutes) || suite.timeoutMinutes < 1 || suite.timeoutMinutes > 360) {
     problems.push("timeoutMinutes must be an integer from 1 to 360");
+  }
+  // A suite with variants gets one matrix leg per entry; each entry names its id, its example and the case that checks it (#1297).
+  if (suite.variants !== undefined) {
+    if (!Array.isArray(suite.variants) || suite.variants.length === 0) {
+      problems.push("variants must be a non-empty array when present");
+    } else {
+      for (const v of suite.variants) {
+        if (!v || typeof v.id !== "string" || typeof v.name !== "string" || typeof v.case !== "string") problems.push("each variant needs string id, name and case");
+        else if (!suite.cases.includes(v.case)) problems.push(`variant ${v.id} names case ${v.case}, which is not in cases`);
+      }
+    }
   }
   if (!Array.isArray(suite.needsSecrets) || !suite.needsSecrets.every((s) => /^[A-Z][A-Z0-9_]*$/.test(s))) {
     problems.push("needsSecrets must be an array of secret names (empty when none)");

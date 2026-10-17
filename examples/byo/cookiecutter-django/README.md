@@ -28,7 +28,7 @@ Instead run a real `tdk up` and expect `200` through Traefik. The first build ge
 dependencies and can take several minutes:
 
 ```bash
-VERIFY_WAIT_SECONDS=600 scripts/verify-byo-tdk.sh cookiecutter-django /
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh cookiecutter-django /
 ```
 
 ## Register it in a TDK project

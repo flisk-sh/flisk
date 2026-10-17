@@ -11,8 +11,8 @@ tdk resource orders-api --type bring-your-own --stack shop --dockerfile ./Docker
 Check one (needs Docker; builds the image, runs it with `PORT=4000`, expects HTTP 200):
 
 ```bash
-scripts/verify-byo-example.sh fastify          # health path /health
-scripts/verify-byo-example.sh create-vue /     # Vite apps answer on /
+tests/e2e/resource-types/bring-your-own/verify-byo-example.sh fastify          # health path /health
+tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-vue /     # Vite apps answer on /
 ```
 
 An app that needs another resource (a database server, for example [turso-app](turso-app/README.md) with [turso](turso/README.md))
@@ -26,7 +26,7 @@ An app that needs TDK's own Postgres cannot run alone either. Check it through a
 Postgres and `DATABASE_URL`:
 
 ```bash
-scripts/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/
+tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/
 ```
 
 Every folder has its own `README.md` with its stack, notes and the exact check command, so adding an

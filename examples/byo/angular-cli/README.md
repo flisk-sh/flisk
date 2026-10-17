@@ -13,13 +13,13 @@ The Angular version is whatever `@angular/cli@latest` ships. For Angular with Vi
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/`:
 
 ```bash
-VERIFY_WAIT_SECONDS=180 scripts/verify-byo-example.sh angular-cli /
+VERIFY_WAIT_SECONDS=180 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh angular-cli /
 ```
 
 Through a real `tdk up` and Traefik (needs Docker, Tilt and a built CLI), (the first run also builds TDK's shared base images, so allow several minutes on a cold Docker cache):
 
 ```bash
-VERIFY_WAIT_SECONDS=300 scripts/verify-byo-tdk.sh angular-cli /
+VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh angular-cli /
 ```
 
 ## Register it in a TDK project

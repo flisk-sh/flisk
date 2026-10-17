@@ -12,7 +12,7 @@ takes several minutes.
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/_ping`:
 
 ```bash
-VERIFY_WAIT_SECONDS=30 scripts/verify-byo-example.sh loco /_ping
+VERIFY_WAIT_SECONDS=30 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh loco /_ping
 ```
 
 ## Register it in a TDK project

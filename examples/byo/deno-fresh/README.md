@@ -12,7 +12,7 @@ is a bring-your-own resource; a native Deno provider would be a larger change.
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/`:
 
 ```bash
-VERIFY_WAIT_SECONDS=90 scripts/verify-byo-example.sh deno-fresh /
+VERIFY_WAIT_SECONDS=90 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh deno-fresh /
 ```
 
 ## Register it in a TDK project

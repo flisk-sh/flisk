@@ -18,13 +18,13 @@
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/`:
 
 ```bash
-VERIFY_WAIT_SECONDS=90 scripts/verify-byo-example.sh elysia /
+VERIFY_WAIT_SECONDS=90 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh elysia /
 ```
 
 Through a real `tdk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=400 scripts/verify-byo-tdk.sh elysia /
+VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh elysia /
 ```
 
 ## Register it in a TDK project

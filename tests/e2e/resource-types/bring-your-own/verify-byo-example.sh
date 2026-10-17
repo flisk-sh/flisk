@@ -6,13 +6,13 @@
 # works when the server is bound beyond the container's loopback, so a pass also
 # checks the 0.0.0.0 requirement from docs/byo.md.
 #
-# Usage: scripts/verify-byo-example.sh <name> [health-path]   (default /health)
+# Usage: tests/e2e/resource-types/bring-your-own/verify-byo-example.sh <name> [health-path]   (default /health)
 # VERIFY_WAIT_SECONDS (default 20) is how long to wait for a slow-starting app.
 set -euo pipefail
 
 name="${1:?usage: verify-byo-example.sh <name> [health-path]}"
 health="${2:-/health}"
-dir="$(cd "$(dirname "$0")/.." && pwd)/examples/byo/$name"
+dir="$(cd "$(dirname "$0")/../../../.." && pwd)/examples/byo/$name"
 image="tdk-byo-verify-$name"
 container="$image-$$"
 

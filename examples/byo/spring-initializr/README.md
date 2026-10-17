@@ -16,7 +16,7 @@ and Actuator, no database)
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/actuator/health`:
 
 ```bash
-VERIFY_WAIT_SECONDS=120 scripts/verify-byo-example.sh spring-initializr /actuator/health
+VERIFY_WAIT_SECONDS=120 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh spring-initializr /actuator/health
 ```
 
 ## Register it in a TDK project

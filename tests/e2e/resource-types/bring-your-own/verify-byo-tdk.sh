@@ -9,17 +9,19 @@
 # Unlike verify-byo-example.sh, which runs the image alone, this gives the service TDK's DATABASE_URL
 # and Postgres, so it is the check for apps that need a database.
 #
-# Usage: scripts/verify-byo-tdk.sh <name> [health-path]     (default health path /health)
+# Usage: tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh <name> [health-path]     (default health path /health)
 set -euo pipefail
 
 name="${1:?usage: verify-byo-tdk.sh <name> [health-path]}"
 health="${2:-/health}"
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/../../../.." && pwd)"
 src="$root/examples/byo/$name"
 [ -d "$src" ] || { echo "no such example: $src" >&2; exit 2; }
 
-proj="svc${name//[^a-z0-9]/}$$"
-proj="${proj:0:24}"
+# Truncate the name, not the PID: a long example name would otherwise cut the PID off, so every run reuses one project and its Postgres volume.
+base="svc${name//[^a-z0-9]/}"
+pid="$$"
+proj="${base:0:$((24 - ${#pid}))}$pid"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))
