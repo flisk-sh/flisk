@@ -89,21 +89,9 @@ jobs:
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install TDK
-        env:
-          TDK_VERSION: ${{ steps.version.outputs.version }}
-        run: | # zizmor: ignore[adhoc-packages] the scenario tests the locally packed CLI or a selected published release
-          if [ "$TDK_VERSION" = "local" ]; then
-            # prepack bundles dist with esbuild (a devDependency)
-            bun install --frozen-lockfile
-            tarball="$(npm pack --silent | tail -1)"
-            node scripts/install-global.mjs "./$tarball"
-          else
-            if [ "$TDK_VERSION" != "latest" ]; then
-              scripts/wait-for-npm-version.sh "@tdk-landscape/tdk-cli-core" "$TDK_VERSION"
-            fi
-            node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
-          fi
-          tdk --version
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: ${{ steps.version.outputs.version }}
 
       - name: Run the deferred cold-start scenario
         run: |

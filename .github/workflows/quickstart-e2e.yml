@@ -97,24 +97,9 @@ jobs:
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install TDK
-        env:
-          TDK_VERSION: ${{ steps.version.outputs.version }}
-        run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
-          if [ "$TDK_VERSION" = "local" ]; then
-            # The tarball users would get from npm, built from this checkout
-            # (cli/dist is committed and CI keeps it in sync).
-            # prepack bundles dist with esbuild (a devDependency)
-            bun install --frozen-lockfile
-            tarball="$(npm pack --silent | tail -1)"
-            node scripts/install-global.mjs "./$tarball"
-            tdk --version
-            exit 0
-          fi
-          if [ "$TDK_VERSION" != "latest" ]; then
-            scripts/wait-for-npm-version.sh "@tdk-landscape/tdk-cli-core" "$TDK_VERSION"
-          fi
-          node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
-          tdk --version
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: ${{ steps.version.outputs.version }}
 
       - name: Scaffold the quickstart project
         run: |
