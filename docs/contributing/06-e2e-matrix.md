@@ -71,6 +71,8 @@ The validator also accepts a `weekly` trigger, but no group workflow runs it yet
 
 ## Add a suite to an existing group
 
+> **Two sources of truth.** `suite.json` `paths` is validated but not read by the builder or the workflow. The workflow's `pull_request.paths` filter decides which pull requests run a suite. When you add a suite or change what it covers, update both, and check that they agree. A drift check that fails CI is not in place yet; it is a follow-up.
+
 1. Create `tests/e2e/<group>/<suite>/` with `run.sh` (executable) and `suite.json`. Copy the shape of [`resource-types/backend`](../../tests/e2e/resource-types/backend/suite.json).
 2. Add the code it covers to the workflow's `pull_request.paths` filter. The `paths` in `suite.json` are validated but nothing reads them yet, so keep the two lists in sync by hand.
 3. Choose `triggers`. Start with `["pr", "nightly", "release", "manual"]` only if the suite is fast; otherwise use `["nightly", "release", "manual"]`.

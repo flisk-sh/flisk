@@ -1,6 +1,6 @@
 # 7. Run unit tests in a matrix
 
-Unit tests run in one `cli` vitest job today. This page describes how to split them into parallel matrix legs in the same shape as the e2e groups (see [run e2e suites in a matrix](06-e2e-matrix.md)), and how to write a new unit test so it fits a leg. It is the model for the coverage and unit-test items in the [test-quality initiative](https://github.com/tdk-landscape/tdk-cli-core/issues/1388).
+Unit tests run in one `cli` vitest job today, and the matrix on this page is **proposed, not yet in CI**. This page describes how to split them into parallel matrix legs in the same shape as the e2e groups (see [run e2e suites in a matrix](06-e2e-matrix.md)), and how to write a new unit test so it fits a leg. It is the model for the coverage and unit-test items in the [test-quality initiative](https://github.com/tdk-landscape/tdk-cli-core/issues/1388).
 
 ## What a unit test is here
 
@@ -33,15 +33,19 @@ describe("isPathSafe", () => {
 });
 ```
 
-Every function that handles input covers three groups of rows:
+Every function that handles input covers these rows:
 
 - **happy path**: one valid input per documented form;
 - **empty and error**: empty input, the error code or message the function returns, and a thrown error where it throws;
-- **recovery**: a call after an error still works (no cached bad state), and an injected failure does not leave a file or a prompt half done.
+- **boundaries**: values at the edges of each documented range or format (for example port 1, 65535, and 65536).
+
+Add **recovery** rows only when the function has mutable state, performs a side effect, or can leave partly finished work behind (a file write, a prompt, a cache, a process). For pure functions, partition the inputs meaningfully instead of adding recovery rows to meet a checklist.
 
 A test that mocks I/O restores the mock in `afterEach` (`vi.restoreAllMocks()`), so no test depends on the order of the others.
 
-## Split the suite into legs
+## Split the suite into legs (proposed)
+
+Nothing below exists in CI yet. Do not copy it into a workflow until the implementation issue (#1380 for coverage output, #1381 for the gate) has landed and been run end to end, including the blob merge and the coverage file the gate reads.
 
 Vitest can split one run across legs with `--shard`. The matrix is the set of shard indexes, and each leg runs one slice and writes a blob report. A final job merges the blobs:
 
