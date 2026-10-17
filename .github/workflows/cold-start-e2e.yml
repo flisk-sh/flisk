@@ -26,9 +26,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Secrets are not readable in a job-level `if`, so the check runs first and its output gates the job. Without the
+  # secret the licensed job is skipped with a warning that names it, instead of failing on every run.
+  license:
+    name: Check TDK_LICENSE_KEY
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      TDK_LICENSE_KEY: ${{ secrets.TDK_LICENSE_KEY }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "$TDK_LICENSE_KEY" ]; then
+            echo "::warning title=TDK_LICENSE_KEY not configured::Skipped the licensed cold-start E2E. Add the TDK_LICENSE_KEY Actions secret with a key granting sablier to run it."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
   cold-start:
     name: 🧊 Wake a deferred backend during bring-up
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    needs: license
+    if: needs.license.outputs.configured == 'true' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -42,13 +64,6 @@ jobs:
         with:
           node-version: 22
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-
-      - name: Require the Sablier CI license
-        run: |
-          if [ -z "$TDK_LICENSE_KEY" ]; then
-            echo "::error::Configure the TDK_LICENSE_KEY Actions secret with a key granting sablier to run this licensed end-to-end test."
-            exit 1
-          fi
 
       - name: Choose the CLI version to test
         id: version
