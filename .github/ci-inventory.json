@@ -115,6 +115,14 @@
 		},
 		{
 			"workflow": "ci.yml",
+			"job": "pr-summary",
+			"tier": "bot",
+			"required": false,
+			"reason": "Creates or edits the one PR comment with unit counts, E2E results, coverage and links; pull requests only (#1385)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
 			"job": "package",
 			"tier": "test",
 			"required": false,

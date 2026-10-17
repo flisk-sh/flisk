@@ -52,7 +52,7 @@
     "dev": "bun run build:watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage --coverage.reportOnFailure --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --coverage.reportsDirectory=coverage",
+    "test:coverage": "vitest run --coverage --coverage.reportOnFailure --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --coverage.reportsDirectory=coverage --reporter=default --reporter=json --outputFile.json=test-results/vitest.json",
     "prepack": "../scripts/stage-npm-engine.sh && npm run build"
   },
   "dependencies": {
