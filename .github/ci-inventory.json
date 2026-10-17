@@ -492,6 +492,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "broken-project-e2e.yml",
+			"job": "broken-project-e2e",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Failure paths through tdk up: unhealthy service (BP3) and interrupted up (BP4); suite tests/e2e/journeys/broken-project (#1386)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "sync-tdk-skills.yml",
 			"job": "sync",
 			"tier": "bot",
