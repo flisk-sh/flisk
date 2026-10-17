@@ -223,7 +223,14 @@ A8() {
 # Durability across tdk down / tdk up, and removal with docker volume rm.
 A7() {
   log "A7 durability across tdk down / tdk up, and docker volume rm"
+  # In CI order B0 has stopped the container and B1-B7 leave it stopped; bring it back through Tilt before writing the turn.
+  if [ -z "$(running_container)" ]; then
+    run a7-restart restart "$AGENT" --json; [ "$RC" -eq 0 ] || die "tdk restart exited $RC"
+    wait_agent_ready
+    poll_until "tdk agent sessions answers after restart" "$READY_TIMEOUT" session_answers
+  fi
   turn_via_traefik s-durable "remember me" >"$OUT/a7-turn.out"; cat "$OUT/a7-turn.out"; echo
+  assert check "$OUT/a7-turn.out" "j.sessionId === 's-durable'" "the turn to persist reached the agent"
   stack_cycle() { # down, up, wait
     run "a7-down-$1" down; [ "$RC" -eq 0 ] || die "tdk down exited $RC"
     : >"$DIR/up.log"; start_up; wait_stack
