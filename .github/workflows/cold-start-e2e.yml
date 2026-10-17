@@ -27,7 +27,8 @@ concurrency:
 
 jobs:
   # Secrets are not readable in a job-level `if`, so the check runs first and its output gates the job. Without the
-  # secret the licensed job is skipped with a warning that names it, instead of failing on every run.
+  # secret the licensed job is skipped, and this job writes a warning to the run and to the job summary. GitHub has no
+  # neutral job conclusion, so the skipped job is the neutral result; this check succeeds and nothing fails.
   license:
     name: Check TDK_LICENSE_KEY
     runs-on: ubuntu-latest
@@ -42,6 +43,11 @@ jobs:
         run: |
           if [ -z "$TDK_LICENSE_KEY" ]; then
             echo "::warning title=TDK_LICENSE_KEY not configured::Skipped the licensed cold-start E2E. Add the TDK_LICENSE_KEY Actions secret with a key granting sablier to run it."
+            {
+              echo "### ⚠️ Licensed cold-start E2E skipped"
+              echo
+              echo "The \`TDK_LICENSE_KEY\` Actions secret is not configured, so the cold-start job did not run. Add the secret with a key granting \`sablier\` to run it. This is not a failure."
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
