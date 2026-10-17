@@ -255,7 +255,7 @@ docker run --rm <image-name> npm list --depth=0
 
 ### 3. The install works on the host but fails inside the image
 
-A dependency installs cleanly on the developer's laptop (e.g. macOS Darwin on Apple Silicon or Ubuntu), but fails during the container build stage.
+A dependency installs cleanly on the developer's machine (e.g. macOS Darwin on Apple Silicon or Ubuntu), but fails during the container build stage.
 
 #### Case 3A: Native C++ bindings fail in Alpine Linux (musl libc vs glibc)
 
