@@ -42,6 +42,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          # This repository's composite actions and install helper. The fixture below is checked out into a subdirectory;
+          # the local actions resolve from the workspace root, so this checkout has to come first.
+          sparse-checkout: |
+            .github/actions
+            scripts/install-global.mjs
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
           repository: tdk-landscape/tdk-erp-system
           path: erp
           persist-credentials: false
@@ -57,7 +65,7 @@ jobs:
         env:
           TDK_VERSION: ${{ inputs.version || 'latest' }}
         run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
-          npm install --global "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
+          node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
           tdk --version
 
       - name: Machine resources
