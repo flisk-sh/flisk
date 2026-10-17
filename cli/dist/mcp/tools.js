@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
@@ -170,17 +171,13 @@ export async function startUp(args, deps = defaultUpDeps) {
     }
     child.unref();
     return {
-        data: {
-            schemaVersion: 1,
-            data: {
-                ok: true,
-                started: true,
-                pid: child.pid ?? null,
-                logFile,
-                next: "Poll the status tool until data.tilt.readiness.ready is true. Call down to stop it.",
-            },
-            errors: [],
-        },
+        data: createMachineEnvelope({
+            ok: true,
+            started: true,
+            pid: child.pid ?? null,
+            logFile,
+            next: "Poll the status tool until data.tilt.readiness.ready is true. Call down to stop it.",
+        }),
         isError: false,
     };
 }
