@@ -439,6 +439,46 @@
 			}
 		},
 		{
+			"workflow": "release-candidate.yml",
+			"job": "plan",
+			"tier": "release",
+			"required": false,
+			"reason": "Builds the resource-type matrix for the release trigger (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "package",
+			"tier": "release",
+			"required": false,
+			"reason": "Packs this commit's CLI, checks the tarball in a clean container, uploads it (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "quickstart",
+			"tier": "release",
+			"required": false,
+			"reason": "README quickstart (Q1-Q4) against the candidate tarball (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "resource-types",
+			"tier": "release",
+			"required": false,
+			"reason": "Release-trigger resource-type suites against the candidate tarball (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "gate",
+			"tier": "release",
+			"required": false,
+			"reason": "Fails unless every candidate job succeeded; release-binaries.yml publish reads this run (#1387)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "scorecard.yml",
 			"job": "scorecard",
 			"tier": "report",

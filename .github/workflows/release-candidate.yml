@@ -1,0 +1,259 @@
+# Release candidate (#1387, tracker #1388): packs this commit's CLI, checks the tarball in a clean container (the same
+# lifecycle script as package-lifecycle-smoke.yml), then runs the release-blocking E2E cases against that exact tarball on
+# clean runners: the quickstart journey and every resource-type suite whose triggers include "release". The nightly matrix
+# stays in its own workflows. release-binaries.yml's publish job reads this workflow's green runs by commit SHA and refuses
+# to publish a commit that has none.
+# Runs on a release/* branch (workflow_dispatch) or an rc-* tag only, never on every push. A pull request does not run it.
+name: 🚦 Release candidate
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["rc-*"]
+
+permissions:
+  contents: read
+
+# One candidate per ref at a time. A run that is already booting a stack is never cancelled mid-way: a cancelled run proves nothing.
+concurrency:
+  group: release-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: release-candidate / plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      # Every language, HTTP framework and frontend the registry declares: a release candidate covers the full release-blocking set.
+      - name: Build the resource-type matrix for the release trigger
+        id: matrix
+        run: |
+          languages="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.language | join(",")')"
+          frameworks="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.httpFramework | join(",")')"
+          frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
+          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types release "$languages" "$frameworks" "$frontends")"
+          echo "$matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  package:
+    name: release-candidate / package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # Only a release/* branch or an rc-* tag may produce a candidate. A manual run elsewhere fails here, so the
+      # publish gate can never be satisfied by a run that was not meant as a candidate.
+      - name: Check the ref is a release branch or an rc tag
+        run: |
+          case "$GITHUB_REF" in
+            refs/heads/release/*|refs/tags/rc-*) echo "Release candidate for $GITHUB_REF at $GITHUB_SHA" ;;
+            *)
+              echo "::error::Release candidates run on a release/* branch or an rc-* tag, not $GITHUB_REF"
+              exit 1
+              ;;
+          esac
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - run: bun install --frozen-lockfile
+
+      - run: npm run build
+
+      - name: Read the candidate version
+        id: version
+        run: echo "version=$(node -p "require('./cli/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Pack the root package (the tarball users install) and stage it with the lifecycle script and cli/package.json,
+      # as package-lifecycle-smoke.yml does, so the container never sees the source tree.
+      - name: Pack the CLI tarball
+        run: |
+          mkdir -p "$RUNNER_TEMP/rc-lifecycle"
+          packed="$(npm pack --pack-destination "$RUNNER_TEMP/rc-lifecycle" --silent)"
+          mv "$RUNNER_TEMP/rc-lifecycle/$packed" "$RUNNER_TEMP/rc-lifecycle/tdk-cli.tgz"
+          cp cli/package.json scripts/package-lifecycle-smoke.sh "$RUNNER_TEMP/rc-lifecycle/"
+
+      # The same script as the packed CLI lifecycle smoke: install the previous release, upgrade to this tarball, check the version,
+      # run --help, uninstall. Clean Node 22 container, no Tilt or Docker project.
+      - name: Install, upgrade, uninstall the packed CLI in a clean container
+        run: |
+          docker run --rm \
+            --volume "$RUNNER_TEMP/rc-lifecycle:/lifecycle:ro" \
+            node:22-bookworm-slim \
+            bash /lifecycle/package-lifecycle-smoke.sh /lifecycle/tdk-cli.tgz /lifecycle/package.json
+
+      # The leg jobs install this exact file, so every case tests the tarball that was checked above.
+      - name: Upload the candidate tarball
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rc-lifecycle/tdk-cli.tgz
+          if-no-files-found: error
+          retention-days: 3
+
+  quickstart:
+    name: release-candidate / quickstart
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      - name: Download the candidate tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rc-tarball
+
+      - name: Install the candidate tarball and check its version
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/install-global.mjs "$RUNNER_TEMP/rc-tarball/tdk-cli.tgz"
+          test "$(tdk --version)" = "$VERSION"
+          tdk --version
+
+      - name: Run the quickstart cases (Q1-Q4)
+        env:
+          TDK_VERSION: ${{ needs.package.outputs.version }}
+        run: tests/e2e/journeys/quickstart/run.sh Q1 Q2 Q3 Q4
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          cd "$RUNNER_TEMP/shop" 2>/dev/null || exit 0
+          echo "::group::tdk up log (last 300 lines)"
+          tail -300 up.log 2>/dev/null || true
+          echo "::endgroup::"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          tdk doctor || true
+
+      - name: tdk down
+        if: always()
+        run: tests/e2e/journeys/quickstart/run.sh cleanup
+
+  resource-types:
+    name: release-candidate / resource-types / ${{ matrix.label }}
+    needs: [plan, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.timeoutMinutes }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      - name: Download the candidate tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rc-tarball
+
+      - name: Install the candidate tarball and check its version
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/install-global.mjs "$RUNNER_TEMP/rc-tarball/tdk-cli.tgz"
+          test "$(tdk --version)" = "$VERSION"
+          tdk --version
+
+      - name: Tool versions and commit
+        run: |
+          echo "commit: $(git rev-parse HEAD)"
+          echo "node: $(node --version)"
+          echo "docker: $(docker --version)"
+          echo "tilt: $(tilt version)"
+          echo "tdk: $(tdk --version)"
+
+      - name: Run the suite
+        env:
+          SUITE: ${{ matrix.suite }}
+          LANGUAGE: ${{ matrix.language }}
+          FRAMEWORK: ${{ matrix.framework }}
+          BYO_VARIANT: ${{ matrix.variant }}
+        run: tests/e2e/resource-types/"$SUITE"/run.sh all
+
+      - name: Collect diagnostics
+        if: failure()
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: tests/e2e/resource-types/"$SUITE"/run.sh diagnostics
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-candidate-${{ matrix.label }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Tear down
+        if: always()
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: tests/e2e/resource-types/"$SUITE"/run.sh cleanup
+
+  # Always runs, so the candidate always reports a result. Every job above must have succeeded: a skipped or cancelled leg
+  # is not a pass, because release-binaries.yml trusts a green run of this workflow as "the release-blocking E2E passed".
+  gate:
+    name: release-candidate
+    needs: [plan, package, quickstart, resource-types]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Report the result
+        env:
+          PLAN: ${{ needs.plan.result }}
+          PACKAGE: ${{ needs.package.result }}
+          QUICKSTART: ${{ needs.quickstart.result }}
+          RESOURCE_TYPES: ${{ needs.resource-types.result }}
+        run: |
+          echo "plan: $PLAN; package: $PACKAGE; quickstart: $QUICKSTART; resource-types: $RESOURCE_TYPES"
+          for result in "$PLAN" "$PACKAGE" "$QUICKSTART" "$RESOURCE_TYPES"; do
+            if [ "$result" != "success" ]; then
+              echo "::error::A release-candidate job did not succeed ($result)"
+              exit 1
+            fi
+          done
+          echo "Release candidate passed."
