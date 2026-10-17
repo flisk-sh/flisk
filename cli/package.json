@@ -52,6 +52,7 @@
     "dev": "bun run build:watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --coverage.reportOnFailure --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --coverage.reportsDirectory=coverage",
     "prepack": "../scripts/stage-npm-engine.sh && npm run build"
   },
   "dependencies": {
@@ -62,6 +63,7 @@
     "@biomejs/biome": "^2.5.13",
     "@types/node": "^22.0.0",
     "@types/react": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.2",
     "ajv": "^8.17.1",
     "chalk": "^6.0.1",
     "esbuild": "^0.28.2",

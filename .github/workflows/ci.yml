@@ -194,6 +194,29 @@ jobs:
       - name: Check shell verification script syntax
         working-directory: .
         run: make test-shell
+      # Report-only: writes text, HTML and JSON-summary reports to cli/coverage/ and sets no threshold.
+      - name: Unit test coverage report
+        run: bun run test:coverage
+        env:
+          TDK_REQUIRE_TILT: '1'
+      - name: Coverage summary
+        if: always()
+        run: |
+          node -e '
+            const { total } = require("./coverage/coverage-summary.json");
+            const rows = ["lines", "statements", "functions", "branches"].map(
+              (k) => "| " + k + " | " + total[k].pct + "% | " + total[k].covered + "/" + total[k].total + " |",
+            );
+            console.log(["## Unit test coverage", "", "| Metric | Coverage | Covered |", "|---|---|---|", ...rows, ""].join("\n"));
+          ' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage HTML report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: cli-coverage-html
+          path: cli/coverage/
+          retention-days: 14
+          if-no-files-found: warn
       # test-python remains a local target until the clean-checkout failures in #700 are resolved.
 
   # Installs the npm package the way users do (npm install -g) and runs it,
