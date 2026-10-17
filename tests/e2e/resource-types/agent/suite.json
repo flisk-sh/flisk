@@ -1,0 +1,21 @@
+{
+  "group": "resource-types",
+  "suite": "agent",
+  "description": "The agent resource on a live stack: tdk agent sessions, tdk restart, graceful drain, durability, the MCP tools over stdio, and skill and doc distribution.",
+  "paths": [
+    "cli/src/commands/agent.ts",
+    "cli/src/commands/restart.ts",
+    "cli/src/mcp/**",
+    "cli/src/agent-runtimes/**",
+    "engine/**",
+    ".claude/skills/**",
+    "scripts/sync-tdk-skills.sh",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/agent/**",
+    ".github/workflows/agent-e2e.yml"
+  ],
+  "cases": ["D1", "D2", "D3", "A1", "A2", "A3", "A4", "A5", "A6", "C1", "C2", "C3", "A8", "B0", "B1", "B2", "B3", "B4", "A4b", "B5", "B6", "B7", "A7", "B8"],
+  "triggers": ["pr", "nightly", "release", "manual"],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}

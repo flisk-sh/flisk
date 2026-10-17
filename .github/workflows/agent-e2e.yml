@@ -1,5 +1,5 @@
 # Proves the AI agent surface on a real stack: an `agent` resource through `tdk up`, `tdk agent sessions`, `tdk restart`, the MCP
-# tools over stdio, and the skill/doc distribution checks (#1268). Assertions live in scripts/agent-e2e.sh; each case below is
+# tools over stdio, and the skill/doc distribution checks (#1268). Assertions live in tests/e2e/resource-types/agent/run.sh (cases in CI order in its suite.json); each case below is
 # its own step so a red run points at one behavior. After a release and nightly it tests the published npm package; on a pull
 # request it tests that PR's own package (`npm pack`). Also runnable from the Actions tab.
 name: 🤖 Agent E2E
@@ -21,8 +21,8 @@ on:
       - "engine/**"
       - ".claude/skills/**"
       - "scripts/sync-tdk-skills.sh"
-      - "scripts/agent-e2e.sh"
-      - "scripts/agent-e2e/**"
+      - "tests/e2e/lib/**"
+      - "tests/e2e/resource-types/agent/**"
       - ".github/workflows/agent-e2e.yml"
   schedule:
     - cron: "30 6 * * *"
@@ -116,68 +116,68 @@ jobs:
           echo "tdk: $(tdk --version)"
 
       - name: D1 skill symlinks resolve
-        run: scripts/agent-e2e.sh D1
+        run: tests/e2e/resource-types/agent/run.sh D1
       - name: D2 sync-tdk-skills fixture
         if: "!cancelled()"
-        run: scripts/agent-e2e.sh D2
+        run: tests/e2e/resource-types/agent/run.sh D2
       - name: D3 docs links and removed files
         if: "!cancelled()"
-        run: scripts/agent-e2e.sh D3
+        run: tests/e2e/resource-types/agent/run.sh D3
 
       - name: A1 scaffold project and agent
-        run: scripts/agent-e2e.sh A1
+        run: tests/e2e/resource-types/agent/run.sh A1
       - name: A2 tdk up and bounded wait for ready
-        run: scripts/agent-e2e.sh A2
+        run: tests/e2e/resource-types/agent/run.sh A2
       - name: A3 health and ready, direct and through Traefik
-        run: scripts/agent-e2e.sh A3
+        run: tests/e2e/resource-types/agent/run.sh A3
       - name: A4 session checkpoint envelope
-        run: scripts/agent-e2e.sh A4
+        run: tests/e2e/resource-types/agent/run.sh A4
       - name: A5 sticky routing
-        run: scripts/agent-e2e.sh A5
+        run: tests/e2e/resource-types/agent/run.sh A5
       - name: A6 tdk restart keeps the checkpoint
-        run: scripts/agent-e2e.sh A6
+        run: tests/e2e/resource-types/agent/run.sh A6
       - name: C1 MCP initialize and tools/list
-        run: scripts/agent-e2e.sh C1
+        run: tests/e2e/resource-types/agent/run.sh C1
       - name: C2 MCP payloads equal CLI envelopes
-        run: scripts/agent-e2e.sh C2
+        run: tests/e2e/resource-types/agent/run.sh C2
       - name: C3 MCP projectPath and structured errors
-        run: scripts/agent-e2e.sh C3
+        run: tests/e2e/resource-types/agent/run.sh C3
       - name: A8 graceful drain on SIGTERM
-        run: scripts/agent-e2e.sh A8
+        run: tests/e2e/resource-types/agent/run.sh A8
       - name: B0 stop the agent container
-        run: scripts/agent-e2e.sh B0
+        run: tests/e2e/resource-types/agent/run.sh B0
       - name: B1 AGENT_NOT_RUNNING
-        run: scripts/agent-e2e.sh B1
+        run: tests/e2e/resource-types/agent/run.sh B1
       - name: B2 timeout bound
-        run: scripts/agent-e2e.sh B2
+        run: tests/e2e/resource-types/agent/run.sh B2
       - name: B3 stalled body bound
-        run: scripts/agent-e2e.sh B3
+        run: tests/e2e/resource-types/agent/run.sh B3
       - name: B4 AGENT_REQUEST_FAILED
-        run: scripts/agent-e2e.sh B4
+        run: tests/e2e/resource-types/agent/run.sh B4
       - name: A4b envelope nesting with hostile replies
-        run: scripts/agent-e2e.sh A4b
+        run: tests/e2e/resource-types/agent/run.sh A4b
       - name: B5 TILT_TRIGGER_FAILED
-        run: scripts/agent-e2e.sh B5
+        run: tests/e2e/resource-types/agent/run.sh B5
       - name: B6 SESSION_ID_REQUIRED
-        run: scripts/agent-e2e.sh B6
+        run: tests/e2e/resource-types/agent/run.sh B6
       - name: B7 UNKNOWN_RESOURCE, NOT_AN_AGENT, NO_PORT
-        run: scripts/agent-e2e.sh B7
+        run: tests/e2e/resource-types/agent/run.sh B7
       - name: A7 durability across down/up and volume removal
-        run: scripts/agent-e2e.sh A7
+        run: tests/e2e/resource-types/agent/run.sh A7
       - name: B8 TILT_NOT_RUNNING
-        run: scripts/agent-e2e.sh B8
+        run: tests/e2e/resource-types/agent/run.sh B8
 
       - name: Collect diagnostics
         if: failure()
-        run: scripts/agent-e2e.sh diagnostics
+        run: tests/e2e/resource-types/agent/run.sh diagnostics
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: agent-e2e-failure-${{ github.run_id }}
-          path: ${{ runner.temp }}/agent-e2e/artifacts
+          path: ${{ runner.temp }}/tdk-e2e/agent/artifacts
           if-no-files-found: warn
           retention-days: 14
       - name: Tear down
         if: always()
-        run: scripts/agent-e2e.sh cleanup
+        run: tests/e2e/resource-types/agent/run.sh cleanup

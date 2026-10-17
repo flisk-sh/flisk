@@ -2,109 +2,44 @@
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
 # End-to-end checks for the AI agent surface (#1268): the `agent` resource, `tdk agent sessions`, `tdk restart` and the MCP
-# tools, run against a real `tdk up` stack. Each case is one named function, so a CI step (and a person) can run a single case:
+# tools, run against a real `tdk up` stack. This is the reference suite for tests/e2e (see docs/contributing/05-write-e2e.md).
+# Each case is one named function, listed in CI order in suite.json, so a CI step (and a person) can run a single case:
 #
-#   scripts/agent-e2e.sh <case> [<case> ...]       e.g.  scripts/agent-e2e.sh A1 A2 A3
-#   scripts/agent-e2e.sh list                     print the case ids in the order CI runs them
-#   scripts/agent-e2e.sh diagnostics              collect failure artifacts into $AGENT_E2E_ARTIFACTS
-#   scripts/agent-e2e.sh cleanup                  tdk down and remove the scratch project
+#   tests/e2e/resource-types/agent/run.sh <case> [<case> ...]   e.g.  run.sh A1 A2 A3
+#   tests/e2e/resource-types/agent/run.sh all                   every case in order, then cleanup
+#   tests/e2e/resource-types/agent/run.sh list | self-check | diagnostics | cleanup
 #
 # Needs: tdk on PATH, Docker, Tilt, Node 22+, jq, curl. D1-D3 need only the repository checkout.
-# State lives under $AGENT_E2E_ROOT (default $RUNNER_TEMP/agent-e2e or $TMPDIR/agent-e2e). There are no fixed sleeps:
-# waiting is `poll_until` with a deadline, which prints what it waited for and dumps diagnostics when it runs out.
+# Scratch state lives under $E2E_ROOT/agent (see tests/e2e/lib/lib.sh for the variables and overrides).
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-helpers="$repo_root/scripts/agent-e2e"
-E2E_ROOT="${AGENT_E2E_ROOT:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/agent-e2e}"
-PROJECT="${AGENT_E2E_PROJECT:-agente2e}"
+SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../../lib/lib.sh
+source "$SUITE_DIR/../../lib/lib.sh"
+e2e_init agent agente2e
 STACK=shop
 AGENT=bot
-DIR="$E2E_ROOT/$PROJECT"
-OUT="$E2E_ROOT/out"
-ARTIFACTS="${AGENT_E2E_ARTIFACTS:-$E2E_ROOT/artifacts}"
-READY_TIMEOUT="${AGENT_E2E_READY_TIMEOUT:-1200}"
-mkdir -p "$E2E_ROOT" "$OUT"
+RESOURCES=("$AGENT")
 
-log() { printf '\n== %s\n' "$*"; }
-die() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
-now_ms() { node -p 'Date.now()'; }
-assert() { node "$helpers/assert-json.mjs" "$@" || die "assertion failed: $*"; }
-
-# poll_until <description> <timeout seconds> <command...>: retry the command every 2s until it succeeds or the deadline passes.
-poll_until() {
-  local desc="$1" timeout="$2"; shift 2
-  local deadline=$((SECONDS + timeout))
-  while ! "$@" >/dev/null 2>&1; do
-    if [ "$SECONDS" -ge "$deadline" ]; then
-      echo "::error::timed out after ${timeout}s waiting for: $desc" >&2
-      tail -40 "$DIR/up.log" 2>/dev/null >&2 || true
-      docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' >&2 || true
-      return 1
-    fi
-    sleep 2
-  done
-}
-
-# run <name> <args...>: run tdk in the project, echo the command and its raw output (evidence), keep stdout in $OUT/<name>.out.
-# Sets RC to the exit code and ELAPSED_MS to the wall time. Never aborts the script itself.
-run() {
-  local name="$1"; shift
-  local start; start="$(now_ms)"
-  printf '$ tdk %s\n' "$*"
-  set +e
-  (cd "$DIR" && tdk "$@") >"$OUT/$name.out" 2>"$OUT/$name.err"
-  RC=$?
-  set -e
-  ELAPSED_MS=$(( $(now_ms) - start ))
-  cat "$OUT/$name.out"
-  [ -s "$OUT/$name.err" ] && { echo "[stderr]"; cat "$OUT/$name.err"; }
-  echo "[exit $RC, ${ELAPSED_MS}ms]"
-}
-
-status_json() { (cd "$DIR" && tdk status --json 2>/dev/null); }
-agent_port() { status_json | jq -r --arg n "$AGENT" '.data.resources[] | select(.name==$n) | .port'; }
-traefik_url() { status_json | jq -r --arg n "$AGENT" '.data.resources[] | select(.name==$n) | .url'; }
-container_id() { docker ps -aq --filter "name=${PROJECT}-.*-$AGENT-" | head -1; }
-running_container() { docker ps -q --filter "name=${PROJECT}-.*-$AGENT-" --filter status=running | head -1; }
-container_replaced() { local now; now="$(running_container)"; [ -n "$now" ] && [ "$now" != "$1" ]; } # <container id from before the restart>
-# After a restart the old container keeps answering /ready until Tilt replaces it, so readiness alone proves nothing. Wait
-# (bounded) for a different running container, then for /ready, then for the CLI path itself to answer, so the next case
-# never lands in the gap while the route has no live backend.
-session_answers() { (cd "$DIR" && tdk agent sessions "$AGENT" --session-id s1 --json) >/dev/null 2>&1; }
-wait_restarted() {
-  poll_until "agent container replaced after restart" 30 container_replaced "$1" || echo "container id unchanged after restart; relying on readiness"
-  wait_agent_ready
-  poll_until "tdk agent sessions answers again after restart" "$READY_TIMEOUT" session_answers
-}
-
-# curl through Traefik: the route is api.<project>.localhost:<http port>/api/<agent>; resolve the host to loopback ourselves.
-via_traefik() { # <path> [curl args...]
-  local path="$1"; shift
-  local base host port
-  base="$(traefik_url)"; host="$(echo "$base" | sed -E 's#^https?://([^:/]+).*#\1#')"; port="$(echo "$base" | sed -nE 's#^https?://[^:/]+:([0-9]+).*#\1#p')"; port="${port:-80}"
-  curl -sS --max-time 20 --resolve "$host:$port:127.0.0.1" "$@" "$base$path"
-}
-direct() { curl -sS --max-time 20 "$@"; } # <curl args...> <url>
-turn_via_traefik() { # <session id> <input> -> body on stdout; fails on anything but HTTP 200
-  local out code
-  out="$(via_traefik /turn -X POST -H "x-session-id: $1" -H 'content-type: application/json' -d "{\"input\":\"$2\"}" -w '\n%{http_code}')"
-  code="${out##*$'\n'}"; out="${out%$'\n'*}"
-  echo "$out"
-  # A gateway 404/502 body would otherwise pass as a reply, and a later check would blame the agent for losing data.
-  [ "$code" = 200 ] || { echo "POST /turn (x-session-id: $1) returned HTTP $code: $out" >&2; return 1; }
+agent_port() { resource_port "$AGENT"; }
+traefik_url() { resource_url "$AGENT"; }
+agent_container() { running_container "$AGENT"; }
+via_traefik() { traefik_request "$AGENT" "$@"; } # <path> [curl args...]
+turn_via_traefik() { # <session id> <input> -> body on stdout; fails on anything but HTTP 2xx
+  traefik_request_ok "$AGENT" /turn -X POST -H "x-session-id: $1" -H 'content-type: application/json' -d "{\"input\":\"$2\"}"
 }
 agent_ready() { [ "$(via_traefik /ready -o /dev/null -w '%{http_code}')" = "200" ]; }
 wait_agent_ready() { poll_until "agent $AGENT answers /ready 200 through Traefik" "$READY_TIMEOUT" agent_ready; }
-
-start_up() {
-  (cd "$DIR" && nohup tdk up "$STACK" >>"$DIR/up.log" 2>&1 &)
+session_answers() { (cd "$DIR" && tdk agent sessions "$AGENT" --session-id s1 --json) >/dev/null 2>&1; }
+# Wait for a replaced container, then /ready, then the CLI path itself, so the next case never lands in the gap while the
+# route has no live backend.
+agent_restarted() { # <container id from before the restart>
+  wait_restarted "$AGENT" "$1" "agent $AGENT answers /ready 200 through Traefik" agent_ready
+  poll_until "tdk agent sessions answers again after restart" "$READY_TIMEOUT" session_answers
 }
-# After `tdk up` the status reports the resource; wait for both that and a ready agent.
-wait_stack() {
-  poll_until "tdk status lists $AGENT with a Traefik url" "$READY_TIMEOUT" bash -c "cd '$DIR' && tdk status --json | jq -e --arg n '$AGENT' '.data.resources[] | select(.name==\$n) | .url'"
-  wait_agent_ready
-}
+start_up() { start_stack "$STACK"; }
+wait_stack() { wait_status_url "$AGENT"; wait_agent_ready; } # after `tdk up`: the status lists the agent and it is ready
+agent_stub() { with_stub "$(agent_port)" "$@"; } # <mode> [args...]: a stub stands in for the agent's route
 
 # ---------------------------------------------------------------------------------------------------------------- A: happy path
 
@@ -123,7 +58,7 @@ const fs = require("node:fs");
 const file = process.argv[2];
 const text = fs.readFileSync(file, "utf8");
 const marker = /return 'received ' \+ input \+ ' \(turn ' \+ Math\.ceil\(checkpoint\.messages\.length \/ 2\) \+ '\)';/;
-if (!marker.test(text)) { console.error("scaffold runTurn changed; update agent-e2e.sh"); process.exit(1); }
+if (!marker.test(text)) { console.error("scaffold runTurn changed; update tests/e2e/resource-types/agent/run.sh"); process.exit(1); }
 fs.writeFileSync(file, text.replace(marker, [
   "const slow = /^slow:(\\d+)$/.exec(input);",
   "  if (slow) {",
@@ -187,13 +122,13 @@ A5() { # sticky routing: same session id -> same instance
 
 A6() { # tdk restart, healthy again, checkpoint intact
   log "A6 tdk restart $AGENT"
-  local before; before="$(running_container)"
+  local before; before="$(agent_container)"
   run a6-restart restart "$AGENT" --json
   [ "$RC" -eq 0 ] || die "tdk restart exited $RC"
   assert envelope "$OUT/a6-restart.out"
   assert check "$OUT/a6-restart.out" "j.errors.length === 0 && j.data.resource === '$AGENT' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
   # Tilt rebuilds and recreates the container; wait for a ready agent that is a different container.
-  wait_restarted "$before"
+  agent_restarted "$before"
   run a6-sessions agent sessions "$AGENT" --session-id s1 --json
   [ "$RC" -eq 0 ] || die "tdk agent sessions after restart exited $RC"
   assert check "$OUT/a6-sessions.out" "j.data.session.messages.length === 2 && j.data.session.messages[0].content === 'hello'" "checkpoint s1 survived the restart"
@@ -202,7 +137,7 @@ A6() { # tdk restart, healthy again, checkpoint intact
 # Graceful drain: SIGTERM while a slow turn is in flight; the turn must complete and the checkpoint must be whole.
 A8() {
   log "A8 graceful drain: SIGTERM during an in-flight turn"
-  local cid; cid="$(running_container)"; [ -n "$cid" ] || die "no running $AGENT container"
+  local cid; cid="$(agent_container)"; [ -n "$cid" ] || die "no running $AGENT container"
   turn_via_traefik s-drain "slow:5000" >"$OUT/a8-turn.out" 2>"$OUT/a8-turn.err" &
   local turn_pid=$!
   poll_until "the slow turn to start (log line)" 60 bash -c "docker logs '$cid' 2>&1 | grep -q 'slow turn started'"
@@ -229,7 +164,7 @@ A8() {
 A7() {
   log "A7 durability across tdk down / tdk up, and docker volume rm"
   # In CI order B0 has stopped the container and B1-B7 leave it stopped; bring it back through Tilt before writing the turn.
-  if [ -z "$(running_container)" ]; then
+  if [ -z "$(agent_container)" ]; then
     run a7-restart restart "$AGENT" --json; [ "$RC" -eq 0 ] || die "tdk restart exited $RC"
     wait_agent_ready
     poll_until "tdk agent sessions answers after restart" "$READY_TIMEOUT" session_answers
@@ -262,25 +197,17 @@ A7() {
 # Stop the real container (Tilt stays up) so Traefik has no live backend for the agent.
 B0() {
   log "B0 stop the agent container (Tilt stays up)"
-  local cid; cid="$(running_container)"; [ -n "$cid" ] || die "no running $AGENT container"
+  local cid; cid="$(agent_container)"; [ -n "$cid" ] || die "no running $AGENT container"
   docker stop -t 15 "$cid" >/dev/null
   echo "stopped container $cid"
   tdk_jq_check() { (cd "$DIR" && tdk status --json >/dev/null); }
   tilt get uiresources >/dev/null 2>&1 || die "Tilt is not reachable after stopping the container"
 }
 
-with_stub() { # <mode> <args...>  starts a stub standing in for the ingress; the CLI is pointed at it via TDK_SERVICE_BASE_URL
-  local port; port="$(agent_port)"
-  node "$helpers/stub.mjs" "$1" "$port" "${@:2}" >"$OUT/stub.log" 2>&1 &
-  STUB_PID=$!
-  poll_until "stub to listen on $port" 20 grep -q listening "$OUT/stub.log"
-  export TDK_SERVICE_BASE_URL="http://127.0.0.1:$port"
-}
-stop_stub() { unset TDK_SERVICE_BASE_URL; kill "$STUB_PID" 2>/dev/null || true; wait "$STUB_PID" 2>/dev/null || true; }
 
 B1() { # AGENT_NOT_RUNNING with nothing listening
   log "B1 AGENT_NOT_RUNNING (container stopped)"
-  [ -z "$(docker ps -q --filter "name=${PROJECT}-.*-$AGENT-" --filter status=running)" ] || die "agent container is still running; run B0 first"
+  [ -z "$(agent_container)" ] || die "agent container is still running; run B0 first"
   run b1-json agent sessions "$AGENT" --session-id s1 --json
   [ "$RC" -eq 1 ] || die "expected exit 1, got $RC"
   assert envelope "$OUT/b1-json.out" AGENT_NOT_RUNNING
@@ -291,7 +218,7 @@ B1() { # AGENT_NOT_RUNNING with nothing listening
 }
 
 b_timeout() { # <mode> <label>
-  with_stub "$1"
+  agent_stub "$1"
   run "b-$1" agent sessions "$AGENT" --session-id s1 --json
   stop_stub
   [ "$RC" -eq 1 ] || die "expected exit 1, got $RC"
@@ -307,7 +234,7 @@ B4() { # AGENT_REQUEST_FAILED with the status and the agent's error text
   local code text
   for pair in "400:x-session-id header is required" "500:internal_error"; do
     code="${pair%%:*}"; text="${pair#*:}"
-    with_stub status "$code" "$text"
+    agent_stub status "$code" "$text"
     run "b4-$code" agent sessions "$AGENT" --session-id s1 --json
     stop_stub
     [ "$RC" -eq 1 ] || die "expected exit 1, got $RC"
@@ -318,12 +245,12 @@ B4() { # AGENT_REQUEST_FAILED with the status and the agent's error text
 
 A4b() { # reply shapes: an array stays an array; agent/port keys in the reply cannot overwrite data.agent / data.port
   log "A4b envelope nesting with hostile replies (stub)"
-  with_stub json '{"agent":"spoofed","port":1,"messages":["x"]}'
+  agent_stub json '{"agent":"spoofed","port":1,"messages":["x"]}'
   run a4b-object agent sessions "$AGENT" --session-id s1 --json
   stop_stub
   [ "$RC" -eq 0 ] || die "expected exit 0, got $RC"
   assert check "$OUT/a4b-object.out" "j.data.agent === '$AGENT' && j.data.port !== 1 && j.data.session.agent === 'spoofed' && j.data.session.port === 1" "reply keys agent/port stay inside data.session"
-  with_stub json '[{"id":"a"}]'
+  agent_stub json '[{"id":"a"}]'
   run a4b-array agent sessions "$AGENT" --session-id s1 --json
   stop_stub
   [ "$RC" -eq 0 ] || die "expected exit 0, got $RC"
@@ -358,9 +285,7 @@ B7() { # UNKNOWN_RESOURCE, NOT_AN_AGENT, NO_PORT: one smoke each
   echo '{"appName":"noport","appType":"agent"}' >"$tmp/services/noport/service.json"
   for pair in "api:NOT_AN_AGENT" "noport:NO_PORT"; do
     local name="${pair%%:*}" code="${pair#*:}"
-    printf '$ (cd throwaway-project && tdk agent sessions %s --session-id s1 --json)\n' "$name"
-    set +e; (cd "$tmp" && tdk agent sessions "$name" --session-id s1 --json) >"$OUT/b7-$name.out" 2>"$OUT/b7-$name.err"; RC=$?; set -e
-    cat "$OUT/b7-$name.out"; echo "[exit $RC]"
+    run_in "$tmp" "b7-$name" agent sessions "$name" --session-id s1 --json
     [ "$RC" -eq 1 ] || die "expected exit 1, got $RC"
     assert envelope "$OUT/b7-$name.out" "$code"
   done
@@ -377,50 +302,42 @@ B8() { # TILT_NOT_RUNNING after tdk down
 
 # ---------------------------------------------------------------------------------------------------------------- C: MCP over stdio
 
-mcp() { # <name> <calls json> [cwd]  -> $OUT/<name>.out
-  local name="$1" calls="$2" cwd="${3:-$DIR}"
-  echo "$calls" >"$OUT/$name.calls.json"
-  printf '$ (cd %s && node mcp-client.mjs)  # speaks JSON-RPC to `tdk mcp`; calls: %s\n' "$cwd" "$calls"
-  node "$helpers/mcp-client.mjs" --cwd "$cwd" "$OUT/$name.calls.json" >"$OUT/$name.out" || die "MCP client failed"
-  jq -c '{protocol: .initialize.protocolVersion, tools: [.tools[].name], isError: [.calls[].result.isError]}' "$OUT/$name.out"
-}
-structured() { jq -c ".calls[$2].result.structuredContent" "$OUT/$1.out" >"$OUT/$1.$2.json"; }
 
 C1() {
   log "C1 tdk mcp: initialize and tools/list"
-  mcp c1 '[]'
+  mcp_session c1 '[]'
   assert check "$OUT/c1.out" "['list_agents','get_agent_sessions','restart_resource'].every(n => j.tools.some(t => t.name === n))" "tools/list includes list_agents, get_agent_sessions, restart_resource"
   assert check "$OUT/c1.out" "j.tools.find(t => t.name === 'get_agent_sessions').inputSchema.required.includes('sessionId')" "get_agent_sessions requires sessionId"
 }
 
 C2() { # each tool's payload equals the CLI --json envelope
   log "C2 MCP tool payloads equal the CLI --json envelopes"
-  mcp c2 '[{"tool":"list_agents"},{"tool":"get_agent_sessions","arguments":{"resource":"bot","sessionId":"s1"}}]'
+  mcp_session c2 '[{"tool":"list_agents"},{"tool":"get_agent_sessions","arguments":{"resource":"bot","sessionId":"s1"}}]'
   assert check "$OUT/c2.out" "j.calls.every(c => c.result && c.result.isError === false)" "list_agents and get_agent_sessions succeed"
-  structured c2 0; structured c2 1
+  mcp_structured c2 0; mcp_structured c2 1
   run c2-cli-list resources --type=agent --json
   run c2-cli-sessions agent sessions "$AGENT" --session-id s1 --json
   assert equal "$OUT/c2.0.json" "$OUT/c2-cli-list.out"
   assert equal "$OUT/c2.1.json" "$OUT/c2-cli-sessions.out"
-  local before; before="$(running_container)"
-  mcp c2r '[{"tool":"restart_resource","arguments":{"resource":"bot"}}]'
-  structured c2r 0
+  local before; before="$(agent_container)"
+  mcp_session c2r '[{"tool":"restart_resource","arguments":{"resource":"bot"}}]'
+  mcp_structured c2r 0
   assert check "$OUT/c2r.out" "j.calls[0].result.isError === false" "restart_resource succeeds"
-  wait_restarted "$before"
-  before="$(running_container)"
+  agent_restarted "$before"
+  before="$(agent_container)"
   run c2-cli-restart restart "$AGENT" --json
   assert equal "$OUT/c2r.0.json" "$OUT/c2-cli-restart.out"
-  wait_restarted "$before"
+  agent_restarted "$before"
 }
 
 C3() { # projectPath from another cwd; an unknown resource is a structured tool error and the server survives
   log "C3 MCP projectPath from another cwd, and structured errors"
   local elsewhere; elsewhere="$(mktemp -d)"
-  mcp c3a "[{\"tool\":\"get_agent_sessions\",\"arguments\":{\"projectPath\":\"$DIR\",\"resource\":\"bot\",\"sessionId\":\"s1\"}}]" "$elsewhere"
-  structured c3a 0
+  mcp_session c3a "[{\"tool\":\"get_agent_sessions\",\"arguments\":{\"projectPath\":\"$DIR\",\"resource\":\"bot\",\"sessionId\":\"s1\"}}]" "$elsewhere"
+  mcp_structured c3a 0
   assert check "$OUT/c3a.0.json" "j.errors.length === 0 && j.data.agent === '$AGENT' && j.data.session.sessionId === 's1'" "projectPath resolves the project from a different cwd"
-  mcp c3b '[{"tool":"get_agent_sessions","arguments":{"resource":"no-such-resource","sessionId":"s1"}},{"tool":"get_agent_sessions","arguments":{"resource":"bot"}},{"tool":"restart_resource","arguments":{"resource":"no-such-resource"}},{"tool":"list_agents"}]'
-  structured c3b 0; structured c3b 2
+  mcp_session c3b '[{"tool":"get_agent_sessions","arguments":{"resource":"no-such-resource","sessionId":"s1"}},{"tool":"get_agent_sessions","arguments":{"resource":"bot"}},{"tool":"restart_resource","arguments":{"resource":"no-such-resource"}},{"tool":"list_agents"}]'
+  mcp_structured c3b 0; mcp_structured c3b 2
   assert check "$OUT/c3b.0.json" "j.errors[0].code === 'UNKNOWN_RESOURCE'" "unknown resource: structured error envelope"
   assert check "$OUT/c3b.out" "j.calls[0].result.isError === true" "unknown resource: isError is true"
   assert check "$OUT/c3b.out" "j.calls[1].result.isError === true && j.calls[1].result.content[0].text.includes('sessionId is required')" "missing sessionId is a tool error naming the field"
@@ -433,7 +350,7 @@ C3() { # projectPath from another cwd; an unknown resource is a structured tool 
 
 D1() {
   log "D1 .claude/skills <-> .agents/skills symlinks"
-  cd "$repo_root"
+  cd "$REPO_ROOT"
   local bad=0 d name link
   for d in .claude/skills/*/; do
     name="$(basename "$d")"; link=".agents/skills/$name"
@@ -447,15 +364,16 @@ D1() {
   done
   [ "$bad" -eq 0 ] || die "skill symlinks are inconsistent"
   [ -d .claude/skills/tdk-agent-ops ] || die "tdk-agent-ops skill is missing"
+  [ -d .claude/skills/tdk-e2e-author ] || die "tdk-e2e-author skill is missing"
 }
 
 D2() {
-  log "D2 sync-tdk-skills.sh keeps tdk-agent-ops and deletes a skill removed upstream"
+  log "D2 sync-tdk-skills.sh keeps the skills in .claude/skills/LOCAL and deletes a skill removed upstream"
   local tmp; tmp="$(mktemp -d)"
   mkdir -p "$tmp/repo/scripts" "$tmp/repo/.claude" "$tmp/repo/.agents"
-  cp "$repo_root/scripts/sync-tdk-skills.sh" "$tmp/repo/scripts/"
-  cp -R "$repo_root/.claude/skills" "$tmp/repo/.claude/skills"
-  cp -R "$repo_root/.agents/skills" "$tmp/repo/.agents/skills"
+  cp "$REPO_ROOT/scripts/sync-tdk-skills.sh" "$tmp/repo/scripts/"
+  cp -R "$REPO_ROOT/.claude/skills" "$tmp/repo/.claude/skills"
+  cp -R "$REPO_ROOT/.agents/skills" "$tmp/repo/.agents/skills"
   # A skill the previous sync brought in that the source repo no longer has.
   mkdir -p "$tmp/repo/.claude/skills/removed-upstream"; echo "# gone" >"$tmp/repo/.claude/skills/removed-upstream/SKILL.md"
   ln -sfn ../../.claude/skills/removed-upstream "$tmp/repo/.agents/skills/removed-upstream"
@@ -466,8 +384,16 @@ D2() {
   echo "# kept" >"$tmp/src/skills/kept-upstream/SKILL.md"; echo "# new" >"$tmp/src/skills/new-upstream/SKILL.md"
   (cd "$tmp/repo" && TDK_SKILLS_REPO="$tmp/src" bash scripts/sync-tdk-skills.sh) || die "sync-tdk-skills.sh failed on the fixture"
   ls -l "$tmp/repo/.agents/skills"
-  [ -f "$tmp/repo/.claude/skills/tdk-agent-ops/SKILL.md" ] || die "tdk-agent-ops was deleted by the sync"
-  [ -e "$tmp/repo/.agents/skills/tdk-agent-ops/SKILL.md" ] || die "the .agents/skills/tdk-agent-ops link no longer resolves"
+  local name kept=0
+  while IFS= read -r name; do
+    name="${name%%#*}"; name="${name//[[:space:]]/}"; [ -n "$name" ] || continue
+    [ -f "$tmp/repo/.claude/skills/$name/SKILL.md" ] || die "repo-local skill $name was deleted by the sync"
+    [ -e "$tmp/repo/.agents/skills/$name/SKILL.md" ] || die "the .agents/skills/$name link no longer resolves"
+    echo "kept repo-local skill: $name"; kept=$((kept + 1))
+  done <"$REPO_ROOT/.claude/skills/LOCAL"
+  for name in tdk-agent-ops tdk-e2e-author; do
+    grep -qx "$name" "$REPO_ROOT/.claude/skills/LOCAL" || die "$name is not listed in .claude/skills/LOCAL"
+  done
   [ ! -e "$tmp/repo/.claude/skills/removed-upstream" ] || die "a skill removed upstream survived in .claude/skills"
   [ ! -L "$tmp/repo/.agents/skills/removed-upstream" ] || die "a skill removed upstream survived in .agents/skills"
   for n in kept-upstream new-upstream; do
@@ -478,44 +404,7 @@ D2() {
 
 D3() {
   log "D3 link, anchor and removed-file check over README.md, docs/** and AGENTS.md"
-  (cd "$repo_root" && node scripts/agent-e2e/check-docs.mjs) || die "documentation check failed"
+  (cd "$REPO_ROOT" && node "$E2E_LIB/check-docs.mjs") || die "documentation check failed"
 }
 
-# ---------------------------------------------------------------------------------------------------------------- housekeeping
-
-diagnostics() {
-  mkdir -p "$ARTIFACTS"
-  [ -d "$DIR" ] && (
-    cd "$DIR"
-    tdk status --json >"$ARTIFACTS/tdk-status.json" 2>&1 || true
-    tdk logs --json >"$ARTIFACTS/tdk-logs.json" 2>&1 || true
-    cp up.log "$ARTIFACTS/up.log" 2>/dev/null || true
-  )
-  docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' >"$ARTIFACTS/docker-ps.txt" 2>&1 || true
-  for c in $(docker ps -aq --filter "name=${PROJECT}-.*-$AGENT-" 2>/dev/null); do
-    docker logs "$c" >"$ARTIFACTS/docker-logs-$AGENT-$c.txt" 2>&1 || true
-  done
-  tilt get uiresources >"$ARTIFACTS/tilt-resources.txt" 2>&1 || true
-  tilt get uiresources -o json >"$ARTIFACTS/tilt-resources.json" 2>&1 || true
-  [ -d "$OUT" ] && cp -R "$OUT" "$ARTIFACTS/case-output" 2>/dev/null || true
-  echo "diagnostics written to $ARTIFACTS"
-}
-
-cleanup() {
-  [ -d "$DIR" ] && (cd "$DIR" && tdk down >/dev/null 2>&1 || true)
-  docker rm -f $(docker ps -aq --filter "name=^${PROJECT}-" 2>/dev/null) >/dev/null 2>&1 || true
-  docker volume ls -q | grep -E "^${PROJECT}-" | xargs docker volume rm >/dev/null 2>&1 || true
-  docker network ls --format '{{.Name}}' | grep -E "^${PROJECT}_" | xargs docker network rm >/dev/null 2>&1 || true
-  rm -rf "$DIR"
-}
-
-CASES="D1 D2 D3 A1 A2 A3 A4 A5 A6 C1 C2 C3 A8 B0 B1 B2 B3 B4 A4b B5 B6 B7 A7 B8"
-if [ "$#" -eq 0 ]; then echo "usage: $0 <case>... | list | diagnostics | cleanup  (cases: $CASES)" >&2; exit 2; fi
-for c in "$@"; do
-  case "$c" in
-    list) echo "$CASES" ;;
-    diagnostics) diagnostics ;;
-    cleanup) cleanup ;;
-    *) if declare -F "$c" >/dev/null; then "$c"; echo "PASS $c"; else die "unknown case: $c"; fi ;;
-  esac
-done
+e2e_main "$@"

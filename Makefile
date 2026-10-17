@@ -1,7 +1,7 @@
 # Makefile
 # Common development tasks
 
-.PHONY: help test test-ts test-python test-shell test-tilt-engine test-coverage lint video video-build video-test video-validate video-generate
+.PHONY: help test test-ts test-python test-shell test-e2e test-tilt-engine test-coverage lint video video-build video-test video-validate video-generate
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -26,9 +26,15 @@ test-python: ## Run Python tests
 	@echo "🧪 Running Python tests..."
 	pytest tests/ -v --tb=short
 
-test-shell: ## Check verification script syntax (no Docker/Tilt execution)
+test-shell: ## Check shell script syntax, e2e suite definitions and e2e helper unit tests (no Docker/Tilt execution)
 	@echo "🧪 Checking shell verification script syntax..."
-	for script in scripts/verify-*.sh; do bash -n "$$script" || exit 1; done
+	for script in scripts/verify-*.sh tests/e2e/lib/lib.sh tests/e2e/*/*/run.sh; do bash -n "$$script" || exit 1; done
+	node tests/e2e/lib/validate-suites.mjs
+	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
+
+test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, tdk)
+	@test -n "$(GROUP)" -a -n "$(SUITE)" || { echo "usage: make test-e2e GROUP=<group> SUITE=<suite> [CASES=\"<case> ...\"]"; ls tests/e2e/*/*/suite.json | sed 's#tests/e2e/##; s#/suite.json##'; exit 2; }
+	tests/e2e/$(GROUP)/$(SUITE)/run.sh $(if $(CASES),$(CASES),all)
 
 test-coverage: ## Run all tests with coverage
 	@echo "🧪 Running all tests with coverage..."

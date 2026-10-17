@@ -55,7 +55,7 @@ The full steps for reviewers, including what to look at, are in [docs/contributi
 
 ## Tests
 
-Every new feature or behavior change needs automated tests in the same pull request. Put tests next to the code they cover, or in the existing suite for that area (`cli/src/**/__tests__/`, `tests/fuzz/`). A bug fix adds a test that fails before the fix and passes after it. If a test is not practical, the pull request says why and links an issue that tracks adding it. Reviewers check this in every pull request, and the checks listed in [03-open-a-pr.md](docs/contributing/03-open-a-pr.md#run-the-checks-for-your-change) run the suite in CI.
+Every new feature or behavior change needs automated tests in the same pull request. A change that affects a running stack (a resource type, a command or MCP tool that talks to the stack, `tdk up`, routing or the engine) also needs an end-to-end test. [Writing an e2e test](docs/contributing/05-write-e2e.md) explains when, where and how, including the deliberate-break evidence a new suite needs. Put tests next to the code they cover, or in the existing suite for that area (`cli/src/**/__tests__/`, `tests/fuzz/`). A bug fix adds a test that fails before the fix and passes after it. If a test is not practical, the pull request says why and links an issue that tracks adding it. Reviewers check this in every pull request, and the checks listed in [03-open-a-pr.md](docs/contributing/03-open-a-pr.md#run-the-checks-for-your-change) run the suite in CI.
 
 Run focused checks from the repository root while you work, then use `make test` as the comprehensive pre-PR entry point:
 
@@ -63,10 +63,11 @@ Run focused checks from the repository root while you work, then use `make test`
 | --- | --- |
 | TypeScript or CLI logic | `make test-ts` |
 | Python code, generators or Starlark-related logic | `make test-python` |
-| Shell verification scripts | `make test-shell` |
+| Shell verification scripts or e2e suite files | `make test-shell` |
+| Anything that runs against a live stack | `make test-e2e GROUP=<group> SUITE=<suite>` (see [writing an e2e test](docs/contributing/05-write-e2e.md)) |
 | Multiple areas or anything before a PR | `make test` |
 
-The TypeScript target requires Bun and Node.js 22.12+. The Python target requires the packages in `tests/requirements.txt`; it includes the known clean-checkout failures tracked in [#700](https://github.com/tdk-landscape/tdk-cli-core/issues/700) rather than hiding or skipping them. The shell target only runs Bash syntax validation on `scripts/verify-*.sh`. Run an affected verification script separately when you need its real integration coverage; those scripts document their own arguments and may require Docker, Tilt, a built CLI or network access.
+The TypeScript target requires Bun and Node.js 22.12+. The Python target requires the packages in `tests/requirements.txt`; it includes the known clean-checkout failures tracked in [#700](https://github.com/tdk-landscape/tdk-cli-core/issues/700) rather than hiding or skipping them. The shell target runs Bash syntax validation on `scripts/verify-*.sh` and the e2e suites, validates every `tests/e2e/<group>/<suite>/suite.json`, and runs the e2e helper unit tests. It does not start a stack. Run an affected verification script separately when you need its real integration coverage; those scripts document their own arguments and may require Docker, Tilt, a built CLI or network access.
 
 ## Find bugs
 

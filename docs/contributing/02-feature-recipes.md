@@ -9,6 +9,7 @@ These recipes are starting points. If you cannot find a file, search for the com
 3. Make the smallest change that fixes the issue or adds the option.
 4. Update `cli/README.md` if the command or its options are user-visible.
 5. From the repo root, run `bun run typecheck`, `bun run lint`, and `bun run test`.
+6. **E2E:** if the command talks to a running stack (or it is an MCP tool that does), add a case to the matching suite. See [Write an e2e test](05-write-e2e.md).
 
 For frontend frameworks, follow the dedicated [frontend provider guide](../frontend-framework-providers.md). It explains the React/Vue provider boundary, engine templates, compatibility checks, and PR checklist.
 
@@ -27,6 +28,7 @@ Use the existing code as a map:
 4. Trace the full lifecycle: configuration, generated files, startup order, health/readiness, environment or secrets, shutdown/cleanup, and what happens when the tool is disabled.
 5. Add checks for the behavior you changed. CLI and Starlark generator tests live under `cli/src/commands/__tests__/`; the Python engine tests are under `tests/tilt-engine/`.
 6. Update the user-facing feature or CLI docs, such as `docs/FEATURES.md` or `cli/README.md`.
+7. **E2E:** a new tool or database changes what a stack boots. Add a case that boots it and checks its health and its wiring. See [Write an e2e test](05-write-e2e.md).
 
 Do not assume a new tool needs every file above. Follow the current implementation that is closest to your feature and keep shared service behavior working.
 
@@ -59,6 +61,7 @@ The generated Compose entry is printed after `Error in fail: OUTPUT`. Paths in `
 4. Search for the affected output file or manifest field to find its generator and tests. The CLI tests include Starlark generator checks.
 5. Check whether existing manifests and generated projects still work. Update schema, examples, or CLI docs when their behavior changes.
 6. If the change spans contracts or several modules, write an [OpenSpec proposal](01-first-change.md#when-to-write-a-change-proposal) first.
+7. **E2E:** engine and discovery changes reach every stack. Run the affected suites with `make test-e2e`, and add a case for the behavior you changed. See [Write an e2e test](05-write-e2e.md).
 
 `engine/AGENTS.md` and other `AGENTS.md` files are agent-specific working notes. They can help explain local code, but check their paths and advice against current source and tests before using them as product documentation.
 
@@ -68,3 +71,4 @@ The generated Compose entry is printed after `Error in fail: OUTPUT`. Paths in `
 2. Use short headings, numbered steps, and copyable commands.
 3. Check relative links from the file you edited.
 4. Run only relevant checks. For a docs-only change, check the links and commands you changed; you do not need to run the CLI test suite.
+5. **E2E:** none needed for docs. If you changed a command example, run that command.

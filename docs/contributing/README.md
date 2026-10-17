@@ -14,6 +14,7 @@ You do not need to understand the whole repository. Pick one small change, follo
 | Add a frontend framework like Vue | [Frontend provider guide](../frontend-framework-providers.md) |
 | Add a database or infrastructure tool | [Database and tool recipe](02-feature-recipes.md#add-a-database-or-infrastructure-tool) |
 | Change how TDK discovers services or generates configs | [Engine and discovery recipe](02-feature-recipes.md#change-the-engine-or-service-discovery) |
+| Add or change an end-to-end test on a real stack | [Write an e2e test](05-write-e2e.md) |
 | Fix wording, a link, or a typo | [Docs recipe](02-feature-recipes.md#change-documentation) |
 | Try TDK or an example and tell us what happened, no code needed | [Try it and report](try-and-report.md) |
 | Find and report bugs, no code needed | [Finding bugs](finding-bugs.md) |
