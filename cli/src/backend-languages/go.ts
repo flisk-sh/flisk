@@ -80,6 +80,7 @@ func main() {
         content: `package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -91,6 +92,33 @@ func TestHealth(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /health = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestRoot(t *testing.T) {
+	rec := httptest.NewRecorder()
+	newMux().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET / = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("GET / Content-Type = %q, want %q", got, "application/json")
+	}
+
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("GET / body is not JSON: %v", err)
+	}
+	if body["service"] != "${name}" {
+		t.Errorf("service = %v, want %q", body["service"], "${name}")
+	}
+	if body["version"] != "1.0.0" {
+		t.Errorf("version = %v, want %q", body["version"], "1.0.0")
+	}
+	endpoints, ok := body["endpoints"].([]any)
+	if !ok || len(endpoints) != 1 || endpoints[0] != "/health" {
+		t.Errorf("endpoints = %v, want [/health]", body["endpoints"])
 	}
 }
 `,
