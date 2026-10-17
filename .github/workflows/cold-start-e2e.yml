@@ -104,6 +104,13 @@ jobs:
           mkdir -p "$RUNNER_TEMP/tdk-cold-start"
           scripts/e2e/cold-start.sh "$RUNNER_TEMP/tdk-cold-start"
 
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: cold-start
+
       - name: Diagnostics on failure
         if: failure() || cancelled()
         run: |

@@ -67,6 +67,7 @@ jobs:
           # checked out into a subdirectory; the local actions resolve from the workspace root, so this checkout has to come first.
           sparse-checkout: |
             .github/actions
+            scripts/e2e
             scripts/install-global.mjs
             tests/e2e/lib
             tests/e2e/examples/real-apps
@@ -108,6 +109,13 @@ jobs:
           WEB_CHECKS: ${{ matrix.web_checks }}
           WAIT_MINUTES: "18"
         run: tests/e2e/examples/real-apps/run.sh A4
+
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: examples-${{ matrix.repo }}
 
       - name: Diagnostics on failure
         if: failure() || cancelled()
