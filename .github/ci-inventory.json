@@ -2,14 +2,6 @@
 	"$comment": "Every CI job, its tier and whether branch protection requires it. Checked by scripts/check-ci-inventory.mjs. Tracker: #1279; this file: #1281.",
 	"jobs": [
 		{
-			"workflow": "agent-e2e.yml",
-			"job": "agent-e2e",
-			"tier": "e2e",
-			"required": false,
-			"reason": "Agent resource; moves to resource-types in phase 1 (#1280)",
-			"owner": "maintainers"
-		},
-		{
 			"workflow": "ai-conflict-buttons.yml",
 			"job": "comment",
 			"tier": "bot",
@@ -548,11 +540,43 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "red-job-tracker.yml",
+			"job": "track",
+			"tier": "report",
+			"required": false,
+			"reason": "Opens or closes one issue per scheduled or main job that fails three runs in a row (#1288)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "cold-start-e2e.yml",
 			"job": "license",
 			"tier": "gate",
 			"required": false,
 			"reason": "Checks TDK_LICENSE_KEY and skips the licensed cold-start job with a warning when it is missing (#1288)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-resource-types.yml",
+			"job": "plan",
+			"tier": "gate",
+			"reason": "Builds the resource-type matrix from suite.json for the event (#1290)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-resource-types.yml",
+			"job": "resource-types",
+			"tier": "e2e",
+			"reason": "One leg per selected resource-type suite (agent on live stack); replaces agent-e2e.yml (#1290)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-resource-types.yml",
+			"job": "gate",
+			"tier": "gate",
+			"reason": "Fails when the plan or any selected suite fails (#1290)",
+			"required": false,
 			"owner": "maintainers"
 		}
 	]

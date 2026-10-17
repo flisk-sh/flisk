@@ -1,0 +1,34 @@
+# Opens one issue per scheduled or main-branch job that fails three runs in a row, and closes it after three passing runs
+# (#1288). Runs on the default branch only and never checks out pull request code.
+name: 🚨 Red job tracker
+
+on:
+  schedule:
+    - cron: "45 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: red-job-tracker
+  cancel-in-progress: false
+
+jobs:
+  track:
+    name: Track red scheduled and main jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Track red jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/red-job-tracker.mjs

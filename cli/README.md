@@ -115,6 +115,7 @@ tdk resource my-lit-app --type frontend --framework lit --stack api
 tdk resource my-py-api --type backend --language python --stack api
 tdk resource my-go-api --type backend --language go --stack api
 tdk resource my-rust-api --type backend --language rust --stack api
+tdk resource my-node-api --type backend --language node --stack api
 tdk resource my-express-api --type backend --framework express --stack api
 tdk resource my-elysia-api --type backend --framework elysia --stack api
 tdk resource my-nest-api --type backend --framework nestjs --stack api
@@ -144,7 +145,7 @@ must pass `--stack`. Without `--yes`, prompt answers can still be supplied on st
 
 See the complete [`service.json` field reference](../docs/service-json.md) for field defaults, resource applicability, validation behavior, and backend/frontend examples.
 
-Backend creation defaults to Bun + Hono, exactly as it always has: omit `--language` and nothing changes. Use `--language python` for FastAPI on Python 3.12, `--language go` for a standard-library `net/http` service on Go 1.23, or `--language rust` for an axum service (Go and Rust have no live reload: Tilt rebuilds the image on change). The selected id is saved as `language` in `service.json`; a legacy manifest without it still means Bun and is never rewritten. The flag applies only to `--type backend`, and unknown ids fail before a resource is written. On the Bun runtime the HTTP framework is Hono by default. To use another, pass one of these to `--framework`:
+Backend creation defaults to Bun + Hono, exactly as it always has: omit `--language` and nothing changes. Use `--language python` for FastAPI on Python 3.12, `--language go` for a standard-library `net/http` service on Go 1.23, `--language rust` for an axum service (Go and Rust have no live reload: Tilt rebuilds the image on change), or `--language node` for a Node.js 22 service with built-in `node:http` and `node --watch` live reload. The selected id is saved as `language` in `service.json`; a legacy manifest without it still means Bun and is never rewritten. The flag applies only to `--type backend`, and unknown ids fail before a resource is written. On the Bun runtime the HTTP framework is Hono by default. To use another, pass one of these to `--framework`:
 
 | Id | Framework |
 | --- | --- |

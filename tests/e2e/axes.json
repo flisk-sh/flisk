@@ -36,7 +36,8 @@
 				"bun": { "allow": "#1292" },
 				"python": { "allow": "#1292" },
 				"go": { "allow": "#1292" },
-				"rust": { "allow": "#1292" }
+				"rust": { "allow": "#1292" },
+				"node": { "allow": "#1292" }
 			},
 			"interactions": []
 		},

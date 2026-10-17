@@ -185,7 +185,7 @@ tdk resource old-api --path services/old-api --register-existing
 | `-t`, `--type <type>` | `backend` (default), `frontend`, `worker`, `mcp`, `bring-your-own`, `sdk` |
 | `--framework <id>` | Frontend: `react` (default), `vue`, `svelte`, `preact`, `lit`, `solid`, `qwik`, `vanilla`, `tanstack-router`. Backend: `hono` (default), `express`, `elysia`, `fastify`, `nestjs`, `koa`, `h3` |
 | `--frameworks` | List registered frontend frameworks and exit |
-| `--language <id>` | Backend language: `bun` (default), `python`, `go`, `rust` |
+| `--language <id>` | Backend language: `bun` (default), `python`, `go`, `rust`, `node` |
 | `-s`, `--stack <stack>` | Stack to assign the resource to |
 | `-p`, `--path <path>` | Custom resource directory. `--resource-path` is an older alias |
 | `--register-existing` | Register an existing resource without creating templates |

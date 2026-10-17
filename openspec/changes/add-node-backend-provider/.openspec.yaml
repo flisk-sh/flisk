@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-17
+goal: Add an opt-in Node.js backend language provider on Node.js 22 LTS with native node:http, zero external runtime dependencies, process live reload, and engine Docker generation.

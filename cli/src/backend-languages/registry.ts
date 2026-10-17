@@ -3,6 +3,7 @@
 import { TdkError } from "../utils/errors.js";
 import { bunBackendProvider } from "./bun.js";
 import { goBackendProvider } from "./go.js";
+import { nodeBackendProvider } from "./node.js";
 import { pythonBackendProvider } from "./python.js";
 import { rustBackendProvider } from "./rust.js";
 import type { BackendLanguageProvider } from "./types.js";
@@ -14,6 +15,7 @@ export const BACKEND_LANGUAGES: Record<string, BackendLanguageProvider> = {
   python: pythonBackendProvider,
   go: goBackendProvider,
   rust: rustBackendProvider,
+  node: nodeBackendProvider,
 };
 
 export function getBackendLanguage(languageId?: string): BackendLanguageProvider {

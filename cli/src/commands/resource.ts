@@ -412,7 +412,7 @@ export const resourceCommand = new Command("resource")
     "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router (see --frameworks); backend hono (default), express, elysia, fastify, nestjs, koa, h3",
   )
   .option("--frameworks", "List registered frontend frameworks and exit")
-  .option("--language <id>", "Backend language: bun (default), python, go, rust")
+  .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
   .option("-s, --stack <stack>", "Stack to assign resource to", "default")
   .option("-p, --path <path>", "Custom path for resource directory")
   .option("--resource-path <path>", "Alias for --path (for backward compatibility)")

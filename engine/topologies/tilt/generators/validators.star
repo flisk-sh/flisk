@@ -567,6 +567,7 @@ def generate_resource_health_check(resource_name, resource_path, manifest, check
         "python": ["pyproject.toml", "src/main.py"],
         "go": ["go.mod", "main.go"],
         "rust": ["Cargo.toml", "src/main.rs"],
+        "node": ["package.json", "src/index.js"],
     }.get(manifest.get("language", "bun"), ["package.json", "prisma/schema.prisma"])
     required_files = {
         "backend": backend_files,

@@ -46,9 +46,9 @@ const BUN_BASELINE: Record<string, string> = {
 };
 
 describe("backend language registry", () => {
-  it("keeps Bun the default and registers exactly bun, go, python, rust", () => {
+  it("keeps Bun the default and registers exactly bun, go, node, python, rust", () => {
     expect(DEFAULT_BACKEND_LANGUAGE).toBe("bun");
-    expect(Object.keys(BACKEND_LANGUAGES).sort()).toEqual(["bun", "go", "python", "rust"]);
+    expect(Object.keys(BACKEND_LANGUAGES).sort()).toEqual(["bun", "go", "node", "python", "rust"]);
   });
 
   it("keeps the service schema open to every registered language", () => {
@@ -192,6 +192,42 @@ describe("tdk resource --language", () => {
     expect(service("rust-api").featuresEnabled).not.toContain("prisma");
   }, 15000);
 
+  it("scaffolds Node with node:http, node:test, and no Dockerfile of its own", () => {
+    const result = tdk(
+      ["resource", "node-api", "--type", "backend", "--language", "node", "--stack", "shop"],
+      projectRoot,
+    );
+    expect(result.status, result.stderr).toBe(0);
+
+    const root = dir("node-api");
+    expect(service("node-api")).toMatchObject({
+      language: "node",
+      appType: "backend",
+      healthCheckPath: "/health",
+    });
+    expect(listFiles(root)).toEqual([
+      "package.json",
+      "service.json",
+      "src/index.js",
+      "tests/health.test.js",
+    ]);
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
+    expect(pkg.name).toBe("node-api");
+    expect(pkg.type).toBe("module");
+    expect(pkg.scripts.dev).toBe("node --watch src/index.js");
+    expect(pkg.scripts.test).toBe("node --test");
+
+    const index = readFileSync(join(root, "src/index.js"), "utf-8");
+    expect(index).toContain('import http from "node:http"');
+    expect(index).toContain('"/health"');
+    expect(index).toContain('"0.0.0.0"');
+
+    expect(existsSync(join(root, "Dockerfile"))).toBe(false);
+    expect(existsSync(join(root, "tsconfig.json"))).toBe(false);
+    expect(service("node-api")).not.toHaveProperty("build");
+    expect(service("node-api").featuresEnabled).not.toContain("prisma");
+  }, 15000);
+
   it("rejects a framework for Go like it does for Python", () => {
     const result = tdk(
       [
@@ -234,7 +270,7 @@ describe("tdk resource --language", () => {
     );
     expect(result.status).not.toBe(0);
     const output = `${result.stdout}${result.stderr}`;
-    for (const id of ["bun", "python", "go", "rust"]) expect(output).toContain(id);
+    for (const id of ["bun", "python", "go", "rust", "node"]) expect(output).toContain(id);
     expect(existsSync(dir("ruby-api"))).toBe(false);
   });
 
