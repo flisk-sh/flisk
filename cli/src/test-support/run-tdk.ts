@@ -1,0 +1,53 @@
+// Copyright (c) 2026 TDK Landscape contributors
+// SPDX-License-Identifier: MIT
+import { spawnSync } from "node:child_process";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+/** The CLI entry point the tests run, resolved once. */
+export const tdkBin = path.resolve(here, "../../bin/tdk.js");
+
+export interface RunTdkOptions {
+  cwd: string;
+  /** Written to the child's stdin. */
+  input?: string;
+  /** Merged over `process.env` and `NO_COLOR=1`. A value of `undefined` removes the variable. */
+  env?: Record<string, string | undefined>;
+  /** Kill the child after this many milliseconds. */
+  timeout?: number;
+}
+
+export interface RunTdkResult {
+  status: number;
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Runs `tdk <args>` in a child process and returns its exit status and output.
+ * Throws when the child could not run to completion (spawn error, timeout or signal), so a test never reads
+ * `status: null` as an exit code.
+ */
+export function runTdk(args: readonly string[], options: RunTdkOptions): RunTdkResult {
+  const env: Record<string, string | undefined> = { ...process.env, NO_COLOR: "1", ...options.env };
+  for (const key of Object.keys(env)) {
+    if (env[key] === undefined) delete env[key];
+  }
+  const result = spawnSync(process.execPath, [tdkBin, ...args], {
+    cwd: options.cwd,
+    encoding: "utf-8",
+    input: options.input,
+    env: env as NodeJS.ProcessEnv,
+    timeout: options.timeout,
+  });
+  const command = `tdk ${args.join(" ")}`;
+  if (result.error) {
+    throw new Error(`Could not run \`${command}\` in ${options.cwd}: ${result.error.message}`);
+  }
+  if (result.status === null) {
+    throw new Error(`\`${command}\` did not exit normally (signal ${result.signal ?? "unknown"})`);
+  }
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
