@@ -13,20 +13,31 @@ runs:
       env:
         PORTS: ${{ inputs.ports }}
       run: |
+        # Stop every Postgres the runner ships, purge the packages, then wait for the ports to go quiet. A postmaster can outlive its
+        # systemd unit (and keep its socket) for a few seconds after the purge, so retry the free and kill the stragglers by name
+        # before failing, rather than failing on the first look.
         sudo systemctl stop postgresql.socket 'postgresql@*.socket' 2>/dev/null || true
         sudo systemctl stop postgresql.service 'postgresql@*.service' 2>/dev/null || true
         sudo DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y 'postgresql*' 2>&1 | sudo tee /tmp/pg-purge.log > /dev/null || true
-        for port in $PORTS; do sudo fuser -k "$port/tcp" 2>/dev/null || true; done
-        sleep 2
-        busy=0
-        for port in $PORTS; do
-          if sudo ss -ltn 2>/dev/null | grep -q ":$port "; then
+        busy_ports() {
+          for port in $PORTS; do
+            if sudo ss -ltn 2>/dev/null | grep -q ":$port "; then echo "$port"; fi
+          done
+        }
+        for attempt in 1 2 3 4 5 6; do
+          sudo pkill -KILL -f 'postgres' 2>/dev/null || true
+          for port in $PORTS; do sudo fuser -k "$port/tcp" 2>/dev/null || true; done
+          sleep 5
+          busy="$(busy_ports)"
+          [ -z "$busy" ] && break
+          echo "attempt $attempt: still busy: $busy"
+        done
+        busy="$(busy_ports)"
+        if [ -n "$busy" ]; then
+          for port in $busy; do
             echo "::error::port $port is still in use after purging postgresql"
             sudo ss -ltnp | grep ":$port " || true
-            busy=1
-          fi
-        done
-        if [ "$busy" -ne 0 ]; then
+          done
           tail -50 /tmp/pg-purge.log || true
           exit 1
         fi
