@@ -78,7 +78,7 @@ jobs:
           echo "$matrix"
 
   resource-types:
-    name: 🤖 ${{ matrix.label }}
+    name: resource-types / ${{ matrix.label }}
     needs: plan
     if: needs.plan.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
