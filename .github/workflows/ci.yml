@@ -199,6 +199,9 @@ jobs:
         run: bun run test:coverage
         env:
           TDK_REQUIRE_TILT: '1'
+      # Fails when a high-risk area drops below its baseline in cli/coverage-baseline.json (the ratchet).
+      - name: Coverage ratchet for high-risk areas
+        run: node scripts/coverage-ratchet.mjs
       - name: Coverage summary
         if: always()
         run: |
