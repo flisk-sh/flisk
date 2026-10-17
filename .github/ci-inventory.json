@@ -58,22 +58,6 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "byo-boot-e2e.yml",
-			"job": "byo-python-boot",
-			"tier": "e2e",
-			"required": false,
-			"reason": "BYO boot; moves to resource-types in #1297",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "byo-e2e.yml",
-			"job": "byo-python",
-			"tier": "e2e",
-			"required": false,
-			"reason": "BYO dry run; moves to resource-types in #1297",
-			"owner": "maintainers"
-		},
-		{
 			"workflow": "ci.yml",
 			"job": "docs",
 			"tier": "gate",
