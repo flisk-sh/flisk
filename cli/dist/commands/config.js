@@ -8,7 +8,7 @@ import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
 import { generateMasterConfigs, readProjectConfig, TemplateEngine, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { isMasterConfigFileName } from "../types/index.js";
-import { assertValid } from "../utils/command-helpers.js";
+import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import { errorFactories, requireProjectRoot, runCommand } from "../utils/errors.js";
@@ -27,7 +27,8 @@ export const configCommand = new Command("config")
     .action(async (options) => {
     await runCommand(async () => {
         const projectRoot = requireProjectRoot();
-        if (options.dryRun) {
+        // The plan is the comparison report, so it supplies its own printer rather than the standard pair.
+        if (handleDryRun(options, "", "", () => {
             console.log(chalk.blue("🔍 Dry run - comparing current files with new configuration...\n"));
             const projectConfig = readProjectConfig(projectRoot);
             const engine = new TemplateEngine();
@@ -107,6 +108,7 @@ export const configCommand = new Command("config")
             else {
                 console.log(chalk.green("✅ All files are already up to date!\n"));
             }
+        })) {
             return;
         }
         console.log(chalk.blue("📋 Regenerating master configuration files...\n"));
