@@ -30,11 +30,13 @@
 - [ ] 3b.2 Make `e2e-resource-types.yml` a single job with an `appType` matrix built from the selected `suite.json` files, with `max-parallel` set
 - [ ] 3b.3 Add the combined leg (one stack, every compatible type) to nightly and release runs, with its own diagnostics
 - [ ] 3b.4 Move the agent suite's common cases onto `common.sh`; keep sessions, MCP, drain and durability as agent contract cases
+- [ ] 3b.5 Generate the matrix axes from the registries (`VALID_RESOURCE_TYPES`, backend languages, frontend frameworks) in the `changes` job, and extend the coverage check to every registry with an allowlist
+- [ ] 3b.6 Add the `backend` × language axis (bun, python, go, rust, and node once #1276 merges) with fail-fast off and max-parallel set
 
 ## 4. Other groups (one suite per PR)
 
 - [ ] 4.1 journeys: quickstart, smoke, dev-loop-go, cold-start (keep its never-on-PR secret rule)
-- [ ] 4.2 examples: default, real-apps, python
+- [ ] 4.2 examples: one `example` axis (default, real-apps, python) replacing three workflows; the dev-loop journey gets a language axis, with `go` as its first value
 - [ ] 4.3 platforms: windows, wsl2
 - [ ] 4.4 scale: erp, benchmarks (manual, weekly, main)
 - [ ] 4.5 Each move PR lists cases before and after, and shows a passing run plus a deliberate-break run

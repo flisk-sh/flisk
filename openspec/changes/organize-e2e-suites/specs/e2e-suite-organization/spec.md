@@ -59,6 +59,35 @@ Each group SHALL have one reusable workflow, `e2e-<group>.yml`, that runs its su
 - **WHEN** a suite with `needsSecrets` runs and the secret is absent
 - **THEN** it ends with a warning that names the secret and a neutral result, as `ci-pipeline-efficiency` requires, rather than failing
 
+### Requirement: Variants are matrix axes, not workflows
+Tests that run the same steps for different variants SHALL be one job with a matrix axis per variant kind: resource type, backend language, frontend framework, example app, and host platform. Adding a variant SHALL add a matrix value, never a new workflow or job.
+
+#### Scenario: New backend language
+- **WHEN** a pull request adds `node` to the backend language registry, as #1276 does
+- **THEN** the `backend` leg gains a `node` value and no workflow file changes
+
+#### Scenario: Existing per-variant workflows
+- **WHEN** the `examples` group is migrated
+- **THEN** `python-example-e2e.yml`, `example-e2e.yml` and `examples-e2e.yml` become values of one `example` axis, and `go-dev-loop-e2e.yml` becomes the `go` value of the dev-loop journey's language axis
+
+### Requirement: Matrix axes are generated from the CLI's registries
+Each axis that has a source of truth in the CLI SHALL be generated from it at run time: resource types from `VALID_RESOURCE_TYPES`, backend languages from `cli/src/backend-languages/registry.ts`, and frontend frameworks from `cli/src/frontend-frameworks/`. A check on every pull request SHALL fail when a registry entry has no matrix value and no allowlist entry with an issue link.
+
+#### Scenario: Language added without e2e support
+- **WHEN** a language is registered but its contract case cannot run yet
+- **THEN** the coverage check fails until the language gets an allowlist entry that links a tracking issue
+
+#### Scenario: Pull request touches one language
+- **WHEN** a pull request changes only `cli/src/backend-languages/go.ts`
+- **THEN** the `backend` leg runs for `go` only, and the other languages are skipped while the gate reports
+
+### Requirement: Matrix legs stay small and comparable
+Each matrix leg SHALL run the same case list with the variant as a parameter. A variant SHALL add its own cases only in its own folder. The matrix SHALL set `fail-fast: false`, so one red variant does not hide the others, and `max-parallel`, so a group stays within the shared job limit.
+
+#### Scenario: One language breaks
+- **WHEN** the `rust` leg fails
+- **THEN** the `bun`, `python`, `go` and `node` legs still finish and report, and the group gate names `rust`
+
 ### Requirement: Migration keeps coverage and check names working
 Moving an existing test into a group SHALL keep every assertion it made before. Until branch protection is updated, the check names that are currently required SHALL still be reported.
 
