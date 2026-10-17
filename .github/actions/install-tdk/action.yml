@@ -1,0 +1,33 @@
+# Installs the TDK CLI for a CI job (#1282). One place for the install that four workflows used to inline:
+#   version: local      packs and installs this checkout's CLI (the tarball users would get from npm)
+#   version: latest     installs the newest published package
+#   version: 1.2.3      waits until that version is on npm, then installs it
+# The caller checks out this repository's scripts/install-global.mjs and scripts/wait-for-npm-version.sh first, and runs
+# setup-bun before this action when version is local (it needs bun install).
+name: Install TDK
+description: Install the TDK CLI from this checkout (local), the latest npm release, or an exact published version
+inputs:
+  version:
+    description: "local, latest, or an exact npm version"
+    required: false
+    default: latest
+runs:
+  using: composite
+  steps:
+    - name: Install the CLI
+      shell: bash
+      env:
+        TDK_VERSION: ${{ inputs.version }}
+      run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
+        set -euo pipefail
+        if [ "$TDK_VERSION" = "local" ]; then
+          bun install --frozen-lockfile
+          tarball="$(npm pack --silent | tail -1)"
+          node scripts/install-global.mjs "./$tarball"
+        else
+          if [ "$TDK_VERSION" != "latest" ]; then
+            scripts/wait-for-npm-version.sh "@tdk-landscape/tdk-cli-core" "$TDK_VERSION"
+          fi
+          node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
+        fi
+        tdk --version

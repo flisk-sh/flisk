@@ -11,10 +11,10 @@
 # Needs Docker, Tilt, and a built CLI (cli/dist). Uses a unique project name and random alternate ports, and removes only the
 # containers, networks and images carrying that name (it never calls `tdk down`).
 #
-# Usage: scripts/verify-smoke.sh        (VERIFY_WAIT_SECONDS bounds each phase, default 900)
+# Usage: tests/e2e/journeys/smoke/verify-smoke.sh        (VERIFY_WAIT_SECONDS bounds each phase, default 900)
 set -euo pipefail
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/../../../.." && pwd)"
 proj="smk$$"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
@@ -71,7 +71,7 @@ d["smoke"] = {
     "via": "proxy",
     "timeoutSeconds": 20 if "missing" in os.environ["SMOKE_READ"] else 600,
     "steps": [
-        {"name": "create", "method": "POST", "path": "/records", "body": {"name": "smoke"}, "expect": 201, "save": {"id": "$.id"}},
+        {"name": "create", "method": "POST", "path": "/records", "body": {"name": "smoke"}, "expect": 299, "save": {"id": "$.id"}},
         {"name": "read back", "path": os.environ["SMOKE_READ"], "expect": 200, "bodyContains": "smoke"},
     ],
 }

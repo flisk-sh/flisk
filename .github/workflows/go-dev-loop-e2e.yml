@@ -6,8 +6,7 @@ on:
     paths:
       - "engine/topologies/platform/docker/dockerfile/language_dockerfile.star"
       - "engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star"
-      - "scripts/e2e/go-dev-loop.sh"
-      - "scripts/e2e/go-dev-loop-probe.py"
+      - "tests/e2e/journeys/dev-loop/**"
       - ".github/workflows/go-dev-loop-e2e.yml"
 
 permissions:
@@ -45,4 +44,4 @@ jobs:
       # Edits the scaffolded service, breaks it, fixes it and touches go.mod, and fails if the app is down for a whole compile,
       # the compiler error is missing from the Tilt log, or a dependency change does not rebuild the image.
       - name: Run the Go dev loop check
-        run: scripts/e2e/go-dev-loop.sh 5
+        run: tests/e2e/journeys/dev-loop/run.sh DL1

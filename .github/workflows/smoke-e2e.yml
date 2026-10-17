@@ -12,7 +12,7 @@ on:
       - "cli/src/commands/up.ts"
       - "cli/dist/utils/smoke.js"
       - "cli/dist/commands/up.js"
-      - "scripts/verify-smoke.sh"
+      - "tests/e2e/journeys/smoke/**"
       - ".github/workflows/smoke-e2e.yml"
   workflow_dispatch:
 
@@ -46,7 +46,7 @@ jobs:
       - name: Verify smoke through tdk up
         env:
           VERIFY_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/smoke-records
-        run: scripts/verify-smoke.sh
+        run: tests/e2e/journeys/smoke/run.sh SM1
 
       # Retention is 14 days; the name carries the run id (and attempt) so runs never overwrite each other.
       - name: Upload smoke records

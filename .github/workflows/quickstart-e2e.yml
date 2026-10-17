@@ -97,175 +97,16 @@ jobs:
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install TDK
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: ${{ steps.version.outputs.version }}
+
+      # The four quickstart cases (tests/e2e/journeys/quickstart): scaffold, tdk up and wait for /health, the time to a healthy stack,
+      # and the frontends serving their built app. One step, so the cases share the project and its environment.
+      - name: Run the quickstart cases (Q1-Q4)
         env:
           TDK_VERSION: ${{ steps.version.outputs.version }}
-        run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
-          if [ "$TDK_VERSION" = "local" ]; then
-            # The tarball users would get from npm, built from this checkout
-            # (cli/dist is committed and CI keeps it in sync).
-            # prepack bundles dist with esbuild (a devDependency)
-            bun install --frozen-lockfile
-            tarball="$(npm pack --silent | tail -1)"
-            node scripts/install-global.mjs "./$tarball"
-            tdk --version
-            exit 0
-          fi
-          if [ "$TDK_VERSION" != "latest" ]; then
-            scripts/wait-for-npm-version.sh "@tdk-landscape/tdk-cli-core" "$TDK_VERSION"
-          fi
-          node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
-          tdk --version
-
-      - name: Scaffold the quickstart project
-        run: |
-          if sudo ss -ltn 2>/dev/null | grep -q ':5432 '; then
-            echo "::warning::port 5432 is in use again right before scaffolding; here's what's on it"
-            sudo ss -ltnp | grep ':5432 ' || true
-            sudo fuser -k 5432/tcp 2>/dev/null || true
-            sleep 2
-          fi
-          mkdir -p "$RUNNER_TEMP/shop" && cd "$RUNNER_TEMP/shop"
-          # Start of the "time to healthy stack" clock: from `tdk project --yes`
-          # to every /health URL answering (see the timing step after the poll).
-          date +%s > "$RUNNER_TEMP/quickstart-t0"
-          tdk project --yes
-          tdk doctor
-          printf 'y\n' | tdk resource orders-api --type backend --stack shop
-          # Frontends go through the framework providers and their Starlark Vite
-          # templates. Published versions from before --framework existed skip
-          # them, so the nightly check of `latest` keeps testing what it can.
-          if tdk resource --help | grep -q -- '--framework'; then
-            # No --path: this exercises the default folder (which tdk picks so that
-            # project.json discovery finds it) and the public/ folder the frontend
-            # Docker build copies.
-            printf 'y\n' | tdk resource storefront --type frontend --stack shop
-            printf 'y\n' | tdk resource vue-app --type frontend --framework vue --stack shop
-            echo "FRONTENDS=storefront:root vue-app:app" >> "$GITHUB_ENV"
-          else
-            echo "::notice::this tdk version has no --framework; testing the backend only"
-          fi
-          # Log what discovery will see, so a missing service is obvious here
-          # rather than 20 minutes later as a 404.
-          echo "::group::scaffolded project"
-          echo "discovery paths: $(jq -c '.discovery.paths' .tdk/project.json)"
-          find . -name service.json -not -path './node_modules/*' -not -path './.tdk/*' \
-            | sort | while read -r f; do echo "$f: $(jq -c '{name,type,framework,stack}' "$f")"; done
-          echo "::endgroup::"
-          tdk doctor
-
-      - name: tdk up and wait for /health
-        run: |
-          cd "$RUNNER_TEMP/shop"
-          tdk up shop > up.log 2>&1 &
-          # One URL per service: the backend, plus each frontend scaffolded above.
-          # Each entry is <route segment>:<Tilt resource name>.
-          services="orders:orders-api"
-          for fe in $FRONTENDS; do services="$services ${fe%%:*}:${fe%%:*}"; done
-          urls=""
-          for pair in $services; do
-            svc="${pair%%:*}"
-            url=""
-            for _ in $(seq 1 60); do
-              url="$(grep -oE "https?://[^ ]*/${svc}[^ ]*/health" up.log | head -1 || true)"
-              [ -n "$url" ] && break
-              sleep 2
-            done
-            [ -n "$url" ] || { cat up.log; echo "::error::tdk up never printed the $svc URL"; exit 1; }
-            urls="$urls $url"
-          done
-          echo "Waiting for:$urls"
-          failed_checks=0
-          missing_checks=0
-          for n in $(seq 1 120); do
-            pending=""
-            for url in $urls; do
-              code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" || true)"
-              case "$code" in
-                2??) ;;
-                *) pending="$pending $url=$code" ;;
-              esac
-            done
-            if [ -z "$pending" ]; then
-              echo "All healthy after $((n * 10))s:$urls"
-              exit 0
-            fi
-            echo "poll $n ($((n * 10))s): waiting on$pending"
-            # Once a minute, show what is actually happening so a slow first boot
-            # can be told apart from a container that never turns healthy.
-            if [ $((n % 6)) -eq 0 ]; then
-              echo "::group::progress at $((n * 10))s"
-              docker ps -a --format 'table {{.Names}}\t{{.Status}}' | head -20 || true
-              echo "-- images built so far:"
-              docker images --format '{{.Repository}}:{{.Tag}}  {{.CreatedSince}}' | head -12 || true
-              echo "-- tilt resources (name, update, runtime, what it is waiting on):"
-              tilt get uiresources -o json 2>/dev/null | jq -r '.items[] | "\(.metadata.name)  update=\(.status.updateStatus // "-")  runtime=\(.status.runtimeStatus // "-")  waiting=\(.status.waiting // {} | tostring)  err=\((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || echo "(tilt not reachable)"
-              echo "-- tdk up log (last 8 lines):"
-              tail -8 up.log || true
-              echo "::endgroup::"
-              # Tilt does not retry a failed image build, so a service whose update
-              # status is "error" will never turn healthy. Two checks in a row (about
-              # a minute apart) before giving up, so a transient error can clear.
-              bad="$(tilt get uiresources -o json 2>/dev/null | jq -r '[.items[] | select(.status.updateStatus == "error") | .metadata.name] | join(",")' || true)"
-              if [ -n "$bad" ]; then
-                failed_checks=$((failed_checks + 1))
-                echo "::warning::Tilt reports failed resource(s): $bad (check $failed_checks of 2)"
-                if [ "$failed_checks" -ge 2 ]; then
-                  echo "::error::Giving up early: $bad failed to build and Tilt will not retry it"
-                  exit 1
-                fi
-              else
-                failed_checks=0
-              fi
-              # A route can only turn healthy if Tilt has a resource for it. If a
-              # service was never discovered it never will, so say so and stop.
-              known="$(tilt get uiresources -o json 2>/dev/null | jq -r '.items[].metadata.name' || true)"
-              missing=""
-              for pair in $services; do
-                res="${pair##*:}"
-                echo "$known" | grep -qx "$res" || missing="$missing $res"
-              done
-              if [ -n "$missing" ]; then
-                missing_checks=$((missing_checks + 1))
-                echo "::warning::Tilt has no resource for:$missing (check $missing_checks of 2)"
-                if [ "$missing_checks" -ge 2 ]; then
-                  echo "-- resources Tilt does know about:"; echo "$known"
-                  echo "-- discovery paths and service.json files:"
-                  jq -c '.discovery.paths' .tdk/project.json
-                  find . -name service.json -not -path './node_modules/*' -not -path './.tdk/*' | sort
-                  echo "::error::Giving up early: Tilt never created a resource for:$missing"
-                  exit 1
-                fi
-              else
-                missing_checks=0
-              fi
-            fi
-            sleep 10
-          done
-          tail -200 up.log
-          echo "::error::not healthy within 20 minutes:$pending"
-          exit 1
-
-      # Time to a healthy stack, measured from `tdk project --yes`. Recorded
-      # as a job summary line and a JSON artifact so the number can be quoted
-      # from a real run. Cold start: the runner has no images or build cache.
-      - name: Record time to healthy stack
-        if: success()
-        env:
-          TDK_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          t0="$(cat "$RUNNER_TEMP/quickstart-t0")"
-          t1="$(date +%s)"
-          seconds=$((t1 - t0))
-          printf '{"metric":"time_to_healthy_stack","seconds":%d,"tdk_version":"%s","runner":"%s","start_epoch":%d,"healthy_epoch":%d,"start_cache":"cold"}\n' \
-            "$seconds" "$TDK_VERSION" "$RUNNER_OS" "$t0" "$t1" > "$RUNNER_TEMP/time-to-healthy.json"
-          cat "$RUNNER_TEMP/time-to-healthy.json"
-          {
-            echo "### Time to healthy stack"
-            echo ""
-            echo "- tdk version: \`$TDK_VERSION\`"
-            echo "- \`tdk project --yes\` to every /health answering: **${seconds}s** ($((seconds / 60))m $((seconds % 60))s)"
-            echo "- Cold start: no images or build cache on the runner"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: tests/e2e/journeys/quickstart/run.sh Q1 Q2 Q3 Q4
 
       - name: Upload time to healthy stack
         if: success()
@@ -275,32 +116,6 @@ jobs:
           path: ${{ runner.temp }}/time-to-healthy.json
           if-no-files-found: error
           retention-days: 30
-
-      # nginx answers /health on its own, so also load each frontend's page and
-      # the script it references: this proves the framework's Vite build output
-      # is what is being served, under the right base path.
-      - name: Frontends serve their built app
-        if: env.FRONTENDS != ''
-        run: |
-          cd "$RUNNER_TEMP/shop"
-          for fe in $FRONTENDS; do
-            name="${fe%%:*}"
-            mount="${fe##*:}"
-            health="$(grep -oE "https?://[^ ]*/${name}/health" up.log | head -1)"
-            page="${health%/health}/"
-            origin="$(echo "$page" | grep -oE '^https?://[^/]+')"
-            html="$(curl -fsS --max-time 10 "$page")"
-            echo "$html" | grep -q "id=\"$mount\"" \
-              || { echo "$html"; echo "::error::$name: page has no #$mount mount point"; exit 1; }
-            script="$(echo "$html" | grep -oE '<script[^>]+src="[^"]+"' | grep -oE 'src="[^"]+"' | head -1 | cut -d'"' -f2)"
-            case "$script" in
-              "/$name/"*) ;;
-              *) echo "$html"; echo "::error::$name: entry script '$script' is not under /$name/"; exit 1 ;;
-            esac
-            curl -fsS --max-time 10 -o /dev/null "$origin$script" \
-              || { echo "::error::$name: $origin$script did not load"; exit 1; }
-            echo "$name: $page serves #$mount and $script"
-          done
 
       # When the health poll times out, "404 for 20 minutes" says nothing about
       # why. Dump what a person would look at first.
@@ -331,6 +146,4 @@ jobs:
 
       - name: tdk down
         if: always()
-        run: |
-          cd "$RUNNER_TEMP/shop"
-          tdk down || true
+        run: tests/e2e/journeys/quickstart/run.sh cleanup

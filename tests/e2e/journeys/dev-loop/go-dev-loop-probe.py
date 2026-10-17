@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 """Drive the Go development loop of a running `tdk up` project and check what it does (#369).
 
-Called by scripts/e2e/go-dev-loop.sh. It edits main.go, polls the service through Traefik every 25 ms, reads Tilt's own log, and exits 1
+Called by tests/e2e/journeys/dev-loop/go-dev-loop.sh. It edits main.go, polls the service through Traefik every 25 ms, reads Tilt's own log, and exits 1
 if an acceptance check fails:
 
   1. each valid edit is served without recreating the container or rebuilding the image,

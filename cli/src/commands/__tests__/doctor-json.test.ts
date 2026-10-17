@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { parseEnvelope } from "../../test-support/index.js";
 import { doctorCommand, NATIVE_WINDOWS_DOCTOR_MESSAGE } from "../doctor.js";
 
 afterEach(() => {
@@ -28,7 +29,7 @@ describe("doctor JSON command", () => {
       ).rejects.toThrow("exit");
       expect(exit).toHaveBeenCalledWith(2);
       expect(log).toHaveBeenCalledTimes(1);
-      const report = JSON.parse(String(log.mock.calls[0]?.[0]));
+      const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
       expect(report.schemaVersion).toBe(1);
       expect(report.data.ready).toBe(false);
       expect(report.data.checks).toEqual([]);
@@ -54,7 +55,7 @@ describe("doctor JSON command", () => {
       await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
       expect(exit).toHaveBeenCalledWith(1);
       expect(log).toHaveBeenCalledTimes(1);
-      const report = JSON.parse(String(log.mock.calls[0]?.[0]));
+      const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
       expect(report.data.ready).toBe(false);
       expect(report.data.checks[0].message).toBe(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(report.data.host).toMatchObject({ kind: "native-windows", canUp: false });

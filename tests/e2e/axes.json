@@ -66,7 +66,7 @@
 					"leg": "resource-types/backend"
 				},
 				"go": {
-					"leg": "resource-types/backend"
+					"leg": "journeys/dev-loop"
 				},
 				"rust": {
 					"leg": "resource-types/backend"

@@ -6,13 +6,13 @@ See proposal.md for why. This is the inventory on `origin/main` (5194a45a plus l
 |---|---|---|---|
 | `quickstart-e2e.yml` | README quickstart: backend + React + Vue, routed `/health` | journeys / quickstart | PR, nightly, after release |
 | `smoke-e2e.yml` + `scripts/verify-smoke.sh` | smoke runner pass/fail records | journeys / smoke | PR (path-filtered) |
-| `go-dev-loop-e2e.yml` + `scripts/e2e/go-dev-loop.sh` | Go backend live reload | journeys / dev-loop-go | PR |
+| `go-dev-loop-e2e.yml` + `tests/e2e/journeys/dev-loop/go-dev-loop.sh` | Go backend live reload | journeys / dev-loop-go | PR |
 | `cold-start-e2e.yml` + `scripts/e2e/cold-start.sh` | licensed deferred start | journeys / cold-start (secret, never on PR) | nightly, after release |
 | `example-e2e.yml` | default example boots | examples / default | PR, main |
 | `examples-e2e.yml` | saas-starter + restaurant real routes | examples / real-apps | daily |
 | `python-example-e2e.yml` | Python provider example | examples / python | PR (path-filtered) |
-| `byo-e2e.yml` + `tests/e2e/byo-python.test.sh` | BYO dry run | resource-types / bring-your-own | PR |
-| `byo-boot-e2e.yml` + `tests/e2e/byo-python-boot.test.sh` | BYO boot | resource-types / bring-your-own | daily |
+| `byo-e2e.yml` + `tests/e2e/resource-types/bring-your-own/verify-byo-python.sh` | BYO dry run | resource-types / bring-your-own | PR |
+| `byo-boot-e2e.yml` + `tests/e2e/resource-types/bring-your-own/verify-byo-python-boot.sh` | BYO boot | resource-types / bring-your-own | daily |
 | `scripts/verify-byo-{example,job,pair,tdk}.sh` | BYO variants | resource-types / bring-your-own | **never** |
 | `scripts/verify-mcp.sh` | MCP resource | resource-types / mcp | **never** |
 | `scripts/verify-frontend-frameworks.sh` | every frontend framework | resource-types / frontend | **never** |

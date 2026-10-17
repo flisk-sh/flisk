@@ -82,12 +82,12 @@ and answers `GET /health`. For Gin, replace `main.go` and `go.mod` with your own
 that `go mod tidy` writes, and set `dev.liveReload`. [`examples/byo/gin`](../examples/byo/gin/README.md) is the app to start from.
 
 Checked with a real `tdk up`: the Gin example (Gin 1.12.0, `go 1.25.0`, plus a `version` field on `GET /` for the script to edit) as a native Go
-service with `liveReload`, through `scripts/e2e/go-dev-loop.sh` with `GO_SERVICE_DIR` pointing at it. Edit-to-ready over 8 edits was
+service with `liveReload`, through `tests/e2e/journeys/dev-loop/go-dev-loop.sh` with `GO_SERVICE_DIR` pointing at it. Edit-to-ready over 8 edits was
 2.25 s / 3.14 s / 5.82 s (min / median / max, load average about 7, a larger binary than the scaffold), the app was unreachable for at most
 0.20 s, a broken edit put the compiler error in the Tilt log while the last good build kept serving, and a `go.mod` change rebuilt the image and
 recreated the container in 124 s, including the Go 1.25 toolchain download. First start was 146 s.
 
-`scripts/e2e/go-dev-loop.sh` also passed, one run each on the same Mac, for the other three Go examples under `examples/byo`: Fiber v2.52.5
+`tests/e2e/journeys/dev-loop/go-dev-loop.sh` also passed, one run each on the same Mac, for the other three Go examples under `examples/byo`: Fiber v2.52.5
 (`go 1.23`), Echo v4.16.0 and chi v5.3.2 (both `go 1.25`). The examples in the repository have no `go.sum` and no `version` field, so for
 these runs I added a `go.sum` (from `go mod tidy`) and a `version` field on `GET /` locally; the committed examples are unchanged. These
 were 5 edits each, not the Gin run's 8, at a load average of 7 to 10: median edit-to-ready 1.85 s (Fiber), 1.57 s (Echo) and 1.55 s (chi),
@@ -100,7 +100,7 @@ generate its image: see [docs/byo.md](byo.md#limits). Use the native Go provider
 
 ### Measured: edit-to-ready through Traefik
 
-`scripts/e2e/go-dev-loop.sh` runs the scaffolded service with `liveReload` through a real `tdk up`, edits `main.go`, and polls the
+`tests/e2e/journeys/dev-loop/go-dev-loop.sh` runs the scaffolded service with `liveReload` through a real `tdk up`, edits `main.go`, and polls the
 route through Traefik every 25 ms until the edited response appears. "Rebuild" is the container's own clock from `change detected` to
 `restarted`; "sync+poll" is the rest (Tilt copying the file in, the watcher's 0.2 s poll, and Traefik).
 
@@ -118,7 +118,7 @@ build kept answering while the slow compile ran. Treat these as one machine's nu
 was met on the median in the run above, not by every edit (the slowest was 2.5 s) and not in the busier run. The table is the scaffolded service only; Gin, Fiber, Echo and chi
 are under [Gin and other Go frameworks](#gin-and-other-go-frameworks).
 
-Run it yourself: `scripts/e2e/go-dev-loop.sh [edits]` (Docker, Tilt, Python 3 and a built CLI). It fails if the app itself is down for longer than
+Run it yourself: `tests/e2e/journeys/dev-loop/go-dev-loop.sh [edits]` (Docker, Tilt, Python 3 and a built CLI). It fails if the app itself is down for longer than
 a swap should take (refused connections or 502s; a Traefik `503` from its health check is printed as a warning, not counted), if the compiler error is missing from the Tilt log, if the service does not keep serving after a broken edit, or if a
 `go.mod` change does not rebuild the image.
 

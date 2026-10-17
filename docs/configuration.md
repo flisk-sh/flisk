@@ -48,7 +48,7 @@ Here is valid JSON; the explanations are outside the file so it remains parseabl
 
 Not covered: a browser test (HTTP only), proving which database answered (a read-back of the written id catches a wrong store, not which one), a Traefik `pathPrefix` override (the check uses the `apiPath` or `basePath` route that `tdk up` prints), and `--dry-run` (nothing is started, so nothing is checked). The ingress port is the one `tdk up` selected (`TDK_HTTP_PORT` or the fallback range).
 
-`scripts/verify-smoke.sh` checks both outcomes through a real `tdk up`.
+`tests/e2e/journeys/smoke/verify-smoke.sh` checks both outcomes through a real `tdk up`.
 
 A short drawing of the pass and fail paths: [Smoke check](smoke.md).
 

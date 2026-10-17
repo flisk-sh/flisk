@@ -47,6 +47,7 @@ jobs:
           sparse-checkout: |
             .github/actions
             scripts/install-global.mjs
+            scripts/wait-for-npm-version.sh
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -62,11 +63,9 @@ jobs:
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install TDK from npm
-        env:
-          TDK_VERSION: ${{ inputs.version || 'latest' }}
-        run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
-          node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
-          tdk --version
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: ${{ inputs.version || 'latest' }}
 
       - name: Machine resources
         run: |
