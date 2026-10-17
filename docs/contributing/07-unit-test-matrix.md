@@ -78,7 +78,7 @@ Rules for legs:
 ## Add a unit test
 
 1. Put the test next to the code under `cli/src/<area>/__tests__/<name>.test.ts`.
-2. Start with the happy path, then add the empty, error and recovery rows.
+2. Start with the happy path, then cover meaningful empty, error and boundary cases. Add recovery cases when the function's state or side effects make them relevant.
 3. Use `it.each` for any input space with more than two rows.
 4. Mock only the boundary (process, filesystem, prompt, network). Do not mock the function under test.
 5. Run it alone with `cd cli && npx vitest run <path>`, then the full suite with `make test-ts`.
