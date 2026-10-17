@@ -24,6 +24,26 @@ export const nodeBackendProvider = {
                 emoji: "📦",
             },
             {
+                // The generated Dockerfile runs `npm ci`, which needs a lockfile. This one matches the dependency-free package.json;
+                // `npm install` regenerates it once the project adds dependencies.
+                filename: "package-lock.json",
+                content: `{
+  "name": "${name}",
+  "version": "1.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "${name}",
+      "version": "1.0.0"
+    }
+  }
+}
+`,
+                description: "Generating package-lock.json",
+                emoji: "🔒",
+            },
+            {
                 filename: "src/index.js",
                 content: `import http from "node:http";
 

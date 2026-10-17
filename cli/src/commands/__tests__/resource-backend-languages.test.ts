@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -206,11 +214,26 @@ describe("tdk resource --language", () => {
       healthCheckPath: "/health",
     });
     expect(listFiles(root)).toEqual([
+      "package-lock.json",
       "package.json",
       "service.json",
       "src/index.js",
       "tests/health.test.js",
     ]);
+    // The generated Dockerfile copies package*.json into an empty directory and runs `npm ci`, which fails without a
+    // lockfile (#1344). Do the same here: the project root above the service is a workspace, so npm must run elsewhere.
+    const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf-8"));
+    expect(lock).toMatchObject({ name: "node-api", lockfileVersion: 3 });
+    const isolated = mkdtempSync(join(tmpdir(), "node-api-ci-"));
+    try {
+      for (const file of ["package.json", "package-lock.json"]) {
+        writeFileSync(join(isolated, file), readFileSync(join(root, file)));
+      }
+      const ci = spawnSync("npm", ["ci", "--omit=dev"], { cwd: isolated, encoding: "utf-8" });
+      expect(ci.status, ci.stderr).toBe(0);
+    } finally {
+      rmSync(isolated, { recursive: true, force: true });
+    }
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
     expect(pkg.name).toBe("node-api");
     expect(pkg.type).toBe("module");
