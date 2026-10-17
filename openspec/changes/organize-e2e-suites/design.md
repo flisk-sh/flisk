@@ -11,8 +11,8 @@ See proposal.md for why. This is the inventory on `origin/main` (5194a45a plus l
 | `example-e2e.yml` | default example boots | examples / default | PR, main |
 | `examples-e2e.yml` | saas-starter + restaurant real routes | examples / real-apps | daily |
 | `python-example-e2e.yml` | Python provider example | examples / python | PR (path-filtered) |
-| `byo-e2e.yml` + `tests/e2e/byo-python.test.sh` | BYO dry run | resource-types / bring-your-own | PR |
-| `byo-boot-e2e.yml` + `tests/e2e/byo-python-boot.test.sh` | BYO boot | resource-types / bring-your-own | daily |
+| `byo-e2e.yml` + `tests/e2e/resource-types/bring-your-own/verify-byo-python.sh` | BYO dry run | resource-types / bring-your-own | PR |
+| `byo-boot-e2e.yml` + `tests/e2e/resource-types/bring-your-own/verify-byo-python-boot.sh` | BYO boot | resource-types / bring-your-own | daily |
 | `scripts/verify-byo-{example,job,pair,tdk}.sh` | BYO variants | resource-types / bring-your-own | **never** |
 | `scripts/verify-mcp.sh` | MCP resource | resource-types / mcp | **never** |
 | `scripts/verify-frontend-frameworks.sh` | every frontend framework | resource-types / frontend | **never** |

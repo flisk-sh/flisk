@@ -15,6 +15,7 @@
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SUITE_DIR/../../../.." && pwd)"
 BYO_VARIANT="${BYO_VARIANT:-example}"
 # shellcheck source=../../lib/lib.sh
 source "$SUITE_DIR/../../lib/lib.sh"
@@ -36,6 +37,18 @@ BY1() { run_verify verify-byo-example.sh "BY1 example runs alone and answers its
 BY2() { run_verify verify-byo-tdk.sh "BY2 through tdk up and Traefik, with TDK's Postgres and DATABASE_URL"; }
 BY3() { run_verify verify-byo-job.sh "BY3 one-shot job exits 0 and its query returns the expected row"; }
 BY4() { run_verify verify-byo-pair.sh "BY4 dependency and app round trip through tdk up and Traefik"; }
+# The dry run validates service.json with the ajv CLI. Install it from scripts/ajv-cli when the runner does not have it (the old
+# workflow did this too).
+BY5() {
+  log "BY5 python resource contract and up --dry-run (no Docker or Tilt)"
+  if ! command -v ajv >/dev/null 2>&1; then
+    npm ci --prefix "$REPO_ROOT/scripts/ajv-cli" --ignore-scripts --no-audit --no-fund
+    PATH="$REPO_ROOT/scripts/ajv-cli/node_modules/.bin:$PATH"
+    export PATH
+  fi
+  bash "$SUITE_DIR/verify-byo-python.sh"
+}
+BY6() { log "BY6 python fixture boots through tdk up and answers its health route"; bash "$SUITE_DIR/verify-byo-python-boot.sh"; }
 
 # \`all\` runs only this variant's case: every leg of this suite is one variant, not every case in suite.json.
 args=()
