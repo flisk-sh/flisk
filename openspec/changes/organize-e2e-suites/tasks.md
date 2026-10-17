@@ -44,7 +44,7 @@
 
 ## 4b. Every CI job
 
-- [ ] 4b.1 Write `.github/ci-inventory.json` for all 36 workflows and their jobs (tier, trigger reason, owner) and a check that fails on missing or stale entries and on rule violations; generate `docs/ci.md` from it
+- [ ] 4b.1 Write `.github/ci-inventory.json` for all 36 workflows and their 62 jobs (tier, `required`, trigger reason, owner) and a check that fails on missing or stale entries, duplicate check names, a required set that differs from branch protection, and rule violations; generate `docs/ci.md` from it
 - [ ] 4b.2 Add composite actions `setup-bun` (cache keyed on `bun.lock`), `setup-tilt`, `free-postgres-port` and `install-tdk`; replace the 14 inline Tilt blocks and 7 port 5432 blocks
 - [ ] 4b.3 Set `timeout-minutes` on every job from measured p90; add concurrency groups to `dco.yml`, `oss-score-gate.yml` and `windows-smoke.yml`
 - [ ] 4b.4 Replace `docs-only.yml` and every per-workflow detection job with one `changes` job in `ci.yml`; make `summary` the single aggregate gate, still reporting `example-e2e` and `windows-smoke`

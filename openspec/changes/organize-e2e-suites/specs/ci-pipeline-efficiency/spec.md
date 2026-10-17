@@ -47,6 +47,17 @@ Branch protection SHALL require one aggregate check from `ci.yml` that always ru
 - **WHEN** a pull request selects the `agent` suite and its case A4 fails
 - **THEN** the aggregate check fails and names the `resource-types / agent` leg
 
+### Requirement: Required checks are an explicit, checked set
+The inventory SHALL mark each job `required: true` or `required: false`. The required set SHALL equal the branch protection contexts for `main`, and a check on every pull request SHALL fail when the two differ. Until cutover the required set is `example-e2e` and `windows-smoke`. Two jobs SHALL NOT report the same check name, so a required name always names one job.
+
+#### Scenario: Duplicate check name
+- **WHEN** a second job reports the name `windows-smoke`
+- **THEN** the inventory check fails and names both jobs
+
+#### Scenario: Required set changed on one side only
+- **WHEN** a maintainer adds a required check in branch protection but not in the inventory
+- **THEN** the check fails until the inventory matches
+
 ### Requirement: Shared setup lives in composite actions
 Setup steps repeated across workflows SHALL live in composite actions under `.github/actions/`: installing Bun with a dependency cache keyed on `bun.lock`, installing Tilt with its pinned checksum, freeing port 5432 from the runner's Postgres, and installing the CLI under test. No workflow SHALL inline the Tilt download or the port 5432 block. The inventory check enforces this.
 

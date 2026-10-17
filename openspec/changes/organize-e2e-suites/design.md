@@ -21,6 +21,12 @@ See proposal.md for why. This is the inventory on `origin/main` (5194a45a plus l
 | `erp-scale-e2e.yml`, `benchmarks.yml` | 100-service boot, start-up timing | scale / erp, benchmarks | manual, weekly, main |
 | `cli/src/commands/__tests__/*-e2e.test.ts` | CLI against temp projects | cli-integration (stays in vitest) | every PR via `make test-ts` |
 
+### Required checks, today and after cutover
+
+Branch protection requires two checks today: `example-e2e` (job `example-e2e` in `example-e2e.yml`) and `windows-smoke` (job `windows-smoke` in `windows-smoke.yml`; the same name also appears on `release-binaries.yml`, which is why that duplicate is removed). Every other job is non-required. Both required jobs are skipped on docs-only pull requests, and a skipped required check counts as passing, which is why they report on every pull request.
+
+The inventory marks each job `required: true|false`. The required set in the inventory must equal the branch-protection contexts (checked with `gh api repos/{owner}/{repo}/branches/main/protection/required_status_checks`, which the check runs in CI). A change to one side without the other fails the check. After cutover the required set is the `ci.yml` `summary` job plus the `e2e-<group>` gates, and the two names above are dropped.
+
 ### Every CI job (all 36 workflows)
 
 Measured over 1,000 workflow runs from 2026-10-16 21:32 to 2026-10-17 11:54 UTC (about 14 hours, a busy merge day), with job timings from 400 of those runs. The repository is public, so Actions minutes cost nothing. What does cost something is the time until a pull request goes green, the 20 concurrent job slots everyone shares, and checks that stay red until nobody reads them. "Med" is the median successful job duration in minutes.
@@ -49,7 +55,7 @@ Measured over 1,000 workflow runs from 2026-10-16 21:32 to 2026-10-17 11:54 UTC 
 | `oss-score-gate.yml` / `gate` | PR | 0.1 med | gate | Add a concurrency group |
 | `release-binaries.yml` / `changes` | every PR, push of `package.json` | 0.1 med | release | Use `ci.yml`'s `changes` outputs on PRs |
 | `release-binaries.yml` / `build` | same, gated | 1.2 med, skipped 7 of 25 | release | Keep on release-relevant PRs |
-| `release-binaries.yml` / `windows-smoke` | same, gated | 0.2 med | platforms | Duplicate of `windows-smoke.yml`. One Windows suite in `e2e-platforms`, called by the release workflow against the built binary |
+| `release-binaries.yml` / `windows-smoke` | same, gated | 0.2 med | platforms | Duplicate of `windows-smoke.yml`, and it reports a check with the same name (`windows-smoke`), so the required name is ambiguous today. One Windows suite in `e2e-platforms`, called by the release workflow against the built binary |
 | `release-binaries.yml` / `publish` | push to `main` | 1.6 med | release | Keep |
 | `windows-smoke.yml` / `docs`, `windows-smoke` | PR, push | no concurrency group | platforms | Into `e2e-platforms`; required name kept until the switch |
 | `wsl2-smoke.yml` / `wsl2-smoke` | PR, push | skipped 70 of 74 | platforms | Into `e2e-platforms`, selected by the same paths it uses today |
@@ -58,11 +64,11 @@ Measured over 1,000 workflow runs from 2026-10-16 21:32 to 2026-10-17 11:54 UTC 
 | `python-example-e2e.yml` | PR (paths) | 1.6 med, 3 of 8 cancelled | e2e | `e2e-examples / python` |
 | `quickstart-e2e.yml` / `quickstart` | PR, daily, after release | 1.3 med | e2e | `e2e-journeys / quickstart` |
 | `smoke-e2e.yml` | PR (paths) | rare in window | e2e | `e2e-journeys / smoke` |
-| `go-dev-loop-e2e.yml` | PR (paths) | rare in window | e2e | `e2e-journeys / dev-loop-go` |
+| `go-dev-loop-e2e.yml` / `go-dev-loop` | PR (paths) | rare in window | e2e | `e2e-journeys / dev-loop-go` |
 | `cold-start-e2e.yml` / `cold-start` | daily, after release | failed 8 of 8: `TDK_LICENSE_KEY` not configured | e2e | `e2e-journeys / cold-start`; neutral with a warning when the secret is missing, plus a tracking issue |
 | `agent-e2e.yml` / `agent-e2e` | PR (paths), daily, after release | 3.1 med, failed 9 of 17 (A7 ordering, fixed in #1273; A4 failed again on `main`) | e2e | `e2e-resource-types / agent`; A4 tracked as flaky |
-| `byo-e2e.yml` | PR (paths) | 0.3 med | e2e | `e2e-resource-types / bring-your-own` |
-| `byo-boot-e2e.yml` | daily | 1.2 | e2e | `e2e-resource-types / bring-your-own`, nightly case |
+| `byo-e2e.yml` / `byo-python` | PR (paths) | 0.3 med | e2e | `e2e-resource-types / bring-your-own` |
+| `byo-boot-e2e.yml` / `byo-python-boot` | daily | 1.2 | e2e | `e2e-resource-types / bring-your-own`, nightly case |
 | `erp-scale-e2e.yml` / `erp` | manual, weekly | none in window | e2e (scale) | `e2e-scale / erp` |
 | `benchmarks.yml` / `measure` | every push to `main` touching `cli/`, `engine/` and more | 14 runs in 14 hours, 65 min median, 6 failed (warm run timed out at 1,861 s with 7 of 8 services healthy), 7 cancelled | report | `e2e-scale / benchmarks`: nightly on the latest `main`, after release, manual. The timeout gets a tracking issue |
 | `benchmarks.yml` / `publish` | after `measure` | skipped | report | Keep |
