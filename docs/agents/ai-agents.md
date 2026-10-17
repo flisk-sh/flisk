@@ -125,25 +125,27 @@ The agent boots only after Postgres and NATS pass their readiness gates, receive
 Traefik serves as the unified local gateway for your entire agent topology:
 
 ```
-                          ┌───────────────────────────┐
-                          │     Traefik Gateway       │
-                          │   (*.localhost:80/8080)   │
-                          └──────┬─────────────┬──────┘
-                                 │             │
-              /api/bot/*         │             │  /api/tools-mcp/mcp
-         (x-session-id sticky)   │             │
-                                 ▼             ▼
-                     ┌─────────────┐     ┌─────────────┐
-                     │ agent (bot)   │     │  mcp resource │
-                     │ Bun / Lang-   │     │  Tools server │
-                     │ Graph / Mastra│     └───────┬───────┘
-                     └───────┬───────┘             │
-                             │ (internal queries)  │
-                             ▼                     ▼
-                     ┌────────────────────────────────────┐
-                     │      Postgres / NATS / Backend      │
-                     └───────────────────────────────────────┘
+                          +--------------------------+
+                          |     Traefik Gateway      |
+                          |   (*.localhost:80/8080)  |
+                          +----------+---------------+
+                                     |
+              /api/bot/*             |             /api/tools-mcp/mcp
+         (x-session-id sticky)       |                    |
+                                     v                    v
+                          +----------------+     +----------------+
+                          |  agent (bot)   |     |  mcp resource  |
+                          | Bun / Lang-    |     |  Tools server  |
+                          | Graph / Mastra |     +--------+-------+
+                          +--------+-------+              |
+                                   |                      |
+                                   v                      v
+                          +--------------------------------+
+                          |  Postgres / NATS / Backend     |
+                          +--------------------------------+
 ```
 
 - **Clean hostnames**: Reach your agents and APIs through `api.<project>.localhost`.
 - **Zero port conflicts**: Even with dozens of tools, agents, and backends running, Traefik multiplexes everything through a single host port.
+
+The product website already publishes a site-level [llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt).
