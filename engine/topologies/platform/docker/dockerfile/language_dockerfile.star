@@ -119,12 +119,12 @@ WORKDIR /app/{res_path}
 
 {curl}
 COPY {res_path}/package*.json ./
-RUN npm ci || npm install --omit=dev
+RUN npm ci --omit=dev
 
 COPY {res_path}/src ./src
 
 FROM base AS test
-RUN npm install
+RUN npm ci
 COPY {res_path}/tests ./tests
 RUN npm test
 
