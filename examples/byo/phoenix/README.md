@@ -19,14 +19,14 @@ pipeline)
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/`:
 
 ```bash
-VERIFY_WAIT_SECONDS=90 scripts/verify-byo-example.sh phoenix /
+VERIFY_WAIT_SECONDS=90 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh phoenix /
 ```
 
 Through a real `tdk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI; the first run also builds
 TDK's base images, so allow several minutes):
 
 ```bash
-VERIFY_WAIT_SECONDS=600 scripts/verify-byo-tdk.sh phoenix /
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh phoenix /
 ```
 
 The app accepted Traefik's host name with no host configuration (checked through a real `tdk up`).

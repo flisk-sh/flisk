@@ -5,7 +5,7 @@ change an Rsbuild config; the app keeps owning its build. The only container-spe
 reachable and using the port TDK assigns.
 
 Verified with a real `create-rsbuild` app (React + TypeScript, no extra tools): the image builds, and
-`scripts/verify-byo-example.sh rsbuild /` prints `PASS rsbuild: GET / -> 200`.
+`tests/e2e/resource-types/bring-your-own/verify-byo-example.sh rsbuild /` prints `PASS rsbuild: GET / -> 200`.
 
 ## Dockerfile
 

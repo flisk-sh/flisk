@@ -1,0 +1,39 @@
+{
+  "group": "resource-types",
+  "suite": "bring-your-own",
+  "description": "A bring-your-own app in each byoVariant on its own check: example (the container alone, PORT and a health route, verify-byo-example.sh) and tdk (through tdk up and Traefik with TDK's Postgres and DATABASE_URL, verify-byo-tdk.sh). The matrix runs one leg per variant (#1297).",
+  "paths": [
+    "examples/byo/**",
+    "docs/byo.md",
+    "cli/src/commands/resource.ts",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/bring-your-own/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": [
+    "BY1",
+    "BY2"
+  ],
+  "variants": [
+    {
+      "id": "example",
+      "name": "echo",
+      "case": "BY1",
+      "health": "/health"
+    },
+    {
+      "id": "tdk",
+      "name": "full-stack-fastapi-template",
+      "case": "BY2",
+      "health": "/api/v1/utils/health-check/"
+    }
+  ],
+  "triggers": [
+    "pr",
+    "nightly",
+    "manual"
+  ],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}

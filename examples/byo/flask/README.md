@@ -16,13 +16,13 @@
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/health`:
 
 ```bash
-scripts/verify-byo-example.sh flask
+tests/e2e/resource-types/bring-your-own/verify-byo-example.sh flask
 ```
 
 Through a real `tdk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=300 scripts/verify-byo-tdk.sh flask /health
+VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh flask /health
 ```
 
 ## Register it in a TDK project

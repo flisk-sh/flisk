@@ -112,10 +112,10 @@ The existing `Dockerfile` is kept, and the resource gets a `service.json` like t
 and a check command:
 
 ```bash
-scripts/verify-byo-example.sh fastify          # health path /health
-scripts/verify-byo-example.sh create-vue /     # Vite apps answer on /
-scripts/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/   # needs a database: real tdk up
-VERIFY_WAIT_SECONDS=120 scripts/verify-byo-example.sh create-mastra /health   # slow starters
+tests/e2e/resource-types/bring-your-own/verify-byo-example.sh fastify          # health path /health
+tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-vue /     # Vite apps answer on /
+tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/   # needs a database: real tdk up
+VERIFY_WAIT_SECONDS=120 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-mastra /health   # slow starters
 ```
 
 The check builds the image, runs it with `PORT=4000` and expects HTTP 200. Folders named `create-*`, `ember`, `rsbuild`

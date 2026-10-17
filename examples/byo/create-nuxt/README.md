@@ -11,7 +11,7 @@ not a TDK frontend provider. Startup time was not measured, so the check below u
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/`:
 
 ```bash
-VERIFY_WAIT_SECONDS=120 scripts/verify-byo-example.sh create-nuxt /
+VERIFY_WAIT_SECONDS=120 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-nuxt /
 ```
 
 ## Register it in a TDK project

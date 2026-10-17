@@ -11,13 +11,13 @@ rendering, so this is a bring-your-own resource. TDK's own `svelte` provider is 
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/`:
 
 ```bash
-VERIFY_WAIT_SECONDS=60 scripts/verify-byo-example.sh sveltekit /
+VERIFY_WAIT_SECONDS=60 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh sveltekit /
 ```
 
 Then through a real `tdk up` and Traefik (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=600 scripts/verify-byo-tdk.sh sveltekit /
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh sveltekit /
 ```
 
 Observed (2026-10-03): `PASS sveltekit: through tdk up and Traefik, GET /api/<name>/ -> 200 (<!doctype html>`. The Vite dev server accepted Traefik's `Host: api.<project>.localhost` with no override. Not covered: SSR routes beyond `/`, adapters, production builds.

@@ -27,7 +27,7 @@ Instead run a real `tdk up` and expect `200` through Traefik. The first build in
 several minutes:
 
 ```bash
-VERIFY_WAIT_SECONDS=600 scripts/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/
 ```
 
 ## Register it in a TDK project

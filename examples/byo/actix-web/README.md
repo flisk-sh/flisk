@@ -16,13 +16,13 @@ the files next to the Dockerfile. TDK's native Rust provider uses axum; this is 
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/health`:
 
 ```bash
-VERIFY_WAIT_SECONDS=60 scripts/verify-byo-example.sh actix-web /health
+VERIFY_WAIT_SECONDS=60 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh actix-web /health
 ```
 
 Then through a real `tdk up` and Traefik (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=900 scripts/verify-byo-tdk.sh actix-web /health
+VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh actix-web /health
 ```
 
 Observed: `PASS actix-web: GET /health -> 200 (ok)` and `PASS actix-web: through tdk up and Traefik, GET /api/<name>/health -> 200 (ok)`.

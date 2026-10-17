@@ -20,13 +20,13 @@
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/health`:
 
 ```bash
-scripts/verify-byo-example.sh chi
+tests/e2e/resource-types/bring-your-own/verify-byo-example.sh chi
 ```
 
 Through a real `tdk up` and Traefik (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=400 scripts/verify-byo-tdk.sh chi /health
+VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh chi /health
 ```
 
 ## Register it in a TDK project

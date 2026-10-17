@@ -25,14 +25,14 @@
 Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on `/up`:
 
 ```bash
-VERIFY_WAIT_SECONDS=90 scripts/verify-byo-example.sh rails /up
+VERIFY_WAIT_SECONDS=90 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh rails /up
 ```
 
 Then through a real `tdk up` and Traefik (needs Docker, Tilt and a built CLI), which is the check that matters for the host and
 `DATABASE_URL` points above (the first build compiles native gems, so allow several minutes):
 
 ```bash
-VERIFY_WAIT_SECONDS=900 scripts/verify-byo-tdk.sh rails /up
+VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh rails /up
 ```
 
 ## Register it in a TDK project

@@ -157,6 +157,7 @@ jobs:
           SUITE: ${{ matrix.suite }}
           LANGUAGE: ${{ matrix.language }}
           FRAMEWORK: ${{ matrix.framework }}
+          BYO_VARIANT: ${{ matrix.variant }}
         run: tests/e2e/resource-types/"$SUITE"/run.sh all
 
       - name: Collect diagnostics
