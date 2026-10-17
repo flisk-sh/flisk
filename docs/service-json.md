@@ -40,7 +40,28 @@ A frontend normally uses a port in the `3000`–`3999` range. `framework` is opt
 }
 ```
 
-Run `tdk resource <name> --type backend` or `tdk resource <name> --type frontend` to generate a starting manifest. Existing examples are in [`examples/tdk-example`](../examples/tdk-example).
+A worker is a background process that reads from NATS. The service schema requires `featuresEnabled` to contain `"nats"` for a worker. Change `appName`, `stack`, `queueGroup`, and `subjects` to match your own service. The `nats` block is optional and sets the queue group and the subjects the worker subscribes to; see the `nats` field under [Configuration, secrets, and integrations](#configuration-secrets-and-integrations) and the [resource features guide](resource-features.md).
+
+```json
+{
+  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "email-worker",
+  "appType": "worker",
+  "stack": "shop",
+  "port": 6000,
+  "featuresEnabled": ["nats"],
+  "nats": {
+    "queueGroup": "email-workers",
+    "subjects": ["email.send"]
+  },
+  "dependsOn": []
+}
+```
+
+A worker has no HTTP server, so it needs no `healthCheckPath` or `traefik` block: TDK gives it no proxy route and no HTTP health check. `port` is optional for a worker; if you set it, use the `6000`–`6999` range.
+
+Run `tdk resource <name> --type backend`, `tdk resource <name> --type frontend`, or `tdk resource <name> --type worker` to generate a starting manifest. Existing examples are in [`examples/tdk-example`](../examples/tdk-example).
 
 ## Required identity and compatibility fields
 
