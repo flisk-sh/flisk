@@ -8,8 +8,11 @@ import { DetailPanel, FileTree, ResourceSelectInput, ResourceTable, ServiceIssue
 import { TABS } from "../components/TabBar.js";
 import { createTUITheme, sectionTitle, TUIThemeContext, useTUITheme, } from "../components/ui-theme.js";
 import { errorFactories, requireProjectRoot } from "../utils/errors.js";
+import { readSavedHostPortPlan } from "../utils/host-port-config.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
+import { isApiServiceType } from "../utils/resource-kind.js";
 import { describeSearch } from "../utils/search-status.js";
+import { buildAdvertisedTargets } from "../utils/service-urls.js";
 import { clearMetadataCache, discoverResources, discoverStacks, getResourceMetadata, getStackMetadata, } from "../utils/services.js";
 import { singleFlight } from "../utils/single-flight.js";
 import { createStatusMessageController } from "../utils/status-message.js";
@@ -19,6 +22,7 @@ import { loadTiltEvents, stripTerminalControls, TiltEventsLoadError, } from "../
 import { getTiltPollingPort } from "../utils/tilt-startup.js";
 import { formatUiKeyHint, formatUiKeyNames, UI_KEYMAP } from "../utils/ui-keymap.js";
 import { applyServiceStates, fetchServiceStates, } from "../utils/ui-service-state.js";
+import { copyToClipboard, openUrl } from "../utils/url-actions.js";
 // biome-ignore lint/correctness/noUnusedFunctionParameters: reserved callback prop kept in the component API
 const HelpPanel = ({ onClose }) => {
     const theme = useTUITheme();
@@ -113,6 +117,9 @@ export const TUIApp = ({ animated = true }) => {
     const statusMessage = useMemo(() => createStatusMessageController(setMessage), []);
     useEffect(() => () => statusMessage.dispose(), [statusMessage]);
     const projectRoot = findProjectRoot() || "unknown";
+    const ingressPort = projectRoot === "unknown"
+        ? undefined
+        : (readSavedHostPortPlan(projectRoot)?.ingressHttp ?? undefined);
     const [{ stacks, services }, setDiscovered] = useState({ stacks: [], services: [] });
     // What the running Tilt says about each service: the same answer `tdk status` gives. Empty while no Tilt answers.
     const [serviceStates, setServiceStates] = useState({});
@@ -331,6 +338,38 @@ export const TUIApp = ({ animated = true }) => {
             statusMessage.show(`Viewing config for: ${item.value}`, 2000);
         }
     }, [activeTab, selectedStack, selectedService, statusMessage]);
+    const resolveCurrentResource = useCallback(() => {
+        if (selectedService) {
+            return services.find((s) => s.name === selectedService) ?? null;
+        }
+        const currentItem = items[highlightedIndex];
+        if (currentItem) {
+            const directService = services.find((s) => s.name === currentItem.value);
+            if (directService) {
+                return directService;
+            }
+            const stack = stacks.find((st) => st.name === currentItem.value);
+            if (stack && stack.resources.length > 0) {
+                const frontend = stack.resources.find((s) => s.config?.appType === "frontend");
+                if (frontend)
+                    return frontend;
+                const api = stack.resources.find((s) => isApiServiceType(s.config?.appType));
+                if (api)
+                    return api;
+                return stack.resources[0] ?? null;
+            }
+        }
+        if (selectedStackData && selectedStackData.stack.resources.length > 0) {
+            const frontend = selectedStackData.stack.resources.find((s) => s.config?.appType === "frontend");
+            if (frontend)
+                return frontend;
+            const api = selectedStackData.stack.resources.find((s) => isApiServiceType(s.config?.appType));
+            if (api)
+                return api;
+            return selectedStackData.stack.resources[0] ?? null;
+        }
+        return null;
+    }, [selectedService, items, highlightedIndex, services, stacks, selectedStackData]);
     useEffect(() => {
         setRawMode(true);
         stdout.write("\x1b[?1000h");
@@ -498,6 +537,37 @@ export const TUIApp = ({ animated = true }) => {
             });
             return;
         }
+        if (input === "o") {
+            const resource = resolveCurrentResource();
+            const target = resource ? buildAdvertisedTargets([resource], ingressPort)[0] : undefined;
+            if (!target?.url) {
+                statusMessage.show("No URL for this resource", 2000);
+            }
+            else {
+                void openUrl(target.url).then((opened) => {
+                    statusMessage.show(opened ? `Opening ${target.url}` : `Failed to open ${target.url}`, 2000);
+                });
+            }
+            return;
+        }
+        if (input === "y") {
+            const resource = resolveCurrentResource();
+            const target = resource ? buildAdvertisedTargets([resource], ingressPort)[0] : undefined;
+            if (!target?.url) {
+                statusMessage.show("No URL for this resource", 2000);
+            }
+            else {
+                void copyToClipboard(target.url).then((copied) => {
+                    if (copied) {
+                        statusMessage.show(`Copied ${target.url}`, 2000);
+                    }
+                    else {
+                        statusMessage.show(`Failed to copy ${target.url}`, 2000);
+                    }
+                });
+            }
+            return;
+        }
         if (key.tab) {
             const tabs = TABS.map((tab) => tab.id);
             const currentIdx = tabs.indexOf(activeTab);
@@ -604,6 +674,8 @@ function createHelpHint(activeTab, selectedStack, selectedService, showEnabledOn
     if (activeTab === "resources") {
         return [
             cycleTabs,
+            formatUiKeyHint("open-url", "open", ascii),
+            formatUiKeyHint("copy-url", "copy", ascii),
             formatUiKeyHint("refresh", "Refresh", ascii),
             formatUiKeyHint("search", "Search", ascii),
             ...common,

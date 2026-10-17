@@ -86,6 +86,16 @@ export declare const UI_KEYMAP: readonly [{
     readonly label: "Refresh data";
     readonly group: "Actions";
 }, {
+    readonly id: "open-url";
+    readonly keys: readonly ["o"];
+    readonly label: "Open resource URL in browser";
+    readonly group: "Actions";
+}, {
+    readonly id: "copy-url";
+    readonly keys: readonly ["y"];
+    readonly label: "Copy resource URL to clipboard";
+    readonly group: "Actions";
+}, {
     readonly id: "search";
     readonly keys: readonly ["/"];
     readonly label: "Search/filter";

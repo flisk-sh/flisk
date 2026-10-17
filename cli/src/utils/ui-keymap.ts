@@ -93,6 +93,18 @@ const uiKeymap = [
     group: "Actions",
   },
   {
+    id: "open-url",
+    keys: ["o"],
+    label: "Open resource URL in browser",
+    group: "Actions",
+  },
+  {
+    id: "copy-url",
+    keys: ["y"],
+    label: "Copy resource URL to clipboard",
+    group: "Actions",
+  },
+  {
     id: "search",
     keys: ["/"],
     label: "Search/filter",
