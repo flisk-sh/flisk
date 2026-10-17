@@ -19,6 +19,9 @@ SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SUITE_DIR/../../lib/lib.sh"
 e2e_init wsl2 wsl2
 
+# The shared e2e_cases reads suite.json with node, which this distro gets only in WS2. setup-wsl installs jq, so read the case ids with it.
+e2e_cases() { jq -r '.cases | join(" ")' "$SUITE_DIR/suite.json"; }
+
 WS1() { # record and require a real WSL2 kernel, then copy the checkout to /root/tdk-ci
   log "WS1 record and require a real WSL2 kernel"
   mkdir -p "$REPO_ROOT/wsl2-evidence"
