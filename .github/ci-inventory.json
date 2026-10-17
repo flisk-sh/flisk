@@ -555,6 +555,14 @@
 			"required": false,
 			"reason": "WSL2 smoke; moved to e2e-platforms in #1300",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "required-checks-drift.yml",
+			"job": "drift",
+			"tier": "report",
+			"required": false,
+			"reason": "Compares branch protection on main with the required-checks snapshot daily; opens one issue on drift",
+			"owner": "maintainers"
 		}
 	]
 }

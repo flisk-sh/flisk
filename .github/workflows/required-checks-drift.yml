@@ -1,0 +1,70 @@
+# Compares main's branch protection with the required checks the inventory expects, and opens one issue when they differ.
+# Runs on the default branch only and never checks out pull request code, so the token that reads branch protection is
+# never exposed to a pull request. Pull request runs check the committed snapshot in .github/required-checks.json instead.
+# After changing branch protection, refresh the snapshot with `node scripts/check-ci-inventory.mjs --refresh-snapshot`.
+name: 🔐 Required checks drift
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: required-checks-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: Compare required checks with branch protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check for the token
+        id: token
+        env:
+          CI_INVENTORY_TOKEN: ${{ secrets.CI_INVENTORY_TOKEN }}
+        run: |
+          if [ -z "$CI_INVENTORY_TOKEN" ]; then
+            echo "::warning title=CI_INVENTORY_TOKEN not configured::Skipped the required-checks drift check. Add a token with Administration: read as the CI_INVENTORY_TOKEN Actions secret."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.token.outputs.configured == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Compare live branch protection with the snapshot
+        if: steps.token.outputs.configured == 'true'
+        id: compare
+        env:
+          GH_TOKEN: ${{ secrets.CI_INVENTORY_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set +e
+          node scripts/check-ci-inventory.mjs --live > drift.log 2>&1
+          status=$?
+          cat drift.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Open or update the drift issue
+        if: steps.token.outputs.configured == 'true' && steps.compare.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Required checks differ from branch protection on main"
+          body="$(printf 'The inventory check failed against live branch protection on main. Update .github/ci-inventory.json or refresh .github/required-checks.json, then close this issue.\n\n```\n%s\n```\n\nRun: %s\n' "$(tail -n 30 drift.log)" "$RUN_URL")"
+          existing="$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

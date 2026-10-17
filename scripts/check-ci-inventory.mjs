@@ -5,10 +5,12 @@
 // every job needs a timeout (reusable-workflow callers excepted) and every pull_request workflow needs a concurrency group,
 // and report jobs never run on push. A known violation is recorded in its entry's "exempt" map, keyed by rule, with the
 // tracking issue as the value, so the check stays green while the fix is scheduled.
-//   node scripts/check-ci-inventory.mjs [--root <repo dir>] [--contexts <json file of check names>]
-// Without --contexts the required set is read from branch protection with `gh api` and the check fails if that call fails.
+//   node scripts/check-ci-inventory.mjs [--root <repo dir>] [--live | --refresh-snapshot]
+// The required set comes from .github/required-checks.json, a snapshot of main's branch protection, so pull request runs
+// need no admin token. --live reads branch protection with `gh api` (needs administration read; only the scheduled drift
+// job on main uses it). --refresh-snapshot writes the snapshot from live protection and exits.
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
@@ -58,9 +60,8 @@ export function loadJobs(workflowsDir) {
 	return jobs;
 }
 
-// Required check names from branch protection on main, or from a file of names when given.
-export function loadContexts({ repo, contextsFile }) {
-	if (contextsFile) return JSON.parse(readFileSync(contextsFile, "utf8"));
+// Required check names for main: from the committed snapshot, or live from branch protection.
+export function fetchLiveContexts(repo) {
 	const body = JSON.parse(
 		execFileSync(
 			"gh",
@@ -73,7 +74,15 @@ export function loadContexts({ repo, contextsFile }) {
 			...(body.contexts ?? []),
 			...(body.checks ?? []).map((c) => c.context),
 		]),
-	];
+	].sort();
+}
+
+export function loadSnapshot(file) {
+	const snapshot = JSON.parse(readFileSync(file, "utf8"));
+	if (!Array.isArray(snapshot.contexts)) {
+		throw new Error(`${file} has no contexts array`);
+	}
+	return snapshot.contexts;
 }
 
 // Every problem with the inventory against the jobs and the required check names. Returns messages; an empty list passes.
@@ -204,13 +213,26 @@ export function checkInventory({ inventory, jobs, contexts }) {
 function main(argv) {
 	const args = {
 		root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
-		contextsFile: undefined,
+		mode: "snapshot",
 	};
 	for (let i = 0; i < argv.length; i += 1) {
 		if (argv[i] === "--root") args.root = path.resolve(argv[++i]);
-		else if (argv[i] === "--contexts")
-			args.contextsFile = path.resolve(argv[++i]);
+		else if (argv[i] === "--live") args.mode = "live";
+		else if (argv[i] === "--refresh-snapshot") args.mode = "refresh";
 		else throw new Error(`unknown argument: ${argv[i]}`);
+	}
+	const repo = process.env.GITHUB_REPOSITORY ?? "tdk-landscape/tdk-cli-core";
+	const snapshotPath = path.join(args.root, ".github", "required-checks.json");
+	if (args.mode === "refresh") {
+		const contexts = fetchLiveContexts(repo);
+		writeFileSync(
+			snapshotPath,
+			`${JSON.stringify({ branch: "main", contexts }, null, "\t")}\n`,
+		);
+		console.log(
+			`check-ci-inventory: wrote ${contexts.length} required checks to ${path.relative(args.root, snapshotPath)}`,
+		);
+		return 0;
 	}
 	const inventoryPath = path.join(args.root, ".github", "ci-inventory.json");
 	const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
@@ -223,13 +245,15 @@ function main(argv) {
 		);
 		return 1;
 	}
-	const repo = process.env.GITHUB_REPOSITORY ?? "tdk-landscape/tdk-cli-core";
 	let contexts;
 	try {
-		contexts = loadContexts({ repo, contextsFile: args.contextsFile });
+		contexts =
+			args.mode === "live"
+				? fetchLiveContexts(repo)
+				: loadSnapshot(snapshotPath);
 	} catch (error) {
 		console.error(
-			`check-ci-inventory: cannot read required checks for ${repo} main: ${error.message}`,
+			`check-ci-inventory: cannot read required checks (${args.mode}): ${error.message}`,
 		);
 		return 1;
 	}
@@ -238,12 +262,12 @@ function main(argv) {
 		console.error(`check-ci-inventory: ${problem}`);
 	if (problems.length > 0) {
 		console.error(
-			`check-ci-inventory: ${problems.length} problem(s) (inventory ${path.relative(args.root, inventoryPath)})`,
+			`check-ci-inventory: ${problems.length} problem(s) (inventory ${path.relative(args.root, inventoryPath)}, required checks ${args.mode})`,
 		);
 		return 1;
 	}
 	console.log(
-		`check-ci-inventory: ${jobs.length} jobs in ${new Set(jobs.map((j) => j.workflow)).size} workflows, all accounted for`,
+		`check-ci-inventory: ${jobs.length} jobs in ${new Set(jobs.map((j) => j.workflow)).size} workflows, all accounted for (required checks: ${args.mode})`,
 	);
 	return 0;
 }
