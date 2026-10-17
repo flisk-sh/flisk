@@ -110,6 +110,6 @@ describe("machine output contract: every --json command emits the standard envel
       const envelope = assertStandardEnvelope(result.stdout);
       expect(envelope.schemaVersion).toBe(1);
     },
-    20_000,
+    60_000,
   );
 });

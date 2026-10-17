@@ -14,9 +14,9 @@
 ## 3. Testing and Verification
 
 - [x] 3.1 Add scaffold test in `cli/src/commands/__tests__/resource-backend-languages.test.ts`.
-- [ ] 3.2 Verify Bun baseline hashes remain identical.
-- [ ] 3.3 Verify schema contract and doctor wiring tests pass.
-- [ ] 3.4 Build CLI and run full test suite.
+- [x] 3.2 Verify Bun baseline hashes remain identical.
+- [x] 3.3 Verify schema contract and doctor wiring tests pass.
+- [x] 3.4 Build CLI and run full test suite.
 
 ## 4. Documentation
 

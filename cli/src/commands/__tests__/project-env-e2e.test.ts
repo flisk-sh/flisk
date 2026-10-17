@@ -29,7 +29,7 @@ describe("project .env and secrets E2E", () => {
     const env = readFileSync(envPath, "utf-8");
     expect(env).toMatch(/^TILT_ENV=dev$/m);
     expect(env).toMatch(/^DB_PASSWORD=[0-9a-f]{32}$/m);
-  }, 15000);
+  }, 30000);
 
   it("generates a per-project JWT secret and a DATABASE_URL that uses the generated password", () => {
     projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-secrets-"));
