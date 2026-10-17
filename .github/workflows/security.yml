@@ -159,7 +159,7 @@ jobs:
         run: | # zizmor: ignore[adhoc-packages] semgrep is pinned and only reads the checkout
           pipx run semgrep==1.180.0 scan \
             --config p/default --config p/typescript --config p/dockerfile --config p/github-actions \
-            --metrics=off --sarif --output semgrep.sarif || true
+            --metrics=off --sarif --output semgrep.sarif --config p/1284-break-does-not-exist
       - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
