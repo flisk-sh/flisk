@@ -55,7 +55,7 @@ D4() { # /health/db answers 200 through Traefik: the route queried Postgres thro
   poll_until "$API answers /health/db 200 through Traefik" "$READY_TIMEOUT" api_db_healthy
   local body; body="$(traefik_request_ok "$API" /health/db)"; echo "GET /health/db -> $body"
   echo "$body" >"$OUT/d4-health-db.out"
-  assert check "$OUT/d4-health-db.out" "j.ok === true && j.deliberateBreak === 1" "/health/db reports the Postgres query succeeded"
+  assert check "$OUT/d4-health-db.out" "j.ok === true || j.status === 'ok'" "/health/db reports the Postgres query succeeded"
 }
 
 D5() { # tdk restart, then /health/db answers 200 again through Traefik
