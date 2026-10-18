@@ -12,13 +12,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { captureExit } from "../../test-support/index.js";
 import {
   EJECTED_CONTENT,
   ejectCommand,
   TILT_UP_COMMAND,
   TILTFILE_RELATIVE_PATH,
 } from "../eject.js";
-import { captureExit } from "../../test-support/index.js";
 
 const originalCwd = process.cwd();
 
