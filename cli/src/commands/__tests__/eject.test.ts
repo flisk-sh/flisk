@@ -18,6 +18,7 @@ import {
   TILT_UP_COMMAND,
   TILTFILE_RELATIVE_PATH,
 } from "../eject.js";
+import { captureExit } from "../../test-support/index.js";
 
 const originalCwd = process.cwd();
 
@@ -143,17 +144,18 @@ describe("tdk eject", () => {
   it("requires a TDK project", async () => {
     rmSync(join(tempDir, ".tdk", "project.json"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    const { expectExit } = captureExit();
     try {
-      await ejectCommand.parseAsync(["node", "tdk", "--dry-run"], { from: "node" });
+      await expect(
+        ejectCommand.parseAsync(["node", "tdk", "--dry-run"], { from: "node" }),
+      ).rejects.toThrow("process.exit");
       const output = error.mock.calls.flat().join("\n");
       expect(output).toContain("Could not find project root (no .tdk/project.json found)");
       expect(output).toContain("Run this from within a TDK project");
       expect(output).toContain("Run `tdk project --yes` to initialize a new project");
-      expect(exit).toHaveBeenCalledWith(1);
+      expectExit(1);
     } finally {
       error.mockRestore();
-      exit.mockRestore();
     }
   });
 });

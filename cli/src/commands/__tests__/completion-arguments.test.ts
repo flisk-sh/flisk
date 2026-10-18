@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
+import { captureExit } from "../../test-support/index.js";
 import { completionCommand } from "../completion.js";
 
 interface CompletionOutput {
@@ -11,9 +12,7 @@ interface CompletionOutput {
 async function runCompletion(args: string[]): Promise<CompletionOutput> {
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   const error = vi.spyOn(console, "error").mockImplementation(() => {});
-  const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-    throw new Error("process.exit was called");
-  }) as never);
+  const { exit } = captureExit();
 
   try {
     await completionCommand.parseAsync(["node", "tdk", ...args], { from: "node" });

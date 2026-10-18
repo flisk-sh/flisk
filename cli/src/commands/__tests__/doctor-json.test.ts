@@ -1,7 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseEnvelope } from "../../test-support/index.js";
+import { captureExit, type ExitCapture, parseEnvelope } from "../../test-support/index.js";
 import { doctorCommand, NATIVE_WINDOWS_DOCTOR_MESSAGE } from "../doctor.js";
 
 afterEach(() => {
@@ -10,12 +10,10 @@ afterEach(() => {
   doctorCommand.setOptionValue("pingTimeout", "3000");
 });
 
-function captureOutput(): { log: ReturnType<typeof vi.spyOn>; exit: ReturnType<typeof vi.spyOn> } {
+function captureOutput(): { log: ReturnType<typeof vi.spyOn>; exit: ExitCapture["exit"] } {
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
-  const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-    throw new Error("exit");
-  }) as never);
+  const { exit } = captureExit();
   return { log, exit };
 }
 

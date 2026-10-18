@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
+import { captureExit } from "../../test-support/index.js";
 import { completionCommand } from "../completion.js";
 import { runtimeCommand } from "../runtime.js";
 
@@ -26,20 +27,21 @@ describe("tdk completion", () => {
   it("reports an unsupported shell and exits with status 1", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    const { expectExit } = captureExit();
 
     try {
-      await completionCommand.parseAsync(["node", "tdk", "--shell", "bogus"], { from: "node" });
+      await expect(
+        completionCommand.parseAsync(["node", "tdk", "--shell", "bogus"], { from: "node" }),
+      ).rejects.toThrow("process.exit");
 
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Unsupported shell: bogus"));
       expect(log).toHaveBeenCalledWith(
         expect.stringContaining("Supported shells: bash, zsh, fish, powershell"),
       );
-      expect(exit).toHaveBeenCalledWith(1);
+      expectExit(1);
     } finally {
       error.mockRestore();
       log.mockRestore();
-      exit.mockRestore();
     }
   });
 
