@@ -1,26 +1,17 @@
-# TDK CLI — démarrez vos services sur votre machine
+# TDK CLI — générez et lancez toute votre stack technique
 
-[English](../README.md) · Français · [Plus de langues](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | [ไทย](README-th.md) | [Deutsch](README-de.md) | [Español](README-es.md) | Français | [Українська](README-uk.md) | [Polski](README-pl.md) | [Português (Brasil)](README-pt-BR.md) | [العربية](README-ar.md) | [فارسی](README-fa.md) | [Bahasa Indonesia](README-id.md) | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | [മലയാളം](README-ml.md)
 
-### Arrêtez de laisser l'IA inventer votre infrastructure locale.
+D'un dossier vide à une stack qui tourne en une seule commande. Définissez chaque service dans `service.json`, puis lancez `tdk up`. Aucun Kubernetes n'est nécessaire sur la machine.
 
-Les LLM écrivent très bien la logique applicative, mais maintiennent mal l'infrastructure locale. Chaque fois que votre IA réécrit un `Dockerfile`, mal configure un `Tiltfile` ou casse un `nginx.conf`, vous perdez du temps et des tokens d'API inutiles.
-
-**TDK CLI Core** comble ce vide. Vous écrivez la logique de votre application web, et TDK détecte automatiquement votre stack pour générer, relier et orchestrer l'environnement local.
-
-Installation :
+Démarrage rapide:
 
 ```bash
 npm install -g @tdk-landscape/tdk-cli-core
-```
-
-Démarrage rapide :
-
-```bash
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-Pour les prérequis, la licence et le dépannage, consultez le [README en anglais](../README.md). La documentation se trouve sur le [site TDK](https://tdk-landscape.github.io/tdk-website/).
+Le guide complet se trouve dans le [README en anglais](../README.md).

@@ -1,26 +1,17 @@
-# TDK CLI — سرویس‌ها را روی دستگاه خود اجرا کنید
+# TDK CLI — ساخت و اجرای کل پشته فنی شما
 
-[English](../README.md) · فارسی · [زبان‌های دیگر](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | [ไทย](README-th.md) | [Deutsch](README-de.md) | [Español](README-es.md) | [Français](README-fr.md) | [Українська](README-uk.md) | [Polski](README-pl.md) | [Português (Brasil)](README-pt-BR.md) | [العربية](README-ar.md) | فارسی | [Bahasa Indonesia](README-id.md) | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | [മലയാളം](README-ml.md)
 
-### دیگر اجازه ندهید هوش مصنوعی زیرساخت محلی شما را حدس بزند.
-
-مدل‌های زبانی در نوشتن منطق برنامه عالی‌اند، اما در نگهداری زیرساخت محلی ضعیف‌اند. هر بار که هوش مصنوعی یک `Dockerfile` را بازنویسی کند، یک `Tiltfile` را اشتباه تنظیم کند یا `nginx.conf` را خراب کند، وقت و توکن‌های API بی‌دلیل هدر می‌رود.
-
-**TDK CLI Core** این شکاف را پر می‌کند. شما منطق برنامه وب را می‌نویسید و TDK پشته‌ی شما را خودکار شناسایی می‌کند تا محیط محلی را تولید، متصل و هماهنگ کند.
-
-نصب:
-
-```bash
-npm install -g @tdk-landscape/tdk-cli-core
-```
+از یک پوشه خالی تا یک پشته فنی در حال اجرا با یک دستور. هر سرویس را در `service.json` تعریف کنید و `tdk up` را اجرا کنید. روی دستگاه به Kubernetes نیازی نیست.
 
 شروع سریع:
 
 ```bash
+npm install -g @tdk-landscape/tdk-cli-core
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-برای پیش‌نیازها، مجوز و رفع اشکال، [README انگلیسی](../README.md) را ببینید. مستندات روی [وب‌سایت TDK](https://tdk-landscape.github.io/tdk-website/) است.
+راهنمای کامل در [README انگلیسی](../README.md) است.

@@ -1,26 +1,17 @@
-# TDK CLI — നിങ്ങളുടെ മെഷീനിൽ സേവനങ്ങൾ ആരംഭിക്കുക
+# TDK CLI — നിങ്ങളുടെ മുഴുവൻ ടെക് സ്റ്റാക്കും സൃഷ്ടിച്ച് പ്രവർത്തിപ്പിക്കുക
 
-[English](../README.md) · മലയാളം · [മറ്റ് ഭാഷകൾ](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | [ไทย](README-th.md) | [Deutsch](README-de.md) | [Español](README-es.md) | [Français](README-fr.md) | [Українська](README-uk.md) | [Polski](README-pl.md) | [Português (Brasil)](README-pt-BR.md) | [العربية](README-ar.md) | [فارسی](README-fa.md) | [Bahasa Indonesia](README-id.md) | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | മലയാളം
 
-### നിങ്ങളുടെ ലോക്കൽ ഇൻഫ്രാസ്ട്രക്ചർ AI സങ്കൽപ്പിക്കാൻ അനുവദിക്കുന്നത് നിർത്തുക.
-
-ആപ്ലിക്കേഷൻ ലോജിക് എഴുതുന്നതിൽ LLM-കൾ മികച്ചതാണ്, പക്ഷേ ലോക്കൽ ഇൻഫ്രാസ്ട്രക്ചർ പരിപാലിക്കുന്നതിൽ അവ മോശമാണ്. AI ഒരു `Dockerfile` വീണ്ടും എഴുതുമ്പോഴോ `Tiltfile` തെറ്റായി ക്രമീകരിക്കുമ്പോഴോ `nginx.conf` തകർക്കുമ്പോഴോ നിങ്ങളുടെ സമയവും അനാവശ്യ API ടോക്കണുകളും നഷ്ടപ്പെടുന്നു.
-
-**TDK CLI Core** ഈ വിടവ് നികത്തുന്നു. വെബ് ആപ്പ് ലോജിക് നിങ്ങൾ എഴുതുന്നു; TDK നിങ്ങളുടെ സ്റ്റാക്ക് സ്വയം കണ്ടെത്തി ലോക്കൽ പരിസ്ഥിതി സൃഷ്ടിക്കുകയും ബന്ധിപ്പിക്കുകയും ക്രമീകരിക്കുകയും ചെയ്യുന്നു.
-
-ഇൻസ്റ്റാൾ ചെയ്യാൻ:
-
-```bash
-npm install -g @tdk-landscape/tdk-cli-core
-```
+ഒരു ശൂന്യ ഫോൾഡറിൽ നിന്ന് ഒറ്റ കമാൻഡിലൂടെ പ്രവർത്തിക്കുന്ന സ്റ്റാക്ക് വരെ. ഓരോ സേവനവും `service.json`-ൽ നിർവചിച്ച് `tdk up` പ്രവർത്തിപ്പിക്കുക. Kubernetes ആവശ്യമില്ല.
 
 ദ്രുത ആരംഭം:
 
 ```bash
+npm install -g @tdk-landscape/tdk-cli-core
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-ആവശ്യകതകൾ, ലൈസൻസ്, പ്രശ്‌ന പരിഹാരം എന്നിവയ്ക്കായി [ഇംഗ്ലീഷ് README](../README.md) കാണുക. ഡോക്യുമെന്റേഷൻ [TDK വെബ്സൈറ്റിൽ](https://tdk-landscape.github.io/tdk-website/) ലഭ്യമാണ്.
+പൂർണ്ണ ഗൈഡ് [ഇംഗ്ലീഷ് README](../README.md)-ൽ ഉണ്ട്.

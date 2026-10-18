@@ -1,26 +1,17 @@
-# TDK CLI — запуск сервісів на вашому комп'ютері
+# TDK CLI — згенеруйте й запустіть увесь ваш техстек
 
-[English](../README.md) · Українська · [Інші мови](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | [ไทย](README-th.md) | [Deutsch](README-de.md) | [Español](README-es.md) | [Français](README-fr.md) | Українська | [Polski](README-pl.md) | [Português (Brasil)](README-pt-BR.md) | [العربية](README-ar.md) | [فارسی](README-fa.md) | [Bahasa Indonesia](README-id.md) | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | [മലയാളം](README-ml.md)
 
-### Годі дозволяти ШІ вигадувати вашу локальну інфраструктуру.
-
-LLM чудово пишуть логіку застосунків, але погано підтримують локальну інфраструктуру. Щоразу, коли ШІ переписує `Dockerfile`, неправильно налаштовує `Tiltfile` або ламає `nginx.conf`, ви витрачаєте час і зайві API-токени.
-
-**TDK CLI Core** заповнює цю прогалину. Ви пишете логіку веб-застосунку, а TDK автоматично визначає стек і генерує, пов'язує та запускає локальне середовище.
-
-Встановлення:
-
-```bash
-npm install -g @tdk-landscape/tdk-cli-core
-```
+Від порожньої папки до працюючого стека однією командою. Опишіть кожен сервіс у `service.json` і запустіть `tdk up`. Kubernetes на машині не потрібен.
 
 Швидкий старт:
 
 ```bash
+npm install -g @tdk-landscape/tdk-cli-core
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-Вимоги, ліцензію та усунення несправностей дивіться в [англійському README](../README.md). Документація на [сайті TDK](https://tdk-landscape.github.io/tdk-website/).
+Повна інструкція в [англійському README](../README.md).

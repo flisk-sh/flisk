@@ -1,26 +1,17 @@
-# TDK CLI — uruchamiaj usługi na swoim komputerze
+# TDK CLI — generuj i uruchamiaj cały stack technologiczny
 
-[English](../README.md) · Polski · [Więcej języków](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | [ไทย](README-th.md) | [Deutsch](README-de.md) | [Español](README-es.md) | [Français](README-fr.md) | [Українська](README-uk.md) | Polski | [Português (Brasil)](README-pt-BR.md) | [العربية](README-ar.md) | [فارسی](README-fa.md) | [Bahasa Indonesia](README-id.md) | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | [മലയാളം](README-ml.md)
 
-### Przestań pozwalać AI wymyślać twoją lokalną infrastrukturę.
-
-LLM świetnie piszą logikę aplikacji, ale słabo radzą sobie z utrzymaniem lokalnej infrastruktury. Za każdym razem, gdy AI przepisuje `Dockerfile`, źle konfiguruje `Tiltfile` albo psuje `nginx.conf`, tracisz czas i zużywasz niepotrzebne tokeny API.
-
-**TDK CLI Core** wypełnia tę lukę. Piszesz logikę aplikacji webowej, a TDK automatycznie wykrywa twój stack i generuje, łączy oraz uruchamia lokalne środowisko.
-
-Instalacja:
-
-```bash
-npm install -g @tdk-landscape/tdk-cli-core
-```
+Od pustego folderu do działającego stacka jedną komendą. Zdefiniuj każdą usługę w `service.json` i uruchom `tdk up`. Na maszynie nie potrzeba Kubernetes.
 
 Szybki start:
 
 ```bash
+npm install -g @tdk-landscape/tdk-cli-core
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-Wymagania, licencję i rozwiązywanie problemów znajdziesz w [angielskim README](../README.md). Dokumentacja jest na [stronie TDK](https://tdk-landscape.github.io/tdk-website/).
+Pełny przewodnik znajduje się w [angielskim README](../README.md).

@@ -1,26 +1,17 @@
-# TDK CLI — شغّل الخدمات على جهازك
+# TDK CLI — شغّل مكدسك التقني كاملاً على جهازك
 
-[English](../README.md) · العربية · [لغات أخرى](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | [ไทย](README-th.md) | [Deutsch](README-de.md) | [Español](README-es.md) | [Français](README-fr.md) | [Українська](README-uk.md) | [Polski](README-pl.md) | [Português (Brasil)](README-pt-BR.md) | العربية | [فارسی](README-fa.md) | [Bahasa Indonesia](README-id.md) | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | [മലയാളം](README-ml.md)
 
-### توقف عن ترك الذكاء الاصطناعي يخترع بنيتك التحتية المحلية.
+انتقل من مجلد فارغ إلى مكدس تقني يعمل بأمر واحد. عرّف كل خدمة في `service.json` ثم شغّل `tdk up`. لا يحتاج الجهاز إلى Kubernetes.
 
-تكتب نماذج اللغة منطق التطبيقات بإتقان، لكنها سيئة في صيانة البنية التحتية المحلية. كلما أعاد الذكاء الاصطناعي كتابة `Dockerfile` أو أخطأ في إعداد `Tiltfile` أو كسر `nginx.conf`، ضاع وقتك وعدد غير ضروري من رموز API.
-
-**TDK CLI Core** يسد هذه الفجوة. أنت تكتب منطق تطبيق الويب، ويكتشف TDK مكدّسك تلقائياً ليُنشئ البيئة المحلية ويربطها ويديرها.
-
-التثبيت:
+البداية السريعة:
 
 ```bash
 npm install -g @tdk-landscape/tdk-cli-core
-```
-
-بدء سريع:
-
-```bash
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-للاطلاع على المتطلبات والترخيص واستكشاف الأخطاء وإصلاحها، راجع [README الإنجليزي](../README.md). الوثائق متاحة على [موقع TDK](https://tdk-landscape.github.io/tdk-website/).
+للدليل الكامل، راجع [README الإنجليزي](../README.md).

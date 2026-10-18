@@ -1,26 +1,17 @@
-# TDK CLI — jalankan layanan di mesin Anda
+# TDK CLI — buat dan jalankan seluruh tech stack Anda
 
-[English](../README.md) · Bahasa Indonesia · [Bahasa lain](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | [ไทย](README-th.md) | [Deutsch](README-de.md) | [Español](README-es.md) | [Français](README-fr.md) | [Українська](README-uk.md) | [Polski](README-pl.md) | [Português (Brasil)](README-pt-BR.md) | [العربية](README-ar.md) | [فارسی](README-fa.md) | Bahasa Indonesia | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | [മലയാളം](README-ml.md)
 
-### Berhenti membiarkan AI mengarang infrastruktur lokal Anda.
-
-LLM sangat pandai menulis logika aplikasi, tetapi buruk dalam merawat infrastruktur lokal. Setiap kali AI menulis ulang `Dockerfile`, salah mengatur `Tiltfile`, atau merusak `nginx.conf`, Anda kehilangan fokus dan membuang token API yang tidak perlu.
-
-**TDK CLI Core** menjembatani celah ini. Anda menulis logika aplikasi web, dan TDK otomatis mendeteksi stack Anda untuk menghasilkan, menghubungkan, dan mengatur lingkungan lokal.
-
-Instalasi:
-
-```bash
-npm install -g @tdk-landscape/tdk-cli-core
-```
+Dari folder kosong ke tech stack yang berjalan dengan satu perintah. Definisikan setiap layanan di `service.json`, lalu jalankan `tdk up`. Mesin tidak perlu Kubernetes.
 
 Mulai cepat:
 
 ```bash
+npm install -g @tdk-landscape/tdk-cli-core
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-Untuk persyaratan, lisensi, dan pemecahan masalah, lihat [README bahasa Inggris](../README.md). Dokumentasi tersedia di [situs web TDK](https://tdk-landscape.github.io/tdk-website/).
+Panduan lengkap ada di [README bahasa Inggris](../README.md).

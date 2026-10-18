@@ -1,26 +1,17 @@
-# TDK CLI — เริ่มบริการบนเครื่องของคุณ
+# TDK CLI — สร้างและรันทั้ง tech stack ของคุณ
 
-[English](../README.md) · ไทย · [ภาษาอื่น](../README.md#readme-languages)
+[English](../README.md) | [简体中文](README-zh_cn.md) | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md) | [Türkçe](README-tr.md) | [Tiếng Việt](README-vi.md) | ไทย | [Deutsch](README-de.md) | [Español](README-es.md) | [Français](README-fr.md) | [Українська](README-uk.md) | [Polski](README-pl.md) | [Português (Brasil)](README-pt-BR.md) | [العربية](README-ar.md) | [فارسی](README-fa.md) | [Bahasa Indonesia](README-id.md) | [Italiano](README-it.md) | [Ελληνικά](README-el.md) | [മലയാളം](README-ml.md)
 
-### หยุดปล่อยให้ AI สร้างโครงสร้างพื้นฐานในเครื่องของคุณขึ้นมาเอง
-
-LLM เขียนลอจิกแอปพลิเคชันได้ดีมาก แต่ดูแลโครงสร้างพื้นฐานในเครื่องได้ไม่ค่อยดี ทุกครั้งที่ AI เขียน `Dockerfile` ใหม่ ตั้งค่า `Tiltfile` ผิด หรือทำ `nginx.conf` เสีย คุณจะเสียเวลาและโทเคน API โดยไม่จำเป็น
-
-**TDK CLI Core** เชื่อมช่องว่างนี้ คุณเขียนลอจิกเว็บแอป แล้ว TDK จะตรวจจับ stack ของคุณโดยอัตโนมัติ และสร้าง เชื่อม และจัดการสภาพแวดล้อมในเครื่องให้
-
-ติดตั้ง:
-
-```bash
-npm install -g @tdk-landscape/tdk-cli-core
-```
+จากโฟลเดอร์ว่างสู่ tech stack ที่รันอยู่ด้วยคำสั่งเดียว กำหนดแต่ละบริการใน `service.json` แล้วรัน `tdk up` ไม่ต้องใช้ Kubernetes บนเครื่อง
 
 เริ่มต้นอย่างรวดเร็ว:
 
 ```bash
+npm install -g @tdk-landscape/tdk-cli-core
 mkdir shop && cd shop
 tdk project --yes
 tdk resource orders-api --type backend --stack shop --yes
 tdk up shop
 ```
 
-ดูข้อกำหนด ใบอนุญาต และการแก้ไขปัญหาได้ใน [README ภาษาอังกฤษ](../README.md) เอกสารอยู่ที่[เว็บไซต์ TDK](https://tdk-landscape.github.io/tdk-website/)
+คู่มือฉบับเต็มอยู่ใน [README ภาษาอังกฤษ](../README.md)
