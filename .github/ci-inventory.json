@@ -293,6 +293,25 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-examples.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the examples gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-examples.yml",
+			"job": "e2e-examples",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; becomes required at the #1302 cutover",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "examples-e2e.yml",
 			"job": "example",
 			"tier": "e2e",
@@ -556,6 +575,25 @@
 			"tier": "e2e",
 			"required": true,
 			"reason": "Windows CLI smoke; required; runs tests/e2e/platforms/windows (#1300)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-platforms.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the platforms gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-platforms.yml",
+			"job": "e2e-platforms",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; becomes required at the #1302 cutover",
 			"owner": "maintainers"
 		},
 		{
