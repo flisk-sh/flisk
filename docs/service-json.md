@@ -153,6 +153,54 @@ What this does on `tdk up`:
 
 This is only local startup ordering for `tdk up`. It does not describe how you deploy the services, and it does not make `orders-backend` retry or wait if `inventory-backend` stops later. Each manifest field is described in the table above; see [`tdk up`](cheat-sheet.md#tdk-up-stack-name-alias-deploy) for `--only` and [Machine-readable CLI](reference/machine-readable-cli.md) for the JSON output.
 
+### Example: Postgres, then a migrator, then an API
+
+A database-backed service usually needs three things in order: Postgres is up, the migrations have run, then the API starts. The `dependsOn` field expresses each step. The scaffold writes this pair for you: `tdk resource orders-api --type backend --stack shop --feature prisma` creates `orders-api` and `orders-api-migrator`.
+
+```text
+services/shop/
+  orders-api-migrator/service.json
+  orders-api/service.json
+```
+
+Postgres has no manifest of its own. `postgres` (or `database-management`) in `dependsOn` names the shared platform Postgres that TDK runs for the project.
+
+`services/shop/orders-api-migrator/service.json` waits for Postgres:
+
+```json
+{
+  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "orders-api-migrator",
+  "appType": "migrator",
+  "stack": "shop",
+  "featuresEnabled": ["prisma"],
+  "dependsOn": ["postgres"]
+}
+```
+
+`services/shop/orders-api/service.json` waits for the migrator, so it starts last:
+
+```json
+{
+  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "orders-api",
+  "appType": "backend",
+  "stack": "shop",
+  "port": 4000,
+  "healthCheckPath": "/health",
+  "featuresEnabled": ["prisma"],
+  "dependsOn": ["orders-api-migrator"]
+}
+```
+
+Reading it from the bottom up: `orders-api` lists `orders-api-migrator`, and the migrator lists `postgres`, so the order is Postgres, then the migrator, then the API. Each name in `dependsOn` is the `appName` of another manifest. As in the earlier example, each entry becomes a Tilt `resource_deps` edge, and a name that matches no service (other than the two Postgres names) is reported when the manifests are checked.
+
+Keep the migration command in the migrator, not in the API's start command. The migrator runs when `tdk up` starts it, and the API only starts after it, so restarting the API does not re-run migrations. The scaffolded migrator's `start` script is `prisma migrate deploy`. For a migrator that is not Prisma, see [One-shot jobs](byo.md#one-shot-jobs-migrations-seeders) and the runnable [`examples/byo-jobs/`](../examples/byo-jobs/README.md), which set `"restart": "no"` so the job is not started again after it exits.
+
+The two manifests above pass the service schema and `tdk config verify` (no manifest or dependency error). That Tilt holds the API until the migrator finishes is **not checked here**, because it needs a running stack.
+
 ## Build and container fields
 
 | Field | Type and default | Applies to | Description |
