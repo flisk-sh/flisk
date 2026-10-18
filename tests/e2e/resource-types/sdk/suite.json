@@ -1,0 +1,27 @@
+{
+  "group": "resource-types",
+  "suite": "sdk",
+  "description": "An sdk resource on a live project, with no stack (#1295). tdk resource --type sdk registers an sdk that already lives in packages/<name> with a service.json (appType sdk). The suite writes that package, registers it, checks tdk status lists it as an sdk, builds it with its build script and imports the built entry from a consumer.",
+  "paths": [
+    "cli/src/commands/resource.ts",
+    "cli/src/utils/constants.ts",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/resource-types/sdk/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": [
+    "S1",
+    "S2",
+    "S3",
+    "S4"
+  ],
+  "triggers": [
+    "nightly",
+    "release",
+    "manual"
+  ],
+  "timeoutMinutes": 15,
+  "needsSecrets": []
+}
