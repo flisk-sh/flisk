@@ -72,11 +72,11 @@ jobs:
             workflow_run) trigger="release" ;;
             *) trigger="manual" ;;
           esac
-          # Pull requests run the backend languages with the most use plus Rust (#1489, which runs green on a live stack); nightly,
-          # release and manual runs run every language the registry declares. The backend suite gets one leg per language.
+          # Pull requests run the backend languages with the most use plus Rust (#1489), Go (#1491) and Node.js (#1490),
+          # all proven green on a live stack; nightly, release and manual runs run every language the registry declares. The backend suite gets one leg per language.
           # Framework legs (one bun leg per non-default HTTP framework) run with the full set, not on pull requests.
           if [ "$trigger" = "pr" ]; then
-            languages="bun,python,rust"
+            languages="bun,python,rust,go,node"
             frameworks=""
             frontends=""
           else
