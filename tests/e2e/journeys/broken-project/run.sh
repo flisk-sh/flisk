@@ -2,8 +2,8 @@
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
 # Failure paths through a real tdk up (#1386). Both cases share one scratch project with a backend (bpapi) in stack app.
-#   BP3 an unhealthy service: /health answers 503, so tdk up waits and then fails under the readiness policy, and its output
-#       names the service.
+#   BP3 an unhealthy service: /health answers 503. tdk up reports "✗ bpapi failed" with the failing health check and keeps
+#       Tilt running, so the case waits for that report, then runs tdk down.
 #   BP4 an interrupted tdk up: the process is killed once Docker has started containers, tdk down removes them, and a second
 #       tdk up brings the service up healthy.
 # BP3 and BP4 each rebuild the scratch project, so run them one at a time (the default `all` runs them in order).
@@ -18,41 +18,6 @@ source "$SUITE_DIR/../../lib/lib.sh"
 e2e_init broken-project bpbroken
 SERVICE=bpapi
 RESOURCES=("$SERVICE")
-
-# run_bounded <name> <seconds> <tdk args...>: run tdk in $DIR, streaming its output to the job log as it is produced (run
-# keeps it in files until the command exits, which is why a hung tdk up showed nothing), and kill it after <seconds>. Sets RC
-# (124 when killed). Output lands in $OUT/<name>.out and $OUT/<name>.err.
-run_bounded() {
-  local name="$1" secs="$2"; shift 2
-  printf '$ (cd %s && tdk %s)  [bounded %ss]\n' "$DIR" "$*" "$secs"
-  (cd "$DIR" && exec tdk "$@") >"$OUT/$name.out" 2>"$OUT/$name.err" &
-  local pid=$! deadline=$((SECONDS + secs)) shown=0
-  while kill -0 "$pid" 2>/dev/null; do
-    if [ "$SECONDS" -ge "$deadline" ]; then
-      echo "::error::$name still running after ${secs}s; stopping it"
-      # tdk starts Tilt and Docker helpers as children, so stop the children too, or the step keeps them running.
-      pkill -TERM -P "$pid" 2>/dev/null || true
-      kill -TERM "$pid" 2>/dev/null || true
-      sleep 5
-      pkill -KILL -P "$pid" 2>/dev/null || true
-      kill -KILL "$pid" 2>/dev/null || true
-      wait "$pid" 2>/dev/null || true
-      RC=124
-      return 0
-    fi
-    # Every 60s, print what tdk has written so far (both streams), so the job log shows progress.
-    if [ $((SECONDS / 60)) -gt "$shown" ]; then
-      shown=$((SECONDS / 60))
-      echo "[$name ${SECONDS}s] last output:"
-      tail -n 20 "$OUT/$name.out" "$OUT/$name.err" 2>/dev/null || true
-    fi
-    sleep 5
-  done
-  set +e; wait "$pid"; RC=$?; set -e
-  cat "$OUT/$name.out"
-  [ -s "$OUT/$name.err" ] && { echo "[stderr]"; cat "$OUT/$name.err"; }
-  echo "[exit $RC]"
-}
 
 # bp_diagnostics <name>: what a failing BP case needs in the job log: the tdk output, Docker containers, tdk status and the
 # Tilt log for the project's containers.
@@ -85,23 +50,33 @@ export default { port: process.env.PORT || 3000, fetch: app.fetch };
 TS
 }
 
-BP3() { # an unhealthy service fails tdk up, and the output names it
+BP3() { # an unhealthy service: tdk up reports the failing health check and keeps Tilt running, so wait for the report
   log "BP3 unhealthy service fails startup under the health policy and names the service"
   scaffold_project down
-  # The readiness wait is bounded by TDK_UP_READY_TIMEOUT_MS; the whole call is bounded by run_bounded, so a hang fails
-  # with its logs instead of running into the job timeout.
-  (export TDK_UP_READY_TIMEOUT_MS=240000; run_bounded bp3-up 900 up app)
-  if [ "$RC" -eq 124 ]; then
-    bp_diagnostics bp3-up
-    die "BP3: tdk up was still running after 900s; it did not exit after the readiness failure (see the log above)"
-  fi
-  [ "$RC" -ne 0 ] || { bp_diagnostics bp3-up; die "BP3: tdk up exited 0 with an unhealthy $SERVICE"; }
-  grep -q "$SERVICE" "$OUT/bp3-up.out" "$OUT/bp3-up.err" 2>/dev/null \
-    || die "BP3: tdk up output does not name $SERVICE"
-  grep -Eq "✗ $SERVICE" "$OUT/bp3-up.out" "$OUT/bp3-up.err" 2>/dev/null \
-    || die "BP3: no failure line for $SERVICE in tdk up output"
+  # tdk up does not exit after a readiness failure: it prints the failure and leaves Tilt running for inspection (the
+  # 2026-10-18 CI run showed "✗ bpapi failed: container is running, but its health check is failing"). So this case
+  # starts tdk up in the background, streams its output, waits for that line, and then runs tdk down.
+  (cd "$DIR" && TDK_UP_READY_TIMEOUT_MS=240000 nohup tdk up app >"$OUT/bp3-up.out" 2>"$OUT/bp3-up.err" &)
+  local deadline=$((SECONDS + 900)) shown=0
+  until grep -q "✗ $SERVICE failed" "$OUT/bp3-up.out" "$OUT/bp3-up.err" 2>/dev/null; do
+    if [ "$SECONDS" -ge "$deadline" ]; then
+      bp_diagnostics bp3-up
+      die "BP3: tdk up did not report a failed $SERVICE within 900s"
+    fi
+    if [ $((SECONDS / 60)) -gt "$shown" ]; then
+      shown=$((SECONDS / 60))
+      echo "[bp3-up ${SECONDS}s] last output:"
+      tail -n 20 "$OUT/bp3-up.out" "$OUT/bp3-up.err" 2>/dev/null || true
+    fi
+    sleep 5
+  done
+  echo "[bp3-up ${SECONDS}s] failure reported:"
+  grep -h "$SERVICE" "$OUT/bp3-up.out" "$OUT/bp3-up.err" || true
+  grep -q "health check is failing" "$OUT/bp3-up.out" "$OUT/bp3-up.err" \
+    || { bp_diagnostics bp3-up; die "BP3: the $SERVICE failure does not say the health check is failing"; }
   run bp3-down down
-  log "PASS BP3: tdk up exited $RC and named $SERVICE"
+  [ "$RC" -eq 0 ] || die "BP3: tdk down exited $RC after the failed startup"
+  log "PASS BP3: tdk up reported $SERVICE failing its health check, and tdk down cleaned up"
 }
 
 BP4() { # an interrupted tdk up is cleaned up by tdk down, and a second tdk up succeeds
