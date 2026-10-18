@@ -5,7 +5,21 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
 import { describe, expect, it } from "vitest";
-import { createTempDir, createTempProject, runTdk } from "../../test-support/index.js";
+import {
+  createTempDir,
+  createTempProject,
+  runCommandInProcess,
+  runTdk,
+} from "../../test-support/index.js";
+import { configCommand } from "../config.js";
+import { downCommand } from "../down.js";
+import { ejectCommand } from "../eject.js";
+import { networksCommand } from "../networks.js";
+import { projectsCommand } from "../projects.js";
+import { resourcesCommand } from "../resources.js";
+import { stacksCommand } from "../stacks.js";
+import { statusCommand } from "../status.js";
+import { upCommand } from "../up.js";
 
 const commandsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -235,12 +249,25 @@ async function loadAllCommands(): Promise<Command[]> {
   return commands;
 }
 
+/** The command object that owns each in-project JSON row. `config verify` runs through its `verify` subcommand. */
+const IN_PROCESS_TARGETS: Record<string, { command: Command; args: string[] }> = {
+  stacks: { command: stacksCommand, args: [] },
+  resources: { command: resourcesCommand, args: [] },
+  projects: { command: projectsCommand, args: [] },
+  status: { command: statusCommand, args: [] },
+  networks: { command: networksCommand, args: [] },
+  "config verify": { command: configCommand, args: ["verify"] },
+};
+
 describe("flag contract: --json", () => {
   it.each(JSON_MATRIX)(
     "tdk $command --json prints one envelope in a project",
-    ({ command, project }) => {
+    async ({ command, project }) => {
+      // In-project rows run the command object in-process: the envelope is printed by the command itself, so the
+      // child process adds no coverage here. Outside-project rows stay spawns, because they exercise the top-level handler.
       const root = createTempProject(project);
-      const result = runTdk([...command, "--json"], { cwd: root });
+      const target = IN_PROCESS_TARGETS[command.join(" ")];
+      const result = await runCommandInProcess(target.command, [...target.args, "--json"], root);
       expect(result.stderr).not.toMatch(/^\{/m);
       const envelope = parseOneEnvelope(result.stdout);
       expect(envelope.schemaVersion).toBe(1);
@@ -316,14 +343,25 @@ describe("flag contract: completeness", () => {
   });
 });
 
+/** The command object and arguments that each dry-run row runs in-process, without `--dry-run` (added below). */
+const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
+  "config regenerate": { command: configCommand, args: ["regenerate"] },
+  down: { command: downCommand, args: [] },
+  eject: { command: ejectCommand, args: [] },
+  up: { command: upCommand, args: [] },
+};
+
 describe("flag contract: --dry-run", () => {
   it.each(DRY_RUN_MATRIX)(
     "tdk $site prints its plan and writes nothing",
-    ({ command, project, expect: line }) => {
+    async ({ command, project, expect: line }) => {
       const root = createTempProject(project);
       const before = snapshotTree(root);
-      const result = runTdk([...command, "--dry-run"], { cwd: root, input: "", timeout: 60_000 });
-      expect(result.status).toBe(0);
+      // The plan is printed by the command itself, so the row runs in-process. Each row is one command object,
+      // so Commander's kept option values cannot leak between rows.
+      const target = DRY_RUN_TARGETS[command.join(" ")];
+      const result = await runCommandInProcess(target.command, [...target.args, "--dry-run"], root);
+      expect(result.status ?? 0).toBe(0);
       expect(result.stdout).toContain(line);
       expect(snapshotTree(root)).toEqual(before);
     },

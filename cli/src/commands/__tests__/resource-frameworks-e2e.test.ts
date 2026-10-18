@@ -5,7 +5,10 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { runCommandInProcess } from "../../test-support/index.js";
+import { clearDiscoveryCache } from "../../utils/discovery-context.js";
+import { resourceCommand } from "../resource.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -30,6 +33,11 @@ describe("frontend resource framework selection", () => {
   beforeAll(() => {
     projectRoot = mkdtempSync(join(tmpdir(), "tdk-resource-framework-"));
     runTdk(["project", "--yes"], projectRoot);
+  });
+
+  beforeEach(() => {
+    // The discovery cache is not keyed by project, so each in-process run starts clean.
+    clearDiscoveryCache();
   });
 
   afterAll(() => {
@@ -551,76 +559,76 @@ describe("frontend resource framework selection", () => {
     expect(output).toContain("tdk config regenerate");
   }, 15000);
 
-  it("fails for an unknown framework before creating a resource directory", () => {
+  it("fails for an unknown framework before creating a resource directory", async () => {
     const resourcePath = join(projectRoot, "apps", "invalid-web");
 
-    expect(() =>
-      runTdk(
-        [
-          "resource",
-          "invalid-web",
-          "--type",
-          "frontend",
-          "--framework",
-          "not-a-framework",
-          "--stack",
-          "shop",
-          "--path",
-          "apps/invalid-web",
-        ],
-        projectRoot,
-      ),
-    ).toThrow(
+    const result = await runCommandInProcess(
+      resourceCommand,
+      [
+        "invalid-web",
+        "--type",
+        "frontend",
+        "--framework",
+        "not-a-framework",
+        "--stack",
+        "shop",
+        "--path",
+        "apps/invalid-web",
+      ],
+      projectRoot,
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(
       /Unknown frontend framework "not-a-framework"[\s\S]*Use one of: react, vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router/,
     );
     expect(existsSync(resourcePath)).toBe(false);
   }, 15000);
 
-  it("hands a meta-framework off to bring-your-own before creating a resource directory", () => {
+  it("hands a meta-framework off to bring-your-own before creating a resource directory", async () => {
     const resourcePath = join(projectRoot, "apps", "meta-web");
 
-    expect(() =>
-      runTdk(
-        [
-          "resource",
-          "meta-web",
-          "--type",
-          "frontend",
-          "--framework",
-          "angular",
-          "--stack",
-          "shop",
-          "--path",
-          "apps/meta-web",
-        ],
-        projectRoot,
-      ),
-    ).toThrow(
+    const result = await runCommandInProcess(
+      resourceCommand,
+      [
+        "meta-web",
+        "--type",
+        "frontend",
+        "--framework",
+        "angular",
+        "--stack",
+        "shop",
+        "--path",
+        "apps/meta-web",
+      ],
+      projectRoot,
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(
       /"angular" is not a Vite SPA provider[\s\S]*tdk resource meta-web --type bring-your-own/,
     );
     expect(existsSync(resourcePath)).toBe(false);
   }, 15000);
 
-  it("rejects a frontend framework id on a backend before creating its directory", () => {
+  it("rejects a frontend framework id on a backend before creating its directory", async () => {
     const resourcePath = join(projectRoot, "services", "shop", "orders-api");
 
-    expect(() =>
-      runTdk(
-        [
-          "resource",
-          "orders-api",
-          "--type",
-          "backend",
-          "--framework",
-          "react",
-          "--stack",
-          "shop",
-          "--path",
-          "services/shop/orders-api",
-        ],
-        projectRoot,
-      ),
-    ).toThrow(/Unknown backend framework "react"/);
+    const result = await runCommandInProcess(
+      resourceCommand,
+      [
+        "orders-api",
+        "--type",
+        "backend",
+        "--framework",
+        "react",
+        "--stack",
+        "shop",
+        "--path",
+        "services/shop/orders-api",
+      ],
+      projectRoot,
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/Unknown backend framework "react"/);
     expect(existsSync(resourcePath)).toBe(false);
   }, 15000);
 });
