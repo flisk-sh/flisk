@@ -488,6 +488,11 @@ jobs:
               elif .value.result == "cancelled" then "🚫 Cancelled"
               else "❌ Failed" end) |"'
           } >> "$GITHUB_STEP_SUMMARY"
+          # The table alone passes the job, so a failed or cancelled job above would not fail the required check.
+          if echo "$NEEDS" | jq -e 'any(.[]; .result != "success" and .result != "skipped")' >/dev/null; then
+            echo "::error::A job above did not pass. See the CI Summary table."
+            exit 1
+          fi
 
       # Polls the head commit's check runs until every gate has completed, or until the deadline. A gate that never reported
       # by the deadline is missing and fails the job, as does one that completed without success or skipped.
