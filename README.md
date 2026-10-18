@@ -1,3 +1,5 @@
+<div align="center">
+
 # TDK CLI — generate and run your whole tech stack without the setup pain
 
 Go from an empty folder to a running tech stack with one command. Built for agents.
@@ -56,13 +58,15 @@ Docker runs the containers. Tilt watches services and live-updates containers wh
 
 [Website](https://tdk-landscape.github.io/tdk-website/) · [Quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) · [Examples](https://tdk-landscape.github.io/tdk-website/docs/examples/) · [Awesome TDK](https://github.com/tdk-landscape/awesome-tdk-framework) · [Demo](https://tdk-landscape.github.io/tdk-demo-animation/) · [Report a bug](https://github.com/tdk-landscape/tdk-cli-core/issues)
 
+</div>
+
 > [!IMPORTANT]
 > Get TDK from the [tdk-landscape/tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core) repository, the
 > [`@tdk-landscape/tdk-cli-core`](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core) npm package, or the
 > [official website](https://tdk-landscape.github.io/tdk-website/). Follow the installation links from these official sources.
 > A similar repository name or copied README does not establish that a download is official.
 
-**[Quick start](#quick-start) · [Why TDK](#why-tdk-cli) · [Examples](#examples) · [Installation](#installation) · [FAQ](#faq) · [Documentation](#docs)**
+<p align="center"><strong><a href="#quick-start">Quick start</a> · <a href="#why-tdk-cli">Why TDK</a> · <a href="#examples">Examples</a> · <a href="#installation">Installation</a> · <a href="#faq">FAQ</a> · <a href="#docs">Documentation</a></strong></p>
 
 If TDK helps you run your local stack, a ⭐ on [this repo](https://github.com/tdk-landscape/tdk-cli-core) helps other developers find it.
 
