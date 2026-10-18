@@ -87,3 +87,5 @@
 
 Before moving or renaming a document, search the whole repository for its path (CLI messages in `cli/src`,
 `.github/`, `scripts/`, other READMEs) and keep the old path if a released version or a public issue links to it.
+
+Verification note for the summary gate fix (docs-only change, not for merge).
