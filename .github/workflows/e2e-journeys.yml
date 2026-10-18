@@ -105,7 +105,9 @@ jobs:
   journeys:
     name: ${{ matrix.check || matrix.suite }}
     needs: plan
-    if: ${{ needs.plan.outputs.run != '' }}
+    # always(): on a pull request the license job is skipped, and a job whose needs chain includes a skipped job is skipped too,
+    # so the matrix never expanded there. The plan result and its run list decide instead.
+    if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.run != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -215,12 +217,3 @@ jobs:
             exit 1
           fi
           echo "Every selected journey passed"
-
-  debug:
-    needs: plan
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo 'RUN=${{ needs.plan.outputs.run }}'
-          echo 'MATRIX=${{ needs.plan.outputs.matrix }}'
-          echo 'RESULT=${{ needs.plan.result }}'
