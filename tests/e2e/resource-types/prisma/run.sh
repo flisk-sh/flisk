@@ -37,7 +37,10 @@ import { Hono } from "hono";
 import { SQL } from "bun";
 
 const app = new Hono();
-const db = new SQL(process.env.DATABASE_URL!);
+// Prisma's ?schema= parameter is not a Postgres setting; Postgres rejects it as a startup parameter, so drop it.
+const url = new URL(process.env.DATABASE_URL!);
+url.searchParams.delete("schema");
+const db = new SQL(url.toString());
 
 app.get("/health", (c) => c.json({ status: "ok", service: "api" }));
 
