@@ -5,8 +5,8 @@
 # writes prisma/schema.prisma and prisma.config.ts, adds DATABASE_URL, and registers a <name>-migrator service that runs
 # `prisma migrate deploy` before the API starts. One leg; the suite is not split by language.
 #
-#   tests/e2e/resource-types/prisma/run.sh all          every case in order, then cleanup
-#   tests/e2e/resource-types/prisma/run.sh P1 P2        single cases (later cases need the earlier ones)
+#   tests/e2e/orm/prisma/run.sh all          every case in order, then cleanup
+#   tests/e2e/orm/prisma/run.sh P1 P2        single cases (later cases need the earlier ones)
 #
 # The scaffolded API keeps the template's /health and gets a /health/db route that queries Postgres through DATABASE_URL, so
 # P4 proves the API reaches the database and not only that the container is up.
@@ -16,8 +16,8 @@ set -euo pipefail
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/lib.sh
 source "$SUITE_DIR/../../lib/lib.sh"
-# shellcheck source=../common.sh
-source "$SUITE_DIR/../common.sh"
+# shellcheck source=../../resource-types/common.sh
+source "$SUITE_DIR/../../resource-types/common.sh"
 e2e_init prisma prisma
 STACK=shop
 API=api

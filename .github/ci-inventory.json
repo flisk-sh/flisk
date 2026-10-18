@@ -266,6 +266,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-scale.yml",
+			"job": "e2e-scale",
+			"tier": "e2e",
+			"required": false,
+			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); replaces the PR coverage of erp-scale-e2e.yml at cutover (#1302); suite tests/e2e/scale/erp",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "erp-scale-e2e.yml",
 			"job": "erp",
 			"tier": "e2e",
@@ -290,6 +298,25 @@
 			"tier": "e2e",
 			"required": true,
 			"reason": "Default example boots; required; suite tests/e2e/examples/default",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-examples.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the examples gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-examples.yml",
+			"job": "e2e-examples",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; becomes required at the #1302 cutover",
 			"owner": "maintainers"
 		},
 		{
@@ -559,6 +586,25 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-platforms.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the platforms gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-platforms.yml",
+			"job": "e2e-platforms",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; becomes required at the #1302 cutover",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "package-lifecycle-smoke.yml",
 			"job": "docs",
 			"tier": "gate",
@@ -630,6 +676,22 @@
 			"job": "gate",
 			"tier": "gate",
 			"reason": "Fails when the plan or any selected suite fails (#1290)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-journeys.yml",
+			"job": "journeys",
+			"tier": "e2e",
+			"reason": "One leg per journey suite with the pr trigger (broken-project, dev-loop, quickstart, smoke); cold-start stays off pull requests (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-journeys.yml",
+			"job": "gate",
+			"tier": "gate",
+			"reason": "Fails when any journey leg fails or is cancelled (#1302)",
 			"required": false,
 			"owner": "maintainers"
 		},

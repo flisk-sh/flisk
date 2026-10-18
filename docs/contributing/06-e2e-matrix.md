@@ -24,9 +24,11 @@ The workflow has two jobs that matter:
 A group job is skipped when the matrix is empty (`{"include":[]}`), so a trigger that selects no suite costs nothing.
 
 ```bash
-node tests/e2e/lib/suite-matrix.mjs resource-types pr "bun,python,rust,go"
-# {"include":[{"suite":"backend","language":"bun","framework":"","label":"backend-bun",...}, ...]}
+node tests/e2e/lib/suite-matrix.mjs resource-types,orm pr "bun,python,rust,go"
+# {"include":[{"group":"languages","dir":"resource-types/backend","suite":"backend","language":"bun","label":"bun",...}, {"group":"orm","dir":"orm/prisma","label":"prisma",...}, ...]}
 ```
+
+Each leg names its `group`, which is the first half of its job name, and its `dir`, the folder `run.sh` lives in (`<group>/<suite>`). The backend suite's language legs run in the `languages` group, and the ORM suites in the `orm` group (`tests/e2e/orm/<suite>/`), so each reads under its own name (#1493). The `languages` group has no folder of its own; it is the language axis over `resource-types/backend`.
 
 ## How a suite becomes legs
 
@@ -56,7 +58,7 @@ The builder expands a suite into legs in one of four ways:
 
 A suite lists `"variants": [{"id": "..."}]` in `suite.json` instead of a single leg; `bring-your-own` does this. `validate-suites.mjs` rejects keys it does not know, so check spelling.
 
-Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`, and `BYO_VARIANT` for variant suites), so the suite's `run.sh` reads what it needs and nothing else. A leg's `label` names the job in the UI (`resource-types / backend-bun`), so it is what reviewers search for.
+Each leg gets its axis values as environment (`LANGUAGE`, `FRAMEWORK`, and `BYO_VARIANT` for variant suites), so the suite's `run.sh` reads what it needs and nothing else. A leg's job name in the UI is `<group> / <label>` (`languages / bun`, `orm / prisma`, `resource-types / agent`), so that is what reviewers search for.
 
 ## Triggers decide what runs where
 

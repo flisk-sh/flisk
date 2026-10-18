@@ -1,0 +1,68 @@
+# Platforms axis group gate (#1302, epic #1279). The windows leg runs tests/e2e/platforms/windows (W1-W3) on the native
+# Windows runner: typecheck, build and CLI help, platform unit tests, and the native Windows refusal contract. It runs on pull
+# requests and the merge queue, uses no secrets (suite.json needsSecrets is empty) and replaces windows-smoke.yml as a required
+# check. The job name e2e-platforms is the required-check context.
+name: 🪟 Platforms E2E gate
+
+on:
+  merge_group:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-platforms-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+      examples_only: ${{ steps.detect.outputs.examples_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: detect
+        uses: ./.github/actions/docs-only # zizmor: ignore[self-repository] composite action resolves from this commit
+
+  e2e-platforms:
+    name: e2e-platforms
+    runs-on: windows-latest
+    timeout-minutes: 20
+    needs: docs
+    # Skip on docs-only and bring-your-own-example-only pull requests; a skipped job still satisfies required checks.
+    if: ${{ !cancelled() && needs.docs.result != 'failure' && needs.docs.outputs.docs_only != 'true' && needs.docs.outputs.examples_only != 'true' }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      # The windows leg (tests/e2e/platforms/windows: suite.json, run.sh, native-refusal.ps1), run in order.
+      - name: Typecheck, build and run CLI help
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W1
+
+      - name: Run Windows platform unit tests
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W2
+
+      - name: Verify native Windows CLI contract
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W3
