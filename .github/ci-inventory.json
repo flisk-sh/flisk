@@ -266,6 +266,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-scale.yml",
+			"job": "e2e-scale",
+			"tier": "e2e",
+			"required": false,
+			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); replaces the PR coverage of erp-scale-e2e.yml at cutover (#1302); suite tests/e2e/scale/erp",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "erp-scale-e2e.yml",
 			"job": "erp",
 			"tier": "e2e",
