@@ -29,25 +29,20 @@ export const COMPARE_FILE_CAP = 300;
 // Candidates examined per gate run. Each one costs one compare call.
 const MAX_CANDIDATES = 20;
 
-const globToRegExp = (glob) => {
-  let source = "";
-  for (let i = 0; i < glob.length; i++) {
-    if (glob.startsWith("**", i)) {
-      source += ".*";
-      i++;
-    } else if (glob[i] === "*") {
-      source += "[^/]*";
-    } else {
-      source += glob[i].replace(/[.+^${}()|[\]\\?]/g, "\\$&");
-    }
+// Only two forms appear in RELEASE_INPUTS: an exact path, or a directory followed by "/**". Anything else is a bug in
+// the list, so it throws rather than being guessed at.
+const matchesInput = (glob, file) => {
+  if (glob.endsWith("/**")) {
+    return file.startsWith(glob.slice(0, -2));
   }
-  return new RegExp(`^${source}$`);
+  if (glob.includes("*")) {
+    throw new Error(`unsupported release input pattern: ${glob}`);
+  }
+  return file === glob;
 };
 
-const matchers = RELEASE_INPUTS.map((glob) => ({ glob, test: globToRegExp(glob) }));
-
 // The release input a changed path falls under, or undefined when the path cannot change the shipped package.
-export const releaseInputFor = (file) => matchers.find((m) => m.test.test(file))?.glob;
+export const releaseInputFor = (file) => RELEASE_INPUTS.find((glob) => matchesInput(glob, file));
 
 // Decides whether a candidate commit covers the release commit. `compare(base, head)` returns
 // { status, files } from the compare API, where status "ahead" means head contains base.
