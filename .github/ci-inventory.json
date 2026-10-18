@@ -301,6 +301,25 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-examples.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the examples gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-examples.yml",
+			"job": "e2e-examples",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; becomes required at the #1302 cutover",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "examples-e2e.yml",
 			"job": "example",
 			"tier": "e2e",
@@ -567,6 +586,25 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-platforms.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the platforms gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-platforms.yml",
+			"job": "e2e-platforms",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; becomes required at the #1302 cutover",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "package-lifecycle-smoke.yml",
 			"job": "docs",
 			"tier": "gate",
@@ -654,38 +692,6 @@
 			"job": "gate",
 			"tier": "gate",
 			"reason": "Fails when any journey leg fails or is cancelled (#1302)",
-			"required": false,
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "e2e-examples.yml",
-			"job": "examples",
-			"tier": "e2e",
-			"reason": "One leg per example suite with the pr trigger (default, python); real-apps stays nightly (#1302)",
-			"required": false,
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "e2e-examples.yml",
-			"job": "gate",
-			"tier": "gate",
-			"reason": "Fails when any example leg fails or is cancelled (#1302)",
-			"required": false,
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "e2e-platforms.yml",
-			"job": "windows",
-			"tier": "e2e",
-			"reason": "Native Windows CLI suite W1 to W3 on windows-latest; WSL2 manual and binary release-only (#1302)",
-			"required": false,
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "e2e-platforms.yml",
-			"job": "gate",
-			"tier": "gate",
-			"reason": "Fails when the Windows platform leg fails or is cancelled (#1302)",
 			"required": false,
 			"owner": "maintainers"
 		},
