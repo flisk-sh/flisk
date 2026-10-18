@@ -3,11 +3,14 @@
 // Validates every live-stack suite under tests/e2e/<group>/<suite>/: its suite.json has the documented shape, its folder
 // matches its group and name, its run.sh is executable and defines every case suite.json lists. Workflows read suite.json, so
 // a typo here would otherwise skip a suite silently.
+// It also checks each suite's paths against the pull_request.paths filter of the workflow that runs it (#1391, see
+// workflowPathProblems below).
 //   node tests/e2e/lib/validate-suites.mjs [<tests/e2e dir>]
 import { spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import YAML from "yaml";
 
 export const GROUPS = ["resource-types", "orm", "journeys", "examples", "platforms", "scale"];
 export const TRIGGERS = ["pr", "nightly", "release", "manual", "weekly"];
@@ -107,9 +110,84 @@ export function validateSuites(e2eDir, { selfCheck = true } = {}) {
   return problems;
 }
 
+// Workflows that run e2e suites but are not checked against their suites' paths, with the reason for each (#1391).
+// e2e-resource-types.yml has no pull_request.paths on purpose: the gate must report on every pull request and merge queue entry,
+// and its plan job picks the legs to run from the PR_PATHS regex inside the workflow. Changing that regex is a separate task.
+export const EXCLUDED_WORKFLOWS = {
+  ".github/workflows/e2e-resource-types.yml": "no pull_request.paths on purpose; the plan job's PR_PATHS regex selects the legs",
+};
+
+// Paths a workflow filter may hold that no suite lists: the reason for each is recorded here so a new unowned entry is a decision.
+export const GLOBAL_PATHS = {};
+
+const WORKFLOW_REF = /^\.github\/workflows\/[^/*]+\.ya?ml$/;
+
+// A path in the form the filter comparison uses: quotes and a leading "./" removed, and "dir/**" written as "dir/" (#1391).
+export function normalizePath(entry) {
+  return entry.trim().replace(/^(['"])(.*)\1$/, "$2").replace(/^\.\//, "").replace(/\/\*\*$/, "/");
+}
+
+// Whether a filter entry matches a suite path: the same path, or a directory entry ("dir/") that contains it.
+function covers(filterEntry, suitePath) {
+  return filterEntry === suitePath || (filterEntry.endsWith("/") && suitePath.startsWith(filterEntry));
+}
+
+// The workflow's pull_request.paths, normalized. Null when the workflow has no paths filter, so it runs on every pull request.
+function pullRequestPaths(workflowsDir, ref) {
+  const file = path.join(workflowsDir, path.basename(ref));
+  if (!existsSync(file)) return null;
+  const workflow = YAML.parse(readFileSync(file, "utf8")) ?? {};
+  const pullRequest = workflow.on?.pull_request;
+  if (!pullRequest || !Array.isArray(pullRequest.paths)) return null;
+  return pullRequest.paths.map(normalizePath);
+}
+
+// Problems between each suite's paths and the pull_request.paths filter of the workflow that runs it, as "<group>/<suite>: ..."
+// strings. The workflow is each ".github/workflows/*.yml" entry in the suite's paths. A suite is checked only when it runs on
+// pull_request ("pr" trigger); the others are run by a schedule or by hand and have no filter to match. Only workflows with a
+// paths filter are checked (see EXCLUDED_WORKFLOWS). Two directions are checked:
+//   - a suite path the filter does not cover (the suite's changes would not run it),
+//   - a filter entry that no suite lists and GLOBAL_PATHS does not explain (the filter has drifted from the suites).
+export function workflowPathProblems(e2eDir, workflowsDir) {
+  const suites = [];
+  for (const group of GROUPS) {
+    const groupDir = path.join(e2eDir, group);
+    if (!existsSync(groupDir)) continue;
+    for (const name of readdirSync(groupDir)) {
+      const file = path.join(groupDir, name, "suite.json");
+      if (!existsSync(file)) continue;
+      const suite = JSON.parse(readFileSync(file, "utf8"));
+      suites.push({ where: `${group}/${name}`, paths: suite.paths ?? [], runsOnPr: suite.triggers?.includes("pr") === true });
+    }
+  }
+  const problems = [];
+  const refs = [...new Set(suites.flatMap((suite) => suite.paths.filter((p) => WORKFLOW_REF.test(normalizePath(p)))))]
+    .map(normalizePath)
+    .filter((ref) => !(ref in EXCLUDED_WORKFLOWS))
+    .sort();
+  for (const ref of refs) {
+    const filter = pullRequestPaths(workflowsDir, ref);
+    if (filter === null) continue;
+    const owners = suites.filter((suite) => suite.paths.some((p) => normalizePath(p) === ref));
+    for (const suite of owners.filter((s) => s.runsOnPr)) {
+      for (const raw of suite.paths) {
+        const p = normalizePath(raw);
+        if (WORKFLOW_REF.test(p)) continue;
+        if (!filter.some((entry) => covers(entry, p))) problems.push(`${suite.where}: path "${raw}" is not covered by ${ref} pull_request.paths`);
+      }
+    }
+    const ownedPaths = owners.flatMap((suite) => suite.paths.map(normalizePath));
+    for (const entry of filter) {
+      const owned = ownedPaths.some((p) => covers(entry, p)) || entry in GLOBAL_PATHS;
+      if (!owned) problems.push(`${ref}: pull_request.paths entry "${entry}" is not listed by any suite that runs in it`);
+    }
+  }
+  return problems;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const e2eDir = path.resolve(process.argv[2] ?? path.join(path.dirname(fileURLToPath(import.meta.url)), ".."));
-  const problems = validateSuites(e2eDir);
+  const problems = [...validateSuites(e2eDir), ...workflowPathProblems(e2eDir, path.join(e2eDir, "..", "..", ".github", "workflows"))];
   if (problems.length > 0) {
     console.error(`${problems.length} suite problem(s):\n${problems.map((p) => `  ${p}`).join("\n")}`);
     process.exit(1);
