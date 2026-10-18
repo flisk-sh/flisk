@@ -44,7 +44,7 @@ E2() { # tdk up, then wait for every backend to answer /health (the frontends ar
     sleep 2
   done
   awk '/Starting [0-9]+ service/{f=1} /Running tilt up/{f=0} f' up.log | grep -oE 'https?://[^ ]+' | sort -u > urls.txt || true
-  grep -E '^https?://nope\.' urls.txt > backend-urls.txt || true
+  grep -E '^https?://api\.' urls.txt > backend-urls.txt || true
   grep -E '^https?://app\.' urls.txt > frontend-urls.txt || true
   total="$(wc -l < backend-urls.txt | tr -d ' ')"
   frontends="$(wc -l < frontend-urls.txt | tr -d ' ')"
