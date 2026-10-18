@@ -25,7 +25,7 @@ RESOURCES=()
 B1() { # generate the restaurant project from this commit's extension
   log "B1 generate the restaurant project"
   cd "$DIR"
-  tdk project --yes --no-such-flag
+  tdk project --yes
 }
 
 B2() { # cold and warm starts of tdk up, each until eight services answer
