@@ -192,13 +192,15 @@ jobs:
     # A hang guard, not a speed target: the suite (with every Starlark test that spawns tilt) takes 23 to 89 seconds, and a one-minute
     # limit cancelled it in 3 of 19 recent runs with no failing step.
     timeout-minutes: 10
+    permissions:
+      contents: write # push the refreshed coverage badge to main (main pushes only)
     defaults:
       run:
         working-directory: cli
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          persist-credentials: false
+          persist-credentials: true # zizmor: ignore[artipacked] needed to push the coverage badge on main
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - name: Install Tilt for Starlark generator tests
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -237,6 +239,21 @@ jobs:
             );
             console.log(["## Unit test coverage", "", "| Metric | Coverage | Covered |", "|---|---|---|", ...rows, ""].join("\n"));
           ' >> "$GITHUB_STEP_SUMMARY"
+      # Refreshes docs/assets/coverage.svg (the README badge) after a green run on main. Pushes made with GITHUB_TOKEN don't start CI.
+      - name: Refresh coverage badge
+        if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        working-directory: .
+        run: |
+          node scripts/coverage-badge.mjs
+          git add docs/assets/coverage.svg
+          if git diff --cached --quiet; then
+            echo "Coverage badge unchanged."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: refresh coverage badge"
+            git push
+          fi
       - name: Upload coverage HTML report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
