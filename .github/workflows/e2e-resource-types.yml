@@ -1,7 +1,7 @@
 # Live-stack resource-type suites (#1290, tracker #1279). The plan job reads each suite's suite.json and builds a matrix of the
 # suites that run for the event; each matrix leg boots one suite's stack and runs all of its cases. Replaces agent-e2e.yml.
-# On a pull request a leg tests that pull request's own packed CLI. After a release and nightly it tests the published npm
-# package. The gate job always runs and fails when the plan or any selected leg failed.
+# On a pull request and nightly a leg tests the packed CLI of the checkout (main, nightly), so a regression on main shows up
+# before a release ships it. After a release it tests the published npm package. The gate job always runs and fails when the plan or any selected leg failed.
 name: 🤖 Resource-type E2E
 
 on:
@@ -124,7 +124,7 @@ jobs:
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             version="$(node -p "require('./package.json').version")"
-          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             version="local"
           elif [ -n "$VERSION_INPUT" ]; then
             version="$VERSION_INPUT"
