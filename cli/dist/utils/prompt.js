@@ -69,9 +69,21 @@ export async function promptMultiSelect(options) {
     });
     while (true) {
         const answer = await question(`Choose one or more numbers, comma-separated${defaultHint}: `);
-        const rawIndexes = answer
-            ? answer.split(",").map((value) => Number.parseInt(value.trim(), 10))
-            : defaults;
+        let rawIndexes = defaults;
+        if (answer) {
+            const tokens = answer.split(",").map((value) => value.trim());
+            const invalidToken = tokens.find((token) => {
+                if (!/^\d+$/.test(token))
+                    return true;
+                const index = Number.parseInt(token, 10);
+                return !options.choices[index - 1];
+            });
+            if (invalidToken !== undefined) {
+                console.log(`"${invalidToken}" is not a valid choice (1-${options.choices.length})`);
+                continue;
+            }
+            rawIndexes = tokens.map((token) => Number.parseInt(token, 10));
+        }
         const selected = Array.from(new Set(rawIndexes))
             .map((index) => options.choices[index - 1])
             .filter((choice) => Boolean(choice))
