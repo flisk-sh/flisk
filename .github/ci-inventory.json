@@ -632,6 +632,38 @@
 			"required": false,
 			"reason": "Weekly CI cost and health report; posts to the job summary and the Weekly CI report issue (#1289)",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-journeys.yml",
+			"job": "plan",
+			"tier": "gate",
+			"required": false,
+			"reason": "Chooses the journey suites for the event from tests/e2e/journeys/*/suite.json (#1298)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-journeys.yml",
+			"job": "journeys",
+			"tier": "e2e",
+			"required": false,
+			"reason": "One matrix leg per journey suite; each leg reports its old check name until branch protection changes (#1298)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-journeys.yml",
+			"job": "gate",
+			"tier": "gate",
+			"required": false,
+			"reason": "Passes when every selected journey passed or none was selected; require this one after the cutover (#1298)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-journeys.yml",
+			"job": "license",
+			"tier": "gate",
+			"required": false,
+			"reason": "Checks TDK_LICENSE_KEY for the cold-start journey; never runs on pull requests (#1298)",
+			"owner": "maintainers"
 		}
 	]
 }

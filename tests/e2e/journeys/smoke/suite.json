@@ -9,10 +9,16 @@
     "cli/dist/commands/up.js",
     "tests/e2e/lib/**",
     "tests/e2e/journeys/smoke/**",
-    ".github/workflows/smoke-e2e.yml"
+    ".github/workflows/e2e-journeys.yml"
   ],
-  "cases": ["SM1"],
-  "triggers": ["pr", "manual"],
+  "cases": [
+    "SM1"
+  ],
+  "triggers": [
+    "pr",
+    "manual"
+  ],
   "timeoutMinutes": 25,
-  "needsSecrets": []
+  "needsSecrets": [],
+  "checkName": "smoke-e2e"
 }

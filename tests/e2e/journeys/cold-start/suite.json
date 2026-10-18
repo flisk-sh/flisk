@@ -1,0 +1,20 @@
+{
+  "group": "journeys",
+  "suite": "cold-start",
+  "checkName": "🧊 Wake a deferred backend during bring-up",
+  "description": "The licensed sablier.deferStart path through a real generated project, Tilt, Docker Compose, Traefik, the wake gateway and the backend (moved from cold-start-e2e.yml, #1298). Needs TDK_LICENSE_KEY, so it never runs on a pull request: PR code must not be able to read the secret.",
+  "paths": [
+    "cli/**",
+    "engine/**",
+    "scripts/e2e/cold-start.sh",
+    "tests/e2e/lib/**",
+    "tests/e2e/journeys/cold-start/**",
+    ".github/workflows/e2e-journeys.yml"
+  ],
+  "cases": ["CS1"],
+  "triggers": ["weekly", "release", "manual"],
+  "timeoutMinutes": 35,
+  "install": true,
+  "freePostgres": true,
+  "needsSecrets": ["TDK_LICENSE_KEY"]
+}

@@ -9,10 +9,19 @@
     "cli/src/utils/service-config-checks.ts",
     "tests/e2e/lib/**",
     "tests/e2e/journeys/broken-project/**",
-    ".github/workflows/broken-project-e2e.yml"
+    ".github/workflows/e2e-journeys.yml"
   ],
-  "cases": ["BP3", "BP4"],
-  "triggers": ["pr", "manual"],
+  "cases": [
+    "BP3",
+    "BP4"
+  ],
+  "triggers": [
+    "pr",
+    "manual"
+  ],
   "timeoutMinutes": 40,
-  "needsSecrets": []
+  "needsSecrets": [],
+  "checkName": "broken-project-e2e",
+  "install": true,
+  "freePostgres": true
 }

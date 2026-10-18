@@ -7,10 +7,17 @@
     "engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star",
     "tests/e2e/lib/**",
     "tests/e2e/journeys/dev-loop/**",
-    ".github/workflows/go-dev-loop-e2e.yml"
+    ".github/workflows/e2e-journeys.yml"
   ],
-  "cases": ["DL1"],
-  "triggers": ["pr", "manual"],
+  "cases": [
+    "DL1"
+  ],
+  "triggers": [
+    "pr",
+    "manual"
+  ],
   "timeoutMinutes": 25,
-  "needsSecrets": []
+  "needsSecrets": [],
+  "checkName": "Go live reload through tdk up and Traefik",
+  "freePostgres": true
 }
