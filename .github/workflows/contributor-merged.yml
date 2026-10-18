@@ -186,8 +186,17 @@ jobs:
             // One short note on each fixed issue, so the issue thread explains why it closed.
             for (const i of issues) {
               if (await hasMark(i.number, MARK_ISSUE)) continue;
+              const issueLines = [
+                MARK_ISSUE,
+                `Fixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. This closes the issue. The fix ships in the next release and appears in the [CHANGELOG](${base}/blob/main/CHANGELOG.md).`,
+                '',
+                `Thank you @${author}! 💜 If you want to keep up with TDK:`,
+                `- 🔔 [Watch ${owner}/${repo}](${base}) to hear about the next release.`,
+                `- 📣 Share this issue or the fix with someone who hits the same problem.`,
+                `- 🏢 Follow the [${owner}](https://github.com/${owner}) org to see what ships next.`,
+              ];
               await github.rest.issues.createComment({
                 owner, repo, issue_number: i.number,
-                body: `${MARK_ISSUE}\nFixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. It ships in the next release. Thanks @${author}! 💜`,
+                body: issueLines.join('\n'),
               });
             }
