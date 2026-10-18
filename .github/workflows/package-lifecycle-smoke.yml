@@ -1,4 +1,4 @@
-name: Packed CLI lifecycle smoke
+name: 📦 Packed CLI lifecycle smoke
 
 on:
   pull_request:
