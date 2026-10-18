@@ -56,10 +56,14 @@ Put the environment values the services need in the project `.env`; values in th
 
 ## Cutting a release
 
-1. Bump the version in `cli/package.json`.
-2. Run `scripts/release-binaries.sh` to build only. It writes `tdk-linux-{amd64,arm64}`, `tdk-darwin-{amd64,arm64}`, `tdk-windows-amd64.exe`, `tdk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`.
-3. Run `scripts/release-binaries.sh --publish` to build and create a draft release in `tdk-landscape/tdk-cli-releases`. The script downloads every asset, compares bytes with the local build, and only then publishes the release as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
+The normal release is the workflow, from a release branch (see [Publish gate](#publish-gate)):
+
+1. Cut `release/rc-<timestamp>` at the commit to ship, and run the Release candidate workflow on it. Wait for it to pass.
+2. Run `gh workflow run release-binaries.yml --ref release/rc-<timestamp>`. The workflow picks the next unpublished version, builds and checks the binaries, publishes the npm package and the release in `tdk-landscape/tdk-cli-releases`, and credits fixed issues.
+3. The workflow does not commit the version it published. Open a PR on `main` that sets `version` in `package.json` and `cli/package.json` to that version, so `main` matches npm.
 4. The installer verifies each binary against `checksums.txt`.
+
+To build a binary by hand, without publishing, run `scripts/release-binaries.sh`. It writes `tdk-linux-{amd64,arm64}`, `tdk-darwin-{amd64,arm64}`, `tdk-windows-amd64.exe`, `tdk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`. `scripts/release-binaries.sh --publish` creates a draft release, downloads every asset, compares bytes with the local build, and only then publishes it as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
 
 ## License key
 
