@@ -759,11 +759,11 @@ This file contains the resource configuration for TDK.
                 name: migratorName,
                 type: "migrator",
                 stack: stackName,
-                port: 0,
                 featuresEnabled: ["prisma"],
             };
             migratorConfig.dependsOn = ["postgres"];
-            migratorConfig.port = 0;
+            // A migrator serves no route, so it declares no port. The base template's placeholder 0 would fail the service port check in tdk up.
+            delete migratorConfig.port;
             const migratorPackage = createPackageJson(migratorName, "migrator", undefined, true);
             migratorPackage.scripts = {
                 ...migratorPackage.scripts,
