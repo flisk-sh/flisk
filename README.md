@@ -22,7 +22,7 @@ LLMs are brilliant at writing application logic, but notoriously terrible at mai
 
 **TDK CLI Core** bridges the gap. You write the clean web application logic, and TDK instantly autodetects your stack to generate, link, and orchestrate the local environment for you. 
 
-### ⚡ Zero-Config Local Stacks in 3 Seconds
+### ⚡ Zero-Config Local Stacks in About 14 Seconds
 No vendor lock-in. No tedious plumbing. Run a single command to natively orchestrate **72 different integration tiers** including:
 * **Runtimes & Frameworks:** Bun, Node, Python, Go, Rust, React, Vue, Svelte, Elysia, Fastify, NestJS
 * **Databases & Tooling:** Prisma, Drizzle, Atlas, Dbmate
@@ -63,7 +63,14 @@ If TDK helps you run your local stack, a ⭐ on [this repo](https://github.com/t
 
 ## Who uses TDK
 
-No teams are listed yet. Be the first: [tell us you use TDK](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=we-use-tdk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
+Teams that run `tdk up` on their own code (listed with their consent in [ADOPTERS.md](ADOPTERS.md)):
+
+- [Lekast](https://www.linkedin.com/company/lekast/), TDK 1.3.178
+- [mfin.services](https://medium.com/@mfin.services), TDK 1.3.140
+- [MakeOffer](https://www.linkedin.com/company/makeofferio), TDK 1.3.180
+- [Red Moon Digital](https://redmoon.digital/), TDK 1.3.81
+
+Using TDK too? [Tell us](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=we-use-tdk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
 
 If TDK saves you time, a ⭐ on [this repo](https://github.com/tdk-landscape/tdk-cli-core) helps other developers find it.
 

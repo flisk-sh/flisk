@@ -32,7 +32,7 @@ app_name="$(short "app${app//[^a-z0-9]/}")"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))
-tdk() { TDK_EXTENSION_SOURCE="$root" node "$root/cli/bin/tdk.js" "$@"; }
+tdk() { command "${TDK_BIN:-tdk}" "$@"; }
 
 cleanup() {
   pkill -f "tilt up.*$proj" >/dev/null 2>&1 || true
@@ -45,7 +45,7 @@ trap cleanup EXIT
 
 cd "$work"
 git init -q .
-tdk project --yes >/dev/null 2>&1
+tdk project --yes >/dev/null
 printf '\nTDK_HTTP_PORT=%s\nTDK_HTTPS_PORT=%s\nTDK_POSTGRES_PORT=%s\n' \
   "$http_port" "$((32000 + RANDOM % 2000))" "$((34000 + RANDOM % 2000))" >> .env
 
@@ -70,7 +70,7 @@ sed -i.bak -E "s#^(ENV ${envvar}=http://)[^:]+(:[0-9]+)#\1${dep_name}\2#" "servi
 grep -q "^ENV ${envvar}=http://${dep_name}:" "services/app/$app_name/Dockerfile" \
   || { echo "the app Dockerfile has no 'ENV ${envvar}=http://<host>:<port>' line to rewrite" >&2; exit 2; }
 
-nohup node "$root/cli/bin/tdk.js" up app >"$work/up.log" 2>&1 &
+nohup "${TDK_BIN:-tdk}" up app >"$work/up.log" 2>&1 &
 
 url="http://127.0.0.1:$http_port/api/$app_name$app_health"
 status=000
