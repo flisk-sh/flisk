@@ -35,20 +35,28 @@ export function checkAxes({ axes, readSource, legExists }) {
 		const values = axis.values ?? {};
 		if (Object.keys(values).length === 0) problems.push(`${label}: no values`);
 		for (const [value, cover] of Object.entries(values)) {
-			const hasLeg = typeof cover.leg === "string";
+			// "leg" names one suite; "legs" names several (a value covered by more than one suite, #1491).
+			const legs = Array.isArray(cover.legs)
+				? cover.legs
+				: typeof cover.leg === "string"
+					? [cover.leg]
+					: null;
 			const hasAllow = typeof cover.allow === "string";
-			if (hasLeg === hasAllow) {
+			if ((legs !== null) === hasAllow || (cover.leg !== undefined && cover.legs !== undefined)) {
 				problems.push(
-					`${label} value "${value}": needs exactly one of "leg" or "allow"`,
+					`${label} value "${value}": needs exactly one of "leg", "legs" or "allow"`,
 				);
 			} else if (hasAllow && !ISSUE.test(cover.allow)) {
 				problems.push(
 					`${label} value "${value}": "allow" must be an issue such as #1292`,
 				);
-			} else if (hasLeg && !legExists(cover.leg)) {
-				problems.push(
-					`${label} value "${value}": leg "${cover.leg}" has no tests/e2e/${cover.leg}/suite.json`,
-				);
+			} else if (legs !== null) {
+				for (const leg of legs) {
+					if (!legExists(leg))
+						problems.push(
+							`${label} value "${value}": leg "${leg}" has no tests/e2e/${leg}/suite.json`,
+						);
+				}
 			}
 		}
 		for (const d of axis.defaults ?? []) {

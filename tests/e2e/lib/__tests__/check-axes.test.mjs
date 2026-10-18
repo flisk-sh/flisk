@@ -62,6 +62,28 @@ test("a value with neither a leg nor an issue fails, and so does a value with bo
 	assert.match(problems[1], /value "b": needs exactly one/);
 });
 
+test("a value may name several legs, and each must exist", () => {
+	const axes = {
+		x: axis({ a: { legs: ["journeys/dev-loop", "resource-types/backend"] } }),
+	};
+	assert.deepEqual(
+		checkAxes({ axes, readSource: () => null, legExists: leg }),
+		[],
+	);
+	const problems = checkAxes({
+		axes,
+		readSource: () => null,
+		legExists: (l) => l !== "journeys/dev-loop",
+	});
+	assert.match(problems[0], /leg "journeys\/dev-loop" has no tests\/e2e/);
+});
+
+test("a value with both leg and legs fails", () => {
+	const axes = { x: axis({ a: { leg: "l", legs: ["l"] } }) };
+	const problems = checkAxes({ axes, readSource: () => null, legExists: leg });
+	assert.match(problems[0], /value "a": needs exactly one/);
+});
+
 test("an allowlist entry needs an issue link", () => {
 	const problems = checkAxes({
 		axes: { x: axis({ a: { allow: "later" } }) },
