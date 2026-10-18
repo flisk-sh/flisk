@@ -197,7 +197,7 @@
 			"workflow": "ci.yml",
 			"job": "summary",
 			"tier": "gate",
-			"required": false,
+			"required": true,
 			"reason": "Aggregate gate: fails when a selected job failed",
 			"owner": "maintainers"
 		},
@@ -230,7 +230,7 @@
 			"job": "cold-start",
 			"tier": "e2e",
 			"required": false,
-			"reason": "Licensed deferred start; needs TDK_LICENSE_KEY; neutral when missing (#1288)",
+			"reason": "Allowlisted as non-required (#1235, #1314): red on main for an unrelated Traefik issue; needs TDK_LICENSE_KEY; neutral when missing (#1288)",
 			"owner": "maintainers"
 		},
 		{
@@ -280,7 +280,7 @@
 			"workflow": "e2e-scale.yml",
 			"job": "e2e-scale",
 			"tier": "e2e",
-			"required": false,
+			"required": true,
 			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); replaces the PR coverage of erp-scale-e2e.yml at cutover (#1302); suite tests/e2e/scale/erp",
 			"owner": "maintainers"
 		},
@@ -307,8 +307,8 @@
 			"workflow": "example-e2e.yml",
 			"job": "example-e2e",
 			"tier": "e2e",
-			"required": true,
-			"reason": "Default example boots; required; suite tests/e2e/examples/default",
+			"required": false,
+			"reason": "Default example boots; no longer required since the #1302 cutover; suite tests/e2e/examples/default",
 			"owner": "maintainers"
 		},
 		{
@@ -326,7 +326,7 @@
 			"workflow": "e2e-examples.yml",
 			"job": "e2e-examples",
 			"tier": "e2e",
-			"required": false,
+			"required": true,
 			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; becomes required at the #1302 cutover",
 			"owner": "maintainers"
 		},
@@ -592,8 +592,8 @@
 			"workflow": "windows-smoke.yml",
 			"job": "windows-smoke",
 			"tier": "e2e",
-			"required": true,
-			"reason": "Windows CLI smoke; required; runs tests/e2e/platforms/windows (#1300)",
+			"required": false,
+			"reason": "Windows CLI smoke; no longer required since the #1302 cutover; runs tests/e2e/platforms/windows (#1300)",
 			"owner": "maintainers"
 		},
 		{
@@ -611,7 +611,7 @@
 			"workflow": "e2e-platforms.yml",
 			"job": "e2e-platforms",
 			"tier": "e2e",
-			"required": false,
+			"required": true,
 			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; becomes required at the #1302 cutover",
 			"owner": "maintainers"
 		},
@@ -718,7 +718,7 @@
 			"workflow": "e2e-journeys.yml",
 			"job": "gate",
 			"tier": "gate",
-			"required": false,
+			"required": true,
 			"reason": "Passes when every selected journey passed or none was selected; require this one after the cutover (#1298)",
 			"owner": "maintainers"
 		},
