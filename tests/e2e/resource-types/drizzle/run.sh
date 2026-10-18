@@ -22,6 +22,7 @@ API=api
 RESOURCES=("$API")
 
 api_container() { running_container "$API"; }
+api_running() { [ -n "$(api_container)" ]; }
 api_db_healthy() { [ "$(traefik_request "$API" /health/db -o /dev/null -w '%{http_code}')" = "200" ]; }
 
 D1() { # scaffold a backend with the drizzle feature
@@ -37,6 +38,8 @@ D2() { # tdk up, then the backend is listed as a backend in tdk status
   start_stack "$STACK"
   wait_status_url "$API"
   common_wait_status "$API" backend
+  # Status lists the resource before Tilt has started its container; wait for the container itself.
+  poll_until "$API container is running" "$READY_TIMEOUT" api_running
 }
 
 D3() { # DATABASE_URL is set in the running container's environment
