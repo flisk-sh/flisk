@@ -15,10 +15,22 @@ permissions:
 
 jobs:
   docs:
-    uses: ./.github/workflows/docs-only.yml # zizmor: ignore[self-repository] reusable workflow resolves from this commit, not the job filesystem
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
     permissions:
       contents: read
       pull-requests: read
+    outputs:
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+      examples_only: ${{ steps.detect.outputs.examples_only }}
+      wsl2_irrelevant: ${{ steps.detect.outputs.wsl2_irrelevant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: detect
+        uses: ./.github/actions/docs-only # zizmor: ignore[self-repository] composite action resolves from this commit
 
   windows-smoke:
     runs-on: windows-latest

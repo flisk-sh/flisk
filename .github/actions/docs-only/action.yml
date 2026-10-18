@@ -1,0 +1,65 @@
+# Docs-only change detection for the workflows that cannot read ci.yml's changes job (separate workflow runs).
+# Replaces the reusable docs-only.yml (#1283). The caller checks out the repository first.
+name: Docs-only change detection
+description: Sets docs_only, examples_only and wsl2_irrelevant for a pull request
+outputs:
+  docs_only:
+    description: "'true' when every changed file is documentation"
+    value: ${{ steps.docs.outputs.code == 'false' }}
+  examples_only:
+    description: "'true' when every changed file is documentation or under examples/byo/"
+    value: ${{ steps.examples.outputs.code == 'false' }}
+  wsl2_irrelevant:
+    description: "'true' when every changed file is docs, a BYO example, a test, build output, or TUI-only code that cannot affect the WSL2 smoke"
+    value: ${{ steps.wsl2.outputs.code == 'false' }}
+runs:
+  using: composite
+  steps:
+    # `code` is true when any changed file is outside the docs patterns.
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+      id: docs
+      with:
+        predicate-quantifier: every
+        filters: |
+          code:
+            - '**'
+            - '!**/*.md'
+            - '!docs/**'
+            - '!openspec/**'
+            - '!LICENSE'
+
+    # `code` is true when any changed file is outside the docs patterns and examples/byo/.
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+      id: examples
+      with:
+        predicate-quantifier: every
+        filters: |
+          code:
+            - '**'
+            - '!**/*.md'
+            - '!docs/**'
+            - '!openspec/**'
+            - '!LICENSE'
+            - '!examples/byo/**'
+
+    # `code` is true when any changed file could affect the WSL2 smoke. Everything outside docs, BYO examples, tests,
+    # committed build output and the TUI screen counts as relevant, so a new directory fails closed.
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+      id: wsl2
+      with:
+        predicate-quantifier: every
+        filters: |
+          code:
+            - '**'
+            - '!**/*.md'
+            - '!docs/**'
+            - '!openspec/**'
+            - '!LICENSE'
+            - '!examples/byo/**'
+            - '!cli/src/commands/ui.tsx'
+            - '!cli/src/commands/__tests__/ui-*'
+            - '!cli/dist/commands/ui.*'
+            - '!**/__tests__/**'
+            - '!**/*.test.ts'
+            - '!**/*.test.tsx'
+            - '!cli/dist/**'

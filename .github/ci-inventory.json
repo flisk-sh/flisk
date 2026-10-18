@@ -266,14 +266,6 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "docs-only.yml",
-			"job": "detect",
-			"tier": "gate",
-			"required": false,
-			"reason": "Docs-only detection still called by example-e2e, windows-smoke and package-lifecycle-smoke; ci.yml uses its changes job (#1283)",
-			"owner": "maintainers"
-		},
-		{
 			"workflow": "erp-scale-e2e.yml",
 			"job": "erp",
 			"tier": "e2e",
