@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -467,8 +468,10 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      # Check-run names of the e2e group gates. Add the BYO and matrix gate names here when their workflows land.
-      E2E_GATES: e2e-journeys e2e-examples e2e-platforms e2e-scale
+      # Check-run names of the e2e group gates. Every gate reports on every pull request and merge queue entry (a gate whose
+      # paths did not change passes at once), so a missing name here means the gate never ran and fails the summary. The BYO
+      # and matrix legs run inside e2e-resource-types (its bring-your-own and orm suites), so that one gate covers them.
+      E2E_GATES: e2e-journeys e2e-examples e2e-platforms e2e-scale e2e-resource-types
     steps:
       - name: Render summary
         env:

@@ -3,6 +3,7 @@
 # licensed cold-start suite never runs on a pull request, because PR code must not be able to read TDK_LICENSE_KEY.
 #
 # The merge queue runs the same journeys as a pull request (its changed files are the queued commit against the queue base).
+# The gate reports on every pull request, so the path filter lives in the selector, not in this workflow's `on:`.
 # Each leg reports the check name its old workflow used (suite.json `checkName`), so branch protection keeps working until it
 # changes. `gate` is the single job to require once it does: it passes when every selected leg passed or none was selected.
 name: 🧭 E2E journeys
@@ -15,16 +16,10 @@ on:
         description: "CLI version to test (local checkout if empty; latest or an exact version also accepted)"
         type: string
         default: ""
+  # No paths filter here: the gate must report on every pull request, or the ci.yml summary waits for a check that never comes.
+  # scripts/e2e/select-journeys.sh runs a suite only when a changed file matches the suite's own paths, and the gate passes
+  # when none was selected.
   pull_request:
-    paths:
-      - "cli/**"
-      - "engine/**"
-      - "discovery/**"
-      - "Tiltfile"
-      - "package.json"
-      - "scripts/e2e/**"
-      - "tests/e2e/**"
-      - ".github/workflows/e2e-journeys.yml"
   schedule:
     - cron: "0 6 * * *" # nightly: quickstart
     - cron: "0 7 * * 3" # weekly: cold-start
