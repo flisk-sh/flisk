@@ -4,9 +4,9 @@
 # A backend with the drizzle feature on a live stack (#1488). The scaffold enables `tdk resource --feature drizzle`; the API
 # gets DATABASE_URL from the platform Postgres and answers /health/db through Traefik by querying Postgres with Drizzle:
 #
-#   tests/e2e/resource-types/drizzle/run.sh all          every case in order, then cleanup
-#   tests/e2e/resource-types/drizzle/run.sh D1 D2 D3     single cases
-#   tests/e2e/resource-types/drizzle/run.sh list | self-check | diagnostics | cleanup
+#   tests/e2e/orm/drizzle/run.sh all          every case in order, then cleanup
+#   tests/e2e/orm/drizzle/run.sh D1 D2 D3     single cases
+#   tests/e2e/orm/drizzle/run.sh list | self-check | diagnostics | cleanup
 #
 # Needs: tdk on PATH, Docker, Tilt, Node 22+, jq, curl.
 set -euo pipefail
@@ -14,8 +14,8 @@ set -euo pipefail
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/lib.sh
 source "$SUITE_DIR/../../lib/lib.sh"
-# shellcheck source=../common.sh
-source "$SUITE_DIR/../common.sh"
+# shellcheck source=../../resource-types/common.sh
+source "$SUITE_DIR/../../resource-types/common.sh"
 e2e_init drizzle drizzlee2e
 STACK=shop
 API=api

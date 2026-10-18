@@ -1,0 +1,71 @@
+# ERP scale gate (#1302 cutover, tracker #1279). Runs the tests/e2e/scale/erp suite (E1-E3) on every pull request and merge
+# queue entry, against this checkout's own packed CLI. Replaces the PR coverage of erp-scale-e2e.yml, which stays until cutover.
+# The full 100-service boot (about 107 images, up to 100 minutes) is too heavy to run per pull request, so the gate boots the
+# one-stack scope (finance, about 16 services); the full boot stays in erp-scale-e2e.yml (manual and weekly).
+# The suite declares no secrets (needsSecrets: []), so nothing on a pull request needs a license secret and no step is skipped.
+name: 🏭 e2e-scale
+
+on:
+  merge_group:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-scale-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e-scale:
+    name: e2e-scale
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: tdk-landscape/tdk-erp-system
+          path: erp
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install TDK from this checkout
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: local
+
+      - name: Machine resources
+        run: |
+          echo "cpus: $(nproc)"
+          free -h
+          df -h / | tail -1
+          docker version --format 'docker {{.Server.Version}}'
+
+      # One step, so the cases share the project and the timings. SCOPE=one-stack keeps the gate quick; see the header.
+      - name: Run the ERP cases (E1-E3, one stack)
+        env:
+          SCOPE: one-stack
+          STACK: finance
+          WAIT_MINUTES: "30"
+        run: tests/e2e/scale/erp/run.sh E1 E2 E3
+
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: e2e-scale
+
+      - name: Diagnostics on failure
+        if: failure() || cancelled()
+        run: tests/e2e/scale/erp/run.sh diagnostics
+
+      - name: tdk down
+        if: always()
+        run: tests/e2e/scale/erp/run.sh cleanup

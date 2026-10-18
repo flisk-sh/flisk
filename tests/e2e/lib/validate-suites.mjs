@@ -9,7 +9,7 @@ import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const GROUPS = ["resource-types", "journeys", "examples", "platforms", "scale"];
+export const GROUPS = ["resource-types", "orm", "journeys", "examples", "platforms", "scale"];
 export const TRIGGERS = ["pr", "nightly", "release", "manual", "weekly"];
 const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "needsSecrets", "checkName", "install", "freePostgres"];
 const CASE_ID = /^[A-Za-z][A-Za-z0-9_]*$/;

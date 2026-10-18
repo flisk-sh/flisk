@@ -53,7 +53,7 @@
 				"kind": "map"
 			},
 			"groups": [
-				"resource-types"
+				"languages"
 			],
 			"defaults": [
 				"bun"
@@ -214,12 +214,22 @@
 			"values": {
 				"database-management": {
 					"allow": "#1291"
-				},
+				}
+			},
+			"interactions": []
+		},
+		"orm": {
+			"source": null,
+			"groups": [
+				"orm"
+			],
+			"defaults": [],
+			"values": {
 				"prisma": {
-					"leg": "resource-types/prisma"
+					"leg": "orm/prisma"
 				},
 				"drizzle": {
-					"leg": "resource-types/drizzle"
+					"leg": "orm/drizzle"
 				}
 			},
 			"interactions": []
