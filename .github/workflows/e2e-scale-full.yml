@@ -1,3 +1,4 @@
+# Full 100-service boot (carried over from erp-scale-e2e.yml at the #1302 cutover, so the weekly full boot is not lost).
 # Boots the public 100-service fixture bench (tdk-landscape/tdk-erp-system), a
 # set of generated health-check services rather than a real ERP product, on a
 # clean GitHub-hosted runner with the published CLI and waits for every backend
@@ -8,7 +9,7 @@
 # Use scope "one-stack" for a quick check (about 16 services).
 #
 # The cases live in tests/e2e/scale/erp (suite.json, run.sh): E1 project and doctor, E2 tdk up and the /health wait, E3 the report.
-name: 🏭 ERP fixture scale E2E
+name: 🏭 ERP fixture scale E2E (full, weekly)
 
 on:
   workflow_dispatch:
@@ -33,7 +34,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: erp-scale-e2e
+  group: e2e-scale-full
   cancel-in-progress: false
 
 jobs:

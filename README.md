@@ -1,13 +1,16 @@
-# TDK CLI — start services on your machine
+# TDK CLI — generate and run your whole tech stack without the setup pain
+
+Go from an empty folder to a running tech stack with one command. Built for agents.
 
 [![npm version](https://img.shields.io/npm/v/@tdk-landscape/tdk-cli-core.svg?style=flat&color=blue)](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core)
+[![npm weekly downloads](https://img.shields.io/npm/dw/@tdk-landscape/tdk-cli-core?style=flat&color=blue)](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core)
 [![unpacked size](https://img.shields.io/npm/unpacked-size/@tdk-landscape/tdk-cli-core)](https://packagephobia.com/result?p=@tdk-landscape/tdk-cli-core)
 [![install size](https://badgen.net/packagephobia/install/@tdk-landscape/tdk-cli-core)](https://packagephobia.com/result?p=@tdk-landscape/tdk-cli-core)
 [![CI](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml)
 [![Unit test coverage](https://raw.githubusercontent.com/tdk-landscape/tdk-cli-core/main/docs/assets/coverage.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml)
-[![Quickstart E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/quickstart-e2e.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/quickstart-e2e.yml)
-[![ERP fixture scale E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/erp-scale-e2e.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/erp-scale-e2e.yml)
-[![Example apps E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/examples-e2e.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/examples-e2e.yml)
+[![Quickstart E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml)
+[![ERP fixture scale E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-scale-full.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-scale-full.yml)
+[![Example apps E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml)
 [![CodeQL](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/security/code-scanning)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tdk-landscape/tdk-cli-core/badge)](https://scorecard.dev/viewer/?uri=github.com/tdk-landscape/tdk-cli-core)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15310/badge)](https://www.bestpractices.dev/projects/15310)

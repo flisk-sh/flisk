@@ -197,8 +197,8 @@
 			"workflow": "ci.yml",
 			"job": "summary",
 			"tier": "gate",
-			"required": false,
-			"reason": "Aggregate gate: fails when a selected job failed",
+			"required": true,
+			"reason": "Aggregate gate: fails when a selected job failed or a required e2e gate is missing or failed; required (#1302)",
 			"owner": "maintainers"
 		},
 		{
@@ -223,14 +223,6 @@
 			"tier": "security",
 			"required": false,
 			"reason": "Code scanning; javascript-typescript on every PR, actions only when workflows change (#1284); weekly",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "cold-start-e2e.yml",
-			"job": "cold-start",
-			"tier": "e2e",
-			"required": false,
-			"reason": "Licensed deferred start; needs TDK_LICENSE_KEY; neutral when missing (#1288)",
 			"owner": "maintainers"
 		},
 		{
@@ -280,35 +272,8 @@
 			"workflow": "e2e-scale.yml",
 			"job": "e2e-scale",
 			"tier": "e2e",
-			"required": false,
-			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); replaces the PR coverage of erp-scale-e2e.yml at cutover (#1302); suite tests/e2e/scale/erp",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "erp-scale-e2e.yml",
-			"job": "erp",
-			"tier": "e2e",
-			"required": false,
-			"reason": "ERP fixture at 100 services; manual and weekly; suite tests/e2e/scale/erp (#1301)",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "example-e2e.yml",
-			"job": "docs",
-			"tier": "gate",
-			"required": false,
-			"reason": "Detects docs-only PRs for the example",
-			"owner": "maintainers",
-			"exempt": {
-				"check-name": "#1283"
-			}
-		},
-		{
-			"workflow": "example-e2e.yml",
-			"job": "example-e2e",
-			"tier": "e2e",
 			"required": true,
-			"reason": "Default example boots; required; suite tests/e2e/examples/default",
+			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); required since the #1302 cutover; suite tests/e2e/scale/erp",
 			"owner": "maintainers"
 		},
 		{
@@ -326,24 +291,8 @@
 			"workflow": "e2e-examples.yml",
 			"job": "e2e-examples",
 			"tier": "e2e",
-			"required": false,
-			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; becomes required at the #1302 cutover",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "examples-e2e.yml",
-			"job": "example",
-			"tier": "e2e",
-			"required": false,
-			"reason": "Example apps on real routes; nightly; moves in #1299",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "go-dev-loop-e2e.yml",
-			"job": "go-dev-loop",
-			"tier": "e2e",
-			"required": false,
-			"reason": "Go live reload; moves to journeys in #1298",
+			"required": true,
+			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; required since the #1302 cutover",
 			"owner": "maintainers"
 		},
 		{
@@ -444,22 +393,6 @@
 			}
 		},
 		{
-			"workflow": "python-example-e2e.yml",
-			"job": "python-example-e2e",
-			"tier": "e2e",
-			"required": false,
-			"reason": "Python provider example; suite tests/e2e/examples/python",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "quickstart-e2e.yml",
-			"job": "quickstart",
-			"tier": "e2e",
-			"required": false,
-			"reason": "README quickstart; moves to journeys in #1298",
-			"owner": "maintainers"
-		},
-		{
 			"workflow": "release-binaries.yml",
 			"job": "changes",
 			"tier": "release",
@@ -546,22 +479,6 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "smoke-e2e.yml",
-			"job": "smoke-e2e",
-			"tier": "e2e",
-			"required": false,
-			"reason": "Smoke runner; moves to journeys in #1298",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "broken-project-e2e.yml",
-			"job": "broken-project-e2e",
-			"tier": "e2e",
-			"required": false,
-			"reason": "Failure paths through tdk up: unhealthy service (BP3) and interrupted up (BP4); suite tests/e2e/journeys/broken-project (#1386)",
-			"owner": "maintainers"
-		},
-		{
 			"workflow": "sync-tdk-skills.yml",
 			"job": "sync",
 			"tier": "bot",
@@ -575,25 +492,6 @@
 			"tier": "bot",
 			"required": false,
 			"reason": "Updates open PRs after merges; replaced by the merge queue (#1287)",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "windows-smoke.yml",
-			"job": "docs",
-			"tier": "gate",
-			"required": false,
-			"reason": "Detects docs-only PRs for windows-smoke",
-			"owner": "maintainers",
-			"exempt": {
-				"check-name": "#1283"
-			}
-		},
-		{
-			"workflow": "windows-smoke.yml",
-			"job": "windows-smoke",
-			"tier": "e2e",
-			"required": true,
-			"reason": "Windows CLI smoke; required; runs tests/e2e/platforms/windows (#1300)",
 			"owner": "maintainers"
 		},
 		{
@@ -611,8 +509,8 @@
 			"workflow": "e2e-platforms.yml",
 			"job": "e2e-platforms",
 			"tier": "e2e",
-			"required": false,
-			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; becomes required at the #1302 cutover",
+			"required": true,
+			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; required since the #1302 cutover",
 			"owner": "maintainers"
 		},
 		{
@@ -635,14 +533,6 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "wsl2-smoke.yml",
-			"job": "wsl2-smoke",
-			"tier": "e2e",
-			"required": false,
-			"reason": "WSL2 smoke; manual; runs tests/e2e/platforms/wsl2 (#1300)",
-			"owner": "maintainers"
-		},
-		{
 			"workflow": "required-checks-drift.yml",
 			"job": "drift",
 			"tier": "report",
@@ -656,14 +546,6 @@
 			"tier": "report",
 			"required": false,
 			"reason": "Opens or closes one issue per scheduled or main job that fails three runs in a row (#1288)",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "cold-start-e2e.yml",
-			"job": "license",
-			"tier": "gate",
-			"required": false,
-			"reason": "Checks TDK_LICENSE_KEY and skips the licensed cold-start job with a warning when it is missing (#1288)",
 			"owner": "maintainers"
 		},
 		{
@@ -718,8 +600,8 @@
 			"workflow": "e2e-journeys.yml",
 			"job": "gate",
 			"tier": "gate",
-			"required": false,
-			"reason": "Passes when every selected journey passed or none was selected; require this one after the cutover (#1298)",
+			"required": true,
+			"reason": "Passes when every selected journey passed or none was selected; required since the #1302 cutover (#1298)",
 			"owner": "maintainers"
 		},
 		{
@@ -728,6 +610,22 @@
 			"tier": "gate",
 			"required": false,
 			"reason": "Checks TDK_LICENSE_KEY for the cold-start journey; never runs on pull requests (#1298)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-real-apps.yml",
+			"job": "example",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Nightly real example apps on real routes, carried over from examples-e2e.yml at the #1302 cutover; suite tests/e2e/examples/real-apps",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-scale-full.yml",
+			"job": "erp",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Full 100-service fixture boot, weekly and manual, carried over from erp-scale-e2e.yml at the #1302 cutover; suite tests/e2e/scale/erp",
 			"owner": "maintainers"
 		}
 	]

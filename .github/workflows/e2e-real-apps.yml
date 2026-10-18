@@ -1,3 +1,4 @@
+# Nightly real-apps run (carried over from examples-e2e.yml at the #1302 cutover, so the nightly coverage is not lost).
 # Boots the two real example apps (tdk-saas-starter, tdk-restaurant-example)
 # on a clean GitHub-hosted runner with the published CLI, then requires their
 # actual routes to answer, not only /health: JSON from the business endpoints
@@ -6,7 +7,7 @@
 #
 # Manual and daily (04:00 UTC). Separate from the ERP scale test on purpose: different
 # size, different timeout, and "healthy" means something else here.
-name: 🍽️ Example apps E2E
+name: 🍽️ Real example apps (nightly)
 
 on:
   workflow_dispatch:
@@ -22,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: examples-e2e
+  group: e2e-real-apps
   cancel-in-progress: false
 
 jobs:
@@ -86,7 +87,7 @@ jobs:
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       # ubuntu-latest ships a Postgres service on 5432, which collides with the
-      # one TDK generates (see quickstart-e2e.yml for the whole story).
+      # one TDK generates (see e2e-journeys.yml for the whole story).
       - name: Free port 5432 (runner's preinstalled Postgres)
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
@@ -115,7 +116,7 @@ jobs:
         if: failure() || cancelled()
         uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
-          name: examples-${{ matrix.repo }}
+          name: real-apps-${{ matrix.repo }}
 
       - name: Diagnostics on failure
         if: failure() || cancelled()

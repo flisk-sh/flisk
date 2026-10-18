@@ -9,13 +9,12 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export const TRACKED = [
-	"cold-start-e2e.yml",
-	"examples-e2e.yml",
-	"erp-scale-e2e.yml",
+	"e2e-journeys.yml",
+	"e2e-real-apps.yml",
+	"e2e-scale-full.yml",
 	"benchmarks.yml",
 	"scorecard.yml",
 	"codeql.yml",
-	"smoke-e2e.yml",
 ];
 export const WINDOW = 3;
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");

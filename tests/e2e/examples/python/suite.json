@@ -1,7 +1,7 @@
 {
   "group": "examples",
   "suite": "python",
-  "description": "The Python backend example (examples/one-backend-python, the Python provider's runnable example) through a real tdk up (moved from python-example-e2e.yml, #1299): pack and install the candidate CLI, configure the example, boot it and require routed /health through Traefik, then run the pytest smoke test inside the generated image's test stage. The example axis value one-backend-python.",
+  "description": "The Python backend example (examples/one-backend-python, the Python provider's runnable example) through a real tdk up (moved from the retired python-example-e2e workflow, #1299): pack and install the candidate CLI, configure the example, boot it and require routed /health through Traefik, then run the pytest smoke test inside the generated image's test stage. The example axis value one-backend-python.",
   "paths": [
     "cli/src/backend-languages/**",
     "cli/src/commands/resource.ts",
@@ -11,7 +11,7 @@
     "scripts/install-global.mjs",
     "tests/e2e/lib/**",
     "tests/e2e/examples/python/**",
-    ".github/workflows/python-example-e2e.yml"
+    ".github/workflows/e2e-examples.yml"
   ],
   "cases": ["P1", "P2", "P3", "P4"],
   "triggers": ["pr", "manual"],

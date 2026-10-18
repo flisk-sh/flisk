@@ -25,6 +25,7 @@ const verifyProject = (name: string) => ({
 const runVerify = (projectRoot: string) =>
   runTdk(["config", "verify", "--json"], { cwd: projectRoot });
 
+// Each case spawns the built CLI. Under the parallel suite and a loaded machine that exceeds 20-30s, so the budget is 120s.
 describe("tdk config verify --json", () => {
   it("prints one JSON report and exits 1 for drift without Commander diagnostics", () => {
     const projectRoot = createTempProject({ projectJson: verifyProject("verify-json") });
@@ -45,7 +46,7 @@ describe("tdk config verify --json", () => {
     expect(
       report.data.diffs.find((diff: { file: string }) => diff.file.endsWith("Tiltfile"))?.diff,
     ).toContain("+++ b/.tdk/.tdk-out/Tiltfile");
-  }, 20_000);
+  }, 120_000);
 
   it("emits a structured INTERNAL error and exits 2 for invalid project JSON", () => {
     const projectRoot = createTempProject({ projectJson: "{invalid\n" });
@@ -59,7 +60,7 @@ describe("tdk config verify --json", () => {
       errors: [{ code: "INTERNAL" }],
     });
     expect(result.stderr).toContain("JSON");
-  }, 20_000);
+  }, 120_000);
 
   it("names a malformed service.json in the single JSON report and exits 1", () => {
     const projectRoot = createTempProject({
@@ -76,5 +77,5 @@ describe("tdk config verify --json", () => {
     expect(report.data.errors).toContainEqual(
       expect.stringMatching(/^services\/shop\/api\/service\.json: invalid JSON \(/),
     );
-  }, 20_000);
+  }, 120_000);
 });

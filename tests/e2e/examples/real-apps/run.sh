@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# The real example apps on a clean machine (moved from examples-e2e.yml, #1299). Each case is one step of the old workflow, with the
+# The real example apps on a clean machine (moved from the retired examples-e2e workflow, #1299). Each case is one step of the old workflow, with the
 # same logic: A1 installs the published CLI, A2 sets up the project and runs doctor, A3 installs the frontend dependencies for the
 # host typecheck, and A4 runs tdk up and requires the real routes to answer. The workflow checks out the app into $REPO_ROOT/example,
 # runs one matrix leg per app and passes that leg's route checks in API_CHECKS and WEB_CHECKS ("pattern|path" lines). TDK_VERSION
 # picks the npm version (latest by default). The workflow keeps its checkouts, Tilt and Postgres setup, tdk down and diagnostics.
 #
-#   API_CHECKS=$'reservation|/api/v1/reservations' WEB_CHECKS=$'floor-app|/' tests/e2e/examples/real-apps/run.sh A1 A2 A3 A4
+#   API_CHECKS=$'reservation|/api/v1/reservations' WEB_CHECKS=$'floor-app|/' moved from the retired examples-e2e A1 A2 A3 A4
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

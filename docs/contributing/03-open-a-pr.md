@@ -72,8 +72,8 @@ GitHub also adds **Grok**, **Claude**, and **Codex** buttons to the end of your 
 The [PR template](../../.github/pull_request_template.md) asks you to select the areas you changed and opens short instructions for each area. GitHub also adds matching `area:*` labels from changed paths and removes stale area labels when you push an updated diff. Labels organize the PR; workflow path rules decide which automation runs.
 
 - **Every pull request:** [CI](../../.github/workflows/ci.yml) runs lint, typecheck, CLI tests, and a package smoke check. Some extra CI jobs depend on which files changed or repository settings.
-- **Runtime files changed:** [Quickstart E2E](../../.github/workflows/quickstart-e2e.yml) also runs when a PR changes files under `cli/`, `engine/`, or `discovery/`, or changes `Tiltfile`, `package.json`, or that workflow file.
+- **Runtime files changed:** the [E2E journeys gate](../../.github/workflows/e2e-journeys.yml) runs on every PR, and its quickstart suite runs when a changed file matches that suite's paths in `tests/e2e/journeys/quickstart/suite.json` (for example files under `cli/`, `engine/`, or `discovery/`).
 - **Framework example:** adding Vue, React, or another provider changes `cli/` and `engine/`, so both the always-run CI and Quickstart E2E run.
-- **Docs-only change:** the always-run CI still runs. Quickstart E2E does not run unless the PR also changes one of its listed paths.
+- **Docs-only change:** the always-run CI still runs. the quickstart suite does not run unless the PR also changes one of its paths.
 
 Other example-app and 100-service fixture-bench checks run on a schedule or by manual request, not on each PR. You can always see a workflow's trigger paths at the top of its file in `.github/workflows/`.

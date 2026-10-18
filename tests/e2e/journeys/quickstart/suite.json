@@ -1,7 +1,7 @@
 {
   "group": "journeys",
   "suite": "quickstart",
-  "description": "The README quickstart on a clean machine (moved from quickstart-e2e.yml, #1298): scaffold a backend and two frontends, tdk up, every /health answering through Traefik, each frontend serving its built app, and the time to a healthy stack recorded.",
+  "description": "The README quickstart on a clean machine (moved from the retired quickstart-e2e workflow, #1298): scaffold a backend and two frontends, tdk up, every /health answering through Traefik, each frontend serving its built app, and the time to a healthy stack recorded.",
   "paths": [
     "cli/**",
     "engine/**",

@@ -108,20 +108,20 @@ test("unitCounts reports a file that failed to run without any failed assertion"
 test("e2eRuns keeps the newest run of each e2e-tier workflow and ignores other workflows", () => {
   const inventory = {
     jobs: [
-      { workflow: "smoke-e2e.yml", job: "smoke", tier: "e2e" },
+      { workflow: "e2e-journeys.yml", job: "journeys", tier: "e2e" },
       { workflow: "ci.yml", job: "test", tier: "test" },
     ],
   };
   const runs = [
     {
-      path: ".github/workflows/smoke-e2e.yml",
+      path: ".github/workflows/e2e-journeys.yml",
       name: "Smoke",
       status: "in_progress",
       conclusion: null,
       html_url: "u2",
     },
     {
-      path: ".github/workflows/smoke-e2e.yml",
+      path: ".github/workflows/e2e-journeys.yml",
       name: "Smoke",
       status: "completed",
       conclusion: "failure",
@@ -136,7 +136,7 @@ test("e2eRuns keeps the newest run of each e2e-tier workflow and ignores other w
     },
   ];
   assert.deepEqual(e2eRuns(runs, inventory), [
-    { path: ".github/workflows/smoke-e2e.yml", name: "Smoke", result: "in_progress", url: "u2" },
+    { path: ".github/workflows/e2e-journeys.yml", name: "Smoke", result: "in_progress", url: "u2" },
   ]);
 });
 

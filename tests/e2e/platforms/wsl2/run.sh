@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# The routed write smoke under WSL2 (moved from .github/workflows/wsl2-smoke.yml, #1300). The workflow runs each case in the
+# The routed write smoke under WSL2 (moved from the retired wsl2-smoke workflow, #1300). The workflow runs each case in the
 # wsl-bash shell of setup-wsl's Ubuntu 24.04 distro, one step per case, with the same logic as its old steps:
 #   WS1 record uname and os-release, require a real WSL2 kernel, and copy the checkout to /root/tdk-ci
 #   WS2 install Docker Engine and the Linux development tools (Node, Bun, Tilt)

@@ -87,7 +87,7 @@ When the pilot services start cleanly:
 
 1. Commit each `service.json` and `.tdk/project.json`. `.env` and `.tdk/.tdk-out/` are gitignored by `tdk project`; see [environment.md](environment.md) for what belongs in git.
 2. Add the commands a new teammate needs to your repository README, for example `tdk doctor` and `tdk up shop`.
-3. Run `tdk config verify` in CI. It checks that the generated project files match `.tdk/project.json` and exits non-zero on drift. It does not validate `service.json` or Helm values. For a copy-paste workflow see [Running TDK in CI](ci.md); it is adapted from [`example-e2e.yml`](../.github/workflows/example-e2e.yml), which runs `tdk project --yes`, `tdk doctor --no-ping` and `tdk config verify` on the bundled example.
+3. Run `tdk config verify` in CI. It checks that the generated project files match `.tdk/project.json` and exits non-zero on drift. It does not validate `service.json` or Helm values. For a copy-paste workflow see [Running TDK in CI](ci.md); it is adapted from [`e2e-examples.yml`](../.github/workflows/e2e-examples.yml), which runs `tdk project --yes`, `tdk doctor --no-ping` and `tdk config verify` on the bundled example.
 
 ## 5. What to measure
 

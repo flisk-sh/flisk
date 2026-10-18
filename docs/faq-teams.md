@@ -48,7 +48,7 @@ The [adoption guide](adopt-tdk.md) is the one-page path: `tdk doctor`, `tdk up -
 
 ## CI
 
-`tdk config verify` checks that generated project files match `.tdk/project.json` and runs in CI ([`example-e2e.yml`](../.github/workflows/example-e2e.yml)). The [quickstart workflow](../.github/workflows/quickstart-e2e.yml) runs a real `tdk up` on a GitHub-hosted runner, so it works on one. The [scope page](scope.md#local-only-or-also-staging-and-ci) says what CI is and is not for. A copy-paste workflow for your own repository is in [Running TDK in CI](ci.md); its `tdk up` job has not been run on GitHub.
+`tdk config verify` checks that generated project files match `.tdk/project.json` and runs in CI ([`e2e-examples.yml`](../.github/workflows/e2e-examples.yml)). The [quickstart workflow](../.github/workflows/e2e-journeys.yml) runs a real `tdk up` on a GitHub-hosted runner, so it works on one. The [scope page](scope.md#local-only-or-also-staging-and-ci) says what CI is and is not for. A copy-paste workflow for your own repository is in [Running TDK in CI](ci.md); its `tdk up` job has not been run on GitHub.
 
 ## Where are the other answers?
 
