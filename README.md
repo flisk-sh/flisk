@@ -25,6 +25,14 @@ Go from an empty folder to a running tech stack with one command. Built for agen
 
 <a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/daily?language=Starlark" alt="tdk-landscape%2Ftdk-cli-core | Trendshift" width="250" height="55"/></a>
 <a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/weekly?language=Starlark" alt="tdk-landscape%2Ftdk-cli-core | Trendshift" width="250" height="55"/></a>
+<p align="center">
+  <a href="https://www.bestpractices.dev/projects/15310">
+    <img src="https://www.bestpractices.dev/projects/15310/badge" alt="OpenSSF Best Practices: passing" height="40" />
+  </a>
+  <a href="https://www.bestpractices.dev/projects/15310">
+    <img src="https://img.shields.io/badge/OpenSSF%20Silver-95%25-yellow" alt="OpenSSF Silver: 95%" height="40" />
+  </a>
+</p>
 
 <br />
 
