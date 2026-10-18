@@ -25,7 +25,7 @@ Target after cutover: branch protection requires `ci.yml` `summary` and each `e2
 | `go-dev-loop-e2e.yml` | no | `tests/e2e/journeys/dev-loop` | no |
 | `erp-scale-e2e.yml` | no | `tests/e2e/scale/erp` | no (`e2e-scale` not built) |
 | `wsl2-smoke.yml` | no | `tests/e2e/platforms/wsl2` | no |
-| `cold-start-e2e.yml` | no | **none**: runs `scripts/e2e/cold-start.sh` directly; `tests/e2e/` has no cold-start suite (only `axes.json` mentions it) | no |
+| `cold-start-e2e.yml` | no | `tests/e2e/journeys/cold-start` (moved, #1298) | no |
 | `e2e-resource-types.yml` | no (new) | `tests/e2e/resource-types/*` | yes (this is the group workflow that exists) |
 
 Result: every old e2e workflow except `cold-start-e2e.yml` has its cases in a suite on main. None of them is run by a group gate yet, so removing any of them today would drop its PR coverage. `cold-start-e2e.yml` also has no suite.
