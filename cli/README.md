@@ -323,7 +323,22 @@ Checks for:
 
 - `--no-ping`: Skip pinging running services' `/health` endpoints. Useful when checking host tools or static configurations without probing runtime services.
 - `--ping-timeout <ms>`: Per-service health check timeout in milliseconds (must be a positive integer, defaults to `5000`).
-- `--json`: Output a single machine-readable JSON readiness report on stdout (suppressing human banners and progress text) with `data.ready`, `data.checks` (`name`, `didPass`, `message`, optional `fix`, `isSkipped`, `isWarning`), `data.ports`, and `errors`. Uses the same exit codes as text mode.
+- `--json`: Output a single machine-readable JSON readiness report on stdout (suppressing human banners and progress text) with `data.ready`, `data.checks` (`name`, `didPass`, `message`, optional `fix`, `isSkipped`, `isWarning`), `data.ports`, and `errors`. Uses the same exit codes as text mode:
+
+  ```json
+  {
+    "schemaVersion": 1,
+    "data": {
+      "ready": false,
+      "inProject": true,
+      "checks": [
+        { "name": "Container Runtime", "didPass": true, "message": "Docker daemon is running" },
+        { "name": "Tilt CLI", "didPass": false, "message": "Tilt CLI not found", "fix": "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash" }
+      ]
+    },
+    "errors": []
+  }
+  ```
 - `--fix`: When free disk is below 10 GB, also runs `docker builder prune -f` and `docker image prune -f` (untagged images only, never volumes), showing the reclaimable size. Before the checks run, remove unused Docker networks that belong to this project (the exact names `tdk up` creates) and leftover `tdk_doctor_probe_*` networks from interrupted runs. Asks before each removal. Never touches another project's networks, never runs `sudo`.
 - `--scope <project|machine>`: With `--fix`, `machine` also removes unused networks of other TDK projects on this machine (a project is recognised by its Traefik network), naming each owner. Default `project`.
 - `--dry-run`: With `--fix`, list the commands without running them.

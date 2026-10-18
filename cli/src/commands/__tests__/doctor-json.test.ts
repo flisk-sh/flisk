@@ -97,9 +97,16 @@ describe("doctor JSON command", () => {
       await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
       expect(exit).toHaveBeenCalledWith(1);
       expect(log).toHaveBeenCalledTimes(1);
-      const report = parseEnvelope(String(log.mock.calls[0]?.[0]));
+
+      const rawStdout = String(log.mock.calls[0]?.[0]);
+      expect(rawStdout).not.toContain("TDK Doctor");
+      expect(rawStdout).not.toContain("Checking environment...");
+      expect(rawStdout).not.toMatch(/[🔍✓✗○⚠]/u);
+
+      const report = parseEnvelope(rawStdout);
       expect(report.data.ready).toBe(false);
       expect(report.data.checks[0].message).toBe(NATIVE_WINDOWS_DOCTOR_MESSAGE);
+      expect(report.data.checks[0].fix).toContain("WSL2 Ubuntu");
       expect(report.data.host).toMatchObject({ kind: "native-windows", canUp: false });
       expect(report.errors).toEqual([]);
     } finally {
@@ -174,6 +181,7 @@ describe("doctor JSON command", () => {
       const report = parseEnvelope(rawStdout);
       expect(parsed).toEqual(report);
       expect(report.data.ready).toBe(false);
+      // Failing checks are ordered before passing and skipped checks by orderDoctorResults
       expect(report.data.checks).toEqual([FAILING_CHECK, PASSING_CHECK, SKIPPED_CHECK]);
       expect(report.errors).toEqual([]);
 
