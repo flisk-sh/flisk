@@ -193,3 +193,47 @@ test("cli: missing --sha or --repo prints usage and exits 2", () => {
   assert.equal(out.status, 2);
   assert.match(out.stderr, /usage:/);
 });
+
+// Drift guard: the gate's list must equal the `release:` paths filter in release-binaries.yml, or the gate and the
+// release job disagree about what a release input is.
+test("RELEASE_INPUTS matches the release paths filter in release-binaries.yml", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { RELEASE_INPUTS } = await import("./check-release-candidate.mjs");
+  const workflow = readFileSync(new URL("../.github/workflows/release-binaries.yml", import.meta.url), "utf8");
+  // The filter is the run of "- \"path\"" lines directly under the `release:` key of the changes job.
+  const lines = workflow.split("\n");
+  const start = lines.findIndex((l) => l === "            release:");
+  const filter = [];
+  for (const line of lines.slice(start + 1)) {
+    const item = line.match(/^\s+- "([^"]+)"$/);
+    if (!item) break;
+    filter.push(item[1]);
+  }
+  assert.ok(filter.length > 0, "found no paths in the release filter");
+  assert.deepEqual([...RELEASE_INPUTS].sort(), [...filter].sort());
+});
+
+// Tricky: a valid ancestor that is not among the first 20 candidates must still pass. The gate caps candidates, so this
+// is where a long-lived main can make it refuse a release that is covered.
+test("a covered ancestor past the first 20 candidates still passes", () => {
+  const many = Array.from({ length: 25 }, (_, i) => i.toString(16).padStart(2, "0").repeat(20));
+  const covered = "f".repeat(40);
+  const result = checkCandidates({
+    sha: RELEASE,
+    candidates: [...many, covered],
+    compare: (base) => (base === covered
+      ? { status: "ahead", files: [{ filename: "docs/x.md" }] }
+      : { status: "ahead", files: [{ filename: "cli/x.ts" }] }),
+  });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.candidate, covered);
+});
+
+// Tricky: a candidate SHA that no longer exists (branch deleted, history rewritten) makes compare return 404. The gate
+// must fail loudly, not pass.
+test("cli: a candidate the compare API cannot find fails the gate, not passes it", () => {
+  // No compare file for OLD: the stub's cat fails, so the gate must not report success.
+  const out = runCli(RELEASE, [success(OLD)], {});
+  assert.notEqual(out.status, 0);
+  assert.doesNotMatch(out.stdout, /passed/);
+});

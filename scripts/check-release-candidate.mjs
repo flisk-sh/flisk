@@ -26,9 +26,6 @@ export const RELEASE_INPUTS = [
 // GitHub's compare API returns at most this many files. A list at the cap may be cut short, so it cannot prove anything.
 export const COMPARE_FILE_CAP = 300;
 
-// Candidates examined per gate run. Each one costs one compare call.
-const MAX_CANDIDATES = 20;
-
 // Only two forms appear in RELEASE_INPUTS: an exact path, or a directory followed by "/**". Anything else is a bug in
 // the list, so it throws rather than being guessed at.
 const matchesInput = (glob, file) => {
@@ -51,7 +48,7 @@ export const checkCandidates = ({ sha, candidates, compare }) => {
   if (candidates.includes(sha)) {
     return { ok: true, candidate: sha, reason: "exact" };
   }
-  for (const candidate of candidates.slice(0, MAX_CANDIDATES)) {
+  for (const candidate of candidates) {
     const { status, files } = compare(candidate, sha);
     if (status !== "ahead") {
       reasons.push(`${candidate.slice(0, 9)}: not an ancestor of ${sha.slice(0, 9)} (${status})`);
