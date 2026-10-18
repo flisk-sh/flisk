@@ -184,25 +184,18 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      # Nothing publishes unless the release candidate (release-candidate.yml) passed for this exact commit. Its runs are
-      # looked up by head SHA, so a green run on a different commit does not count.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Nothing publishes unless a passing release candidate (release-candidate.yml) covers this commit: the exact commit, or
+      # an ancestor when no release input changed since (#1627). Runs are looked up by head SHA, so a green run on an
+      # unrelated commit does not count. See scripts/check-release-candidate.mjs.
       - name: Require a passing release candidate for this commit
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          passed="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/release-candidate.yml/runs?head_sha=${SHA}&per_page=100" \
-            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
-          if [ "$passed" -eq 0 ]; then
-            echo "::error::No passing Release candidate run for ${SHA}. Run the Release candidate workflow on this commit (a release/* branch or an rc-* tag) and let it pass, then re-run this publish."
-            exit 1
-          fi
-          echo "Release candidate passed for ${SHA} (${passed} run(s))."
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
+        run: node scripts/check-release-candidate.mjs --sha "$SHA" --repo "$GITHUB_REPOSITORY"
 
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:

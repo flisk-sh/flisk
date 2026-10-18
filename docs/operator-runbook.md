@@ -65,6 +65,22 @@ The normal release is the workflow, from a release branch (see the publish gate 
 
 To build a binary by hand, without publishing, run `scripts/release-binaries.sh`. It writes `tdk-linux-{amd64,arm64}`, `tdk-darwin-{amd64,arm64}`, `tdk-windows-amd64.exe`, `tdk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`. `scripts/release-binaries.sh --publish` creates a draft release, downloads every asset, compares bytes with the local build, and only then publishes it as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
 
+### Publish gate
+
+`release-binaries.yml` publishes to npm only when a passing **Release candidate** run (`release-candidate.yml`) covers the commit being released. Dispatch the release on `main`, and the `publish` job checks this first with `scripts/check-release-candidate.mjs`:
+
+- **Exact commit:** a passing candidate ran on the same commit. This is the normal case.
+- **Ancestor commit:** a passing candidate ran on an earlier commit, and no commit since changed a release input. The release inputs are the paths the `changes` job filters on (`cli/**`, `engine/**`, `package.json`, `bun.lock`, `Tiltfile`, `discovery/**`, `specs/**`, `ext/**`, `scripts/release-binaries.sh`, `shared-platform-engineering/docker-templates/**`, and `release-binaries.yml` itself). CI-only and docs-only commits do not invalidate a candidate.
+- **Otherwise** the gate fails and lists, for each candidate, why it does not cover the commit (for example `release inputs changed since (cli/**)`). Run a new candidate on the commit, then re-run publish.
+
+To start a candidate on the commit you want to release, push an `rc-*` tag at it or run the Release candidate workflow on a `release/*` branch. Candidates are not run on every push, so a dispatch on `main` will fail until one covers the commit. Check the commit with the gate before you dispatch:
+
+```bash
+GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha <commit> --repo tdk-landscape/tdk-cli-core
+```
+
+Tracked in [#1627](https://github.com/tdk-landscape/tdk-cli-core/issues/1627).
+
 ## License key
 
 `TDK_LICENSE_KEY` is optional. `tdk up` still runs the free stack when the key is unset, invalid, or expired. The cases differ in what `tdk up` does:
