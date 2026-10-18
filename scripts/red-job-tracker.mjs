@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 
 export const TRACKED = [
 	"e2e-journeys.yml",
+	"e2e-real-apps.yml",
+	"e2e-scale-full.yml",
 	"benchmarks.yml",
 	"scorecard.yml",
 	"codeql.yml",

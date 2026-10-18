@@ -611,6 +611,22 @@
 			"required": false,
 			"reason": "Checks TDK_LICENSE_KEY for the cold-start journey; never runs on pull requests (#1298)",
 			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-real-apps.yml",
+			"job": "example",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Nightly real example apps on real routes, carried over from examples-e2e.yml at the #1302 cutover; suite tests/e2e/examples/real-apps",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-scale-full.yml",
+			"job": "erp",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Full 100-service fixture boot, weekly and manual, carried over from erp-scale-e2e.yml at the #1302 cutover; suite tests/e2e/scale/erp",
+			"owner": "maintainers"
 		}
 	]
 }

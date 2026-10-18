@@ -9,7 +9,8 @@
     "Tiltfile",
     "tests/e2e/lib/**",
     "tests/e2e/scale/erp/**",
-    ".github/workflows/e2e-scale.yml"
+    ".github/workflows/e2e-scale.yml",
+    ".github/workflows/e2e-scale-full.yml"
   ],
   "cases": ["E1", "E2", "E3"],
   "triggers": ["manual", "weekly"],

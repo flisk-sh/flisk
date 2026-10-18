@@ -6,7 +6,7 @@
     "scripts/install-global.mjs",
     "tests/e2e/lib/**",
     "tests/e2e/examples/real-apps/**",
-    ".github/workflows/e2e-examples.yml"
+    ".github/workflows/e2e-real-apps.yml"
   ],
   "cases": ["A1", "A2", "A3", "A4"],
   "triggers": ["nightly", "manual"],

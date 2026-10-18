@@ -7,7 +7,7 @@
 # runs one matrix leg per app and passes that leg's route checks in API_CHECKS and WEB_CHECKS ("pattern|path" lines). TDK_VERSION
 # picks the npm version (latest by default). The workflow keeps its checkouts, Tilt and Postgres setup, tdk down and diagnostics.
 #
-#   API_CHECKS=$'reservation|/api/v1/reservations' WEB_CHECKS=$'floor-app|/' tests/e2e/examples/real-apps/run.sh A1 A2 A3 A4
+#   API_CHECKS=$'reservation|/api/v1/reservations' WEB_CHECKS=$'floor-app|/' moved from the retired examples-e2e A1 A2 A3 A4
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
