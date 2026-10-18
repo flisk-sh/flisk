@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# The README quickstart on a clean machine (moved from quickstart-e2e.yml, #1298). Each case is one step of the old workflow, with the
+# The README quickstart on a clean machine (moved from the retired quickstart-e2e workflow, #1298). Each case is one step of the old workflow, with the
 # same logic: Q1 scaffolds, Q2 runs tdk up and waits for every /health, Q3 records the time to a healthy stack, Q4 checks that each
 # frontend serves its built app. The project stays at $RUNNER_TEMP/shop (or $TMPDIR/shop locally) so the workflow's diagnostics and
 # artifact paths do not change.

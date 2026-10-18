@@ -1,7 +1,7 @@
 # ERP scale gate (#1302 cutover, tracker #1279). Runs the tests/e2e/scale/erp suite (E1-E3) on every pull request and merge
-# queue entry, against this checkout's own packed CLI. Replaces the PR coverage of erp-scale-e2e.yml, which stays until cutover.
+# queue entry, against this checkout's own packed CLI. Replaces the retired erp-scale-e2e workflow for pull requests (#1302).
 # The full 100-service boot (about 107 images, up to 100 minutes) is too heavy to run per pull request, so the gate boots the
-# one-stack scope (finance, about 16 services); the full boot stays in erp-scale-e2e.yml (manual and weekly).
+# one-stack scope (finance, about 16 services); the full boot (the retired erp-scale-e2e workflow, manual and weekly) has no CI job after the cutover.
 # The suite declares no secrets (needsSecrets: []), so nothing on a pull request needs a license secret and no step is skipped.
 name: 🏭 e2e-scale
 

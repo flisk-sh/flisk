@@ -1,11 +1,11 @@
 # Running TDK in CI (GitHub Actions)
 
-A copy-paste GitHub Actions workflow for **your own repository**, with two jobs: a light one that checks the committed TDK files, and a heavier one that boots a stack and waits for `/health`. It is adapted from this repository's own workflows ([`example-e2e.yml`](../.github/workflows/example-e2e.yml), [`quickstart-e2e.yml`](../.github/workflows/quickstart-e2e.yml), [`ci.yml`](../.github/workflows/ci.yml)). Scope reminder: CI is a throwaway environment for TDK, not a deployment path; see [scope](scope.md#local-only-or-also-staging-and-ci).
+A copy-paste GitHub Actions workflow for **your own repository**, with two jobs: a light one that checks the committed TDK files, and a heavier one that boots a stack and waits for `/health`. It is adapted from this repository's own workflows ([`e2e-examples.yml`](../.github/workflows/e2e-examples.yml), [`e2e-journeys.yml`](../.github/workflows/e2e-journeys.yml), [`ci.yml`](../.github/workflows/ci.yml)). Scope reminder: CI is a throwaway environment for TDK, not a deployment path; see [scope](scope.md#local-only-or-also-staging-and-ci).
 
 ## What was and was not checked
 
 - **Checked by running** (TDK 1.3.86 from a checkout of `main`, macOS, no `tdk up`): the commands of the first job, `tdk project --yes`, `tdk doctor --no-ping` and `tdk config verify`, in a scratch git repository and in a fresh clone of it. Results are under [what each command does](#what-each-command-does-in-the-first-job).
-- **Not run anywhere:** the workflow file itself on GitHub, and the second job. Booting a stack needs Docker networks, which could not be created on the machine this page was written on. The second job reuses the logic of `quickstart-e2e.yml`, which runs daily in this repository, but the exact script below was **not executed**. Run it once in a throwaway branch before you rely on it.
+- **Not run anywhere:** the workflow file itself on GitHub, and the second job. Booting a stack needs Docker networks, which could not be created on the machine this page was written on. The second job reuses the logic of `e2e-journeys.yml`, which runs daily in this repository, but the exact script below was **not executed**. Run it once in a throwaway branch before you rely on it.
 - **Linting:** the YAML parses and every `run:` block passes `bash -n`. `actionlint` was not installed, so it was not run; this repository's `ci.yml` runs it on `.github/workflows/`, not on `docs/`.
 - **GitLab CI and other systems:** not tried. The commands are plain shell, but nothing here was tested outside GitHub Actions.
 - **Timings:** none are claimed. The timeouts below are quoted from this repository's workflows or marked as a choice.
@@ -18,7 +18,7 @@ Save it as `.github/workflows/tdk-ci.yml`. The same file lives in the repository
 # Copy to .github/workflows/tdk-ci.yml in your own repository.
 # Two jobs: `verify` checks the committed TDK files without starting any
 # container; `boot` runs a real `tdk up` and waits for every service's /health.
-# Adapted from tdk-cli-core's example-e2e.yml and quickstart-e2e.yml.
+# Adapted from tdk-cli-core's e2e-examples.yml and e2e-journeys.yml.
 name: tdk
 
 on:
@@ -84,7 +84,7 @@ jobs:
     name: tdk up and wait for /health
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # the value quickstart-e2e.yml uses
+    timeout-minutes: 30 # the value e2e-journeys.yml uses
     steps:
       - uses: actions/checkout@v7
         with:
@@ -96,7 +96,7 @@ jobs:
       - name: Install Tilt
         run: curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash
 
-      # From quickstart-e2e.yml: the runner's preinstalled Postgres can hold
+      # From e2e-journeys.yml: the runner's preinstalled Postgres can hold
       # port 5432. Remove it so nothing restarts it later in the job.
       - name: Free port 5432 (runner's preinstalled Postgres)
         run: |
@@ -140,7 +140,7 @@ jobs:
 
           failed_checks=0
           pending=""
-          for n in $(seq 1 120); do # 120 polls of 10s: the 20 minutes quickstart-e2e.yml allows
+          for n in $(seq 1 120); do # 120 polls of 10s: the 20 minutes e2e-journeys.yml allows
             pending=""
             for url in $urls; do
               code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" || true)"
@@ -259,21 +259,21 @@ From [machine-readable CLI](reference/machine-readable-cli.md): for `tdk config 
 
 ## What the second job does
 
-Mirrors [`quickstart-e2e.yml`](../.github/workflows/quickstart-e2e.yml), reduced to one stack:
+Mirrors [`e2e-journeys.yml`](../.github/workflows/e2e-journeys.yml), reduced to one stack:
 
 1. Install Tilt and free port 5432. The quickstart workflow explains why: the runner's preinstalled Postgres can take the port and it was restarted after being stopped, so the package is removed. This was needed there at the time; on the machine used for this page `tdk doctor` chose Postgres port 15432 by default, so whether your repository needs the step was not checked.
 2. Start `tdk up <stack>` in the background, with its output in a log file, and wait for it to print one `/health` URL for every `HEALTH_SERVICES` entry.
-3. Poll the URLs every 10 seconds until all answer with a 2xx status. At most 120 polls, which is the 20 minutes `quickstart-e2e.yml` allows; the job's `timeout-minutes: 30` is also that file's value.
+3. Poll the URLs every 10 seconds until all answer with a 2xx status. At most 120 polls, which is the 20 minutes `e2e-journeys.yml` allows; the job's `timeout-minutes: 30` is also that file's value.
 4. Once a minute, ask Tilt (`tilt get uiresources`) for resources whose update status is `error`. Tilt does not retry a failed image build, so after two checks in a row the job stops with the resource names instead of waiting out the timeout. The quickstart workflow also stops early when Tilt has no resource for a service (a service TDK never discovered); that check is left out here.
-5. Collect `docker ps -a`, `tilt get uiresources`, `tdk doctor` and the last 200 lines of every container into `tdk-logs/`, and upload it with `actions/upload-artifact` (kept 7 days, a choice; `smoke-e2e.yml` uses 14). The step runs on success too, so a green run leaves the same record.
+5. Collect `docker ps -a`, `tilt get uiresources`, `tdk doctor` and the last 200 lines of every container into `tdk-logs/`, and upload it with `actions/upload-artifact` (kept 7 days, a choice; `e2e-journeys.yml` uses 14). The step runs on success too, so a green run leaves the same record.
 6. `tdk down --prune-networks`. `--prune-networks` came with PR [#585](https://github.com/tdk-landscape/tdk-cli-core/pull/585) and is under **Unreleased** in the CHANGELOG; an older tdk rejects the flag (exit 1 for an unknown option, checked), so the step falls back to `tdk down`. Without the flag the project's Docker networks stay. `tdk down` needs no confirmation, so `--force` is unnecessary. On a throwaway runner the networks do not matter; on a self-hosted runner they do.
 
 Not covered by the repository's own workflows, so not claimed here: caching Docker layers or the images TDK builds locally. None of this repository's workflows does it. On a clean runner the first `tdk up` builds the project's golden layers and each service image from scratch; how long that takes for your stack was not measured.
 
 ### Things to know before you trust the second job
 
-- `tdk up` stays in the background after its step ends, as in `quickstart-e2e.yml`. If your runner image kills background processes between steps, the diagnostics and `tdk down` steps will see nothing; fold them into one step.
-- Use a GitHub-hosted Linux runner. Windows has CLI smoke coverage only, per the comment in `quickstart-e2e.yml`.
+- `tdk up` stays in the background after its step ends, as in `e2e-journeys.yml`. If your runner image kills background processes between steps, the diagnostics and `tdk down` steps will see nothing; fold them into one step.
+- Use a GitHub-hosted Linux runner. Windows has CLI smoke coverage only, per the comment in `e2e-journeys.yml`.
 - The [smoke block](smoke.md) is an alternative to the `/health` poll: `tdk up` runs it itself and fails with the URL and status.
 
 ## Action versions and permissions

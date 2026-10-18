@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# The 100-service fixture bench booted on a clean machine (moved from .github/workflows/erp-scale-e2e.yml, #1301). The fixture is
+# The 100-service fixture bench booted on a clean machine (moved from the retired erp-scale-e2e workflow, #1301). The fixture is
 # tdk-landscape/tdk-erp-system, checked out next to this repository as erp/ (ERP_DIR overrides it). E1 generates the project and
 # runs tdk doctor, E2 runs tdk up and waits for every backend to answer /health through Traefik, E3 writes the report. The
 # workflow runs E1-E3 in one step, so the cases share the project and the timings; diagnostics and cleanup are the workflow's

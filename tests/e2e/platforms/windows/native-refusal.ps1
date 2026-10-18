@@ -1,7 +1,7 @@
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
 # The native Windows CLI contract (W3 in run.sh; moved verbatim from the "Verify native Windows CLI contract" step of
-# .github/workflows/windows-smoke.yml, #1300). Run from the cli directory. GitHub's pwsh step sets ErrorActionPreference to Stop;
+# the retired windows-smoke workflow, #1300). Run from the cli directory. GitHub's pwsh step sets ErrorActionPreference to Stop;
 # the file sets it itself so a local run behaves the same.
 $ErrorActionPreference = 'Stop'
 

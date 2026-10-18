@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# The bundled product example on a clean runner (moved from example-e2e.yml, #1299). Each case is one step of the old workflow, with the
+# The bundled product example on a clean runner (moved from the retired example-e2e workflow, #1299). Each case is one step of the old workflow, with the
 # same logic: D1 builds and packs the candidate CLI, D2 installs the tarball globally, D3 clones and configures the example, and D4
 # boots it with tdk up and proves the routed worker write path. The example stays at $REPO_ROOT/tdk-example, where the workflow's
 # diagnostics and stop steps look for it. The workflow keeps its setup steps (Bun, Tilt, free ports) and its diagnostics.

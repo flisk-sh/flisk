@@ -1,1 +1,1 @@
-{ "branch": "main", "contexts": ["example-e2e", "windows-smoke"] }
+{ "branch": "main", "contexts": ["e2e-journeys", "e2e-examples", "e2e-platforms", "e2e-scale", "📋 Summary"] }

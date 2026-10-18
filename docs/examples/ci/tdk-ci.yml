@@ -1,7 +1,7 @@
 # Copy to .github/workflows/tdk-ci.yml in your own repository.
 # Two jobs: `verify` checks the committed TDK files without starting any
 # container; `boot` runs a real `tdk up` and waits for every service's /health.
-# Adapted from tdk-cli-core's example-e2e.yml and quickstart-e2e.yml.
+# Adapted from tdk-cli-core's e2e-examples.yml and e2e-journeys.yml.
 name: tdk
 
 on:
@@ -71,7 +71,7 @@ jobs:
     name: tdk up and wait for /health
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # the value quickstart-e2e.yml uses
+    timeout-minutes: 30 # the value e2e-journeys.yml uses
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -87,7 +87,7 @@ jobs:
           if [ "$(id -u)" -eq 0 ]; then tar -xzf tilt.tgz -C /usr/local/bin tilt; else sudo tar -xzf tilt.tgz -C /usr/local/bin tilt; fi
           rm -f tilt.tgz
 
-      # From quickstart-e2e.yml: the runner's preinstalled Postgres can hold
+      # From e2e-journeys.yml: the runner's preinstalled Postgres can hold
       # port 5432. Remove it so nothing restarts it later in the job.
       - name: Free port 5432 (runner's preinstalled Postgres)
         run: |
@@ -131,7 +131,7 @@ jobs:
 
           failed_checks=0
           pending=""
-          for n in $(seq 1 120); do # 120 polls of 10s: the 20 minutes quickstart-e2e.yml allows
+          for n in $(seq 1 120); do # 120 polls of 10s: the 20 minutes e2e-journeys.yml allows
             pending=""
             for url in $urls; do
               code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url" || true)"

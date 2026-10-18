@@ -8,7 +8,6 @@
 		"engine/**",
 		"tests/e2e/lib/**",
 		"tests/e2e/journeys/cold-start/**",
-		".github/workflows/cold-start-e2e.yml",
 		".github/workflows/e2e-journeys.yml"
 	],
 	"cases": ["CS1"],

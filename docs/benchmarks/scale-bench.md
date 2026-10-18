@@ -18,7 +18,7 @@ The ERP services are small generated Bun HTTP services answering `/health`. Real
 
 The warm-start table above excludes image builds. These workflows install the published CLI on a fresh GitHub-hosted Ubuntu runner and build the images:
 
-- [Quickstart E2E](../../.github/workflows/quickstart-e2e.yml) follows the top-level README commands with one backend through a successful `/health` request through Traefik.
-- [ERP fixture scale E2E](../../.github/workflows/erp-scale-e2e.yml) boots the 100-service health fixture (cases in [`tests/e2e/scale/erp/`](../../tests/e2e/scale/erp/run.sh)). [Example run](https://github.com/tdk-landscape/tdk-cli-core/actions/runs/36395860088): 100 / 100 backends healthy through Traefik after 472 s, 111 containers, 1.8 GiB total container memory.
+- [Quickstart E2E](../../.github/workflows/e2e-journeys.yml) follows the top-level README commands with one backend through a successful `/health` request through Traefik.
+- [ERP fixture scale E2E](../../.github/workflows/e2e-scale.yml) boots the 100-service health fixture (cases in [`tests/e2e/scale/erp/`](../../tests/e2e/scale/erp/run.sh)). [Example run](https://github.com/tdk-landscape/tdk-cli-core/actions/runs/36395860088): 100 / 100 backends healthy through Traefik after 472 s, 111 containers, 1.8 GiB total container memory.
 
 These are Linux CI fixtures. They do not represent a real business application, Windows, Apple Silicon, or an existing repository brought by a user. Run the benchmark yourself with `bun scripts/benchmark/container-scale.ts`.

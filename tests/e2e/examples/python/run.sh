@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# The Python backend example through a real tdk up (moved from python-example-e2e.yml, #1299). Each case is one step of the old
+# The Python backend example through a real tdk up (moved from the retired python-example-e2e workflow, #1299). Each case is one step of the old
 # workflow, with the same logic: P1 packs and installs the candidate CLI, P2 configures the example, P3 boots it and requires routed
 # /health through Traefik, and P4 runs the pytest smoke test inside the generated image's test stage. The example stays in
 # $REPO_ROOT/examples/one-backend-python, where the workflow's failure-log upload looks for ci-logs/. The workflow keeps its setup
