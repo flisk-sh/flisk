@@ -128,24 +128,34 @@ const AGENT_SESSIONS_JSON: {
 };
 
 /**
+ * `doctor --json` runs its probes with or without a project and prints one report. Its exit status depends on the
+ * host (a machine without Docker exits 1), so this row checks the envelope only, not the status.
+ */
+const DOCTOR_JSON: { site: string; command: string[] } = {
+  site: "doctor --json",
+  command: ["doctor", "--no-ping"],
+};
+
+/**
  * Commands and subcommands that register one of the three flags but have no matrix row yet. Each entry says why.
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
-  "doctor --json":
-    "checks the host toolchain and probes ports; its exit status depends on the host, and its own test file covers the report",
   "doctor --dry-run":
-    "only applies with --fix, which plans repairs by querying Docker networks; the plan depends on the host's Docker",
+    "with --fix, prints the Dry run line only when a repair is planned; repairs come from the host's Docker networks and leftover probes, so a temp project may plan none",
   "doctor --yes":
-    "only applies with --fix, which removes Docker networks; a test run would act on the host's Docker",
-  "down --json": "stops Tilt and containers; needs Tilt and a running stack",
-  "logs --json": "reads container logs; needs a running stack",
-  "restart --json": "restarts containers; needs a running stack",
+    "with --fix, removes unused Docker networks on the host's Docker daemon; a test run would act on that daemon",
+  "down --json":
+    "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "logs --json":
+    "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
+  "restart --json":
+    "triggers a resource on the host's Tilt UI port, and isTiltAvailable checks the host's tilt binary; needs Tilt and a running stack",
   "runtime --json":
-    "prints its own asset-check object, not the one-envelope shape this contract asserts; needs its own contract",
-  "up --json": "starts containers; needs Docker",
+    "checks the packaged install's bundled assets, so a source checkout reports ok: false; prints {ok, assetRoot, missing, templateErrors}, not the envelope",
+  "up --json": "starts containers through the host's Docker, Compose and Tilt; needs Docker",
   "upgrade --dry-run":
-    "compares the install with origin/HEAD over git; its dry-run path prints no Dry run line",
+    "compares the installed CLI with origin over git on the host, and prints 'Dry run:' rather than 'Dry run -'",
   "upgrade --yes":
     "updates the installed CLI checkout, so a test run would rebuild the repo under test",
 };
@@ -205,6 +215,7 @@ function coveredSites(): Set<string> {
     ...DRY_RUN_MATRIX.map((row) => row.site),
     ...YES_MATRIX.map((row) => row.site),
     AGENT_SESSIONS_JSON.site,
+    DOCTOR_JSON.site,
   ]);
 }
 
@@ -249,6 +260,19 @@ describe("flag contract: --json", () => {
       expect(envelope.errors).toHaveLength(1);
     },
   );
+});
+
+describe("flag contract: --json for doctor", () => {
+  it(`${DOCTOR_JSON.site} prints one envelope with no project`, () => {
+    const result = runTdk([...DOCTOR_JSON.command, "--json"], {
+      cwd: createTempDir(),
+      timeout: 60_000,
+    });
+    expect(result.stderr).not.toMatch(/^\{/m);
+    const envelope = parseOneEnvelope(result.stdout);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(Array.isArray(envelope.errors)).toBe(true);
+  }, 60_000);
 });
 
 describe("flag contract: --json error envelope for agent sessions", () => {

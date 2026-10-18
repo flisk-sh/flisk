@@ -26,6 +26,8 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 
 - 2026-10-08 (#873): A build tool used by a `prepack`/`build` script must be a declared devDependency of the package that runs it (`cli/`). A stray copy in `node_modules` from an earlier `bun add` hides the omission locally; CI's clean `bun install --frozen-lockfile` fails with `ERR_MODULE_NOT_FOUND`. Verify with `rm -rf node_modules cli/node_modules` and a frozen install before pushing.
 
+- 2026-10-18 (#1396): `tdk runtime --check-assets --json` reports `ok: false` in a source checkout (its assets exist only in the packaged install), and `tdk doctor --json` exits by host state, so its flag-contract row checks the envelope only, not the exit status.
+
 - 2026-10-17 (#1396): `tdk upgrade --yes` updates the git-installed CLI checkout and rebuilds it; never run it from a test or a probe. Its flag-contract row stays exempt for that reason.
 
 - 2026-10-17 (#1384): `tdk project` and `tdk up` stop at the machine checks (Docker, Compose, Tilt, Bun) in a bare `node:22` container and exit 1 before scaffolding, so a lifecycle smoke can only exercise `tdk --help` there. `scripts/package-lifecycle-smoke.sh` is the reference for running a packed tarball in a clean container.
