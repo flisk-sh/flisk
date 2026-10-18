@@ -75,6 +75,27 @@ If TDK helps you run your local stack, a ⭐ on [this repo](https://github.com/t
 - **Hot reload while you code.** Tilt live-updates the containers when files change.
 - **Generated files you can check.** `tdk` records the generated files and reports drift, so local config stays in sync. See [generated files and drift checks](docs/generated-files.md).
 
+## How TDK works
+
+1. **Describe each service** in a `service.json` next to its code.
+2. **Run `tdk up <stack>`.** TDK generates the local runtime files from those manifests: Dockerfiles, Traefik routing, and the Tiltfile.
+3. **Docker runs the containers and Tilt watches them.** Edit code and the containers live-update. Use `tdk ui` to inspect running services, and `tdk doctor` or `tdk config verify` to check the environment and generated files.
+
+Production deployment stays with your own tools (Helm, Argo CD, or Kustomize).
+
+## What you can do with TDK
+
+| You want to | TDK does | Command |
+| --- | --- | --- |
+| Start a new project | Creates the project and first services | `tdk project --yes` |
+| Add a service | Writes its `service.json` and generated files | `tdk resource <name> --type backend --stack <stack> --yes` |
+| Start a whole stack | Starts Postgres, your services, and the routing, and prints the URLs | `tdk up <stack>` |
+| Preview before starting | Shows which services and URLs would start, without containers | `tdk up <stack> --dry-run` |
+| Inspect running services | Opens an interactive terminal dashboard | `tdk ui` |
+| Check your machine | Reports Docker, Tilt, and port readiness | `tdk doctor` |
+| Catch config drift | Compares generated files with what TDK last wrote | `tdk config verify` |
+| Keep TDK current | Upgrades the CLI in place | `tdk upgrade` |
+
 ## Who uses TDK
 
 Teams that run `tdk up` on their own code (listed with their consent in [ADOPTERS.md](ADOPTERS.md)):
