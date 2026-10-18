@@ -24,7 +24,7 @@ The workflow has two jobs that matter:
 A group job is skipped when the matrix is empty (`{"include":[]}`), so a trigger that selects no suite costs nothing.
 
 ```bash
-node tests/e2e/lib/suite-matrix.mjs resource-types pr "bun,python"
+node tests/e2e/lib/suite-matrix.mjs resource-types pr "bun,python,rust,go"
 # {"include":[{"suite":"backend","language":"bun","framework":"","label":"backend-bun",...}, ...]}
 ```
 

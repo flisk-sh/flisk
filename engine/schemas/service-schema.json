@@ -223,11 +223,12 @@
       "type": "object"
     },
     "featuresEnabled": {
-      "description": "Platform features:\n• nats - NATS JetStream eventing\n• prisma - DB ORM & migrations\n• redis - Caching layer\n• infisical - Secrets management\n• vitest - Test framework\n• traefik - Reverse proxy routing\n• websocket - WS support\n• graphql - GraphQL server\n• grpc - gRPC protocol\n• vite, tsconfig, dockerfile, nginx, ... - generator features that `tdk resource` writes into new files",
+      "description": "Platform features:\n• nats - NATS JetStream eventing\n• prisma - DB ORM & migrations\n• drizzle - DB ORM (Postgres via DATABASE_URL, no migrator)\n• redis - Caching layer\n• infisical - Secrets management\n• vitest - Test framework\n• traefik - Reverse proxy routing\n• websocket - WS support\n• graphql - GraphQL server\n• grpc - gRPC protocol\n• vite, tsconfig, dockerfile, nginx, ... - generator features that `tdk resource` writes into new files",
       "items": {
         "enum": [
           "nats",
           "prisma",
+          "drizzle",
           "redis",
           "infisical",
           "vitest",

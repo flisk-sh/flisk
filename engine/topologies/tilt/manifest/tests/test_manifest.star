@@ -116,6 +116,7 @@ def _test_constants():
     # Test VALID_FEATURES
     assert_in('nats', ManifestConstants.VALID_FEATURES, "nats should be valid feature")
     assert_in('prisma', ManifestConstants.VALID_FEATURES, "prisma should be valid feature")
+    assert_in('drizzle', ManifestConstants.VALID_FEATURES, "drizzle should be valid feature")
     assert_in('api-client', ManifestConstants.VALID_FEATURES, "api-client should be valid feature")
     assert_in('env-config', ManifestConstants.VALID_FEATURES, "env-config should be valid feature")
     assert_in('api-index', ManifestConstants.VALID_FEATURES, "api-index should be valid feature")

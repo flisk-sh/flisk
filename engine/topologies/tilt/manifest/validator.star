@@ -10,7 +10,7 @@
 
 # === INLINED CONSTANTS for pure extension loading ===
 VALID_STACKS = ()  # Stacks are project-specific, discovered dynamically
-VALID_FEATURES = "api-client", "env-config", "api-index", "prisma", "ddd", "nats", "redis", "infisical", "vitest", "traefik", "websocket", "graphql", "grpc", "vite-node", "maintenance", "sablier"
+VALID_FEATURES = "api-client", "env-config", "api-index", "prisma", "drizzle", "ddd", "nats", "redis", "infisical", "vitest", "traefik", "websocket", "graphql", "grpc", "vite-node", "maintenance", "sablier"
 PORT_RANGES = {"frontend": {"min": 3000, "max": 5999}, "backend": {"min": 4000, "max": 5999}, "bring-your-own": {"min": 4000, "max": 5999}, "worker": {"min": 6000, "max": 6999}, "migrator": {"min": 7000, "max": 7999}, "sdk": {"min": 3000, "max": 9999}, "library": {"min": 3000, "max": 9999}}
 DEFAULTS = {}
 
@@ -378,12 +378,12 @@ def _validate_cross_field(manifest, context):
     
     # Prisma requires databaseName
     features = manifest.get('featuresEnabled', [])
-    if 'prisma' in features:
+    if 'prisma' in features or 'drizzle' in features:
         stats['fields_checked'] += 1
 
         if not manifest.get('databaseName'):
             warnings.append(ManifestErrors.new(
-                message="Resource with 'prisma' feature should specify databaseName",
+                message="Resource with 'prisma' or 'drizzle' feature should specify databaseName",
                 category=ManifestErrors.CATEGORY['VALIDATION'],
                 severity=ManifestErrors.SEVERITY['WARNING'],
                 context={'field': 'databaseName', 'featuresEnabled': features},
@@ -588,6 +588,11 @@ def _check_constraints(field_name, value, constraints):
     
     return None
 
+def _chars(text):
+    """Split a string into one-character strings; Tilt's Starlark cannot iterate a string directly."""
+    return [text[i] for i in range(len(text))]
+
+
 def _matches_pattern(value, pattern):
     """Simple pattern matching (Starlark doesn't have regex)."""
     # For now, do basic checks
@@ -597,7 +602,7 @@ def _matches_pattern(value, pattern):
             return False
         if not (value[0] >= 'a' and value[0] <= 'z'):
             return False
-        for c in value:
+        for c in _chars(value):
             if not ((c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or c == '-'):
                 return False
         return True
@@ -608,7 +613,7 @@ def _matches_pattern(value, pattern):
             return False
         if not (value[0] >= 'a' and value[0] <= 'z'):
             return False
-        for c in value:
+        for c in _chars(value):
             if not ((c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or c == '_'):
                 return False
         return True
@@ -617,7 +622,7 @@ def _matches_pattern(value, pattern):
         # Path prefix: starts with /, then letters/digits/hyphens/slashes
         if not value or value[0] != '/':
             return False
-        for c in value[1:]:
+        for c in _chars(value[1:]):
             if not ((c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or c == '-' or c == '/'):
                 return False
         return True

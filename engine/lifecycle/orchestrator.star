@@ -195,7 +195,7 @@ def should_wait_for_dependencies(resource_config):
     for res in resources:
         manifest = res.get('_manifest', {})
         features = manifest.get('featuresEnabled', [])
-        if manifest.get('databaseName') or features.count('prisma') > 0:
+        if manifest.get('databaseName') or 'prisma' in features or 'drizzle' in features:
             dependencies.append('database-management')
             break
 

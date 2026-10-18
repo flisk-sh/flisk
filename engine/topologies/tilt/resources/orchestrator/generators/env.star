@@ -115,6 +115,11 @@ def _uses_prisma(manifest):
     return 'prisma' in manifest.get('featuresEnabled', [])
 
 
+def _uses_drizzle(manifest):
+    """Drizzle reads DATABASE_URL at runtime. It has no migrator, so only the connection string is written."""
+    return 'drizzle' in manifest.get('featuresEnabled', [])
+
+
 def _generate_params_env(manifest, backend_manifest=None, write_fn=None):
     """Generate params (non-secret) environment variables from manifest.
 
@@ -180,6 +185,11 @@ API_URL={api_url}
         if _uses_prisma(manifest):
             content += """
 # Prisma
+DATABASE_URL=""" + PlatformDockerConstants.get_database_url_for_env(db_name) + """
+"""
+        elif _uses_drizzle(manifest):
+            content += """
+# Drizzle
 DATABASE_URL=""" + PlatformDockerConstants.get_database_url_for_env(db_name) + """
 """
         

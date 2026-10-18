@@ -73,6 +73,7 @@ VALID_FEATURES = [
     "env-config",
     "api-index",
     "prisma",
+    "drizzle",
     "ddd",
     # Infrastructure features
     "nats",
