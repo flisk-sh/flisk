@@ -267,6 +267,17 @@
 		},
 		{
 			"workflow": "e2e-scale.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for the scale gate (#1302)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1283"
+			}
+		},
+		{
+			"workflow": "e2e-scale.yml",
 			"job": "e2e-scale",
 			"tier": "e2e",
 			"required": false,

@@ -15,20 +15,10 @@ on:
         description: "Runner label for every job (default ubuntu-latest); try ubuntu-26.04 before ubuntu-latest moves to it (#1277)"
         type: string
         default: "ubuntu-latest"
+  # No paths filter here: the gate must report on every pull request into main, or the ci.yml summary waits for a check that
+  # never comes. The plan job skips every leg when no changed file is in the list of paths it checks (the PR_PATHS below).
   pull_request:
     branches: [main]
-    paths:
-      - "cli/src/commands/agent.ts"
-      - "cli/src/commands/restart.ts"
-      - "cli/src/mcp/**"
-      - "cli/src/agent-runtimes/**"
-      - "engine/**"
-      - ".claude/skills/**"
-      - "scripts/sync-tdk-skills.sh"
-      - "tests/e2e/lib/**"
-      - "tests/e2e/resource-types/**"
-      - "tests/e2e/orm/**"
-      - ".github/workflows/e2e-resource-types.yml"
   schedule:
     - cron: "30 6 * * *"
   # Prove each release right after it is published. Read-only token, no secrets, main branch only; it checks out main itself
@@ -92,6 +82,13 @@ jobs:
           if [ "$trigger" = "pr" ]; then
             git fetch --no-tags --depth=1 origin "$BASE_SHA"
             files="$(git diff --name-only "$BASE_SHA" HEAD)"
+            # A pull request that touches none of these paths runs no legs, and the gate passes. Keep this list in step with
+            # the paths the workflow used to filter on (the gate job must report on every pull request, so it is not in `on:`).
+            PR_PATHS='^(cli/src/commands/(agent|restart)\.ts|cli/src/mcp/|cli/src/agent-runtimes/|engine/|\.claude/skills/|scripts/sync-tdk-skills\.sh|tests/e2e/(lib|resource-types|orm)/|\.github/workflows/e2e-resource-types\.yml$)'
+            if [ -z "$(printf '%s\n' "$files" | grep -E "$PR_PATHS" || true)" ]; then
+              matrix='{"include":[]}'
+              files=""
+            fi
             outside="$(printf '%s\n' "$files" | grep -v -E '^tests/e2e/(resource-types|orm)/[^/]+/' || true)"
             dirs="$(printf '%s\n' "$files" | sed -n -E 's#^tests/e2e/((resource-types|orm)/[^/]+)/.*#\1#p' | sort -u | paste -sd, -)"
             if [ -z "$outside" ] && [ -n "$dirs" ]; then
