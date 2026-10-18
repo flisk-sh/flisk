@@ -746,6 +746,7 @@ This file contains the resource configuration for TDK.
         console.log(chalk.blue("💻 Generating source files..."));
         writeFilesWithProgress(fullPath, tasks);
         if (prismaEnabled && resourceType === "backend") {
+            mkdirSync(resolve(fullPath, "prisma"), { recursive: true });
             const migratorName = `${resourceName}-migrator`;
             const migratorPath = resolve(projectRoot, `services/${stackName}/${migratorName}`);
             mkdirSync(resolve(migratorPath, "prisma"), { recursive: true });
