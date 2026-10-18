@@ -15,8 +15,9 @@ on:
         description: "Runner label for every job (default ubuntu-latest); try ubuntu-26.04 before ubuntu-latest moves to it (#1277)"
         type: string
         default: "ubuntu-latest"
-  # No paths filter here: the gate must report on every pull request into main, or the ci.yml summary waits for a check that
-  # never comes. The plan job skips every leg when no changed file is in the list of paths it checks (the PR_PATHS below).
+  # No paths filter here: the gate must report on every pull request and merge queue entry, or the ci.yml summary waits for a
+  # check that never comes. The plan job skips every leg when no changed file is in the list of paths it checks (the PR_PATHS below).
+  merge_group:
   pull_request:
     branches: [main]
   schedule:
@@ -55,10 +56,10 @@ jobs:
         id: matrix
         env:
           EVENT: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           case "$EVENT" in
-            pull_request) trigger="pr" ;;
+            pull_request | merge_group) trigger="pr" ;;
             schedule) trigger="nightly" ;;
             workflow_run) trigger="release" ;;
             *) trigger="manual" ;;
@@ -124,7 +125,7 @@ jobs:
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             version="$(node -p "require('./package.json').version")"
-          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$GITHUB_EVENT_NAME" = "merge_group" ] || [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             version="local"
           elif [ -n "$VERSION_INPUT" ]; then
             version="$VERSION_INPUT"
