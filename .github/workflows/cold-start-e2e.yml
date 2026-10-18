@@ -100,9 +100,7 @@ jobs:
           version: ${{ steps.version.outputs.version }}
 
       - name: Run the deferred cold-start scenario
-        run: |
-          mkdir -p "$RUNNER_TEMP/tdk-cold-start"
-          scripts/e2e/cold-start.sh "$RUNNER_TEMP/tdk-cold-start"
+        run: tests/e2e/journeys/cold-start/run.sh CS1
 
       # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
       - name: Collect failure evidence

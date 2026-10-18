@@ -19,7 +19,7 @@ Run in a project with Bun, Docker, and Tilt. On Windows, run the CLI in WSL2.
 | `tdk resources --ports` | Check resource assignments and port mappings. |
 | `tdk up api` | Start services in the `api` stack. |
 | `tdk status` | Check the current stack and service state. |
-| `tdk down --force` | Stop all services without a confirmation prompt. |
+| `tdk down --force` | Stop all services. `--force` is accepted for script compatibility and has no effect. |
 | `tdk doctor --no-ping` | Check readiness without pinging service health endpoints. |
 | `tdk projects --check` | Validate project configuration before CI. |
 
@@ -79,7 +79,7 @@ tdk up --verbose               # 📝 Verbose output (shows runtime assets, Tilt
 tdk up --force                 # ⚡ Kill existing Tilt process before starting (-f)
 
 tdk down                       # ⏹️ Stop all services and Tilt
-tdk down --force               # ⚡ Skip confirmation (-f)
+tdk down --force               # ⚙️ Accepted for script compatibility; has no effect (-f)
 tdk down --dry-run             # 🔍 Show the command without stopping resources
 tdk down --verbose             # 📝 Verbose output (-v)
 tdk down --prune-networks      # 🧹 Also remove unattached Docker networks for this project

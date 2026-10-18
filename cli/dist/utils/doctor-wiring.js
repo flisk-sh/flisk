@@ -129,9 +129,10 @@ export function checkPrismaConsistency(projectRoot = findProjectRoot() ?? proces
                 findings.push(`${resource.name}: migrator must depend on postgres or database-management`);
         }
         else {
+            // The API reaches Postgres only through its migrator, and that migrator must start Postgres (checked above).
             const migratorDependency = resource.config?.dependsOn?.some((name) => migrators.some((candidate) => candidate.name === name));
             if (!migratorDependency)
-                findings.push(`${resource.name}: API must depend on its Prisma migrator`);
+                findings.push(`${resource.name}: API must depend on its Prisma migrator, which depends on postgres or database-management`);
             const scripts = packageJson(resource.path).scripts;
             if (Object.entries(scripts ?? {}).some(([name, command]) => START_SCRIPTS.has(name) &&
                 typeof command === "string" &&

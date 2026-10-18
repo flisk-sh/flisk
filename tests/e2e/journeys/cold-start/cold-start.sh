@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
+# The deferred cold-start journey (moved from scripts/e2e/cold-start.sh, #1298). run.sh CS1 calls it with a fresh project directory.
 set -euo pipefail
 
 project_dir="${1:?usage: cold-start.sh PROJECT_DIR}"

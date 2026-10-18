@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# The licensed cold-start journey (moved from cold-start-e2e.yml, #1298). CS1 is the whole check: a deferred backend is woken by a
-# request during tdk up, with an unrelated slow backend keeping bring-up busy. scripts/e2e/cold-start.sh builds the project, so this
-# suite only points it at the scratch directory. Needs TDK_LICENSE_KEY (the workflow sets it for this suite only).
+# The deferred cold start through a real tdk up (moved from scripts/e2e/cold-start.sh, #1298). CS1 is the whole check: cold-start.sh
+# scaffolds the project, runs tdk up, and wakes the deferred backend. The project stays at $RUNNER_TEMP/tdk-cold-start (or $TMPDIR
+# locally) so the workflow's diagnostics and artifact paths do not change.
 #
-#   tests/e2e/journeys/cold-start/run.sh CS1
+#   TDK_LICENSE_KEY=<key with sablier> tests/e2e/journeys/cold-start/run.sh CS1
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,10 +13,11 @@ SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SUITE_DIR/../../lib/lib.sh"
 e2e_init cold-start cold-start
 
-CS1() { # a deferred backend is woken during bring-up
-  log "CS1 wake a deferred backend during tdk up"
-  mkdir -p "$DIR"
-  bash "$REPO_ROOT/scripts/e2e/cold-start.sh" "$DIR"
+CS1() { # a deferred backend is prebuilt, absent until its first request, and woken during an unrelated slow start
+  log "CS1 deferred cold start through tdk up and the wake gateway"
+  local project="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/tdk-cold-start"
+  mkdir -p "$project"
+  bash "$SUITE_DIR/cold-start.sh" "$project"
 }
 
 e2e_main "$@"

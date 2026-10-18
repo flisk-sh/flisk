@@ -556,6 +556,64 @@ describe("checkPrismaConsistency", () => {
     expect(checkPrismaConsistency(root).didPass).toBe(false);
   });
 
+  it("rejects a prisma API with no Postgres dependency (dependsOn empty)", () => {
+    validProject({ dependsOn: [] });
+    const result = checkPrismaConsistency(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("API must depend on its Prisma migrator");
+    expect(result.message).toContain("postgres or database-management");
+  });
+
+  it("rejects a prisma API whose dependsOn names postgres but no migrator", () => {
+    validProject({ dependsOn: ["postgres"] });
+    const result = checkPrismaConsistency(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("API must depend on its Prisma migrator");
+  });
+
+  it("rejects a migrator that does not start Postgres", () => {
+    validProject();
+    writeFileSync(
+      join(root, "services/app/orders-api-migrator/service.json"),
+      JSON.stringify({
+        appName: "orders-api-migrator",
+        appType: "migrator",
+        port: 7000,
+        featuresEnabled: ["prisma"],
+        dependsOn: [],
+      }),
+    );
+    const result = checkPrismaConsistency(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("migrator must depend on postgres or database-management");
+  });
+
+  it("accepts database-management as the Postgres dependency of the migrator", () => {
+    validProject();
+    writeFileSync(
+      join(root, "services/app/orders-api-migrator/service.json"),
+      JSON.stringify({
+        appName: "orders-api-migrator",
+        appType: "migrator",
+        port: 7000,
+        featuresEnabled: ["prisma"],
+        dependsOn: ["database-management"],
+      }),
+    );
+    expect(checkPrismaConsistency(root).didPass).toBe(true);
+  });
+
+  it("rejects Prisma 6.19.3 next to a Prisma 7 client", () => {
+    validProject();
+    writeFileSync(
+      join(root, "services/app/orders-api/package.json"),
+      JSON.stringify({ dependencies: { prisma: "6.19.3", "@prisma/client": "^7.5.0" } }),
+    );
+    const result = checkPrismaConsistency(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("prisma packages must both be major 7");
+  });
+
   it("fails when schema.prisma is missing", () => {
     validProject();
     rmSync(join(root, "services/app/orders-api/prisma/schema.prisma"));

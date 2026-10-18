@@ -194,4 +194,4 @@ jobs:
       # the flag, so fall back to a plain `tdk down`.
       - name: tdk down
         if: always()
-        run: tdk down --force --prune-networks || tdk down --force || true
+        run: tdk down --prune-networks || tdk down || true

@@ -203,7 +203,7 @@ jobs:
       # the flag, so fall back to a plain `tdk down`.
       - name: tdk down
         if: always()
-        run: tdk down --force --prune-networks || tdk down --force || true
+        run: tdk down --prune-networks || tdk down || true
 ```
 
 Change three values at the top: `TDK_VERSION`, `TDK_STACK` and `HEALTH_SERVICES`. `tdk up <stack> --dry-run` shows the URLs a stack will print (`http://api.localhost:8080/api/orders/health` for the scaffolded `orders-api` in the `shop` stack, so the route is `orders`) without starting anything.
@@ -266,7 +266,7 @@ Mirrors [`quickstart-e2e.yml`](../.github/workflows/quickstart-e2e.yml), reduced
 3. Poll the URLs every 10 seconds until all answer with a 2xx status. At most 120 polls, which is the 20 minutes `quickstart-e2e.yml` allows; the job's `timeout-minutes: 30` is also that file's value.
 4. Once a minute, ask Tilt (`tilt get uiresources`) for resources whose update status is `error`. Tilt does not retry a failed image build, so after two checks in a row the job stops with the resource names instead of waiting out the timeout. The quickstart workflow also stops early when Tilt has no resource for a service (a service TDK never discovered); that check is left out here.
 5. Collect `docker ps -a`, `tilt get uiresources`, `tdk doctor` and the last 200 lines of every container into `tdk-logs/`, and upload it with `actions/upload-artifact` (kept 7 days, a choice; `smoke-e2e.yml` uses 14). The step runs on success too, so a green run leaves the same record.
-6. `tdk down --force --prune-networks`. `--prune-networks` came with PR [#585](https://github.com/tdk-landscape/tdk-cli-core/pull/585) and is under **Unreleased** in the CHANGELOG; an older tdk rejects the flag (exit 1 for an unknown option, checked), so the step falls back to `tdk down --force`. Without the flag the project's Docker networks stay. On a throwaway runner that does not matter; on a self-hosted runner it does.
+6. `tdk down --prune-networks`. `--prune-networks` came with PR [#585](https://github.com/tdk-landscape/tdk-cli-core/pull/585) and is under **Unreleased** in the CHANGELOG; an older tdk rejects the flag (exit 1 for an unknown option, checked), so the step falls back to `tdk down`. Without the flag the project's Docker networks stay. `tdk down` needs no confirmation, so `--force` is unnecessary. On a throwaway runner the networks do not matter; on a self-hosted runner they do.
 
 Not covered by the repository's own workflows, so not claimed here: caching Docker layers or the images TDK builds locally. None of this repository's workflows does it. On a clean runner the first `tdk up` builds the project's golden layers and each service image from scratch; how long that takes for your stack was not measured.
 

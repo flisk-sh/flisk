@@ -6,13 +6,13 @@
 # only when a changed file matches one of its `paths`. A suite that needs secrets runs only when LICENSED is true, and the
 # licensed check never runs on a pull request.
 #
-# Inputs (env): EVENT (github.event_name), SCHEDULE (github.event.schedule), VERSION_INPUT, BASE_SHA (the pull request base),
+# Inputs (env): EVENT (github.event_name), SCHEDULE (github.event.schedule), VERSION_INPUT, BASE_SHA (the pull request or merge group base),
 # LICENSED ("true" when the licensed secret is configured). Run from the repository root.
 set -euo pipefail
 
 event="${EVENT:?EVENT is required}"
 case "$event" in
-  pull_request) trigger="pr" ;;
+  pull_request | merge_group) trigger="pr" ;;
   schedule)
     case "${SCHEDULE:-}" in
       "0 6 * * *") trigger="nightly" ;;
@@ -26,13 +26,13 @@ esac
 
 case "$event" in
   workflow_run) version="$(node -p "require('./package.json').version")" ;;
-  pull_request) version=local ;;
+  pull_request | merge_group) version=local ;;
   workflow_dispatch) version="${VERSION_INPUT:-local}" ;;
   *) version=latest ;;
 esac
 
 changed=""
-if [ "$event" = pull_request ]; then
+if [ "$event" = pull_request ] || [ "$event" = merge_group ]; then
   changed="$(git diff --name-only "${BASE_SHA:?BASE_SHA is required}" HEAD)"
 fi
 
@@ -41,7 +41,7 @@ names=()
 for file in tests/e2e/journeys/*/suite.json; do
   [ -f "$file" ] || continue
   jq -e --arg t "$trigger" '.triggers | index($t) != null' "$file" >/dev/null || continue
-  if [ "$event" = pull_request ]; then
+  if [ "$event" = pull_request ] || [ "$event" = merge_group ]; then
     hit=no
     while IFS= read -r pattern; do
       glob="${pattern//\*\*/*}" # a `**` glob matches across directories in bash's pattern match

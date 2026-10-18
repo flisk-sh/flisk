@@ -50,7 +50,7 @@ function pruneNetworksOrWarn(json: boolean): ReturnType<typeof pruneProjectNetwo
 export const downCommand = new Command("down")
   .description("Stop all tilt resources")
   .option("-v, --verbose", "Enable verbose output", false)
-  .option("-f, --force", "Skip confirmation (no-op; accepted for script compatibility)", false)
+  .option("-f, --force", "Accepted for script compatibility; has no effect", false)
   .option(
     "--prune-networks",
     "Also remove this project's Docker networks (only those no container is attached to)",

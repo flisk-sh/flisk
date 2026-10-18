@@ -2,11 +2,13 @@
 # nightly, weekly, release, manual). On a pull request a suite runs only when a changed file matches its paths, and the
 # licensed cold-start suite never runs on a pull request, because PR code must not be able to read TDK_LICENSE_KEY.
 #
+# The merge queue runs the same journeys as a pull request (its changed files are the queued commit against the queue base).
 # Each leg reports the check name its old workflow used (suite.json `checkName`), so branch protection keeps working until it
 # changes. `gate` is the single job to require once it does: it passes when every selected leg passed or none was selected.
 name: 🧭 E2E journeys
 
 on:
+  merge_group:
   workflow_dispatch:
     inputs:
       version:
@@ -96,7 +98,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           SCHEDULE: ${{ github.event.schedule }}
           VERSION_INPUT: ${{ github.event.inputs.version }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           LICENSED: ${{ needs.license.outputs.configured }}
         run: scripts/e2e/select-journeys.sh
 
@@ -192,7 +194,7 @@ jobs:
 
   # The one check to require once branch protection changes. It passes when every selected journey passed, or none was selected.
   gate:
-    name: E2E journeys gate
+    name: e2e-journeys
     needs: [plan, journeys]
     if: always()
     runs-on: ubuntu-latest

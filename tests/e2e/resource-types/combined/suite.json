@@ -1,0 +1,21 @@
+{
+  "group": "resource-types",
+  "suite": "combined",
+  "description": "One stack that boots an agent and a worker side by side (#1290): one tdk project, two tdk resource calls, one tdk up, both listed in tdk status, the worker logs its start line and the agent answers /ready through Traefik. Nightly, on release and by hand; a pull request runs only the type it changes.",
+  "paths": [
+    "cli/src/commands/resource.ts",
+    "cli/src/commands/agent.ts",
+    "cli/src/commands/restart.ts",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/resource-types/combined/**",
+    "tests/e2e/resource-types/agent/**",
+    "tests/e2e/resource-types/worker/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": ["X1", "X2", "X3", "X4"],
+  "triggers": ["nightly", "release", "manual"],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}
