@@ -19,7 +19,7 @@ tdk resource api --type backend --stack api --yes           # a Bun + Hono API
 tdk resource web --type frontend --stack api --yes          # a React app
 tdk up api                                                  # start the stack
 tdk networks                                                # where is everything?
-tdk down --force                                            # stop it all
+tdk down                                                    # stop it all
 ```
 
 > [!TIP]
@@ -38,7 +38,7 @@ tdk down --force                                            # stop it all
 | Group services | `tdk stack api --resources a b --yes` |
 | Fix "my machine is weird" | `tdk doctor` |
 | Fix "generated files drifted" | `tdk config regenerate` |
-| Stop everything | `tdk down --force` |
+| Stop everything | `tdk down` |
 
 ## 🗺️ How it fits together
 
@@ -282,7 +282,7 @@ tdk up --json &                # one JSON object when ready; Tilt keeps running
 
 | Flag | Effect |
 | --- | --- |
-| `-f`, `--force` | Skip confirmation |
+| `-f`, `--force` | Accepted for script compatibility; has no effect |
 | `--prune-networks` | Also remove this project's Docker networks that no container uses |
 | `--dry-run` | Show what would stop |
 | `--json` | One JSON object on stdout |
@@ -511,7 +511,7 @@ tdk status --tilt && tdk networks --raw
 tdk logs -s orders-api --since 5m --json
 
 # Clean shutdown, including unused networks
-tdk down --force --prune-networks
+tdk down --prune-networks
 ```
 
 More in [recipes](recipes/) and [CI](ci.md). Found a missing flag? [Open an issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new). 🙌

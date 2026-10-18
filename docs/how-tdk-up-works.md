@@ -226,7 +226,7 @@ tdk down --prune-networks
 2. **Stop `tilt up` First**: Before removing containers, `tdk down` finds and stops the running `tilt up` process (`stopProjectTiltUp()`). If `tilt up` were left running, its file watcher would immediately detect container removals and re-create them!
 3. **Deregister Resources**: Calls `buildTiltDownArgs()` with `--focus` set to all stack names, ensuring that Tilt tears down all stack containers rather than only default pre-alpha services.
 4. **Execute `tilt down`**: Spawns `tilt down -f .tdk/.tdk-out/Tiltfile`.
-   > **Note on `--force`**: The Tilt CLI's `tilt down` command does **not** accept a `--force` flag. The `-f, --force` option accepted by `tdk down` is strictly an internal CLI flag used to skip interactive prompts in scripts.
+   > **Note on `--force`**: The Tilt CLI's `tilt down` command does **not** accept a `--force` flag. TDK accepts `tdk down --force` for script compatibility, but it has no effect. `tdk down` does not prompt for confirmation.
 5. **Network Cleanup (`--prune-networks`)**: By default, Docker networks remain for quick restarts. Passing `--prune-networks` inspects and removes this project's isolated Docker networks (only if no active container is connected).
 
 ### `tdk down` Cheat Sheet
@@ -234,7 +234,7 @@ tdk down --prune-networks
 | Flag | Purpose |
 | :--- | :--- |
 | `-v, --verbose` | Prints verbose shutdown diagnostics and Tilt commands. |
-| `-f, --force` | Skips confirmation prompts (safe for CI and automated scripts). |
+| `-f, --force` | Accepted for script compatibility; has no effect. |
 | `--prune-networks` | Removes project Docker networks that have no attached containers. |
 | `--dry-run` | Displays what would be stopped without killing processes or containers. |
 | `--json` | Emits a single JSON result object on stdout. |

@@ -39,7 +39,7 @@ error: unknown command 'upp'
 - **Cause:** a typo, or a flag the command does not have. The exit code is 1.
 - **Fix:** `tdk <command> --help` lists the flags.
 - **Checked:** reproduced.
-- A different message, `unknown flag: --force`, comes from Tilt, not TDK. [Pilot TDK on a real repository](adopt-tdk.md#2-pilot-in-one-afternoon) records that `tilt down --force` printed it on Tilt 0.37.7; `tdk down --force` itself was not run.
+- If an older TDK reports `unknown flag: --force`, upgrade it. Current TDK accepts the option for script compatibility and does not pass it to Tilt. The historical [pilot report](adopt-tdk.md#2-pilot-in-one-afternoon) ran `tilt down --force` directly, not `tdk down --force`.
 
 ### `Stack "x" not found`
 

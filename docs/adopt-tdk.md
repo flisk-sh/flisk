@@ -68,7 +68,7 @@ The hostname starts with the project directory name (`pilot` here). `tdk up shop
 Two things seen on that run that you may also meet:
 
 - On TDK 1.3.86 `tdk doctor` warned about an unknown `healthCheck` field on a freshly scaffolded service. The warning is now worded `<path>/service.json.healthCheck: unknown field is preserved` (observed by running `tdk doctor --no-ping` on a `service.json` with an extra `healthCheck` field; `<path>` printed as an absolute path). A backend scaffolded by current `main` already writes `healthCheckPath`, and `tdk doctor --no-ping` printed no such warning.
-- `tdk down --force` failed with `unknown flag: --force`. `tdk down --help` now lists `--force`, but it passes the flag on to `tilt down`, and running `tilt down --force` directly (Tilt 0.37.7) still prints `unknown flag: --force`. `tdk down --force` itself was not run. Use `tdk down` without it.
+- A pilot ran `tilt down --force` directly on Tilt 0.37.7 and got `unknown flag: --force`; it did not run `tdk down --force`. Current TDK accepts that flag for script compatibility, but it has no effect and is not passed to Tilt. Use `tdk down`.
 - Before the fix in [#600](https://github.com/tdk-landscape/tdk-cli-core/pull/600), `tdk doctor` failed with `N resources without a package.json` for bring-your-own resources created with `tdk resource --type bring-your-own` (both `--dockerfile` and `--image`). That check no longer applies to them; if you still see it, upgrade `tdk` (`tdk upgrade`). It still fails for a backend, frontend or worker that has no `package.json`.
 
 ## 3. Keep your current setup
