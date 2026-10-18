@@ -364,7 +364,10 @@ export const completionCommand = new Command("completion")
           installInstructions = "";
       }
 
-      writeFileSync(installPath, completionScript, "utf-8");
+      // PowerShell already wrote the merged profile above; a plain write here would drop the user's other profile lines.
+      if (shell !== "powershell") {
+        writeFileSync(installPath, completionScript, "utf-8");
+      }
       console.log(chalk.green(`✅ Installed ${shell} completion to:`));
       console.log(chalk.cyan(`   ${installPath}`));
       console.log(chalk.yellow(installInstructions));
