@@ -215,3 +215,12 @@ jobs:
             exit 1
           fi
           echo "Every selected journey passed"
+
+  debug:
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo 'RUN=${{ needs.plan.outputs.run }}'
+          echo 'MATRIX=${{ needs.plan.outputs.matrix }}'
+          echo 'RESULT=${{ needs.plan.result }}'
