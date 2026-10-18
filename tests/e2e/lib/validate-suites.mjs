@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 export const GROUPS = ["resource-types", "journeys", "examples", "platforms", "scale"];
 export const TRIGGERS = ["pr", "nightly", "release", "manual", "weekly"];
-const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "needsSecrets"];
+const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "needsSecrets", "checkName", "install", "freePostgres"];
 const CASE_ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 const isStringArray = (value) => Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
