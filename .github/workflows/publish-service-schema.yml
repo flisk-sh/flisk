@@ -1,4 +1,4 @@
-name: Publish service schema
+name: 📋 Publish service schema
 
 # engine/schemas/service-schema.json is the source of truth. The copy at
 # https://tdk-landscape.github.io/schema.service.json is a deploy artifact for editors,

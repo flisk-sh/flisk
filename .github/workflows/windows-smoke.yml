@@ -1,4 +1,4 @@
-name: Windows CLI smoke
+name: 🪟 Windows CLI smoke
 
 on:
   merge_group:

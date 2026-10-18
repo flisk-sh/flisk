@@ -1,4 +1,4 @@
-name: Go dev loop E2E
+name: 🐹 Go dev loop E2E
 
 on:
   workflow_dispatch:

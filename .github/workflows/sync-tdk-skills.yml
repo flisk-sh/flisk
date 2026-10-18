@@ -1,4 +1,4 @@
-name: Sync shared TDK skills
+name: 🔄 Sync shared TDK skills
 
 on:
   workflow_dispatch:
