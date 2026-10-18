@@ -78,8 +78,7 @@ A2() { # tdk up, poll until the agent is ready
   start_up
   echo '$ tdk up '"$STACK"'  (background, log: up.log)'
   wait_stack
-  run a2-status status --json
-  assert check "$OUT/a2-status.out" "j.errors.length === 0 && j.data.resources.some(r => r.name === '$AGENT' && r.type === 'agent')" "tdk status --json lists $AGENT as an agent"
+  common_wait_status "$AGENT" agent
 }
 
 A3() { # /health and /ready through Traefik; the agent publishes no host port
@@ -292,9 +291,7 @@ B7() { # UNKNOWN_RESOURCE, NOT_AN_AGENT, NO_PORT: one smoke each
 B8() { # TILT_NOT_RUNNING after tdk down
   log "B8 TILT_NOT_RUNNING after tdk down"
   run b8-down down; [ "$RC" -eq 0 ] || die "tdk down exited $RC"
-  run b8 restart "$AGENT" --json
-  [ "$RC" -eq 1 ] || die "expected exit 1, got $RC"
-  assert envelope "$OUT/b8.out" TILT_NOT_RUNNING
+  common_error_envelope TILT_NOT_RUNNING restart "$AGENT" --json
 }
 
 # ---------------------------------------------------------------------------------------------------------------- C: MCP over stdio
