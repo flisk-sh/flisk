@@ -72,9 +72,14 @@ async function processJob(job: Job): Promise<void> {
   console.log('[Worker] Job completed:', job.id);
 }
 
+let demoJobSent = false;
+
 async function fetchJobs(): Promise<Job[]> {
-  // Connect to your queue (Redis, RabbitMQ, etc.) and fetch jobs
-  return [];
+  // Connect to your queue (Redis, RabbitMQ, etc.) and fetch jobs.
+  // Until you do, hand out one demo job on the first poll so the loop runs end to end; remove this with the queue.
+  if (demoJobSent) return [];
+  demoJobSent = true;
+  return [{ id: 'demo-1', type: 'demo', payload: {} }];
 }
 
 async function main() {

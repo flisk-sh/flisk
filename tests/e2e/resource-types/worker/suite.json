@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "worker",
-  "description": "A worker resource on a live stack: scaffold with tdk resource --type worker, tdk up, the worker is listed as a worker in tdk status, its container logged its start line, tdk restart replaces the container, and one error envelope when Tilt is unreachable (openspec task 3.6, #1290; #1294). The scaffolded worker is a stub that exits after logging, so processing a job is not covered.",
+  "description": "A worker resource on a live stack: scaffold with tdk resource --type worker, tdk up, the worker is listed as a worker in tdk status, its container logged its start line, tdk restart replaces the container, one error envelope when Tilt is unreachable, and the container processed the demo job the scaffold hands out (openspec task 3.6, #1290; #1294).",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/utils/constants.ts",
@@ -11,7 +11,7 @@
     "tests/e2e/resource-types/worker/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["W1", "W2", "W3", "W4", "W5"],
+  "cases": ["W1", "W2", "W3", "W4", "W5", "W6"],
   "triggers": [
     "nightly",
     "release",

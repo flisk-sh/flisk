@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 TDK Landscape contributors
 # SPDX-License-Identifier: MIT
-# A worker resource on a live stack (openspec task 3.6, #1290; restart and error envelope, #1294). Runs nightly, on release and by hand; see suite.json.
+# A worker resource on a live stack (openspec task 3.6, #1290; restart, error envelope and a processed job, #1294). Runs nightly, on release and by hand; see suite.json.
 #
 #   tests/e2e/resource-types/worker/run.sh all              every case in order, then cleanup
-#   tests/e2e/resource-types/worker/run.sh W1 W2            single cases
+#   tests/e2e/resource-types/worker/run.sh W1 W2 W6         single cases
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -59,6 +59,13 @@ W4() { # tdk restart, then the worker's new container logs its start line again
 W5() { # restart with Tilt unreachable prints one TILT_NOT_RUNNING error envelope and exits 1
   log "W5 tdk restart with no Tilt on the port: one error envelope"
   common_error_envelope TILT_NOT_RUNNING restart "$RES" --port 1 --json
+}
+
+worker_processed_job() { local c; c="$(worker_container)"; [ -n "$c" ] && docker logs "$c" 2>&1 | grep -q "Job completed: demo-1"; }
+
+W6() { # the worker's newest container processed the demo job the scaffold hands out on its first poll
+  log "W6 the $RES container processed a job"
+  poll_until "$RES logged 'Job completed: demo-1'" 180 worker_processed_job
 }
 
 e2e_main "$@"

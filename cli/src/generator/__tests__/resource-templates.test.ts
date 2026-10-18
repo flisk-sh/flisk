@@ -48,6 +48,14 @@ describe("resource scaffold templates", () => {
     expect(logged).toEqual([["[Worker] Fetched 3 jobs"]]);
   });
 
+  it("hands out one demo job so the scaffolded worker processes a job", () => {
+    const worker = getWorkerIndexTemplate("test-worker");
+
+    expect(worker).toContain("type: 'demo'");
+    expect(worker).toContain("demoJobSent");
+    expect(worker).toContain("'[Worker] Job completed:'");
+  });
+
   it("interpolates the generated test name", () => {
     expect(getTestTemplate("catalog")).toBe(
       [
