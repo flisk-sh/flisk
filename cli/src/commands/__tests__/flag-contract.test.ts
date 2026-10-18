@@ -114,19 +114,35 @@ const YES_MATRIX: Array<{
 ];
 
 /**
+ * `agent sessions --json` fails before any request when the session id is missing, so its error envelope runs in a
+ * temp project with no agent process. The `site` names the command the same way the completeness check does.
+ */
+const AGENT_SESSIONS_JSON: {
+  site: string;
+  command: string[];
+  project: Parameters<typeof createTempProject>[0];
+} = {
+  site: "agent sessions --json",
+  command: ["agent", "sessions", "assistant"],
+  project: { stacks: { api: { assistant: { appType: "agent", port: 3200 } } } },
+};
+
+/**
  * Commands and subcommands that register one of the three flags but have no matrix row yet. Each entry says why.
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
-  "agent sessions --json": "lists live agent sessions; needs the agent host",
   "doctor --json":
-    "checks the host toolchain and probes ports; its own test file covers the report",
-  "doctor --dry-run": "only applies with --fix; covered by the doctor test file",
-  "doctor --yes": "only applies with --fix; covered by the doctor test file",
-  "down --json": "stops containers; needs a running stack",
+    "checks the host toolchain and probes ports; its exit status depends on the host, and its own test file covers the report",
+  "doctor --dry-run":
+    "only applies with --fix, which plans repairs by querying Docker networks; the plan depends on the host's Docker",
+  "doctor --yes":
+    "only applies with --fix, which removes Docker networks; a test run would act on the host's Docker",
+  "down --json": "stops Tilt and containers; needs Tilt and a running stack",
   "logs --json": "reads container logs; needs a running stack",
   "restart --json": "restarts containers; needs a running stack",
-  "runtime --json": "reports runtime state through Docker",
+  "runtime --json":
+    "prints its own asset-check object, not the one-envelope shape this contract asserts; needs its own contract",
   "up --json": "starts containers; needs Docker",
   "upgrade --dry-run":
     "compares the install with origin/HEAD over git; its dry-run path prints no Dry run line",
@@ -188,6 +204,7 @@ function coveredSites(): Set<string> {
     ...JSON_MATRIX.map((row) => `${row.command.join(" ")} --json`),
     ...DRY_RUN_MATRIX.map((row) => row.site),
     ...YES_MATRIX.map((row) => row.site),
+    AGENT_SESSIONS_JSON.site,
   ]);
 }
 
@@ -232,6 +249,19 @@ describe("flag contract: --json", () => {
       expect(envelope.errors).toHaveLength(1);
     },
   );
+});
+
+describe("flag contract: --json error envelope for agent sessions", () => {
+  it(`${AGENT_SESSIONS_JSON.site} without --session-id fails with a null-data envelope`, () => {
+    const root = createTempProject(AGENT_SESSIONS_JSON.project);
+    const result = runTdk([...AGENT_SESSIONS_JSON.command, "--json"], { cwd: root });
+    expect(result.status).toBe(1);
+    expect(result.stderr).not.toMatch(/^\{/m);
+    const envelope = parseOneEnvelope(result.stdout);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.data).toBeNull();
+    expect(envelope.errors).toEqual([expect.objectContaining({ code: "SESSION_ID_REQUIRED" })]);
+  });
 });
 
 describe("flag contract: completeness", () => {
