@@ -48,6 +48,7 @@ agent_stub() { with_stub "$(agent_port)" "$@"; } # <mode> [args...]: a stub stan
 
 A1() { # scaffold the project and the agent
   log "A1 scaffold: tdk project --yes, tdk resource $AGENT --type agent"
+  # common.sh scaffolds the project and the agent resource; --stack puts the agent on the stack this suite boots.
   common_scaffold agent "$AGENT" --stack "$STACK" --yes
   local src="$DIR/services/$STACK/$AGENT/src/index.ts"
   [ -f "$src" ] || die "scaffolded agent source missing: $src"
