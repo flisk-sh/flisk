@@ -142,3 +142,5 @@ else
   tail -30 up.log >&2
   exit 1
 fi
+
+# Verification note for the summary gate fix (throwaway, not for merge).
