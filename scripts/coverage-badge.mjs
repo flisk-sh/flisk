@@ -11,7 +11,7 @@ const OUT = "docs/assets/coverage.svg";
 
 const summary = JSON.parse(await readFile(SUMMARY, "utf8"));
 const pct = summary.total.lines.pct;
-const value = `${pct.toFixed(0)}%`;
+const value = `${pct.toFixed(1)}%`;
 
 // Same thresholds as shields.io's default coverage colors.
 const color = pct >= 90 ? "#4c1" : pct >= 75 ? "#a3c51c" : pct >= 60 ? "#dfb317" : pct >= 40 ? "#fe7d37" : "#e05d44";
