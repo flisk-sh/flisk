@@ -19,6 +19,7 @@
     "M3"
   ],
   "triggers": [
+    "pr",
     "nightly",
     "release",
     "manual"
