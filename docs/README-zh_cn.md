@@ -45,7 +45,7 @@ curl http://api.shop.localhost:8080/api/orders/health
 
 [![npm version](https://img.shields.io/npm/v/@tdk-landscape/tdk-cli-core.svg?style=flat&color=blue)](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core)
 [![CI](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml)
-[![Quickstart E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml)
+[![Journeys E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml)
 [![ERP fixture scale E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-scale-full.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-scale-full.yml)
 [![Example apps E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml)
 [![Known Vulnerabilities](https://snyk.io/test/github/tdk-landscape/tdk-cli-core/badge.svg)](https://snyk.io/test/github/tdk-landscape/tdk-cli-core)

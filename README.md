@@ -8,7 +8,7 @@ Go from an empty folder to a running tech stack with one command. Built for agen
 [![install size](https://badgen.net/packagephobia/install/@tdk-landscape/tdk-cli-core)](https://packagephobia.com/result?p=@tdk-landscape/tdk-cli-core)
 [![CI](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml)
 [![Unit test coverage](https://raw.githubusercontent.com/tdk-landscape/tdk-cli-core/main/docs/assets/coverage.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/ci.yml)
-[![Quickstart E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml)
+[![Journeys E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-journeys.yml)
 [![ERP fixture scale E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-scale-full.yml/badge.svg)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-scale-full.yml)
 [![Example apps E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml)
 [![CodeQL](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/security/code-scanning)
