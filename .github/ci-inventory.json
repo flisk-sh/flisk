@@ -377,6 +377,14 @@
 		},
 		{
 			"workflow": "publish-tdk-import.yml",
+			"job": "token",
+			"tier": "gate",
+			"required": false,
+			"reason": "Checks NPM_TOKEN and skips publishing with a warning when it is missing (#1288)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "publish-tdk-import.yml",
 			"job": "build",
 			"tier": "release",
 			"required": false,

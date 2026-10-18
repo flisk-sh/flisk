@@ -76,9 +76,11 @@ jobs:
             exit 0
           fi
 
+          # A push to main used to update every open PR, and each update started that PR's full CI.
+          # Until the merge queue is active, only approved PRs or PRs with auto-merge enabled are updated.
           gh pr list --repo "$GITHUB_REPOSITORY" --state open --base main \
-            --limit 1000 --json number,mergeStateStatus \
-            --jq '.[] | select(.mergeStateStatus == "BEHIND" or .mergeStateStatus == "UNKNOWN") | .number' |
+            --limit 1000 --json number,mergeStateStatus,reviewDecision,autoMergeRequest \
+            --jq '.[] | select(.mergeStateStatus == "BEHIND" or .mergeStateStatus == "UNKNOWN") | select(.reviewDecision == "APPROVED" or .autoMergeRequest != null) | .number' |
           while IFS= read -r number; do
             [[ -z "$number" ]] || update_if_behind "$number"
           done

@@ -24,6 +24,33 @@ permissions:
   contents: read
 
 jobs:
+  # Secrets are not readable in a job-level `if`, so the check runs first and its output gates "publish". Without
+  # NPM_TOKEN, publish is skipped and this job warns by name; GitHub has no neutral job conclusion, so the skipped
+  # job is the neutral result (#1288).
+  token:
+    name: Check NPM_TOKEN
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - id: check
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::warning title=NPM_TOKEN not configured::Skipped publishing tdk-import. Add the NPM_TOKEN Actions secret to publish; the build still ran."
+            {
+              echo "### ⚠️ tdk-import publish skipped"
+              echo
+              echo "The \`NPM_TOKEN\` Actions secret is not configured, so nothing was published. The build job still ran. Add the secret to publish."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -70,7 +97,8 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: build
+    needs: [build, token]
+    if: needs.token.outputs.configured == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
