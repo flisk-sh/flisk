@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "migrator",
-  "description": "A migrator resource: a service.json with appType migrator is registered with tdk resource, and tdk status lists it as a migrator (openspec task 3.6, #1290). No stack is started. Routed health does not apply: a migrator serves no HTTP route. The Postgres, migrator, API order is blocked on #531 (docs/data.md does not guarantee that order), so it is not tested here.",
+  "description": "A migrator resource: a service.json with appType migrator is registered with tdk resource, and tdk status lists it as a migrator (openspec task 3.6, #1290). M1 and M2 start no stack. Routed health does not apply: a migrator serves no HTTP route. M3 proves the order on a live stack (#531): tdk up starts Postgres, runs the Prisma migrator to completion, then starts the API.",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/utils/constants.ts",
@@ -9,17 +9,20 @@
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/common.sh",
     "tests/e2e/resource-types/migrator/**",
-    ".github/workflows/e2e-resource-types.yml"
+    ".github/workflows/e2e-resource-types.yml",
+    "cli/src/utils/doctor-wiring.ts",
+    "cli/src/utils/resource-features.ts"
   ],
   "cases": [
     "M1",
-    "M2"
+    "M2",
+    "M3"
   ],
   "triggers": [
     "nightly",
     "release",
     "manual"
   ],
-  "timeoutMinutes": 25,
+  "timeoutMinutes": 30,
   "needsSecrets": []
 }
