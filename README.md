@@ -26,7 +26,7 @@ Go from an empty folder to a running tech stack with one command. Built for agen
 
 <p align="center">
 
-English | [简体中文](docs/README-zh_cn.md) | [繁體中文](docs/README-zh_tw.md) | [日本語](docs/README-ja.md) | [한국어](docs/README-ko.md) | [Türkçe](docs/README-tr.md) | [Русский](docs/README-ru.md) | [Tiếng Việt](docs/README-vi.md) | [ไทย](docs/README-th.md) | [Deutsch](docs/README-de.md) | [Español](docs/README-es.md) | [Français](docs/README-fr.md) | [Українська](docs/README-uk.md) | [Polski](docs/README-pl.md) | [Português (Brasil)](docs/README-pt-BR.md) | [العربية](docs/README-ar.md) | [فارسی](docs/README-fa.md) | [Bahasa Indonesia](docs/README-id.md) | [Italiano](docs/README-it.md) | [Ελληνικά](docs/README-el.md) | [മലയാളം](docs/README-ml.md)
+English | [简体中文](docs/README-zh_cn.md) | [繁體中文](docs/README-zh_tw.md) | [日本語](docs/README-ja.md) | [한국어](docs/README-ko.md) | [Türkçe](docs/README-tr.md) | [Tiếng Việt](docs/README-vi.md) | [ไทย](docs/README-th.md) | [Deutsch](docs/README-de.md) | [Español](docs/README-es.md) | [Français](docs/README-fr.md) | [Українська](docs/README-uk.md) | [Polski](docs/README-pl.md) | [Português (Brasil)](docs/README-pt-BR.md) | [العربية](docs/README-ar.md) | [فارسی](docs/README-fa.md) | [Bahasa Indonesia](docs/README-id.md) | [Italiano](docs/README-it.md) | [Ελληνικά](docs/README-el.md) | [മലയാളം](docs/README-ml.md)
 
 </p>
 
