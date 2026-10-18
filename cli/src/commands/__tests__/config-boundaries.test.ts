@@ -45,6 +45,7 @@ function run(root: string, args: string[]) {
   return spawnSync(process.execPath, [tdk, ...args], { cwd: root, encoding: "utf-8" });
 }
 
+// Each case spawns the built CLI. Under the parallel suite and a loaded machine that exceeds 20-30s, so the budget is 120s.
 describe("config command boundaries", () => {
   // One generated project for the tests that only read regenerated output. Each copies it, so the regenerate
   // run happens once per file instead of once per test.
@@ -55,7 +56,7 @@ describe("config command boundaries", () => {
     baseRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-boundaries-base-"));
     writeProject(baseRoot, baseService);
     expect(run(baseRoot, ["config", "regenerate"]).status).toBe(0);
-  }, 30_000);
+  }, 120_000);
 
   afterAll(() => {
     fs.rmSync(baseRoot, { recursive: true, force: true });
@@ -81,7 +82,7 @@ describe("config command boundaries", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 120_000);
 
   it("regenerate --dry-run writes nothing", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-regen-dry-"));
@@ -93,7 +94,7 @@ describe("config command boundaries", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 120_000);
 
   it("a second regenerate is byte-identical and verify exits 0", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-regen-stable-"));
@@ -109,7 +110,7 @@ describe("config command boundaries", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 120_000);
 
   it("verify points a missing schemaVersion at migrate, not regenerate", () => {
     const root = copyBase("tdk-verify-schema-");
@@ -121,7 +122,7 @@ describe("config command boundaries", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 120_000);
 
   it("migrate writes schemaVersion and does not rewrite generated files", () => {
     const root = copyBase("tdk-migrate-");
@@ -143,7 +144,7 @@ describe("config command boundaries", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 120_000);
 
   it("migrate refuses an unsupported schemaVersion without writing", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-migrate-bad-"));
@@ -162,7 +163,7 @@ describe("config command boundaries", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 120_000);
 
   it("import does not invoke regenerate or migrate", () => {
     const inv = importInvocation([".", "--dry-run"], {}, "linux");
