@@ -74,7 +74,7 @@ insert into demo_customers (id, name, email) values
 on conflict do nothing;
 ```
 
-`seed.sh` reads the `DATABASE_URL` that TDK passes to the job, waits for Postgres, creates the database if it is missing (TDK does not create it for a bring-your-own job), and runs `seed.sql`:
+`seed.sh` reads the `DATABASE_URL` that TDK passes to the job and refuses a database name that has anything other than letters, digits and underscores (TDK's names only use those), so the name is safe to put in SQL. It then waits for Postgres, for at most 30 one-second tries (set `SEED_WAIT_TRIES` to change that), and exits with the last connection error if Postgres never answers. Then it creates the database if it is missing (TDK does not create it for a bring-your-own job) and runs `seed.sql`:
 
 ```sh
 #!/bin/sh
@@ -82,8 +82,17 @@ set -eu
 url="${DATABASE_URL%%\?*}"   # drop the Prisma-style ?schema=public that psql rejects
 db="${url##*/}"
 server="${url%/*}"
+case "$db" in
+  ""|*[!A-Za-z0-9_]*) echo "seed: database name '$db' must use only letters, digits and underscores" >&2; exit 1 ;;
+esac
 export PGSSLMODE=disable     # TDK's Postgres has SSL off
-until psql "$server/postgres" -tAc "select 1" >/dev/null 2>&1; do sleep 1; done
+tries=0
+max="${SEED_WAIT_TRIES:-30}"
+until err=$(psql "$server/postgres" -tAc "select 1" 2>&1 >/dev/null); do
+  tries=$((tries + 1))
+  if [ "$tries" -ge "$max" ]; then echo "seed: Postgres not ready after $max tries: $err" >&2; exit 1; fi
+  sleep 1
+done
 psql "$server/postgres" -tAc "select 1 from pg_database where datname = '$db'" | grep -q 1 \
   || psql "$server/postgres" -c "create database \"$db\""
 exec psql "$url" -v ON_ERROR_STOP=1 -f /seed.sql
