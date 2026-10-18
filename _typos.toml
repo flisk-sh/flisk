@@ -7,6 +7,8 @@ extend-exclude = [
   "examples/byo-jobs/prisma/prisma/migrations/migration_lock.toml",
   # Animated terminal demo stores partial typewriter frames, not prose.
   "docs/assets/demo.svg",
+  # Translated READMEs use other languages, which the English word list flags.
+  "docs/README-*.md",
 ]
 
 [default]
