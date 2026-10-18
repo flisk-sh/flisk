@@ -7,8 +7,10 @@ import type { AddressInfo } from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
-import { agentSessionRequest } from "../agent.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { captureExit, createTempProject } from "../../test-support/index.js";
+import { clearDiscoveryCache } from "../../utils/discovery-context.js";
+import { agentCommand, agentSessionRequest } from "../agent.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliPath = path.join(repoRoot, "cli", "bin", "tdk.js");
@@ -33,49 +35,67 @@ describe("tdk agent sessions", () => {
     }
   });
 
-  it("reports UNKNOWN_RESOURCE when the resource does not exist in the project", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-unknown-"));
-    fs.mkdirSync(path.join(tmp, ".tdk"), { recursive: true });
-    fs.writeFileSync(path.join(tmp, ".tdk", "project.json"), "{}\n");
-    try {
-      const res = runTdk(["agent", "sessions", "nonexistent", "--json"], tmp);
-      expect(res.status).not.toBe(0);
-      const envelope = JSON.parse(res.stdout);
-      expect(envelope.errors[0].code).toBe("UNKNOWN_RESOURCE");
-    } finally {
-      fs.rmSync(tmp, { recursive: true, force: true });
-    }
-  });
+  // The three envelope-only cases below read one shared project and run `agentCommand` in-process, so they
+  // need no child process. Each reads only its own output, so they share the project made in `beforeAll`.
+  let envelopeProject = "";
 
-  it("reports NOT_AN_AGENT when the resource exists but is not an agent", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-not-agent-"));
-    fs.mkdirSync(path.join(tmp, ".tdk"), { recursive: true });
-    fs.writeFileSync(path.join(tmp, ".tdk", "project.json"), "{}\n");
-    fs.mkdirSync(path.join(tmp, "services", "api"), { recursive: true });
+  beforeAll(() => {
+    envelopeProject = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-envelope-"));
+    fs.mkdirSync(path.join(envelopeProject, ".tdk"), { recursive: true });
+    fs.writeFileSync(path.join(envelopeProject, ".tdk", "project.json"), "{}\n");
+    fs.mkdirSync(path.join(envelopeProject, "services", "api"), { recursive: true });
     fs.writeFileSync(
-      path.join(tmp, "services", "api", "service.json"),
+      path.join(envelopeProject, "services", "api", "service.json"),
       JSON.stringify({ appName: "api", appType: "backend", port: 4000 }),
     );
+  });
+
+  afterAll(() => {
+    fs.rmSync(envelopeProject, { recursive: true, force: true });
+  });
+
+  beforeEach(() => {
+    // The discovery cache lives for one second and is not keyed by project, so each in-process run starts clean.
+    clearDiscoveryCache();
+  });
+
+  /** Runs `agent sessions` in-process from `root` and returns the one JSON envelope it printed and its exit code. */
+  async function runEnvelopeCase(root: string, args: string[]) {
+    const exit = captureExit();
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((line?: unknown) => {
+      lines.push(String(line));
+    });
+    const cwd = process.cwd();
+    process.chdir(root);
     try {
-      const res = runTdk(["agent", "sessions", "api", "--json"], tmp);
-      expect(res.status).not.toBe(0);
-      const envelope = JSON.parse(res.stdout);
-      expect(envelope.errors[0].code).toBe("NOT_AN_AGENT");
+      await expect(
+        agentCommand.parseAsync(["sessions", ...args, "--json"], { from: "user" }),
+      ).rejects.toThrow("process.exit");
+      // The command prints its own envelope first. The top-level handler then catches the thrown exit and prints a
+      // second envelope; the tests read only the first, so they never see the handler's INTERNAL line.
+      return { status: exit.exit.mock.calls[0]?.[0], envelope: JSON.parse(lines[0] ?? "null") };
     } finally {
-      fs.rmSync(tmp, { recursive: true, force: true });
+      process.chdir(cwd);
+      log.mockRestore();
+      exit.exit.mockRestore();
     }
+  }
+
+  it("reports UNKNOWN_RESOURCE when the resource does not exist in the project", async () => {
+    const { status, envelope } = await runEnvelopeCase(envelopeProject, ["nonexistent"]);
+    expect(status).toBe(1);
+    expect(envelope.errors[0].code).toBe("UNKNOWN_RESOURCE");
+  });
+
+  it("reports NOT_AN_AGENT when the resource exists but is not an agent", async () => {
+    const { status, envelope } = await runEnvelopeCase(envelopeProject, ["api"]);
+    expect(status).toBe(1);
+    expect(envelope.errors[0].code).toBe("NOT_AN_AGENT");
   });
 
   function agentProject(port: number): string {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-live-"));
-    fs.mkdirSync(path.join(tmp, ".tdk"), { recursive: true });
-    fs.writeFileSync(path.join(tmp, ".tdk", "project.json"), "{}\n");
-    fs.mkdirSync(path.join(tmp, "services", "bot"), { recursive: true });
-    fs.writeFileSync(
-      path.join(tmp, "services", "bot", "service.json"),
-      JSON.stringify({ appName: "bot", appType: "agent", port }),
-    );
-    return tmp;
+    return createTempProject({ resources: { bot: { appType: "agent", port } } });
   }
 
   function runTdkAsync(args: string[], cwd: string, baseUrl?: string) {
@@ -147,33 +167,20 @@ describe("tdk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(port);
     try {
-      const res = await runTdkAsync(
-        ["agent", "sessions", "bot", "--json"],
-        tmp,
-        `http://127.0.0.1:${port}`,
-      );
-      expect(res.status).toBe(1);
-      const envelope = JSON.parse(res.stdout);
+      const { status, envelope } = await runEnvelopeCase(tmp, ["bot"]);
+      expect(status).toBe(1);
       expect(envelope.data).toBeNull();
       expect(envelope.errors).toHaveLength(1);
       expect(envelope.errors[0].code).toBe("SESSION_ID_REQUIRED");
       expect(requests).toBe(0);
     } finally {
       server.close();
-      fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
 
-  it("keeps UNKNOWN_RESOURCE ahead of SESSION_ID_REQUIRED", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-order-"));
-    fs.mkdirSync(path.join(tmp, ".tdk"), { recursive: true });
-    fs.writeFileSync(path.join(tmp, ".tdk", "project.json"), "{}\n");
-    try {
-      const res = runTdk(["agent", "sessions", "nonexistent", "--json"], tmp);
-      expect(JSON.parse(res.stdout).errors[0].code).toBe("UNKNOWN_RESOURCE");
-    } finally {
-      fs.rmSync(tmp, { recursive: true, force: true });
-    }
+  it("keeps UNKNOWN_RESOURCE ahead of SESSION_ID_REQUIRED", async () => {
+    const { envelope } = await runEnvelopeCase(envelopeProject, ["nonexistent"]);
+    expect(envelope.errors[0].code).toBe("UNKNOWN_RESOURCE");
   });
 
   it("forwards the session id as the x-session-id header", async () => {

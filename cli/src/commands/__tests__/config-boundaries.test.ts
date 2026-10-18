@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { importInvocation } from "../import.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -46,6 +46,28 @@ function run(root: string, args: string[]) {
 }
 
 describe("config command boundaries", () => {
+  // One generated project for the tests that only read regenerated output. Each copies it, so the regenerate
+  // run happens once per file instead of once per test.
+  const baseService = { appName: "api", appType: "api", stack: "core", extra: true };
+  let baseRoot = "";
+
+  beforeAll(() => {
+    baseRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-boundaries-base-"));
+    writeProject(baseRoot, baseService);
+    expect(run(baseRoot, ["config", "regenerate"]).status).toBe(0);
+  }, 30_000);
+
+  afterAll(() => {
+    fs.rmSync(baseRoot, { recursive: true, force: true });
+  });
+
+  /** A fresh copy of the generated base project. The caller removes it. */
+  function copyBase(prefix: string): string {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    fs.cpSync(baseRoot, root, { recursive: true });
+    return root;
+  }
+
   it("regenerate rewrites generated files and leaves service.json byte-identical", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-regen-"));
     const service = { appName: "api", appType: "api", stack: "core", extra: true };
@@ -90,10 +112,8 @@ describe("config command boundaries", () => {
   }, 30_000);
 
   it("verify points a missing schemaVersion at migrate, not regenerate", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-verify-schema-"));
-    writeProject(root, { appName: "api", appType: "api", stack: "core" });
+    const root = copyBase("tdk-verify-schema-");
     try {
-      expect(run(root, ["config", "regenerate"]).status).toBe(0);
       const verify = run(root, ["config", "verify"]);
       expect(verify.status).toBe(1);
       expect(verify.stdout).toContain("tdk config migrate");
@@ -104,15 +124,9 @@ describe("config command boundaries", () => {
   }, 30_000);
 
   it("migrate writes schemaVersion and does not rewrite generated files", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-migrate-"));
-    const servicePath = writeProject(root, {
-      appName: "api",
-      appType: "api",
-      stack: "core",
-      extra: true,
-    });
+    const root = copyBase("tdk-migrate-");
+    const servicePath = path.join(root, "services", "api", "service.json");
     try {
-      expect(run(root, ["config", "regenerate"]).status).toBe(0);
       const generated = fs.readFileSync(path.join(root, ".tdk", ".tdk-out", "Tiltfile"));
       const result = run(root, ["config", "migrate"]);
       expect(result.status, result.stderr).toBe(0);
