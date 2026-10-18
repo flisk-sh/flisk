@@ -748,7 +748,7 @@ This file contains the resource configuration for TDK.
         if (prismaEnabled && resourceType === "backend") {
             const migratorName = `${resourceName}-migrator`;
             const migratorPath = resolve(projectRoot, `services/${stackName}/${migratorName}`);
-            mkdirSync(migratorPath, { recursive: true });
+            mkdirSync(resolve(migratorPath, "prisma"), { recursive: true });
             const migratorConfig = {
                 ...JSON.parse(JSON.stringify(BASE_TEMPLATE)),
                 $schema: SERVICE_MANIFEST_SCHEMA_URL,
