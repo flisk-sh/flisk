@@ -153,11 +153,16 @@ jobs:
 
       - name: Run the journey (${{ matrix.suite }})
         env:
+          SUITE: ${{ matrix.suite }}
+          CASES: ${{ matrix.cases }}
           TDK_VERSION: ${{ needs.plan.outputs.version }}
           VERIFY_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/smoke-records
           # Only the cold-start suite may read the licensed secret; the plan never selects it on a pull request.
           TDK_LICENSE_KEY: ${{ matrix.suite == 'cold-start' && secrets.TDK_LICENSE_KEY || '' }}
-        run: tests/e2e/journeys/${{ matrix.suite }}/run.sh ${{ matrix.cases }}
+        # CASES is a space-separated list of case ids, so it word-splits on purpose.
+        run: |
+          # shellcheck disable=SC2086
+          tests/e2e/journeys/"$SUITE"/run.sh $CASES
 
       # Time to a healthy stack (quickstart): the job summary and this JSON record, kept 30 days.
       - name: Upload time to healthy stack
@@ -188,11 +193,15 @@ jobs:
 
       - name: Diagnostics on failure
         if: failure()
-        run: tests/e2e/journeys/${{ matrix.suite }}/run.sh diagnostics || true
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: tests/e2e/journeys/"$SUITE"/run.sh diagnostics || true
 
       - name: Tear down the scratch project
         if: always()
-        run: tests/e2e/journeys/${{ matrix.suite }}/run.sh cleanup || true
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: tests/e2e/journeys/"$SUITE"/run.sh cleanup || true
 
   # The one check to require once branch protection changes. It passes when every selected journey passed, or none was selected.
   gate:
