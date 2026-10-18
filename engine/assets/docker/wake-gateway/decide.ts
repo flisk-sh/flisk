@@ -124,3 +124,12 @@ export function evaluateReadiness(
   const pending = requiredNames.filter((name) => !healthy[name]);
   return { ready: pending.length === 0, pending };
 }
+
+/**
+ * True for the gateway's own liveness probe (the image HEALTHCHECK's `GET /health`). Traefik's static route
+ * forwards every backend request here with its X-Wake-* headers and the backend's prefix stripped, so a
+ * backend's `/health` arrives as `/health` too; those must be proxied, not answered by the gateway.
+ */
+export function isGatewayLivenessProbe(method: string, pathname: string, headers: Headers): boolean {
+  return method === "GET" && pathname === "/health" && !headers.has("X-Wake-Resource");
+}

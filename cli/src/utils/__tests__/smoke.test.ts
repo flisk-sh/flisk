@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { DiscoveredResource } from "../../types/index.js";
+import { makeResource } from "../../test-support/index.js";
 import {
   buildSmokePlans,
   formatSmokeFailure,
@@ -31,19 +31,6 @@ const SMOKE: SmokeConfig = {
     { name: "read back", path: "/records/{{id}}", expect: 200, bodyContains: "smoke" },
   ],
 };
-
-function resource(
-  name: string,
-  appType: string,
-  config: Record<string, unknown> = {},
-): DiscoveredResource {
-  return {
-    name,
-    path: `/tmp/${name}`,
-    configPath: `/tmp/${name}/service.json`,
-    config: { appName: name, appType, ...config } as DiscoveredResource["config"],
-  };
-}
 
 type Call = { url: string; method: string; body?: string };
 type Reply = { status: number; body?: string } | Error;
@@ -111,9 +98,9 @@ describe("buildSmokePlans", () => {
   it("builds one plan per routable resource that declares smoke, from the URL tdk up prints", () => {
     const plans = buildSmokePlans(
       [
-        resource("orders-api", "backend", { smoke: SMOKE }),
-        resource("shop-web", "frontend", { smoke: { ...SMOKE, steps: [{ path: "/" }] } }),
-        resource("plain-api", "backend"),
+        makeResource("orders-api", "backend", { smoke: SMOKE }),
+        makeResource("shop-web", "frontend", { smoke: { ...SMOKE, steps: [{ path: "/" }] } }),
+        makeResource("plain-api", "backend"),
       ],
       8080,
     );
@@ -125,10 +112,10 @@ describe("buildSmokePlans", () => {
 
   it("polls healthCheckPath before the first step, defaulting to /health for APIs only", () => {
     const [api, custom, web, byo] = buildSmokePlans([
-      resource("orders-api", "backend", { smoke: SMOKE }),
-      resource("ping-api", "backend", { smoke: SMOKE, healthCheckPath: "/healthz" }),
-      resource("shop-web", "frontend", { smoke: SMOKE }),
-      resource("byo", "bring-your-own", { smoke: SMOKE }),
+      makeResource("orders-api", "backend", { smoke: SMOKE }),
+      makeResource("ping-api", "backend", { smoke: SMOKE, healthCheckPath: "/healthz" }),
+      makeResource("shop-web", "frontend", { smoke: SMOKE }),
+      makeResource("byo", "bring-your-own", { smoke: SMOKE }),
     ]);
     expect(api?.readyPath).toBe("/health");
     expect(custom?.readyPath).toBe("/healthz");
@@ -138,16 +125,16 @@ describe("buildSmokePlans", () => {
 
   it("skips workers and bring-your-own with exposeViaProxy false", () => {
     const plans = buildSmokePlans([
-      resource("jobs", "worker", { smoke: SMOKE }),
-      resource("byo", "bring-your-own", { smoke: SMOKE, exposeViaProxy: false }),
+      makeResource("jobs", "worker", { smoke: SMOKE }),
+      makeResource("byo", "bring-your-own", { smoke: SMOKE, exposeViaProxy: false }),
     ]);
     expect(plans).toEqual([]);
   });
 
   it("honours apiPath and basePath", () => {
     const [api, web] = buildSmokePlans([
-      resource("orders-api", "backend", { smoke: SMOKE, apiPath: "/v2/orders" }),
-      resource("shop-web", "frontend", { smoke: SMOKE, basePath: "/shop" }),
+      makeResource("orders-api", "backend", { smoke: SMOKE, apiPath: "/v2/orders" }),
+      makeResource("shop-web", "frontend", { smoke: SMOKE, basePath: "/shop" }),
     ]);
     expect(api?.baseUrl).toMatch(/\/v2\/orders$/);
     expect(web?.baseUrl).toMatch(/\/shop$/);

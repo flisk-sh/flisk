@@ -24,7 +24,7 @@ Every live-stack suite lives at `tests/e2e/<group>/<suite>/`, in exactly one gro
 | `resource-types` | one resource type works on a real stack | `resource-types/agent` |
 | `journeys` | a multi-command user flow | quickstart, smoke runner, dev loop, cold start |
 | `examples` | a real example app boots and serves its routes | the default example, saas-starter |
-| `platforms` | a host environment | Windows, WSL2 |
+| `platforms` | a host environment | `platforms/windows`, `platforms/windows-binary`, `platforms/wsl2` |
 | `scale` | a large fixture or a benchmark | the 100-service ERP fixture |
 
 Adding an MCP tool that reads a running agent? It belongs in the `agent` suite (or the `mcp` suite for MCP resources). Copy the shape of cases C1 to C3.

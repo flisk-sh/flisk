@@ -36,74 +36,28 @@ jobs:
           use-cache: false
           additional-packages: ca-certificates curl git xz-utils unzip jq
 
+      # Each step runs one case of tests/e2e/platforms/wsl2/run.sh (suite.json, run.sh) in the distro. WS1 copies the checkout
+      # to /root/tdk-ci, and the later cases build and smoke-test that copy.
       - name: Record and require a real WSL2 kernel
         shell: wsl-bash {0}
-        run: |
-          mkdir -p wsl2-evidence
-          ln -s "$PWD/wsl2-evidence" /root/tdk-evidence
-          uname -a | tee /root/tdk-evidence/environment.log
-          grep -qi 'microsoft-standard-WSL2' /proc/sys/kernel/osrelease
-          cat /etc/os-release | tee -a /root/tdk-evidence/environment.log
-          echo 'Docker backend: Docker Engine inside WSL2; Docker Desktop integration is not tested.' | tee -a /root/tdk-evidence/environment.log
-          cp -a "$PWD" /root/tdk-ci
-          cd /root/tdk-ci
-          git rev-parse HEAD | tee -a /root/tdk-evidence/environment.log
+        run: tests/e2e/platforms/wsl2/run.sh WS1
 
       - name: Install Docker Engine and Linux development tools
         shell: wsl-bash {0}
-        run: |
-          install -m 0755 -d /etc/apt/keyrings
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-          echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable' > /etc/apt/sources.list.d/docker.list
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-          if ! docker info >/dev/null 2>&1; then
-            nohup dockerd >/root/tdk-evidence/dockerd.log 2>&1 </dev/null &
-          fi
-          for _ in $(seq 1 30); do
-            if docker info >/dev/null 2>&1; then break; fi
-            sleep 2
-          done
-          docker info
-          curl -fsSL https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz -o /tmp/node.tar.xz
-          tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
-          curl -fsSL -o /tmp/bun.zip https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64.zip
-          echo "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913  /tmp/bun.zip" | sha256sum -c -
-          python3 -m zipfile -e /tmp/bun.zip /tmp/bun-dl
-          install -m 0755 /tmp/bun-dl/bun-linux-x64/bun /usr/local/bin/bun
-          curl -fsSL -o tilt.tgz https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz
-          echo "e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f  tilt.tgz" | sha256sum -c -
-          if [ "$(id -u)" -eq 0 ]; then tar -xzf tilt.tgz -C /usr/local/bin tilt; else sudo tar -xzf tilt.tgz -C /usr/local/bin tilt; fi
-          rm -f tilt.tgz
-          { node --version; bun --version; tilt version; docker version; docker compose version; } | tee -a /root/tdk-evidence/environment.log
+        run: tests/e2e/platforms/wsl2/run.sh WS2
 
       - name: Build and install the candidate CLI
         shell: wsl-bash {0}
-        run: | # zizmor: ignore[adhoc-packages] installs the candidate package built from this checkout
-          cd /root/tdk-ci
-          bun install --frozen-lockfile
-          npm run build
-          tarball="$(npm pack --silent | tail -1)"
-          node scripts/install-global.mjs "./$tarball"
-          tdk --version | tee -a /root/tdk-evidence/environment.log
+        run: tests/e2e/platforms/wsl2/run.sh WS3
 
       - name: Run the existing WSL2 routed write smoke
         shell: wsl-bash {0}
-        run: |
-          set -euo pipefail
-          cd /root/tdk-ci
-          bash scripts/wsl2-smoke.sh /root/tdk-smoke-work 2>&1 | tee /root/tdk-evidence/smoke.log
+        run: tests/e2e/platforms/wsl2/run.sh WS4
 
       - name: Collect diagnostics
         if: always() && steps.wsl.outcome == 'success'
         shell: wsl-bash {0}
-        run: |
-          mkdir -p wsl2-evidence
-          if [ -f /root/tdk-smoke-work/tdk-example/up.log ]; then
-            cp /root/tdk-smoke-work/tdk-example/up.log wsl2-evidence/up.log
-          fi
-          docker ps -a >wsl2-evidence/containers.log 2>&1 || true
-          uname -a >wsl2-evidence/kernel.log
+        run: tests/e2e/platforms/wsl2/run.sh WS5
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()

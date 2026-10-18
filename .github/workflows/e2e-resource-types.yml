@@ -62,6 +62,7 @@ jobs:
         id: matrix
         env:
           EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           case "$EVENT" in
             pull_request) trigger="pr" ;;
@@ -82,6 +83,17 @@ jobs:
             frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
           fi
           matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger" "$languages" "$frameworks" "$frontends")"
+          # A pull request that changes only inside one suite's directory (tests/e2e/resource-types/<suite>/) runs only that
+          # suite's legs (#1290). Any other changed file (the CLI, the engine, shared lib, common.sh, this workflow) runs them all.
+          if [ "$trigger" = "pr" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            files="$(git diff --name-only "$BASE_SHA" HEAD)"
+            outside="$(printf '%s\n' "$files" | grep -v '^tests/e2e/resource-types/[^/]*/' || true)"
+            suites="$(printf '%s\n' "$files" | sed -n 's#^tests/e2e/resource-types/\([^/]*\)/.*#\1#p' | sort -u | paste -sd, -)"
+            if [ -z "$outside" ] && [ -n "$suites" ]; then
+              matrix="$(printf '%s' "$matrix" | jq -c --arg suites ",$suites," '{include: [.include[] | .suite as $s | select($suites | contains("," + $s + ","))]}')"
+            fi
+          fi
           echo "trigger=$trigger"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
@@ -149,6 +161,13 @@ jobs:
           FRAMEWORK: ${{ matrix.framework }}
           BYO_VARIANT: ${{ matrix.variant }}
         run: tests/e2e/resource-types/"$SUITE"/run.sh all
+
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: ${{ matrix.label }}
 
       - name: Collect diagnostics
         if: failure()

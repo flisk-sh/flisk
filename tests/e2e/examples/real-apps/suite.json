@@ -1,0 +1,15 @@
+{
+  "group": "examples",
+  "suite": "real-apps",
+  "description": "The two real example apps (tdk-saas-starter and tdk-restaurant-example) on a clean machine with the published CLI (moved from examples-e2e.yml, #1299): install TDK from npm, set up and doctor the project, install the frontend dependencies for the host typecheck, then tdk up and require the apps' real routes: JSON from every business endpoint and an HTML page from each frontend. The workflow runs one matrix leg per app; API_CHECKS and WEB_CHECKS select the routes.",
+  "paths": [
+    "scripts/install-global.mjs",
+    "tests/e2e/lib/**",
+    "tests/e2e/examples/real-apps/**",
+    ".github/workflows/examples-e2e.yml"
+  ],
+  "cases": ["A1", "A2", "A3", "A4"],
+  "triggers": ["nightly", "manual"],
+  "timeoutMinutes": 25,
+  "needsSecrets": []
+}

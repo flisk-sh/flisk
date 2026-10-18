@@ -57,7 +57,11 @@ export function lastErrorLine(log) {
 				.trim(),
 		)
 		.filter((l) => l && !/^##\[(group|endgroup)\]/.test(l));
-	const error = lines.filter((l) => /error|fail|::error/i.test(l)).pop();
+	// GitHub's generic exit-code line names an error but not its cause, so it is skipped.
+	const error = lines
+		.filter((l) => !/Process completed with exit code/.test(l))
+		.filter((l) => /error|fail|::error/i.test(l))
+		.pop();
 	return (error ?? lines.at(-1) ?? "no log output").slice(0, 300);
 }
 

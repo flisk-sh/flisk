@@ -1,11 +1,11 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
-import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const frontendGenerator = join(
@@ -63,10 +63,7 @@ const frontendValidators = join(
   "generators",
   "validators.star",
 );
-const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
-  throw new Error("Tilt is required for frontend Starlark generator tests in CI.");
-}
+const hasTilt = tiltAvailable();
 const temporaryDirs: string[] = [];
 
 it("registers Vue Vite templates at the shared Starlark generator paths", () => {
@@ -204,19 +201,6 @@ it("selects the framework entry in generated frontend health checks", () => {
   expect(validators).toContain('"frontend": ["package.json", "index.html", frontend_entry]');
 });
 
-function evaluateTiltfile(source: string, env: NodeJS.ProcessEnv = process.env) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-vite-generator-"));
-  temporaryDirs.push(directory);
-  const tiltfile = join(directory, "Tiltfile");
-  writeFileSync(tiltfile, source);
-  return spawnSync("tilt", ["alpha", "tiltfile-result", "-f", tiltfile], {
-    cwd: repoRoot,
-    encoding: "utf-8",
-    env,
-    timeout: 20000,
-  });
-}
-
 // A project root whose .tdk/project.json names the project, which is the npm scope and the local domain.
 function projectRootNamed(name: string) {
   const directory = mkdtempSync(join(tmpdir(), "tdk-generator-project-"));
@@ -229,7 +213,10 @@ function projectRootNamed(name: string) {
 // Runs a Tiltfile that ends with fail('GENERATED_FILES_JSON=' + encode_json(files)) and returns those files by path.
 // `tilt alpha tiltfile-result` drops print() output, while a fail() message reaches stderr on every platform.
 function generatedFiles(source: string, projectRoot: string) {
-  const result = evaluateTiltfile(source, { ...process.env, TDK_PROJECT_ROOT: projectRoot });
+  const result = evaluateStarlark(frontendGenerator, {
+    args: source,
+    env: { ...process.env, TDK_PROJECT_ROOT: projectRoot },
+  });
   const marker = "GENERATED_FILES_JSON=";
   const line = result.stderr.split("\n").find((entry) => entry.includes(marker));
   expect(line, result.stderr).toBeDefined();
@@ -248,8 +235,8 @@ afterEach(() => {
 // Each case spawns `tilt alpha tiltfile-result`, which takes several seconds under full-suite load.
 describe.skipIf(!hasTilt)("Starlark frontend Vite generator", { timeout: 30_000 }, () => {
   it("uses the same React configs for explicit and legacy manifests at generated paths", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
 manifest = {'appType': 'frontend', 'appName': 'storefront', 'stack': 'shop', 'port': 3000, '_resource_path': 'apps/storefront'}
 legacy_files = {}
 def write_legacy(path, content):
@@ -268,17 +255,20 @@ if 'apps/storefront' + VITE_FRONTEND_CONFIG_PATH not in legacy_files: fail('miss
 if 'apps/storefront' + VITE_FRONTEND_BUILD_CONFIG_PATH not in legacy_files: fail('missing build config')
 if "@vitejs/plugin-react" not in legacy_config: fail('missing React plugin')
 if "@vitejs/plugin-react" not in legacy_files['apps/storefront' + VITE_FRONTEND_BUILD_CONFIG_PATH]: fail('missing React build plugin')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("rejects an unknown framework before writing Vite configs", () => {
-    const result = evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend')
 def reject_writes(path, content):
     fail('unexpected write before framework validation')
 generate_frontend({'appType': 'frontend', 'appName': 'storefront', 'framework': 'angular'}, write_fn=reject_writes)
-`);
+`,
+    });
 
     expect(result.status).toBe(5);
     expect(result.stderr).toContain("Unknown frontend framework for Vite generation: angular");
@@ -286,8 +276,8 @@ generate_frontend({'appType': 'frontend', 'appName': 'storefront', 'framework': 
   });
 
   it("selects Vue plugin in both generated configs and retains shared runtime settings", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
 manifest = {'appType': 'frontend', 'framework': 'vue', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -304,14 +294,15 @@ for content in files.values():
     if "'@': resolve(__dirname, '../src')" not in content: fail('missing source alias')
 if "port: 3100" not in files[dev_path]: fail('missing shared dev port')
 if 'proxy:' not in files[dev_path]: fail('missing shared proxy')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("selects Svelte plugin in both generated configs and retains shared runtime settings", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
 manifest = {'appType': 'frontend', 'framework': 'svelte', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -329,14 +320,15 @@ for content in files.values():
     if "'@': resolve(__dirname, '../src')" not in content: fail('missing source alias')
 if "port: 3100" not in files[dev_path]: fail('missing shared dev port')
 if 'proxy:' not in files[dev_path]: fail('missing shared proxy')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("generates both Vite configs for TanStack Router with the React plugin and the shared runtime settings", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
 manifest = {'appType': 'frontend', 'framework': 'tanstack-router', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -347,14 +339,15 @@ for content in files.values():
     if "@vitejs/plugin-react" not in content: fail('missing React plugin')
     if "base: '/storefront/'" not in content: fail('missing shared base path')
 if 'proxy:' not in files['apps/storefront' + VITE_FRONTEND_CONFIG_PATH]: fail('missing shared proxy')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("selects the Solid plugin in both generated configs and retains shared runtime settings", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
 manifest = {'appType': 'frontend', 'framework': 'solid', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -371,14 +364,15 @@ for content in files.values():
     if "'@': resolve(__dirname, '../src')" not in content: fail('missing source alias')
 if "port: 3100" not in files[dev_path]: fail('missing shared dev port')
 if 'proxy:' not in files[dev_path]: fail('missing shared proxy')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("selects the Qwik plugin in both generated configs and retains shared runtime settings", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
 manifest = {'appType': 'frontend', 'framework': 'qwik', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -395,14 +389,15 @@ for content in files.values():
     if "'@': resolve(__dirname, '../src')" not in content: fail('missing source alias')
 if "port: 3100" not in files[dev_path]: fail('missing shared dev port')
 if 'proxy:' not in files[dev_path]: fail('missing shared proxy')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("selects Preact preset in both generated configs and retains shared runtime settings", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend', 'VITE_FRONTEND_CONFIG_PATH', 'VITE_FRONTEND_BUILD_CONFIG_PATH')
 manifest = {'appType': 'frontend', 'framework': 'preact', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -419,7 +414,8 @@ for content in files.values():
     if "'@': resolve(__dirname, '../src')" not in content: fail('missing source alias')
 if "port: 3100" not in files[dev_path]: fail('missing shared dev port')
 if 'proxy:' not in files[dev_path]: fail('missing shared proxy')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
@@ -427,7 +423,8 @@ if 'proxy:' not in files[dev_path]: fail('missing shared proxy')
 
 describe.skipIf(!hasTilt)("Starlark frontend TypeScript generator", { timeout: 30_000 }, () => {
   it("generates plugin-free Lit configs in both modes and retains shared runtime settings", () => {
-    const result = evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend')
 manifest = {'appType': 'frontend', 'framework': 'lit', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -439,13 +436,15 @@ for content in files.values():
     if "@vitejs/plugin-react" in content: fail('React plugin leaked into Lit config')
     if "base: '/storefront/'" not in content: fail('missing shared base path')
     if "'@': resolve(__dirname, '../src')" not in content: fail('missing source alias')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("generates plugin-free Vanilla configs in both modes and retains shared runtime settings", () => {
-    const result = evaluateTiltfile(`load(${JSON.stringify(frontendGenerator)}, 'generate_frontend')
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(frontendGenerator)}, 'generate_frontend')
 manifest = {'appType': 'frontend', 'framework': 'vanilla', 'appName': 'storefront', 'stack': 'shop', 'port': 3100, '_resource_path': 'apps/storefront'}
 files = {}
 def write_config(path, content):
@@ -457,14 +456,15 @@ for content in files.values():
     if "@vitejs/plugin-react" in content: fail('React plugin leaked into Vanilla config')
     if "base: '/storefront/'" not in content: fail('missing shared base path')
     if "'@': resolve(__dirname, '../src')" not in content: fail('missing source alias')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
 
   it("preserves legacy React JSX and omits it for Vue Docker builds", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendTsconfigGenerator)}, 'generate_frontend_tsconfig')
+    const result = evaluateStarlark(frontendTsconfigGenerator, {
+      args: `load(${JSON.stringify(frontendTsconfigGenerator)}, 'generate_frontend_tsconfig')
 legacy = {}
 def write_legacy(path, content):
     legacy[path] = content
@@ -521,7 +521,8 @@ if react_config['compilerOptions'].get('jsx') != 'react-jsx': fail('missing Reac
 if 'jsx' in vue_config['compilerOptions']: fail('React JSX leaked into Vue config')
 if vue_config['compilerOptions']['types'] != ['node']: fail('shared Node types changed')
 if vue_config['compilerOptions']['moduleResolution'] != 'bundler': fail('frontend resolution must support current TypeScript')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });
@@ -529,8 +530,8 @@ if vue_config['compilerOptions']['moduleResolution'] != 'bundler': fail('fronten
 
 describe.skipIf(!hasTilt)("Starlark frontend health check", { timeout: 30_000 }, () => {
   it("requires main.ts for Vue and Svelte and main.tsx for legacy React", () => {
-    const result =
-      evaluateTiltfile(`load(${JSON.stringify(frontendValidators)}, 'generate_resource_health_check')
+    const result = evaluateStarlark(frontendValidators, {
+      args: `load(${JSON.stringify(frontendValidators)}, 'generate_resource_health_check')
 vue = generate_resource_health_check('web', 'apps/web', {'appType': 'frontend', 'framework': 'vue'}, {})
 if 'src/main.tsx' in vue or 'src/main.ts' not in vue: fail('Vue entry check is wrong')
 svelte = generate_resource_health_check('web', 'apps/web', {'appType': 'frontend', 'framework': 'svelte'}, {})
@@ -549,7 +550,8 @@ router = generate_resource_health_check('web', 'apps/web', {'appType': 'frontend
 if 'src/main.tsx' not in router: fail('TanStack Router entry check is wrong')
 react = generate_resource_health_check('web', 'apps/web', {'appType': 'frontend'}, {})
 if 'src/main.tsx' not in react: fail('legacy React entry check is wrong')
-`);
+`,
+    });
 
     expect(result.status, result.stderr).toBe(0);
   });

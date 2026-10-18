@@ -59,21 +59,10 @@
 		},
 		{
 			"workflow": "ci.yml",
-			"job": "docs",
-			"tier": "gate",
-			"required": false,
-			"reason": "Detects docs-only PRs for the other jobs",
-			"owner": "maintainers",
-			"exempt": {
-				"check-name": "#1283"
-			}
-		},
-		{
-			"workflow": "ci.yml",
 			"job": "changes",
 			"tier": "gate",
 			"required": false,
-			"reason": "Single change-detection job for the run",
+			"reason": "Single change-detection job for the run; sets docs_only for the other jobs (#1283)",
 			"owner": "maintainers"
 		},
 		{
@@ -126,6 +115,22 @@
 		},
 		{
 			"workflow": "ci.yml",
+			"job": "pr-summary",
+			"tier": "bot",
+			"required": false,
+			"reason": "Creates or edits the one PR comment with unit counts, E2E results, coverage and links; pull requests only (#1385)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "package",
+			"tier": "test",
+			"required": false,
+			"reason": "Builds and packs the CLI once per run; package-smoke installs the tarball (#1283)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
 			"job": "package-smoke",
 			"tier": "test",
 			"required": false,
@@ -145,7 +150,7 @@
 			"job": "dependency-review",
 			"tier": "security",
 			"required": false,
-			"reason": "Dependency review on lockfile changes; disabled until vars.DEPENDENCY_REVIEW is set (#1284)",
+			"reason": "Dependency review on lockfile changes; runs when vars.DEPENDENCY_REVIEW is true (#1284)",
 			"owner": "maintainers"
 		},
 		{
@@ -157,7 +162,15 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "ci.yml",
+			"workflow": "security.yml",
+			"job": "changes",
+			"tier": "gate",
+			"required": false,
+			"reason": "Scanner change detection on PRs; sets code, deps and infra for the scanners (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "security.yml",
 			"job": "trivy",
 			"tier": "security",
 			"required": false,
@@ -165,7 +178,7 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "ci.yml",
+			"workflow": "security.yml",
 			"job": "osv-scanner",
 			"tier": "security",
 			"required": false,
@@ -173,7 +186,7 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "ci.yml",
+			"workflow": "security.yml",
 			"job": "semgrep",
 			"tier": "security",
 			"required": false,
@@ -198,10 +211,18 @@
 		},
 		{
 			"workflow": "codeql.yml",
+			"job": "changes",
+			"tier": "gate",
+			"required": false,
+			"reason": "Workflow change detection; gates the actions leg of analyze on PRs (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "codeql.yml",
 			"job": "analyze",
 			"tier": "security",
 			"required": false,
-			"reason": "Code scanning; weekly, and on PRs",
+			"reason": "Code scanning; javascript-typescript on every PR, actions only when workflows change (#1284); weekly",
 			"owner": "maintainers"
 		},
 		{
@@ -245,14 +266,6 @@
 			"owner": "maintainers"
 		},
 		{
-			"workflow": "docs-only.yml",
-			"job": "detect",
-			"tier": "gate",
-			"required": false,
-			"reason": "Reusable docs-only detection; removed in #1283",
-			"owner": "maintainers"
-		},
-		{
 			"workflow": "erp-scale-e2e.yml",
 			"job": "erp",
 			"tier": "e2e",
@@ -276,7 +289,7 @@
 			"job": "example-e2e",
 			"tier": "e2e",
 			"required": true,
-			"reason": "Default example boots; required; moves to e2e-examples in #1299",
+			"reason": "Default example boots; required; suite tests/e2e/examples/default",
 			"owner": "maintainers"
 		},
 		{
@@ -389,7 +402,7 @@
 			"job": "python-example-e2e",
 			"tier": "e2e",
 			"required": false,
-			"reason": "Python provider example; moves in #1299",
+			"reason": "Python provider example; suite tests/e2e/examples/python",
 			"owner": "maintainers"
 		},
 		{
@@ -421,14 +434,11 @@
 		},
 		{
 			"workflow": "release-binaries.yml",
-			"job": "windows-smoke",
+			"job": "windows-binary",
 			"tier": "e2e",
 			"required": false,
-			"reason": "Duplicate check name of windows-smoke.yml; removed in #1300",
-			"owner": "maintainers",
-			"exempt": {
-				"check-name": "#1300"
-			}
+			"reason": "Checks the Windows release candidate through tests/e2e/platforms/windows-binary (#1300)",
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "release-binaries.yml",
@@ -440,6 +450,46 @@
 			"exempt": {
 				"check-name": "#1279"
 			}
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "plan",
+			"tier": "release",
+			"required": false,
+			"reason": "Builds the resource-type matrix for the release trigger (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "package",
+			"tier": "release",
+			"required": false,
+			"reason": "Packs this commit's CLI, checks the tarball in a clean container, uploads it (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "quickstart",
+			"tier": "release",
+			"required": false,
+			"reason": "README quickstart (Q1-Q4) against the candidate tarball (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "resource-types",
+			"tier": "release",
+			"required": false,
+			"reason": "Release-trigger resource-type suites against the candidate tarball (#1387)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
+			"job": "gate",
+			"tier": "release",
+			"required": false,
+			"reason": "Fails unless every candidate job succeeded; release-binaries.yml publish reads this run (#1387)",
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "scorecard.yml",
@@ -455,6 +505,14 @@
 			"tier": "e2e",
 			"required": false,
 			"reason": "Smoke runner; moves to journeys in #1298",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "broken-project-e2e.yml",
+			"job": "broken-project-e2e",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Failure paths through tdk up: unhealthy service (BP3) and interrupted up (BP4); suite tests/e2e/journeys/broken-project (#1386)",
 			"owner": "maintainers"
 		},
 		{
@@ -489,18 +547,34 @@
 			"job": "windows-smoke",
 			"tier": "e2e",
 			"required": true,
-			"reason": "Windows CLI smoke; required; moved to e2e-platforms in #1300",
+			"reason": "Windows CLI smoke; required; runs tests/e2e/platforms/windows (#1300)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "package-lifecycle-smoke.yml",
+			"job": "docs",
+			"tier": "gate",
+			"required": false,
+			"reason": "Detects docs-only PRs for package-lifecycle-smoke",
 			"owner": "maintainers",
 			"exempt": {
-				"check-name": "#1300"
+				"check-name": "#1283"
 			}
+		},
+		{
+			"workflow": "package-lifecycle-smoke.yml",
+			"job": "lifecycle-smoke",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Packed tarball install, version, upgrade and uninstall in a clean node:22 container (#1384)",
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "wsl2-smoke.yml",
 			"job": "wsl2-smoke",
 			"tier": "e2e",
 			"required": false,
-			"reason": "WSL2 smoke; moved to e2e-platforms in #1300",
+			"reason": "WSL2 smoke; manual; runs tests/e2e/platforms/wsl2 (#1300)",
 			"owner": "maintainers"
 		},
 		{

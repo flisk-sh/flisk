@@ -1,0 +1,64 @@
+# Runs the failure-path cases of the broken-project journey (tests/e2e/journeys/broken-project) through a real `tdk up`: an
+# unhealthy service must fail startup and name itself (BP3), and an interrupted up must be cleaned up by `tdk down` before a
+# second up succeeds (BP4). The bad service.json and missing dependsOn cases run without Docker in the CLI test suite.
+#
+# Path-filtered: runs when the startup code, the e2e lib, this suite, or this workflow changes. Not a required check on main.
+name: 🧯 Broken project E2E
+
+on:
+  pull_request:
+    paths:
+      - "cli/src/commands/up.ts"
+      - "cli/src/utils/up-readiness.ts"
+      - "cli/src/utils/startup-report.ts"
+      - "cli/src/utils/service-config-checks.ts"
+      - "tests/e2e/lib/**"
+      - "tests/e2e/journeys/broken-project/**"
+      - ".github/workflows/broken-project-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: broken-project-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  broken-project-e2e:
+    name: broken-project-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      - name: Install Tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      # The runner's preinstalled Postgres holds 5432, which the generated project needs (see quickstart-e2e.yml).
+      - name: Free port 5432 (runner's preinstalled Postgres)
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      - name: Install TDK
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: local
+
+      - name: Run the unhealthy-service case (BP3)
+        run: tests/e2e/journeys/broken-project/run.sh BP3
+
+      - name: Run the interrupted-up case (BP4)
+        run: tests/e2e/journeys/broken-project/run.sh BP4
+
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: broken-project

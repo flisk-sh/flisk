@@ -54,6 +54,22 @@ describe("handleDryRun", () => {
     expect(handleDryRun({ dryRun: true }, "", "tdk up")).toBe(true);
     expect(log.mock.calls).toEqual([["Dry run - "], ["Would run: tdk up"]]);
   });
+
+  it("calls printPlan instead of the standard lines when a plan is given", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const printPlan = vi.fn(() => console.log("plan line"));
+
+    expect(handleDryRun({ dryRun: true }, "", "", printPlan)).toBe(true);
+    expect(printPlan).toHaveBeenCalledOnce();
+    expect(log.mock.calls).toEqual([["plan line"]]);
+  });
+
+  it("does not call printPlan when dryRun is unset", () => {
+    const printPlan = vi.fn();
+
+    expect(handleDryRun({}, "", "", printPlan)).toBe(false);
+    expect(printPlan).not.toHaveBeenCalled();
+  });
 });
 
 describe("assertValid", () => {

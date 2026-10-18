@@ -35,31 +35,129 @@ const JSON_MATRIX: Array<{ command: string[]; project: Parameters<typeof createT
     { command: ["config", "verify"], project: {} },
   ];
 
+const VALID_PROJECT_JSON = {
+  version: "1.0.0",
+  project: { name: "test", version: "1.0.0" },
+  phases: Object.fromEntries(
+    ["pre_alpha", "alpha", "beta", "out_of_scope"].map((name) => [
+      name,
+      { name, description: "", enabledStacks: [] },
+    ]),
+  ),
+  optional_infra: {
+    monitoring: false,
+    elk: false,
+    debezium: false,
+    golden_image: false,
+    verdaccio: false,
+  },
+  discovery: { paths: ["services/**"] },
+};
+
+/** A valid project with generated Tilt files and one backend, so the commands below reach their plan. */
+const CONFIGURED_PROJECT: Parameters<typeof createTempProject>[0] = {
+  projectJson: VALID_PROJECT_JSON,
+  stacks: { api: { gateway: { appType: "backend", port: 3100 } } },
+  generated: { Tiltfile: "# generated\n", "docker-compose.yml": "services: {}\n" },
+};
+
+/**
+ * One row per command that prints a dry-run plan without Docker or Tilt. `expect` is the text the plan prints.
+ * `eject` prints no "Dry run" line; its plan is the list of files it would leave and write.
+ */
+const DRY_RUN_MATRIX: Array<{
+  site: string;
+  command: string[];
+  project: Parameters<typeof createTempProject>[0];
+  expect: string;
+}> = [
+  {
+    site: "config regenerate --dry-run",
+    command: ["config", "regenerate"],
+    project: CONFIGURED_PROJECT,
+    expect: "Dry run",
+  },
+  { site: "down --dry-run", command: ["down"], project: CONFIGURED_PROJECT, expect: "Dry run" },
+  {
+    site: "eject --dry-run",
+    command: ["eject"],
+    project: CONFIGURED_PROJECT,
+    expect: "Files written:",
+  },
+  { site: "up --dry-run", command: ["up"], project: CONFIGURED_PROJECT, expect: "Dry run" },
+];
+
+/**
+ * One row per command that runs non-interactively with `--yes` in a temp project. Each runs with stdin closed,
+ * so a prompt that ignores `--yes` ends the run with an error instead of hanging.
+ */
+const YES_MATRIX: Array<{
+  site: string;
+  command: string[];
+  project: Parameters<typeof createTempProject>[0];
+}> = [
+  { site: "eject --yes", command: ["eject"], project: CONFIGURED_PROJECT },
+  {
+    site: "stack --yes",
+    command: ["stack", "api", "--resources", "web"],
+    project: {
+      ...CONFIGURED_PROJECT,
+      resources: { web: { appType: "backend", port: 4000 } },
+    },
+  },
+  {
+    site: "resource --yes",
+    command: ["resource", "web", "--type", "backend"],
+    project: CONFIGURED_PROJECT,
+  },
+  { site: "project --yes", command: ["project"], project: CONFIGURED_PROJECT },
+];
+
+/**
+ * `agent sessions --json` fails before any request when the session id is missing, so its error envelope runs in a
+ * temp project with no agent process. The `site` names the command the same way the completeness check does.
+ */
+const AGENT_SESSIONS_JSON: {
+  site: string;
+  command: string[];
+  project: Parameters<typeof createTempProject>[0];
+} = {
+  site: "agent sessions --json",
+  command: ["agent", "sessions", "assistant"],
+  project: { stacks: { api: { assistant: { appType: "agent", port: 3200 } } } },
+};
+
+/**
+ * `doctor --json` runs its probes with or without a project and prints one report. Its exit status depends on the
+ * host (a machine without Docker exits 1), so this row checks the envelope only, not the status.
+ */
+const DOCTOR_JSON: { site: string; command: string[] } = {
+  site: "doctor --json",
+  command: ["doctor", "--no-ping"],
+};
+
 /**
  * Commands and subcommands that register one of the three flags but have no matrix row yet. Each entry says why.
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
-  "agent sessions --json": "lists live agent sessions; needs the agent host",
-  "config regenerate --dry-run": "writes generated files; needs a configured project",
-  "doctor --json":
-    "checks the host toolchain and probes ports; its own test file covers the report",
-  "doctor --dry-run": "only applies with --fix; covered by the doctor test file",
-  "doctor --yes": "only applies with --fix; covered by the doctor test file",
-  "down --json": "stops containers; needs a running stack",
-  "down --dry-run": "lists what it would stop; needs a running stack",
-  "eject --dry-run": "needs a stack to eject",
-  "eject --yes": "needs a stack to eject",
-  "logs --json": "reads container logs; needs a running stack",
-  "project --yes": "creates a project; prompts without --yes",
-  "resource --yes": "changes resource assignments; needs a project",
-  "restart --json": "restarts containers; needs a running stack",
-  "runtime --json": "reports runtime state through Docker",
-  "stack --yes": "changes stack assignments; needs a project",
-  "up --json": "starts containers; needs Docker",
-  "up --dry-run": "plans a start; needs a valid stack",
-  "upgrade --dry-run": "needs an installed project to upgrade",
-  "upgrade --yes": "needs an installed project to upgrade",
+  "doctor --dry-run":
+    "with --fix, prints the Dry run line only when a repair is planned; repairs come from the host's Docker networks and leftover probes, so a temp project may plan none",
+  "doctor --yes":
+    "with --fix, removes unused Docker networks on the host's Docker daemon; a test run would act on that daemon",
+  "down --json":
+    "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "logs --json":
+    "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
+  "restart --json":
+    "triggers a resource on the host's Tilt UI port, and isTiltAvailable checks the host's tilt binary; needs Tilt and a running stack",
+  "runtime --json":
+    "checks the packaged install's bundled assets, so a source checkout reports ok: false; prints {ok, assetRoot, missing, templateErrors}, not the envelope",
+  "up --json": "starts containers through the host's Docker, Compose and Tilt; needs Docker",
+  "upgrade --dry-run":
+    "compares the installed CLI with origin over git on the host, and prints 'Dry run:' rather than 'Dry run -'",
+  "upgrade --yes":
+    "updates the installed CLI checkout, so a test run would rebuild the repo under test",
 };
 
 interface FlagSite {
@@ -100,6 +198,27 @@ function collectFlagSites(command: Command, prefix: string[] = []): FlagSite[] {
   return sites;
 }
 
+/** Every file under `dir` as a map of root-relative path to content, so a test can prove nothing was written. */
+function snapshotTree(root: string, dir = root, out: Record<string, string> = {}) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) snapshotTree(root, full, out);
+    else out[path.relative(root, full)] = fs.readFileSync(full, "utf-8");
+  }
+  return out;
+}
+
+/** The `<command> <flag>` sites that have a matrix row. */
+function coveredSites(): Set<string> {
+  return new Set([
+    ...JSON_MATRIX.map((row) => `${row.command.join(" ")} --json`),
+    ...DRY_RUN_MATRIX.map((row) => row.site),
+    ...YES_MATRIX.map((row) => row.site),
+    AGENT_SESSIONS_JSON.site,
+    DOCTOR_JSON.site,
+  ]);
+}
+
 async function loadAllCommands(): Promise<Command[]> {
   const files = fs
     .readdirSync(commandsDir)
@@ -133,13 +252,40 @@ describe("flag contract: --json", () => {
     "tdk $command --json outside a project fails with a null-data envelope",
     ({ command }) => {
       const result = runTdk([...command, "--json"], { cwd: createTempDir() });
-      expect(result.status).not.toBe(0);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Could not find project root");
       expect(result.stderr).not.toMatch(/^\{/m);
       const envelope = parseOneEnvelope(result.stdout);
       expect(envelope.data).toBeNull();
-      expect(envelope.errors.length).toBeGreaterThan(0);
+      expect(envelope.errors).toHaveLength(1);
     },
   );
+});
+
+describe("flag contract: --json for doctor", () => {
+  it(`${DOCTOR_JSON.site} prints one envelope with no project`, () => {
+    const result = runTdk([...DOCTOR_JSON.command, "--json"], {
+      cwd: createTempDir(),
+      timeout: 60_000,
+    });
+    expect(result.stderr).not.toMatch(/^\{/m);
+    const envelope = parseOneEnvelope(result.stdout);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(Array.isArray(envelope.errors)).toBe(true);
+  }, 60_000);
+});
+
+describe("flag contract: --json error envelope for agent sessions", () => {
+  it(`${AGENT_SESSIONS_JSON.site} without --session-id fails with a null-data envelope`, () => {
+    const root = createTempProject(AGENT_SESSIONS_JSON.project);
+    const result = runTdk([...AGENT_SESSIONS_JSON.command, "--json"], { cwd: root });
+    expect(result.status).toBe(1);
+    expect(result.stderr).not.toMatch(/^\{/m);
+    const envelope = parseOneEnvelope(result.stdout);
+    expect(envelope.schemaVersion).toBe(1);
+    expect(envelope.data).toBeNull();
+    expect(envelope.errors).toEqual([expect.objectContaining({ code: "SESSION_ID_REQUIRED" })]);
+  });
 });
 
 describe("flag contract: completeness", () => {
@@ -147,11 +293,16 @@ describe("flag contract: completeness", () => {
     const sites = (await loadAllCommands()).flatMap((command) => collectFlagSites(command));
     expect(sites.length).toBeGreaterThan(0);
 
-    const covered = new Set(JSON_MATRIX.map((row) => `${row.command.join(" ")} --json`));
+    const covered = coveredSites();
     const missing = sites
       .map((site) => site.key)
       .filter((key) => !covered.has(key) && !(key in EXEMPT));
     expect(missing).toEqual([]);
+  });
+
+  it("does not keep an exemption for a site that now has a matrix row", () => {
+    const covered = coveredSites();
+    expect(Object.keys(EXEMPT).filter((key) => covered.has(key))).toEqual([]);
   });
 
   it("flags an exemption that no longer matches a real flag, so the list cannot go stale", async () => {
@@ -160,7 +311,33 @@ describe("flag contract: completeness", () => {
         .flatMap((command) => collectFlagSites(command))
         .map((site) => site.key),
     );
-    const stale = Object.keys(EXEMPT).filter((key) => !sites.has(key));
+    const stale = [...Object.keys(EXEMPT), ...coveredSites()].filter((key) => !sites.has(key));
     expect(stale).toEqual([]);
   });
+});
+
+describe("flag contract: --dry-run", () => {
+  it.each(DRY_RUN_MATRIX)(
+    "tdk $site prints its plan and writes nothing",
+    ({ command, project, expect: line }) => {
+      const root = createTempProject(project);
+      const before = snapshotTree(root);
+      const result = runTdk([...command, "--dry-run"], { cwd: root, input: "", timeout: 60_000 });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(line);
+      expect(snapshotTree(root)).toEqual(before);
+    },
+  );
+});
+
+describe("flag contract: --yes", () => {
+  it.each(YES_MATRIX)(
+    "tdk $site runs without a prompt when stdin is closed",
+    ({ command, project }) => {
+      const root = createTempProject(project);
+      const result = runTdk([...command, "--yes"], { cwd: root, input: "", timeout: 60_000 });
+      expect(result.status).toBe(0);
+      expect(`${result.stdout}${result.stderr}`).not.toMatch(/\(y\/n\)|\[y\/N\]/i);
+    },
+  );
 });

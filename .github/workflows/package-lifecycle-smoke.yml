@@ -1,0 +1,71 @@
+name: Packed CLI lifecycle smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: package-lifecycle-smoke-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+      examples_only: ${{ steps.detect.outputs.examples_only }}
+      wsl2_irrelevant: ${{ steps.detect.outputs.wsl2_irrelevant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - id: detect
+        uses: ./.github/actions/docs-only # zizmor: ignore[self-repository] composite action resolves from this commit
+
+  lifecycle-smoke:
+    name: 📦 Packed CLI lifecycle smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: docs
+    # Skip on docs-only PRs; a skipped job still satisfies required checks.
+    if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - name: Build
+        run: |
+          bun install --frozen-lockfile
+          npm run build
+
+      # Pack the root package (the tarball users install) and stage it with the
+      # script and cli/package.json, so the container never sees the source tree.
+      - name: Pack the CLI tarball
+        run: |
+          mkdir -p "$RUNNER_TEMP/lifecycle"
+          packed="$(npm pack --pack-destination "$RUNNER_TEMP/lifecycle" --silent)"
+          mv "$RUNNER_TEMP/lifecycle/$packed" "$RUNNER_TEMP/lifecycle/tdk-cli.tgz"
+          cp cli/package.json scripts/package-lifecycle-smoke.sh "$RUNNER_TEMP/lifecycle/"
+
+      # A clean Node 22 image: no Tilt, no Docker project, no global tdk.
+      # Tilt and Docker are not installed, so `tdk up` is not exercised here.
+      - name: Install, upgrade, uninstall the packed CLI in a clean container
+        run: |
+          docker run --rm \
+            --volume "$RUNNER_TEMP/lifecycle:/lifecycle:ro" \
+            node:22-bookworm-slim \
+            bash /lifecycle/package-lifecycle-smoke.sh /lifecycle/tdk-cli.tgz /lifecycle/package.json

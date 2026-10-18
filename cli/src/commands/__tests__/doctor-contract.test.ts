@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { captureExit } from "../../test-support/index.js";
 import type { CheckResult } from "../../types/index.js";
 import { checkHostPorts } from "../../utils/doctor-runtime.js";
 import {
@@ -167,9 +168,7 @@ describe("doctor environment contract", () => {
 
   it("refuses native Windows doctor with WSL2 guidance and exit code 1", async () => {
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       Object.defineProperty(process, "platform", { configurable: true, value: "win32" });

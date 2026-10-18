@@ -1,0 +1,41 @@
+# Test files under cli/src/**/__tests__ that still declare a helper which now lives in cli/src/test-support.
+# Checked by scripts/check-test-helper-allowlist.mjs (#1402, part of #1388). Format: "<file> <helper>".
+# This list only shrinks: a new duplicate fails the check, and a line whose file no longer declares the helper
+# fails too, so delete the line when you migrate a file to import from test-support.
+
+cli/src/commands/__tests__/agent-sessions.test.ts runTdk
+cli/src/commands/__tests__/project-e2e-helpers.ts cliBin
+cli/src/commands/__tests__/project-e2e-helpers.ts runTdk
+cli/src/commands/__tests__/project-root-errors.test.ts cliBin
+cli/src/commands/__tests__/projects-json.test.ts createProject
+cli/src/commands/__tests__/projects-stacks.test.ts cliBin
+cli/src/commands/__tests__/projects-stacks.test.ts createTempDir
+cli/src/commands/__tests__/projects-stacks.test.ts runTdk
+cli/src/commands/__tests__/resource-agent.test.ts cliBin
+cli/src/commands/__tests__/resource-backend-frameworks.test.ts cliBin
+cli/src/commands/__tests__/resource-backend-languages.test.ts cliBin
+cli/src/commands/__tests__/resource-frameworks-e2e.test.ts cliBin
+cli/src/commands/__tests__/resource-frameworks-e2e.test.ts runTdk
+cli/src/commands/__tests__/resource-mcp.test.ts cliBin
+cli/src/commands/__tests__/restart.test.ts runTdk
+cli/src/commands/__tests__/saas-starter-integration.test.ts runCli
+cli/src/commands/__tests__/stack-features-e2e.test.ts cliBin
+cli/src/commands/__tests__/stack-features-e2e.test.ts runTdk
+cli/src/commands/__tests__/stack-scriptable.test.ts cliBin
+cli/src/commands/__tests__/stack-scriptable.test.ts createProject
+cli/src/commands/__tests__/stack-scriptable.test.ts runTdk
+cli/src/commands/__tests__/stacks-json.test.ts createProject
+cli/src/commands/__tests__/version.test.ts runCli
+cli/src/components/__tests__/ui-ascii-invariant.test.ts resource
+cli/src/mcp/__tests__/stdio.test.ts cliBin
+cli/src/utils/__tests__/build-performance-tilt.test.ts evaluate
+cli/src/utils/__tests__/bun-requirement.test.ts resource
+cli/src/utils/__tests__/doctor-wiring.test.ts resource
+cli/src/utils/__tests__/machine-output-contract.test.ts cliBin
+cli/src/utils/__tests__/machine-output-contract.test.ts createProject
+cli/src/utils/__tests__/machine-output-contract.test.ts runCli
+cli/src/utils/__tests__/resource-kind.test.ts resource
+cli/src/utils/__tests__/shared-infra.test.ts resource
+cli/src/utils/__tests__/shared-platform-postgres.test.ts resource
+cli/src/utils/__tests__/status-ports.test.ts resource
+cli/src/utils/__tests__/ui-service-state.test.ts resource

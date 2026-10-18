@@ -43,6 +43,7 @@ import {
   decideWakeAction,
   earlyResponseMs,
   evaluateReadiness,
+  isGatewayLivenessProbe,
   wakeTimeoutMs,
   type ContainerState,
 } from "./decide";
@@ -349,7 +350,7 @@ Bun.serve({
   // was raised. 255s is Bun's own max for this setting.
   idleTimeout: 255,
   fetch(req) {
-    if (req.method === "GET" && new URL(req.url).pathname === "/health") {
+    if (isGatewayLivenessProbe(req.method, new URL(req.url).pathname, req.headers)) {
       return new Response("ok");
     }
     return handleWake(req).catch((err) => {

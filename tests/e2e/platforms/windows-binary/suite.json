@@ -1,0 +1,15 @@
+{
+  "group": "platforms",
+  "suite": "windows-binary",
+  "description": "The Windows release candidate (moved from the windows-smoke job of .github/workflows/release-binaries.yml, #1300): WB1 checks the downloaded tdk.exe and engine archive against checksums.txt, runs its version and runtime check, and confirms its adjacent engine root. The release workflow runs it on the built binary before publish.",
+  "paths": [
+    "scripts/release-binaries.sh",
+    "tests/e2e/lib/**",
+    "tests/e2e/platforms/windows-binary/**",
+    ".github/workflows/release-binaries.yml"
+  ],
+  "cases": ["WB1"],
+  "triggers": ["release"],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}

@@ -1,0 +1,27 @@
+{
+  "group": "resource-types",
+  "suite": "library",
+  "description": "A library resource on a live project, with no stack (#1295). `tdk resource --type` does not accept library, so the suite writes its package and service.json (appType library), registers it with tdk resource --path, checks tdk status lists it as a library, builds it with its build script and imports the built entry from a consumer.",
+  "paths": [
+    "cli/src/commands/resource.ts",
+    "cli/src/utils/constants.ts",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/resource-types/library/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": [
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "triggers": [
+    "nightly",
+    "release",
+    "manual"
+  ],
+  "timeoutMinutes": 15,
+  "needsSecrets": []
+}
