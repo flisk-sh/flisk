@@ -1,6 +1,11 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { checkCandidates, COMPARE_FILE_CAP, releaseInputFor } from "./check-release-candidate.mjs";
 
@@ -105,4 +110,86 @@ test("the gate falls through to an older candidate that does cover the commit", 
 test("no candidates at all fails with no reasons to report", () => {
   const result = checkCandidates({ sha: RELEASE, candidates: [], compare: () => assert.fail("no compare") });
   assert.deepEqual(result, { ok: false, reasons: [] });
+});
+
+test("releaseInputFor treats a directory entry as a prefix, not a substring", () => {
+  assert.equal(releaseInputFor("cli"), undefined, "the bare directory name is not a file under cli/**");
+  assert.equal(releaseInputFor("clix/a.ts"), undefined);
+  assert.equal(releaseInputFor("cli/a/b/c.ts"), "cli/**");
+  assert.equal(releaseInputFor("shared-platform-engineering/docker-templates/x/Dockerfile"), "shared-platform-engineering/docker-templates/**");
+  assert.equal(releaseInputFor("shared-platform-engineering/other.md"), undefined);
+});
+
+test("a bun.lock change after a candidate needs a new candidate", () => {
+  const result = checkCandidates({
+    sha: RELEASE,
+    candidates: [OLD],
+    compare: compareWith({ [OLD]: { status: "ahead", files: [file("bun.lock")] } }),
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.reasons[0], /release inputs changed since \(bun\.lock\)/);
+});
+
+// The CLI end to end: a stub gh on PATH answers the two API calls, so the exit codes and printed reasons are what CI sees.
+const script = fileURLToPath(new URL("./check-release-candidate.mjs", import.meta.url));
+const stubDir = mkdtempSync(path.join(tmpdir(), "gh-stub-"));
+const stubGh = path.join(stubDir, "gh");
+writeFileSync(
+  stubGh,
+  `#!/bin/sh
+case "$*" in
+  *"/actions/workflows/release-candidate.yml/runs"*) cat "$FAKE_DIR/runs.json" ;;
+  *"/compare/"*)
+    base=$(printf '%s' "$*" | sed -E 's#.*/compare/([0-9a-f]+)\\.\\.\\..*#\\1#')
+    cat "$FAKE_DIR/compare-$base.json" ;;
+  *) echo "unexpected gh call: $*" >&2; exit 1 ;;
+esac
+`,
+);
+chmodSync(stubGh, 0o755);
+const fakeDir = mkdtempSync(path.join(tmpdir(), "rc-fake-"));
+const runCli = (sha, runs, compares = {}) => {
+  writeFileSync(path.join(fakeDir, "runs.json"), JSON.stringify({ workflow_runs: runs }));
+  for (const [base, body] of Object.entries(compares)) {
+    writeFileSync(path.join(fakeDir, `compare-${base}.json`), JSON.stringify(body));
+  }
+  return spawnSync(process.execPath, [script, "--sha", sha, "--repo", "tdk-landscape/tdk-cli-core"], {
+    encoding: "utf8",
+    env: { ...process.env, PATH: `${stubDir}${path.delimiter}${process.env.PATH}`, FAKE_DIR: fakeDir, GH_TOKEN: "x" },
+  });
+};
+const success = (sha) => ({ conclusion: "success", head_sha: sha });
+
+test("cli: the exact commit passes with exit 0", () => {
+  const out = runCli(RELEASE, [success(RELEASE)]);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /Release candidate passed for a{40}/);
+});
+
+test("cli: an ancestor with only CI changes passes with exit 0", () => {
+  const out = runCli(RELEASE, [success(OLD)], {
+    [OLD]: { status: "ahead", files: [{ filename: ".github/workflows/e2e-resource-types.yml" }] },
+  });
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /changes no release input/);
+});
+
+test("cli: a release input change fails with exit 1 and names the candidate and input", () => {
+  const out = runCli(RELEASE, [success(OLD)], {
+    [OLD]: { status: "ahead", files: [{ filename: "cli/src/main.ts" }] },
+  });
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /No passing Release candidate covers a{40}/);
+  assert.match(out.stderr, /bbbbbbbbb: release inputs changed since \(cli\/\*\*\)/);
+});
+
+test("cli: a failed candidate run never counts", () => {
+  const out = runCli(RELEASE, [{ conclusion: "failure", head_sha: RELEASE }]);
+  assert.equal(out.status, 1);
+});
+
+test("cli: missing --sha or --repo prints usage and exits 2", () => {
+  const out = spawnSync(process.execPath, [script], { encoding: "utf8", env: { ...process.env, SHA: "", GITHUB_REPOSITORY: "" } });
+  assert.equal(out.status, 2);
+  assert.match(out.stderr, /usage:/);
 });
