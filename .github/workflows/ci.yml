@@ -145,7 +145,11 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - run: bun install --frozen-lockfile
-      - run: bun run typecheck
+      # tsc prints file(line,col) errors; rewrite them as ::error workflow commands so GitHub annotates the PR diff.
+      - name: Typecheck
+        run: |
+          set -o pipefail
+          bunx tsc --project tsconfig.typecheck.json --pretty false | sed -E 's#^([^(]+)\(([0-9]+),([0-9]+)\): error (.*)$#::error file=cli/\1,line=\2,col=\3::\4#'
 
   fuzz:
     name: 🧬 Fuzz
