@@ -27,6 +27,7 @@ on:
       - "scripts/sync-tdk-skills.sh"
       - "tests/e2e/lib/**"
       - "tests/e2e/resource-types/**"
+      - "tests/e2e/orm/**"
       - ".github/workflows/e2e-resource-types.yml"
   schedule:
     - cron: "30 6 * * *"
@@ -73,7 +74,8 @@ jobs:
             *) trigger="manual" ;;
           esac
           # Pull requests run the backend languages with the most use plus Rust (#1489), Go (#1491) and Node.js (#1490),
-          # all proven green on a live stack; nightly, release and manual runs run every language the registry declares. The backend suite gets one leg per language.
+          # all proven green on a live stack; nightly, release and manual runs run every language the registry declares. The
+          # backend suite's languages run in the "languages" group, one leg per language; the ORM suites run in the "orm" group (#1493).
           # Framework legs (one bun leg per non-default HTTP framework) run with the full set, not on pull requests.
           if [ "$trigger" = "pr" ]; then
             languages="bun,python,rust,go,node"
@@ -84,16 +86,16 @@ jobs:
             frameworks="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.httpFramework | join(",")')"
             frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
           fi
-          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types "$trigger" "$languages" "$frameworks" "$frontends")"
-          # A pull request that changes only inside one suite's directory (tests/e2e/resource-types/<suite>/) runs only that
-          # suite's legs (#1290). Any other changed file (the CLI, the engine, shared lib, common.sh, this workflow) runs them all.
+          matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types,orm "$trigger" "$languages" "$frameworks" "$frontends")"
+          # A pull request that changes only inside one suite's directory (tests/e2e/<group>/<suite>/) runs only that suite's
+          # legs (#1290, #1493). Any other changed file (the CLI, the engine, shared lib, common.sh, this workflow) runs them all.
           if [ "$trigger" = "pr" ]; then
             git fetch --no-tags --depth=1 origin "$BASE_SHA"
             files="$(git diff --name-only "$BASE_SHA" HEAD)"
-            outside="$(printf '%s\n' "$files" | grep -v '^tests/e2e/resource-types/[^/]*/' || true)"
-            suites="$(printf '%s\n' "$files" | sed -n 's#^tests/e2e/resource-types/\([^/]*\)/.*#\1#p' | sort -u | paste -sd, -)"
-            if [ -z "$outside" ] && [ -n "$suites" ]; then
-              matrix="$(printf '%s' "$matrix" | jq -c --arg suites ",$suites," '{include: [.include[] | .suite as $s | select($suites | contains("," + $s + ","))]}')"
+            outside="$(printf '%s\n' "$files" | grep -v -E '^tests/e2e/(resource-types|orm)/[^/]+/' || true)"
+            dirs="$(printf '%s\n' "$files" | sed -n -E 's#^tests/e2e/((resource-types|orm)/[^/]+)/.*#\1#p' | sort -u | paste -sd, -)"
+            if [ -z "$outside" ] && [ -n "$dirs" ]; then
+              matrix="$(printf '%s' "$matrix" | jq -c --arg dirs ",$dirs," '{include: [.include[] | .dir as $d | select($dirs | contains("," + $d + ","))]}')"
             fi
           fi
           echo "trigger=$trigger"
@@ -101,7 +103,7 @@ jobs:
           echo "$matrix"
 
   resource-types:
-    name: resource-types / ${{ matrix.label }}
+    name: ${{ matrix.group }} / ${{ matrix.label }}
     needs: plan
     if: needs.plan.outputs.matrix != '{"include":[]}'
     runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
@@ -158,11 +160,11 @@ jobs:
       # The suite runs every case in order; each case is grouped in the log so a red case is easy to find.
       - name: Run the suite
         env:
-          SUITE: ${{ matrix.suite }}
+          DIR: ${{ matrix.dir }}
           LANGUAGE: ${{ matrix.language }}
           FRAMEWORK: ${{ matrix.framework }}
           BYO_VARIANT: ${{ matrix.variant }}
-        run: tests/e2e/resource-types/"$SUITE"/run.sh all
+        run: tests/e2e/"$DIR"/run.sh all
 
       # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
       - name: Collect failure evidence
@@ -174,8 +176,8 @@ jobs:
       - name: Collect diagnostics
         if: failure()
         env:
-          SUITE: ${{ matrix.suite }}
-        run: tests/e2e/resource-types/"$SUITE"/run.sh diagnostics
+          DIR: ${{ matrix.dir }}
+        run: tests/e2e/"$DIR"/run.sh diagnostics
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -187,8 +189,8 @@ jobs:
       - name: Tear down
         if: always()
         env:
-          SUITE: ${{ matrix.suite }}
-        run: tests/e2e/resource-types/"$SUITE"/run.sh cleanup
+          DIR: ${{ matrix.dir }}
+        run: tests/e2e/"$DIR"/run.sh cleanup
 
   # Always runs, so the gate reports a result even when no suite is selected. A selected suite that failed or was cancelled
   # fails the gate; a suite that was not selected does not.

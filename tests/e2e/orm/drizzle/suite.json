@@ -1,5 +1,5 @@
 {
-  "group": "resource-types",
+  "group": "orm",
   "suite": "drizzle",
   "description": "A backend with the drizzle feature on a live stack: scaffold with tdk resource --feature drizzle, tdk up, DATABASE_URL set, a /health/db route that queries Postgres through Drizzle answers 200 through Traefik, tdk restart, and one error envelope (#1488).",
   "paths": [
@@ -10,7 +10,7 @@
     "engine/**",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/common.sh",
-    "tests/e2e/resource-types/drizzle/**",
+    "tests/e2e/orm/drizzle/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
   "cases": ["D1", "D2", "D3", "D4", "D5", "D6"],

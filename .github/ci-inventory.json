@@ -266,6 +266,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-scale.yml",
+			"job": "e2e-scale",
+			"tier": "e2e",
+			"required": false,
+			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); replaces the PR coverage of erp-scale-e2e.yml at cutover (#1302); suite tests/e2e/scale/erp",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "erp-scale-e2e.yml",
 			"job": "erp",
 			"tier": "e2e",
@@ -678,14 +686,6 @@
 			"job": "gate",
 			"tier": "gate",
 			"reason": "Fails when the Windows platform leg fails or is cancelled (#1302)",
-			"required": false,
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "e2e-scale.yml",
-			"job": "gate",
-			"tier": "gate",
-			"reason": "Reports that no scale suite runs on pull requests; passes by design until a scale suite gains a pr trigger (#1302)",
 			"required": false,
 			"owner": "maintainers"
 		},
