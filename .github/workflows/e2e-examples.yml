@@ -1,0 +1,88 @@
+# Example suites on pull requests (#1302, tracker #1279). One leg per example suite whose suite.json lists the "pr" trigger: the
+# bundled product example (default) and the Python backend example (python). Each leg packs and installs this checkout's own CLI
+# inside its cases, as the old example workflows did. real-apps is nightly and manual only, so it is not here. The gate job
+# always runs and fails when any example leg failed or was cancelled. Until the cutover, example-e2e.yml and
+# python-example-e2e.yml still run and stay required.
+name: 🧪 E2E examples
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-examples-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  examples:
+    name: e2e-examples / ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.timeoutMinutes }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - suite: default
+            cases: D1 D2 D3 D4
+            timeoutMinutes: 8
+          - suite: python
+            cases: P1 P2 P3 P4
+            timeoutMinutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          ports: "80 443 5432"
+
+      # The cases pack this checkout's CLI and install the tarball themselves (D1 and D2, P1), then clone or configure the example,
+      # boot it with tdk up and prove the routed write or health path. The tarball is our own fresh pack, not a third-party package.
+      - name: Run the example cases
+        env:
+          SUITE: ${{ matrix.suite }}
+          CASES: ${{ matrix.cases }}
+        run: | # zizmor: ignore[adhoc-packages] installs our own freshly packed tarball
+          # shellcheck disable=SC2086
+          tests/e2e/examples/"$SUITE"/run.sh $CASES
+
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: example-${{ matrix.suite }}
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: e2e-examples-${{ matrix.suite }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Always runs, so the gate reports a result. Any example leg that failed or was cancelled fails it.
+  gate:
+    name: e2e-examples
+    needs: [examples]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Report the result
+        env:
+          RESULT: ${{ needs.examples.result }}
+        run: |
+          echo "example legs: $RESULT"
+          if [ "$RESULT" != "success" ]; then echo "::error::An example leg failed or was cancelled"; exit 1; fi

@@ -1,0 +1,29 @@
+# Scale suites (#1302, tracker #1279). No scale suite lists the "pr" trigger: the 100-service ERP boot (tests/e2e/scale/erp) builds
+# about 107 images and runs weekly and manually, and the benchmarks (tests/e2e/scale/benchmarks) run nightly, after a release and
+# manually. So this gate runs on pull requests without starting a suite. It exists so that branch protection can require the
+# e2e-scale name at the cutover; it passes on every pull request by design. Keep it that way unless a scale suite gains a
+# pull request trigger, which would need its own cost review.
+name: 🏭 E2E scale
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-scale-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    name: e2e-scale
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Report that no scale suite runs on pull requests
+        run: |
+          echo "No scale suite runs on pull requests (erp: weekly and manual; benchmarks: nightly, release and manual)."
+          echo "See tests/e2e/scale/*/suite.json."

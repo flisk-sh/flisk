@@ -1,0 +1,106 @@
+# Journey suites on pull requests (#1302, tracker #1279). One leg per journey suite whose suite.json lists the "pr" trigger, each
+# leg running the cases listed in the matrix. The cold-start journey is not here: it needs TDK_LICENSE_KEY, so it never runs on
+# a pull request (cold-start-e2e.yml keeps it on weekly, release and manual runs). The gate job always runs and fails when any
+# journey leg failed or was cancelled. Until the cutover, the old per-journey workflows still run and stay required.
+name: 🧭 E2E journeys
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-journeys-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  journeys:
+    name: e2e-journeys / ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.timeoutMinutes }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - suite: broken-project
+            cases: BP3 BP4
+            install: true
+            timeoutMinutes: 40
+          - suite: dev-loop
+            cases: DL1
+            install: false
+            timeoutMinutes: 25
+          - suite: quickstart
+            cases: Q1 Q2 Q3 Q4
+            install: true
+            timeoutMinutes: 30
+          - suite: smoke
+            cases: SM1
+            install: false
+            timeoutMinutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
+      # ubuntu-latest ships a Postgres service on 5432, which fails tdk doctor's host-port check.
+      - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      # The install legs test this pull request's own packed CLI, as the old per-journey workflows did.
+      - name: Install TDK from this checkout
+        if: matrix.install
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          version: local
+
+      - name: Install dependencies
+        if: ${{ !matrix.install }}
+        run: scripts/e2e/retry-infra.sh "bun install" -- bun install --frozen-lockfile
+
+      # Each journey runs its listed cases in order through a real tdk up; the cases are grouped in the log.
+      - name: Run the journey
+        env:
+          SUITE: ${{ matrix.suite }}
+          CASES: ${{ matrix.cases }}
+        run: |
+          # shellcheck disable=SC2086
+          tests/e2e/journeys/"$SUITE"/run.sh $CASES
+
+      # Failure evidence (#1382): on a failed run, keep the Docker and Tilt logs, service status and generated files for 7 days.
+      - name: Collect failure evidence
+        if: failure() || cancelled()
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          name: journey-${{ matrix.suite }}
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: e2e-journeys-${{ matrix.suite }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Always runs, so the gate reports a result. Any journey leg that failed or was cancelled fails it.
+  gate:
+    name: e2e-journeys
+    needs: [journeys]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Report the result
+        env:
+          RESULT: ${{ needs.journeys.result }}
+        run: |
+          echo "journey legs: $RESULT"
+          if [ "$RESULT" != "success" ]; then echo "::error::A journey leg failed or was cancelled"; exit 1; fi

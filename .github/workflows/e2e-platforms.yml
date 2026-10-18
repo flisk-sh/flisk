@@ -1,0 +1,64 @@
+# Platform suites on pull requests (#1302, tracker #1279). The native Windows suite (tests/e2e/platforms/windows) runs on
+# windows-latest, as windows-smoke.yml did: W1 typechecks and builds the CLI, W2 runs the Windows platform unit tests, W3 checks
+# that native Windows refuses the commands it cannot run. The WSL2 suite is manual only and the Windows binary suite is
+# release only, so neither is here. The gate job always runs and fails when the Windows leg failed or was cancelled. Until the
+# cutover, windows-smoke.yml still runs and stays required.
+name: 🪟 E2E platforms
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-platforms-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  windows:
+    name: e2e-platforms / windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      # The cases live in tests/e2e/platforms/windows (suite.json, run.sh, native-refusal.ps1).
+      - name: Typecheck, build and run CLI help
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W1
+
+      - name: Run Windows platform unit tests
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W2
+
+      - name: Verify native Windows CLI contract
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W3
+
+  # Always runs, so the gate reports a result. A Windows leg that failed or was cancelled fails it.
+  gate:
+    name: e2e-platforms
+    needs: [windows]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Report the result
+        env:
+          RESULT: ${{ needs.windows.result }}
+        run: |
+          echo "windows leg: $RESULT"
+          if [ "$RESULT" != "success" ]; then echo "::error::The Windows platform leg failed or was cancelled"; exit 1; fi

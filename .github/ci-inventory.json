@@ -634,6 +634,62 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-journeys.yml",
+			"job": "journeys",
+			"tier": "e2e",
+			"reason": "One leg per journey suite with the pr trigger (broken-project, dev-loop, quickstart, smoke); cold-start stays off pull requests (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-journeys.yml",
+			"job": "gate",
+			"tier": "gate",
+			"reason": "Fails when any journey leg fails or is cancelled (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-examples.yml",
+			"job": "examples",
+			"tier": "e2e",
+			"reason": "One leg per example suite with the pr trigger (default, python); real-apps stays nightly (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-examples.yml",
+			"job": "gate",
+			"tier": "gate",
+			"reason": "Fails when any example leg fails or is cancelled (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-platforms.yml",
+			"job": "windows",
+			"tier": "e2e",
+			"reason": "Native Windows CLI suite W1 to W3 on windows-latest; WSL2 manual and binary release-only (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-platforms.yml",
+			"job": "gate",
+			"tier": "gate",
+			"reason": "Fails when the Windows platform leg fails or is cancelled (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-scale.yml",
+			"job": "gate",
+			"tier": "gate",
+			"reason": "Reports that no scale suite runs on pull requests; passes by design until a scale suite gains a pr trigger (#1302)",
+			"required": false,
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "ci-report.yml",
 			"job": "report",
 			"tier": "report",
