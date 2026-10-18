@@ -73,7 +73,14 @@ To build a binary by hand, without publishing, run `scripts/release-binaries.sh`
 - **Ancestor commit:** a passing candidate ran on an earlier commit, and no commit since changed a release input. The release inputs are the paths the `changes` job filters on (`cli/**`, `engine/**`, `package.json`, `bun.lock`, `Tiltfile`, `discovery/**`, `specs/**`, `ext/**`, `scripts/release-binaries.sh`, `shared-platform-engineering/docker-templates/**`, and `release-binaries.yml` itself). CI-only and docs-only commits do not invalidate a candidate.
 - **Otherwise** the gate fails and lists, for each candidate, why it does not cover the commit (for example `release inputs changed since (cli/**)`). Run a new candidate on the commit, then re-run publish.
 
-To start a candidate on the commit you want to release, push an `rc-*` tag at it or run the Release candidate workflow on a `release/*` branch. Candidates are not run on every push, so a dispatch on `main` will fail until one covers the commit. Check the commit with the gate before you dispatch:
+**Release from a `release/*` branch.** `main` moves every few minutes, so a candidate on `main` is stale before it finishes. Release from a branch instead:
+
+1. Cut `release/rc-<timestamp>` at the commit to ship: `git push origin <commit>:refs/heads/release/rc-<timestamp>`.
+2. Run the Release candidate workflow on that branch: `gh workflow run release-candidate.yml --ref release/rc-<timestamp>`.
+3. When it passes, run the release on the same branch: `gh workflow run release-binaries.yml --ref release/rc-<timestamp>`. The gate then matches the exact commit, and `main` can keep moving.
+4. Bring the version bump back to `main` through a normal PR. Do not force-push `main` or the release branch.
+
+Candidates are not run on every push, so a dispatch on `main` fails until a candidate covers its commit. Check any commit with the gate before you dispatch:
 
 ```bash
 GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha <commit> --repo tdk-landscape/tdk-cli-core
