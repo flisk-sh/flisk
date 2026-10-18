@@ -56,7 +56,7 @@ Put the environment values the services need in the project `.env`; values in th
 
 ## Cutting a release
 
-The normal release is the workflow, from a release branch (see [Publish gate](#publish-gate)):
+The normal release is the workflow, from a release branch (see the publish gate in [#1631](https://github.com/tdk-landscape/tdk-cli-core/pull/1631)):
 
 1. Cut `release/rc-<timestamp>` at the commit to ship, and run the Release candidate workflow on it. Wait for it to pass.
 2. Run `gh workflow run release-binaries.yml --ref release/rc-<timestamp>`. The workflow picks the next unpublished version, builds and checks the binaries, publishes the npm package and the release in `tdk-landscape/tdk-cli-releases`, and credits fixed issues.
