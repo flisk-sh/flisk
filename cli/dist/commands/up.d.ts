@@ -27,4 +27,9 @@ export declare function enforceVersionFloor(projectRoot: string, options: {
     ignoreVersion?: boolean;
     onFail?: (message: string) => void;
 }, currentVersion?: string, exit?: (code: number) => never): void;
+/**
+ * Waits for Tilt to exit, unless startup has already failed. A readiness failure reports and exits 1 at once: Tilt keeps
+ * running (`tdk down` stops it), so waiting for its exit would hang the command.
+ */
+export declare function waitForTiltUnlessStartupFailed<T>(tiltRun: Promise<T>, startupFailure: Promise<void>, exit?: (code: number) => never): Promise<T>;
 export declare const upCommand: Command;
