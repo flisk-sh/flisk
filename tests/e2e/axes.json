@@ -214,6 +214,9 @@
 				},
 				"prisma": {
 					"allow": "#1291"
+				},
+				"drizzle": {
+					"leg": "resource-types/drizzle"
 				}
 			},
 			"interactions": []
