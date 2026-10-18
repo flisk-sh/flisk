@@ -14,7 +14,6 @@ Go from an empty folder to a running tech stack with one command. Built for agen
 [![Example apps E2E](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/e2e-real-apps.yml)
 [![CodeQL](https://github.com/tdk-landscape/tdk-cli-core/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tdk-landscape/tdk-cli-core/security/code-scanning)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tdk-landscape/tdk-cli-core/badge)](https://scorecard.dev/viewer/?uri=github.com/tdk-landscape/tdk-cli-core)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15310/badge)](https://www.bestpractices.dev/projects/15310)
 [![Known Vulnerabilities](https://snyk.io/test/github/tdk-landscape/tdk-cli-core/badge.svg)](https://snyk.io/test/github/tdk-landscape/tdk-cli-core)
 [![Socket Badge](https://badge.socket.dev/npm/package/@tdk-landscape/tdk-cli-core/latest)](https://socket.dev/npm/package/@tdk-landscape/tdk-cli-core/overview)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
