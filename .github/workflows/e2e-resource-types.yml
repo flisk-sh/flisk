@@ -40,9 +40,11 @@ on:
 permissions:
   contents: read
 
-# Release and nightly runs queue and are never cancelled mid-boot; a pull request's newer push supersedes its older run.
+# A pull request's newer push supersedes its older run. Every other event queues per trigger and branch, so a manual dispatch
+# on one branch never cancels a release, nightly or another branch's run (they used to share one group and cancel each other).
+# Release and nightly runs queue and are never cancelled mid-boot.
 concurrency:
-  group: e2e-resource-types${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.pull_request.number) || '' }}
+  group: e2e-resource-types${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.pull_request.number) || format('-{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
