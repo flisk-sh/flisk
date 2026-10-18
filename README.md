@@ -18,7 +18,9 @@ Go from an empty folder to a running tech stack with one command. Built for agen
 [![Socket Badge](https://badge.socket.dev/npm/package/@tdk-landscape/tdk-cli-core/latest)](https://socket.dev/npm/package/@tdk-landscape/tdk-cli-core/overview)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-English | [简体中文](docs/README-zh_cn.md) | [繁體中文](docs/README-zh_tw.md) | [日本語](docs/README-ja.md) | [한국어](docs/README-ko.md)
+<a id="readme-languages"></a>
+
+English | [简体中文](docs/README-zh_cn.md) | [繁體中文](docs/README-zh_tw.md) | [日本語](docs/README-ja.md) | [한국어](docs/README-ko.md) | [Türkçe](docs/README-tr.md) | [Русский](docs/README-ru.md) | [Tiếng Việt](docs/README-vi.md) | [ไทย](docs/README-th.md) | [Deutsch](docs/README-de.md) | [Español](docs/README-es.md) | [Français](docs/README-fr.md) | [Українська](docs/README-uk.md) | [Polski](docs/README-pl.md) | [Português (Brasil)](docs/README-pt-BR.md) | [العربية](docs/README-ar.md) | [فارسی](docs/README-fa.md) | [Bahasa Indonesia](docs/README-id.md) | [Italiano](docs/README-it.md) | [Ελληνικά](docs/README-el.md) | [മലയാളം](docs/README-ml.md)
 
 ### Stop letting AI hallucinate your local infrastructure.
 
@@ -54,6 +56,14 @@ Docker runs the containers. Tilt watches services and live-updates containers wh
 
 [Website](https://tdk-landscape.github.io/tdk-website/) · [Quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) · [Examples](https://tdk-landscape.github.io/tdk-website/docs/examples/) · [Awesome TDK](https://github.com/tdk-landscape/awesome-tdk-framework) · [Demo](https://tdk-landscape.github.io/tdk-demo-animation/) · [Report a bug](https://github.com/tdk-landscape/tdk-cli-core/issues)
 
+> [!IMPORTANT]
+> Get TDK from the [tdk-landscape/tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core) repository, the
+> [`@tdk-landscape/tdk-cli-core`](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core) npm package, or the
+> [official website](https://tdk-landscape.github.io/tdk-website/). Follow the installation links from these official sources.
+> A similar repository name or copied README does not establish that a download is official.
+
+**[Quick start](#quick-start) · [Why TDK](#why-tdk-cli) · [Examples](#examples) · [Installation](#installation) · [FAQ](#faq) · [Documentation](#docs)**
+
 If TDK helps you run your local stack, a ⭐ on [this repo](https://github.com/tdk-landscape/tdk-cli-core) helps other developers find it.
 
 `tdk ui` opens an interactive terminal dashboard for inspecting running services. Move with `↑/↓` or `j/k`, search with `/`, and press `1`–`5` to jump between tabs. See [docs/ui.md](docs/ui.md) for every key binding.
@@ -79,6 +89,14 @@ Using TDK too? [Tell us](https://github.com/tdk-landscape/tdk-cli-core/issues/ne
 If TDK saves you time, a ⭐ on [this repo](https://github.com/tdk-landscape/tdk-cli-core) helps other developers find it.
 
 ## Quick start
+
+Preview what a stack will start before any container runs:
+
+```bash
+tdk up shop --dry-run
+```
+
+Then try the full flow:
 
 ```bash
 mkdir shop && cd shop
@@ -124,6 +142,33 @@ Use `tdk ui` to inspect stacks and resources. Arrow keys or `j`/`k` move the
 selection; `g`/`G` or Home/End jump to the first/last item, and PageUp/PageDown
 move one visible page. `/` searches; navigation letters remain search text
 while searching. The selected row stays visible when the terminal is resized.
+
+## Update TDK
+
+Keep TDK up to date to get the latest bug fixes:
+
+```bash
+tdk upgrade
+```
+
+`tdk update` is an alias for the same command. If you installed with npm, you can also run `npm install -g @tdk-landscape/tdk-cli-core@latest`. To pin a version or read what changed, see [upgrading and version pinning](docs/upgrading.md).
+
+## Examples
+
+Runnable examples show TDK on real stacks. Start with the smallest one:
+
+| Example | What it shows |
+| --- | --- |
+| [one-backend](examples/one-backend/README.md) | One Bun/TypeScript backend with Postgres |
+| [one-backend-python](examples/one-backend-python/README.md) | A Python backend in the same local stack |
+| [one-backend-helm](examples/one-backend-helm/README.md) | Working alongside Helm |
+| [byo](examples/byo/README.md) | Bringing your own existing resources |
+| [byo-jobs](examples/byo-jobs/README.md) | Bring-your-own jobs |
+| [tdk-example](examples/tdk-example/README.md) | A full multi-service stack |
+
+## Use TDK with your AI agent
+
+The repository ships agent skills for common TDK work, including `tdk-doctor` (environment checks) and `tdk-troubleshoot` (fixing `tdk` and Tilt errors), under [`.agents/skills`](.agents/skills). Agents working in this repo also follow [AGENTS.md](AGENTS.md). Use these skills to let your agent check your setup and explain failures instead of guessing at Docker or Tilt configuration.
 
 ## Installation
 
@@ -209,9 +254,59 @@ Core stays free. Premium is a separate key for the extras above; no key required
 
 **Share:** [X](https://twitter.com/intent/tweet?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A&url=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Bluesky](https://bsky.app/intent/compose?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Threads](https://www.threads.net/intent/post?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Mastodon](https://mastodon.social/share?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Reddit](https://www.reddit.com/submit?title=TDK%20CLI%3A%20start%20local%20services%20with%20one%20command&url=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Hacker News](https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core&t=TDK%20CLI%3A%20start%20local%20services%20with%20one%20command) · [Facebook](https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core&mini=true&title=TDK%20CLI%3A%20start%20local%20services%20with%20one%20command&summary=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.) · [Telegram](https://t.me/share/url?url=https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core&text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A) · [WhatsApp](https://wa.me/?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core) · [Email](mailto:?subject=TDK%20CLI%3A%20start%20local%20services%20with%20one%20command&body=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Ftdk-landscape%2Ftdk-cli-core)
 
+## FAQ
+
+<details>
+<summary><strong>Do I need Kubernetes?</strong></summary>
+
+No. TDK runs your services with Docker and Tilt on your machine. It does not need a local cluster such as kind or minikube, and it does not replace Helm, Compose, or your production deployment tools.
+
+</details>
+
+<details>
+<summary><strong>Do I need a license key?</strong></summary>
+
+No. Core CLI is MIT and needs no key to run `tdk up`. Premium extras are optional and use a separate key (see the [license matrix](#license-matrix)).
+
+</details>
+
+<details>
+<summary><strong>Which platforms are supported?</strong></summary>
+
+macOS and Linux are supported directly. Windows is supported through WSL2 Ubuntu; native Windows supports CLI inspection only (`tdk --version`, `tdk doctor`, and `tdk up --dry-run`). See [Requirements and support](#requirements-and-support) and [WSL2 setup](docs/wsl2.md).
+
+</details>
+
+<details>
+<summary><strong>Does TDK send my code anywhere?</strong></summary>
+
+TDK runs the local stack on your machine. For network calls, secrets, and supply-chain details, see [security: network calls, secrets and supply chain](docs/security.md).
+
+</details>
+
+<details>
+<summary><strong>Can I keep using Compose, Helm, or my own Tilt setup?</strong></summary>
+
+Yes. If your existing setup already gives you a working local environment, keep using it. See [working alongside Helm](docs/with-helm.md) and [gradual adoption](docs/gradual-adoption.md) for adding TDK to an existing repository.
+
+</details>
+
+<details>
+<summary><strong>What should I do if I hit a bug?</strong></summary>
+
+Update first; a recent release may already fix it. Run `tdk upgrade` (also available as `tdk update`), or:
+
+```bash
+npm install -g @tdk-landscape/tdk-cli-core@latest
+```
+
+Then run `tdk doctor` and retry the same task. If the problem persists, [open an issue](https://github.com/tdk-landscape/tdk-cli-core/issues) with your TDK version, operating system, steps to reproduce, and the error output. See [upgrading and version pinning](docs/upgrading.md) and [troubleshooting](docs/troubleshooting.md).
+
+</details>
+
 ## Contributing and license
 
-Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [contributor guide](docs/contributing/README.md). To review pull requests, see [Review a pull request](docs/contributing/04-review-a-pr.md). Report security issues using [SECURITY.md](SECURITY.md).
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [contributor guide](docs/contributing/README.md). For the project structure, see the [architecture and repository map](docs/project-overview.md). To review pull requests, see [Review a pull request](docs/contributing/04-review-a-pr.md). Report security issues using [SECURITY.md](SECURITY.md).
 
 TDK is MIT-licensed; see [LICENSE](LICENSE). The [license boundary](GOVERNANCE.md#license-boundary-and-donation-scope) says which code is MIT and which is downloaded with a key.
 
