@@ -3,11 +3,11 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { STANDARD_PORTS } from "../utils/constants.js";
-import { errorFactories, runCommand, TdkError } from "../utils/errors.js";
+import { errorFactories, runCommand, showErrorAndExit, TdkError } from "../utils/errors.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
-import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
+import { isTiltConnectionFailure, isValidPort } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
 
 export const restartCommand = new Command("restart")
@@ -16,6 +16,18 @@ export const restartCommand = new Command("restart")
   .option("--port <n>", "Tilt UI port (default: TILT_PORT or 10350)")
   .option("--json", "Output one JSON object and exit", false)
   .action(async (resourceName: string, options) => {
+    const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
+    if (!isValidPort(portText)) {
+      const portSource = options.port !== undefined ? "--port" : "TILT_PORT";
+      const message = `${portSource} must be a valid port number`;
+      if (options.json) {
+        console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "USAGE", message }])));
+        console.error(message);
+        process.exit(2);
+      }
+      showErrorAndExit(message, 2);
+    }
+
     const action = async (): Promise<void> => {
       const root = findProjectRoot();
       if (!root) {
@@ -24,7 +36,6 @@ export const restartCommand = new Command("restart")
         error.exit();
       }
 
-      const portText = options.port ?? process.env.TILT_PORT ?? String(STANDARD_PORTS.tiltUi);
       let tiltAvailable = false;
       try {
         tiltAvailable = await isTiltAvailable();
