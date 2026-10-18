@@ -216,7 +216,7 @@
 					"allow": "#1291"
 				},
 				"prisma": {
-					"allow": "#1291"
+					"leg": "resource-types/prisma"
 				},
 				"drizzle": {
 					"leg": "resource-types/drizzle"

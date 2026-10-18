@@ -1084,9 +1084,10 @@ This file contains the resource configuration for TDK.
       writeFilesWithProgress(fullPath, tasks);
 
       if (prismaEnabled && resourceType === "backend") {
+        mkdirSync(resolve(fullPath, "prisma"), { recursive: true });
         const migratorName = `${resourceName}-migrator`;
         const migratorPath = resolve(projectRoot, `services/${stackName}/${migratorName}`);
-        mkdirSync(migratorPath, { recursive: true });
+        mkdirSync(resolve(migratorPath, "prisma"), { recursive: true });
         const migratorConfig = {
           ...JSON.parse(JSON.stringify(BASE_TEMPLATE)),
           $schema: SERVICE_MANIFEST_SCHEMA_URL,
@@ -1096,11 +1097,11 @@ This file contains the resource configuration for TDK.
           name: migratorName,
           type: "migrator",
           stack: stackName,
-          port: 0,
           featuresEnabled: ["prisma"],
         };
         migratorConfig.dependsOn = ["postgres"];
-        migratorConfig.port = 0;
+        // A migrator serves no route, so it declares no port. The base template's placeholder 0 would fail the service port check in tdk up.
+        delete (migratorConfig as { port?: number }).port;
         const migratorPackage = createPackageJson(migratorName, "migrator", undefined, true);
         migratorPackage.scripts = {
           ...migratorPackage.scripts,

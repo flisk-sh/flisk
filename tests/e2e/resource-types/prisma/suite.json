@@ -1,0 +1,22 @@
+{
+  "group": "resource-types",
+  "suite": "prisma",
+  "description": "The prisma feature (tdk resource --feature prisma, the only ORM the CLI supports) on a live stack: scaffold a backend with the feature, tdk up (the migrator runs prisma migrate deploy and the API waits for it), check DATABASE_URL is in the API container, and a routed health check that queries Postgres through DATABASE_URL. Replaces the #1291 allowlist entry for feature prisma in tests/e2e/axes.json (#1487, tracker #1279).",
+  "paths": [
+    "cli/src/commands/resource.ts",
+    "cli/src/utils/resource-features.ts",
+    "cli/src/utils/constants.ts",
+    "engine/topologies/platform/docker/layers/prisma/**",
+    "engine/topologies/tilt/generators/typescript/prisma_config.star",
+    "engine/topologies/tilt/resources/orchestrator/generators/env.star",
+    "engine/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/resource-types/prisma/**",
+    ".github/workflows/e2e-resource-types.yml"
+  ],
+  "cases": ["P1", "P2", "P3", "P4"],
+  "triggers": ["pr", "nightly", "release", "manual"],
+  "timeoutMinutes": 25,
+  "needsSecrets": []
+}
