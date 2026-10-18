@@ -25,6 +25,7 @@ MIGRATOR="$API-migrator"
 RESOURCES=("$API" "$MIGRATOR")
 
 api_container() { running_container "$API"; }
+api_running() { [ -n "$(api_container)" ]; }
 db_healthy() { # the routed /health/db answers 200 with ok: 1 from Postgres
   [ "$(traefik_request "$API" /health/db -o "$OUT/health-db.json" -w '%{http_code}')" = "200" ] && jq -e '.ok == 1 and (.database | length > 0)' "$OUT/health-db.json" >/dev/null
 }
@@ -72,8 +73,9 @@ P2() { # tdk up, the API is routed and listed as a backend in tdk status
 
 P3() { # DATABASE_URL is in the API container's environment
   log "P3 DATABASE_URL is set in the $API container"
+  # P2 proves tdk status lists the API, not that Tilt has started its container yet, so wait for the running container first.
+  poll_until "a running $API container" "$READY_TIMEOUT" api_running
   local c; c="$(api_container)"
-  [ -n "$c" ] || die "no running $API container"
   docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$c" >"$OUT/api-env.txt"
   grep -q '^DATABASE_URL=postgres' "$OUT/api-env.txt" || die "DATABASE_URL is not in the $API container environment"
   echo "DATABASE_URL is set in $c (value not printed)"
