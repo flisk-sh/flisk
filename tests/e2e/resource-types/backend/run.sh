@@ -41,6 +41,7 @@ B2() { # tdk up, then the backend is listed as a backend in tdk status
 
 B3() { # the routed health check answers 200 through Traefik
   log "B3 $API answers /health through Traefik"
+  [ "$LANGUAGE" = node ] && die "DELIBERATE BREAK for #1490 (node only): reverted in the next commit"
   poll_until "$API answers /health 200 through Traefik" "$READY_TIMEOUT" api_healthy
 }
 
