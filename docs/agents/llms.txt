@@ -11,7 +11,16 @@ See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website
 - **AI Agent Systems**:
   - `agent` resource type: Long-running agent process with `files` durability (named volume surviving `tdk down`), sticky session routing via `x-session-id`, graceful SIGTERM turn draining, `/health` (liveness) and `/ready` (application readiness for callers).
   - `mcp` resource type: Standard Model Context Protocol servers over Streamable HTTP (`/mcp`) routed via Traefik.
-  - `tdk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate TDK (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`).
+  - `tdk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate TDK (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `restart_resource`, `list_agents`, `get_agent_sessions`):
+    - `doctor`: Check whether this machine can run the TDK stack and optionally validate a project.
+    - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
+    - `down`: Stop the running stack.
+    - `status`: Inspect stacks, resources, ingress URLs, ports, and Tilt readiness.
+    - `logs`: Fetch a bounded snapshot of recent logs from the running stack.
+    - `resource_list`: List the project's services with their stack, type, and port.
+    - `restart_resource`: Restart a running resource in the stack (or trigger its rebuild).
+    - `list_agents`: List AI agent resources (`appType: "agent"`) with their stack, runtime, durability, and port.
+    - `get_agent_sessions`: Inspect session checkpoints from a running AI agent resource.
 - **Zero-Config Port Management**: Automatically assigns conflict-free ports and exposes services via Traefik at `*.localhost` (port 80 or 8080-8180).
 
 ## Essential CLI Commands
@@ -21,7 +30,7 @@ See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website
   - For agents: `tdk resource <name> --type agent --stack <stack> [--runtime custom] [--durability files]`
   - For MCP servers: `tdk resource <name> --type mcp --stack <stack>`
 - `tdk up [stack] [--only <service...>] [--dry-run] [--json]`: Start local containers and live reload.
-- `tdk down [stack] [--json]`: Stop services and clean up containers (named volumes survive; remove agent-state volumes with `docker volume rm`).
+- `tdk down [--json]`: Stop services and clean up containers (named volumes survive; remove agent-state volumes with `docker volume rm`).
 - `tdk status [--json]`: Report health, readiness, and active URLs.
 - `tdk doctor [--fix] [--json]`: Verify container engine (Docker/Podman/Colima), ports, and system prerequisites.
 - `tdk logs [--service <name>] [--tail <n>] [--json]`: Inspect service output.

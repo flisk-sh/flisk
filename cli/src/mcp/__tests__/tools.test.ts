@@ -1,6 +1,12 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+/// <reference types="vite/client" />
+
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Command } from "commander";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildLogsArgs,
@@ -11,6 +17,101 @@ import {
   toToolResult,
   type UpDeps,
 } from "../tools.js";
+
+const testDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(testDir, "../../../..");
+const commandModules = import.meta.glob<Record<string, Command>>("../../commands/*.{ts,tsx}");
+
+async function loadRegisteredCommandMap(): Promise<Map<string, Command>> {
+  const cliSource = readFileSync(resolve(testDir, "../../cli.ts"), "utf-8");
+  const imports = [
+    ...cliSource.matchAll(/import \{ (\w+Command) \} from "\.\/commands\/([\w-]+)\.js"/g),
+  ];
+  const byName = new Map<string, Command>();
+  for (const [, exportName, file] of imports) {
+    const load =
+      commandModules[`../../commands/${file}.ts`] ?? commandModules[`../../commands/${file}.tsx`];
+    if (!load) continue;
+    const mod = await load();
+    const cmd = mod[exportName];
+    if (cmd) {
+      byName.set(cmd.name(), cmd);
+      for (const alias of cmd.aliases()) byName.set(alias, cmd);
+    }
+  }
+  return byName;
+}
+
+/** Validate `tdk <subcommand> ...` usage snippets against registered Commander commands. */
+function checkDocCliInvocations(docText: string, commands: Map<string, Command>): string[] {
+  const problems: string[] = [];
+  const matches = [
+    ...docText.matchAll(/`tdk\s+([a-z][\w-]*)(?:\s+([^`\n]*))?`/g),
+    ...docText.matchAll(/^\s*tdk\s+([a-z][\w-]*)(?:\s+([^\n]*))?$/gm),
+  ];
+  for (const match of matches) {
+    const subName = match[1];
+    const rest = (match[2] ?? "").trim();
+    const rootCmd = commands.get(subName);
+    if (!rootCmd) {
+      problems.push(`unknown command "tdk ${subName}"`);
+      continue;
+    }
+
+    let targetCmd: Command = rootCmd;
+    let tokens = rest ? rest.split(/\s+/) : [];
+    if (tokens.length > 0 && rootCmd.commands.length > 0) {
+      const sub = rootCmd.commands.find(
+        (c) => c.name() === tokens[0] || c.aliases().includes(tokens[0]),
+      );
+      if (sub) {
+        targetCmd = sub;
+        tokens = tokens.slice(1);
+      }
+    }
+
+    const validFlags = new Set(
+      targetCmd.options.flatMap((opt) => [opt.long, opt.short].filter(Boolean) as string[]),
+    );
+    let idx = 0;
+    let positionalCount = 0;
+    while (idx < tokens.length) {
+      const raw = tokens[idx];
+      const stripped = raw.replace(/^\[+|\]+$/g, "");
+      if (!stripped) {
+        idx += 1;
+        continue;
+      }
+      if (stripped.startsWith("-")) {
+        const flagName = stripped.split("=")[0];
+        if (!validFlags.has(flagName)) {
+          problems.push(`tdk ${targetCmd.name()}: unknown flag "${flagName}" in "${match[0]}"`);
+        }
+        const opt = targetCmd.options.find((o) => o.long === flagName || o.short === flagName);
+        if (
+          opt &&
+          (opt.required || opt.optional) &&
+          !stripped.includes("=") &&
+          idx + 1 < tokens.length &&
+          !tokens[idx + 1].replace(/^\[+|\]+$/g, "").startsWith("-")
+        ) {
+          idx += 2;
+          continue;
+        }
+      } else {
+        positionalCount += 1;
+      }
+      idx += 1;
+    }
+
+    if (positionalCount > targetCmd.registeredArguments.length) {
+      problems.push(
+        `tdk ${targetCmd.name()} takes ${targetCmd.registeredArguments.length} positional argument(s), but doc has ${positionalCount} in "${match[0]}"`,
+      );
+    }
+  }
+  return problems;
+}
 
 describe("argument building", () => {
   it("builds up arguments, one --only= per service so a value is never a flag", () => {
@@ -206,5 +307,40 @@ describe("tool list", () => {
     expect(tools.find((t) => t.name === "get_agent_sessions")?.inputSchema).toMatchObject({
       required: ["resource", "sessionId"],
     });
+  });
+
+  it("keeps docs/agents/llms.txt and docs/agents/llms-full.txt in sync with MCP tools and CLI commands", async () => {
+    const toolsSource = readFileSync(resolve(testDir, "../tools.ts"), "utf-8");
+    const sourceToolNames = [...toolsSource.matchAll(/^\s*name:\s*"([^"]+)"/gm)].map((m) => m[1]);
+    const runtimeToolNames = createTdkTools(async () => ({
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+    })).map((t) => t.name);
+    expect(sourceToolNames).toEqual(runtimeToolNames);
+
+    const commands = await loadRegisteredCommandMap();
+    expect(commands.size).toBeGreaterThan(10);
+
+    for (const relPath of ["docs/agents/llms.txt", "docs/agents/llms-full.txt"]) {
+      const content = readFileSync(resolve(repoRoot, relPath), "utf-8");
+      for (const toolName of sourceToolNames) {
+        expect(
+          content,
+          `${relPath} must document MCP tool "${toolName}" with a one-line description`,
+        ).toMatch(new RegExp(`^\\s*-\\s*\`${toolName}\`:\\s+\\S+`, "m"));
+      }
+      expect(checkDocCliInvocations(content, commands), `CLI command drift in ${relPath}`).toEqual(
+        [],
+      );
+    }
+
+    // Verify the checker rejects `tdk down [stack]` and unknown flags
+    expect(checkDocCliInvocations("- `tdk down [stack] [--json]`", commands)).toEqual([
+      'tdk down takes 0 positional argument(s), but doc has 1 in "`tdk down [stack] [--json]`"',
+    ]);
+    expect(checkDocCliInvocations("- `tdk down [--bogus]`", commands)).toEqual([
+      'tdk down: unknown flag "--bogus" in "`tdk down [--bogus]`"',
+    ]);
   });
 });
