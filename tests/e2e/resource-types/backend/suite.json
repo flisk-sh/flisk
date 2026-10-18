@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "backend",
-  "description": "A backend resource in each language on a live stack: scaffold with tdk resource --language, tdk up, and a routed health check through Traefik (3.5, #1290). The matrix runs one leg per language.",
+  "description": "A backend resource in each language on a live stack: scaffold with tdk resource --language, tdk up, a routed health check through Traefik, tdk restart, and one error envelope when Tilt is unreachable (3.5, #1290; #1294). The matrix runs one leg per language.",
   "paths": [
     "cli/src/backend-languages/**",
     "cli/src/backend-frameworks/**",
@@ -12,7 +12,7 @@
     "tests/e2e/resource-types/backend/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["B1", "B2", "B3"],
+  "cases": ["B1", "B2", "B3", "B4", "B5"],
   "triggers": ["pr", "nightly", "release", "manual"],
   "timeoutMinutes": 25,
   "needsSecrets": []

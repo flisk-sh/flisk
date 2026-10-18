@@ -1,0 +1,16 @@
+{
+  "group": "platforms",
+  "suite": "wsl2",
+  "description": "The routed write smoke on Ubuntu 24.04 under WSL2 with Docker Engine inside the distro (moved from .github/workflows/wsl2-smoke.yml, #1300): WS1 records and requires a real WSL2 kernel, WS2 installs Docker Engine and the Linux tools, WS3 builds and installs the candidate CLI, WS4 runs scripts/wsl2-smoke.sh, WS5 collects diagnostics. Manual runs only; Docker Desktop integration is not tested.",
+  "paths": [
+    "scripts/wsl2-smoke.sh",
+    "docs/wsl2.md",
+    "tests/e2e/lib/**",
+    "tests/e2e/platforms/wsl2/**",
+    ".github/workflows/wsl2-smoke.yml"
+  ],
+  "cases": ["WS1", "WS2", "WS3", "WS4", "WS5"],
+  "triggers": ["manual"],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}

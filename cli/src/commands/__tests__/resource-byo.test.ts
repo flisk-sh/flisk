@@ -17,6 +17,7 @@ import { createServiceJson, resolveByoPort, resourceCommand } from "../../comman
 import { resourcesCommand } from "../../commands/resources.js";
 import { statusCommand } from "../../commands/status.js";
 import { upCommand } from "../../commands/up.js";
+import { captureExit } from "../../test-support/index.js";
 import { VALID_RESOURCE_TYPES } from "../../utils/constants.js";
 
 const jsonOutput = vi.hoisted(() => ({ createJsonEmitter: vi.fn() }));
@@ -220,9 +221,7 @@ describe("bring-your-own resource type", () => {
       output.push(parts.map(String).join(" "));
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
 
     try {
       await networksCommand.parseAsync(["node", "tdk", "--stack", "shop", "--json"], {
@@ -353,9 +352,7 @@ describe("bring-your-own resource type", () => {
     const error = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
       errors.push(parts.map(String).join(" "));
     });
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
     try {
       await resourcesCommand
         .parseAsync(["node", "tdk", "--type", "unknown"], { from: "node" })
@@ -380,9 +377,7 @@ describe("bring-your-own resource type", () => {
     const error = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
       errors.push(parts.map(String).join(" "));
     });
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
 
     try {
       await upCommand
@@ -421,9 +416,7 @@ describe("bring-your-own resource type", () => {
       errors?: unknown[],
     ) => emitted.push({ data, errors })) as never);
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
 
     try {
       await upCommand
@@ -456,9 +449,7 @@ describe("bring-your-own resource type", () => {
     const error = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
       errors.push(parts.map(String).join(" "));
     });
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
 
     try {
       for (const command of [resourcesCommand, networksCommand]) {
@@ -493,9 +484,7 @@ describe("bring-your-own resource type", () => {
     };
     jsonOutput.createJsonEmitter.mockReturnValue(emit as never);
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
 
     try {
       await upCommand
@@ -533,9 +522,7 @@ describe("bring-your-own resource type", () => {
     };
     jsonOutput.createJsonEmitter.mockReturnValue(emit as never);
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
 
     try {
       for (const args of [
@@ -572,9 +559,7 @@ describe("bring-your-own resource type", () => {
       output.push(parts.map(String).join(" "));
     });
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
 
     try {
       for (const command of [resourcesCommand, networksCommand]) {
@@ -756,9 +741,7 @@ describe("bring-your-own resource type", () => {
       const error = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
         errors.push(parts.map(String).join(" "));
       });
-      const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-        throw new Error("process.exit");
-      }) as never);
+      const { exit } = captureExit();
       try {
         clearDiscoveryCache();
         await upCommand

@@ -14,12 +14,14 @@ import {
 } from "../validation.js";
 
 describe("validateResourceName", () => {
-  it("should validate correct kebab-case names", () => {
-    expect(validateResourceName("my-service")).toEqual({ valid: true });
-    expect(validateResourceName("service123")).toEqual({ valid: true });
-    expect(validateResourceName("api-gateway")).toEqual({ valid: true });
-    expect(validateResourceName("a")).toEqual({ valid: true });
-    expect(validateResourceName("test-123-abc")).toEqual({ valid: true });
+  it.each([
+    ["hyphenated", "my-service"],
+    ["letters and digits", "service123"],
+    ["hyphenated gateway", "api-gateway"],
+    ["single letter", "a"],
+    ["digits and hyphens", "test-123-abc"],
+  ])("should validate correct kebab-case name (%s): %s", (_label, name) => {
+    expect(validateResourceName(name)).toEqual({ valid: true });
   });
 
   it("should reject empty names", () => {
@@ -33,24 +35,14 @@ describe("validateResourceName", () => {
     expect(result.valid).toBe(false);
   });
 
-  it("should reject camelCase", () => {
-    expect(validateResourceName("myService").valid).toBe(false);
-  });
-
-  it("should reject underscores", () => {
-    expect(validateResourceName("my_service").valid).toBe(false);
-  });
-
-  it("should reject uppercase letters", () => {
-    expect(validateResourceName("My-Service").valid).toBe(false);
-  });
-
-  it("should reject spaces", () => {
-    expect(validateResourceName("my service").valid).toBe(false);
-  });
-
-  it("should reject dots", () => {
-    expect(validateResourceName("my.service").valid).toBe(false);
+  it.each([
+    ["camelCase", "myService"],
+    ["underscores", "my_service"],
+    ["uppercase letters", "My-Service"],
+    ["spaces", "my service"],
+    ["dots", "my.service"],
+  ])("should reject %s: %s", (_label, name) => {
+    expect(validateResourceName(name).valid).toBe(false);
   });
 });
 
@@ -106,11 +98,13 @@ describe("validateStackName", () => {
 });
 
 describe("validateOptionalInfraService", () => {
-  it("should accept valid infra services", () => {
-    expect(validateOptionalInfraService("monitoring").valid).toBe(true);
-    expect(validateOptionalInfraService("elk").valid).toBe(true);
-    expect(validateOptionalInfraService("debezium").valid).toBe(true);
-    expect(validateOptionalInfraService("golden_image").valid).toBe(true);
+  it.each([
+    ["monitoring", "monitoring"],
+    ["elk", "elk"],
+    ["debezium", "debezium"],
+    ["golden image", "golden_image"],
+  ])("should accept valid infra service (%s): %s", (_label, service) => {
+    expect(validateOptionalInfraService(service).valid).toBe(true);
   });
 
   it("should reject invalid infra services", () => {
@@ -125,32 +119,24 @@ describe("validateOptionalInfraService", () => {
 });
 
 describe("isValidPort", () => {
-  it("should accept valid ports", () => {
-    expect(isValidPort(1)).toBe(true);
-    expect(isValidPort(1024)).toBe(true);
-    expect(isValidPort(3000)).toBe(true);
-    expect(isValidPort(8080)).toBe(true);
-    expect(isValidPort(65535)).toBe(true);
+  it.each([
+    ["lowest", 1],
+    ["1024", 1024],
+    ["3000", 3000],
+    ["8080", 8080],
+    ["highest", 65535],
+  ])("should accept valid port (%s): %s", (_label, port) => {
+    expect(isValidPort(port)).toBe(true);
   });
 
-  it("should reject port 0", () => {
-    expect(isValidPort(0)).toBe(false);
-  });
-
-  it("should reject negative ports", () => {
-    expect(isValidPort(-1)).toBe(false);
-  });
-
-  it("should reject ports > 65535", () => {
-    expect(isValidPort(65536)).toBe(false);
-  });
-
-  it("should reject NaN", () => {
-    expect(isValidPort(NaN)).toBe(false);
-  });
-
-  it("should reject non-integer ports", () => {
-    expect(isValidPort(80.5)).toBe(false);
+  it.each([
+    ["port 0", 0],
+    ["negative port", -1],
+    ["port above 65535", 65536],
+    ["NaN", NaN],
+    ["non-integer port", 80.5],
+  ])("should reject %s: %s", (_label, port) => {
+    expect(isValidPort(port)).toBe(false);
   });
 });
 
@@ -179,6 +165,32 @@ describe("isPathSafe", () => {
     "rejects unsafe path character %j",
     (character) => {
       expect(isPathSafe(character)).toBe(false);
+    },
+  );
+
+  it.each(["a\0b", "../a\0", "a/b\0", "\0../escape"])(
+    "rejects NUL anywhere in the path: %j",
+    (path) => {
+      expect(isPathSafe(path)).toBe(false);
+    },
+  );
+
+  it.each(["C:\\temp\\x", "a:b", "build/out<1>"])(
+    "rejects reserved characters in a Windows-style or mixed path: %j",
+    (path) => {
+      expect(isPathSafe(path)).toBe(false);
+    },
+  );
+
+  // isPathSafe only screens characters. Traversal and absolute paths are not
+  // branches of this function: callers resolve the path against the project
+  // root and check the relative result (see resource.ts). These cases pin that
+  // contract so a change to it is deliberate.
+  it.each(["../escape", "a/../../b", "/etc/passwd", "", "a\\b", "..\\..\\x"])(
+    "leaves traversal, absolute and separator checks to callers: %j",
+    (path) => {
+      expect(() => isPathSafe(path)).not.toThrow();
+      expect(isPathSafe(path)).toBe(true);
     },
   );
 });

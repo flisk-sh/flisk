@@ -1,7 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DiscoveredResource } from "../../types/index.js";
+import { makeResource } from "../../test-support/index.js";
 import {
   appendHealthPath,
   buildHealthTargets,
@@ -9,19 +9,6 @@ import {
   resolveServicePath,
   resolveSubdomainBases,
 } from "../service-urls.js";
-
-function resource(
-  name: string,
-  appType: string,
-  config: Record<string, unknown> = {},
-): DiscoveredResource {
-  return {
-    name,
-    path: `/tmp/${name}`,
-    configPath: `/tmp/${name}/service.json`,
-    config: { appName: name, appType, ...config } as DiscoveredResource["config"],
-  };
-}
 
 describe("appendHealthPath", () => {
   it("appends /health", () => {
@@ -87,23 +74,23 @@ describe("resolveSubdomainBases", () => {
 
 describe("resolveServicePath", () => {
   it("strips the -api suffix for backends", () => {
-    expect(resolveServicePath(resource("menu-api", "backend"))).toBe("/api/menu");
+    expect(resolveServicePath(makeResource("menu-api", "backend"))).toBe("/api/menu");
   });
 
   it("prefers an explicit apiPath", () => {
-    expect(resolveServicePath(resource("menu-api", "backend", { apiPath: "/api/v2/menu" }))).toBe(
-      "/api/v2/menu",
-    );
+    expect(
+      resolveServicePath(makeResource("menu-api", "backend", { apiPath: "/api/v2/menu" })),
+    ).toBe("/api/v2/menu");
   });
 
   it("prefers an explicit basePath for frontends", () => {
-    expect(resolveServicePath(resource("floor-app", "frontend", { basePath: "/floor" }))).toBe(
+    expect(resolveServicePath(makeResource("floor-app", "frontend", { basePath: "/floor" }))).toBe(
       "/floor",
     );
   });
 
   it("falls back to the service name for frontends", () => {
-    expect(resolveServicePath(resource("floor-app", "frontend"))).toBe("/floor-app");
+    expect(resolveServicePath(makeResource("floor-app", "frontend"))).toBe("/floor-app");
   });
 });
 
@@ -124,8 +111,8 @@ describe("buildHealthTargets", () => {
 
   it("routes frontends to app.* and backends to api.*", () => {
     const targets = buildHealthTargets([
-      resource("floor-app", "frontend"),
-      resource("menu-api", "backend"),
+      makeResource("floor-app", "frontend"),
+      makeResource("menu-api", "backend"),
     ]);
 
     expect(targets).toEqual([
@@ -136,11 +123,11 @@ describe("buildHealthTargets", () => {
 
   it("skips services that have no Traefik route", () => {
     const targets = buildHealthTargets([
-      resource("kitchen-worker", "worker"),
-      resource("shared-lib", "library"),
-      resource("client-sdk", "sdk"),
-      resource("db-migrator", "migrator"),
-      resource("menu-api", "backend"),
+      makeResource("kitchen-worker", "worker"),
+      makeResource("shared-lib", "library"),
+      makeResource("client-sdk", "sdk"),
+      makeResource("db-migrator", "migrator"),
+      makeResource("menu-api", "backend"),
     ]);
 
     expect(targets.map((t) => t.name)).toEqual(["menu-api"]);

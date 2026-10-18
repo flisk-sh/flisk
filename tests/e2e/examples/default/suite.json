@@ -1,0 +1,20 @@
+{
+  "group": "examples",
+  "suite": "default",
+  "description": "The bundled product example (tdk project example, tdk-example) on a clean runner (moved from example-e2e.yml, #1299): build and pack the candidate CLI, install it globally, configure the example, boot it with tdk up and prove the routed worker write path (an order written through Traefik is seen by the NATS worker). The example axis value tdk-example. The example-e2e check name stays, because branch protection requires it.",
+  "paths": [
+    "cli/**",
+    "engine/**",
+    "discovery/**",
+    "Tiltfile",
+    "package.json",
+    "scripts/install-global.mjs",
+    "tests/e2e/lib/**",
+    "tests/e2e/examples/default/**",
+    ".github/workflows/example-e2e.yml"
+  ],
+  "cases": ["D1", "D2", "D3", "D4"],
+  "triggers": ["pr", "manual"],
+  "timeoutMinutes": 8,
+  "needsSecrets": []
+}

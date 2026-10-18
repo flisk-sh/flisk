@@ -1,0 +1,60 @@
+---
+title: Stop hand-writing docker-compose.yml for a five-service app
+published: false
+tags: docker, typescript, devtools, backend
+canonical_url: https://tdk-landscape.github.io/tdk-website/docs/quickstart/
+---
+
+<!-- Draft for #1447. Question source: tdk-landscape/tdk-cli-core#756 ("move a small docker-compose project to TDK and ask where you got stuck"). Every command below was run against tdk 1.3.178. -->
+
+"I have a docker-compose.yml with a handful of services. What do I do when I want TDK to run them, and what happens to my file?"
+
+That is the question behind [issue #756](https://github.com/tdk-landscape/tdk-cli-core/issues/756). The short answer: you stop writing the compose file for your app. You write one `service.json` per service, and TDK generates the local runtime files.
+
+## What you write
+
+Each service gets a `service.json`. This one is from the runnable [one-backend example](https://github.com/tdk-landscape/tdk-cli-core/tree/main/examples/one-backend):
+
+```json
+{
+  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "api-backend",
+  "appType": "backend",
+  "stack": "one-backend",
+  "port": 4000,
+  "healthCheckPath": "/health",
+  "dependsOn": []
+}
+```
+
+To create a project and a few services from scratch, I ran:
+
+```bash
+tdk project --yes
+tdk resource orders-api --type backend --stack shop --yes
+tdk resource users-api --type backend --stack shop --yes
+tdk resource legacy-api --type bring-your-own --stack shop --yes
+```
+
+The `bring-your-own` type is the one for a service that already has a Dockerfile. It writes a `service.json` that points at your code. Those three resources land in `services/shop/`, and `tdk resources --ports` shows them on ports 4000, 4001 and 4002.
+
+## What TDK generates
+
+Nothing in your service folders is a compose file. The generated files live in `.tdk/.tdk-out/`, and each one starts with a header that says it is generated:
+
+```bash
+tdk up shop --dry-run
+```
+
+The dry run lists the services it would start, their URLs, and the exact Tilt command. Nothing starts. The `Would run:` line is the answer to "what is it actually doing?", and [the next post](02-local-stack-for-ai-agents.md) and [the third one](03-tilt-without-tiltfile.md) go into it.
+
+Compose still appears, for the stack's infrastructure. In the one-backend example, the only compose file TDK writes is `services/platform/database-management/docker-compose.yml`, which runs Postgres. Its header reads `SYSTEM-GENERATED - DO NOT EDIT`, and it is regenerated from `.tdk/project.json`.
+
+## Where you got stuck
+
+If your compose project has a `build:` section, the question is usually where the build context goes. Point `build.context` and `build.dockerfile` in the service's `service.json` at your code, and the `bring-your-own` guide walks through the rest. Your existing Dockerfiles stay as they are.
+
+## Try it
+
+The [one-backend example](https://github.com/tdk-landscape/tdk-cli-core/tree/main/examples/one-backend) is the smallest runnable version: one service, one generated compose file for Postgres, one command to preview it. Start with the [quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/), then run `tdk up one-backend --dry-run` in the example folder to see what it would start.

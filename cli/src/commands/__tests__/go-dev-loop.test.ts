@@ -6,43 +6,30 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const languageDockerfile = join(
   repoRoot,
   "engine/topologies/platform/docker/dockerfile/language_dockerfile.star",
 );
-const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
-  throw new Error("Tilt is required for the Go dev loop Starlark tests in CI.");
-}
+const hasTilt = tiltAvailable();
 
 const dirs: string[] = [];
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function evaluate(source: string) {
-  const dir = mkdtempSync(join(tmpdir(), "tdk-go-dev-"));
-  dirs.push(dir);
-  const tiltfile = join(dir, "Tiltfile");
-  writeFileSync(tiltfile, source);
-  return spawnSync("tilt", ["alpha", "tiltfile-result", "-f", tiltfile], {
-    cwd: repoRoot,
-    encoding: "utf-8",
-    timeout: 20000,
-  });
-}
-
 // Dockerfile text exactly as the engine generates it, written out with local() because tilt's result JSON does not carry print output.
 function generatedGoDockerfile(dev: boolean): string {
   const dir = mkdtempSync(join(tmpdir(), "tdk-go-dockerfile-"));
   dirs.push(dir);
   const out = join(dir, "Dockerfile");
-  const result =
-    evaluate(`load(${JSON.stringify(languageDockerfile)}, 'generate_language_dockerfile')
+  const result = evaluateStarlark(languageDockerfile, {
+    args: `load(${JSON.stringify(languageDockerfile)}, 'generate_language_dockerfile')
 local('cat > "' + ${JSON.stringify(out)} + '"', quiet = True, stdin = generate_language_dockerfile('services/shop/orders', 'go', 4100, ${dev ? "True" : "False"}))
-`);
+`,
+  });
   expect(result.status, result.stderr).toBe(0);
   return readFileSync(out, "utf-8");
 }
@@ -50,8 +37,8 @@ local('cat > "' + ${JSON.stringify(out)} + '"', quiet = True, stdin = generate_l
 // Opt-in Go development loop (#369): a `development` Docker target that rebuilds and restarts on source edits.
 describe.skipIf(!hasTilt)("Go development Dockerfile", { timeout: 30_000 }, () => {
   it("adds a development target with the watcher and build caches, and leaves the default Dockerfile free of it", () => {
-    const result =
-      evaluate(`load(${JSON.stringify(languageDockerfile)}, 'generate_language_dockerfile')
+    const result = evaluateStarlark(languageDockerfile, {
+      args: `load(${JSON.stringify(languageDockerfile)}, 'generate_language_dockerfile')
 default = generate_language_dockerfile('services/shop/orders', 'go', 4100)
 dev = generate_language_dockerfile('services/shop/orders', 'go', 4100, True)
 if 'AS development' in default: fail('the default Go Dockerfile must not gain a development target')
@@ -66,7 +53,8 @@ if "RUN go build -ldflags='-s -w' -o /tmp/app ." not in dev: fail('the image mus
 if 'go mod download' not in dev: fail('dependencies must be installed in their own layer so edits do not redownload them')
 if 'AS production' not in dev: fail('the production target must remain available')
 if 'EXPOSE 4100' not in dev: fail('port contract changed')
-`);
+`,
+    });
     expect(result.status, result.stderr).toBe(0);
   });
 
@@ -111,13 +99,14 @@ if 'EXPOSE 4100' not in dev: fail('port contract changed')
   });
 
   it("does not offer a development target for other languages", () => {
-    const result =
-      evaluate(`load(${JSON.stringify(languageDockerfile)}, 'generate_language_dockerfile')
+    const result = evaluateStarlark(languageDockerfile, {
+      args: `load(${JSON.stringify(languageDockerfile)}, 'generate_language_dockerfile')
 for lang in ['python', 'rust']:
     plain = generate_language_dockerfile('services/shop/orders', lang, 4100)
     flagged = generate_language_dockerfile('services/shop/orders', lang, 4100, True)
     if plain != flagged: fail(lang + ' output must not change when dev is requested')
-`);
+`,
+    });
     expect(result.status, result.stderr).toBe(0);
   });
 });
@@ -133,7 +122,8 @@ const manifestResource = read(
 
 describe.skipIf(!hasTilt)("Go live reload switch", { timeout: 30_000 }, () => {
   it("is on only for a Go service with dev.liveReload true", () => {
-    const result = evaluate(`load(${JSON.stringify(languageDockerfile)}, 'go_live_reload_enabled')
+    const result = evaluateStarlark(languageDockerfile, {
+      args: `load(${JSON.stringify(languageDockerfile)}, 'go_live_reload_enabled')
 if not go_live_reload_enabled({'language': 'go', 'dev': {'liveReload': True}}): fail('go + liveReload must enable it')
 if go_live_reload_enabled({'language': 'go'}): fail('default must stay off')
 if go_live_reload_enabled({'language': 'go', 'dev': {'liveReload': False}}): fail('false must stay off')
@@ -141,7 +131,8 @@ if go_live_reload_enabled({'language': 'python', 'dev': {'liveReload': True}}): 
 if go_live_reload_enabled({'dev': {'liveReload': True}}): fail('a missing language is Bun')
 if go_live_reload_enabled({'language': 'go', 'dev': 'yes'}): fail('a malformed dev block must not enable it')
 if go_live_reload_enabled(None): fail('no manifest must not enable it')
-`);
+`,
+    });
     expect(result.status, result.stderr).toBe(0);
   });
 });

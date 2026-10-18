@@ -1,0 +1,18 @@
+{
+  "group": "platforms",
+  "suite": "windows",
+  "description": "The native Windows CLI on windows-latest (moved from .github/workflows/windows-smoke.yml, #1300): W1 typechecks, builds and runs the CLI's help, W2 runs the Windows platform unit tests, W3 checks that native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing.",
+  "paths": [
+    "cli/src/utils/platform.ts",
+    "cli/src/utils/which.ts",
+    "cli/src/utils/windows-doctor.ts",
+    "cli/src/commands/up.ts",
+    "tests/e2e/lib/**",
+    "tests/e2e/platforms/windows/**",
+    ".github/workflows/windows-smoke.yml"
+  ],
+  "cases": ["W1", "W2", "W3"],
+  "triggers": ["pr"],
+  "timeoutMinutes": 20,
+  "needsSecrets": []
+}

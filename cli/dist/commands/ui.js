@@ -657,7 +657,7 @@ export const TUIApp = ({ animated = true }) => {
                                                         : "\u2713 all" }), theme.separator, formatUiKeyHint("help", "Help", theme.ascii), theme.separator, formatUiKeyHint("quit", "Quit", theme.ascii)] })] })] })] }))] }));
 };
 /** Compose footer guidance for the current tab and terminal character set. */
-function createHelpHint(activeTab, selectedStack, selectedService, showEnabledOnly, ascii) {
+export function createHelpHint(activeTab, selectedStack, selectedService, showEnabledOnly, ascii) {
     const separator = ascii ? " | " : " │ ";
     const enabledHint = formatUiKeyHint("toggle-enabled", showEnabledOnly ? "show all" : "enabled only", ascii);
     const common = [enabledHint, formatUiKeyHint("help", "help", ascii)];
