@@ -6,7 +6,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { DEFAULT_AGENT_RUNTIME, resolveAgentDurability, resolveAgentRuntime, } from "../agent-runtimes/registry.js";
 import { resolveBackendFramework } from "../backend-frameworks/registry.js";
-import { getBackendIndexTemplate } from "../backend-languages/bun.js";
+import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate, } from "../backend-languages/bun.js";
 import { resolveBackendLanguage } from "../backend-languages/registry.js";
 import { DEFAULT_FRONTEND_FRAMEWORK, listFrontendFrameworks, resolveFrontendFramework, } from "../frontend-frameworks/registry.js";
 import { hasDddLicense } from "../generator/extension-fetch.js";
@@ -162,7 +162,7 @@ function requireGeneratedViteConfig(configPath) {
         "Run tdk up <stack> once, or point this script at your own Vite config to build on the host.";
     return `bun -e 'if(!require("fs").existsSync(${JSON.stringify(configPath)})){console.error(${JSON.stringify(message)});process.exit(1)}'`;
 }
-export function createPackageJson(name, type, frameworkId, prismaEnabled = false, agentConfig) {
+export function createPackageJson(name, type, frameworkId, prismaEnabled = false, agentConfig, drizzleEnabled = false) {
     const isFrontend = type === "frontend";
     const framework = resolveFrontendFramework(type, frameworkId);
     const backendFramework = resolveBackendFramework(type, frameworkId);
@@ -205,6 +205,7 @@ export function createPackageJson(name, type, frameworkId, prismaEnabled = false
                     pg: "^8.13.0",
                 }
                 : {}),
+            ...(drizzleEnabled ? { "drizzle-orm": DRIZZLE_ORM_RANGE, pg: PG_RANGE } : {}),
         },
         devDependencies: {
             "@types/bun": "^1.4.2",
@@ -217,6 +218,7 @@ export function createPackageJson(name, type, frameworkId, prismaEnabled = false
             // vitest 5 peers on vite ^6.4.0 || ^7 || ^8; vite 5 makes `vitest run` fail at startup with
             // ERR_PACKAGE_PATH_NOT_EXPORTED ('./module-runner'), in every resource once it is hoisted.
             ...(isFrontend ? { vite: "^6.4.1" } : {}),
+            ...(drizzleEnabled ? { "drizzle-kit": DRIZZLE_KIT_RANGE, "@types/pg": "^8.11.0" } : {}),
             ...(framework?.devDependencies ?? {}),
             ...(backendFramework?.devDependencies ?? {}),
         },
@@ -237,6 +239,30 @@ export const PRISMA_CONFIG_TEMPLATE = `export default {
     url: process.env.DATABASE_URL,
   },
 };
+`;
+/** Version ranges for `--feature drizzle`; `drizzle-kit` must stay on the same minor as `drizzle-orm`. */
+export const DRIZZLE_ORM_RANGE = "^0.44.7";
+export const DRIZZLE_KIT_RANGE = "^0.31.8";
+const PG_RANGE = "^8.13.0";
+export const DRIZZLE_DB_TEMPLATE = `import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+
+// DATABASE_URL is injected by TDK. The pool connects on the first query, so a missing or
+// unreachable database fails /health/db instead of stopping the service at startup.
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const db = drizzle(pool);
+`;
+export const DRIZZLE_SCHEMA_TEMPLATE = `// Define tables here, for example with pgTable from 'drizzle-orm/pg-core'.
+export {};
+`;
+export const DRIZZLE_CONFIG_TEMPLATE = `import { defineConfig } from 'drizzle-kit';
+
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: './src/schema.ts',
+  out: './drizzle',
+  dbCredentials: { url: process.env.DATABASE_URL ?? '' },
+});
 `;
 export function createResourceTsconfig(resourceType, frameworkId) {
     const framework = resolveFrontendFramework(resourceType, frameworkId);
@@ -272,7 +298,7 @@ export const TSCONFIG_TEMPLATE = {
     include: ["src/**/*"],
     exclude: ["node_modules", "dist"],
 };
-export { getBackendIndexTemplate };
+export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 /** Resource types `tdk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
 export function parseResourceType(type) {
     const normalized = type === "byo" ? BRING_YOUR_OWN_TYPE : type;
@@ -301,7 +327,7 @@ export const resourceCommand = new Command("resource")
     .option("--restart <policy>", "Compose restart policy: no, on-failure, unless-stopped, always (bring-your-own only; use no for one-shot jobs)")
     .option("--image <name>", "Docker image name instead of building from Dockerfile (for bring-your-own)")
     .option("--port <port>", "Port for the resource, within its type's range (default: next free port in that range)")
-    .option("--feature <feature...>", "Enable a resource feature (for example: prisma)")
+    .option("--feature <feature...>", "Enable a resource feature (for example: prisma, drizzle)")
     .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
     .option("--durability <kind>", "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres")
     .action(async (name, options) => {
@@ -510,6 +536,14 @@ export const resourceCommand = new Command("resource")
                 ]);
             }
         }
+        // Checked before anything is written: the Drizzle files are Bun/TypeScript files for a backend.
+        const requestedFeatures = Array.isArray(options.feature) ? options.feature : [];
+        if (requestedFeatures.includes("drizzle") &&
+            (resourceType !== "backend" || backendLanguage?.createFiles)) {
+            throw new TdkError("--feature drizzle is only supported for Bun backends.", [
+                "Use --type backend without --language, or drop --feature drizzle",
+            ]);
+        }
         const assignedPort = resourceType === "sdk"
             ? 0
             : resolveResourcePort(resourceType, options.port, nextPort, allResources);
@@ -638,10 +672,10 @@ This file contains the resource configuration for TDK.
             }
         }
         // Prepare file generation tasks
-        const requestedFeatures = Array.isArray(options.feature) ? options.feature : [];
         const prismaEnabled = requestedFeatures.includes("prisma");
+        const drizzleEnabled = requestedFeatures.includes("drizzle");
         const serviceJson = createServiceJson(resourceName, resourceType, stackName, assignedPort, [...(dddEnabled ? ["ddd"] : []), ...requestedFeatures], scaffoldFrameworkId, options.language === undefined ? undefined : backendLanguage?.id, agentConfig);
-        const packageJson = createPackageJson(resourceName, resourceType, scaffoldFrameworkId, prismaEnabled, agentConfig);
+        const packageJson = createPackageJson(resourceName, resourceType, scaffoldFrameworkId, prismaEnabled, agentConfig, drizzleEnabled);
         if (prismaEnabled && resourceType === "backend") {
             serviceJson.dependsOn = [`${resourceName}-migrator`];
         }
@@ -679,9 +713,17 @@ This file contains the resource configuration for TDK.
         ];
         // Add source files based on resource type
         if (resourceType === "backend" || resourceType === "mcp" || resourceType === "agent") {
+            // The /health/db route is only written into the Bun + Hono template (the default framework).
+            const drizzleRouteTemplate = drizzleEnabled &&
+                resourceType === "backend" &&
+                (backendFramework?.id ?? "hono") === "hono"
+                ? getDrizzleBackendIndexTemplate
+                : undefined;
             const indexContent = resourceType === "agent"
                 ? (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName, agentConfig?.durability)
-                : (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName);
+                : drizzleRouteTemplate
+                    ? drizzleRouteTemplate(resourceName)
+                    : (backendFramework?.createIndex ?? getBackendIndexTemplate)(resourceName);
             tasks.push({
                 type: "text",
                 filename: "src/index.ts",
@@ -727,6 +769,27 @@ This file contains the resource configuration for TDK.
             description: "Generating test file",
             emoji: "🧪",
         });
+        if (drizzleEnabled) {
+            tasks.push({
+                type: "text",
+                filename: "src/db.ts",
+                content: DRIZZLE_DB_TEMPLATE,
+                description: "Generating Drizzle client",
+                emoji: "🗄️",
+            }, {
+                type: "text",
+                filename: "src/schema.ts",
+                content: DRIZZLE_SCHEMA_TEMPLATE,
+                description: "Generating Drizzle schema",
+                emoji: "🧬",
+            }, {
+                type: "text",
+                filename: "drizzle.config.ts",
+                content: DRIZZLE_CONFIG_TEMPLATE,
+                description: "Generating Drizzle config",
+                emoji: "⚙️",
+            });
+        }
         // A language provider that owns its runtime files replaces the shared Bun/TypeScript
         // scaffold (package.json, tsconfig, source, test, and the Dockerfile, which the engine generates); service.json stays shared.
         const languageFiles = backendLanguage?.createFiles?.(resourceName);
