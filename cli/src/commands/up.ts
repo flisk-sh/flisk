@@ -175,6 +175,22 @@ export function enforceVersionFloor(
   exit(1);
 }
 
+const STARTUP_FAILED = Symbol("startup-failed");
+
+/**
+ * Waits for Tilt to exit, unless startup has already failed. A readiness failure reports and exits 1 at once: Tilt keeps
+ * running (`tdk down` stops it), so waiting for its exit would hang the command.
+ */
+export async function waitForTiltUnlessStartupFailed<T>(
+  tiltRun: Promise<T>,
+  startupFailure: Promise<void>,
+  exit: (code: number) => never = process.exit,
+): Promise<T> {
+  const outcome = await Promise.race([tiltRun, startupFailure.then(() => STARTUP_FAILED)]);
+  if (outcome === STARTUP_FAILED) exit(1);
+  return outcome as T;
+}
+
 function waitForTiltUi(port: number, timeoutMs = 30_000): Promise<boolean> {
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs;
@@ -557,6 +573,10 @@ export const upCommand = new Command("up")
 
       let printedSuccess = false;
       let startupFailed = false;
+      let signalStartupFailed = () => {};
+      const startupFailure = new Promise<void>((resolve) => {
+        signalStartupFailed = resolve;
+      });
       const successOutput = (async () => {
         const uiReady = await waitForTiltUi(port);
         // JSON consumers get success only after every non-deferred resource is built and running, not when the UI port opens.
@@ -582,6 +602,7 @@ export const upCommand = new Command("up")
               startedDependencies = startedServices.filter((name) => !options.only.includes(name));
             }
           } else {
+            startupFailed = true;
             const detail = readiness.failures.map((f) => `${f.name}: ${f.message}`).join("; ");
             emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures: readiness.failures }, [
               {
@@ -656,8 +677,9 @@ export const upCommand = new Command("up")
             tiltUrl: `http://localhost:${port}`,
           });
         }
+        if (startupFailed) signalStartupFailed();
       })();
-      const result = await tiltRun;
+      const result = await waitForTiltUnlessStartupFailed(tiltRun, startupFailure);
       await successOutput;
 
       if (smokeFailed) {

@@ -22,10 +22,10 @@
 					"allow": "#1291"
 				},
 				"library": {
-					"allow": "#1295"
+					"leg": "resource-types/library"
 				},
 				"sdk": {
-					"allow": "#1295"
+					"leg": "resource-types/sdk"
 				},
 				"worker": {
 					"leg": "resource-types/worker"

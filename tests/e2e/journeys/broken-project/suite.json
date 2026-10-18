@@ -1,0 +1,18 @@
+{
+  "group": "journeys",
+  "suite": "broken-project",
+  "description": "Failure paths through a real tdk up (#1386): an unhealthy service fails startup per the health policy and its logs name the service (BP3), and an interrupted tdk up is cleaned up by tdk down, after which a second tdk up succeeds (BP4). Bad service.json and missing dependsOn run without Docker in cli/src/commands/__tests__/broken-project.test.ts.",
+  "paths": [
+    "cli/src/commands/up.ts",
+    "cli/src/utils/up-readiness.ts",
+    "cli/src/utils/startup-report.ts",
+    "cli/src/utils/service-config-checks.ts",
+    "tests/e2e/lib/**",
+    "tests/e2e/journeys/broken-project/**",
+    ".github/workflows/broken-project-e2e.yml"
+  ],
+  "cases": ["BP3", "BP4"],
+  "triggers": ["pr", "manual"],
+  "timeoutMinutes": 40,
+  "needsSecrets": []
+}

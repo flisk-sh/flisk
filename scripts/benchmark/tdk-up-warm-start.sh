@@ -86,12 +86,14 @@ preflight() {
 
 settled() {
   # Settled: at least one resource was loaded; no blocking resource is in progress, pending or in error; and at
-  # least the expected number of this project's containers (exact names, see expected_containers) are healthy.
+  # least the expected number of this project's containers (exact names, see expected_containers) are ready: healthy, or running
+  # with no healthcheck. Workers get no healthcheck by design (engine compose.star: an HTTP probe would mark a healthy worker
+  # unhealthy forever), so a running worker counts as ready.
   # Frontend typechecks are deliberately non-blocking local resources and can outlast app startup.
   state=$(tilt get uiresources --port "$port" -o json 2>/dev/null) || state=""
   busy=$(printf '%s' "$state" | jq '[.items[] | select((.metadata.name | endswith("-typecheck") | not) and (.status.updateStatus=="in_progress" or .status.updateStatus=="pending" or .status.updateStatus=="error"))] | length' 2>/dev/null || echo 1)
   loaded=$(printf '%s' "$state" | jq '.items | length' 2>/dev/null || echo 0)
-  ok=$(docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want) && /\(healthy\)/ { c++ } END { print c + 0 }')
+  ok=$(docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want) && (/\(healthy\)/ || (/ Up / && !/health:/)) { c++ } END { print c + 0 }')
   [ "${busy:-1}" = "0" ] && [ "${loaded:-0}" -gt 0 ] && [ "${ok:-0}" -ge "$healthy" ]
 }
 
@@ -107,7 +109,7 @@ progress_snapshot() {
     busy_count=$(printf '%s' "$busy" | awk -F, '{print NF}')
     busy_short=$(printf '%s' "$busy" | cut -c1-120)
   fi
-  ok=$(docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want) && /\(healthy\)/ { c++ } END { print c + 0 }')
+  ok=$(docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want) && (/\(healthy\)/ || (/ Up / && !/health:/)) { c++ } END { print c + 0 }')
   printf 'busy=%s healthy=%s/%s busy_names=%s' "${busy_count}" "${ok:-0}" "$healthy" "$busy_short"
 }
 
