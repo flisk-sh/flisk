@@ -31,3 +31,4 @@ These items are part of this plan. They have to be checked by a maintainer, beca
 4. If the missing person's npm or GitHub access is also needed, an admin adds a new owner. Recovery of the organization account follows the steps in the checklist above.
 
 Work that cannot be completed within a week is recorded in an issue so that other maintainers can pick it up.
+

@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { captureExit } from "../../test-support/index.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { isTiltAvailable, runTilt } from "../../utils/tilt.js";
 import { tiltGetUiResources } from "../../utils/up-readiness.js";
@@ -328,9 +329,7 @@ describe("tdk status", () => {
     const err = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
       errors.push(parts.map(String).join(" "));
     });
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
     try {
       await statusCommand.parseAsync([], { from: "user" }).catch(() => {});
     } finally {

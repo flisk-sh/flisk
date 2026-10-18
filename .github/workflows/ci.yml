@@ -15,17 +15,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  docs:
-    uses: ./.github/workflows/docs-only.yml # zizmor: ignore[self-repository] reusable workflow resolves from this commit, not the job filesystem
-    permissions:
-      contents: read
-      pull-requests: read
-
+  # The only change-detection job in this run. Every other job reads its outputs.
   changes:
     name: 🔎 Detect Changes
     runs-on: ubuntu-latest
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
+    timeout-minutes: 2 # every job finishes in under 20s; fail fast if one hangs
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists the files of a pull request
     outputs:
+      # 'true' only when every changed file is documentation. Decided on pull requests; push and dispatch runs never
+      # report 'true', so they run every job.
+      docs_only: ${{ steps.docs.outputs.code == 'false' }}
       lockfile: ${{ steps.filter.outputs.lockfile }}
       workflows: ${{ steps.filter.outputs.workflows }}
       # The matrix axis values the CLI's registries declare (tests/e2e/lib/registry-axes.mjs), as JSON. A matrix built from it
@@ -35,6 +36,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+
+      # `code` is true when any changed file is outside the docs patterns. Same patterns as the docs-only check it replaces.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: docs
+        if: github.event_name == 'pull_request'
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!openspec/**'
+              - '!LICENSE'
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
@@ -64,9 +79,9 @@ jobs:
   lint:
     name: 🛡️ Lint
     runs-on: ubuntu-latest
-    needs: docs
+    needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     permissions:
       contents: write # push Biome fixes and a rebuilt cli/dist back to the PR branch
@@ -110,13 +125,16 @@ jobs:
             echo "::notice::Pushed a commit with Biome fixes and a rebuilt cli/dist; started CI on it."
           fi
       - run: bun run lint
+      # Fails when a test file re-declares a shared helper instead of importing it from test-support (#1402).
+      - name: Check test helpers are not duplicated
+        run: node ../scripts/check-test-helper-allowlist.mjs
 
   typecheck:
     name: 🦴 Typecheck
     runs-on: ubuntu-latest
-    needs: docs
+    needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     defaults:
       run:
@@ -132,9 +150,9 @@ jobs:
   fuzz:
     name: 🧬 Fuzz
     runs-on: ubuntu-latest
-    needs: docs
+    needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     timeout-minutes: 3
     defaults:
       run:
@@ -150,9 +168,9 @@ jobs:
   published-schema:
     name: 📜 Published service schema
     runs-on: ubuntu-latest
-    needs: docs
+    needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     timeout-minutes: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -164,9 +182,9 @@ jobs:
   test:
     name: 🧪 Test
     runs-on: ubuntu-latest
-    needs: docs
+    needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     # A hang guard, not a speed target: the suite (with every Starlark test that spawns tilt) takes 23 to 89 seconds, and a one-minute
     # limit cancelled it in 3 of 19 recent runs with no failing step.
     timeout-minutes: 10
@@ -194,17 +212,103 @@ jobs:
       - name: Check shell verification script syntax
         working-directory: .
         run: make test-shell
-      # test-python remains a local target until the clean-checkout failures in #700 are resolved.
+      # Report-only: writes text, HTML and JSON-summary reports to cli/coverage/ and sets no threshold.
+      # Runs after an earlier test failure too, so the PR summary gets Vitest's JSON report with the failed test names (#1385).
+      - name: Unit test coverage report
+        if: ${{ !cancelled() }}
+        run: bun run test:coverage
+        env:
+          TDK_REQUIRE_TILT: '1'
+      # Fails when a high-risk area drops below its baseline in cli/coverage-baseline.json (the ratchet).
+      - name: Coverage ratchet for high-risk areas
+        if: ${{ !cancelled() }}
+        run: node scripts/coverage-ratchet.mjs --json test-results/coverage-ratchet.json
+      - name: Coverage summary
+        if: always()
+        run: |
+          node -e '
+            const { total } = require("./coverage/coverage-summary.json");
+            const rows = ["lines", "statements", "functions", "branches"].map(
+              (k) => "| " + k + " | " + total[k].pct + "% | " + total[k].covered + "/" + total[k].total + " |",
+            );
+            console.log(["## Unit test coverage", "", "| Metric | Coverage | Covered |", "|---|---|---|", ...rows, ""].join("\n"));
+          ' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage HTML report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: cli-coverage-html
+          path: cli/coverage/
+          retention-days: 14
+          if-no-files-found: warn
+      # The inputs of the PR summary (#1385): Vitest's JSON reporter output, the coverage summary and the ratchet's JSON report.
+      - name: Collect the unit test results for the PR summary
+        if: always()
+        run: |
+          mkdir -p test-results
+          cp -f coverage/coverage-summary.json coverage/coverage-final.json test-results/ || true
+      - name: Upload the unit test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: unit-test-results
+          path: cli/test-results/
+          retention-days: 14
+          if-no-files-found: warn
 
-  # Installs the npm package the way users do (npm install -g) and runs it,
-  # so a release can't ship without the compiled CLI or its dependencies.
-  package-smoke:
-    name: 📦 Package Smoke Test
+  # Writes the test summary to the job summary and creates or edits the one PR comment with it (#1385). Reads only the JSON the
+  # Test job uploads. A fork's token is read-only, so a fork PR gets the job summary and no comment.
+  pr-summary:
+    name: 📝 PR test summary
     runs-on: ubuntu-latest
-    needs: docs
+    needs: [changes, test]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read # lists the E2E workflow runs of the pull request's head commit
+      pull-requests: write # creates or edits the summary comment
+    steps:
+      # Full history, so the base commit of the pull request is present for the changed-line coverage diff.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the unit test results
+        id: unit
+        continue-on-error: true # the Test job may have stopped before its report step; the summary says so
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: unit-test-results
+          path: unit-results
+
+      - name: Write the test summary and the PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          TEST_RESULT: ${{ needs.test.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          args=(--unit unit-results --test-result "$TEST_RESULT" --run-url "$RUN_URL" --repo "$REPO" --sha "$HEAD_SHA" --diff-base "$BASE_SHA")
+          if [ "$SAME_REPO" = "true" ]; then args+=(--pr "$PR_NUMBER" --post); fi
+          node scripts/test-summary.mjs "${args[@]}" > summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+  # test-python remains a local target until the clean-checkout failures in #700 are resolved.
+
+  # Builds and packs the CLI once per run. package-smoke installs this tarball instead of packing its own.
+  package:
+    name: 📦 Pack CLI
+    runs-on: ubuntu-latest
+    needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
-    if: ${{ !cancelled() && needs.docs.outputs.docs_only != 'true' }}
-    timeout-minutes: 3 # install Tilt and free the host Postgres port before the package smoke test
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -232,10 +336,49 @@ jobs:
             exit 1
           fi
 
-      - name: Pack and install globally
-        run: | # zizmor: ignore[adhoc-packages] installs our own freshly packed tarball
-          npm pack --pack-destination "$RUNNER_TEMP"
-          node scripts/install-global.mjs "$RUNNER_TEMP"/tdk-landscape-tdk-cli-core-*.tgz
+      - name: Pack the CLI tarball
+        run: | # zizmor: ignore[adhoc-packages] packs our own checkout
+          mkdir -p "$RUNNER_TEMP/cli-tarball"
+          npm pack --pack-destination "$RUNNER_TEMP/cli-tarball"
+
+      - name: Upload the CLI tarball
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: cli-tarball
+          path: ${{ runner.temp }}/cli-tarball/*.tgz
+          retention-days: 1
+          if-no-files-found: error
+
+  # Installs the npm package the way users do (npm install -g) and runs it,
+  # so a release can't ship without the compiled CLI or its dependencies.
+  package-smoke:
+    name: 📦 Package Smoke Test
+    runs-on: ubuntu-latest
+    needs: [changes, package]
+    # Skip on docs-only PRs; a skipped job still satisfies required checks. When package failed, this job still runs
+    # and the download below fails it, instead of skipping it.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 3 # install Tilt and free the host Postgres port before the package smoke test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # The installed CLI's cold start needs Bun on PATH (the check fails without it).
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - name: Download the packed CLI
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: cli-tarball
+          path: ${{ runner.temp }}/cli-tarball
+
+      - name: Install globally
+        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          tarball: ${{ runner.temp }}/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
 
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -304,91 +447,12 @@ jobs:
           advanced-security: false
           annotations: true
 
-  # Report-only code scanning, one Security > Code scanning category per tool. Nothing here
-  # fails the build, so existing findings do not block PRs.
-  trivy:
-    name: 🐳 Trivy (dependencies, Dockerfiles, IaC)
-    # Fork PRs get a read-only token, which cannot upload SARIF.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: fs
-          scanners: vuln,misconfig # secrets are covered by TruffleHog in ci.yml
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: sarif
-          output: trivy.sarif
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('trivy.sarif') != ''
-        with:
-          sarif_file: trivy.sarif
-          category: trivy
-
-  osv-scanner:
-    name: 📦 OSV-Scanner (lockfile vulnerabilities)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
-        continue-on-error: true # report-only: exits non-zero when it finds vulnerabilities
-        with:
-          scan-args: |-
-            --recursive
-            --format=sarif
-            --output=osv.sarif
-            ./
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('osv.sarif') != ''
-        with:
-          sarif_file: osv.sarif
-          category: osv-scanner
-
-  semgrep:
-    name: 🔎 Semgrep (SAST)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write # upload SARIF results
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      # Open-source CLI with the public rule registry: no account, token or telemetry.
-      - name: Semgrep
-        run: | # zizmor: ignore[adhoc-packages] semgrep is pinned and only reads the checkout
-          pipx run semgrep==1.180.0 scan \
-            --config p/default --config p/typescript --config p/dockerfile --config p/github-actions \
-            --metrics=off --sarif --output semgrep.sarif || true
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('semgrep.sarif') != ''
-        with:
-          sarif_file: semgrep.sarif
-          category: semgrep
-
   summary:
     name: 📋 Summary
     runs-on: ubuntu-latest
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     if: always()
-    needs: [lint, spellcheck, typecheck, test, package-smoke, secret-scan, dependency-review, workflow-audit]
+    needs: [lint, spellcheck, typecheck, test, package, package-smoke, secret-scan, dependency-review, workflow-audit]
     steps:
       - name: Render summary
         env:

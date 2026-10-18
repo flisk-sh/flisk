@@ -1,11 +1,10 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
 // Behaviour of the Starlark planners that `tdk up` runs at Tiltfile load: the frontend build plan and the
 // Tilt build concurrency. They run under Tilt's own Starlark interpreter, so these tests spawn Tilt.
@@ -15,39 +14,16 @@ const framePlan = join(
   "engine/topologies/platform/docker/build/frontend_build_plan.star",
 );
 const concurrency = join(repoRoot, "engine/topologies/tilt/resources/build_concurrency.star");
-const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
-  throw new Error("Tilt is required for the build-performance Starlark tests in CI.");
-}
-
-const dirs: string[] = [];
-afterEach(() => {
-  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
+const hasTilt = tiltAvailable();
 
 /** Runs a Tiltfile body in a scratch project and returns the JSON value it wrote to `out.json`. */
-function evaluate(body: string, files: Record<string, string> = {}): unknown {
-  const project = mkdtempSync(join(tmpdir(), "tdk-build-perf-"));
-  dirs.push(project);
-  for (const [path, content] of Object.entries(files)) {
-    mkdirSync(dirname(join(project, path)), { recursive: true });
-    writeFileSync(join(project, path), content);
-  }
-  const out = join(project, "out.json");
-  writeFileSync(
-    join(project, "Tiltfile"),
-    `${body}
-local('cat > ' + ${JSON.stringify(out)}, quiet = True, stdin = encode_json(RESULT))
-`,
-  );
-  const result = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", join(project, "Tiltfile")], {
-    cwd: project,
-    encoding: "utf-8",
-    timeout: 60_000,
+function evaluate(file: string, body: string, files: Record<string, string> = {}): unknown {
+  const result = evaluateStarlark(file, {
+    args: `${body}\nlocal('cat > out.json', quiet = True, stdin = encode_json(RESULT))\n`,
+    files,
   });
   if (result.status !== 0) throw new Error(`tilt failed: ${result.stderr || result.stdout}`);
-  return JSON.parse(readFileSync(out, "utf-8"));
+  return JSON.parse(readFileSync(join(result.dir, "out.json"), "utf-8"));
 }
 
 const pkg = (scripts: Record<string, string>) => JSON.stringify({ name: "web", scripts });
@@ -57,6 +33,7 @@ describe.skipIf(!hasTilt)("frontend build plan", () => {
     const files: Record<string, string> =
       scripts === null ? {} : { "web/package.json": pkg(scripts) };
     return evaluate(
+      framePlan,
       `load(${JSON.stringify(framePlan)}, "frontend_build_plan")
 RESULT = frontend_build_plan("web/package.json")`,
       files,
@@ -124,6 +101,7 @@ RESULT = frontend_build_plan("web/package.json")`,
 describe.skipIf(!hasTilt)("Tilt build concurrency", () => {
   const max = (cpus: number, memoryBytes: number) =>
     evaluate(
+      concurrency,
       `load(${JSON.stringify(concurrency)}, "compute_max_parallel_builds")
 RESULT = compute_max_parallel_builds(${cpus}, ${memoryBytes})`,
     ) as number;

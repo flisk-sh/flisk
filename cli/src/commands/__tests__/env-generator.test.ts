@@ -1,44 +1,22 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { engineFile, evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const star = (...parts: string[]) => JSON.stringify(join(repoRoot, "engine", ...parts));
+const star = (...parts: string[]) => engineFile(...parts);
 const envStar = star("topologies", "tilt", "resources", "orchestrator", "generators", "env.star");
 const composeStar = star("topologies", "platform", "docker", "compose", "compose.star");
 const utilsStar = star("topologies", "tilt", "common", "utils.star");
 
-const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
-  throw new Error("Tilt is required for env Starlark generator tests in CI.");
-}
+const hasTilt = tiltAvailable();
 
 const temporaryDirs: string[] = [];
 
-/** Evaluates a Tiltfile. A failed `fail(...)` check makes tilt exit non-zero and puts the message in stderr. */
-function evaluateTiltfile(source: string, env: Record<string, string> = {}, verbose = false) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-env-generator-"));
-  temporaryDirs.push(directory);
-  const tiltfile = join(directory, "Tiltfile");
-  writeFileSync(tiltfile, source);
-  const args = ["alpha", "tiltfile-result"];
-  if (verbose) args.push("--verbose");
-  args.push("-f", tiltfile);
-  return spawnSync("tilt", args, {
-    cwd: repoRoot,
-    encoding: "utf-8",
-    timeout: 25000,
-    env: { ...process.env, ...env },
-  });
-}
-
 function expectPasses(source: string, env: Record<string, string> = {}) {
-  const result = evaluateTiltfile(source, env);
+  const result = evaluateStarlark(envStar, { args: source, env });
   expect(`${result.stdout}${result.stderr}`, "Starlark check failed").not.toMatch(/Error in fail/);
   expect(result.status, result.stderr).toBe(0);
 }
@@ -71,7 +49,7 @@ entry = generate_backend_compose_entry('services/app', 'orders-api', {'name': 'o
 // Each case spawns `tilt alpha tiltfile-result`, which takes several seconds under full-suite load.
 describe.skipIf(!hasTilt)("generated backend .env (env.star)", { timeout: 40_000 }, () => {
   const generate = (manifest: string) =>
-    `load(${envStar}, 'EnvGenerators')\nmanifest = ${manifest}\ncontent = EnvGenerators.generate_env_file(manifest)\n`;
+    `load(${JSON.stringify(envStar)}, 'EnvGenerators')\nmanifest = ${manifest}\ncontent = EnvGenerators.generate_env_file(manifest)\n`;
 
   it("defaults to local-jwt auth and never writes the string None", () => {
     expectPasses(`${generate(withManifest())}
@@ -138,7 +116,7 @@ if not has('PLAIN=ok'): fail('a plain value should stay bare: ' + content)
   });
 
   it("adds a database URL only when Prisma is opted in", () => {
-    expectPasses(`load(${envStar}, 'EnvGenerators')
+    expectPasses(`load(${JSON.stringify(envStar)}, 'EnvGenerators')
 plain = EnvGenerators.generate_env_file(${withManifest()})
 if 'DATABASE_URL' in plain: fail('a backend without prisma got a DATABASE_URL: ' + plain)
 with_feature = EnvGenerators.generate_env_file(${withManifest({ featuresEnabled: ["prisma"] })})
@@ -149,7 +127,7 @@ if 'DATABASE_URL=' not in explicit: fail('usePrisma true should add DATABASE_URL
   });
 
   it("no longer exports the placeholder secrets generator that nothing called", () => {
-    expectPasses(`load(${envStar}, 'EnvGenerators')
+    expectPasses(`load(${JSON.stringify(envStar)}, 'EnvGenerators')
 if hasattr(EnvGenerators, 'generate_secrets_env'): fail('generate_secrets_env is dead code and emits unresolved placeholders')
 if hasattr(EnvGenerators, 'get_all_env'): fail('get_all_env is dead code that drops the secrets it builds')
 `);
@@ -157,7 +135,7 @@ if hasattr(EnvGenerators, 'get_all_env'): fail('get_all_env is dead code that dr
 });
 
 describe.skipIf(!hasTilt)("backend Compose entry (compose.star)", { timeout: 40_000 }, () => {
-  const load = `load(${composeStar}, 'generate_backend_compose_entry')`;
+  const load = `load(${JSON.stringify(composeStar)}, 'generate_backend_compose_entry')`;
 
   it("defaults to local-jwt, not identity-service with a None URL", () => {
     expectPasses(`${load}${composeEntry(withManifest())}
@@ -198,9 +176,9 @@ if 'STRIPE_KEY=' in entry: fail('with the infisical provider the secret must not
   });
 
   it("rejects a secret name that is not a valid environment variable name", () => {
-    const result = evaluateTiltfile(
-      `${load}${composeEntry(withManifest({ secrets: { required: ["bad name"] } }))}`,
-    );
+    const result = evaluateStarlark(envStar, {
+      args: `${load}${composeEntry(withManifest({ secrets: { required: ["bad name"] } }))}`,
+    });
     expect(result.status).not.toBe(0);
     expect(`${result.stdout}${result.stderr}`).toContain("bad name");
   });
@@ -208,7 +186,7 @@ if 'STRIPE_KEY=' in entry: fail('with the infisical provider the secret must not
 
 describe.skipIf(!hasTilt)("Infisical on the default path", { timeout: 40_000 }, () => {
   it("does not export the fail-closed Infisical environment check", () => {
-    expectPasses(`load(${utilsStar}, 'Utils')
+    expectPasses(`load(${JSON.stringify(utilsStar)}, 'Utils')
 if hasattr(Utils, 'validate_infisical_environment'): fail('validate_infisical_environment fails the Tiltfile when INFISICAL_* is unset, and nothing calls it')
 `);
   });
@@ -222,7 +200,7 @@ describe.skipIf(!hasTilt)("load_dotenv", { timeout: 40_000 }, () => {
     writeFileSync(join(dir, ".env"), content);
     return dir;
   };
-  const load = (dir: string) => `load(${utilsStar}, 'Utils')
+  const load = (dir: string) => `load(${JSON.stringify(utilsStar)}, 'Utils')
 Utils.load_dotenv(${JSON.stringify(dir)})
 def check(name, expected):
     actual = os.environ.get(name, '<unset>')
@@ -279,8 +257,8 @@ describe.skipIf(!hasTilt)(
   () => {
     // The env file (env.star) and the Compose entry (compose.star) used to read different fields, so setting identityServiceUrl
     // changed one and left the other on the built-in default.
-    const both = (manifest: string) => `load(${envStar}, 'EnvGenerators')
-load(${composeStar}, 'generate_backend_compose_entry')
+    const both = (manifest: string) => `load(${JSON.stringify(envStar)}, 'EnvGenerators')
+load(${JSON.stringify(composeStar)}, 'generate_backend_compose_entry')
 manifest = ${manifest}
 manifest['_resource_path'] = 'services/app/orders-api'
 env_file = EnvGenerators.generate_env_file(manifest)
@@ -328,20 +306,32 @@ if 'AUTH_MODE=local-jwt' not in env_file or 'AUTH_MODE=local-jwt' not in entry: 
 const debugStar = star("topologies", "tilt", "common", "utils_debug.star");
 
 describe.skipIf(!hasTilt)("Starlark debug logging", () => {
-  const source = `load(${debugStar}, 'debug_log')\ndebug_log('TDK_DEBUG_SENTINEL')\n`;
+  const source = `load(${JSON.stringify(debugStar)}, 'debug_log')\ndebug_log('TDK_DEBUG_SENTINEL')\n`;
 
   it("is silent when TDK_DEBUG is disabled and logs when set to 1", () => {
-    const normal = evaluateTiltfile(source, { TDK_DEBUG: "0", TILT_DEBUG: "0" }, true);
+    const normal = evaluateStarlark(debugStar, {
+      args: source,
+      env: { TDK_DEBUG: "0", TILT_DEBUG: "0" },
+      verbose: true,
+    });
     expect(normal.status, normal.stderr).toBe(0);
     expect(normal.stdout + normal.stderr).not.toContain("TDK_DEBUG_SENTINEL");
 
-    const debug = evaluateTiltfile(source, { TDK_DEBUG: "1", TILT_DEBUG: "0" }, true);
+    const debug = evaluateStarlark(debugStar, {
+      args: source,
+      env: { TDK_DEBUG: "1", TILT_DEBUG: "0" },
+      verbose: true,
+    });
     expect(debug.status, debug.stderr).toBe(0);
     expect(debug.stdout + debug.stderr).toContain("TDK_DEBUG_SENTINEL");
   });
 
   it("continues to accept TILT_DEBUG as a legacy alias", () => {
-    const debug = evaluateTiltfile(source, { TDK_DEBUG: "", TILT_DEBUG: "1" }, true);
+    const debug = evaluateStarlark(debugStar, {
+      args: source,
+      env: { TDK_DEBUG: "", TILT_DEBUG: "1" },
+      verbose: true,
+    });
     expect(debug.status, debug.stderr).toBe(0);
     expect(debug.stdout + debug.stderr).toContain("TDK_DEBUG_SENTINEL");
   });

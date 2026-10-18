@@ -3,11 +3,24 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { runTdk, runTdkAllowFailure, starlarkSection } from "./project-e2e-helpers.js";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { copyProject, runTdk, runTdkAllowFailure, starlarkSection } from "./project-e2e-helpers.js";
 
 describe("project assets and Verdaccio E2E", () => {
+  // One generated project per file. Each test copies it, so only the scaffold runs once.
+  let baseRoot = "";
   let projectRoot = "";
+
+  beforeAll(() => {
+    baseRoot = mkdtempSync(join(tmpdir(), "tdk-project-base-"));
+    runTdk(["project", "--yes"], baseRoot);
+  }, 120_000);
+
+  afterAll(() => {
+    if (baseRoot.startsWith(tmpdir())) {
+      rmSync(baseRoot, { recursive: true, force: true });
+    }
+  });
 
   afterEach(() => {
     if (projectRoot?.startsWith(tmpdir())) {
@@ -16,8 +29,7 @@ describe("project assets and Verdaccio E2E", () => {
   });
 
   it("does not require Verdaccio for `tdk doctor`'s environment check", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-noverdaccio-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
     writeFileSync(
       join(projectRoot, ".env"),
       "TILT_ENV=dev\nDB_PASSWORD=0123456789abcdef0123456789abcdef\n",
@@ -29,9 +41,7 @@ describe("project assets and Verdaccio E2E", () => {
   }, 60000);
 
   it("keeps Verdaccio as an explicit premium project feature", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-feature-"));
-
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
 
     const projectJsonPath = join(projectRoot, ".tdk", "project.json");
     const projectJson = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
@@ -65,9 +75,7 @@ describe("project assets and Verdaccio E2E", () => {
     // verdaccio_loader.star in this public repo is a no-op stub, so hand-
     // edited state here has no functional effect without the private
     // premium overlay. It just warns so the user isn't left guessing.
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stale-verdaccio-"));
-
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
 
     const projectJsonPath = join(projectRoot, ".tdk", "project.json");
     const projectJson = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
@@ -87,9 +95,7 @@ describe("project assets and Verdaccio E2E", () => {
   }, 30000);
 
   it("copies Docker runtime assets and creates the root workspace manifest during project generation", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-runtime-assets-"));
-
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
 
     const rootPackageJson = JSON.parse(readFileSync(join(projectRoot, "package.json"), "utf-8"));
     expect(rootPackageJson.private).toBe(true);
@@ -108,9 +114,7 @@ describe("project assets and Verdaccio E2E", () => {
   }, 10000);
 
   it("vendors free env injection instead of Infisical credentials by default", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-injection-"));
-
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
 
     const envGenerator = readFileSync(
       join(
@@ -149,8 +153,7 @@ describe("project assets and Verdaccio E2E", () => {
   }, 10000);
 
   it("writes default resource-level features into generated service.json files", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-resource-feature-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
 
     runTdk(
       ["resource", "api", "--type", "backend", "--stack", "alpha", "--path", "services/alpha/api"],

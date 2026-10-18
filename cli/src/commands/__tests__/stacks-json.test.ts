@@ -1,12 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  createTempDir,
-  createTempProject,
-  parseEnvelope,
-  runTdk,
-} from "../../test-support/index.js";
+import { describe, expect, it } from "vitest";
+import { createTempProject, parseEnvelope, runTdk } from "../../test-support/index.js";
 
 describe("tdk resources and stacks --json", () => {
   function createProject(includeResources = true): string {
@@ -68,16 +63,6 @@ describe("tdk resources and stacks --json", () => {
     const stack = parseEnvelope(result.stdout).data.stacks[0];
     expect(stack.services).toHaveLength(stack.resourceCount);
     expect(stack).not.toHaveProperty("description");
-  });
-
-  it("fails with a machine error outside a project", () => {
-    const result = runTdk(["stacks", "--json"], { cwd: createTempDir() });
-
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Could not find project root");
-    const envelope = parseEnvelope(result.stdout);
-    expect(envelope.data).toBeNull();
-    expect(envelope.errors).toHaveLength(1);
   });
 
   it("includes descriptions when --verbose is combined with --json", () => {

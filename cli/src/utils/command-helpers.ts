@@ -24,14 +24,23 @@ export function assertValid(
   }
 }
 
+/**
+ * Early return for `--dry-run`. Prints the standard `Dry run - ...` / `Would run: ...` pair, or, when the command
+ * has a plan of its own to show (a list of files, say), calls `printPlan` instead. Returns true when it handled the run.
+ */
 export function handleDryRun(
   options: { dryRun?: boolean },
   description: string,
   command: string,
+  printPlan?: () => void,
 ): boolean {
   if (options.dryRun) {
-    console.log(`Dry run - ${description}`);
-    console.log(`Would run: ${command}`);
+    if (printPlan) {
+      printPlan();
+    } else {
+      console.log(`Dry run - ${description}`);
+      console.log(`Would run: ${command}`);
+    }
     return true;
   }
   return false;

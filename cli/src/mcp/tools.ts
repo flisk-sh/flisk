@@ -4,7 +4,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { createMachineEnvelope, SCHEMA_VERSION } from "../utils/machine-output.js";
+import { createMachineEnvelope } from "../utils/machine-output.js";
 import type { McpTool, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */

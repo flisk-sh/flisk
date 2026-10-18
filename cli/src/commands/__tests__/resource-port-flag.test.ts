@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveResourcePort, resourceCommand } from "../../commands/resource.js";
+import { captureExit } from "../../test-support/index.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 
 const jsonOutput = vi.hoisted(() => ({ createJsonEmitter: vi.fn() }));
@@ -52,9 +53,7 @@ describe("--port for every port-assigned resource type", () => {
     const error = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
       errors.push(parts.map(String).join(" "));
     });
-    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("process.exit");
-    }) as never);
+    const { exit } = captureExit();
     try {
       await createResource(name, type, args).catch(() => {});
       expect(exit).toHaveBeenCalledWith(1);

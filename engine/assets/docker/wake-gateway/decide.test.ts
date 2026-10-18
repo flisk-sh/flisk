@@ -10,6 +10,7 @@ import {
   decideWakeAction,
   earlyResponseMs,
   evaluateReadiness,
+  isGatewayLivenessProbe,
   wakeTimeoutMs,
 } from "./decide";
 
@@ -156,5 +157,21 @@ describe("evaluateReadiness", () => {
     const outcome = evaluateReadiness(["a", "b"], { a: true });
     expect(outcome.ready).toBe(false);
     expect(outcome.pending).toEqual(["b"]);
+  });
+});
+
+describe("isGatewayLivenessProbe", () => {
+  test("a bare GET /health from the image HEALTHCHECK is answered by the gateway", () => {
+    expect(isGatewayLivenessProbe("GET", "/health", new Headers())).toBe(true);
+  });
+
+  test("a backend /health routed through the wake gateway is proxied, not answered", () => {
+    const routed = new Headers({ "X-Wake-Resource": "cold-api", "X-Wake-Container": "cold-api-1" });
+    expect(isGatewayLivenessProbe("GET", "/health", routed)).toBe(false);
+  });
+
+  test("other methods and paths are not liveness probes", () => {
+    expect(isGatewayLivenessProbe("POST", "/health", new Headers())).toBe(false);
+    expect(isGatewayLivenessProbe("GET", "/health/ready", new Headers())).toBe(false);
   });
 });

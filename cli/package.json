@@ -1,7 +1,7 @@
 {
   "name": "tdk-cli-internal",
   "private": true,
-  "version": "1.3.182",
+  "version": "1.3.183",
   "description": "TDK CLI — start services on your machine.",
   "keywords": [
     "tdk",
@@ -52,6 +52,7 @@
     "dev": "bun run build:watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --coverage.reportOnFailure --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary --coverage.reporter=json --coverage.reportsDirectory=coverage --reporter=default --reporter=json --outputFile.json=test-results/vitest.json",
     "prepack": "../scripts/stage-npm-engine.sh && npm run build"
   },
   "dependencies": {
@@ -62,6 +63,7 @@
     "@biomejs/biome": "^2.5.13",
     "@types/node": "^22.0.0",
     "@types/react": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.2",
     "ajv": "^8.17.1",
     "chalk": "^6.0.1",
     "esbuild": "^0.28.2",

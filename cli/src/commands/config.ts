@@ -14,7 +14,7 @@ import {
 } from "../generator/template-engine.js";
 import type { ProjectConfig } from "../types/index.js";
 import { isMasterConfigFileName } from "../types/index.js";
-import { assertValid } from "../utils/command-helpers.js";
+import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import { errorFactories, requireProjectRoot, runCommand } from "../utils/errors.js";
@@ -39,111 +39,118 @@ export const configCommand = new Command("config")
         await runCommand(async () => {
           const projectRoot = requireProjectRoot();
 
-          if (options.dryRun) {
-            console.log(
-              chalk.blue("🔍 Dry run - comparing current files with new configuration...\n"),
-            );
+          // The plan is the comparison report, so it supplies its own printer rather than the standard pair.
+          if (
+            handleDryRun(options, "", "", () => {
+              console.log(
+                chalk.blue("🔍 Dry run - comparing current files with new configuration...\n"),
+              );
 
-            const projectConfig = readProjectConfig(projectRoot);
-            const engine = new TemplateEngine();
-            const newFiles = engine.generateAll(projectConfig);
+              const projectConfig = readProjectConfig(projectRoot);
+              const engine = new TemplateEngine();
+              const newFiles = engine.generateAll(projectConfig);
 
-            const outputDir = join(projectRoot, ".tdk", ".tdk-out");
-            const filesToCheck = MASTER_CONFIG_FILES;
+              const outputDir = join(projectRoot, ".tdk", ".tdk-out");
+              const filesToCheck = MASTER_CONFIG_FILES;
 
-            let hasChanges = false;
+              let hasChanges = false;
 
-            for (const filename of filesToCheck) {
-              // Runtime validation with type guard eliminates type assertion
-              if (!isMasterConfigFileName(filename)) {
-                continue; // Skip unknown files (shouldn't happen with const array)
-              }
-              const newContent = newFiles[filename];
-              const filePath = join(outputDir, filename);
+              for (const filename of filesToCheck) {
+                // Runtime validation with type guard eliminates type assertion
+                if (!isMasterConfigFileName(filename)) {
+                  continue; // Skip unknown files (shouldn't happen with const array)
+                }
+                const newContent = newFiles[filename];
+                const filePath = join(outputDir, filename);
 
-              if (!existsSync(filePath)) {
-                console.log(chalk.yellow(`📁 ${filename}`));
-                console.log(chalk.gray("   Status: NEW (file does not exist)\n"));
-                hasChanges = true;
-                continue;
-              }
+                if (!existsSync(filePath)) {
+                  console.log(chalk.yellow(`📁 ${filename}`));
+                  console.log(chalk.gray("   Status: NEW (file does not exist)\n"));
+                  hasChanges = true;
+                  continue;
+                }
 
-              const currentContent = readFileSync(filePath, "utf-8");
+                const currentContent = readFileSync(filePath, "utf-8");
 
-              if (currentContent === newContent) {
-                console.log(chalk.green(`✓ ${filename}`));
-                console.log(chalk.gray("   Status: No changes\n"));
-              } else {
-                console.log(chalk.yellow(`📝 ${filename}`));
-                console.log(chalk.gray("   Status: MODIFIED"));
-
-                const currentLines = currentContent.split("\n").length;
-                const newLines = newContent.split("\n").length;
-                const lineDiff = newLines - currentLines;
-
-                if (lineDiff > 0) {
-                  console.log(chalk.gray(`   Lines: ${currentLines} → ${newLines} (+${lineDiff})`));
-                } else if (lineDiff < 0) {
-                  console.log(chalk.gray(`   Lines: ${currentLines} → ${newLines} (${lineDiff})`));
+                if (currentContent === newContent) {
+                  console.log(chalk.green(`✓ ${filename}`));
+                  console.log(chalk.gray("   Status: No changes\n"));
                 } else {
-                  console.log(chalk.gray(`   Lines: ${currentLines} (content changed)`));
-                }
+                  console.log(chalk.yellow(`📝 ${filename}`));
+                  console.log(chalk.gray("   Status: MODIFIED"));
 
-                const currentLinesArr = currentContent.split("\n");
-                const newLinesArr = newContent.split("\n");
-                let firstDiffLine = -1;
+                  const currentLines = currentContent.split("\n").length;
+                  const newLines = newContent.split("\n").length;
+                  const lineDiff = newLines - currentLines;
 
-                for (let i = 0; i < Math.max(currentLinesArr.length, newLinesArr.length); i++) {
-                  if (currentLinesArr[i] !== newLinesArr[i]) {
-                    firstDiffLine = i;
-                    break;
+                  if (lineDiff > 0) {
+                    console.log(
+                      chalk.gray(`   Lines: ${currentLines} → ${newLines} (+${lineDiff})`),
+                    );
+                  } else if (lineDiff < 0) {
+                    console.log(
+                      chalk.gray(`   Lines: ${currentLines} → ${newLines} (${lineDiff})`),
+                    );
+                  } else {
+                    console.log(chalk.gray(`   Lines: ${currentLines} (content changed)`));
                   }
-                }
 
-                if (firstDiffLine >= 0) {
-                  console.log(chalk.gray(`   First change around line ${firstDiffLine + 1}:`));
-                  const contextStart = Math.max(0, firstDiffLine - 1);
-                  const contextEnd = Math.min(currentLinesArr.length, firstDiffLine + 2);
+                  const currentLinesArr = currentContent.split("\n");
+                  const newLinesArr = newContent.split("\n");
+                  let firstDiffLine = -1;
 
-                  for (let i = contextStart; i < contextEnd; i++) {
-                    const line = currentLinesArr[i];
-                    const newLine = newLinesArr[i];
-                    if (line !== newLine) {
-                      if (line !== undefined) {
-                        console.log(
-                          chalk.red(
-                            `     - ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
-                          ),
-                        );
-                      }
-                      if (newLine !== undefined) {
-                        console.log(
-                          chalk.green(
-                            `     + ${newLine.substring(0, 60)}${newLine.length > 60 ? "..." : ""}`,
-                          ),
-                        );
-                      }
-                    } else {
-                      console.log(
-                        chalk.gray(
-                          `       ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
-                        ),
-                      );
+                  for (let i = 0; i < Math.max(currentLinesArr.length, newLinesArr.length); i++) {
+                    if (currentLinesArr[i] !== newLinesArr[i]) {
+                      firstDiffLine = i;
+                      break;
                     }
                   }
+
+                  if (firstDiffLine >= 0) {
+                    console.log(chalk.gray(`   First change around line ${firstDiffLine + 1}:`));
+                    const contextStart = Math.max(0, firstDiffLine - 1);
+                    const contextEnd = Math.min(currentLinesArr.length, firstDiffLine + 2);
+
+                    for (let i = contextStart; i < contextEnd; i++) {
+                      const line = currentLinesArr[i];
+                      const newLine = newLinesArr[i];
+                      if (line !== newLine) {
+                        if (line !== undefined) {
+                          console.log(
+                            chalk.red(
+                              `     - ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
+                            ),
+                          );
+                        }
+                        if (newLine !== undefined) {
+                          console.log(
+                            chalk.green(
+                              `     + ${newLine.substring(0, 60)}${newLine.length > 60 ? "..." : ""}`,
+                            ),
+                          );
+                        }
+                      } else {
+                        console.log(
+                          chalk.gray(
+                            `       ${line.substring(0, 60)}${line.length > 60 ? "..." : ""}`,
+                          ),
+                        );
+                      }
+                    }
+                  }
+
+                  console.log("");
+                  hasChanges = true;
                 }
-
-                console.log("");
-                hasChanges = true;
               }
-            }
 
-            if (hasChanges) {
-              console.log(chalk.blue("💡 Run without --dry-run to apply these changes.\n"));
-            } else {
-              console.log(chalk.green("✅ All files are already up to date!\n"));
-            }
-
+              if (hasChanges) {
+                console.log(chalk.blue("💡 Run without --dry-run to apply these changes.\n"));
+              } else {
+                console.log(chalk.green("✅ All files are already up to date!\n"));
+              }
+            })
+          ) {
             return;
           }
 

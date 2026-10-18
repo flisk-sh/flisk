@@ -1,0 +1,25 @@
+{
+  "$comment": "Per-area coverage floor (percent, rounded down). Checked by scripts/coverage-ratchet.mjs in CI. Raise numbers freely; lower one only in its own commit titled `coverage: lower baseline for <area>` with the reason in the body.",
+  "areas": {
+    "install and update": {
+      "lines": 27.46,
+      "branches": 20.35
+    },
+    "command implementations": {
+      "lines": 47.95,
+      "branches": 46.24
+    },
+    "validation": {
+      "lines": 100,
+      "branches": 95.83
+    },
+    "discovery": {
+      "lines": 100,
+      "branches": 100
+    },
+    "stack and project handling": {
+      "lines": 57.14,
+      "branches": 50
+    }
+  }
+}

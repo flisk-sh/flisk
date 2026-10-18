@@ -7,6 +7,7 @@ import { basename, dirname, join, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
+import { handleDryRun } from "../utils/command-helpers.js";
 import { PACKAGE_JSON } from "../utils/constants.js";
 import { getErrorMessage, logVerbose, showErrorAndExit } from "../utils/errors.js";
 import { showCancelled } from "../utils/formatting.js";
@@ -684,7 +685,8 @@ export const upgradeCommand = new Command("upgrade")
             console.log(chalk.yellow(`\n🔄 Force upgrade requested (currently ${currentVersion})`));
         }
     }
-    if (options.dryRun) {
+    // The plan is a method and action list, not the standard pair, so it supplies its own printer.
+    if (handleDryRun(options, "", "", () => {
         console.log(chalk.blue("\n📋 Dry run mode - would perform:"));
         console.log(chalk.gray(`   Method: ${installInfo.method}`));
         if (installInfo.path) {
@@ -701,6 +703,7 @@ export const upgradeCommand = new Command("upgrade")
             console.log(chalk.gray(`   Action: Upgrade to ${latestVersion}`));
         }
         console.log(chalk.yellow("\n   (Not actually upgrading due to --dry-run)"));
+    })) {
         process.exit(0);
     }
     if (!options.yes) {

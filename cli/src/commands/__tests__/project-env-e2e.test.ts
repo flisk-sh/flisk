@@ -3,11 +3,24 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { runTdk, runTdkAllowFailure } from "./project-e2e-helpers.js";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { copyProject, runTdk, runTdkAllowFailure } from "./project-e2e-helpers.js";
 
 describe("project .env and secrets E2E", () => {
+  // One generated project per file. Each test copies it, so only the scaffold runs once.
+  let baseRoot = "";
   let projectRoot = "";
+
+  beforeAll(() => {
+    baseRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-base-"));
+    runTdk(["project", "--yes"], baseRoot);
+  }, 120_000);
+
+  afterAll(() => {
+    if (baseRoot.startsWith(tmpdir())) {
+      rmSync(baseRoot, { recursive: true, force: true });
+    }
+  });
 
   afterEach(() => {
     if (projectRoot?.startsWith(tmpdir())) {
@@ -16,9 +29,7 @@ describe("project .env and secrets E2E", () => {
   });
 
   it("recreates a missing .env when `tdk project` runs in an already-initialised repo", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-"));
-
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
     const envPath = join(projectRoot, ".env");
     expect(existsSync(envPath)).toBe(true);
 
@@ -32,11 +43,11 @@ describe("project .env and secrets E2E", () => {
   }, 30000);
 
   it("generates a per-project JWT secret and a DATABASE_URL that uses the generated password", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-secrets-"));
+    projectRoot = copyProject(baseRoot);
+    // A separate scaffold, not a copy: the test proves two generated projects never share a secret.
     const otherRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-secrets-other-"));
 
     try {
-      runTdk(["project", "--yes"], projectRoot);
       runTdk(["project", "--yes"], otherRoot);
 
       const env = readFileSync(join(projectRoot, ".env"), "utf-8");
@@ -56,8 +67,7 @@ describe("project .env and secrets E2E", () => {
   }, 30000);
 
   it("completes an older .env on `tdk project` without rotating any existing value", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-upgrade-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
 
     // What a previous CLI wrote: no JWT_SECRET, and Verdaccio required.
     const envPath = join(projectRoot, ".env");
@@ -80,8 +90,7 @@ describe("project .env and secrets E2E", () => {
   }, 30000);
 
   it("reports a DATABASE_URL password that differs from DB_PASSWORD in `tdk doctor`", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-env-mismatch-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = copyProject(baseRoot);
     writeFileSync(
       join(projectRoot, ".env"),
       "TILT_ENV=dev\nDB_PASSWORD=0123456789abcdef0123456789abcdef\nDATABASE_URL=postgresql://postgres:postgres@postgres:5432/app_dev\n",

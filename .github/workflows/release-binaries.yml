@@ -7,7 +7,7 @@ on:
     paths:
       - "package.json"
       - "cli/package.json"
-  # Every pull request runs this workflow so the required windows-smoke check always reports.
+  # Every pull request runs this workflow so the release checks (windows-binary) always report.
   # The `changes` job below decides whether the build and smoke test actually run; when they
   # are not needed they are skipped, and a skipped required check counts as passing.
   pull_request:
@@ -145,13 +145,20 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-  windows-smoke:
+  # The Windows release candidate, checked by tests/e2e/platforms/windows-binary (WB1). It has its own check name: the
+  # windows-smoke check is reported by windows-smoke.yml alone, the source build (#1300).
+  windows-binary:
     needs: build
     runs-on: windows-latest
     timeout-minutes: 30
     permissions:
       contents: read
     steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
       - name: Download exact release candidate
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -159,73 +166,40 @@ jobs:
           path: release-dist
 
       - name: Verify checksums, version, and bundled runtime layout
-        shell: pwsh
         env:
           VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          $releaseDir = Join-Path $PWD "release-dist"
-          $checksumFile = Join-Path $releaseDir "checksums.txt"
-
-          function Get-ExpectedHash([string]$AssetName) {
-            $found = @()
-            foreach ($line in Get-Content -LiteralPath $checksumFile) {
-              if ($line -match '^(?<hash>[0-9A-Fa-f]{64})[ \t]{2}(?<name>.+)$' -and $Matches.name -eq $AssetName) {
-                $found += $Matches.hash.ToLowerInvariant()
-              }
-            }
-            if ($found.Count -ne 1) {
-              throw "checksums.txt must contain exactly one entry for $AssetName"
-            }
-            return $found[0]
-          }
-
-          foreach ($asset in @("tdk-windows-amd64.exe", "tdk-cli-engine.tar.gz")) {
-            $assetPath = Join-Path $releaseDir $asset
-            if (!(Test-Path -LiteralPath $assetPath -PathType Leaf)) {
-              throw "Release candidate is missing $asset"
-            }
-            $expected = Get-ExpectedHash $asset
-            $actual = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($actual -ne $expected) {
-              throw "SHA-256 mismatch for $asset; expected $expected, got $actual"
-            }
-          }
-
-          $exePath = Join-Path $releaseDir "tdk.exe"
-          Copy-Item -LiteralPath (Join-Path $releaseDir "tdk-windows-amd64.exe") -Destination $exePath
-          tar -xzf (Join-Path $releaseDir "tdk-cli-engine.tar.gz") -C $releaseDir
-          if ($LASTEXITCODE -ne 0) { throw "Engine archive extraction failed" }
-
-          $actualVersion = (& $exePath --version).Trim()
-          if ($LASTEXITCODE -ne 0) { throw "tdk.exe --version failed" }
-          if ($actualVersion -ne $env:VERSION) {
-            throw "Version mismatch: expected $env:VERSION, got $actualVersion"
-          }
-
-          $runtimeJson = & $exePath runtime --check-assets --json
-          if ($LASTEXITCODE -ne 0) { throw "tdk.exe runtime --check-assets failed: $runtimeJson" }
-          $runtime = $runtimeJson | ConvertFrom-Json
-          if (!$runtime.ok) { throw "Runtime asset check failed: $runtimeJson" }
-
-          $expectedRoot = (Resolve-Path -LiteralPath (Join-Path $releaseDir "tdk-cli")).Path.TrimEnd("\\")
-          $actualRoot = (Resolve-Path -LiteralPath $runtime.assetRoot).Path.TrimEnd("\\")
-          if (![string]::Equals($actualRoot, $expectedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-            throw "Expected adjacent engine root '$expectedRoot', got '$actualRoot'"
-          }
+        shell: bash
+        run: tests/e2e/platforms/windows-binary/run.sh WB1
 
   publish:
     if: github.event_name != 'pull_request'
-    needs: [build, windows-smoke]
+    needs: [build, windows-binary]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      actions: read
       attestations: write
       contents: write
       id-token: write
       issues: write
       pull-requests: write
     steps:
+      # Nothing publishes unless the release candidate (release-candidate.yml) passed for this exact commit. Its runs are
+      # looked up by head SHA, so a green run on a different commit does not count.
+      - name: Require a passing release candidate for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          passed="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/release-candidate.yml/runs?head_sha=${SHA}&per_page=100" \
+            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
+          if [ "$passed" -eq 0 ]; then
+            echo "::error::No passing Release candidate run for ${SHA}. Run the Release candidate workflow on this commit (a release/* branch or an rc-* tag) and let it pass, then re-run this publish."
+            exit 1
+          fi
+          echo "Release candidate passed for ${SHA} (${passed} run(s))."
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false

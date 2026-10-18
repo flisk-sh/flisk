@@ -82,3 +82,14 @@ test("a log with no error line falls back to its last line", () => {
 	);
 	assert.equal(lastErrorLine(""), "no log output");
 });
+
+test("GitHub's generic exit-code line is not reported as the error; the real error above it is", () => {
+	const log = [
+		"cold-start\tStep one\t2026-10-01T00:00:00Z ##[error]Error: TDK_LICENSE_KEY does not grant sablier",
+		"cold-start\tStep one\t2026-10-01T00:00:01Z ##[error]Process completed with exit code 1.",
+	].join("\n");
+	assert.equal(
+		lastErrorLine(log),
+		"##[error]Error: TDK_LICENSE_KEY does not grant sablier",
+	);
+});
