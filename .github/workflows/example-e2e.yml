@@ -1,6 +1,7 @@
 name: 🧪 Default example E2E
 
 on:
+  merge_group:
   pull_request:
   push:
     branches: [main]
