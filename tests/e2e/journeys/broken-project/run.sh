@@ -16,6 +16,7 @@ SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/lib.sh
 source "$SUITE_DIR/../../lib/lib.sh"
 e2e_init broken-project bpbroken
+RC=0 # set by run and run_in; a default keeps `set -u` from failing before the first command
 SERVICE=bpapi
 RESOURCES=("$SERVICE")
 
