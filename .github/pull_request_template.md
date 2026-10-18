@@ -39,7 +39,7 @@ For example: a new database usually changes Tilt `.star` files, Docker/Compose `
 - Find or add tests under `cli/src/**/__tests__/`.
 - Update `cli/README.md` if a command, option, or output changed.
 - Run `bun run typecheck`, `bun run lint`, and `bun run test` from the repo root.
-- If you checked the compiled CLI, run `bun run build` first.
+- If you changed anything under `cli/src/`, run `npm run check:dist` in `cli/`, then commit the changed `cli/dist/` files (use `git add -f` for new files). CI fails with "cli/dist is stale" otherwise.
 
 </details>
 
@@ -148,6 +148,7 @@ For example: a new database usually changes Tilt `.star` files, Docker/Compose `
 - [ ] `bun run typecheck`
 - [ ] `bun run lint`
 - [ ] `bun run test`
+- [ ] If I changed `cli/src/`: `npm run check:dist` in `cli/` passes and I committed `cli/dist/`
 - [ ] Other check: <!-- Include the command and result. -->
 - [ ] I said which checks I did not run and why.
 

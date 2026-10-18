@@ -53,6 +53,20 @@ Every change goes through a pull request. Before a pull request is merged:
 
 The full steps for reviewers, including what to look at, are in [docs/contributing/04-review-a-pr.md](docs/contributing/04-review-a-pr.md#who-can-approve-and-merge).
 
+## Changing the CLI source
+
+The CLI is committed as compiled output in `cli/dist/`, so `npm install -g github:tdk-landscape/tdk-cli-core` works without a build step. CI checks that `cli/dist/` matches `cli/src/`.
+
+After you change anything under `cli/src/`:
+
+```bash
+cd cli && npm run check:dist   # builds, then fails if cli/dist changed
+```
+
+Commit the changed files under `cli/dist/`. New compiled files are gitignored, so add them with `git add -f cli/dist`.
+
+The CI bot can rebuild `cli/dist/` and push it for pull requests from this repository. It cannot push to pull requests from forks, so if you opened yours from a fork, run the command above and push the commit yourself.
+
 ## Tests
 
 Every new feature or behavior change needs automated tests in the same pull request. A change that affects a running stack (a resource type, a command or MCP tool that talks to the stack, `tdk up`, routing or the engine) also needs an end-to-end test. [Writing an e2e test](docs/contributing/05-write-e2e.md) explains when, where and how, including the deliberate-break evidence a new suite needs. Put tests next to the code they cover, or in the existing suite for that area (`cli/src/**/__tests__/`, `tests/fuzz/`). A bug fix adds a test that fails before the fix and passes after it. If a test is not practical, the pull request says why and links an issue that tracks adding it. Reviewers check this in every pull request, and the checks listed in [03-open-a-pr.md](docs/contributing/03-open-a-pr.md#run-the-checks-for-your-change) run the suite in CI.

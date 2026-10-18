@@ -45,6 +45,7 @@
   "scripts": {
     "build": "tsc && node scripts/bundle.mjs",
     "build:watch": "tsc --watch",
+    "check:dist": "npm run build && ../scripts/check-cli-dist.sh",
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
     "typecheck": "tsc --project tsconfig.typecheck.json",

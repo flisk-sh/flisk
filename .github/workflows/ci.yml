@@ -331,15 +331,9 @@ jobs:
       # cli/dist is committed so `npm install -g github:tdk-landscape/tdk-cli-core`
       # works without a build step. Fail if a source change was committed
       # without rebuilding it.
+      # Locally: `npm run check:dist` in cli/ does both steps.
       - name: Check committed cli/dist is up to date
-        run: |
-          # --ignored: cli/dist/ is gitignored, so a newly compiled file only
-          # shows up with it.
-          if [ -n "$(git status --porcelain --ignored -- cli/dist)" ]; then
-            git status --short --ignored -- cli/dist
-            echo "::error::cli/dist is stale. Run 'npm run build' and commit cli/dist (new files need 'git add -f')."
-            exit 1
-          fi
+        run: scripts/check-cli-dist.sh
 
       - name: Pack the CLI tarball
         run: | # zizmor: ignore[adhoc-packages] packs our own checkout
