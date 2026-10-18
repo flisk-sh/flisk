@@ -4,14 +4,14 @@
 
 > このページは [CONTRIBUTING.md](../../../CONTRIBUTING.md) の翻訳です。内容が異なる場合は英語版が優先されます。ガイドの日本語訳も利用できます。
 
-ようこそ！小さな修正も大きな機能もどちらも役に立ちます。まずは短い[コントリビューターガイド](../README.md)から始めてください。変更を見つけ、実装し、確認し、pull request を作成するまでを順に案内します。
+ようこそ！小さな修正も大きな機能もどちらも役に立ちます。まずは短い[コントリビューターガイド](README-ja.md)から始めてください。変更を見つけ、実装し、確認し、pull request を作成するまでを順に案内します。
 
 ## ここから始める
 
-1. [変更を選んでリポジトリを準備する](../01-first-change.md)。
-2. [変更の種類に合った手順に従う](../02-feature-recipes.md)。
-3. [作業を確認して pull request を作成する](../03-open-a-pr.md)。
-4. [ほかの人の pull request をレビューする](../04-review-a-pr.md)。ワンクリックの AI レビューボタンが使えます。
+1. [変更を選んでリポジトリを準備する](01-first-change-ja.md)。
+2. [変更の種類に合った手順に従う](02-feature-recipes-ja.md)。
+3. [作業を確認して pull request を作成する](03-open-a-pr-ja.md)。
+4. [ほかの人の pull request をレビューする](04-review-a-pr-ja.md)。ワンクリックの AI レビューボタンが使えます。
 
 [フロントエンド provider ガイド](../../frontend-framework-providers.md)には、Vue のような別の Vite フレームワークを追加する具体的な手順があります。[バックエンド provider ガイド](../../backend-language-providers.md)では、Python のようなバックエンド言語の追加方法を説明しています。
 
@@ -38,7 +38,7 @@ bun run typecheck && bun run lint && bun run test   # 約1分。何かを変更�
 
 開いている [pull request](https://github.com/tdk-landscape/tdk-cli-core/pulls) をレビューすることで、コードを書かずに貢献できます。すべての PR の末尾には **Grok**、**Claude**、**Codex** のボタンがあり、その PR のレビューを依頼済みの AI チャットが開きます。AI はあなたのアシスタントです。言っている内容を diff と照らし合わせて確認し、GitHub で **Comment**、**Approve**、**Request changes** のいずれかとして自分のレビューを送信してください。
 
-最初のレビューの前に、[必読ドキュメント](../04-review-a-pr.md#before-your-first-review-required-reading)を読んでください（約1時間、一度だけ）。そのあと [pull request をレビューする](../04-review-a-pr.md)で、ボタンの使い方を順に説明し、承認と修正依頼のコメント例を紹介しています。
+最初のレビューの前に、[必読ドキュメント](04-review-a-pr-ja.md#最初のレビューの前に-必読ドキュメント)を読んでください（約1時間、一度だけ）。そのあと [pull request をレビューする](04-review-a-pr-ja.md)で、ボタンの使い方を順に説明し、承認と修正依頼のコメント例を紹介しています。
 
 ## 取り組むことを探す
 
