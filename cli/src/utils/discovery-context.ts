@@ -10,18 +10,17 @@ import {
   warnAboutSkippedFiles,
 } from "./services.js";
 
-const cachedContextByRoot = new Map<string, DiscoveryContext>();
-let cachedDefaultContext: DiscoveryContext | null = null;
+const cachedContexts = new Map<string, DiscoveryContext>();
 
 export function clearDiscoveryCache(): void {
-  cachedContextByRoot.clear();
-  cachedDefaultContext = null;
+  cachedContexts.clear();
 }
 
 export function createDiscoveryContext(forceRefresh = false): DiscoveryContext {
   const projectRoot = findProjectRoot();
+  const cacheKey = projectRoot ?? "";
   if (!forceRefresh) {
-    const cached = projectRoot ? cachedContextByRoot.get(projectRoot) : cachedDefaultContext;
+    const cached = cachedContexts.get(cacheKey);
     if (cached) {
       return cached;
     }
@@ -55,11 +54,7 @@ export function createDiscoveryContext(forceRefresh = false): DiscoveryContext {
     resourcesByStack,
   };
 
-  if (projectRoot) {
-    cachedContextByRoot.set(projectRoot, context);
-  } else {
-    cachedDefaultContext = context;
-  }
+  cachedContexts.set(cacheKey, context);
 
   return context;
 }

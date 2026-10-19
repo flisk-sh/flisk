@@ -1,15 +1,14 @@
 import { findProjectRoot } from "./paths.js";
 import { discoverResources, discoverResourcesWithProblems, discoverStacks, getAllStacks, warnAboutSkippedFiles, } from "./services.js";
-const cachedContextByRoot = new Map();
-let cachedDefaultContext = null;
+const cachedContexts = new Map();
 export function clearDiscoveryCache() {
-    cachedContextByRoot.clear();
-    cachedDefaultContext = null;
+    cachedContexts.clear();
 }
 export function createDiscoveryContext(forceRefresh = false) {
     const projectRoot = findProjectRoot();
+    const cacheKey = projectRoot ?? "";
     if (!forceRefresh) {
-        const cached = projectRoot ? cachedContextByRoot.get(projectRoot) : cachedDefaultContext;
+        const cached = cachedContexts.get(cacheKey);
         if (cached) {
             return cached;
         }
@@ -37,11 +36,6 @@ export function createDiscoveryContext(forceRefresh = false) {
         unassignedResources,
         resourcesByStack,
     };
-    if (projectRoot) {
-        cachedContextByRoot.set(projectRoot, context);
-    }
-    else {
-        cachedDefaultContext = context;
-    }
+    cachedContexts.set(cacheKey, context);
     return context;
 }

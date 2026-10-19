@@ -672,6 +672,22 @@ describe("resilient service discovery", () => {
     expect(discoverResourcesFromRoot(root)).toEqual([]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining(path));
   });
+
+  it("handles unassigned resources and missing project root in createDiscoveryContext", async () => {
+    writeService("no-stack", JSON.stringify({ appName: "no-stack", appType: "backend" }));
+    const { clearDiscoveryCache, createDiscoveryContext } = await import("../discovery-context.js");
+    clearDiscoveryCache();
+    const ctx = createDiscoveryContext();
+    expect(ctx.unassignedResources.map((r) => r.name)).toContain("no-stack");
+
+    clearDiscoveryCache();
+    vi.mocked(findProjectRoot).mockReturnValue(null);
+    try {
+      expect(() => createDiscoveryContext()).toThrow("Could not find project root");
+    } finally {
+      vi.mocked(findProjectRoot).mockReturnValue(root);
+    }
+  });
 });
 
 describe("single-scan discovery reuse", () => {
