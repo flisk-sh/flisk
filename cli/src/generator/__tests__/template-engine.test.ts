@@ -7,11 +7,13 @@ import { fileURLToPath } from "node:url";
 import Handlebars from "handlebars";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ProjectConfig } from "../../types/index.js";
+import { TdkError } from "../../utils/errors.js";
 import {
   generateDatabaseManagementCompose,
   generateMasterConfigs,
   isTestFile,
   loadTemplate,
+  readProjectConfig,
   TemplateEngine,
   verifyMasterConfigs,
 } from "../template-engine.js";
@@ -577,6 +579,62 @@ describe("template-engine", () => {
       it("finds a template that only exists next to the executable", () => {
         expect(loadTemplate("only-in-bundle.hbs")).toBe("bundled-marker");
       });
+    });
+  });
+
+  describe("readProjectConfig", () => {
+    it("throws a TdkError with the file path and parse reason when .tdk/project.json is malformed (#1521)", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-malformed-project-json-"));
+      try {
+        const tdkDir = path.join(projectRoot, ".tdk");
+        fs.mkdirSync(tdkDir, { recursive: true });
+        const projectJsonPath = path.join(tdkDir, "project.json");
+        const malformedContent = '{ "version": "1.0", broken json ';
+        fs.writeFileSync(projectJsonPath, malformedContent, "utf-8");
+
+        let expectedReason = "";
+        try {
+          JSON.parse(malformedContent);
+        } catch (parseError) {
+          expectedReason = (parseError as Error).message;
+        }
+
+        let caught: unknown;
+        try {
+          readProjectConfig(projectRoot);
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(TdkError);
+        expect((caught as Error).message).toBe(
+          `Could not parse project.json at ${projectJsonPath}: ${expectedReason}`,
+        );
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+
+    it("throws a TdkError with the file path and read error reason when .tdk/project.json cannot be read as a file (#1521)", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-unreadable-project-json-"));
+      try {
+        const projectJsonPath = path.join(projectRoot, ".tdk", "project.json");
+        fs.mkdirSync(projectJsonPath, { recursive: true });
+
+        let caught: unknown;
+        try {
+          readProjectConfig(projectRoot);
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(TdkError);
+        expect((caught as Error).message).toContain(
+          `Could not parse project.json at ${projectJsonPath}:`,
+        );
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
     });
   });
 });

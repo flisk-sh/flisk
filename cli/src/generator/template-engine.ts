@@ -18,6 +18,7 @@ import {
   TECH_STACK_FILE,
   TILTIGNORE_FILE,
 } from "../utils/constants.js";
+import { TdkError } from "../utils/errors.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertTdkGeneratedPath } from "../utils/generated-paths.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "../utils/project-config-defaults.js";
@@ -441,6 +442,12 @@ function normalizeProjectConfig(value: unknown): ProjectConfig | null {
 /** The project has no .tdk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
 export class ProjectConfigNotFoundError extends Error {}
 
+/**
+ * Reads, parses, and normalizes `.tdk/project.json` from the given project root.
+ *
+ * @param projectRoot - Root directory of the TDK project.
+ * @returns The validated and normalized {@link ProjectConfig}.
+ */
 export function readProjectConfig(projectRoot: string): ProjectConfig {
   const projectJsonPath = path.join(projectRoot, ".tdk", PROJECT_JSON);
 
@@ -450,8 +457,14 @@ export function readProjectConfig(projectRoot: string): ProjectConfig {
     );
   }
 
-  const jsonContent = fs.readFileSync(projectJsonPath, "utf-8");
-  const parsed: unknown = JSON.parse(jsonContent);
+  let parsed: unknown;
+  try {
+    const jsonContent = fs.readFileSync(projectJsonPath, "utf-8");
+    parsed = JSON.parse(jsonContent);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new TdkError(`Could not parse project.json at ${projectJsonPath}: ${reason}`);
+  }
 
   const projectConfig = normalizeProjectConfig(parsed);
   if (!projectConfig) {
