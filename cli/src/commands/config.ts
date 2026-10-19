@@ -16,6 +16,7 @@ import type { ProjectConfig } from "../types/index.js";
 import { isMasterConfigFileName } from "../types/index.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import { errorFactories, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
@@ -221,6 +222,9 @@ export const configCommand = new Command("config")
           if (failures.length > 0) process.exit(1);
           for (const migration of pendingMigrations) {
             writeFileSync(migration.filePath, `${JSON.stringify(migration.manifest, null, 2)}\n`);
+          }
+          if (pendingMigrations.length > 0) {
+            clearDiscoveryCache();
           }
           const migrated = pendingMigrations.length;
           console.log(

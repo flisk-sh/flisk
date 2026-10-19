@@ -782,4 +782,67 @@ describe("single-scan discovery reuse", () => {
     expect(readFileSpy).toHaveBeenCalledTimes(3);
     expect(readdirSpy.mock.calls.filter(([dir]) => String(dir) === root)).toHaveLength(1);
   });
+
+  it("isolates discovery cache between multiple project roots in one process", async () => {
+    const { clearDiscoveryCache, createDiscoveryContext } = await import("../discovery-context.js");
+    clearDiscoveryCache();
+
+    const otherRoot = mkdtempSync(join(tmpdir(), "tdk-other-root-"));
+    try {
+      const otherDir = join(otherRoot, "services", "billing", "payment");
+      mkdirSync(otherDir, { recursive: true });
+      writeFileSync(
+        join(otherDir, "service.json"),
+        JSON.stringify({ appName: "payment", appType: "backend", stack: "billing", port: 5001 }),
+      );
+
+      // Query first root
+      vi.mocked(findProjectRoot).mockReturnValue(root);
+      const ctx1 = createDiscoveryContext();
+      expect(ctx1.resources.map((r) => r.name).sort()).toEqual(["svc-a", "svc-b", "svc-c"]);
+
+      // Query second root
+      vi.mocked(findProjectRoot).mockReturnValue(otherRoot);
+      const ctx2 = createDiscoveryContext();
+      expect(ctx2.resources.map((r) => r.name)).toEqual(["payment"]);
+
+      // Re-query first root: returns cached result for root without cross-contamination
+      vi.mocked(findProjectRoot).mockReturnValue(root);
+      const ctx1Cached = createDiscoveryContext();
+      expect(ctx1Cached.resources.map((r) => r.name).sort()).toEqual(["svc-a", "svc-b", "svc-c"]);
+
+      // Targeted invalidation of second root only
+      clearDiscoveryCache(otherRoot);
+      const ctx1StillCached = createDiscoveryContext();
+      expect(ctx1StillCached).toBe(ctx1);
+    } finally {
+      rmSync(otherRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("returns updated resources after manifest creation/mutation when clearDiscoveryCache is called", async () => {
+    const { clearDiscoveryCache, createDiscoveryContext } = await import("../discovery-context.js");
+    clearDiscoveryCache();
+
+    const initial = createDiscoveryContext();
+    expect(initial.resources).toHaveLength(3);
+
+    // Add a new service manifest to disk
+    const newDir = join(root, "services", "api", "svc-new");
+    mkdirSync(newDir, { recursive: true });
+    writeFileSync(
+      join(newDir, "service.json"),
+      JSON.stringify({ appName: "svc-new", appType: "backend", stack: "api", port: 4005 }),
+    );
+
+    // Without cache invalidation, same-process context retains cached list
+    const cached = createDiscoveryContext();
+    expect(cached.resources).toHaveLength(3);
+
+    // After invalidation, rediscovery reflects the new service
+    clearDiscoveryCache();
+    const refreshed = createDiscoveryContext();
+    expect(refreshed.resources).toHaveLength(4);
+    expect(refreshed.resources.some((r) => r.name === "svc-new")).toBe(true);
+  });
 });

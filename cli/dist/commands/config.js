@@ -10,6 +10,7 @@ import { generateMasterConfigs, readProjectConfig, TemplateEngine, verifyMasterC
 import { isMasterConfigFileName } from "../types/index.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import { errorFactories, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
@@ -163,6 +164,9 @@ export const configCommand = new Command("config")
             process.exit(1);
         for (const migration of pendingMigrations) {
             writeFileSync(migration.filePath, `${JSON.stringify(migration.manifest, null, 2)}\n`);
+        }
+        if (pendingMigrations.length > 0) {
+            clearDiscoveryCache();
         }
         const migrated = pendingMigrations.length;
         console.log(chalk.green(`✅ Migrated ${migrated} service.json file${migrated === 1 ? "" : "s"} to schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}.`));
