@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import chalk from "chalk";
 import { Command } from "commander";
-import { assertValid, confirmOrCancel } from "../utils/command-helpers.js";
+import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
 import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, requireProjectRoot, runCommand, TdkError } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
@@ -42,12 +42,11 @@ function normalizeResourceNames(names: string[]): string[] {
   return [...new Set(normalizedNames)];
 }
 
-export const stackCommand = new Command("stack")
+export const stackCommand = addYesOption(new Command("stack"))
   .description("Organize resources into stacks (groups)")
   .argument("[stack-name]", "Stack name to assign to resources")
   .option("--list", "List resources without a stack", false)
   .option("--resources <names...>", "Resource names to add (comma- or space-separated)")
-  .option("--yes", "Skip confirmation prompt", false)
   .action(async (stackName, options) => {
     await runCommand(async () => {
       requireProjectRoot();

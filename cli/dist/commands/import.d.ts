@@ -42,5 +42,9 @@ export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv
 };
 /** Runs tdk-import with the caller's terminal and resolves to its exit code. */
 export declare function runImport(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<number>;
+export declare function buildForwardedImportArgs(args: string[], options?: {
+    yes?: boolean;
+    force?: boolean;
+}): string[];
 export declare const importCommand: Command;
 export {};

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { spawn } from "node:child_process";
 import { Command } from "commander";
+import { addYesOption } from "../utils/command-helpers.js";
 import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
@@ -128,11 +129,36 @@ export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersio
         child.on("close", (code) => resolve(code ?? 1));
     });
 }
-export const importCommand = new Command("import")
+export function buildForwardedImportArgs(args, options = {}) {
+    let yes = Boolean(options.yes);
+    let force = Boolean(options.force);
+    const filtered = [];
+    for (const arg of args) {
+        if (arg === "--yes" || arg === "-y") {
+            yes = true;
+        }
+        else if (arg === "--force" || arg === "-f") {
+            force = true;
+        }
+        else {
+            filtered.push(arg);
+        }
+    }
+    if (yes) {
+        filtered.push("--yes");
+    }
+    if (force) {
+        filtered.push("--force");
+    }
+    return filtered;
+}
+export const importCommand = addYesOption(new Command("import"))
     .description("Import the services in a directory's root docker-compose.yml (runs tdk-import)")
     .argument("[args...]", "Passed to tdk-import: [dir] --dry-run --yes --force")
+    .option("-f, --force", "Overwrite an existing service.json", false)
     .allowUnknownOption()
     .helpOption(false)
-    .action(async (args) => {
-    process.exitCode = await runImport(args);
+    .action(async (args, options) => {
+    const forwardedArgs = buildForwardedImportArgs(args, options);
+    process.exitCode = await runImport(forwardedArgs);
 });

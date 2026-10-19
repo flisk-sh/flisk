@@ -42,6 +42,36 @@ describe("singleFlight", () => {
     expect(applied).toEqual(["slow result"]);
   });
 
+  it("deduplicates multiple concurrent callers so only the in-flight caller runs", async () => {
+    const applied: number[] = [];
+    let loadCount = 0;
+    const run = singleFlight<number>((value) => applied.push(value));
+    const slow = deferred<number>();
+
+    const p1 = run(() => {
+      loadCount += 1;
+      return slow.promise;
+    });
+    const p2 = run(async () => {
+      loadCount += 1;
+      return 2;
+    });
+    const p3 = run(async () => {
+      loadCount += 1;
+      return 3;
+    });
+    const p4 = run(async () => {
+      loadCount += 1;
+      return 4;
+    });
+
+    slow.resolve(100);
+    await Promise.all([p1, p2, p3, p4]);
+
+    expect(loadCount).toBe(1);
+    expect(applied).toEqual([100]);
+  });
+
   it("still updates when every load outlasts the timer tick", async () => {
     const applied: number[] = [];
     const run = singleFlight<number>((value) => applied.push(value));
@@ -72,5 +102,34 @@ describe("singleFlight", () => {
     await run(async () => "recovered");
 
     expect(applied).toEqual(["recovered"]);
+  });
+
+  it("resets running state even when apply callback throws an error", async () => {
+    let shouldThrow = true;
+    const applied: number[] = [];
+    const run = singleFlight<number>((value) => {
+      if (shouldThrow) {
+        throw new Error("apply failed");
+      }
+      applied.push(value);
+    });
+
+    await expect(run(async () => 42)).rejects.toThrow("apply failed");
+
+    shouldThrow = false;
+    await run(async () => 99);
+    expect(applied).toEqual([99]);
+  });
+
+  it("correctly handles falsy values produced by load", async () => {
+    const applied: unknown[] = [];
+    const run = singleFlight<unknown>((value) => applied.push(value));
+
+    await run(async () => 0);
+    await run(async () => false);
+    await run(async () => "");
+    await run(async () => null);
+
+    expect(applied).toEqual([0, false, "", null]);
   });
 });

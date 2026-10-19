@@ -92,8 +92,8 @@ export function buildTiltUpArgs(serviceNames, options = {}) {
 export function buildTiltDownArgs(options = {}) {
     const args = [];
     addTiltfilePath(args);
-    // Note: `tilt down` has no `--force` flag. `tdk down` accepts it for script
-    // compatibility, but it has no effect and must not be passed to Tilt.
+    // Note: `tilt down` has no `--force` or `--yes` flags. `tdk down` accepts them for
+    // CLI flag convention and script compatibility, but they must not be passed to Tilt.
     // `tilt down` re-evaluates the Tiltfile and removes only the resources that evaluation registers. Without `--focus`
     // the Tiltfile falls back to its default phase and never registers a stack's own compose project, so `tdk up shop`
     // containers survived `tdk down`. Pass the same selection `tdk up` used (every stack) after `--`.

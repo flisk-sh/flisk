@@ -4,7 +4,7 @@ import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
+import { addYesOption, confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
 import { errorFactories, runCommand } from "../utils/errors.js";
 import { findProjectRoot } from "../utils/paths.js";
 // Same location `tdk up` hands to Tilt (see getTiltfilePath in utils/tilt.ts), relative to the project root.
@@ -42,10 +42,9 @@ Deleting them also removes what the Tiltfile needs.
 
 To go back to TDK: install it and run \`tdk config regenerate\`.
 `;
-export const ejectCommand = new Command("eject")
+export const ejectCommand = addYesOption(new Command("eject"))
     .description("Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .tdk/.tdk-out/)")
     .option("--dry-run", "List the generated files and what would be written, without changing the project", false)
-    .option("--yes", "Skip the confirmation prompt", false)
     .action(async (options) => {
     await runCommand(async () => {
         const projectRoot = findProjectRoot();

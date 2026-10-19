@@ -92,6 +92,12 @@ bun run typecheck && bun run lint && bun run test   # about a minute; all of it 
 
 If one of these fails on a clean checkout, that is a bug in the project, not in your setup: please [open an issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose).
 
+
+## CLI conventions
+
+- `-y, --yes`: answer yes to confirmations and use defaults instead of prompting (`Skip prompts and confirmations; use defaults`). Every command that accepts `--yes` also accepts `-y` and registers it with `addYesOption` in `cli/src/utils/command-helpers.ts`.
+- `--force` (or `-f, --force`): overwrite or override something that already exists (such as existing configuration, a running Tilt process, or an already-current version), never "skip confirmation".
+
 ## Supported platforms
 
 For developing and running TDK locally:

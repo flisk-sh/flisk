@@ -9,6 +9,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
 import type { DiscoveredResource, ProjectConfig } from "../types/index.js";
+import { addYesOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { completeEnvFile, ensureEnvFile, validateEnvFile } from "../utils/env-validator.js";
@@ -219,7 +220,7 @@ const DEFAULT_PROJECT_JSON: ProjectConfig = {
   overrides: {},
 };
 
-export const projectCommand = new Command("project")
+export const projectCommand = addYesOption(new Command("project"))
   .description("Initialize or validate project-level master configuration")
   .argument(
     "[template]",
@@ -231,7 +232,6 @@ export const projectCommand = new Command("project")
   )
   .option("--check", "Check if master configs exist and are in sync")
   .option("--force", "Overwrite existing configuration (dangerous)")
-  .option("--yes", "Non-interactive mode (use defaults)")
   .option("--config-file <path>", "Load project config from existing JSON file")
   .action(async (template, options) => {
     const { assertMachineReadyOrExit } = await import("../utils/cold-preflight.js");
@@ -332,7 +332,7 @@ export const projectCommand = new Command("project")
         return;
       }
 
-      if (projectJsonExists && options.force) {
+      if (projectJsonExists && options.force && !options.yes) {
         console.log(chalk.red("\n⚠️  WARNING: --force will overwrite .tdk/project.json!"));
         const confirm = await promptConfirm({
           message: "This will reset your project configuration. Continue?",

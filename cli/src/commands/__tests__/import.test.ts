@@ -3,6 +3,7 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildForwardedImportArgs,
   checkCoreVersion,
   IMPORT_PACKAGE,
   importCommand,
@@ -71,6 +72,123 @@ describe("tdk import", () => {
     expect(importCommand.name()).toBe("import");
     expect(importCommand.helpCommand).toBeDefined();
     expect(importCommand.options.find((o) => o.long === "--help")).toBeUndefined();
+  });
+
+  it("registers -y/--yes and --force options with the shared convention", () => {
+    const yesOpt = importCommand.options.find((o) => o.long === "--yes");
+    expect(yesOpt?.short).toBe("-y");
+    const forceOpt = importCommand.options.find((o) => o.long === "--force");
+    expect(forceOpt).toBeDefined();
+    expect(forceOpt?.short).toBe("-f");
+  });
+
+  describe("forwarded arguments contract", () => {
+    it("forwards parsed options authoritatively without duplicate flags", () => {
+      expect(buildForwardedImportArgs(["./services"], { yes: true })).toEqual([
+        "./services",
+        "--yes",
+      ]);
+      expect(buildForwardedImportArgs(["./services"], { force: true })).toEqual([
+        "./services",
+        "--force",
+      ]);
+      expect(buildForwardedImportArgs(["./services"], { yes: true, force: true })).toEqual([
+        "./services",
+        "--yes",
+        "--force",
+      ]);
+    });
+
+    it("strips flags placed before or after directory from positional args so flags are forwarded exactly once", () => {
+      // Flag before directory
+      expect(buildForwardedImportArgs(["--yes", "./services"], { yes: true })).toEqual([
+        "./services",
+        "--yes",
+      ]);
+      // Flag after directory
+      expect(buildForwardedImportArgs(["./services", "--yes"], { yes: true })).toEqual([
+        "./services",
+        "--yes",
+      ]);
+      // Short form -y in positional args normalized by option
+      expect(buildForwardedImportArgs(["-y", "./services"], { yes: true })).toEqual([
+        "./services",
+        "--yes",
+      ]);
+      // Short form -y alone in args without options
+      expect(buildForwardedImportArgs(["./services", "-y"])).toEqual(["./services", "--yes"]);
+      // Short form -f alone in args without options
+      expect(buildForwardedImportArgs(["./services", "-f"])).toEqual(["./services", "--force"]);
+      // Long form --force in args without options
+      expect(buildForwardedImportArgs(["--force", "./services"])).toEqual([
+        "./services",
+        "--force",
+      ]);
+      // Mixed short and long forms with --force
+      expect(
+        buildForwardedImportArgs(["-y", "./services", "--force"], { yes: true, force: true }),
+      ).toEqual(["./services", "--yes", "--force"]);
+      // Mixed flags in args without options
+      expect(buildForwardedImportArgs(["-y", "./services", "-f"])).toEqual([
+        "./services",
+        "--yes",
+        "--force",
+      ]);
+      // Flags after directory
+      expect(buildForwardedImportArgs(["./services", "-y", "-f"])).toEqual([
+        "./services",
+        "--yes",
+        "--force",
+      ]);
+      // Preserves pass-through options like --dry-run
+      expect(buildForwardedImportArgs(["--dry-run", "./services", "-y"])).toEqual([
+        "--dry-run",
+        "./services",
+        "--yes",
+      ]);
+      // Deduplicates multiple occurrences of flags in args
+      expect(buildForwardedImportArgs(["-y", "--yes", "./services", "-f", "--force"])).toEqual([
+        "./services",
+        "--yes",
+        "--force",
+      ]);
+    });
+  });
+
+  describe("importCommand CLI argument parsing and execution", () => {
+    it.each([
+      { commandArgs: ["--yes", "."], expectedForwarded: [".", "--yes"] },
+      { commandArgs: [".", "-y"], expectedForwarded: [".", "--yes"] },
+      { commandArgs: ["--force", "."], expectedForwarded: [".", "--force"] },
+      { commandArgs: [".", "-f"], expectedForwarded: [".", "--force"] },
+      { commandArgs: ["-y", ".", "-f"], expectedForwarded: [".", "--yes", "--force"] },
+      { commandArgs: [".", "-y", "-f"], expectedForwarded: [".", "--yes", "--force"] },
+      { commandArgs: ["--force", "--yes", "."], expectedForwarded: [".", "--yes", "--force"] },
+    ])(
+      "normalizes flags regardless of position or alias for $commandArgs",
+      async ({ commandArgs, expectedForwarded }) => {
+        importCommand.setOptionValue("yes", false);
+        importCommand.setOptionValue("force", false);
+
+        const { calls, spawnFn } = fakeSpawn({ code: 0 });
+        const argsParsed: string[] = [];
+        const optsParsed: { yes?: boolean; force?: boolean } = {};
+
+        // Parse using commander instance to extract args and options
+        const testCmd = importCommand.action(async (args, options) => {
+          argsParsed.push(...args);
+          Object.assign(optsParsed, options);
+          const forwarded = buildForwardedImportArgs(args, options);
+          await runImport(forwarded, spawnFn, () => "1.3.183");
+        });
+
+        await testCmd.parseAsync(["node", "tdk", ...commandArgs], { from: "node" });
+
+        expect(calls).toHaveLength(1);
+        const spawnedArgs = calls[0]?.[1] as string[];
+        expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
+      },
+    );
   });
 
   describe("core version gate", () => {

@@ -11,6 +11,7 @@ import {
   runCommandInProcess,
   runTdk,
 } from "../../test-support/index.js";
+import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
 import { configCommand } from "../config.js";
 import { downCommand } from "../down.js";
 import { ejectCommand } from "../eject.js";
@@ -161,6 +162,9 @@ const EXEMPT: Record<string, string> = {
     "with --fix, removes unused Docker networks on the host's Docker daemon; a test run would act on that daemon",
   "down --json":
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "down --yes":
+    "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "import --yes": "spawns npx @tdk-landscape/tdk-import over the network",
   "logs --json":
     "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
   "restart --json":
@@ -378,4 +382,67 @@ describe("flag contract: --yes", () => {
       expect(`${result.stdout}${result.stderr}`).not.toMatch(/\(y\/n\)|\[y\/N\]/i);
     },
   );
+});
+
+function collectCommands(
+  command: Command,
+  prefix: string[] = [],
+): Array<{ name: string; command: Command }> {
+  const pathParts = [...prefix, command.name()].filter(Boolean);
+  const items: Array<{ name: string; command: Command }> = [{ name: pathParts.join(" "), command }];
+  for (const sub of command.commands) {
+    items.push(...collectCommands(sub, pathParts));
+  }
+  return items;
+}
+
+describe("flag contract: -y/--yes and --force convention", () => {
+  it("every command that defines --yes also defines -y", async () => {
+    const allCommands = (await loadAllCommands()).flatMap((cmd) => collectCommands(cmd));
+    const missingShort = allCommands.flatMap(({ name, command }) =>
+      command.options
+        .filter((option) => option.long === "--yes" && option.short !== "-y")
+        .map(() => name),
+    );
+    expect(missingShort).toEqual([]);
+  });
+
+  it("uses the shared YES_OPTION_DESCRIPTION across standard --yes commands", async () => {
+    const allCommands = new Map(
+      (await loadAllCommands())
+        .flatMap((cmd) => collectCommands(cmd))
+        .map(({ name, command }) => [name, command] as const),
+    );
+    for (const commandName of [
+      "project",
+      "resource",
+      "stack",
+      "eject",
+      "import",
+      "upgrade",
+      "down",
+    ]) {
+      const command = allCommands.get(commandName);
+      expect(command, `expected command "${commandName}" to exist`).toBeDefined();
+      const yesOption = command?.options.find((option) => option.long === "--yes");
+      expect(yesOption?.short, `expected "${commandName}" to have -y`).toBe("-y");
+      expect(yesOption?.description, `expected "${commandName}" to use shared description`).toBe(
+        YES_OPTION_DESCRIPTION,
+      );
+    }
+  });
+
+  it("never defines --force with a 'skip confirmation' description", async () => {
+    const allCommands = (await loadAllCommands()).flatMap((cmd) => collectCommands(cmd));
+    const badForce = allCommands.flatMap(({ name, command }) =>
+      command.options
+        .filter(
+          (option) =>
+            option.long === "--force" &&
+            /(skip|bypass|suppress|without).*(confirm|prompt)/i.test(option.description),
+        )
+        .map((option) => `${name}: ${option.description}`),
+    );
+    expect(badForce).toEqual([]);
+  });
 });
