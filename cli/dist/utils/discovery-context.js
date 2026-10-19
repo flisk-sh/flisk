@@ -1,20 +1,19 @@
-import { createCacheValidator } from "./cache.js";
 import { findProjectRoot } from "./paths.js";
 import { discoverResources, discoverResourcesWithProblems, discoverStacks, getAllStacks, warnAboutSkippedFiles, } from "./services.js";
-let cachedContext = null;
-const cacheValidator = createCacheValidator(1000);
+const cachedContextByRoot = new Map();
+let cachedDefaultContext = null;
 export function clearDiscoveryCache() {
-    cachedContext = null;
-    cacheValidator.reset();
-}
-function isCacheValid() {
-    return cachedContext !== null && cacheValidator.isValid();
+    cachedContextByRoot.clear();
+    cachedDefaultContext = null;
 }
 export function createDiscoveryContext(forceRefresh = false) {
-    if (!forceRefresh && isCacheValid() && cachedContext) {
-        return cachedContext;
-    }
     const projectRoot = findProjectRoot();
+    if (!forceRefresh) {
+        const cached = projectRoot ? cachedContextByRoot.get(projectRoot) : cachedDefaultContext;
+        if (cached) {
+            return cached;
+        }
+    }
     const { resources, problems } = projectRoot
         ? discoverResourcesWithProblems(projectRoot)
         : { resources: discoverResources(), problems: [] };
@@ -38,7 +37,11 @@ export function createDiscoveryContext(forceRefresh = false) {
         unassignedResources,
         resourcesByStack,
     };
-    cachedContext = context;
-    cacheValidator.markUpdated();
+    if (projectRoot) {
+        cachedContextByRoot.set(projectRoot, context);
+    }
+    else {
+        cachedDefaultContext = context;
+    }
     return context;
 }

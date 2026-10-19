@@ -26,9 +26,9 @@ import { isPathSafe } from "../utils/validation.js";
  * `should_enable()` - without it, `tdk up` would launch infra only and no
  * app services would come up, however many the repo actually has.
  */
-function discoverExistingServiceStacks(projectRoot) {
+function discoverExistingServiceStacks(projectRoot, resources) {
     try {
-        return discoverStackNames(projectRoot);
+        return discoverStackNames(projectRoot, resources);
     }
     catch {
         return [];
@@ -57,12 +57,12 @@ function syncDiscoveredStacksToPreAlpha(projectConfig, discoveredStacks) {
  * pre_alpha, so a resource scaffolded after `tdk project` is picked up by
  * `tdk up` without re-running `tdk project`. Returns the stacks it enabled.
  */
-export function enableDiscoveredStacks(projectRoot) {
+export function enableDiscoveredStacks(projectRoot, resources) {
     const projectJsonPath = join(projectRoot, ".tdk", PROJECT_JSON);
     if (!existsSync(projectJsonPath))
         return [];
     const projectConfig = readProjectConfig(projectRoot);
-    const enabled = syncDiscoveredStacksToPreAlpha(projectConfig, discoverExistingServiceStacks(projectRoot));
+    const enabled = syncDiscoveredStacksToPreAlpha(projectConfig, discoverExistingServiceStacks(projectRoot, resources));
     if (enabled.length > 0) {
         writeJsonFile(projectJsonPath, projectConfig);
     }

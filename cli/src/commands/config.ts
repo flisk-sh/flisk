@@ -25,7 +25,7 @@ import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
   validateServiceManifest,
 } from "../utils/service-manifest.js";
-import { discoverServiceManifestPaths } from "../utils/services.js";
+import { discoverResourcesFromRoot, discoverServiceManifestPaths } from "../utils/services.js";
 import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
 
@@ -238,9 +238,10 @@ export const configCommand = new Command("config")
           if (!projectRoot) throw errorFactories.notInProject();
 
           const result = verifyMasterConfigs(projectRoot);
+          const resources = discoverResourcesFromRoot(projectRoot);
           // Same predicate as tdk doctor's Shared platform Postgres check.
-          const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot);
-          const prismaConsistency = checkPrismaConsistency(projectRoot);
+          const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
+          const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
           const sharedPostgresErrors = sharedPostgres.unknownDependsOnNames.map(
             ({ resource, name }) =>
               `dependsOn "${name}" on ${resource} is not a known service or stack (shared platform Postgres names are postgres and database-management)`,

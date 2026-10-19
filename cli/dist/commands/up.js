@@ -24,7 +24,7 @@ import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions } from "../utils/service-config-checks.js";
 import { appendHealthPath, resolveSubdomainBases } from "../utils/service-urls.js";
-import { discoverResources, discoverResourcesStrict, discoverStacks, stackExists, } from "../utils/services.js";
+import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans } from "../utils/smoke.js";
 import { buildStartupReport, formatStartupReport, isStartupStalled, } from "../utils/startup-report.js";
 import { evaluateTdkVersionFloor } from "../utils/tdk-version.js";
@@ -71,10 +71,15 @@ export const DRIFT_EXIT_CODE = 2;
  * Generated service files edited by hand. Only these block `tdk up`: when service.json itself changed, `tdk up` regenerates
  * the outputs, so stale outputs are the normal edit-then-up loop and not drift.
  */
-export function driftReport(projectRoot) {
+export function driftReport(projectRoot, resources) {
     let handEdited;
     try {
-        ({ handEdited } = verifyMasterConfigs(projectRoot));
+        ({ handEdited } = verifyMasterConfigs(projectRoot, resources
+            ? {
+                manifestPaths: resources.map((r) => r.configPath),
+                skipManifestValidation: true,
+            }
+            : undefined));
     }
     catch (error) {
         // A project with no .tdk/project.json has no snapshots to compare. Anything else (a corrupt config) must not skip the gate.
@@ -99,7 +104,7 @@ export function enforceDriftGate(projectRoot, options, exit = process.exit) {
         console.warn(chalk.yellow("Warning: --ignore-drift set; generated files were not checked."));
         return;
     }
-    const drift = driftReport(projectRoot);
+    const drift = driftReport(projectRoot, options.resources);
     if (!drift)
         return;
     options.onDrift?.(drift.join("\n"));
@@ -198,10 +203,21 @@ export const upCommand = new Command("up")
         showErrorAndExit(platformRefusal);
     // An unknown schemaVersion is refused before the machine check, so --json can name the file even when Bun is missing.
     const schemaRoot = findProjectRoot();
+    let initialDiscovery;
     if (schemaRoot) {
-        enforceSchemaVersionGate(schemaRoot, {
-            onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
-        });
+        try {
+            initialDiscovery = discoverResourcesWithProblems(schemaRoot);
+            warnAboutSkippedFiles(initialDiscovery.problems);
+        }
+        catch {
+            // A root that cannot be read is reported by the checks that run next.
+        }
+        if (initialDiscovery) {
+            enforceSchemaVersionGate(schemaRoot, {
+                resources: initialDiscovery.resources,
+                onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+            });
+        }
     }
     if (!options.dryRun) {
         const { assertMachineReadyOrExit } = await import("../utils/cold-preflight.js");
@@ -210,7 +226,7 @@ export const upCommand = new Command("up")
     const action = async () => {
         const foundRoot = options.dryRun ? requireProjectRoot() : findProjectRoot();
         const projectRoot = foundRoot ?? process.cwd();
-        const discoveredResources = discoverResourcesStrict();
+        const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined);
         let discoveredStacks;
         let discoveredStackNames = [];
         if (!options.only || stackName) {
@@ -219,13 +235,13 @@ export const upCommand = new Command("up")
         }
         // Reject a bad request before anything below can write to the project (.env, runtime assets, .tdk/project.json).
         if (options.only) {
-            if (stackName && !stackExists(stackName)) {
+            if (stackName && !stackExists(stackName, discoveredResources)) {
                 const error = errorFactories.stackNotFound(stackName, discoveredStackNames);
                 emit?.({ ok: false }, [toMachineError(error).error]);
                 error.exit();
             }
             const candidates = stackName
-                ? discoveredResources.filter((resource) => resource.stack === stackName)
+                ? getResourcesForStack(stackName, discoveredResources)
                 : discoveredResources;
             const unknown = findUnknownServices(options.only, candidates);
             if (unknown.length > 0) {
@@ -245,18 +261,21 @@ export const upCommand = new Command("up")
         if (foundRoot) {
             enforceDriftGate(foundRoot, {
                 ignoreDrift: options.ignoreDrift,
+                resources: discoveredResources,
                 onDrift: (message) => emit?.({ ok: false }, [{ code: "DRIFT_DETECTED", message }]),
             });
         }
         // Duplicate names, circular dependsOn and invalid ports are refused before anything starts, dry run included.
         if (foundRoot) {
             enforceServiceConfigGate(foundRoot, {
+                resources: discoveredResources,
                 onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
             });
         }
         // A project without schemaVersion keeps working; say how to add it, but only where a person is reading.
-        if (foundRoot && !emit && !options.quiet)
-            warnSchemaVersions(foundRoot);
+        if (foundRoot && !emit && !options.quiet) {
+            warnSchemaVersions(foundRoot, discoveredResources);
+        }
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,
         });
@@ -281,7 +300,7 @@ export const upCommand = new Command("up")
             if (copiedAssets.length > 0 && options.verbose && !options.quiet) {
                 console.log(chalk.gray(`Refreshed runtime assets: ${copiedAssets.join(", ")}`));
             }
-            const newlyEnabledStacks = enableDiscoveredStacks(projectRoot);
+            const newlyEnabledStacks = enableDiscoveredStacks(projectRoot, discoveredResources);
             if (newlyEnabledStacks.length > 0 && !options.quiet) {
                 console.log(chalk.gray(`Added ${newlyEnabledStacks.join(", ")} to the pre_alpha phase in .tdk/project.json`));
             }
@@ -290,7 +309,7 @@ export const upCommand = new Command("up")
         let stackDescription;
         let focusServiceNames = [];
         if (stackName) {
-            servicesToStart = discoveredResources.filter((resource) => resource.stack === stackName);
+            servicesToStart = getResourcesForStack(stackName, discoveredResources);
             if (servicesToStart.length === 0) {
                 const error = errorFactories.stackNotFound(stackName, discoveredStackNames);
                 emit?.({ ok: false }, [toMachineError(error).error]);
@@ -307,7 +326,7 @@ export const upCommand = new Command("up")
         let dependencyNames = [];
         if (options.only) {
             // Dependencies come from the whole project, not just the named stack: dependsOn may cross stacks.
-            const selection = resolveOnlySelection(options.only, discoverResources());
+            const selection = resolveOnlySelection(options.only, discoveredResources);
             servicesToStart = selection.selected;
             dependencyNames = selection.dependencies;
             focusServiceNames = servicesToStart.map((s) => s.name);
@@ -462,7 +481,7 @@ export const upCommand = new Command("up")
             let startedServices = serviceNames;
             let startedDependencies = dependencyNames;
             if (uiReady && emit) {
-                const deferred = getDeferredResourceNames();
+                const deferred = getDeferredResourceNames(discoveredResources);
                 const readiness = await waitForTiltResourcesReady(port, {
                     deferred,
                     // Only what the caller named must be enabled. Dependencies are the Tiltfile's call (it skips some on purpose).
@@ -475,7 +494,7 @@ export const upCommand = new Command("up")
                     if (options.only) {
                         // Report what Tilt actually enabled, not the service.json closure, which can differ from the Tiltfile's expansion.
                         const enabled = new Set(readiness.enabled);
-                        const allNames = discoverResources().map((r) => r.name);
+                        const allNames = discoveredResources.map((r) => r.name);
                         startedServices = allNames.filter((name) => enabled.has(name));
                         startedDependencies = startedServices.filter((name) => !options.only.includes(name));
                     }
@@ -494,8 +513,8 @@ export const upCommand = new Command("up")
             // The UI port opening only means Tilt started. Say "up" once every resource is built and running, and otherwise name
             // what failed and what it blocks.
             if (uiReady && !emit) {
-                const deferred = getDeferredResourceNames();
-                const dependsOn = Object.fromEntries(discoverResources().map((r) => [r.name, r.config?.dependsOn ?? []]));
+                const deferred = getDeferredResourceNames(discoveredResources);
+                const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, r.config?.dependsOn ?? []]));
                 const readiness = await waitForTiltResourcesReady(port, {
                     deferred,
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),

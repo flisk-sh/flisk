@@ -1,14 +1,14 @@
 import { execSync } from "node:child_process";
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, DiscoveredResource } from "../types/index.js";
 import { type ExecAsync } from "./exec-async.js";
 /** Enforces the Prisma 7 project contract before `tdk up` can run. */
-export declare function checkPrismaConsistency(projectRoot?: string): CheckResult;
+export declare function checkPrismaConsistency(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 export declare function checkResourcePackageJson(projectRoot?: string): CheckResult;
 /**
  * Two resources with one appName share a Compose service name and Traefik router and service names
  * (all built from the name, none from the directory), so one of them is lost or misrouted.
  */
-export declare function checkDuplicateResourceNames(projectRoot?: string): CheckResult;
+export declare function checkDuplicateResourceNames(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**
  * Two routed resources on one `port`. This is a warning, not a failure: the engine publishes no service
  * port on the host and gives each resource its own container, which Traefik reaches as <container>:<port>,

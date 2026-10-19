@@ -97,8 +97,8 @@ function prismaConfigFindings(resourcePath: string): string[] {
 /** Enforces the Prisma 7 project contract before `tdk up` can run. */
 export function checkPrismaConsistency(
   projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
-  const resources = discoverResourcesFromRoot(projectRoot);
   const prismaResources = resources.filter((resource) =>
     resource.config?.featuresEnabled?.includes("prisma"),
   );
@@ -189,7 +189,10 @@ export function checkPrismaConsistency(
     }
   }
 
-  if (prismaResources.length > 0 && !evaluateSharedPlatformPostgres(projectRoot).willStart) {
+  if (
+    prismaResources.length > 0 &&
+    !evaluateSharedPlatformPostgres(projectRoot, resources).willStart
+  ) {
     findings.push("shared platform Postgres will not start for the Prisma resources");
   }
   return findings.length === 0
@@ -269,9 +272,10 @@ export function checkResourcePackageJson(
  */
 export function checkDuplicateResourceNames(
   projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
   const byName = new Map<string, string[]>();
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     const paths = byName.get(resource.name) ?? [];
     paths.push(relative(projectRoot, resource.configPath) || resource.configPath);
     byName.set(resource.name, paths);

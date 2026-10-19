@@ -40,7 +40,7 @@ export interface TiltResourceFailure {
  * (e.g. not run from inside a project), so callers degrade to today's
  * behavior rather than erroring.
  */
-export declare function getDeferredResourceNames(): Set<string>;
+export declare function getDeferredResourceNames(resources?: DiscoveredResource[]): Set<string>;
 /**
  * Extract failing UIResources from `tilt get uiresources -o json`.
  *

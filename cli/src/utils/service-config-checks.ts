@@ -55,8 +55,11 @@ function findDependencyCycles(resources: DiscoveredResource[]): string[][] {
 }
 
 /** A dependsOn that is not a list of service names cannot be followed, so say so instead of failing later. */
-export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.cwd()): CheckResult {
-  const problems = discoverResourcesFromRoot(projectRoot).flatMap((resource) =>
+export function checkDependsOnShape(
+  projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+): CheckResult {
+  const problems = resources.flatMap((resource) =>
     declaredDependsOn(resource) === null
       ? [
           `${filePath(projectRoot, resource)} dependsOn ${JSON.stringify(resource.config?.dependsOn)}: expected an array of service names`,
@@ -81,8 +84,8 @@ export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.c
 /** Services that wait on each other can never both start. A dependsOn name that is not a service is left to the unknown-name check. */
 export function checkCircularDependencies(
   projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
-  const resources = discoverResourcesFromRoot(projectRoot);
   const byName = new Map(resources.map((r) => [r.name, r]));
   const cycles = findDependencyCycles(resources);
 
@@ -107,8 +110,11 @@ export function checkCircularDependencies(
 }
 
 /** A port outside 1-65535 can never be bound, and `tdk up` would otherwise find out only when Docker fails. */
-export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd()): CheckResult {
-  const problems = discoverResourcesFromRoot(projectRoot).flatMap((resource) => {
+export function checkServicePorts(
+  projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+): CheckResult {
+  const problems = resources.flatMap((resource) => {
     const port: unknown = resource.config?.port;
     if (port === undefined) return [];
     if (typeof port === "number" && Number.isInteger(port) && port >= 1 && port <= 65535) return [];
@@ -135,10 +141,11 @@ export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd
 export function checkSchemaVersions(
   projectRoot = findProjectRoot() ?? process.cwd(),
   strict = false,
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
   const missing: string[] = [];
   const unsupported: string[] = [];
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     const version: unknown = resource.config?.schemaVersion;
     if (version === SERVICE_MANIFEST_SCHEMA_VERSION) continue;
     const file = filePath(projectRoot, resource);
@@ -172,8 +179,8 @@ export function checkSchemaVersions(
 }
 
 /** Prints the schemaVersion warning once. It never stops anything: the project keeps working as it is. */
-export function warnSchemaVersions(projectRoot: string): void {
-  const check = checkSchemaVersions(projectRoot);
+export function warnSchemaVersions(projectRoot: string, resources?: DiscoveredResource[]): void {
+  const check = checkSchemaVersions(projectRoot, false, resources);
   if (check.didPass) return;
   console.warn(chalk.yellow(`⚠ ${check.message}`));
   if (check.fix) console.warn(chalk.gray(`  ${check.fix}`));
@@ -185,14 +192,15 @@ export function warnSchemaVersions(projectRoot: string): void {
  */
 export function enforceServiceConfigGate(
   projectRoot: string,
-  options: { onInvalid?: (message: string) => void } = {},
+  options: { onInvalid?: (message: string) => void; resources?: DiscoveredResource[] } = {},
   exit: (code: number) => never = process.exit,
 ): void {
+  const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
   const failed = [
-    checkDuplicateResourceNames(projectRoot),
-    checkDependsOnShape(projectRoot),
-    checkCircularDependencies(projectRoot),
-    checkServicePorts(projectRoot),
+    checkDuplicateResourceNames(projectRoot, resources),
+    checkDependsOnShape(projectRoot, resources),
+    checkCircularDependencies(projectRoot, resources),
+    checkServicePorts(projectRoot, resources),
   ].filter((check) => !check.didPass);
   if (failed.length === 0) return;
 

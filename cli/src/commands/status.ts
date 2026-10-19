@@ -78,7 +78,7 @@ export const statusCommand = new Command("status")
           }
         }
         if (text) {
-          const deferred = getDeferredResourceNames();
+          const deferred = getDeferredResourceNames(discovery.resources);
           try {
             if (options.json) readiness = evaluateTiltReadiness(text, deferred).result;
           } catch {

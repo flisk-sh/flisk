@@ -1,3 +1,4 @@
+import type { DiscoveredResource } from "../types/index.js";
 /**
  * Shared platform Postgres start predicate.
  *
@@ -53,6 +54,6 @@ export declare function databaseManagementEnabled(projectRoot: string): boolean;
  * default focus expands CORE_INFRA → database-management even when project.json
  * says the feature is off (the 7.1 gap).
  */
-export declare function evaluateSharedPlatformPostgres(projectRoot: string): SharedPlatformPostgresEvaluation;
+export declare function evaluateSharedPlatformPostgres(projectRoot: string, resources?: DiscoveredResource[]): SharedPlatformPostgresEvaluation;
 /** Human-readable will-start / will-not-start sentence shared by doctor + verify. */
 export declare function sharedPlatformPostgresMessage(evaluation: SharedPlatformPostgresEvaluation): string;

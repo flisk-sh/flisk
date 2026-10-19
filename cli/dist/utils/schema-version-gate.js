@@ -13,11 +13,16 @@ import { discoverResourcesFromRoot } from "./services.js";
 export function enforceSchemaVersionGate(projectRoot, options = {}, exit = process.exit) {
     // A root that cannot be read is reported by the checks that run next; this gate only refuses what it can read.
     let resources;
-    try {
-        resources = discoverResourcesFromRoot(projectRoot);
+    if (options.resources) {
+        resources = options.resources;
     }
-    catch {
-        return;
+    else {
+        try {
+            resources = discoverResourcesFromRoot(projectRoot);
+        }
+        catch {
+            return;
+        }
     }
     const unsupported = resources.flatMap((resource) => {
         const version = resource.config?.schemaVersion;

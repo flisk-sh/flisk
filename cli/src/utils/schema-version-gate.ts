@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { relative } from "node:path";
 import chalk from "chalk";
+import type { DiscoveredResource } from "../types/index.js";
 import { formatCount } from "./formatting.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
@@ -13,15 +14,19 @@ import { discoverResourcesFromRoot } from "./services.js";
  */
 export function enforceSchemaVersionGate(
   projectRoot: string,
-  options: { onInvalid?: (message: string) => void } = {},
+  options: { onInvalid?: (message: string) => void; resources?: DiscoveredResource[] } = {},
   exit: (code: number) => never = process.exit,
 ): void {
   // A root that cannot be read is reported by the checks that run next; this gate only refuses what it can read.
-  let resources: ReturnType<typeof discoverResourcesFromRoot>;
-  try {
-    resources = discoverResourcesFromRoot(projectRoot);
-  } catch {
-    return;
+  let resources: DiscoveredResource[];
+  if (options.resources) {
+    resources = options.resources;
+  } else {
+    try {
+      resources = discoverResourcesFromRoot(projectRoot);
+    } catch {
+      return;
+    }
   }
   const unsupported = resources.flatMap((resource) => {
     const version: unknown = resource.config?.schemaVersion;

@@ -1,7 +1,6 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { DiscoveredResource, DiscoveryContext } from "../types/index.js";
-import { createCacheValidator } from "./cache.js";
 import { findProjectRoot } from "./paths.js";
 import {
   discoverResources,
@@ -11,24 +10,23 @@ import {
   warnAboutSkippedFiles,
 } from "./services.js";
 
-let cachedContext: DiscoveryContext | null = null;
-const cacheValidator = createCacheValidator(1000);
+const cachedContextByRoot = new Map<string, DiscoveryContext>();
+let cachedDefaultContext: DiscoveryContext | null = null;
 
 export function clearDiscoveryCache(): void {
-  cachedContext = null;
-  cacheValidator.reset();
-}
-
-function isCacheValid(): boolean {
-  return cachedContext !== null && cacheValidator.isValid();
+  cachedContextByRoot.clear();
+  cachedDefaultContext = null;
 }
 
 export function createDiscoveryContext(forceRefresh = false): DiscoveryContext {
-  if (!forceRefresh && isCacheValid() && cachedContext) {
-    return cachedContext;
+  const projectRoot = findProjectRoot();
+  if (!forceRefresh) {
+    const cached = projectRoot ? cachedContextByRoot.get(projectRoot) : cachedDefaultContext;
+    if (cached) {
+      return cached;
+    }
   }
 
-  const projectRoot = findProjectRoot();
   const { resources, problems } = projectRoot
     ? discoverResourcesWithProblems(projectRoot)
     : { resources: discoverResources(), problems: [] };
@@ -57,8 +55,11 @@ export function createDiscoveryContext(forceRefresh = false): DiscoveryContext {
     resourcesByStack,
   };
 
-  cachedContext = context;
-  cacheValidator.markUpdated();
+  if (projectRoot) {
+    cachedContextByRoot.set(projectRoot, context);
+  } else {
+    cachedDefaultContext = context;
+  }
 
   return context;
 }

@@ -3,6 +3,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { DiscoveredResource } from "../types/index.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "./project-config-defaults.js";
 import { discoverResourcesFromRoot } from "./services.js";
@@ -167,11 +168,11 @@ export function databaseManagementEnabled(projectRoot: string): boolean {
 }
 
 /** Known names for unknown-dependsOn detection: discovered services/stacks + project stacks/infra. */
-function knownDependsonNames(projectRoot: string): Set<string> {
+function knownDependsonNames(projectRoot: string, resources: DiscoveredResource[]): Set<string> {
   const known = new Set<string>();
   for (const name of POSTGRES_DEPENDENCY_NAMES) known.add(name);
 
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     known.add(resource.name);
     if (resource.stack) known.add(resource.stack);
   }
@@ -209,6 +210,7 @@ function knownDependsonNames(projectRoot: string): Set<string> {
  */
 export function evaluateSharedPlatformPostgres(
   projectRoot: string,
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): SharedPlatformPostgresEvaluation {
   const featureOnFromProjectJson = projectJsonFeatureOn(projectRoot);
   const fromTilt = tiltfileAlwaysEnabledInfra(projectRoot);
@@ -219,12 +221,12 @@ export function evaluateSharedPlatformPostgres(
   const focusWouldEnableDatabaseManagement =
     !featureOnFromProjectJson && generatedDefaultFocusEnablesDatabaseManagement(projectRoot);
 
-  const known = knownDependsonNames(projectRoot);
+  const known = knownDependsonNames(projectRoot, resources);
 
   const dependsOnUsers: string[] = [];
   const unknownDependsOnNames: Array<{ resource: string; name: string }> = [];
 
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     const deps = resource.config?.dependsOn ?? [];
     let usesSharedPostgres = false;
     for (const dep of deps) {

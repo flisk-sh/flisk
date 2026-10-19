@@ -142,10 +142,11 @@ interface TiltUiResourceItem {
  * (e.g. not run from inside a project), so callers degrade to today's
  * behavior rather than erroring.
  */
-export function getDeferredResourceNames(): Set<string> {
+export function getDeferredResourceNames(resources?: DiscoveredResource[]): Set<string> {
   try {
+    const list = resources ?? discoverResources();
     return new Set(
-      discoverResources()
+      list
         .filter((svc) => svc.config?.sablier?.enable && svc.config?.sablier?.deferStart)
         .map((svc) => svc.name),
     );

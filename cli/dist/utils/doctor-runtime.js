@@ -88,9 +88,10 @@ export function findForeignIngressHolders(holders, projectPrefix) {
  * (e.g. not run from inside a project), so callers degrade to today's
  * behavior rather than erroring.
  */
-export function getDeferredResourceNames() {
+export function getDeferredResourceNames(resources) {
     try {
-        return new Set(discoverResources()
+        const list = resources ?? discoverResources();
+        return new Set(list
             .filter((svc) => svc.config?.sablier?.enable && svc.config?.sablier?.deferStart)
             .map((svc) => svc.name));
     }

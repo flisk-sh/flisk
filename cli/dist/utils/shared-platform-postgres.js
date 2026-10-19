@@ -128,11 +128,11 @@ export function databaseManagementEnabled(projectRoot) {
     return false;
 }
 /** Known names for unknown-dependsOn detection: discovered services/stacks + project stacks/infra. */
-function knownDependsonNames(projectRoot) {
+function knownDependsonNames(projectRoot, resources) {
     const known = new Set();
     for (const name of POSTGRES_DEPENDENCY_NAMES)
         known.add(name);
-    for (const resource of discoverResourcesFromRoot(projectRoot)) {
+    for (const resource of resources) {
         known.add(resource.name);
         if (resource.stack)
             known.add(resource.stack);
@@ -170,17 +170,17 @@ function knownDependsonNames(projectRoot) {
  * default focus expands CORE_INFRA → database-management even when project.json
  * says the feature is off (the 7.1 gap).
  */
-export function evaluateSharedPlatformPostgres(projectRoot) {
+export function evaluateSharedPlatformPostgres(projectRoot, resources = discoverResourcesFromRoot(projectRoot)) {
     const featureOnFromProjectJson = projectJsonFeatureOn(projectRoot);
     const fromTilt = tiltfileAlwaysEnabledInfra(projectRoot);
     const featureOnFromTiltfile = Array.isArray(fromTilt) && fromTilt.includes(DATABASE_MANAGEMENT_FEATURE);
     const featureOnFromSpecMaster = specMasterHasDatabaseManagement(projectRoot) === true;
     const featureOn = featureOnFromProjectJson || featureOnFromTiltfile || featureOnFromSpecMaster;
     const focusWouldEnableDatabaseManagement = !featureOnFromProjectJson && generatedDefaultFocusEnablesDatabaseManagement(projectRoot);
-    const known = knownDependsonNames(projectRoot);
+    const known = knownDependsonNames(projectRoot, resources);
     const dependsOnUsers = [];
     const unknownDependsOnNames = [];
-    for (const resource of discoverResourcesFromRoot(projectRoot)) {
+    for (const resource of resources) {
         const deps = resource.config?.dependsOn ?? [];
         let usesSharedPostgres = false;
         for (const dep of deps) {

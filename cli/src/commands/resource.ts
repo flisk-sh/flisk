@@ -43,6 +43,7 @@ import {
   PORT_RANGES,
   SERVICE_JSON,
 } from "../utils/constants.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import {
   chooseResourcePath,
   isPathDiscovered,
@@ -1155,6 +1156,7 @@ This file contains the resource configuration for TDK.
         ]);
       }
 
+      clearDiscoveryCache();
       console.log(chalk.green("\n✅ Resource created successfully!"));
       console.log(chalk.gray(`\nLocation: ${fullPath}`));
 

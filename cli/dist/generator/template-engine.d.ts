@@ -69,7 +69,10 @@ export declare function generateMasterConfigs(projectRoot: string, options?: Gen
 export declare function isTestFile(filePath: string): boolean;
 export declare function findCliAssetRoot(): string | null;
 export declare function ensureProjectRuntimeAssets(projectRoot: string): string[];
-export declare function verifyMasterConfigs(projectRoot: string): {
+export declare function verifyMasterConfigs(projectRoot: string, options?: {
+    manifestPaths?: string[];
+    skipManifestValidation?: boolean;
+}): {
     valid: boolean;
     errors: string[];
     warnings: string[];
