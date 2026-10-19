@@ -20,9 +20,7 @@ e2e_init mcp mcpe2e
 STACK=app
 RES=mcpres
 RESOURCES=("$RES")
-# The published SDK at an exact version. verify-mcp.sh installed a pinned git commit, but that checkout has no built dist folder
-# when installed this way, so the client's imports did not resolve (first live run, #1296).
-MCP_SDK="@modelcontextprotocol/sdk@1.32.1"
+# The SDK and its full dependency tree are pinned in package-lock.json.
 
 mcp_healthy() { [ "$(traefik_request "$RES" /health -o /dev/null -w '%{http_code}')" = "200" ]; }
 
@@ -45,8 +43,9 @@ P3() { # the MCP SDK client connects, lists the tools and calls echo
   local url clientdir out
   url="$(resource_url "$RES")/mcp"
   clientdir="$(mktemp -d)"
-  (cd "$clientdir" && npm init -y >/dev/null 2>&1 && npm install --no-audit --no-fund "$MCP_SDK") \
-    || die "could not install the MCP SDK $MCP_SDK"
+  cp "$SUITE_DIR/package.json" "$SUITE_DIR/package-lock.json" "$clientdir/"
+  (cd "$clientdir" && npm ci --no-audit --no-fund) \
+    || die "could not install the locked MCP SDK dependencies"
   cp "$SUITE_DIR/client.mjs" "$clientdir/client.mjs"
   out="$(cd "$clientdir" && node client.mjs "$url" 2>&1)" || { echo "$out" >&2; rm -rf "$clientdir"; die "the MCP SDK client could not use $url"; }
   rm -rf "$clientdir"

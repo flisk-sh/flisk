@@ -92,7 +92,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/rc-lifecycle"
           packed="$(npm pack --pack-destination "$RUNNER_TEMP/rc-lifecycle" --silent)"
           mv "$RUNNER_TEMP/rc-lifecycle/$packed" "$RUNNER_TEMP/rc-lifecycle/tdk-cli.tgz"
-          cp cli/package.json scripts/package-lifecycle-smoke.sh "$RUNNER_TEMP/rc-lifecycle/"
+          cp cli/package.json scripts/package-lifecycle-smoke.sh scripts/install-global.mjs "$RUNNER_TEMP/rc-lifecycle/"
 
       # The same script as the packed CLI lifecycle smoke: install the previous release, upgrade to this tarball, check the version,
       # run --help, uninstall. Clean Node 22 container, no Tilt or Docker project.

@@ -137,13 +137,13 @@ A8() {
   local cid; cid="$(agent_container)"; [ -n "$cid" ] || die "no running $AGENT container"
   turn_via_traefik s-drain "slow:5000" >"$OUT/a8-turn.out" 2>"$OUT/a8-turn.err" &
   local turn_pid=$!
-  poll_until "the slow turn to start (log line)" 60 bash -c "docker logs '$cid' 2>&1 | grep -q 'slow turn started'"
+  poll_until "the slow turn to start (log line)" 60 slow_turn_started "$cid"
   echo "$ docker kill --signal=SIGTERM $cid  (turn is in flight)"
   docker kill --signal=SIGTERM "$cid" >/dev/null
   wait "$turn_pid" || die "the in-flight turn did not complete (curl failed: $(cat "$OUT/a8-turn.err"))"
   echo "in-flight turn answered: $(cat "$OUT/a8-turn.out")"
   assert check "$OUT/a8-turn.out" "j.sessionId === 's-drain' && j.reply.startsWith('received slow:5000')" "the in-flight turn completed with its reply"
-  poll_until "container to exit after draining" 60 bash -c "[ -z \"\$(docker ps -q --filter id=$cid --filter status=running)\" ]"
+  poll_until "container to exit after draining" 60 container_stopped "$cid"
   docker logs "$cid" 2>&1 | grep 'draining' | tee "$OUT/a8-drain.log"
   grep -q 'draining 1 in-flight' "$OUT/a8-drain.log" || die "the agent did not report draining the in-flight request"
   echo "exit code of drained container: $(docker inspect -f '{{.State.ExitCode}}' "$cid")"
@@ -155,6 +155,16 @@ A8() {
   run a8-sessions agent sessions "$AGENT" --session-id s-drain --json
   [ "$RC" -eq 0 ] || die "tdk agent sessions exited $RC"
   assert check "$OUT/a8-sessions.out" "j.data.session.messages.length === 2 && j.data.session.messages[1].content.startsWith('received slow:5000')" "checkpoint holds the drained turn, whole"
+}
+
+slow_turn_started() {
+  docker logs "$1" 2>&1 | grep -q 'slow turn started'
+}
+
+container_stopped() {
+  local running
+  running="$(docker ps -q --filter "id=$1" --filter status=running)"
+  [ -z "$running" ]
 }
 
 # Durability across tdk down / tdk up, and removal with docker volume rm.

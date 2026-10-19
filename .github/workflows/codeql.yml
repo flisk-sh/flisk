@@ -14,7 +14,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep each PR head SHA's CodeQL run: Scorecard evaluates SAST coverage per
+  # merged PR commit, so cancelling an older run can leave that SHA unscanned.
+  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
   # Pull requests only. The javascript-typescript leg runs on every pull request, so Scorecard's SAST check sees each

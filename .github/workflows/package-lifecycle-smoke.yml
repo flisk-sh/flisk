@@ -59,7 +59,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/lifecycle"
           packed="$(npm pack --pack-destination "$RUNNER_TEMP/lifecycle" --silent)"
           mv "$RUNNER_TEMP/lifecycle/$packed" "$RUNNER_TEMP/lifecycle/tdk-cli.tgz"
-          cp cli/package.json scripts/package-lifecycle-smoke.sh "$RUNNER_TEMP/lifecycle/"
+          cp cli/package.json scripts/package-lifecycle-smoke.sh scripts/install-global.mjs "$RUNNER_TEMP/lifecycle/"
 
       # A clean Node 22 image: no Tilt, no Docker project, no global tdk.
       # Tilt and Docker are not installed, so `tdk up` is not exercised here.

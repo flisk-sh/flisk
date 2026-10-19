@@ -166,12 +166,51 @@ TDK uses [Vitest](https://vitest.dev/) for CLI unit testing. You can run tests d
 - **Naming**: Name the test file after the source file, suffixed with `.test.ts` (for example, `completion-install.test.ts` tests `completion-install.ts`).
 - **Prefer pure unit tests with mocks**: Keep tests fast, isolated, and deterministic. Avoid spawning live Docker containers or Tilt processes in unit tests; instead, mock external commands, file systems, or process executions using Vitest (`vi.mock()`) or test doubles from `cli/src/test-support/doubles.ts`.
 
-### Coverage baseline and the ratchet
+### Coverage baseline and the ratchet process
 
-High-risk CLI areas are protected by a coverage floor defined in [`cli/coverage-baseline.json`](cli/coverage-baseline.json). The coverage ratchet (`cli/scripts/coverage-ratchet.mjs`) checks your changes in CI to ensure line and branch coverage in protected areas never regresses:
+High-risk CLI areas are protected by a coverage floor recorded in [`cli/coverage-baseline.json`](cli/coverage-baseline.json). The coverage ratchet script ([`cli/scripts/coverage-ratchet.mjs`](cli/scripts/coverage-ratchet.mjs)) verifies in CI that line and branch coverage in protected areas never regresses.
 
-- When you add new tests or improve coverage in an area, coverage rises! You can raise the floor in `cli/coverage-baseline.json` freely to lock in improvements.
-- Lowering a baseline is restricted and requires maintainer discussion in its own commit titled `coverage: lower baseline for <area>` explaining why.
+#### 1. Purpose of the baseline file
+
+The baseline file sets minimum percentage thresholds for lines and branches across five high-risk CLI areas:
+- **`install and update`**: `src/commands/upgrade.ts`, `src/utils/tdk-version.ts`, `src/utils/bun-floor.ts`, `src/utils/bun-requirement.ts`
+- **`command implementations`**: all CLI commands under `src/commands/`
+- **`validation`**: core schema and argument checks in `src/utils/validation.ts`
+- **`discovery`**: path discovery and service contexts in `src/utils/discovery-paths.ts` and `src/utils/discovery-context.ts`
+- **`stack and project handling`**: stack and project management in `src/utils/stack-*.ts` and `src/utils/project-*.ts`
+
+#### 2. How the ratchet works
+
+When CI runs `bun run test:coverage` inside `cli/`, Vitest generates a detailed JSON summary (`cli/coverage/coverage-summary.json`). The ratchet script:
+1. Filters and maps covered lines and branches to their corresponding areas.
+2. Calculates exact percentages (floored to two decimals so measurements never artificially exceed reality).
+3. Compares each area against the floor in `cli/coverage-baseline.json`. If coverage falls below the baseline (even by 0.01%), the CI step fails with exit code `1` and details the drop in points.
+
+To test the ratchet locally against your current coverage:
+```bash
+cd cli
+bun run test:coverage
+node scripts/coverage-ratchet.mjs
+```
+
+#### 3. Raising and lowering baselines
+
+- **Raising a baseline (ratcheting up)**: When you add unit tests that increase an area's coverage, lock in that improvement! Run the ratchet with `--update` to rewrite `cli/coverage-baseline.json`:
+  ```bash
+  cd cli
+  bun run test:coverage
+  node scripts/coverage-ratchet.mjs --update
+  ```
+  Review `git diff cli/coverage-baseline.json` and include the updated baseline in your pull request.
+- **Lowering a baseline**: Lowering a baseline is restricted and should be rare (for example, during major refactors or when deleting obsolete code). Any lower baseline must be isolated in its own single-purpose commit titled `coverage: lower baseline for <area>` with a clear explanation in the commit body.
+
+#### 4. Finding coverage summaries in CI
+
+CI makes coverage feedback accessible across several touchpoints:
+1. **GitHub Actions Step Summary**: The `Coverage summary` step writes an overall lines, statements, functions, and branches table directly into `$GITHUB_STEP_SUMMARY` visible on the workflow run overview page.
+2. **PR Test Summary Comment**: The test reporter aggregates `test-results/coverage-ratchet.json` and posts an automated pull request comment detailing per-area status.
+3. **HTML Coverage Artifact**: Full interactive HTML reports are uploaded as the `cli-coverage-html` artifact (retained for 14 days), letting you inspect exact uncovered lines in any browser.
+4. **Ratchet Gate Failure Log**: If coverage drops, the `Coverage ratchet for high-risk areas` step logs exactly which metric dropped and by how many points.
 
 ### Example test patterns to reference
 

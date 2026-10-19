@@ -13,6 +13,7 @@
 set -euo pipefail
 
 readonly PACKAGE="@tdk-landscape/tdk-cli-core"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ "$#" -ne 2 ]; then
   echo "usage: bash scripts/package-lifecycle-smoke.sh <tarball> <cli/package.json>" >&2
@@ -89,11 +90,11 @@ echo "packed version: $expected"
 echo "previous published version: $previous"
 
 step "Install previous published version $previous"
-npm install --global "$PACKAGE@$previous"
+node "$SCRIPT_DIR/install-global.mjs" "$PACKAGE@$previous"
 check_installed_version "$previous"
 
 step "Upgrade to the packed tarball $(basename "$tarball")"
-npm install --global "$tarball"
+node "$SCRIPT_DIR/install-global.mjs" "$tarball"
 check_installed_version "$expected"
 
 step "Run the reinstalled CLI"
