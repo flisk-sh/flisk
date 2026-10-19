@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     if: github.event_name == 'pull_request'
     permissions:
@@ -35,7 +35,7 @@ jobs:
 
   e2e-examples:
     name: e2e-examples
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only pull requests; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.result != 'failure' && needs.docs.outputs.docs_only != 'true' }}

@@ -6,8 +6,6 @@ name: 🔀 Keep PR branches current
 on:
   push:
     branches: [main]
-  pull_request_target: # zizmor: ignore[dangerous-triggers] uses only GitHub API metadata; never checks out or runs PR code
-    types: [opened, reopened, synchronize, ready_for_review]
 
 permissions: {}
 
@@ -18,7 +16,7 @@ concurrency:
 jobs:
   update:
     name: Update stale branches based on main
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       pull-requests: write

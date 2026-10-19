@@ -3,7 +3,7 @@
 // Unit tests for the CI inventory rules in check-ci-inventory.mjs. Run by `make test-shell`.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkInventory } from "./check-ci-inventory.mjs";
+import { checkInventory, checkRequiredContexts } from "./check-ci-inventory.mjs";
 
 const job = (workflow, id, extra = {}) => ({
 	workflow,
@@ -83,7 +83,7 @@ test("two jobs reporting one check name fail unless both are exempt", () => {
 	);
 });
 
-test("required entries must equal the branch protection contexts", () => {
+test("required entries must equal the main merge queue ruleset contexts", () => {
 	const jobs = [job("ci.yml", "lint"), job("ci.yml", "gate")];
 	const entries = [
 		entry("ci.yml", "lint", { required: true }),
@@ -92,11 +92,30 @@ test("required entries must equal the branch protection contexts", () => {
 	const problems = run({ jobs, entries, contexts: ["gate"] });
 	assert.match(
 		problems[0],
-		/"lint" is in the inventory but not in branch protection/,
+		/"lint" is in the inventory but not in the main merge queue ruleset/,
 	);
 	assert.match(
 		problems[1],
-		/"gate" is in branch protection for main but not marked required/,
+		/"gate" is in the main merge queue ruleset but not marked required/,
+	);
+});
+
+test("a ruleset may require a subset of the inventory when exact is off", () => {
+	const jobs = [job("ci.yml", "summary-review", { checkName: "🧐 PR summary review" })];
+	const inventory = {
+		jobs: [entry("ci.yml", "summary-review", { required: true })],
+	};
+	assert.deepEqual(
+		checkRequiredContexts({ inventory, jobs, contexts: ["🧐 PR summary review"], source: "ruleset 'main merge queue'" }),
+		[],
+	);
+	assert.match(
+		checkRequiredContexts({ inventory, jobs, contexts: [], source: "ruleset 'main merge queue'" })[0],
+		/not in ruleset 'main merge queue'/,
+	);
+	assert.deepEqual(
+		checkRequiredContexts({ inventory, jobs, contexts: [], source: "ruleset 'main merge queue'", exact: false }),
+		[],
 	);
 });
 

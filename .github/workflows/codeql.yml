@@ -23,7 +23,7 @@ jobs:
   # merged change as scanned (#835). The actions leg runs only when a workflow file changes.
   changes:
     name: 🔎 Detect Workflow Changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2 # every job finishes in under 20s; fail fast if one hangs
     if: github.event_name == 'pull_request'
     permissions:
@@ -47,7 +47,7 @@ jobs:
     needs: changes
     # `changes` is skipped on push and schedule, so `!cancelled()` keeps this job from inheriting that skip.
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read

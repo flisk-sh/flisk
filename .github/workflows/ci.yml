@@ -19,7 +19,7 @@ jobs:
   # The only change-detection job in this run. Every other job reads its outputs.
   changes:
     name: 🔎 Detect Changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2 # every job finishes in under 20s; fail fast if one hangs
     permissions:
       contents: read
@@ -69,7 +69,7 @@ jobs:
 
   spellcheck:
     name: 🔤 Spell check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -79,7 +79,7 @@ jobs:
 
   lint:
     name: 🛡️ Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
@@ -132,7 +132,7 @@ jobs:
 
   typecheck:
     name: 🦴 Typecheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
@@ -154,7 +154,7 @@ jobs:
 
   fuzz:
     name: 🧬 Fuzz
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
@@ -172,7 +172,7 @@ jobs:
 
   published-schema:
     name: 📜 Published service schema
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
@@ -186,7 +186,7 @@ jobs:
 
   test:
     name: 🧪 Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
@@ -265,7 +265,7 @@ jobs:
   # Test job uploads. A fork's token is read-only, so a fork PR gets the job summary and no comment.
   pr-summary:
     name: 📝 PR test summary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: [changes, test]
     if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true' }}
     timeout-minutes: 3
@@ -309,7 +309,7 @@ jobs:
   # Builds and packs the CLI once per run. package-smoke installs this tarball instead of packing its own.
   package:
     name: 📦 Pack CLI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
@@ -352,7 +352,7 @@ jobs:
   # so a release can't ship without the compiled CLI or its dependencies.
   package-smoke:
     name: 📦 Package Smoke Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: [changes, package]
     # Skip on docs-only PRs; a skipped job still satisfies required checks. When package failed, this job still runs
     # and the download below fails it, instead of skipping it.
@@ -397,7 +397,7 @@ jobs:
 
   secret-scan:
     name: 🔑 Secret Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     if: github.event_name == 'pull_request'
     steps:
@@ -415,7 +415,7 @@ jobs:
   # repository variable DEPENDENCY_REVIEW set to true (Settings > Variables).
   dependency-review:
     name: 🔒 Dependency Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     needs: changes
     if: vars.DEPENDENCY_REVIEW == 'true' && needs.changes.outputs.lockfile == 'true' && github.event_name == 'pull_request'
@@ -429,7 +429,7 @@ jobs:
 
   workflow-audit:
     name: 🛠️ Workflow Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
     needs: changes
     if: needs.changes.outputs.workflows == 'true' || github.event_name == 'workflow_dispatch'
@@ -448,9 +448,30 @@ jobs:
 
   # Aggregate gate. The e2e group gates live in their own workflows, so `needs:` cannot name them: this job reads their check runs
   # on the head commit instead and fails when one is missing or failed. A skipped gate passes, as a skipped job does here.
+  pr-summary-review:
+    name: 🧐 PR summary review
+    # Also runs on merge queue entries: the queue is where the required check must still mean something. The merge queue reads the
+    # pull request named by its ref, so it checks the same description the pull request was checked with.
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Check summary and verification notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node scripts/check-pr-review-readiness.mjs
+
   summary:
     name: 📋 Summary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # Waits for the e2e gates, which may run for tens of minutes (the scale gate most of all). The wait is bounded by the step below.
     timeout-minutes: 35
     if: always()
@@ -462,10 +483,10 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      # Check-run names of the e2e group gates. Every gate reports on every pull request and merge queue entry (a gate whose
-      # paths did not change passes at once), so a missing name here means the gate never ran and fails the summary. The BYO
-      # and matrix legs run inside e2e-resource-types (its bring-your-own and orm suites), so that one gate covers them.
-      E2E_GATES: e2e-journeys e2e-examples e2e-platforms e2e-scale e2e-resource-types
+      # Check-run names of the e2e group gates that report on pull requests. Every gate listed here reports on every pull request (a gate
+      # whose paths did not change passes at once), so a missing name fails the summary. e2e-scale and e2e-resource-types run on the
+      # merge queue only, so they are not waited for here.
+      E2E_GATES: e2e-journeys e2e-examples e2e-platforms
     steps:
       - name: Render summary
         env:

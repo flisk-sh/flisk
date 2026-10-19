@@ -23,7 +23,7 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.user.type == 'User' &&
       contains(fromJSON('["FIRST_TIME_CONTRIBUTOR","FIRST_TIMER"]'), github.event.pull_request.author_association)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       pull-requests: write
@@ -55,7 +55,7 @@ jobs:
       github.event.issue.state_reason == 'not_planned' &&
       !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association) &&
       !contains(fromJSON('["kburym","odykyi"]'), github.event.issue.user.login)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       issues: write

@@ -6,8 +6,8 @@
 name: 🏭 e2e-scale
 
 on:
+  # Not on pull requests: the scale gate is the slowest per-PR cost, so it runs on the merge queue and nightly.
   merge_group:
-  pull_request:
 
 permissions:
   contents: read
@@ -19,7 +19,7 @@ concurrency:
 jobs:
   # Skip the stack on docs-only pull requests (a skipped job satisfies the summary), as e2e-examples and e2e-platforms do.
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     if: github.event_name == 'pull_request'
     permissions:
@@ -36,7 +36,7 @@ jobs:
 
   e2e-scale:
     name: e2e-scale
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     if: ${{ !cancelled() && needs.docs.result != 'failure' && needs.docs.outputs.docs_only != 'true' }}
     timeout-minutes: 45

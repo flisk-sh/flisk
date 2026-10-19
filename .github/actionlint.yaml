@@ -1,0 +1,4 @@
+# Runner labels that GitHub adds before the bundled actionlint knows them. Remove an entry once the pinned actionlint lists it.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

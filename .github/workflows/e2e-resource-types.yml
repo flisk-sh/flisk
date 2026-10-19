@@ -15,11 +15,10 @@ on:
         description: "Runner label for every job (default ubuntu-latest); try ubuntu-26.04 before ubuntu-latest moves to it (#1277)"
         type: string
         default: "ubuntu-latest"
-  # No paths filter here: the gate must report on every pull request and merge queue entry, or the ci.yml summary waits for a
-  # check that never comes. The plan job skips every leg when no changed file is in the list of paths it checks (the PR_PATHS below).
+  # Runs on the merge queue, not on pull requests: the live-stack agent suites are too slow and costly for every PR. The
+  # merge queue runs them before a change lands, and the release candidate runs them again. The plan job skips every leg when no
+  # changed file is in the list of paths it checks (the PR_PATHS below).
   merge_group:
-  pull_request:
-    branches: [main]
   schedule:
     - cron: "30 6 * * *"
   # Prove each release right after it is published. Read-only token, no secrets, main branch only; it checks out main itself

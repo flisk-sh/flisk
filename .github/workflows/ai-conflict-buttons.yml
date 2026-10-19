@@ -8,7 +8,7 @@ name: 🤖 AI conflict buttons
 
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers] never checks out or runs PR code; only writes a PR comment
-    types: [opened, reopened, synchronize, edited]
+    types: [opened, reopened, synchronize]
   workflow_dispatch:
 
 permissions: {}
@@ -21,7 +21,7 @@ jobs:
   comment:
     name: Comment AI conflict buttons
     if: github.event_name == 'pull_request_target'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 3
     permissions:
       contents: read
@@ -48,7 +48,7 @@ jobs:
   backfill:
     name: Backfill open conflicting PRs
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read

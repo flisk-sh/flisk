@@ -195,6 +195,14 @@
 		},
 		{
 			"workflow": "ci.yml",
+			"job": "pr-summary-review",
+			"tier": "gate",
+			"required": true,
+			"reason": "Rejects PRs without a plain-language change summary and completed verification notes",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
 			"job": "summary",
 			"tier": "gate",
 			"required": true,
@@ -272,7 +280,7 @@
 			"workflow": "e2e-scale.yml",
 			"job": "e2e-scale",
 			"tier": "e2e",
-			"required": true,
+			"required": false,
 			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); required since the #1302 cutover; suite tests/e2e/scale/erp",
 			"owner": "maintainers"
 		},
@@ -291,7 +299,7 @@
 			"workflow": "e2e-examples.yml",
 			"job": "e2e-examples",
 			"tier": "e2e",
-			"required": true,
+			"required": false,
 			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; required since the #1302 cutover",
 			"owner": "maintainers"
 		},
@@ -517,7 +525,7 @@
 			"workflow": "e2e-platforms.yml",
 			"job": "e2e-platforms",
 			"tier": "e2e",
-			"required": true,
+			"required": false,
 			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; required since the #1302 cutover",
 			"owner": "maintainers"
 		},
@@ -545,7 +553,7 @@
 			"job": "drift",
 			"tier": "report",
 			"required": false,
-			"reason": "Compares branch protection on main with the required-checks snapshot daily; opens one issue on drift",
+			"reason": "Compares the live rulesets with their snapshots daily; opens one issue on drift",
 			"owner": "maintainers"
 		},
 		{
@@ -608,7 +616,7 @@
 			"workflow": "e2e-journeys.yml",
 			"job": "gate",
 			"tier": "gate",
-			"required": true,
+			"required": false,
 			"reason": "Passes when every selected journey passed or none was selected; required since the #1302 cutover (#1298)",
 			"owner": "maintainers"
 		},

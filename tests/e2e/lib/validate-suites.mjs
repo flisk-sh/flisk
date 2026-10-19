@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
 export const GROUPS = ["resource-types", "orm", "journeys", "examples", "platforms", "scale"];
-export const TRIGGERS = ["pr", "nightly", "release", "manual", "weekly"];
+export const TRIGGERS = ["pr", "main", "nightly", "release", "manual", "weekly"];
 const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "needsSecrets", "checkName", "install", "freePostgres"];
 const CASE_ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 

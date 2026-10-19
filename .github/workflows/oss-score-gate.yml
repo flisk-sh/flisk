@@ -1,14 +1,18 @@
 name: 🏅 OSS score gate
 
-# Fails a pull request when the repo's published OpenSSF Scorecard is below MIN_SCORE. Scorecard
-# publishes for main on push and weekly, so this gate checks that published score, not the PR's own code.
+# Fails the run when the repo's published OpenSSF Scorecard is below MIN_SCORE. The score only changes when Scorecard
+# publishes (main on push and weekly), so this runs on those events, not on every pull request.
 
 on:
-  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "30 13 * * 1" # after the weekly Scorecard run (Monday 05:41 UTC)
+  workflow_dispatch:
 
 concurrency:
-  group: oss-score-gate-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+  group: oss-score-gate-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions: {}
 

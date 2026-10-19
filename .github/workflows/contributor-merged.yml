@@ -32,7 +32,7 @@ jobs:
       github.event.pull_request.user.type == 'User' &&
       !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) &&
       !contains(fromJSON('["kburym","odykyi"]'), github.event.pull_request.user.login))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read

@@ -22,7 +22,7 @@ jobs:
   # Pull requests only. Push, schedule and dispatch runs leave the outputs empty, and every scanner's `if` treats that as "run".
   changes:
     name: 🔎 Detect Scanner Changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2 # every job finishes in under 20s; fail fast if one hangs
     if: github.event_name == 'pull_request'
     permissions:
@@ -87,7 +87,7 @@ jobs:
     # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
     # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.deps != 'false' || needs.changes.outputs.infra != 'false') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -116,7 +116,7 @@ jobs:
     # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
     # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.deps != 'false') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -145,7 +145,7 @@ jobs:
     # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
     # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.code != 'false') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
