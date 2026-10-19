@@ -54,6 +54,12 @@ export declare function generateDatabaseManagementCompose(projectConfig: Project
 /** The project has no .tdk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
 export declare class ProjectConfigNotFoundError extends Error {
 }
+/**
+ * Reads, parses, and normalizes `.tdk/project.json` from the given project root.
+ *
+ * @param projectRoot - Root directory of the TDK project.
+ * @returns The validated and normalized {@link ProjectConfig}.
+ */
 export declare function readProjectConfig(projectRoot: string): ProjectConfig;
 export interface GenerateMasterConfigsOptions {
     /**
