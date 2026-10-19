@@ -16,7 +16,7 @@ import { writeJsonFile } from "../utils/file-helpers.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
-import { discoverResourcesFromRoot, discoverServiceManifestPaths } from "../utils/services.js";
+import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
 import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
 export const configCommand = new Command("config")
@@ -177,8 +177,13 @@ export const configCommand = new Command("config")
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
         if (!projectRoot)
             throw errorFactories.notInProject();
-        const result = verifyMasterConfigs(projectRoot);
-        const resources = discoverResourcesFromRoot(projectRoot);
+        const { resources, problems } = discoverResourcesWithProblems(projectRoot);
+        warnAboutSkippedFiles(problems);
+        const manifestPaths = [
+            ...resources.map((r) => r.configPath),
+            ...problems.map((p) => p.path),
+        ];
+        const result = verifyMasterConfigs(projectRoot, { manifestPaths });
         // Same predicate as tdk doctor's Shared platform Postgres check.
         const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
         const prismaConsistency = checkPrismaConsistency(projectRoot, resources);

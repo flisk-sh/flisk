@@ -10,6 +10,7 @@ import { Command } from "commander";
 import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
 import type { DiscoveredResource, ProjectConfig } from "../types/index.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { completeEnvFile, ensureEnvFile, validateEnvFile } from "../utils/env-validator.js";
 import { errorFactories, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-helpers.js";
@@ -164,6 +165,8 @@ async function cloneProjectTemplate(templateName: string, targetDir?: string): P
         : "git clone failed. Check you have git installed and network access.",
     );
   }
+
+  clearDiscoveryCache();
 
   console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${dirName}/`));
   showDetail("\nNext steps:", 0);

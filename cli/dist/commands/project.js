@@ -9,6 +9,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { completeEnvFile, ensureEnvFile, validateEnvFile } from "../utils/env-validator.js";
 import { errorFactories, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-helpers.js";
@@ -125,6 +126,7 @@ async function cloneProjectTemplate(templateName, targetDir) {
             ? "Bundled example copy failed. Reinstall the TDK CLI package and try again."
             : "git clone failed. Check you have git installed and network access.");
     }
+    clearDiscoveryCache();
     console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${dirName}/`));
     showDetail("\nNext steps:", 0);
     showDetail(`1. cd ${dirName}`);
