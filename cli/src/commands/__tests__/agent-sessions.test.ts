@@ -94,6 +94,17 @@ describe("tdk agent sessions", () => {
     expect(envelope.errors[0].code).toBe("NOT_AN_AGENT");
   });
 
+  it("reports NO_PORT when an agent resource has no assigned port", async () => {
+    const tmp = createTempProject({ resources: { bot: { appType: "agent" } } });
+    try {
+      const { status, envelope } = await runEnvelopeCase(tmp, ["bot", "--session-id", "s1"]);
+      expect(status).toBe(1);
+      expect(envelope.errors[0].code).toBe("NO_PORT");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   function agentProject(port: number): string {
     return createTempProject({ resources: { bot: { appType: "agent", port } } });
   }

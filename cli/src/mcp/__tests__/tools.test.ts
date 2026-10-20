@@ -3,20 +3,34 @@
 /// <reference types="vite/client" />
 
 import { EventEmitter } from "node:events";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildLogsArgs,
   buildUpArgs,
   cliInvocation,
   createTdkTools,
+  defaultUpDeps,
+  runTdkCli,
   startUp,
   toToolResult,
   type UpDeps,
 } from "../tools.js";
+
+const spawnMock = vi.hoisted(() => vi.fn());
+
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  spawn: spawnMock,
+}));
+
+beforeEach(() => {
+  spawnMock.mockReset();
+});
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(testDir, "../../../..");
@@ -129,6 +143,13 @@ describe("argument building", () => {
   ])("rejects %j", (args) => {
     expect(() => buildUpArgs(args)).toThrow();
   });
+  it("rejects non-string names, non-boolean flags, and non-integer tails", () => {
+    expect(() => buildUpArgs({ only: ["api", 7] })).toThrow("only must be an array");
+    expect(() => buildUpArgs({ stack: 7 })).toThrow("stack must be a name");
+    expect(() => buildUpArgs({ dryRun: "yes" })).toThrow("dryRun must be a boolean");
+    expect(() => buildLogsArgs({ tail: "5" })).toThrow("tail must be a positive integer");
+    expect(() => buildLogsArgs({ since: 5 })).toThrow("since must be a duration");
+  });
   it("builds and validates logs arguments", () => {
     expect(buildLogsArgs({ services: ["api"], tail: 50, since: "5m" })).toEqual([
       "logs",
@@ -163,6 +184,69 @@ describe("cliInvocation", () => {
   });
 });
 
+function fakeChild() {
+  return Object.assign(new EventEmitter(), {
+    stdout: new EventEmitter(),
+    stderr: new EventEmitter(),
+    kill: vi.fn(),
+    pid: 123,
+  });
+}
+
+describe("runTdkCli", () => {
+  it("collects output and the exit code", async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child);
+    const pending = runTdkCli(["status", "--json"], { cwd: "/work", timeoutMs: 5000 });
+    child.stdout.emit("data", Buffer.from('{"ok":true}'));
+    child.stderr.emit("data", Buffer.from("warn"));
+    child.emit("close", 0);
+    await expect(pending).resolves.toEqual({
+      exitCode: 0,
+      stdout: '{"ok":true}',
+      stderr: "warn",
+    });
+    expect(spawnMock).toHaveBeenCalledWith(
+      process.execPath,
+      expect.any(Array),
+      expect.objectContaining({ cwd: "/work", stdio: ["ignore", "pipe", "pipe"] }),
+    );
+  });
+
+  it("rejects when the child cannot start", async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child);
+    const pending = runTdkCli([], {});
+    child.emit("error", new Error("spawn failed"));
+    await expect(pending).rejects.toThrow("spawn failed");
+  });
+});
+
+describe("defaultUpDeps", () => {
+  it("reads missing logs as empty and names a temp log", async () => {
+    expect(defaultUpDeps.readLog(join(tmpdir(), `tdk-missing-${Date.now()}.log`))).toBe("");
+    expect(defaultUpDeps.logFile()).toContain("tdk-mcp-up-");
+    expect(defaultUpDeps.now()).toBeGreaterThan(0);
+    await expect(defaultUpDeps.sleep(0)).resolves.toBeUndefined();
+  });
+
+  it("starts the CLI detached with the log file as stdio", () => {
+    const child = { pid: 9, unref: vi.fn() };
+    spawnMock.mockReturnValue(child);
+    const log = join(tmpdir(), `tdk-mcp-up-test-${Date.now()}.log`);
+    try {
+      expect(defaultUpDeps.spawnUp(["up", "--json"], log, "/work")).toBe(child);
+      expect(spawnMock).toHaveBeenCalledWith(
+        process.execPath,
+        expect.any(Array),
+        expect.objectContaining({ cwd: "/work", detached: true }),
+      );
+    } finally {
+      rmSync(log, { force: true });
+    }
+  });
+});
+
 describe("toToolResult", () => {
   const run = (stdout: string, exitCode = 0) => ({ exitCode, stdout, stderr: "boom" });
   it("passes a clean envelope through as a success", () => {
@@ -185,6 +269,14 @@ describe("toToolResult", () => {
     const none = toToolResult(run("", 2));
     expect(none.isError).toBe(true);
     expect(JSON.stringify(none.data)).toContain("boom");
+  });
+  it("reports BAD_JSON and the exit code when there is no parseable envelope", () => {
+    const bad = toToolResult(run("prefix\n{not json", 0));
+    expect(bad.isError).toBe(true);
+    expect(JSON.stringify(bad.data)).toContain("BAD_JSON");
+    const empty = toToolResult({ exitCode: 3, stdout: "", stderr: "" });
+    expect(empty.isError).toBe(true);
+    expect(JSON.stringify(empty.data)).toContain("tdk exited with code 3");
   });
 });
 
@@ -244,6 +336,17 @@ describe("startUp", () => {
     const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });
     await startUp({ projectPath: "/work/erp" }, deps);
     expect(deps.spawnUp).toHaveBeenCalledWith(["up", "--json"], "/tmp/x.log", "/work/erp");
+  });
+  it("rejects a relative project path and clamps a negative wait window", async () => {
+    const relative = fakeUp({ logs: [""] });
+    await expect(startUp({ projectPath: "relative" }, relative.deps)).rejects.toThrow(
+      "projectPath must be an absolute path",
+    );
+
+    const negative = fakeUp({ logs: [""] });
+    const result = await startUp({ waitSeconds: -5 }, negative.deps);
+    expect(result.isError).toBe(false);
+    expect(JSON.stringify(result.data)).toContain('"started":true');
   });
 });
 
@@ -307,6 +410,28 @@ describe("tool list", () => {
     expect(tools.find((t) => t.name === "get_agent_sessions")?.inputSchema).toMatchObject({
       required: ["resource", "sessionId"],
     });
+  });
+  it("rejects invalid tool arguments before running the CLI", async () => {
+    const tools = createTdkTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    await expect(
+      tools.find((t) => t.name === "restart_resource")?.handler({ resource: "-x" }),
+    ).rejects.toThrow("resource must be a name");
+    await expect(
+      tools.find((t) => t.name === "list_agents")?.handler({ stack: "a b" }),
+    ).rejects.toThrow("stack must be a name");
+    await expect(
+      tools.find((t) => t.name === "doctor")?.handler({ noPing: "yes" }),
+    ).rejects.toThrow("noPing must be a boolean");
+    await expect(
+      tools.find((t) => t.name === "status")?.handler({ projectPath: 42 }),
+    ).rejects.toThrow("projectPath must be an absolute path");
+  });
+
+  it("runs the up handler through the injected dependencies", async () => {
+    const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });
+    const tools = createTdkTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }), deps);
+    const result = await tools.find((t) => t.name === "up")?.handler({ waitSeconds: 0 });
+    expect(result?.isError).toBe(false);
   });
 
   it("keeps docs/agents/llms.txt and docs/agents/llms-full.txt in sync with MCP tools and CLI commands", async () => {

@@ -55,6 +55,28 @@ describe("findProjectRoot", () => {
     expect(root).toBeNull();
   });
 
+  it("should handle when .tdk is a regular file instead of a directory", () => {
+    writeFileSync(join(tmpDir, ".tdk"), "regular file");
+
+    const root = findProjectRoot(tmpDir);
+    expect(root).toBeNull();
+  });
+
+  it("should use process.cwd() as default startDir when omitted", () => {
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(tmpDir);
+      expect(findProjectRoot()).toBeNull();
+
+      mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
+      writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+
+      expect(findProjectRoot()).toBe(tmpDir);
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it("should stop at filesystem root and not loop infinitely", () => {
     const root = findProjectRoot("/");
     expect(root).toBeNull();

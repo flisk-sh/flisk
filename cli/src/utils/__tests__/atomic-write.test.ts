@@ -12,14 +12,30 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeTextFileAtomic } from "../atomic-write.js";
+
+const renameFailure = vi.hoisted(() => ({ fail: false }));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    renameSync: (...args: Parameters<typeof actual.renameSync>) => {
+      if (renameFailure.fail) {
+        throw new Error("rename failed");
+      }
+      actual.renameSync(...args);
+    },
+  };
+});
 
 let dir: string;
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "tdk-atomic-"));
 });
 afterEach(() => {
+  renameFailure.fail = false;
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -77,6 +93,17 @@ describe("writeTextFileAtomic", () => {
     expect(() => writeTextFileAtomic(target, "new\n")).toThrow();
     expect(readFileSync(join(target, "keep.txt"), "utf-8")).toBe("keep\n");
     expect(readdirSync(dir)).toEqual(["blocked"]);
+  });
+
+  it("preserves the existing file and removes the temp file when the final rename fails", () => {
+    const target = join(dir, "settings.json");
+    writeFileSync(target, '{"old":true}\n');
+
+    renameFailure.fail = true;
+    expect(() => writeTextFileAtomic(target, '{"new":true}\n')).toThrow("rename failed");
+
+    expect(readFileSync(target, "utf-8")).toBe('{"old":true}\n');
+    expect(readdirSync(dir)).toEqual(["settings.json"]);
   });
 
   it("fails without creating anything when the directory does not exist", () => {
