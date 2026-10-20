@@ -10,6 +10,8 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 - BSD sed (macOS) has no `\b`; use python `re.sub` or perl for renames and confirm with `grep -c`.
 - A red test must be red for the right reason: temporarily remove the fix and read the failure. Common ways a test is red wrongly: a JS template literal evaluating `${...}`, JSON `true`/`null` pasted into Starlark (`True`/`None`), a too-narrow regex.
 - Do not leave `.skip` on a failing test; fix the code or the setup.
+- 2026-10-20: `vite` 8.3.4 pulls `rolldown` 1.2.14 and reproduced 30s test-timeout failures across the vitest full suite (`doctor.test.ts`, `project-env-e2e.test.ts`, `stack-features-e2e.test.ts`); `vite` 8.3.3 keeps `rolldown` 1.2.11 and the full suite matches the `origin/main` baseline. When a Vite advisory has a patched minimum, pin that minimum instead of the latest.
+- 2026-10-20: `cli/pnpm-lock.yaml` had drifted from `cli/package.json` (8 mismatched specifiers) and `pnpm install --frozen-lockfile` failed there. Regenerate it with `pnpm install --lockfile-only` in `cli/` and re-check it against `cli/package.json`; `bun.lock` is the lockfile CI actually installs from.
 
 - 2026-10-08 (#88): In doctor-runtime tests on Windows, runHostCommand uses execFileSync instead of the injected exec callback; mock execFileSync or stub process.platform when a test needs to provide command output.
 
