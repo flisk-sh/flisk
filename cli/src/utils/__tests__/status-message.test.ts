@@ -11,6 +11,20 @@ describe("status message controller", () => {
     vi.useRealTimers();
   });
 
+  it("uses the default duration of 1500ms when durationMs is omitted", () => {
+    const messages: string[] = [];
+    const controller = createStatusMessageController((message) => messages.push(message));
+
+    controller.show("Default duration message");
+    expect(messages).toEqual(["Default duration message"]);
+
+    vi.advanceTimersByTime(1499);
+    expect(messages).toEqual(["Default duration message"]);
+
+    vi.advanceTimersByTime(1);
+    expect(messages).toEqual(["Default duration message", ""]);
+  });
+
   it("keeps the newest message visible for its full duration", () => {
     const messages: string[] = [];
     const controller = createStatusMessageController((message) => messages.push(message));
@@ -34,5 +48,27 @@ describe("status message controller", () => {
     controller.dispose();
     vi.advanceTimersByTime(1000);
     expect(messages).toEqual(["Press q to quit"]);
+  });
+
+  it("safely handles repeated dispose calls", () => {
+    const controller = createStatusMessageController(() => {});
+    expect(() => {
+      controller.dispose();
+      controller.dispose();
+    }).not.toThrow();
+  });
+
+  it("allows showing new messages after dispose", () => {
+    const messages: string[] = [];
+    const controller = createStatusMessageController((message) => messages.push(message));
+
+    controller.show("First", 1000);
+    controller.dispose();
+
+    controller.show("Second", 500);
+    expect(messages).toEqual(["First", "Second"]);
+
+    vi.advanceTimersByTime(500);
+    expect(messages).toEqual(["First", "Second", ""]);
   });
 });

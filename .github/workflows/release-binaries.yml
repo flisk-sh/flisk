@@ -236,6 +236,34 @@ jobs:
         id: source
         run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      # Pack once so both registries receive byte-for-byte identical package contents.
+      - name: Pack npm package
+        id: package
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            echo "::error::Expected package version $VERSION, got $PKG_VERSION"
+            exit 1
+          fi
+          PACK_DIR="$RUNNER_TEMP/tdk-cli-package"
+          mkdir -p "$PACK_DIR"
+          npm pack --pack-destination "$PACK_DIR"
+          TARBALL=$(find "$PACK_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
+          if [ -z "$TARBALL" ]; then
+            echo "::error::npm pack did not produce a tarball"
+            exit 1
+          fi
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          path: ${{ steps.package.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Publish verified binary release
         run: scripts/release-binaries.sh --publish-only
         env:
@@ -285,6 +313,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ needs.build.outputs.version }}
+          TARBALL: ${{ steps.package.outputs.tarball }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$PKG_VERSION" != "$VERSION" ]; then
@@ -294,7 +323,7 @@ jobs:
           if npm view "@tdk-landscape/tdk-cli-core@${PKG_VERSION}" version >/dev/null 2>&1; then
             echo "@tdk-landscape/tdk-cli-core@${PKG_VERSION} is already published, skipping."
           else
-            npm publish --access public --provenance
+            npm publish "$TARBALL" --access public --provenance
           fi
 
       # Keep main in step with what was published. A push made with
@@ -391,6 +420,47 @@ jobs:
           gh attestation download checksums.txt --repo "$GITHUB_REPOSITORY"
           mv sha256:*.jsonl checksums.txt.intoto.jsonl
           gh release upload "v${VERSION}" --repo "$GITHUB_REPOSITORY" --clobber checksums.txt.intoto.jsonl
+
+  publish-github-packages:
+    name: Publish npm package to GitHub Packages
+    needs: [build, publish]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          path: package
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@tdk-landscape"
+          package-manager-cache: false
+
+      # This job holds only package write access and never checks out or executes repository code.
+      # If it fails, rerunning this job downloads the same tarball retained from the successful publish job.
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PACKAGE_DIR: package
+        run: | # zizmor: ignore[use-trusted-publishing] GitHub Packages does not support npm trusted publishing; authenticate with the repository GITHUB_TOKEN
+          TARBALL=$(find "$PACKAGE_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
+          if [ ! -f "$TARBALL" ]; then
+            echo "::error::Expected package tarball was not downloaded"
+            exit 1
+          fi
+          if npm view "@tdk-landscape/tdk-cli-core@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "@tdk-landscape/tdk-cli-core@${VERSION} is already published to GitHub Packages, skipping."
+          else
+            npm publish "$TARBALL" --registry=https://npm.pkg.github.com
+          fi
 
   # The version bump lands on main as a squash commit after publish, so the tag for this release can only point at it
   # once that commit exists. The sign step above leaves the GitHub release as a draft; this job tags the merged bump
