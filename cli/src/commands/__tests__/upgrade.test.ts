@@ -6,6 +6,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -208,6 +209,49 @@ describe("upgradeViaBinary", () => {
 
     expect(ok).toBe(true);
     expect(existsSync(tdkPath)).toBe(true);
+  });
+
+  it.each([
+    ["the engine tarball", () => release.engineDownloadUrl],
+    ["checksums.txt", () => release.checksumsUrl],
+  ])("leaves the existing install alone when %s download fails", async (_case, failingUrl) => {
+    writeFileSync(tdkPath, "old binary");
+    const url = failingUrl();
+    fetchMock.mockImplementation(async (requested: string) =>
+      requested === url
+        ? { ok: false, status: 503 }
+        : {
+            ok: true,
+            status: 200,
+            arrayBuffer: async () =>
+              Buffer.from(requested === release.engineDownloadUrl ? ENGINE_BYTES : BINARY_BYTES),
+            text: async () => checksums,
+          },
+    );
+
+    const ok = await upgradeViaBinary(tdkPath, release);
+
+    expect(ok).toBe(false);
+    expect(readFileSync(tdkPath, "utf-8")).toBe("old binary");
+    expect(existsSync(join(installDir, "tdk-cli"))).toBe(false);
+  });
+
+  it("replaces an existing binary and engine folder and removes both backups", async () => {
+    writeFileSync(tdkPath, "old binary");
+    const engineDir = join(installDir, "tdk-cli");
+    mkdirSync(engineDir);
+    writeFileSync(join(engineDir, "old-engine-file"), "old");
+
+    const ok = await upgradeViaBinary(tdkPath, release);
+
+    expect(ok).toBe(true);
+    expect(readFileSync(tdkPath, "utf-8")).toBe(BINARY_BYTES);
+    expect(readFileSync(join(engineDir, "engine-marker"), "utf-8")).toBe("extracted");
+    expect(existsSync(join(engineDir, "old-engine-file"))).toBe(false);
+    const leftovers = readdirSync(installDir).filter(
+      (name) => name !== "tdk" && name !== "tdk-cli",
+    );
+    expect(leftovers).toEqual([]);
   });
 
   // root ignores the write-permission bit (accessSync(W_OK) legitimately

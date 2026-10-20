@@ -10,6 +10,7 @@ const home = vi.hoisted(() => ({ dir: "/fake/home" }));
 const fsStore = vi.hoisted(() => ({
   files: new Map<string, string>(),
   writeError: null as Error | null,
+  mkdirError: null as Error | null,
 }));
 
 vi.mock("node:os", async (importOriginal) => {
@@ -22,7 +23,10 @@ vi.mock("node:fs", async (importOriginal) => {
   return {
     ...actual,
     existsSync: vi.fn((p: string) => fsStore.files.has(p)),
-    mkdirSync: vi.fn(() => undefined),
+    mkdirSync: vi.fn(() => {
+      if (fsStore.mkdirError) throw fsStore.mkdirError;
+      return undefined;
+    }),
     readFileSync: vi.fn((p: string): string => {
       const content = fsStore.files.get(p);
       if (content === undefined) {
@@ -65,6 +69,7 @@ describe("tdk completion --install target selection (mocked fs)", () => {
   beforeEach(() => {
     fsStore.files.clear();
     fsStore.writeError = null;
+    fsStore.mkdirError = null;
     vi.clearAllMocks();
     previousShell = process.env.SHELL;
     previousPsModulePath = process.env.PSModulePath;
@@ -142,6 +147,22 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     }
   });
 
+  it("surfaces a directory creation failure and writes nothing", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    fsStore.mkdirError = new Error("EACCES: permission denied, mkdir");
+
+    try {
+      await expect(
+        completionCommand.parseAsync(["node", "tdk", "bash", "--install"], { from: "node" }),
+      ).rejects.toThrow("EACCES: permission denied, mkdir");
+      expect(writeFileSync).not.toHaveBeenCalled();
+      const printed = log.mock.calls.map(([value]) => String(value)).join("\n");
+      expect(printed).not.toContain("Installed");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("appends the completion block to an existing PowerShell profile, preserving its content", async () => {
     process.env.PSModulePath = join("Documents", "PowerShell", "Modules");
     const installPath = join(
@@ -187,5 +208,13 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     expect(written).not.toContain("tdk-old");
     expect(written).toContain("Register-ArgumentCompleter -Native -CommandName tdk");
     expect(written?.match(/# TDK-CLI-COMPLETION-START/g)).toHaveLength(1);
+    expect(written?.match(/# TDK-CLI-COMPLETION-END/g)).toHaveLength(1);
+
+    // The whole profile is the user's lines around exactly the block a fresh install writes.
+    fsStore.files.delete(installPath);
+    await runCompletion(["powershell", "--install"]);
+    const freshBlock = fsStore.files.get(installPath)?.replace(/\n$/, "");
+    expect(freshBlock).toMatch(/^# TDK-CLI-COMPLETION-START\n[\s\S]+\n# TDK-CLI-COMPLETION-END$/);
+    expect(written).toBe(`# my profile\n${freshBlock}\n# footer\n`);
   });
 });
