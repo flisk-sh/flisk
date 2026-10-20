@@ -9,6 +9,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getRegisteredCommands } from "../../commands/registry.js";
 import {
   buildLogsArgs,
   buildUpArgs,
@@ -34,24 +35,12 @@ beforeEach(() => {
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(testDir, "../../../..");
-const commandModules = import.meta.glob<Record<string, Command>>("../../commands/*.{ts,tsx}");
 
-async function loadRegisteredCommandMap(): Promise<Map<string, Command>> {
-  const cliSource = readFileSync(resolve(testDir, "../../cli.ts"), "utf-8");
-  const imports = [
-    ...cliSource.matchAll(/import \{ (\w+Command) \} from "\.\/commands\/([\w-]+)\.js"/g),
-  ];
+function loadRegisteredCommandMap(): Map<string, Command> {
   const byName = new Map<string, Command>();
-  for (const [, exportName, file] of imports) {
-    const load =
-      commandModules[`../../commands/${file}.ts`] ?? commandModules[`../../commands/${file}.tsx`];
-    if (!load) continue;
-    const mod = await load();
-    const cmd = mod[exportName];
-    if (cmd) {
-      byName.set(cmd.name(), cmd);
-      for (const alias of cmd.aliases()) byName.set(alias, cmd);
-    }
+  for (const cmd of getRegisteredCommands()) {
+    byName.set(cmd.name(), cmd);
+    for (const alias of cmd.aliases()) byName.set(alias, cmd);
   }
   return byName;
 }
@@ -444,7 +433,7 @@ describe("tool list", () => {
     })).map((t) => t.name);
     expect(sourceToolNames).toEqual(runtimeToolNames);
 
-    const commands = await loadRegisteredCommandMap();
+    const commands = loadRegisteredCommandMap();
     expect(commands.size).toBeGreaterThan(10);
 
     for (const relPath of ["docs/agents/llms.txt", "docs/agents/llms-full.txt"]) {

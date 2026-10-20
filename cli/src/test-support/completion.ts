@@ -1,0 +1,14 @@
+// Copyright (c) 2026 TDK Landscape contributors
+// SPDX-License-Identifier: MIT
+import { createProgram } from "../program.js";
+
+/**
+ * Runs `tdk completion` through the root program, the way the CLI does.
+ *
+ * The completion command reads the commands and flags from the program it is registered on, so it
+ * has to run inside that program to produce the real script.
+ */
+export async function runCompletionCommand(args: string[]): Promise<void> {
+  const program = createProgram();
+  await program.parseAsync(["node", "tdk", "completion", ...args], { from: "node" });
+}

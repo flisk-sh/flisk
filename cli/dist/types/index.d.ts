@@ -88,6 +88,11 @@ export interface FileGenerationTask {
 }
 export type ResourceType = "frontend" | "backend" | "library" | "sdk" | "worker" | "migrator" | "mcp" | "agent" | "bring-your-own";
 export declare const CREATABLE_RESOURCE_TYPES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own"];
+/**
+ * Every value `tdk resource --type` accepts: the creatable types plus `sdk`, which registers a
+ * package that already exists instead of scaffolding one.
+ */
+export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "sdk"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";

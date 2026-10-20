@@ -20,6 +20,11 @@ export const CREATABLE_RESOURCE_TYPES = [
     "agent",
     "bring-your-own",
 ];
+/**
+ * Every value `tdk resource --type` accepts: the creatable types plus `sdk`, which registers a
+ * package that already exists instead of scaffolding one.
+ */
+export const RESOURCE_TYPE_VALUES = [...CREATABLE_RESOURCE_TYPES, "sdk"];
 export function isCreatableResourceType(value) {
     return (typeof value === "string" && CREATABLE_RESOURCE_TYPES.includes(value));
 }

@@ -1,8 +1,7 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
-import { captureExit } from "../../test-support/index.js";
-import { completionCommand } from "../completion.js";
+import { captureExit, runCompletionCommand } from "../../test-support/index.js";
 
 interface CompletionOutput {
   stdout: string;
@@ -15,7 +14,7 @@ async function runCompletion(args: string[]): Promise<CompletionOutput> {
   const { exit } = captureExit();
 
   try {
-    await completionCommand.parseAsync(["node", "tdk", ...args], { from: "node" });
+    await runCompletionCommand(args);
     return {
       stdout: log.mock.calls.map(([value]) => String(value)).join("\n"),
       stderr: error.mock.calls.map(([value]) => String(value)).join("\n"),

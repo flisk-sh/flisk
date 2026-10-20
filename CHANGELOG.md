@@ -2,6 +2,12 @@
 
 Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core?activeTab=versions) and the [binary releases](https://github.com/tdk-landscape/tdk-cli-releases/releases).
 
+## 1.3.188 (2026-10-20)
+
+- Security: the BYO examples install `certifi` 2026.10.19 now (was 2026.7.22). The older bundle shipped the `emSign ECC Root CA - G3` root, and the eight eMudhra intermediate CAs that chain to it had their private keys compromised and were revoked, so anyone holding one of those keys could mint a certificate for any hostname. Advisory GHSA-6q48-6c7w-9gw2 (#1779).
+- Security: `vite` moves to 8.3.3. The `launch-editor` it bundles had three Windows command-injection advisories: CVE-2026-112942, CVE-2026-112943 and CVE-2026-112944. Both advisories are tracked on the [security page](https://github.com/tdk-landscape/tdk-cli-core/security) (#1780).
+- `cli/pnpm-lock.yaml` is regenerated. It had drifted from `cli/package.json`, so `pnpm install --frozen-lockfile` failed there; it tracks the manifest again now (#1780).
+
 ## 1.3.151 (2026-10-12)
 
 - The Prisma migrator image builds again. It used to `COPY` `migrate.sh` and `prisma-runtime-relink.sh` from `shared-platform-engineering/docker-templates/`, which no package ships, so `tdk up` failed with `…/migrate.sh: not found`. Both are now written inline into the Dockerfile. The relink step is reconstructed and not yet verified against a real migrator build (#1094).

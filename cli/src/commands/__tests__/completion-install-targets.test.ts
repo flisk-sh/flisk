@@ -3,7 +3,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { completionCommand } from "../completion.js";
+import { runCompletionCommand } from "../../test-support/index.js";
 
 const home = vi.hoisted(() => ({ dir: "/fake/home" }));
 
@@ -51,7 +51,7 @@ async function runCompletion(args: string[]): Promise<CompletionOutput> {
   const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
   try {
-    await completionCommand.parseAsync(["node", "tdk", ...args], { from: "node" });
+    await runCompletionCommand(args);
     return {
       stdout: log.mock.calls.map(([value]) => String(value)).join("\n"),
       stderr: error.mock.calls.map(([value]) => String(value)).join("\n"),
@@ -137,9 +137,9 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     fsStore.writeError = new Error("EACCES: permission denied");
 
     try {
-      await expect(
-        completionCommand.parseAsync(["node", "tdk", "bash", "--install"], { from: "node" }),
-      ).rejects.toThrow("EACCES: permission denied");
+      await expect(runCompletionCommand(["bash", "--install"])).rejects.toThrow(
+        "EACCES: permission denied",
+      );
       const printed = log.mock.calls.map(([value]) => String(value)).join("\n");
       expect(printed).not.toContain("Installed");
     } finally {
@@ -152,9 +152,9 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     fsStore.mkdirError = new Error("EACCES: permission denied, mkdir");
 
     try {
-      await expect(
-        completionCommand.parseAsync(["node", "tdk", "bash", "--install"], { from: "node" }),
-      ).rejects.toThrow("EACCES: permission denied, mkdir");
+      await expect(runCompletionCommand(["bash", "--install"])).rejects.toThrow(
+        "EACCES: permission denied, mkdir",
+      );
       expect(writeFileSync).not.toHaveBeenCalled();
       const printed = log.mock.calls.map(([value]) => String(value)).join("\n");
       expect(printed).not.toContain("Installed");

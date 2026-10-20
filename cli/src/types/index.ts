@@ -126,6 +126,12 @@ export const CREATABLE_RESOURCE_TYPES = [
   "bring-your-own",
 ] as const;
 
+/**
+ * Every value `tdk resource --type` accepts: the creatable types plus `sdk`, which registers a
+ * package that already exists instead of scaffolding one.
+ */
+export const RESOURCE_TYPE_VALUES = [...CREATABLE_RESOURCE_TYPES, "sdk"] as const;
+
 export type CreatableResourceType = Extract<
   ResourceType,
   (typeof CREATABLE_RESOURCE_TYPES)[number]
