@@ -445,4 +445,31 @@ describe("flag contract: -y/--yes and --force convention", () => {
     );
     expect(badForce).toEqual([]);
   });
+
+  it("uses consistent descriptions for --json options", async () => {
+    const allCommands = (await loadAllCommands()).flatMap((cmd) => collectCommands(cmd));
+    const jsonOptions = allCommands.flatMap(({ name, command }) =>
+      command.options
+        .filter((option) => option.long === "--json")
+        .map((option) => ({ name, description: option.description })),
+    );
+    expect(jsonOptions.length).toBeGreaterThan(0);
+    for (const { description } of jsonOptions) {
+      const lower = description.toLowerCase();
+      expect(lower.includes("json") || lower.includes("machine-readable")).toBe(true);
+    }
+  });
+});
+
+describe("flag contract: unknown flag handling", () => {
+  it("rejects unknown flags with error and non-zero exit code", () => {
+    const dir = createTempDir("tdk-unknown-flag-");
+    try {
+      const res = runTdk(["status", "--nonexistent-flag-test"], { cwd: dir });
+      expect(res.status).toBe(1);
+      expect(res.stderr).toContain("error: unknown option");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
