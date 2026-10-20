@@ -38,15 +38,34 @@ jobs:
               return m ? { name: `${m[1]} ${m[2]}`, value: m[2] === 'dan' ? 100 + Number(m[1]) : 100 - Number(m[1]) } : null;
             };
 
+            // The search query below is heavy, and GitHub sometimes answers it with a
+            // 5xx (a 502 from the GraphQL gateway is the common one) or a 429. That is
+            // transient, so retry it instead of failing the run. github-script itself
+            // runs with retries: 0, so without this the first 502 loses the table.
+            const retry = async (what, fn) => {
+              for (let attempt = 1; ; attempt++) {
+                try {
+                  return await fn();
+                } catch (e) {
+                  const status = e.status ?? e.response?.status ?? 0;
+                  const transient = status === 429 || status >= 500;
+                  if (!transient || attempt >= 4) throw e;
+                  const wait = attempt * attempt * 5000;
+                  core.warning(`${what} failed with ${status}; retrying in ${wait / 1000}s (attempt ${attempt + 1}/4).`);
+                  await new Promise((r) => setTimeout(r, wait));
+                }
+              }
+            };
+
             const people = new Map();
             let after = null;
             for (;;) {
-              const res = await github.graphql(
+              const res = await retry('hall-of-fame search', () => github.graphql(
                 `query($q:String!,$after:String){search(query:$q,type:ISSUE,first:100,after:$after){
                    pageInfo{hasNextPage endCursor}
                    nodes{... on PullRequest{number author{login __typename} authorAssociation
                      closingIssuesReferences(first:10){nodes{number labels(first:30){nodes{name}}}}}}}}`,
-                { q: `repo:${owner}/${repo} is:pr is:merged`, after });
+                { q: `repo:${owner}/${repo} is:pr is:merged`, after }));
               for (const pr of res.search.nodes) {
                 if (!pr.author || pr.author.__typename !== 'User') continue;
                 // The Actions token often reports maintainers as CONTRIBUTOR, so list them by name too.
@@ -83,11 +102,25 @@ jobs:
             ].join('\n');
 
             // Not search: its index lags, and two runs in a row would each create the issue.
-            const open = await github.paginate(github.rest.issues.listForRepo,
+            const listTracked = () => github.paginate(github.rest.issues.listForRepo,
               { owner, repo, state: 'open', labels: 'community', per_page: 100 });
+            const open = await retry('list community issues', listTracked);
             const found = open.find((i) => !i.pull_request && i.body && i.body.includes(MARK));
             if (found) {
-              if (found.body !== body) await github.rest.issues.update({ owner, repo, issue_number: found.number, body });
+              // Setting the same body twice is harmless, so a retry cannot duplicate anything.
+              if (found.body !== body) {
+                await retry('update the hall-of-fame issue', () =>
+                  github.rest.issues.update({ owner, repo, issue_number: found.number, body }));
+              }
             } else {
-              await github.rest.issues.create({ owner, repo, title: TITLE, body, labels: ['community'] });
+              await retry('create the hall-of-fame issue', async () => {
+                // A failed create can still have landed, so look again before retrying:
+                // the concurrency group keeps runs apart, but not our own retries.
+                const again = (await listTracked()).find((i) => !i.pull_request && i.body && i.body.includes(MARK));
+                if (again) {
+                  await github.rest.issues.update({ owner, repo, issue_number: again.number, body });
+                  return;
+                }
+                await github.rest.issues.create({ owner, repo, title: TITLE, body, labels: ['community'] });
+              });
             }
