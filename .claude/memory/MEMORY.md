@@ -18,6 +18,7 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 - 2026-10-08 (#88): In doctor-runtime tests on Windows, runHostCommand uses execFileSync instead of the injected exec callback; mock execFileSync or stub process.platform when a test needs to provide command output.
 
 ## PR and CI traps
+- 2026-10-20: `repository_vulnerability_alert` is not a workflow trigger — GitHub's event list has no such entry and actionlint rejects it. To react to a new finding, use `workflow_run` on the workflow that produces it; that trigger needs a `# zizmor: ignore[dangerous-triggers]` comment when the job checks out the default branch instead of the triggering run.
 - 2026-10-12 (#1046): Native Windows cannot execute the root POSIX `prepare` hook during `bun install`; use the frozen install with `--ignore-scripts`, then run build, typecheck, lint, and tests explicitly.
 - 2026-10-08 (#443): In the Windows sparse checkout, project-templates.test.ts fails because its examples/ fixture is omitted, while tilt.test.ts expects POSIX / paths. Report those failures as checkout/platform-specific rather than as a Linux full-checkout baseline.
 - `cli/dist/` is gitignored but tracked file by file: after `npm run build`, `git add -f` new dist files. A missing one fails `README quickstart on a clean machine` with `ERR_MODULE_NOT_FOUND`.

@@ -39,6 +39,24 @@ Images defined by the engine, with the tag in the source:
 
 Tags are version tags, not digests, so a registry could still move them. The golden layer images (`...-l1:latest` and similar) are built locally from these bases and are not pulled. Images for the optional features (monitoring, ELK, Debezium and others) and the generated `FROM` lines for Go, Rust, Python and Java were **not audited** here. Also not in the table: the scaffolded `Dockerfile` that `tdk up` does not build uses `oven/bun:1.2`, the bring-your-own placeholder `Dockerfile` uses `nginx:1.27-alpine`, and `engine/topologies/tilt/manifest/constants.star` names `node:20-alpine`; where that last one is used was not checked.
 
+## Dependency advisories
+
+A vulnerable third-party package in a lockfile is tracked in the open. The [security-alert-issues workflow](../.github/workflows/security-alert-issues.yml) reads the Dependabot alerts and the osv-scanner code-scanning alerts, and opens one issue per open alert with the advisory detail: the GHSA and CVE links, the severity and CVSS vector, the CWE, the affected version range, the patched version, the manifest that resolves it, and a link to the advisory text. The issue is labelled with the severity, the package, the ecosystem, the advisory source and the CWE, so a contributor can find the ones they want. It closes itself when the alert is fixed.
+
+The script behind it is [scripts/security-alert-issues.mjs](../scripts/security-alert-issues.mjs), and it is the only implementation: the workflow checks the default branch out and runs that file, so the same code runs locally.
+
+```bash
+# What would the sync do, without writing anything?
+node scripts/security-alert-issues.mjs --dry-run
+
+# Run it for real (needs gh authenticated with security-events: read and issues: write)
+node scripts/security-alert-issues.mjs
+```
+
+Only issues carrying the `security-alert` label are touched, so a hand-written issue is never rewritten or closed. A contributor's `claimed` label is left alone when the labels of a managed issue are refreshed.
+
+The workflow runs on the `repository_vulnerability_alert` event and on a nightly schedule. The event reacts to a new alert; the schedule is the reliable path and also closes the issues whose alert was fixed without an event.
+
 ## Releases
 
 - The npm package is published from GitHub Actions with `npm publish --provenance` ([release workflow](../.github/workflows/release-binaries.yml)).

@@ -14,6 +14,12 @@ Report them privately through [GitHub security advisories](https://github.com/td
 - steps to reproduce
 - what an attacker could do with it
 
+## Dependency advisories are tracked in public
+
+A published advisory about a **third-party dependency** (a vulnerable `vite`, `certifi` or similar in a lockfile) is not a vulnerability in TDK, so those are tracked in the open. A workflow reads the Dependabot alerts and the osv-scanner code-scanning alerts and opens one issue per open alert, with the advisory detail and a set of labels, so a contributor can pick the fix up. The issue closes itself when the alert is fixed.
+
+Those issues are about upstream packages, not about TDK. A vulnerability **in TDK itself** still belongs in a private report, not in a public issue.
+
 ## What happens next
 
 We follow coordinated disclosure:

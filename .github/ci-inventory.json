@@ -162,6 +162,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "security-alert-issues.yml",
+			"job": "sync",
+			"tier": "bot",
+			"required": false,
+			"reason": "Opens one issue per open Dependabot or code-scanning alert so contributors can pick the fix up; closes it when the alert is fixed",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "security.yml",
 			"job": "changes",
 			"tier": "gate",
