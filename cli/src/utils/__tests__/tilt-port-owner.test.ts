@@ -42,6 +42,27 @@ describe("findTiltPortOwner", () => {
     expect(findTiltPortOwner(10350, "darwin", runner({}))).toBeNull();
     expect(findTiltPortOwner(10350, "win32", runner({ "-iTCP": "1" }))).toBeNull();
   });
+
+  it("checks each listener until one is a tilt up, ignoring blank and CRLF lines", () => {
+    const owner = findTiltPortOwner(
+      10350,
+      "linux",
+      runner({
+        "-iTCP:10350": "111\r\n\n222\r\n",
+        "-p 111": "node server.js\n",
+        "-p 222": `${TILT}\n`,
+      }),
+    );
+    expect(owner).toEqual({ pid: 222, root: "/work/other" });
+  });
+
+  it("is unknown when ps fails for the listener", () => {
+    expect(findTiltPortOwner(10350, "linux", runner({ "-iTCP:10350": "333\n" }))).toBeNull();
+  });
+
+  it("is unknown when nothing listens on the port", () => {
+    expect(findTiltPortOwner(10350, "linux", runner({ "-iTCP:10350": "\n" }))).toBeNull();
+  });
 });
 
 describe("isForeignTilt", () => {
