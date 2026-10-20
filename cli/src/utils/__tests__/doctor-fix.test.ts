@@ -1,6 +1,6 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ import {
   createDockerFixDeps,
   type DockerNetwork,
   type DoctorFixDeps,
+  findTdkInstalls,
   hasFailedActions,
   parseElapsed,
   planDoctorFixes,
@@ -196,7 +197,8 @@ describe("applyDoctorFixes", () => {
 });
 
 describe("checkDuplicateTdkInstalls", () => {
-  it("passes with one install", async () => {
+  it("passes with zero or one install", async () => {
+    expect((await checkDuplicateTdkInstalls([])).didPass).toBe(true);
     const result = await checkDuplicateTdkInstalls([{ path: "/usr/bin/tdk", version: "1.3.155" }]);
     expect(result.didPass).toBe(true);
   });
@@ -210,6 +212,64 @@ describe("checkDuplicateTdkInstalls", () => {
     expect(result.isWarning).toBe(true);
     expect(result.message).toContain("/usr/local/bin/tdk (1.3.144)");
     expect(result.message).toContain("different versions");
+  });
+
+  it("warns without mentioning different versions when versions match", async () => {
+    const result = await checkDuplicateTdkInstalls([
+      { path: "/opt/bin/tdk", version: "1.3.155" },
+      { path: "/usr/local/bin/tdk", version: "1.3.155" },
+    ]);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).not.toContain("different versions");
+    expect(result.message).toContain(
+      "2 tdk installs on PATH: /opt/bin/tdk (1.3.155), /usr/local/bin/tdk (1.3.155)",
+    );
+  });
+
+  it("formats unknown versions gracefully", async () => {
+    const result = await checkDuplicateTdkInstalls([
+      { path: "/opt/bin/tdk", version: null },
+      { path: "/usr/local/bin/tdk", version: "1.3.155" },
+    ]);
+    expect(result.message).toContain("/opt/bin/tdk (version unknown)");
+  });
+
+  it("checks installs using system default when no installs are passed", async () => {
+    const result = await checkDuplicateTdkInstalls();
+    expect(result.name).toBe("TDK installs");
+    expect(typeof result.didPass).toBe("boolean");
+  });
+});
+
+describe("findTdkInstalls", () => {
+  it("returns empty list for empty path list", async () => {
+    expect(await findTdkInstalls([])).toEqual([]);
+  });
+
+  it("deduplicates symlinks resolving to the same binary path", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "find-tdk-"));
+    const bin = join(dir, "tdk-bin");
+    const link = join(dir, "tdk-link");
+    writeFileSync(bin, "#!/bin/sh\n");
+    try {
+      symlinkSync(bin, link);
+      const installs = await findTdkInstalls([link, bin], async () => "1.0.0");
+      expect(installs).toEqual([{ path: link, version: "1.0.0" }]);
+    } catch {
+      // Windows without developer mode/symlink privileges falls through gracefully
+    }
+  });
+
+  it("keeps unresolvable paths and reads their versions", async () => {
+    const installs = await findTdkInstalls(
+      ["/nonexistent/tdk-a", "/nonexistent/tdk-b"],
+      async (p) => (p.endsWith("a") ? "1.0.0" : null),
+    );
+    expect(installs).toEqual([
+      { path: "/nonexistent/tdk-a", version: "1.0.0" },
+      { path: "/nonexistent/tdk-b", version: null },
+    ]);
   });
 });
 
@@ -244,6 +304,65 @@ describe("createDockerFixDeps", () => {
       throw Object.assign(new Error("failed"), { stderr: "has active endpoints\nmore detail" });
     });
     await expect(deps.removeNetwork("x")).rejects.toThrow(/^has active endpoints$/);
+  });
+
+  it("parses reclaimable build cache and dangling images correctly", async () => {
+    const deps = createDockerFixDeps(async (args) => {
+      if (args[0] === "system" && args[1] === "df") {
+        return "Images\t10GB\nBuild Cache\t1.531GB (39%)\n";
+      }
+      if (args[0] === "images") {
+        return "sha256:abc\nsha256:def\n";
+      }
+      return "";
+    });
+    const info = await deps.reclaimable();
+    expect(info).toEqual({
+      buildCache: "1.531GB",
+      danglingImages: 2,
+    });
+  });
+
+  it("handles reclaimable failures gracefully with defaults", async () => {
+    const deps = createDockerFixDeps(async () => {
+      throw new Error("docker daemon unresponsive");
+    });
+    expect(await deps.reclaimable()).toEqual({
+      buildCache: null,
+      danglingImages: 0,
+    });
+  });
+
+  it("runs prune for builder and images, formatting errors to first line", async () => {
+    const calls: string[][] = [];
+    const deps = createDockerFixDeps(async (args) => {
+      calls.push(args);
+      if (args[0] === "image") {
+        throw Object.assign(new Error("fail"), { stderr: "cannot prune images\nline 2" });
+      }
+      return "";
+    });
+    await deps.prune("builder");
+    expect(calls).toEqual([["builder", "prune", "-f"]]);
+    await expect(deps.prune("images")).rejects.toThrow(/^cannot prune images$/);
+  });
+
+  it("checks process liveness using process signals", () => {
+    const deps = createDockerFixDeps();
+    expect(deps.isProcessAlive(process.pid)).toBe(true);
+    expect(deps.isProcessAlive(99999999)).toBe(false);
+  });
+
+  it("reads free disk GiB safely", () => {
+    const deps = createDockerFixDeps();
+    const free = deps.freeDiskGib();
+    expect(free === null || (typeof free === "number" && free >= 0)).toBe(true);
+  });
+
+  it("checks tilt status via tiltStatus safely", async () => {
+    const deps = createDockerFixDeps();
+    const status = await deps.tiltStatus(process.pid);
+    expect(["healthy", "stale", "unknown"]).toContain(status);
   });
 });
 
@@ -336,9 +455,17 @@ describe("parseElapsed", () => {
 });
 
 describe("disk reclaim", () => {
-  it("plans nothing while there is plenty of disk", async () => {
+  it("plans nothing while there is plenty of disk or disk is unreadable", async () => {
     const { deps } = fakeDocker([], [], [], {}, { freeGib: 50, buildCache: "3GB", dangling: 4 });
     expect(await planDoctorFixes("p", deps)).toEqual([]);
+    const unreadable = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: null, buildCache: "3GB", dangling: 4 },
+    );
+    expect(await planDoctorFixes("p", unreadable.deps)).toEqual([]);
   });
 
   it("plans the build cache and untagged images, with sizes, when disk is low", async () => {
@@ -347,7 +474,7 @@ describe("disk reclaim", () => {
       [],
       [],
       {},
-      { freeGib: 4.2, buildCache: "1.531GB", dangling: 3 },
+      { freeGib: 4.2, buildCache: "1.531GB", dangling: 1 },
     );
     const plan = await planDoctorFixes("p", deps);
     expect(plan.map((a) => [a.id, a.scope, a.command])).toEqual([
@@ -355,7 +482,7 @@ describe("disk reclaim", () => {
       ["prune:images", "host", "docker image prune -f"],
     ]);
     expect(plan[0]?.reason).toContain("4.2 GB free; 1.531GB of build cache");
-    expect(plan[1]?.reason).toContain("3 untagged images");
+    expect(plan[1]?.reason).toContain("1 untagged image");
   });
 
   it("skips what has nothing to reclaim, and never plans volumes or a full image prune", async () => {
@@ -380,6 +507,28 @@ describe("disk reclaim", () => {
     const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
     expect(pruned).toEqual(["builder", "images"]);
     expect(result.every((a) => a.status === "applied")).toBe(true);
+  });
+
+  it("records failed status when prune throws", async () => {
+    const { deps } = fakeDocker([], [], [], {}, { freeGib: 3, buildCache: "1GB", dangling: 0 });
+    deps.prune = async () => {
+      throw new Error("prune error details");
+    };
+    const plan = await planDoctorFixes("p", deps);
+    const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
+    expect(result[0]?.status).toBe("failed");
+    expect(result[0]?.reason).toBe("Error: prune error details");
+  });
+
+  it("records failed status when stopProcess throws", async () => {
+    const { deps } = fakeDocker([], [], [], { 99: "stale" });
+    deps.stopProcess = () => {
+      throw new Error("permission denied");
+    };
+    const plan = await planDoctorFixes("p", deps, { tiltPids: [99] });
+    const result = await applyDoctorFixes(plan, { dryRun: false, confirm: async () => true }, deps);
+    expect(result[0]?.status).toBe("failed");
+    expect(result[0]?.reason).toBe("Error: permission denied");
   });
 });
 

@@ -72,6 +72,20 @@ describe("isCrashLooping", () => {
     expect(isCrashLooping(state({ restartCount: 9, startedAt: "2026-10-10T00:00:00Z" }), NOW)).toBe(
       false,
     );
+    expect(
+      isCrashLooping(state({ restartCount: 6, status: "running", startedAt: "not-a-date" }), NOW),
+    ).toBe(true);
+    expect(
+      isCrashLooping(
+        state({
+          restartCount: 6,
+          status: "exited",
+          exitCode: 1,
+          finishedAt: "not-a-date",
+        }),
+        NOW,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -83,7 +97,16 @@ describe("crashLoopHint", () => {
   });
   it("hints at a missing module, an unreachable dependency and OOM", () => {
     expect(crashLoopHint("Error: Cannot find module 'x'", state({}))).toContain("module");
+    expect(crashLoopHint("MODULE_NOT_FOUND: 'pkg'", state({}))).toContain("module");
     expect(crashLoopHint("connect ECONNREFUSED 10.0.0.2:5432", state({}))).toContain("dependency");
+    expect(crashLoopHint("could not connect to server", state({}))).toContain("dependency");
+    expect(crashLoopHint("connection refused", state({}))).toContain("dependency");
+    expect(
+      crashLoopHint("Error: listen EADDRINUSE: address already in use :::3000", state({})),
+    ).toContain("port inside the container is already in use");
+    expect(crashLoopHint("address already in use", state({}))).toContain(
+      "port inside the container is already in use",
+    );
     expect(crashLoopHint("", state({ exitCode: 137 }))).toContain("memory");
   });
   it("hints at a missing environment variable only when the logs say so", () => {
@@ -93,6 +116,7 @@ describe("crashLoopHint", () => {
     expect(crashLoopHint("environment variable JWT_SECRET missing", state({}))).toContain(
       "environment variable",
     );
+    expect(crashLoopHint("REDIS_PASSWORD required", state({}))).toContain("environment variable");
     // A Node crash that merely mentions undefined and env is not a missing variable.
     expect(
       crashLoopHint("TypeError: Cannot read properties of undefined (reading 'env')", state({})),
@@ -157,5 +181,50 @@ describe("checkCrashLoopingContainers", () => {
       docker({ ps: "a\tp_x\n", inspect: new Error("No such object") }),
     );
     expect(result.isSkipped).toBe(true);
+  });
+
+  it("handles multiple crash-looping containers with plural message and joined fixes", async () => {
+    const result = await checkCrashLoopingContainers(
+      "shop",
+      [],
+      docker({
+        ps: "id1\tshop_app\nid2\tshop_worker\n",
+        inspect:
+          "/shop-app-1\t10\trunning\t2026-10-16T11:59:00Z\t1\n/shop-worker-1\t8\trestarting\t2026-10-16T11:58:00Z\t1\n",
+        logs: "Error: Cannot find module 'express'\n",
+      }),
+      NOW,
+    );
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("2 containers are crash-looping:");
+    expect(result.message).toContain("shop-app-1: running, restarted 10 times");
+    expect(result.message).toContain("shop-worker-1: restarting, restarted 8 times");
+    expect(result.fix).toContain("a module is missing from the image");
+    expect(result.fix).toContain("Read the full log: docker logs <container>");
+  });
+
+  it("still reports a crash-looping container if reading logs fails", async () => {
+    const run: DockerRun = async (args) => {
+      if (args[0] === "ps") return "c1\tapp_service\n";
+      if (args[0] === "inspect") return "/app-service-1\t7\trunning\t2026-10-16T11:59:00Z\t1\n";
+      if (args[0] === "logs") throw new Error("container died");
+      throw new Error(`unexpected command ${args.join(" ")}`);
+    };
+    const result = await checkCrashLoopingContainers("app", [], run, NOW);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("1 container is crash-looping:");
+    expect(result.message).toContain("app-service-1: running, restarted 7 times");
+  });
+
+  it("ignores malformed or empty lines during inspect parsing", async () => {
+    const run: DockerRun = async (args) => {
+      if (args[0] === "ps") return "c1\tapp_service\n";
+      if (args[0] === "inspect")
+        return "\n\t\nmalformed_line\n/app-service-1\t0\trunning\t2026-10-16T11:59:00Z\t0\n";
+      throw new Error(`unexpected command ${args.join(" ")}`);
+    };
+    const result = await checkCrashLoopingContainers("app", [], run, NOW);
+    expect(result.didPass).toBe(true);
+    expect(result.message).toBe("No project container is crash-looping");
   });
 });
