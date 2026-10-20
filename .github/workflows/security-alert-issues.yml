@@ -37,11 +37,13 @@ jobs:
        github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Dependabot alerts need security-events: read; code scanning needs it too.
+    # Code scanning alerts need security-events: read, Dependabot alerts need
+    # vulnerability-alerts: read. They are two separate permissions.
     permissions:
       contents: read
       issues: write
       security-events: read
+      vulnerability-alerts: read
     steps:
       # Check out the default branch so the run uses the same scripts/security-alert-issues.mjs
       # contributors test locally. persist-credentials: false keeps the job from leaving a

@@ -479,7 +479,9 @@ function ghApiPagesOrEmpty(path, what) {
 	try {
 		return ghApiPages(path);
 	} catch (error) {
-		console.log(`::warning::Could not read ${what} (${error.message.split("\n")[0]}).`);
+		// gh puts the API's answer on stderr; the message alone does not say why.
+		const reason = (error.stderr ?? error.message).toString().trim().split("\n")[0];
+		console.log(`::warning::Could not read ${what}: ${reason}`);
 		return [];
 	}
 }
