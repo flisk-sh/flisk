@@ -113,6 +113,18 @@ RESULT = compute_max_parallel_builds(${cpus}, ${memoryBytes})`,
     expect(max(32, 64 * GIB)).toBe(8); // plenty of room, clamped down to the maximum
     expect(max(12, 8 * GIB)).toBe(5); // memory is the limit
   });
+
+  it("falls back to the minimum when the engine reports no CPUs or memory", () => {
+    expect(max(0, 0)).toBe(3);
+    expect(max(1, 64 * GIB)).toBe(3); // fewer CPUs than the reserve
+    expect(max(32, GIB)).toBe(3); // less than one build's memory
+  });
+
+  it("rounds memory down to whole builds at the boundary", () => {
+    expect(max(32, 6 * GIB)).toBe(4); // exactly four 1.5 GiB builds
+    expect(max(32, 6 * GIB - 1)).toBe(3); // one byte short of four
+    expect(max(10, 64 * GIB)).toBe(8); // CPUs give exactly the maximum
+  });
 });
 
 describe("Tilt build concurrency wiring", () => {

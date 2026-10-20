@@ -59,6 +59,8 @@ When someone opens, reopens, or edits a PR, the [AI review buttons workflow](../
 
 > **Review this PR in**
 > \[Grok\] \[Claude\] \[Codex\]
+>
+> Shared by [@tdk-landscape](https://github.com/tdk-landscape) · [tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core) · If this helps, please ⭐ [star tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core)
 
 Each button is a plain link. It opens the AI's website in a new tab with this message already typed:
 
@@ -72,7 +74,7 @@ Review this pull request. Read the title and diff at https://github.com/tdk-land
 | **Claude** | claude.ai |
 | **Codex** | chatgpt.com |
 
-Pick whichever you already use. They all get the same message. Each site may ask you to sign in; if the chat opens empty after that, click the button again. If you are not signed in, copy the message above, put the PR's link in it, and paste it into any AI chat.
+Pick whichever you already use. They all get the same message. If the buttons help, use the footer link to star the repository. Each site may ask you to sign in; if the chat opens empty after that, click the button again. If you are not signed in, copy the message above, put the PR's link in it, and paste it into any AI chat.
 
 Things to know:
 

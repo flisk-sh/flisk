@@ -56,6 +56,15 @@ describe("usesSharedPostgres", () => {
     expect(usesSharedPostgres(resource("api", "shop", { dependsOn: [] }))).toBe(false);
     expect(usesSharedPostgres(resource("api", "shop", { featuresEnabled: [] }))).toBe(false);
     expect(usesSharedPostgres({ name: "api", path: "/p", configPath: "/p/s.json" })).toBe(false);
+    expect(
+      usesSharedPostgres({
+        name: "api",
+        path: "/p",
+        configPath: "/p/s.json",
+        stack: "shop",
+        config: null as unknown as ResourceConfig,
+      }),
+    ).toBe(false);
   });
 
   it("ignores malformed featuresEnabled and dependsOn values instead of throwing", () => {
@@ -116,6 +125,28 @@ describe("groupSharedPostgres", () => {
     expect(groupSharedPostgres("auth-user", stacks)?.databases[0]?.name).toBe("auth_user_my_shop");
   });
 
+  it("converts multiple hyphens in project and stack names and groups multiple services", () => {
+    const stacks = [
+      stack("user-auth-service", [
+        resource("auth-api", "user-auth-service", { dependsOn: ["postgres"] }),
+        resource("token-worker", "user-auth-service", {
+          featuresEnabled: ["database-management"],
+        }),
+      ]),
+    ];
+    const group = groupSharedPostgres("my-cloud-ecommerce", stacks);
+    expect(group).toEqual({
+      name: "postgres",
+      databases: [
+        {
+          name: "my_cloud_ecommerce_user_auth_service",
+          stack: "user-auth-service",
+          services: ["auth-api", "token-worker"],
+        },
+      ],
+    });
+  });
+
   it("lists only the services that use the database, and omits stacks without any", () => {
     const stacks = [
       stack("shop", [
@@ -169,6 +200,15 @@ describe("readProjectName", () => {
         join(root, ".tdk", "project.json"),
         JSON.stringify({ project: { name: 1234 } }),
       );
+      expect(readProjectName(root)).toBeNull();
+
+      writeFileSync(
+        join(root, ".tdk", "project.json"),
+        JSON.stringify({ project: { name: "my-app", version: "1.0.0" }, extra: true }),
+      );
+      expect(readProjectName(root)).toBe("my-app");
+
+      writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ project: null }));
       expect(readProjectName(root)).toBeNull();
     } finally {
       rmSync(root, { recursive: true, force: true });

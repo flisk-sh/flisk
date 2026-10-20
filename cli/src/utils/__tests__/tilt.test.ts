@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+import { EventEmitter } from "node:events";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,7 +10,19 @@ vi.mock("../paths.js", () => ({
   getPackageVersion: vi.fn(() => "1.1.0"),
 }));
 
+const { spawnMock } = vi.hoisted(() => ({ spawnMock: vi.fn() }));
+vi.mock("node:child_process", () => ({ spawn: spawnMock }));
+
 import { findProjectRoot } from "../paths.js";
+
+type FakeChild = EventEmitter & { stdout: EventEmitter; stderr: EventEmitter };
+
+function fakeChild(): FakeChild {
+  const child = new EventEmitter() as FakeChild;
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  return child;
+}
 
 describe("getTiltfilePath", () => {
   beforeEach(() => {
@@ -189,10 +202,122 @@ describe("buildTiltDownArgs", () => {
   });
 });
 
+describe("runTilt", () => {
+  afterEach(() => {
+    spawnMock.mockReset();
+    vi.restoreAllMocks();
+  });
+
+  it("collects stdout, stderr and the exit code", async () => {
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      queueMicrotask(() => {
+        child.stdout.emit("data", Buffer.from("tilt v0.37.7"));
+        child.stderr.emit("data", Buffer.from("warning: config"));
+        child.emit("close", 0);
+      });
+      return child;
+    });
+    const { runTilt } = await import("../tilt.js");
+
+    await expect(runTilt("version", ["--port", "10350"])).resolves.toEqual({
+      exitCode: 0,
+      stdout: "tilt v0.37.7",
+      stderr: "warning: config",
+    });
+    expect(spawnMock.mock.calls[0]?.[1]).toEqual(["version", "--port", "10350"]);
+    expect(spawnMock.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({ stdio: "pipe", shell: false }),
+    );
+  });
+
+  it("defaults to exit code 1 when the process is terminated by a signal", async () => {
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      queueMicrotask(() => child.emit("close", null));
+      return child;
+    });
+    const { runTilt } = await import("../tilt.js");
+
+    await expect(runTilt("version")).resolves.toMatchObject({ exitCode: 1 });
+  });
+
+  it("inherits stdio and skips stream capture when requested", async () => {
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      queueMicrotask(() => {
+        child.stdout.emit("data", Buffer.from("ignored"));
+        child.emit("close", 0);
+      });
+      return child;
+    });
+    const { runTilt } = await import("../tilt.js");
+
+    await expect(runTilt("up", [], { inheritStdio: true })).resolves.toEqual({
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+    });
+    expect(spawnMock.mock.calls[0]?.[2]).toEqual(expect.objectContaining({ stdio: "inherit" }));
+  });
+
+  it("logs the resolved command in verbose mode", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      queueMicrotask(() => child.emit("close", 0));
+      return child;
+    });
+    const { runTilt } = await import("../tilt.js");
+
+    await runTilt("version", ["--port", "10350"], { verbose: true });
+
+    expect(log).toHaveBeenCalledWith("Executing: tilt version --port 10350");
+  });
+
+  it("rejects when the Tilt binary cannot be spawned", async () => {
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      queueMicrotask(() => child.emit("error", new Error("spawn tilt ENOENT")));
+      return child;
+    });
+    const { runTilt } = await import("../tilt.js");
+
+    await expect(runTilt("version")).rejects.toThrow("Failed to spawn tilt: spawn tilt ENOENT");
+  });
+});
+
 describe("isTiltAvailable", () => {
-  it("should return a boolean", async () => {
+  afterEach(() => {
+    spawnMock.mockReset();
+  });
+
+  const closeWith = (code: number) =>
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      queueMicrotask(() => child.emit("close", code));
+      return child;
+    });
+
+  it("is true when tilt version exits successfully", async () => {
+    closeWith(0);
     const { isTiltAvailable } = await import("../tilt.js");
-    const available = await isTiltAvailable();
-    expect(typeof available).toBe("boolean");
+    await expect(isTiltAvailable()).resolves.toBe(true);
+  });
+
+  it("is false when tilt version exits non-zero", async () => {
+    closeWith(2);
+    const { isTiltAvailable } = await import("../tilt.js");
+    await expect(isTiltAvailable()).resolves.toBe(false);
+  });
+
+  it("is false when tilt cannot be spawned", async () => {
+    spawnMock.mockImplementation(() => {
+      const child = fakeChild();
+      queueMicrotask(() => child.emit("error", new Error("spawn tilt ENOENT")));
+      return child;
+    });
+    const { isTiltAvailable } = await import("../tilt.js");
+    await expect(isTiltAvailable()).resolves.toBe(false);
   });
 });

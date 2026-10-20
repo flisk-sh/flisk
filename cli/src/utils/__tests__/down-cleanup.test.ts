@@ -6,6 +6,9 @@ import {
   projectNetworkNames,
   pruneProjectNetworks,
   stopProjectTiltUp,
+  tdkNetworkOwner,
+  tdkNetworkPrefixes,
+  waitForTiltUpExit,
 } from "../down-cleanup.js";
 
 const TILTFILE = "/work/shop/.tdk/.tdk-out/Tiltfile";
@@ -17,6 +20,47 @@ describe("projectNetworkNames", () => {
     expect(names).toContain("my_shop_backend");
     expect(names).toContain("my_shop_infisical-network");
     expect(names).toHaveLength(7);
+  });
+});
+
+describe("tdkNetworkPrefixes", () => {
+  it("extracts unique project prefixes from traefik-public and traefik-private networks", () => {
+    const networks = [
+      "shop_traefik-public",
+      "shop_traefik-private",
+      "billing_system_traefik-public",
+      "other_backend",
+      "bridge",
+      "host",
+    ];
+    const prefixes = tdkNetworkPrefixes(networks);
+    expect(prefixes).toEqual(new Set(["shop", "billing_system"]));
+  });
+
+  it("returns an empty set when no traefik networks are present", () => {
+    const networks = ["backend", "database", "redis_network", "none"];
+    expect(tdkNetworkPrefixes(networks)).toEqual(new Set());
+    expect(tdkNetworkPrefixes([])).toEqual(new Set());
+  });
+});
+
+describe("tdkNetworkOwner", () => {
+  const prefixes = new Set(["shop", "billing"]);
+
+  it("returns the project prefix for networks matching known project suffixes", () => {
+    expect(tdkNetworkOwner("shop_backend", prefixes)).toBe("shop");
+    expect(tdkNetworkOwner("shop_database", prefixes)).toBe("shop");
+    expect(tdkNetworkOwner("shop_traefik-public", prefixes)).toBe("shop");
+    expect(tdkNetworkOwner("billing_proxy", prefixes)).toBe("billing");
+    expect(tdkNetworkOwner("billing_infisical-network", prefixes)).toBe("billing");
+    expect(tdkNetworkOwner("billing_verdaccio-network", prefixes)).toBe("billing");
+  });
+
+  it("returns null when the suffix is unknown or prefix is not in the set", () => {
+    expect(tdkNetworkOwner("unknown_backend", prefixes)).toBeNull();
+    expect(tdkNetworkOwner("shop_custom-network", prefixes)).toBeNull();
+    expect(tdkNetworkOwner("bridge", prefixes)).toBeNull();
+    expect(tdkNetworkOwner("", prefixes)).toBeNull();
   });
 });
 
@@ -46,6 +90,29 @@ describe("pruneProjectNetworks", () => {
     expect(removed).not.toContain("other_backend");
     expect(removed).not.toContain("bridge");
   });
+
+  it("handles empty network list without running rm", () => {
+    const calls: string[][] = [];
+    const runner = vi.fn((_cmd: string, args: string[]) => {
+      calls.push(args);
+      return "";
+    });
+    const result = pruneProjectNetworks("shop", runner);
+    expect(result.removed).toEqual([]);
+    expect(result.kept).toEqual([]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual(["network", "ls", "--format", "{{.Name}}"]);
+  });
+
+  it("handles errors without stderr by extracting the stringified error", () => {
+    const runner = vi.fn((_cmd: string, args: string[]) => {
+      if (args[1] === "ls") return "shop_backend\n";
+      throw "daemon connection failed";
+    });
+    const result = pruneProjectNetworks("shop", runner);
+    expect(result.removed).toEqual([]);
+    expect(result.kept).toEqual([{ name: "shop_backend", reason: "daemon connection failed" }]);
+  });
 });
 
 describe("findProjectTiltUpPids", () => {
@@ -56,6 +123,7 @@ describe("findProjectTiltUpPids", () => {
     `  103 /opt/homebrew/bin/tilt up -f ${TILTFILE}-copy`,
     `  104 vim ${TILTFILE}`,
     `  105 tilt up -f ${TILTFILE}`,
+    "  invalid line without command",
   ].join("\n");
 
   it("matches only tilt up processes for this project's Tiltfile", () => {
@@ -71,24 +139,25 @@ describe("findProjectTiltUpPids", () => {
     ).toEqual([]);
   });
 
-  it("sends TERM to each match", () => {
+  it("sends TERM to each match and tolerates dead processes during kill", () => {
     const sent: string[][] = [];
     const runner = (cmd: string, args: string[]) => {
       if (cmd === "ps") return ps;
+      if (args[1] === "100") throw new Error("ESRCH: no such process");
       sent.push(args);
       return "";
     };
     expect(stopProjectTiltUp(TILTFILE, "darwin", runner)).toEqual([100, 105]);
-    expect(sent).toEqual([
-      ["-TERM", "100"],
-      ["-TERM", "105"],
-    ]);
+    expect(sent).toEqual([["-TERM", "105"]]);
   });
 });
 
 describe("waitForTiltUpExit", () => {
+  it("resolves true immediately when no pids exist initially", async () => {
+    expect(await waitForTiltUpExit(TILTFILE, 5000, () => [])).toBe(true);
+  });
+
   it("resolves true once the processes are gone and false on timeout", async () => {
-    const { waitForTiltUpExit } = await import("../down-cleanup.js");
     const seq = [[1], [1], []];
     expect(await waitForTiltUpExit(TILTFILE, 5000, () => seq.shift() ?? [])).toBe(true);
     expect(await waitForTiltUpExit(TILTFILE, 300, () => [1])).toBe(false);

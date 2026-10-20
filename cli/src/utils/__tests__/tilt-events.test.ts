@@ -202,4 +202,36 @@ describe("loadTiltEvents", () => {
       message: "Tilt returned invalid UIResource JSON",
     });
   });
+
+  it("classifies a syntactically valid but malformed UIResource list as an error", async () => {
+    runTiltMock.mockResolvedValue({ exitCode: 0, stdout: '{"items":{}}', stderr: "" });
+    await expect(loadTiltEvents()).rejects.toMatchObject({
+      kind: "error",
+      message: "Tilt returned an invalid UIResource list",
+    });
+  });
+
+  it("classifies non-connection spawn failures as errors", async () => {
+    runTiltMock.mockRejectedValue(new Error("spawn tilt EACCES"));
+    await expect(loadTiltEvents()).rejects.toMatchObject({
+      kind: "error",
+      message: "spawn tilt EACCES",
+    });
+  });
+
+  it("stringifies non-Error failures", async () => {
+    runTiltMock.mockRejectedValue("connection refused");
+    await expect(loadTiltEvents()).rejects.toMatchObject({
+      kind: "unavailable",
+      message: "connection refused",
+    });
+  });
+
+  it("falls back to the exit code when Tilt writes nothing to stderr", async () => {
+    runTiltMock.mockResolvedValue({ exitCode: 7, stdout: "", stderr: "   " });
+    await expect(loadTiltEvents()).rejects.toMatchObject({
+      kind: "error",
+      message: "tilt get exited with code 7",
+    });
+  });
 });

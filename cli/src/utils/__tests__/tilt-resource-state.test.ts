@@ -10,6 +10,8 @@ describe("isTiltResourcePending", () => {
     ["in_progress", "not_applicable"],
     ["ok", "pending"],
     ["ok", "none"],
+    ["error", "pending"],
+    ["in_progress", "ok"],
   ])("treats update=%s runtime=%s as not ready yet", (update, runtime) => {
     expect(isTiltResourcePending(update, runtime)).toBe(true);
   });
@@ -43,6 +45,8 @@ describe("effectiveRuntimeStatus", () => {
     [status("pending", "unhealthy"), "pending"],
     [status("error", "healthy"), "error"],
     [undefined, ""],
+    [{}, ""],
+    [{ composeResourceInfo: { healthStatus: "unhealthy" } }, ""],
   ])("otherwise keeps Tilt's status (%j -> %s)", (input, expected) => {
     expect(effectiveRuntimeStatus(input)).toBe(expected);
   });

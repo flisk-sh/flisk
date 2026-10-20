@@ -54,6 +54,8 @@ export function buildGeneratedSection(prUrl) {
     "# Review this PR in",
     buildButtonsHtml(prUrl),
     "",
+    "<sub>Shared by [@tdk-landscape](https://github.com/tdk-landscape) · [tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core) · If this helps, please ⭐ [star tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core)</sub>",
+    "",
   ].join("\n");
 }
 

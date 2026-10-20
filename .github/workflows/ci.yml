@@ -447,7 +447,8 @@ jobs:
           annotations: true
 
   # Aggregate gate. The e2e group gates live in their own workflows, so `needs:` cannot name them: this job reads their check runs
-  # on the head commit instead and fails when one is missing or failed. A skipped gate passes, as a skipped job does here.
+  # on the head commit instead and fails when one is missing or failed. GitHub's check-runs endpoint includes skipped jobs, while
+  # the check-suites endpoint does not; query runs rather than suites. A skipped gate passes, as a skipped job does here.
   pr-summary-review:
     name: 🧐 PR summary review
     # Also runs on merge queue entries: the queue is where the required check must still mean something. The merge queue reads the
@@ -517,11 +518,11 @@ jobs:
           read -r -a pending <<< "$E2E_GATES"
           : > gate-results.tsv
           while :; do
-            runs="$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs[] | [.name, .status, (.conclusion // "")] | @tsv')"
+            runs="$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs[] | [.name, .status, (.conclusion // ""), .started_at, .id] | @tsv')"
             still=()
             for gate in "${pending[@]}"; do
-              # A re-run reports the same name again; the last row is the latest attempt.
-              row="$(awk -F'\t' -v n="$gate" '$1 == n { r = $0 } END { print r }' <<< "$runs")"
+              # A re-run reports the same name again. Select the latest attempt by its start time instead of relying on API order.
+              row="$(awk -F'\t' -v n="$gate" '$1 == n && $4 >= latest { latest = $4; r = $0 } END { print r }' <<< "$runs")"
               if [ -z "$row" ]; then
                 if [ "$SECONDS" -ge "$deadline" ]; then printf '%s\tmissing\tmissing\n' "$gate" >> gate-results.tsv; continue; fi
                 still+=("$gate"); continue

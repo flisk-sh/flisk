@@ -202,7 +202,51 @@ If TDK saves you time, a ⭐ on [this repo](https://github.com/tdk-landscape/tdk
 
 ## Quick start
 
-Preview what a stack will start before any container runs:
+There are two ways to get started. Both end with `tdk up <stack>`.
+
+| | Guided scaffolder | Core CLI (manual) |
+| --- | --- | --- |
+| Best for | A first run: pick your services and get a ready project | Full control, or adding TDK to an existing folder |
+| Package | [`@tdk-landscape/create-microservices`](https://github.com/tdk-landscape/create-microservices#readme) | [`@tdk-landscape/tdk-cli-core`](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core) (this repo) |
+
+### Option A: guided scaffolder (recommended for beginners)
+
+**Prerequisites.** Install these first. The scaffolder checks your machine while it creates the project and stops if something is missing:
+
+- Node.js 22.12 or newer, and npm
+- Docker, installed and running (Engine 25+, Compose 2.20.2+)
+- [Tilt](https://docs.tilt.dev/install.html)
+- [Bun](https://bun.sh/) 1.2+
+
+Run these commands from the directory where you want the new project folder to be created. The target directory must be new or empty; existing files are never overwritten.
+
+```bash
+npm install -g @tdk-landscape/tdk-cli-core
+npm init @tdk-landscape/microservices my-project
+cd my-project
+tdk up main
+```
+
+- `npm install -g @tdk-landscape/tdk-cli-core` installs the `tdk` command. Skip it if `tdk --version` already works.
+- `npm init @tdk-landscape/microservices my-project` asks how many services to create, then each service's name and type (`backend`, `frontend`, `worker`, or `mcp`).
+- `tdk up main` starts the stack. `main` is the default stack name; if you pass `--stack <name>` to the scaffolder, use that name instead. The scaffolder prints the exact `tdk up` command when it finishes.
+
+The scaffolder creates the project configuration and a skeleton for each service you selected, using TDK CLI Core. It does not start any containers; `tdk up` does that.
+
+To skip the prompts and get a default `api` (backend) and `web` (frontend):
+
+```bash
+npm init @tdk-landscape/microservices my-project -- --yes
+```
+
+For service types, all options, and non-interactive usage, see the [`@tdk-landscape/create-microservices` README](https://github.com/tdk-landscape/create-microservices#readme).
+
+> [!NOTE]
+> Two similarly named packages exist. [`create-tdk-stack`](https://github.com/tdk-landscape/create-tdk-stack) is a landing-page app and does not scaffold projects. [`@tdk-landscape/create-microservices`](https://github.com/tdk-landscape/create-microservices#readme) is the project scaffolder used above.
+
+### Option B: core CLI (manual)
+
+Use this to create the project and each resource yourself with `tdk`. [Install the CLI](#installation) first. Preview what a stack will start before any container runs:
 
 ```bash
 tdk up shop --dry-run
