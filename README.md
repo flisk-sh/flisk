@@ -296,6 +296,8 @@ npm install -g @tdk-landscape/tdk-cli-core
 curl -fsSL https://tdk-landscape.github.io/install.sh | sh
 ```
 
+Public npm is the recommended default. To install through GitHub Packages instead, configure registry authentication as described in [GitHub Packages installation](docs/github-packages.md).
+
 `tdk up shop --dry-run` previews selected local services and URLs before starting containers. The default starter is Bun/TypeScript; TDK's core role is running local containers through Docker + Tilt, not providing a Node.js application framework. See the [one-backend example](examples/one-backend/README.md).
 
 ## When not to use TDK
