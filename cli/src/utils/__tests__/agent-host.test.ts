@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { hostUpRefusal } from "../../commands/up.js";
-import { detectHost, type HostProbeInputs } from "../agent-host.js";
+import {
+  DEVCONTAINER_DOCKER_FIX,
+  detectHost,
+  type HostProbeInputs,
+  isContainerHost,
+  WEBCONTAINER_DOCS,
+  WEBCONTAINER_UP_MESSAGE,
+} from "../agent-host.js";
 import { createDoctorReport } from "../doctor-report.js";
 
 const base: HostProbeInputs = {
@@ -28,8 +35,26 @@ describe("detectHost", () => {
   it("detects a Dev Container via REMOTE_CONTAINERS", () => {
     expect(detectHost({ ...base, env: { REMOTE_CONTAINERS: "true" } }).kind).toBe("devcontainer");
   });
-  it("does not treat a bare /.dockerenv as a Dev Container", () => {
-    expect(detectHost({ ...base, fileExists: () => true }).kind).toBe("local");
+  it("detects a Dev Container via /.dockerenv and DEVCONTAINER env", () => {
+    expect(
+      detectHost({
+        ...base,
+        fileExists: (p) => p === "/.dockerenv",
+        env: { DEVCONTAINER: "true" },
+      }).kind,
+    ).toBe("devcontainer");
+  });
+  it("does not treat a bare /.dockerenv without DEVCONTAINER as a Dev Container", () => {
+    expect(detectHost({ ...base, fileExists: (p) => p === "/.dockerenv" }).kind).toBe("local");
+  });
+  it("ignores DEVCONTAINER env if /.dockerenv does not exist", () => {
+    expect(
+      detectHost({
+        ...base,
+        fileExists: () => false,
+        env: { DEVCONTAINER: "true" },
+      }).kind,
+    ).toBe("local");
   });
   it("reports native Windows as unable to up unless explicitly allowed", () => {
     expect(detectHost({ ...base, platform: "win32" })).toEqual({
@@ -43,6 +68,41 @@ describe("detectHost", () => {
   it("detects WSL2 and plain local hosts", () => {
     expect(detectHost({ ...base, env: { WSL_DISTRO_NAME: "Ubuntu" } }).kind).toBe("wsl2");
     expect(detectHost(base).kind).toBe("local");
+  });
+  it("uses default process inputs when invoked with no arguments", () => {
+    const host = detectHost();
+    expect([
+      "webcontainer",
+      "codespaces",
+      "devcontainer",
+      "wsl2",
+      "native-windows",
+      "local",
+    ]).toContain(host.kind);
+    expect(typeof host.canUp).toBe("boolean");
+  });
+});
+
+describe("isContainerHost", () => {
+  it.each([
+    ["codespaces", true],
+    ["devcontainer", true],
+    ["local", false],
+    ["native-windows", false],
+    ["wsl2", false],
+    ["webcontainer", false],
+  ] as const)("identifies container host kind %s as %s", (kind, expected) => {
+    expect(isContainerHost(kind)).toBe(expected);
+  });
+});
+
+describe("host constants and messages", () => {
+  it("exports consistent remediation and doc paths", () => {
+    expect(WEBCONTAINER_DOCS).toBe("docs/agent-hosts.md");
+    expect(WEBCONTAINER_UP_MESSAGE).toContain(WEBCONTAINER_DOCS);
+    expect(WEBCONTAINER_UP_MESSAGE).toContain("WebContainers cannot run TDK");
+    expect(DEVCONTAINER_DOCKER_FIX).toContain(WEBCONTAINER_DOCS);
+    expect(DEVCONTAINER_DOCKER_FIX).toContain("docker-outside-of-docker");
   });
 });
 

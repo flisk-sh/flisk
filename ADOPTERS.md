@@ -26,6 +26,12 @@ Each row needs the organization, a link to their repository or a public write-up
 
 By asking to be listed, you confirm that your organization allows it. A maintainer may ask for more evidence before adding a row.
 
+## GitHub dependency graph visibility
+
+If your public repository genuinely installs or invokes `@tdk-landscape/tdk-cli-core` as a project tool, declare it in that repository's `package.json` (usually `devDependencies`) and commit the lockfile used by the project. GitHub builds its dependency graph from supported manifests and lockfiles, then lists public repositories as dependents. The dependency graph does not infer a repository-level dependency from a machine-wide global install or a standalone binary install.
+
+Do not add a dependency just to affect a count. Keep the existing global npm and binary installation paths for users who run TDK outside a project's package workflow. GitHub controls graph processing and display; its Code-tab “Used by” section has additional package and dependent-count criteria, so a correct declaration does not guarantee that sidebar will appear immediately. See [GitHub's dependency graph documentation](https://docs.github.com/en/code-security/concepts/supply-chain-security/dependency-graph).
+
 ## Row format
 
 Add one line per organization, in the same shape as the header below. Keep the row inside the table, with no blank line before it:

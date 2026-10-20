@@ -401,6 +401,14 @@
 			}
 		},
 		{
+			"workflow": "publish-existing-npm-to-github-packages.yml",
+			"job": "publish",
+			"tier": "release",
+			"required": false,
+			"reason": "Backfills and verifies an existing public npm version in GitHub Packages (manual)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "release-binaries.yml",
 			"job": "changes",
 			"tier": "release",
@@ -418,6 +426,14 @@
 			"exempt": {
 				"check-name": "#1279"
 			}
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "publish-github-packages",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes the already-built release tarball to GitHub Packages",
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "release-binaries.yml",
