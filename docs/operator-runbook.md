@@ -59,6 +59,20 @@ Put the environment values the services need in the project `.env`; values in th
 > [!WARNING]
 > The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/tdk-landscape/tdk-cli-core/issues/1657), [#1658](https://github.com/tdk-landscape/tdk-cli-core/issues/1658), [#1659](https://github.com/tdk-landscape/tdk-cli-core/issues/1659).
 
+### Lessons from release 1.3.187 (2026-10-20)
+
+- The first release-candidate run passed 28 component jobs but failed two frontend jobs because Docker Compose did not respond within the suite's 10-second readiness check. A retry on the same commit passed all 31 jobs. When multiple independent runners fail at the same infrastructure readiness check, inspect their uploaded diagnostics and retry the candidate once; do not bypass the candidate gate.
+- A candidate on a release branch is stable while `main` advances. The first publish attempt was dispatched on `main` and correctly stopped because the candidate did not cover the current release inputs. Run both the candidate and release workflows on the same `release/rc-*` ref.
+- Publication can succeed before the workflow finishes. Version 1.3.187 reached npm and the `tdk-cli-releases` repository, but the workflow later failed when branch protection rejected its direct push of `release/bump-1.3.187`. The signing and provenance steps were consequently skipped. Confirm npm availability after its processing delay, then check the release assets and workflow steps separately; a failed workflow does not necessarily mean nothing was published.
+- The automatic version-bump step must create a branch through an allowed PR workflow, not rely on a direct branch push that violates repository rules. After publication, verify `package.json`, `cli/package.json`, the changelog, and lockfile state on `main`, and ensure the version bump PR exists and is tracked.
+
+### Suggested release workflow improvements
+
+1. Make the version-bump step create a PR using an approved GitHub App or other credential allowed by branch rules, and treat PR creation as a distinct post-publication task. Add a workflow test or dry-run check that detects a branch-rule rejection before shipping.
+2. Separate publication success from post-release bookkeeping in workflow status. A failure to open the version-bump PR or attach provenance should be surfaced as an incomplete follow-up without obscuring that npm and binary publication succeeded; report the exact published destinations and remaining steps in the summary.
+3. Give the Docker Compose readiness check a bounded retry/backoff and preserve the existing failure diagnostics. Keep candidate checks blocking: retry transient runner startup failures, but never mark a candidate successful by skipping the suite.
+4. Add a post-publish verification step that retries npm metadata lookup during the registry processing window and verifies the npm version and tarball, release tag/assets, checksum signature, and provenance independently.
+
 The normal release is the workflow, from a release branch (see the publish gate in [#1631](https://github.com/tdk-landscape/tdk-cli-core/pull/1631)):
 
 1. Cut `release/rc-<timestamp>` at the commit to ship, and run the Release candidate workflow on it. Wait for it to pass.
