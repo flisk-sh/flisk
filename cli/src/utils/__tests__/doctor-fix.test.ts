@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -254,11 +255,12 @@ describe("findTdkInstalls", () => {
     writeFileSync(bin, "#!/bin/sh\n");
     try {
       symlinkSync(bin, link);
-      const installs = await findTdkInstalls([link, bin], async () => "1.0.0");
-      expect(installs).toEqual([{ path: link, version: "1.0.0" }]);
     } catch {
       // Windows without developer mode/symlink privileges falls through gracefully
+      return;
     }
+    const installs = await findTdkInstalls([link, bin], async () => "1.0.0");
+    expect(installs).toEqual([{ path: link, version: "1.0.0" }]);
   });
 
   it("keeps unresolvable paths and reads their versions", async () => {
@@ -350,7 +352,10 @@ describe("createDockerFixDeps", () => {
   it("checks process liveness using process signals", () => {
     const deps = createDockerFixDeps();
     expect(deps.isProcessAlive(process.pid)).toBe(true);
-    expect(deps.isProcessAlive(99999999)).toBe(false);
+    const child = spawnSync(process.execPath, ["-e", "process.exit(0)"]);
+    if (child.pid) {
+      expect(deps.isProcessAlive(child.pid)).toBe(false);
+    }
   });
 
   it("reads free disk GiB safely", () => {
