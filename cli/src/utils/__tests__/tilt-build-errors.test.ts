@@ -136,7 +136,12 @@ describe("summarizeTiltBuildError: missing Docker images and compose services", 
     );
   });
 
-  it("identifies compose service from up -d --no-build command", () => {
+  // The two command-only cases below lock in the current heuristic: a failed
+  // `up -d --no-build` (run-only resource) is reported as a missing image even
+  // without explicit image evidence. This mirrors the existing contract in
+  // commands/__tests__/doctor.test.ts; narrowing it is a runtime change and
+  // belongs in its own PR.
+  it("identifies compose service from up -d --no-build command (heuristic, no image evidence)", () => {
     const summary = summarizeTiltBuildError(
       'Command "docker compose up -d --no-build billing-service" failed: exit 1',
     );
@@ -145,7 +150,16 @@ describe("summarizeTiltBuildError: missing Docker images and compose services", 
     );
   });
 
-  it("handles generic compose up -d --no-build failure", () => {
+  it("combines explicit missing image with compose service name", () => {
+    const summary = summarizeTiltBuildError(
+      'Command "docker compose up -d --no-build billing-service" failed: exit 1\nError: No such image: my-company/billing-service:v1.0',
+    );
+    expect(summary).toBe(
+      "compose run failed because image is missing (my-company/billing-service:v1.0) for billing-service — wait for the ImageBuild resource to finish, then re-trigger the *-run-only resource",
+    );
+  });
+
+  it("handles generic compose up -d --no-build failure (heuristic, no image evidence)", () => {
     const summary = summarizeTiltBuildError(
       "docker compose -f docker-compose.yml up -d --no-build",
     );
