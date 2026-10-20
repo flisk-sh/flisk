@@ -266,14 +266,9 @@ export function summarizeTiltBuildError(error: string): string {
     normalized.match(/pull access denied for ([^,:\s]+)/i)?.[1] ??
     undefined;
   const composeService = normalized.match(/\bup\s+-d\s+--no-build\s+([A-Za-z0-9._-]+)/i)?.[1];
-  if (
-    missingImage ||
-    composeService ||
-    /docker compose .*\bup\s+-d\s+--no-build\b/i.test(normalized)
-  ) {
-    const imageLabel = missingImage ?? `${composeService ?? "service"}:dev`;
+  if (missingImage) {
     const serviceHint = composeService ? ` for ${composeService}` : "";
-    return `compose run failed because image is missing (${imageLabel})${serviceHint} — wait for the ImageBuild resource to finish, then re-trigger the *-run-only resource`;
+    return `compose run failed because image is missing (${missingImage})${serviceHint} — wait for the ImageBuild resource to finish, then re-trigger the *-run-only resource`;
   }
 
   if (/bun run build/i.test(normalized)) {

@@ -136,22 +136,27 @@ describe("summarizeTiltBuildError: missing Docker images and compose services", 
     );
   });
 
-  it("identifies compose service from up -d --no-build command", () => {
+  it("identifies compose service when missing image error output is included", () => {
     const summary = summarizeTiltBuildError(
-      'Command "docker compose up -d --no-build billing-service" failed: exit 1',
+      'Command "docker compose up -d --no-build billing-service" failed: exit 1. Error: No such image: billing-service:dev',
     );
     expect(summary).toBe(
       "compose run failed because image is missing (billing-service:dev) for billing-service — wait for the ImageBuild resource to finish, then re-trigger the *-run-only resource",
     );
   });
 
-  it("handles generic compose up -d --no-build failure", () => {
-    const summary = summarizeTiltBuildError(
-      "docker compose -f docker-compose.yml up -d --no-build",
-    );
-    expect(summary).toBe(
-      "compose run failed because image is missing (service:dev) — wait for the ImageBuild resource to finish, then re-trigger the *-run-only resource",
-    );
+  it("returns generic diagnostic for command-only compose failure without missing-image evidence", () => {
+    const raw = 'Command "docker compose up -d --no-build billing-service" failed: exit 1';
+    const summary = summarizeTiltBuildError(raw);
+    expect(summary).toBe(raw);
+    expect(summary).not.toContain("image is missing");
+  });
+
+  it("handles generic compose up -d --no-build failure without missing image as generic diagnostic", () => {
+    const raw = "docker compose -f docker-compose.yml up -d --no-build";
+    const summary = summarizeTiltBuildError(raw);
+    expect(summary).toBe(raw);
+    expect(summary).not.toContain("image is missing");
   });
 });
 
