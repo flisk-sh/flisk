@@ -24,6 +24,32 @@ To add one: copy `express.ts`, register it, add tests like `resource-backend-fra
 `tdk up` (the Bun image runs `tsc`, so the type package matters). The engine needs no change: it reads `framework` only for
 frontends.
 
+`tdk resource --type backend --frameworks` lists the registered backend frameworks with the id, the display name, the
+language they are scaffolded with (`bun`, which is also the runtime), their compatibility with the requested language, and
+the command that creates them:
+
+```bash
+tdk resource --type backend --frameworks
+# hono       Bun + Hono       bun       compatible with bun        tdk resource <name> --type backend --framework hono
+# express    Bun + Express    bun       compatible with bun        tdk resource <name> --type backend --framework express
+# elysia     Bun + Elysia     bun       compatible with bun        tdk resource <name> --type backend --framework elysia
+# fastify    Bun + Fastify    bun       compatible with bun        tdk resource <name> --type backend --framework fastify
+# h3         Bun + h3         bun       compatible with bun        tdk resource <name> --type backend --framework h3
+# koa        Bun + Koa        bun       compatible with bun        tdk resource <name> --type backend --framework koa
+# nestjs     Bun + NestJS     bun       compatible with bun        tdk resource <name> --type backend --framework nestjs
+```
+
+The compatibility cell names the language it is judged against (`bun` is the default backend language). Add
+`--language <id>` to see which frameworks that language rules out: a language that owns its runtime marks every
+framework as `incompatible with --language <id>`, so the invalid combination is visible before a resource is created.
+A requested `--language` is part of the printed command, so a copied row scaffolds the language the listing was asked
+about instead of silently falling back to Bun:
+
+```bash
+tdk resource --type backend --language python --frameworks
+# hono       Bun + Hono       bun       incompatible with --language python    tdk resource <name> --type backend --language python
+```
+
 ## Go
 
 `tdk resource api --type backend --language go --stack shop` scaffolds `go.mod`, `main.go` (standard-library `net/http`, `GET /health`,

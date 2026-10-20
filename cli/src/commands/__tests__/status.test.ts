@@ -18,6 +18,8 @@ import { statusCommand } from "../status.js";
 // check what status prints, so both are mocked.
 vi.mock("../../utils/cold-preflight.js", () => ({
   assertMachineReadyOrExit: vi.fn(async () => {}),
+  detectRuntimePrerequisites: vi.fn(() => ({ hasDockerCli: true, hasTiltCli: true })),
+  formatRuntimeNextSteps: vi.fn(() => []),
 }));
 vi.mock("../../utils/tilt.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/tilt.js")>()),

@@ -21,6 +21,8 @@ const {
 
 vi.mock("../../utils/cold-preflight.js", () => ({
   assertMachineReadyOrExit: assertMachineReadyMock,
+  detectRuntimePrerequisites: vi.fn(() => ({ hasDockerCli: true, hasTiltCli: true })),
+  formatRuntimeNextSteps: vi.fn(() => []),
 }));
 
 vi.mock("../../utils/prompt.js", () => ({

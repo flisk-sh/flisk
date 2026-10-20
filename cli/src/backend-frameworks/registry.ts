@@ -3,6 +3,7 @@
 
 import { resolveAgentRuntime } from "../agent-runtimes/registry.js";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
+import { BACKEND_LANGUAGES, getBackendLanguage } from "../backend-languages/registry.js";
 import { TdkError } from "../utils/errors.js";
 import { elysiaBackendProvider } from "./elysia.js";
 import { expressBackendProvider } from "./express.js";
@@ -33,6 +34,69 @@ export const BACKEND_FRAMEWORKS: Record<string, BackendFrameworkProvider> = {
   koa: koaBackendProvider,
   nestjs: nestBackendProvider,
 };
+
+export interface BackendFrameworkInventoryEntry {
+  id: string;
+  label: string;
+  /**
+   * The backend language ids this framework can be combined with, derived from the language registry.
+   * The language id is also the runtime the service is scaffolded on (`bun` for every JS framework).
+   */
+  languages: string[];
+  /** False when the framework cannot be combined with the requested `--language`. */
+  compatible: boolean;
+  /** The copy-pasteable `tdk resource` invocation. */
+  command: string;
+}
+
+/**
+ * The languages a framework can be combined with, decided by the same validation the resource command
+ * uses: a language that owns its runtime (python, go, rust, node) cannot be combined with a framework.
+ */
+function compatibleLanguages(frameworkId: string): string[] {
+  return Object.keys(BACKEND_LANGUAGES).filter((languageId) => {
+    try {
+      resolveBackendFramework("backend", frameworkId, BACKEND_LANGUAGES[languageId]);
+      return true;
+    } catch (error) {
+      // Only the "a language that owns its runtime cannot be combined with a framework" rule is
+      // expected here. Any other error is a bug and must surface instead of silently shrinking
+      // the language column.
+      if (error instanceof TdkError) return false;
+      throw error;
+    }
+  });
+}
+
+/**
+ * Lists the registered backend frameworks with the language (and runtime) they are scaffolded with, so
+ * `tdk resource --type backend --frameworks` is the whole backend discovery surface.
+ *
+ * `languageId` is the language the listing is judged against; the default Bun language is used when it
+ * is omitted. A language that was asked for is named in the printed command, so copying a row never
+ * scaffolds a different language than the one the listing was about.
+ */
+export function listBackendFrameworks(languageId?: string): BackendFrameworkInventoryEntry[] {
+  const requested = getBackendLanguage(languageId);
+  const namesLanguage = languageId !== undefined;
+  return Object.entries(BACKEND_FRAMEWORKS).map(([id, provider]) => {
+    const languages = compatibleLanguages(id);
+    const compatible = languages.includes(requested.id);
+    const languageFlag = namesLanguage ? ` --language ${requested.id}` : "";
+    // A language that owns its runtime cannot be combined with a framework, so the row carries the
+    // command that creates the resource in that language, without a framework.
+    const command = compatible
+      ? `tdk resource <name> --type backend --framework ${id}${languageFlag}`
+      : `tdk resource <name> --type backend${languageFlag}`;
+    return {
+      id,
+      label: provider.label,
+      languages,
+      compatible,
+      command,
+    };
+  });
+}
 
 export function getBackendFramework(frameworkId?: string): BackendFrameworkProvider {
   const id = (frameworkId ?? DEFAULT_BACKEND_FRAMEWORK).trim().toLowerCase();

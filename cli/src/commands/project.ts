@@ -109,7 +109,11 @@ function getDefaultCoreServices(): string[] {
     .map((f) => f.name);
 }
 
-async function cloneProjectTemplate(templateName: string, targetDir?: string): Promise<void> {
+async function cloneProjectTemplate(
+  templateName: string,
+  targetDir: string | undefined,
+  runtimeNextSteps: string[],
+): Promise<void> {
   const template = PROJECT_TEMPLATES[templateName];
 
   if (!template) {
@@ -174,6 +178,8 @@ async function cloneProjectTemplate(templateName: string, targetDir?: string): P
   showDetail(`1. cd ${dirName}`);
   showDetail("2. tdk doctor   # check Docker/Tilt are ready");
   showDetail("3. tdk up       # start the stack");
+  showDetail("\nRuntime readiness:", 0);
+  for (const line of runtimeNextSteps) showDetail(line, 0);
 }
 
 const DEFAULT_PROJECT_JSON: ProjectConfig = {
@@ -234,10 +240,14 @@ export const projectCommand = addYesOption(new Command("project"))
   .option("--force", "Overwrite existing configuration (dangerous)")
   .option("--config-file <path>", "Load project config from existing JSON file")
   .action(async (template, options) => {
-    const { assertMachineReadyOrExit } = await import("../utils/cold-preflight.js");
-    await assertMachineReadyOrExit();
+    const { assertMachineReadyOrExit, detectRuntimePrerequisites, formatRuntimeNextSteps } =
+      await import("../utils/cold-preflight.js");
+    // Project setup only writes files: it must not need a running Docker daemon
+    // or an installed Tilt. The runtime is checked on `tdk up`.
+    await assertMachineReadyOrExit({ scope: "scaffold" });
+    const runtimeNextSteps = formatRuntimeNextSteps(detectRuntimePrerequisites());
     if (template) {
-      await runCommand(async () => cloneProjectTemplate(template, options.path));
+      await runCommand(async () => cloneProjectTemplate(template, options.path, runtimeNextSteps));
       return;
     }
 
@@ -329,6 +339,8 @@ export const projectCommand = addYesOption(new Command("project"))
         for (const file of MASTER_CONFIG_FILES) {
           showDetail(`- ${file}`);
         }
+        showDetail("\nRuntime readiness:", 0);
+        for (const line of runtimeNextSteps) showDetail(line, 0);
         return;
       }
 
@@ -508,6 +520,8 @@ export const projectCommand = addYesOption(new Command("project"))
       showDetail("\nNext steps:", 0);
       showDetail("1. tdk resource api --type backend --stack app   # scaffold a service");
       showDetail("2. tdk up app                                     # start it");
+      showDetail("\nRuntime readiness:", 0);
+      for (const line of runtimeNextSteps) showDetail(line, 0);
       showDetail("\nAfter editing .tdk/project.json, run `tdk config regenerate`.", 0);
     });
   });

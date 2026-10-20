@@ -5,6 +5,7 @@ A copy-paste GitHub Actions workflow for **your own repository**, with two jobs:
 ## What was and was not checked
 
 - **Checked by running** (TDK 1.3.86 from a checkout of `main`, macOS, no `tdk up`): the commands of the first job, `tdk project --yes`, `tdk doctor --no-ping` and `tdk config verify`, in a scratch git repository and in a fresh clone of it. Results are under [what each command does](#what-each-command-does-in-the-first-job).
+- **Checked by running** (CLI 1.3.186 built from the `feature/issue-1735-project-without-docker` branch, macOS, Docker and Tilt removed from `PATH`): `tdk project --yes` in a scratch git repository, and `tdk up` in the project it created. Results are under [what the first job needs from the machine](#what-the-first-job-needs-from-the-machine).
 - **Not run anywhere:** the workflow file itself on GitHub, and the second job. Booting a stack needs Docker networks, which could not be created on the machine this page was written on. The second job reuses the logic of `e2e-journeys.yml`, which runs daily in this repository, but the exact script below was **not executed**. Run it once in a throwaway branch before you rely on it.
 - **Linting:** the YAML parses and every `run:` block passes `bash -n`. `actionlint` was not installed, so it was not run; this repository's `ci.yml` runs it on `.github/workflows/`, not on `docs/`.
 - **GitLab CI and other systems:** not tried. The commands are plain shell, but nothing here was tested outside GitHub Actions.
@@ -58,8 +59,9 @@ jobs:
         with:
           node-version: 22
 
-      # `tdk project --yes` and `tdk doctor` look for Tilt, a Docker daemon and
-      # the Compose plugin. The runner image has Docker; Tilt is not preinstalled.
+      # `tdk doctor` looks for Tilt, a Docker daemon and the Compose plugin.
+      # `tdk project --yes` only writes files and does not need the runtime.
+      # The runner image has Docker; Tilt is not preinstalled.
       - name: Install Tilt
         run: curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash
 
@@ -245,7 +247,7 @@ Why the workflow runs `tdk project --yes` first: `.env` and `.tdk/.tdk-out/` are
 
 ### What the first job needs from the machine
 
-- `tdk project --yes` **exits 1 without a running Docker daemon, the Compose plugin and Tilt** (it prints `Cold start blocked` and a `FAIL docker / compose / tilt` list). `tdk doctor` fails on the same three. GitHub-hosted `ubuntu-latest` runners come with Docker, and the workflow installs Tilt, so no image is built and no container is started. Whether the preinstalled Docker on the runner satisfies `tdk doctor`'s Compose and healthcheck version checks was **not verified** on a runner.
+- `tdk project --yes` **exits 0 without a running Docker daemon, the Compose plugin and Tilt** (observed on the branch build, with Docker and Tilt removed from `PATH`: it wrote `.tdk/project.json` and the generated master files, then printed a `Runtime readiness:` block naming the missing Docker and Tilt instead of a `Cold start blocked` failure). The runtime gate now belongs to `tdk up`, which still exits 1 with `Cold start blocked` and a `FAIL docker / compose / tilt` list, and `tdk doctor` still fails on the same three. A TDK release that predates this change still exits 1 in `tdk project` without the runtime, so pin a version that includes it before relying on the new behaviour. GitHub-hosted `ubuntu-latest` runners come with Docker, and the workflow installs Tilt, so no image is built and no container is started. Whether the preinstalled Docker on the runner satisfies `tdk doctor`'s Compose and healthcheck version checks was **not verified** on a runner.
 - `tdk config verify` on its own (after `tdk config regenerate`) needed neither Docker nor Tilt on `PATH`: it exited 0 with both removed. Use that if you want a job without Docker, and skip `tdk doctor`.
 - `tdk project --yes` may change a tracked file. In the clone above it added the stack `shop` to `enabledStacks` in `.tdk/project.json`, because the committed file did not list it. Commit the result; add `git diff --exit-code -- .tdk/project.json` after it if you want CI to fail when someone forgets.
 

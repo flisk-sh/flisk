@@ -47,7 +47,7 @@ Not covered: client-side behaviour in a browser (the script checks HTML and asse
 
 ## Meta-frameworks are bring-your-own
 
-`tdk resource --frameworks` prints the inventory: only registered, verified Vite SPA providers. A provider is not listed as supported until it is registered in `registry.ts`, appears in `VERIFIED_FRONTEND_FRAMEWORKS` and in the `frontendFramework` axis of `tests/e2e/axes.json` (a unit test keeps the axis in step with the registry, and the matrix is built from the registry). Next, Nuxt, SvelteKit, Astro, Angular, Remix and TanStack Start own their config and a server, so `--framework <id>` fails with a handoff. Create the app with the framework's own CLI, then register it:
+`tdk resource --frameworks` prints the inventory: only registered, verified Vite SPA providers. `tdk resource --type frontend --frameworks` prints the same list; the backend frameworks have their own listing (`tdk resource --type backend --frameworks`, see [backend frameworks](backend-language-providers.md#backend-frameworks-on-the-bun-runtime)). A provider is not listed as supported until it is registered in `registry.ts`, appears in `VERIFIED_FRONTEND_FRAMEWORKS` and in the `frontendFramework` axis of `tests/e2e/axes.json` (a unit test keeps the axis in step with the registry, and the matrix is built from the registry). Next, Nuxt, SvelteKit, Astro, Angular, Remix and TanStack Start own their config and a server, so `--framework <id>` fails with a handoff. Create the app with the framework's own CLI, then register it:
 
 ```bash
 tdk resource web --type bring-your-own --stack app --yes

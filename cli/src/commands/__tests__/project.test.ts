@@ -11,6 +11,8 @@ import { enableDiscoveredStacks, projectCommand } from "../project.js";
 
 const mocks = vi.hoisted(() => ({
   assertMachineReadyOrExit: vi.fn(async () => {}),
+  detectRuntimePrerequisites: vi.fn(() => ({ hasDockerCli: true, hasTiltCli: true })),
+  formatRuntimeNextSteps: vi.fn(() => [] as string[]),
   findProjectRoot: vi.fn(),
   generateMasterConfigs: vi.fn(async () => {}),
   ensureEnvFile: vi.fn(() => false),
@@ -29,6 +31,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../utils/cold-preflight.js", () => ({
   assertMachineReadyOrExit: mocks.assertMachineReadyOrExit,
+  detectRuntimePrerequisites: mocks.detectRuntimePrerequisites,
+  formatRuntimeNextSteps: mocks.formatRuntimeNextSteps,
 }));
 vi.mock("../../utils/paths.js", () => ({ findProjectRoot: mocks.findProjectRoot }));
 vi.mock("../../generator/template-engine.js", async (importOriginal) => ({
@@ -296,6 +300,21 @@ describe("project command action", () => {
     expect(mocks.promptConfirm).not.toHaveBeenCalled();
     expect(readProjectConfig().project.name).toContain("tdk-project-command-");
     expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+  });
+
+  it("checks only the scaffolding prerequisites, not the local runtime", async () => {
+    await runProject({ check: false, force: false, yes: true });
+
+    expect(mocks.assertMachineReadyOrExit).toHaveBeenCalledWith({ scope: "scaffold" });
+  });
+
+  it("prints the runtime next steps after the project is configured", async () => {
+    mocks.formatRuntimeNextSteps.mockReturnValue(["Tilt is not installed. Install it."]);
+
+    await runProject({ check: false, force: false, yes: true });
+
+    expect(mocks.detectRuntimePrerequisites).toHaveBeenCalled();
+    expect(mocks.showDetail).toHaveBeenCalledWith("Tilt is not installed. Install it.", 0);
   });
 });
 

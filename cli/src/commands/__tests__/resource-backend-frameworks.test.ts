@@ -10,8 +10,10 @@ import {
   BACKEND_FRAMEWORKS,
   DEFAULT_BACKEND_FRAMEWORK,
   getBackendFramework,
+  listBackendFrameworks,
   resolveBackendFramework,
 } from "../../backend-frameworks/registry.js";
+import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
@@ -162,6 +164,53 @@ describe("backend framework registry", () => {
     expect(schema.properties.framework.enum).toBeUndefined();
     const idPattern = new RegExp(schema.properties.framework.pattern);
     for (const id of Object.keys(BACKEND_FRAMEWORKS)) expect(id).toMatch(idPattern);
+  });
+});
+
+describe("backend framework inventory", () => {
+  it("lists every registered framework with the language it is scaffolded with", () => {
+    const list = listBackendFrameworks();
+
+    expect(list.map((entry) => entry.id)).toEqual(Object.keys(BACKEND_FRAMEWORKS));
+    for (const entry of list) {
+      expect(entry.label).toBe(BACKEND_FRAMEWORKS[entry.id].label);
+      // A language that owns its runtime (python, go, rust, node) cannot be combined with a framework.
+      expect(entry.languages).toEqual(["bun"]);
+      expect(entry.compatible).toBe(true);
+      expect(entry.command).toBe(`tdk resource <name> --type backend --framework ${entry.id}`);
+    }
+  });
+
+  it("marks a framework incompatible with a language that owns its runtime", () => {
+    const runtimeOwningLanguages = Object.values(BACKEND_LANGUAGES)
+      .filter((language) => language.createFiles)
+      .map((language) => language.id);
+    expect(runtimeOwningLanguages.sort()).toEqual(["go", "node", "python", "rust"]);
+
+    for (const languageId of runtimeOwningLanguages) {
+      for (const entry of listBackendFrameworks(languageId)) {
+        expect(entry.languages).not.toContain(languageId);
+        expect(entry.compatible).toBe(false);
+        // The command creates the resource in the requested language; that language owns its runtime,
+        // so no framework applies to it.
+        expect(entry.command).toBe(`tdk resource <name> --type backend --language ${languageId}`);
+      }
+    }
+  });
+
+  it("keeps a framework compatible with a language it can be combined with", () => {
+    for (const entry of listBackendFrameworks("bun")) {
+      expect(entry.languages).toContain("bun");
+      expect(entry.compatible).toBe(true);
+      // The requested language is named, so a copied row scaffolds the language that was asked about.
+      expect(entry.command).toBe(
+        `tdk resource <name> --type backend --framework ${entry.id} --language bun`,
+      );
+    }
+  });
+
+  it("rejects an unknown language instead of listing an empty inventory", () => {
+    expect(() => listBackendFrameworks("cobol")).toThrow(/Unknown backend language "cobol"/);
   });
 });
 

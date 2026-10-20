@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { checkDockerCompose, checkDockerRuntime, checkDockerVersions, checkTilt, } from "../commands/doctor.js";
+import { checkDockerCompose, checkDockerRuntime, checkDockerVersions, checkTilt, DOCTOR_FIXES, } from "../commands/doctor.js";
 import { BUN_FLOOR_LABEL, bunMeetsFloor } from "./bun-floor.js";
 import { projectNeedsBun } from "./bun-requirement.js";
 import { PROJECT_JSON } from "./constants.js";
@@ -12,6 +12,17 @@ import { getHostPortPlan } from "./host-port-config.js";
 import { findProjectRoot } from "./paths.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { findOnPath } from "./which.js";
+/** Checks that only the local runtime (starting a stack) needs. */
+export const RUNTIME_CHECK_IDS = ["docker", "compose", "tilt"];
+/** Checks that writing project configuration needs. */
+export const SCAFFOLD_CHECK_IDS = ["node", "bun", "ports"];
+/** Every check that blocks a cold start, in report order. */
+export const MACHINE_CHECK_IDS = [
+    "node",
+    ...RUNTIME_CHECK_IDS,
+    "bun",
+    "ports",
+];
 /** Converts a doctor check result into the preflight's compact display item. */
 function item(id, result) {
     return {
@@ -60,6 +71,7 @@ function usesPrisma(projectRoot) {
 }
 export async function runColdPreflight(opts = {}) {
     const cwd = opts.cwd ?? process.cwd();
+    const scope = opts.scope ?? "runtime";
     const projectRoot = findProjectRoot(cwd);
     const inProject = Boolean(projectRoot);
     const items = [];
@@ -72,17 +84,21 @@ export async function runColdPreflight(opts = {}) {
             ? `Install Node.js 22.12+ (current: ${nodeVersion}). https://nodejs.org`
             : undefined,
     });
-    items.push(await safeCheck("docker", checkDockerRuntime, "Docker daemon is not running"));
-    items.push(await safeCheck("compose", async () => {
-        const [compose, versions] = await Promise.all([
-            checkDockerCompose(),
-            checkDockerVersions(),
-        ]);
-        if (!compose.didPass)
-            return compose;
-        return requireVerifiedDockerVersions(versions);
-    }, "Docker Engine or Compose version check failed"));
-    items.push(await safeCheck("tilt", checkTilt, "Tilt CLI not found"));
+    // The runtime executables are only probed when the command actually starts a
+    // stack. Scaffolding a project must not depend on a running Docker daemon.
+    if (scope === "runtime") {
+        items.push(await safeCheck("docker", checkDockerRuntime, "Docker daemon is not running"));
+        items.push(await safeCheck("compose", async () => {
+            const [compose, versions] = await Promise.all([
+                checkDockerCompose(),
+                checkDockerVersions(),
+            ]);
+            if (!compose.didPass)
+                return compose;
+            return requireVerifiedDockerVersions(versions);
+        }, "Docker Engine or Compose version check failed"));
+        items.push(await safeCheck("tilt", checkTilt, "Tilt CLI not found"));
+    }
     // Outside a project Bun stays required: `tdk project` is about to create services that need it.
     const bunNeeded = projectRoot ? projectNeedsBun(discoverResourcesFromRoot(projectRoot)) : true;
     let bun = false;
@@ -110,7 +126,9 @@ export async function runColdPreflight(opts = {}) {
         }
         : { id: "bun", ok: true, message: "Bun not needed: no generated JS services" });
     try {
-        const plan = await getHostPortPlan(projectRoot ?? cwd);
+        // Scaffolding must not talk to Docker at all, so the port plan is planned
+        // from the host ports alone.
+        const plan = await getHostPortPlan(projectRoot ?? cwd, scope === "scaffold" ? { inspectDocker: false } : {});
         items.push({
             id: "ports",
             ok: true,
@@ -125,7 +143,9 @@ export async function runColdPreflight(opts = {}) {
             fix: "Set TDK_HTTP_PORT, TDK_HTTPS_PORT, or TDK_POSTGRES_PORT to available host ports.",
         });
     }
-    if (projectRoot) {
+    // Project wiring (NATS, Prisma database) describes a running stack, so it is
+    // only probed for the runtime scope.
+    if (projectRoot && scope === "runtime") {
         const nats = await safeCheck("nats", () => checkNatsBroker(projectRoot), "NATS broker check failed");
         if (!nats.ok)
             items.push(nats);
@@ -162,13 +182,18 @@ export async function runColdPreflight(opts = {}) {
         }
     }
     const failures = items.filter((check) => !check.ok).slice(0, 8);
-    const machineFailed = failures.some((check) => ["node", "docker", "compose", "tilt", "bun", "ports"].includes(check.id));
+    const blockingIds = scope === "scaffold" ? SCAFFOLD_CHECK_IDS : MACHINE_CHECK_IDS;
+    const machineFailed = failures.some((check) => blockingIds.includes(check.id));
     const bunFailed = failures.some((check) => check.id === "bun");
     const header = failures.length
         ? machineFailed
-            ? bunFailed
-                ? `Cold start blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nPrisma/NATS configuration is project-specific and generated after \`tdk project\`. Fix the machine checks below.`
-                : "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `tdk project`. Fix the machine checks below."
+            ? scope === "scaffold"
+                ? bunFailed
+                    ? `Project setup blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nFix the machine checks below.`
+                    : "Project setup blocked. Fix the machine checks below."
+                : bunFailed
+                    ? `Cold start blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nPrisma/NATS configuration is project-specific and generated after \`tdk project\`. Fix the machine checks below.`
+                    : "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `tdk project`. Fix the machine checks below."
             : "Machine is ready. Project wiring is not."
         : "";
     const footer = failures.length
@@ -191,11 +216,42 @@ export function formatColdPreflight(result, options = {}) {
     return lines.filter(Boolean).join("\n");
 }
 /** Exits before machine-dependent command work when any machine check fails. */
-export async function assertMachineReadyOrExit() {
-    const result = await runColdPreflight();
-    const machineFailure = result.items.some((check) => ["node", "docker", "compose", "tilt", "bun", "ports"].includes(check.id));
+export async function assertMachineReadyOrExit(opts = {}) {
+    const scope = opts.scope ?? "runtime";
+    const result = await runColdPreflight({ scope });
+    const blockingIds = scope === "scaffold" ? SCAFFOLD_CHECK_IDS : MACHINE_CHECK_IDS;
+    const machineFailure = result.items.some((check) => blockingIds.includes(check.id));
     if (machineFailure) {
         console.error(formatColdPreflight(result));
         process.exit(1);
     }
+}
+/**
+ * Reports which runtime executables are installed.
+ *
+ * It only looks at `PATH`: no Docker daemon is contacted, so a machine without
+ * Docker still gets a usable answer.
+ */
+export function detectRuntimePrerequisites(find = findOnPath) {
+    return {
+        hasDockerCli: Boolean(find("docker")),
+        hasTiltCli: Boolean(find("tilt")),
+    };
+}
+/**
+ * Builds the next-step lines shown after project setup.
+ *
+ * Docker and Tilt are only needed to start the stack, so a missing runtime is
+ * reported as a hint instead of a failure.
+ */
+export function formatRuntimeNextSteps(status) {
+    const lines = [];
+    if (!status.hasDockerCli) {
+        lines.push(`Docker is not installed. ${DOCTOR_FIXES.dockerMissing}`);
+    }
+    if (!status.hasTiltCli) {
+        lines.push(`Tilt is not installed. ${DOCTOR_FIXES.tiltMissing}`);
+    }
+    lines.push("Docker and Tilt are only needed to start the stack: start them, then run `tdk doctor` (readiness) and `tdk up`.");
+    return lines;
 }

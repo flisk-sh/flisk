@@ -10,6 +10,8 @@ New to contributing? Start with the [step-by-step contributor guide](../docs/con
 
 Run in a project with Bun, Docker, and Tilt. On Windows, run the CLI in WSL2.
 
+`tdk project` writes the project configuration and clones starter templates without a running Docker daemon or an installed Tilt; the runtime is only needed by `tdk up`.
+
 | Command | When to use it |
 | --- | --- |
 | `tdk project --yes` | Create a project with the default setup. |
@@ -124,6 +126,8 @@ tdk resource my-h3-api --type backend --framework h3 --stack api
 tdk resource my-fastify-api --type backend --framework fastify --stack api
 tdk resource my-worker --type worker --stack background
 tdk resource my-mcp --type mcp --stack api
+tdk resource --frameworks                                     # list frontend frameworks
+tdk resource --type backend --frameworks                      # list backend frameworks
 
 # Non-interactive resource creation
 tdk resource my-api --type backend --stack api --yes
@@ -158,7 +162,29 @@ Backend creation defaults to Bun + Hono, exactly as it always has: omit `--langu
 
 The selected id is saved as `framework` in `service.json`. `--framework hono` is accepted and saved too, and omitting it changes nothing. `--framework` cannot be combined with `--language python`, and unknown ids fail before a resource is written. Languages without a provider can use `--type bring-your-own`. See the [backend provider guide](../docs/backend-language-providers.md) and the runnable [Python example](../examples/one-backend-python/README.md).
 
-Frontend creation defaults to React. Use `--framework vue` for Vue 3, `--framework svelte` for Svelte 5, `--framework preact` for Preact 10, `--framework lit` for Lit 3, `--framework solid` for Solid 1, `--framework qwik` for Qwik 1, `--framework tanstack-router` for a React SPA with TanStack Router (client-side; TanStack Start SSR is a [bring-your-own](../docs/frontend-framework-providers.md#tanstack-start-ssr) app) or `--framework vanilla` for plain TypeScript with no UI framework; `--framework react` is also accepted. The selected id is saved in `service.json`. The flag applies only to frontend resources, and unknown ids fail before a resource is written. Existing frontend manifests without the field continue to use React. Run `tdk resource --frameworks` to list the registered ids, and an interactive terminal offers them as a picker (React first). Meta-frameworks that own their own server or build config (Next, Nuxt, SvelteKit, Astro, Angular, Remix, TanStack Start) are not Vite SPA providers: `--framework next` fails before anything is written and points to `tdk resource <name> --type bring-your-own`.
+Run `tdk resource --type backend --frameworks` to list the registered backend frameworks with the language (and runtime) they are scaffolded with, their compatibility with the requested language, and the command that creates them:
+
+```bash
+$ tdk resource --type backend --frameworks
+hono       Bun + Hono       bun       compatible with bun        tdk resource <name> --type backend --framework hono
+express    Bun + Express    bun       compatible with bun        tdk resource <name> --type backend --framework express
+elysia     Bun + Elysia     bun       compatible with bun        tdk resource <name> --type backend --framework elysia
+fastify    Bun + Fastify    bun       compatible with bun        tdk resource <name> --type backend --framework fastify
+h3         Bun + h3         bun       compatible with bun        tdk resource <name> --type backend --framework h3
+koa        Bun + Koa        bun       compatible with bun        tdk resource <name> --type backend --framework koa
+nestjs     Bun + NestJS     bun       compatible with bun        tdk resource <name> --type backend --framework nestjs
+```
+
+The compatibility cell names the language it is judged against (`bun` is the default backend language). Add `--language <id>` to see what that language rules out: a language that owns its runtime (Python, Go, Rust, Node) marks every framework as `incompatible with --language <id>`, and the command of such a row creates the resource in that language, without a framework:
+
+```bash
+$ tdk resource --type backend --language python --frameworks
+hono       Bun + Hono       bun       incompatible with --language python    tdk resource <name> --type backend --language python
+```
+
+A requested `--language` is part of the printed command, so a copied row scaffolds the language the listing was asked about instead of silently falling back to Bun.
+
+Frontend creation defaults to React. Use `--framework vue` for Vue 3, `--framework svelte` for Svelte 5, `--framework preact` for Preact 10, `--framework lit` for Lit 3, `--framework solid` for Solid 1, `--framework qwik` for Qwik 1, `--framework tanstack-router` for a React SPA with TanStack Router (client-side; TanStack Start SSR is a [bring-your-own](../docs/frontend-framework-providers.md#tanstack-start-ssr) app) or `--framework vanilla` for plain TypeScript with no UI framework; `--framework react` is also accepted. The selected id is saved in `service.json`. The flag applies only to frontend resources, and unknown ids fail before a resource is written. Existing frontend manifests without the field continue to use React. Run `tdk resource --frameworks` (or `tdk resource --type frontend --frameworks`) to list the registered ids, and an interactive terminal offers them as a picker (React first). Without a `--type` the listing stays this frontend one: `--language` is a backend option and does not apply to it. Meta-frameworks that own their own server or build config (Next, Nuxt, SvelteKit, Astro, Angular, Remix, TanStack Start) are not Vite SPA providers: `--framework next` fails before anything is written and points to `tdk resource <name> --type bring-your-own`.
 
 The frontend provider owns root `index.html` and starter source. After TDK generates runtime config, Vite uses `.autogenerated/vite.config.frontend.autogenerated.ts` for development and `.autogenerated/vite.config.build.autogenerated.ts` for builds. Docker, nginx, Traefik, ports, and generated API/environment modules are shared by both providers. See the [provider contribution guide](../docs/frontend-framework-providers.md) to add another Vite-based SPA framework.
 

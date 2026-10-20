@@ -41,8 +41,9 @@ jobs:
         with:
           node-version: 22
 
-      # `tdk project --yes` and `tdk doctor` look for Tilt, a Docker daemon and
-      # the Compose plugin. The runner image has Docker; Tilt is not preinstalled.
+      # `tdk doctor` looks for Tilt, a Docker daemon and the Compose plugin.
+      # `tdk project --yes` only writes files and does not need the runtime.
+      # The runner image has Docker; Tilt is not preinstalled.
       - name: Install Tilt
         run: |
           curl -fsSL -o tilt.tgz https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz

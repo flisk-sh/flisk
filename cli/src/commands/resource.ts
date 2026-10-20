@@ -10,7 +10,7 @@ import {
   resolveAgentDurability,
   resolveAgentRuntime,
 } from "../agent-runtimes/registry.js";
-import { resolveBackendFramework } from "../backend-frameworks/registry.js";
+import { listBackendFrameworks, resolveBackendFramework } from "../backend-frameworks/registry.js";
 import {
   getBackendIndexTemplate,
   getDrizzleBackendIndexTemplate,
@@ -434,6 +434,60 @@ export function parseResourceType(type: string): CreatableResourceType | "sdk" {
   return normalized as CreatableResourceType | "sdk";
 }
 
+/**
+ * Prints the framework inventory for the requested resource type.
+ *
+ * Without an explicit `--type` the listing stays the historical frontend one, byte for byte, so
+ * `tdk resource --frameworks` keeps working exactly as before: `--language` is a backend option and
+ * never applies to it. `--type frontend` and `--type backend` list that type's frameworks, and the
+ * backend listing carries the language (and runtime) each framework is scaffolded with.
+ */
+function printFrameworkInventory(
+  options: { type?: string; language?: string },
+  isTypeExplicit: boolean,
+): void {
+  // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
+  // it is a backend option, and the frontend listing has never carried one.
+  if (!isTypeExplicit) {
+    printFrontendFrameworks();
+    return;
+  }
+
+  const resourceType = parseResourceType(options.type ?? "backend");
+  if (resourceType !== "frontend" && resourceType !== "backend") {
+    throw new TdkError(`No frameworks are registered for --type ${resourceType}.`, [
+      "Use --type frontend or --type backend to list frameworks",
+      "Omit --type to list the frontend frameworks",
+    ]);
+  }
+
+  // `--language` belongs to backends only, so the resource command rejects it for every other type.
+  const language = resolveBackendLanguage(resourceType, options.language);
+
+  if (resourceType === "frontend") {
+    printFrontendFrameworks();
+    return;
+  }
+
+  for (const f of listBackendFrameworks(options.language)) {
+    // The compatibility cell names the language it is judged against, so it is never a bare
+    // "compatible" that could be read against a different language.
+    const compatibility = f.compatible
+      ? `compatible with ${language?.id}`
+      : `incompatible with --language ${language?.id}`;
+    console.log(`${f.id}\t${f.label}\t${f.languages.join(", ")}\t${compatibility}\t${f.command}`);
+  }
+}
+
+/** The historical frontend listing: id, display name, kind, verification, command. */
+function printFrontendFrameworks(): void {
+  for (const f of listFrontendFrameworks()) {
+    console.log(
+      `${f.id}\t${f.label}\t${f.kind}\t${f.verified ? "verified" : "unverified"}\t${f.command}`,
+    );
+  }
+}
+
 export const resourceCommand = addYesOption(new Command("resource"))
   .description("Create a new resource (service) from scratch, or register an existing one")
   .argument("[name]", "Resource name (kebab-case)")
@@ -444,9 +498,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
   )
   .option(
     "--framework <id>",
-    "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router (see --frameworks); backend hono (default), express, elysia, fastify, nestjs, koa, h3",
+    "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks)",
   )
-  .option("--frameworks", "List registered frontend frameworks and exit")
+  .option(
+    "--frameworks",
+    "List registered frameworks for the resource type and exit (--type frontend, --type backend)",
+  )
   .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
   .option("-s, --stack <stack>", "Stack to assign resource to", "default")
   .option("-p, --path <path>", "Custom path for resource directory")
@@ -477,13 +534,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "--durability <kind>",
     "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres",
   )
-  .action(async (name, options) => {
+  .action(async (name, options, command: Command) => {
     if (options.frameworks) {
-      for (const f of listFrontendFrameworks()) {
-        console.log(
-          `${f.id}\t${f.label}\t${f.kind}\t${f.verified ? "verified" : "unverified"}\t${f.command}`,
-        );
-      }
+      await runCommand(async () => {
+        // The frontend listing is the historical default; `--type` selects the listing when it is given.
+        printFrameworkInventory(options, command.getOptionValueSource("type") === "cli");
+      });
       return;
     }
     await runCommand(async () => {
