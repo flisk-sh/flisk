@@ -8,6 +8,7 @@ import { test } from "node:test";
 import {
 	MANAGED_LABEL,
 	bodyFor,
+	isAdvisory,
 	labelsFor,
 	managedLabelSet,
 	markerFor,
@@ -23,6 +24,7 @@ import {
 	sameLabels,
 	sanitizeLabelPart,
 	titleFor,
+	versionOf,
 } from "./security-alert-issues.mjs";
 
 const DEPENDABOT_ALERT = {
@@ -98,7 +100,7 @@ test("the scanner message yields package, version and advisory ids", () => {
 	assert.equal(parsed.packageName, "vite");
 	assert.equal(parsed.installedVersion, "8.3.1");
 	assert.equal(parsed.cveId, "CVE-2026-112942");
-	assert.equal(parsed.ghsaId, "GHSA-587H-7WMJ-H5PM");
+	assert.equal(parsed.ghsaId, "GHSA-587h-7wmj-h5pm");
 	assert.equal(parseScannerMessage("").packageName, null);
 });
 
@@ -122,7 +124,7 @@ test("a code-scanning alert is read from the rule and the message", () => {
 	assert.equal(finding.packageName, "vite");
 	assert.equal(finding.installedVersion, "8.3.1");
 	assert.equal(finding.manifestPath, "bun.lock");
-	assert.equal(finding.ghsaId, "GHSA-587H-7WMJ-H5PM");
+	assert.equal(finding.ghsaId, "GHSA-587h-7wmj-h5pm");
 	assert.equal(finding.cveId, "CVE-2026-112942");
 });
 
@@ -133,16 +135,33 @@ test("the global advisory fills what the scanner left out", () => {
 		severity: "high",
 		cvss: { score: 7.5, vector_string: "CVSS:4.0/AV:N/AC:L" },
 		vulnerabilities: [
-			{ vulnerable_version_range: ">= 8.3.0, < 8.3.3", first_patched_version: { identifier: "8.3.3" } },
+			{
+				package: { name: "launch-editor", ecosystem: "npm" },
+				vulnerable_version_range: "<= 2.14.1",
+				first_patched_version: "2.14.2",
+			},
+			{
+				package: { name: "vite", ecosystem: "npm" },
+				vulnerable_version_range: ">= 8.3.0, < 8.3.3",
+				first_patched_version: "8.3.3",
+			},
 		],
 		cwes: [{ cwe_id: "CWE-77", name: "Command injection" }],
 		references: [{ url: "https://example.test/advisory" }],
 	});
 	assert.equal(finding.severity, "high");
 	assert.equal(finding.cvssScore, 7.5);
+	// The entry for this package, not the first one the advisory lists.
 	assert.equal(finding.patchedVersion, "8.3.3");
 	assert.equal(finding.vulnerableRange, ">= 8.3.0, < 8.3.3");
 	assert.deepEqual(finding.cwes, [{ id: "CWE-77", name: "Command injection", description: undefined }]);
+});
+
+test("a version arrives as a string or as an object", () => {
+	assert.equal(versionOf("2.14.2"), "2.14.2");
+	assert.equal(versionOf({ identifier: "8.3.3" }), "8.3.3");
+	assert.equal(versionOf(null), null);
+	assert.equal(versionOf(undefined), null);
 });
 
 test("a missing advisory leaves the finding as it was", () => {
@@ -225,6 +244,29 @@ test("the body lists the other manifests the same advisory affects", () => {
 	const body = bodyFor(a, [a, same]);
 	assert.ok(body.includes("## Also affected"));
 	assert.ok(body.includes("`bun.lock`"));
+});
+
+test("a scanner rule that is not an advisory is skipped", () => {
+	const saas = normalizeCodeScanningAlert({
+		number: 440,
+		rule: { id: "BranchProtectionID", severity: "warning", description: "branch protection is not maximal" },
+		most_recent_instance: {
+			location: { path: "no file associated with this alert" },
+			message: { text: "score is 8: branch protection is not maximal on development and all release branches" },
+		},
+	});
+	assert.equal(isAdvisory(saas), false);
+	const semgrep = normalizeCodeScanningAlert({
+		number: 441,
+		rule: { id: "javascript.lang.security.audit.detect-non-literal-regexp", severity: "warning" },
+		most_recent_instance: {
+			location: { path: "cli/src/x.ts" },
+			message: { text: "Detected a non-literal regular expression" },
+		},
+	});
+	assert.equal(isAdvisory(semgrep), false);
+	assert.equal(isAdvisory(normalizeCodeScanningAlert(SCANNER_ALERT)), true);
+	assert.equal(isAdvisory(normalizeDependabotAlert(DEPENDABOT_ALERT)), true);
 });
 
 test("one alert, one issue", () => {

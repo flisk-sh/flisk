@@ -107,8 +107,8 @@ export function parseScannerMessage(message) {
 	return {
 		packageName: pkg ? pkg[1] : null,
 		installedVersion: pkg ? pkg[2] : null,
-		ghsaId: ghsa ? ghsa[0].toUpperCase() : null,
-		cveId: cve ? cve[0].toUpperCase() : null,
+		ghsaId: ghsa ? ghsa[0] : null,
+		cveId: cve ? cve[0] : null,
 	};
 }
 
@@ -132,7 +132,7 @@ export function normalizeDependabotAlert(alert) {
 		manifestPath: alert.dependency?.manifest_path ?? null,
 		scope: alert.dependency?.scope ?? null,
 		vulnerableRange: vuln.vulnerable_version_range ?? null,
-		patchedVersion: vuln.first_patched_version?.identifier ?? null,
+		patchedVersion: versionOf(vuln.first_patched_version) ?? null,
 		installedVersion: null,
 		description: advisory.description ?? "",
 		cwes: (advisory.cwes ?? []).map((cwe) => ({
@@ -175,12 +175,23 @@ export function normalizeCodeScanningAlert(alert) {
 	};
 }
 
+/** A version arrives as a plain string from the global advisory API and as an object from the Dependabot API. */
+export function versionOf(value) {
+	if (typeof value === "string") return value;
+	return value?.identifier ?? null;
+}
+
 /**
  * Fill the gaps a code-scanning alert leaves (severity, CVSS, CWE, patched version)
  * from the global advisory the alert points at.
  */
 export function mergeAdvisory(finding, advisory) {
 	if (!advisory) return finding;
+	// The advisory lists every affected package. The entry for this package carries the
+	// range and the fix that matter here; the first one may belong to another package.
+	const entry =
+		(advisory.vulnerabilities ?? []).find((v) => v.package?.name === finding.packageName) ??
+		(advisory.vulnerabilities ?? [])[0];
 	return {
 		...finding,
 		title: finding.title || advisory.summary,
@@ -189,12 +200,8 @@ export function mergeAdvisory(finding, advisory) {
 		cvssVector: advisory.cvss?.vector_string ?? finding.cvssVector,
 		ghsaId: finding.ghsaId ?? advisory.ghsa_id ?? null,
 		cveId: finding.cveId ?? advisory.cve_id ?? null,
-		vulnerableRange:
-			finding.vulnerableRange ?? advisory.vulnerabilities?.[0]?.vulnerable_version_range ?? null,
-		patchedVersion:
-			finding.patchedVersion ??
-			advisory.vulnerabilities?.[0]?.first_patched_version?.identifier ??
-			null,
+		vulnerableRange: finding.vulnerableRange ?? entry?.vulnerable_version_range ?? null,
+		patchedVersion: finding.patchedVersion ?? versionOf(entry?.first_patched_version) ?? null,
 		description: finding.description || advisory.description || "",
 		cwes: finding.cwes.length
 			? finding.cwes
@@ -393,6 +400,19 @@ export function bodyFor(finding, findings = []) {
 		"",
 	);
 	return lines.join("\n");
+}
+
+/**
+ * Whether a finding is about a published advisory.
+ *
+ * The code-scanning results carry more than advisories: Semgrep's SAST rules and the
+ * OpenSSF Scorecard rules land there too. Those are not advisories, have no CVE or
+ * GHSA to link, and a contributor cannot fix them by bumping a version, so they are
+ * not turned into issues here.
+ */
+export function isAdvisory(finding) {
+	if (finding.source === "dependabot") return true;
+	return Boolean(finding.packageName && (finding.ghsaId || finding.cveId));
 }
 
 /**
@@ -617,8 +637,17 @@ function main(argv) {
 		findings.push(normalizeDependabotAlert(alert));
 	}
 	for (const alert of alerts["code-scanning"]) {
-		const finding = normalizeCodeScanningAlert(alert);
-		findings.push(mergeAdvisory(finding, globalAdvisory(finding.ghsaId)));
+		const finding = mergeAdvisory(
+			normalizeCodeScanningAlert(alert),
+			globalAdvisory(normalizeCodeScanningAlert(alert).ghsaId),
+		);
+		if (!isAdvisory(finding)) {
+			console.log(
+				`::warning::Skipping code-scanning alert #${alert.number} (${alert.rule?.id ?? "unknown"}): not a published advisory.`,
+			);
+			continue;
+		}
+		findings.push(finding);
 	}
 	const managed = listManagedIssues(repo);
 	const actions = planSync(findings, managed);
