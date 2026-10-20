@@ -1,6 +1,8 @@
 // Copyright (c) 2026 TDK Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import type { HostInfo } from "../agent-host.js";
+import { CONTAINER_RUNTIME_CHECK } from "../constants.js";
 import { collectDoctorChecks, createDoctorReport, getDoctorExitCode } from "../doctor-report.js";
 
 const passing = { name: "Docker", didPass: true, message: "Ready" };
@@ -85,5 +87,93 @@ describe("doctor report contract", () => {
     expect(result.checks.map((check) => check.name)).toEqual(["Docker", "Project"]);
     expect(result.errors).toEqual([{ code: "INTERNAL", message: "probe failure" }]);
     expect(getDoctorExitCode(createDoctorReport(result.checks, true, result.errors))).toBe(2);
+  });
+
+  it("handles empty checks in collectDoctorChecks", async () => {
+    const result = await collectDoctorChecks([], []);
+    expect(result).toEqual({ checks: [], errors: [] });
+  });
+
+  it("handles non-Error thrown reasons and project-level check errors", async () => {
+    const result = await collectDoctorChecks(
+      [() => Promise.reject("string rejection")],
+      [() => Promise.reject(new Error("project error"))],
+    );
+    expect(result.checks).toEqual([]);
+    expect(result.errors).toEqual([
+      { code: "INTERNAL", message: "string rejection" },
+      { code: "INTERNAL", message: "project error" },
+    ]);
+  });
+
+  describe("host enrichment", () => {
+    const baseHost: HostInfo = { kind: "local", canUp: true };
+
+    it("enriches host with containerRuntimeReachable: true and keeps canUp: true when runtime passes", () => {
+      const checks = [{ name: CONTAINER_RUNTIME_CHECK, didPass: true, message: "Docker OK" }];
+      const report = createDoctorReport(checks, true, [], undefined, baseHost);
+      expect(report.data.host).toEqual({
+        kind: "local",
+        canUp: true,
+        containerRuntimeReachable: true,
+      });
+    });
+
+    it("sets canUp: false when container runtime check did not pass", () => {
+      const checks = [{ name: CONTAINER_RUNTIME_CHECK, didPass: false, message: "Docker down" }];
+      const report = createDoctorReport(checks, true, [], undefined, baseHost);
+      expect(report.data.host).toEqual({
+        kind: "local",
+        canUp: false,
+        containerRuntimeReachable: false,
+      });
+    });
+
+    it("sets containerRuntimeReachable: null when container runtime check is not in checks", () => {
+      const checks = [{ name: "Other Check", didPass: true, message: "OK" }];
+      const report = createDoctorReport(checks, true, [], undefined, baseHost);
+      expect(report.data.host).toEqual({
+        kind: "local",
+        canUp: true,
+        containerRuntimeReachable: null,
+      });
+    });
+
+    it("keeps canUp: false if host.canUp was already false regardless of runtime check", () => {
+      const disabledHost: HostInfo = { kind: "webcontainer", canUp: false };
+      const checks = [{ name: CONTAINER_RUNTIME_CHECK, didPass: true, message: "Docker OK" }];
+      const report = createDoctorReport(checks, true, [], undefined, disabledHost);
+      expect(report.data.host).toEqual({
+        kind: "webcontainer",
+        canUp: false,
+        containerRuntimeReachable: true,
+      });
+    });
+  });
+
+  describe("port fallback planning", () => {
+    it("provides fallback ports when portPlan is null", () => {
+      const report = createDoctorReport([passing], true, [], null);
+      expect(report.data.ports).toEqual({
+        http: {
+          requested: 80,
+          chosen: null,
+          explicit: false,
+          reason: "port planning failed",
+        },
+        https: {
+          requested: 443,
+          chosen: null,
+          explicit: false,
+          reason: "port planning failed",
+        },
+        postgres: {
+          requested: 5432,
+          chosen: null,
+          explicit: false,
+          reason: "port planning failed",
+        },
+      });
+    });
   });
 });
