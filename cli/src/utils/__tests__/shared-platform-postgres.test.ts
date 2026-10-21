@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -64,7 +64,7 @@ function resource(
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-shared-platform-postgres-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-shared-platform-postgres-"));
   mkdirSync(join(root, ".tdk"), { recursive: true });
   writeProjectJson(featureOffProjectJson());
 });
@@ -214,8 +214,8 @@ describe("evaluateSharedPlatformPostgres", () => {
     expect(evaluation.reason).toBe("dependsOn");
   });
 
-  it("finds dependsOn postgres via project-scoped discovery (not tdk up --only)", () => {
-    // Resource lives under a stack a hypothetical `tdk up --only other` would not select.
+  it("finds dependsOn postgres via project-scoped discovery (not flisk up --only)", () => {
+    // Resource lives under a stack a hypothetical `flisk up --only other` would not select.
     resource("other", "billing-api", {
       appType: "backend",
       port: 4100,
@@ -275,7 +275,7 @@ describe("sharedPlatformPostgresMessage", () => {
 
     const msg = sharedPlatformPostgresMessage(evaluation);
     expect(msg).toContain(
-      "Note: default focus/CORE_INFRA expansion would enable database-management on a typical tdk up even when project.json lists it off.",
+      "Note: default focus/CORE_INFRA expansion would enable database-management on a typical flisk up even when project.json lists it off.",
     );
   });
 
@@ -294,7 +294,7 @@ describe("sharedPlatformPostgresMessage", () => {
 
     const msg = sharedPlatformPostgresMessage(evaluation);
     expect(msg).toBe(
-      "Shared platform Postgres will start because the database-management feature is enabled (project resource set; tdk up may select a subset and not start Postgres)",
+      "Shared platform Postgres will start because the database-management feature is enabled (project resource set; flisk up may select a subset and not start Postgres)",
     );
   });
 
@@ -332,7 +332,7 @@ describe("sharedPlatformPostgresMessage", () => {
 
     const msg = sharedPlatformPostgresMessage(evaluation);
     expect(msg).toBe(
-      "Shared platform Postgres will start because resource(s) orders-api, billing-api depend on postgres/database-management (project resource set; tdk up may select a subset and not start Postgres)",
+      "Shared platform Postgres will start because resource(s) orders-api, billing-api depend on postgres/database-management (project resource set; flisk up may select a subset and not start Postgres)",
     );
   });
 });

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The routed write smoke under WSL2 (moved from the retired wsl2-smoke workflow, #1300). The workflow runs each case in the
 # wsl-bash shell of setup-wsl's Ubuntu 24.04 distro, one step per case, with the same logic as its old steps:
@@ -70,7 +70,7 @@ WS3() { # build the candidate CLI from the copy and install it
   npm run build
   tarball="$(npm pack --silent | tail -1)"
   node scripts/install-global.mjs "./$tarball"
-  tdk --version | tee -a /root/tdk-evidence/environment.log
+  flisk --version | tee -a /root/tdk-evidence/environment.log
 }
 
 WS4() { # the existing WSL2 routed write smoke

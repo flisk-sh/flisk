@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 
 import { existsSync } from "node:fs";
@@ -20,7 +20,7 @@ function nodeTooOld(version) {
 
 if (nodeTooOld(process.versions.node)) {
   console.error(
-    "TDK CLI needs Node.js 22.12+ (current: " +
+    "Flisk CLI needs Node.js 22.12+ (current: " +
       process.versions.node +
       ").\n" +
       "This is the first cold-npx failure. Bun/Prisma/NATS are not involved yet.\n" +
@@ -37,6 +37,6 @@ const cliPath = existsSync(bundledCliPath)
   : join(__dirname, "..", "dist", "cli.js");
 
 import(pathToFileURL(cliPath).href).catch((err) => {
-  console.error("Failed to start TDK:", err);
+  console.error("Failed to start Flisk:", err);
   process.exit(1);
 });

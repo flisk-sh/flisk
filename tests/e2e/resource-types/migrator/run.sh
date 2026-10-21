@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-# A migrator resource (openspec task 3.6, #1290). `tdk resource --type migrator` is not accepted: a migrator is a service.json with
-# "appType": "migrator" that `tdk resource <name>` registers, the same route as an sdk. So M1 writes that service.json and
-# registers it, and M2 checks `tdk status` lists it as a migrator. Neither needs a stack. The ordering rule (Postgres, then the
-# migrator, then the API, proven through tdk up) needs an API in the project and is the follow-up to this suite.
+# A migrator resource (openspec task 3.6, #1290). `flisk resource --type migrator` is not accepted: a migrator is a service.json with
+# "appType": "migrator" that `flisk resource <name>` registers, the same route as an sdk. So M1 writes that service.json and
+# registers it, and M2 checks `flisk status` lists it as a migrator. Neither needs a stack. The ordering rule (Postgres, then the
+# migrator, then the API, proven through flisk up) needs an API in the project and is the follow-up to this suite.
 # Runs nightly, on release and by hand; see suite.json.
 #
 #   tests/e2e/resource-types/migrator/run.sh all              every case in order, then cleanup
@@ -26,16 +26,16 @@ M1() { # write the migrator's service.json and register it
   rm -rf "$DIR"; mkdir -p "$DIR"
   (cd "$DIR" && git init -q .)
   run scaffold-project project --yes
-  [ "$RC" -eq 0 ] || die "tdk project --yes exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk project --yes exited $RC"
   mkdir -p "$DIR/services/$STACK/$RES"
   printf '{"appName":"%s","appType":"migrator"}\n' "$RES" >"$DIR/services/$STACK/$RES/service.json"
   run "register-$RES" resource "$RES" --stack "$STACK" --yes
-  [ "$RC" -eq 0 ] || die "tdk resource $RES (register existing) exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk resource $RES (register existing) exited $RC"
   jq -e '.appType == "migrator"' "$DIR/services/$STACK/$RES/service.json" >/dev/null || die "registering changed the appType"
 }
 
-M2() { # tdk status lists the registered resource as a migrator
-  log "M2 tdk status lists $RES as a migrator"
+M2() { # flisk status lists the registered resource as a migrator
+  log "M2 flisk status lists $RES as a migrator"
   common_wait_status "$RES" migrator
 }
 
@@ -62,8 +62,8 @@ first_log_ms() {
   docker logs -t "$1" 2>&1 | grep -E -m1 "$2" | awk '{print $1}' | xargs -I{} node -p "Date.parse('{}')" 2>/dev/null || true
 }
 
-M3() { # tdk up starts Postgres, runs the migrator to completion, then starts the API; the API does not migrate
-  log "M3 tdk up: Postgres, then the migrator, then the API"
+M3() { # flisk up starts Postgres, runs the migrator to completion, then starts the API; the API does not migrate
+  log "M3 flisk up: Postgres, then the migrator, then the API"
   common_scaffold backend "$API" --feature prisma --stack "$STACK" --yes
   local api_json="$DIR/services/$STACK/$API/service.json" mig_json="$DIR/services/$STACK/$MIGRATOR/service.json"
   jq -e --arg m "$MIGRATOR" '.dependsOn == [$m]' "$api_json" >/dev/null || die "$API does not depend on $MIGRATOR"

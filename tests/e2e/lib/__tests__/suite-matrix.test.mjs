@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Unit tests for tests/e2e/lib/suite-matrix.mjs. Run by `make test-shell`.
 import assert from "node:assert/strict";

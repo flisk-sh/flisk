@@ -1,6 +1,6 @@
 ## Why
 
-`tdk resource --type backend` defaults to Bun + Hono. Backends can also select Python (FastAPI), Go (`net/http`), and Rust (`axum`). While Bun supports many JavaScript frameworks, teams frequently need standard Node.js (Node 22 LTS) for:
+`flisk resource --type backend` defaults to Bun + Hono. Backends can also select Python (FastAPI), Go (`net/http`), and Rust (`axum`). While Bun supports many JavaScript frameworks, teams frequently need standard Node.js (Node 22 LTS) for:
 - Corporate compliance policies that restrict container base images to official Node.js LTS distributions.
 - Native C/C++ addons (e.g. sharp, canvas, grpc, specific database drivers) that have compatibility issues under alternative runtimes.
 - Predictable execution on the long-term stable Node.js runtime.
@@ -9,7 +9,7 @@ When the backend provider abstraction was first introduced in `openspec/changes/
 
 ## What Changes
 
-- Register `node` as an opt-in backend language provider selected with `tdk resource <name> --type backend --language node --stack <stack>`.
+- Register `node` as an opt-in backend language provider selected with `flisk resource <name> --type backend --language node --stack <stack>`.
 - Bun remains the historical default when `--language` is omitted; omitted output is unchanged.
 - Scaffolding generates a minimal, zero-dependency Node 22 ES module service (`package.json`, `src/index.js`, and `tests/health.test.js`) using standard library `node:http` and `node:test`.
 - The engine generates the multi-stage Dockerfile (`node:22-slim`) with development, test, and production stages, health check probe, and `PORT` contract.

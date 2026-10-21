@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 function convert(manifest: Record<string, unknown>) {
-  const dir = mkdtempSync(join(tmpdir(), "tdk-manifest-yaml-"));
+  const dir = mkdtempSync(join(tmpdir(), "flisk-manifest-yaml-"));
   dirs.push(dir);
   const file = join(dir, "service.json");
   writeFileSync(file, JSON.stringify(manifest));

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 """
 Pytest configuration and shared fixtures for tilt-engine tests.

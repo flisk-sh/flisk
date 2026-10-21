@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { createHash } from "node:crypto";
 import {
@@ -56,9 +56,9 @@ vi.mock("../../utils/paths.js", async (importOriginal) => {
 const platformMock = {
   isWindows: vi.fn((): boolean => process.platform === "win32"),
   binaryAssetName: vi.fn((): string | null =>
-    process.platform === "win32" ? "tdk-windows-amd64.exe" : "tdk-darwin-arm64",
+    process.platform === "win32" ? "flisk-windows-amd64.exe" : "flisk-darwin-arm64",
   ),
-  executableName: vi.fn((): string => (process.platform === "win32" ? "tdk.exe" : "tdk")),
+  executableName: vi.fn((): string => (process.platform === "win32" ? "tdk.exe" : "flisk")),
 };
 vi.mock("../../utils/platform.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../utils/platform.js")>();
@@ -94,11 +94,11 @@ const {
 
 import type { BinaryRelease } from "../upgrade.js";
 
-// Regression coverage for: `tdk upgrade` used to only swap the `tdk` binary
+// Regression coverage for: `flisk upgrade` used to only swap the `flisk` binary
 // and leave the bundled tdk-cli/ engine+templates folder next to it stale or
 // missing, so an upgraded binary still crashed with the loadTemplate ENOENT
 // (the exact error this was meant to fix). It must refresh both, every time.
-const BINARY_BYTES = "fake tdk binary";
+const BINARY_BYTES = "fake flisk binary";
 const ENGINE_BYTES = "fake engine tarball";
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
@@ -110,19 +110,19 @@ describe("upgradeViaBinary", () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
-    installDir = mkdtempSync(join(tmpdir(), "tdk-upgrade-test-"));
-    tdkPath = join(installDir, "tdk");
+    installDir = mkdtempSync(join(tmpdir(), "flisk-upgrade-test-"));
+    tdkPath = join(installDir, "flisk");
     release = {
       tag: "v1.3.21",
-      assetName: "tdk-darwin-arm64",
-      downloadUrl: "https://example.test/tdk-darwin-arm64",
-      engineDownloadUrl: "https://example.test/tdk-cli-engine.tar.gz",
+      assetName: "flisk-darwin-arm64",
+      downloadUrl: "https://example.test/flisk-darwin-arm64",
+      engineDownloadUrl: "https://example.test/flisk-cli-engine.tar.gz",
       checksumsUrl: "https://example.test/checksums.txt",
     };
     checksums = [
-      `${sha256(BINARY_BYTES)}  tdk-darwin-arm64`,
-      `${sha256("other platform")}  tdk-linux-amd64`,
-      `${sha256(ENGINE_BYTES)}  tdk-cli-engine.tar.gz`,
+      `${sha256(BINARY_BYTES)}  flisk-darwin-arm64`,
+      `${sha256("other platform")}  flisk-linux-amd64`,
+      `${sha256(ENGINE_BYTES)}  flisk-cli-engine.tar.gz`,
     ].join("\n");
     execSyncMock.mockReset();
     fetchMock.mockReset();
@@ -192,7 +192,10 @@ describe("upgradeViaBinary", () => {
       "the engine tarball does not match",
       () => checksums.replace(sha256(ENGINE_BYTES), sha256("x")),
     ],
-    ["checksums.txt has no entry for the binary", () => checksums.replace("tdk-darwin-arm64", "x")],
+    [
+      "checksums.txt has no entry for the binary",
+      () => checksums.replace("flisk-darwin-arm64", "x"),
+    ],
   ])("refuses to install when %s", async (_case, makeChecksums) => {
     checksums = makeChecksums();
     const ok = await upgradeViaBinary(tdkPath, release);
@@ -204,7 +207,7 @@ describe("upgradeViaBinary", () => {
   it("still installs releases whose checksums.txt predates the engine entry", async () => {
     checksums = checksums
       .split("\n")
-      .filter((line) => !line.endsWith("tdk-cli-engine.tar.gz"))
+      .filter((line) => !line.endsWith("flisk-cli-engine.tar.gz"))
       .join("\n");
     const ok = await upgradeViaBinary(tdkPath, release);
 
@@ -250,7 +253,7 @@ describe("upgradeViaBinary", () => {
     expect(readFileSync(join(engineDir, "engine-marker"), "utf-8")).toBe("extracted");
     expect(existsSync(join(engineDir, "old-engine-file"))).toBe(false);
     const leftovers = readdirSync(installDir).filter(
-      (name) => name !== "tdk" && name !== "tdk-cli",
+      (name) => name !== "flisk" && name !== "tdk-cli",
     );
     expect(leftovers).toEqual([]);
   });
@@ -290,7 +293,7 @@ describe("package-manager upgrade failures", () => {
     execSyncMock.mockReset();
     const npmStderr = "npm error code EACCES: permission denied\n";
     execSyncMock.mockImplementationOnce(() => {
-      const error = new Error("Command failed: npm install -g @tdk-landscape/tdk-cli-core@latest");
+      const error = new Error("Command failed: npm install -g flisk@latest");
       Object.assign(error, { stderr: Buffer.from(npmStderr) });
       throw error;
     });
@@ -301,15 +304,13 @@ describe("package-manager upgrade failures", () => {
       const ok = await upgradeViaNpm();
       expect(ok).toBe(false);
       expect(execSyncMock).toHaveBeenCalledTimes(1);
-      expect(String(execSyncMock.mock.calls[0]?.[0])).toBe(
-        "npm install -g @tdk-landscape/tdk-cli-core@latest",
-      );
+      expect(String(execSyncMock.mock.calls[0]?.[0])).toBe("npm install -g flisk@latest");
       expect(execSyncMock.mock.calls[0]?.[1]).toMatchObject({
         stdio: ["inherit", "inherit", "pipe"],
       });
       expect(stderr).toHaveBeenCalledWith(npmStderr);
       const output = log.mock.calls.flat().map(String).join("\n");
-      expect(output).toContain("npm install -g @tdk-landscape/tdk-cli-core@latest");
+      expect(output).toContain("npm install -g flisk@latest");
       expect(output).toContain("docs.npmjs.com");
       expect(output).not.toContain("github:");
       expect(output).not.toContain("Upgraded successfully");
@@ -330,13 +331,9 @@ describe("package-manager upgrade failures", () => {
       const ok = await upgradeViaBun();
       expect(ok).toBe(false);
       expect(execFileSyncMock).toHaveBeenCalledTimes(1);
-      expect(execFileSyncMock.mock.calls[0]?.[1]).toEqual([
-        "install",
-        "-g",
-        "@tdk-landscape/tdk-cli-core@latest",
-      ]);
+      expect(execFileSyncMock.mock.calls[0]?.[1]).toEqual(["install", "-g", "flisk@latest"]);
       const output = log.mock.calls.flat().map(String).join("\n");
-      expect(output).toContain("bun install -g @tdk-landscape/tdk-cli-core@latest");
+      expect(output).toContain("bun install -g flisk@latest");
       expect(output).not.toContain("github:");
       expect(output).not.toContain("Upgraded successfully");
     } finally {
@@ -350,11 +347,11 @@ describe("parseChecksums", () => {
     const a = "a".repeat(64);
     const b = "B".repeat(64);
     const sums = parseChecksums(
-      `${a}  tdk-linux-amd64\n${b} *tdk-cli-engine.tar.gz\n\nnot a checksum line\n`,
+      `${a}  flisk-linux-amd64\n${b} *flisk-cli-engine.tar.gz\n\nnot a checksum line\n`,
     );
 
-    expect(sums.get("tdk-linux-amd64")).toBe(a);
-    expect(sums.get("tdk-cli-engine.tar.gz")).toBe("b".repeat(64));
+    expect(sums.get("flisk-linux-amd64")).toBe(a);
+    expect(sums.get("flisk-cli-engine.tar.gz")).toBe("b".repeat(64));
     expect(sums.size).toBe(2);
   });
 });
@@ -371,18 +368,18 @@ describe("Windows upgrade installation routing", () => {
     expect(
       classifyRunningInstall(
         "C:\\Program Files\\nodejs\\node.exe",
-        "C:\\Users\\dev\\node_modules\\@tdk-landscape\\tdk-cli-core\\bin\\tdk.js",
+        "C:\\Users\\dev\\node_modules\\flisk\\bin\\flisk.js",
         "win32",
       ),
     ).toEqual({
       method: "npm",
-      path: "C:\\Users\\dev\\node_modules\\@tdk-landscape\\tdk-cli-core\\bin\\tdk.js",
+      path: "C:\\Users\\dev\\node_modules\\flisk\\bin\\flisk.js",
     });
   });
 
   it("prints the npm update command instead of replacing npm files with an exe", () => {
     expect(windowsNpmUpgradeMessage("win32", { method: "npm" })).toBe(
-      "use npm install -g @tdk-landscape/tdk-cli-core@latest",
+      "use npm install -g flisk@latest",
     );
   });
 });
@@ -410,21 +407,21 @@ describe("isStandaloneBinary", () => {
   it("returns true on Unix when file command outputs Mach-O or ELF", () => {
     platformMock.isWindows.mockReturnValue(false);
     execFileSyncMock.mockReturnValueOnce("Mach-O 64-bit arm64 executable");
-    expect(isStandaloneBinary("/usr/local/bin/tdk")).toBe(true);
+    expect(isStandaloneBinary("/usr/local/bin/flisk")).toBe(true);
 
     execFileSyncMock.mockReturnValueOnce("ELF 64-bit LSB executable, x86-64");
-    expect(isStandaloneBinary("/usr/local/bin/tdk")).toBe(true);
+    expect(isStandaloneBinary("/usr/local/bin/flisk")).toBe(true);
   });
 
   it("returns false on Unix when file command outputs text or throws", () => {
     platformMock.isWindows.mockReturnValue(false);
     execFileSyncMock.mockReturnValueOnce("POSIX shell script, ASCII text executable");
-    expect(isStandaloneBinary("/usr/local/bin/tdk")).toBe(false);
+    expect(isStandaloneBinary("/usr/local/bin/flisk")).toBe(false);
 
     execFileSyncMock.mockImplementationOnce(() => {
       throw new Error("file not found");
     });
-    expect(isStandaloneBinary("/usr/local/bin/tdk")).toBe(false);
+    expect(isStandaloneBinary("/usr/local/bin/flisk")).toBe(false);
   });
 });
 
@@ -449,7 +446,7 @@ describe("getLatestBinaryRelease", () => {
   });
 
   it("returns null when GitHub API responds with non-ok status", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce({
@@ -461,7 +458,7 @@ describe("getLatestBinaryRelease", () => {
   });
 
   it("returns null when response json does not contain tag_name", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce({
@@ -473,13 +470,13 @@ describe("getLatestBinaryRelease", () => {
   });
 
   it("returns null when fetch throws an error", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("network timeout")));
     expect(await getLatestBinaryRelease()).toBeNull();
   });
 
   it("returns a binary release object when release is found", async () => {
-    platformMock.binaryAssetName.mockReturnValueOnce("tdk-darwin-arm64");
+    platformMock.binaryAssetName.mockReturnValueOnce("flisk-darwin-arm64");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce({
@@ -490,13 +487,13 @@ describe("getLatestBinaryRelease", () => {
     const release = await getLatestBinaryRelease();
     expect(release).toEqual({
       tag: "v1.4.0",
-      assetName: "tdk-darwin-arm64",
+      assetName: "flisk-darwin-arm64",
       downloadUrl:
-        "https://github.com/tdk-landscape/tdk-cli-releases/releases/download/v1.4.0/tdk-darwin-arm64",
+        "https://github.com/flisk-sh/tdk-cli-releases/releases/download/v1.4.0/flisk-darwin-arm64",
       engineDownloadUrl:
-        "https://github.com/tdk-landscape/tdk-cli-releases/releases/download/v1.4.0/tdk-cli-engine.tar.gz",
+        "https://github.com/flisk-sh/tdk-cli-releases/releases/download/v1.4.0/flisk-cli-engine.tar.gz",
       checksumsUrl:
-        "https://github.com/tdk-landscape/tdk-cli-releases/releases/download/v1.4.0/checksums.txt",
+        "https://github.com/flisk-sh/tdk-cli-releases/releases/download/v1.4.0/checksums.txt",
     });
   });
 });
@@ -564,7 +561,7 @@ describe("detectInstallation and detectInstallationForPath", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-detect-test-"));
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-detect-test-"));
   });
 
   afterEach(() => {
@@ -576,7 +573,7 @@ describe("detectInstallation and detectInstallationForPath", () => {
     const binDir = join(gitRoot, "tdk-cli", "bin");
     mkdirSync(join(gitRoot, ".git"), { recursive: true });
     mkdirSync(binDir, { recursive: true });
-    const fakeBin = join(binDir, "tdk");
+    const fakeBin = join(binDir, "flisk");
     writeFileSync(fakeBin, "#!/bin/sh");
 
     const info = detectInstallationForPath(fakeBin);
@@ -585,7 +582,7 @@ describe("detectInstallation and detectInstallationForPath", () => {
   });
 
   it("detects bun installation when path contains .bun", () => {
-    const bunBin = join(tempDir, ".bun", "bin", "tdk");
+    const bunBin = join(tempDir, ".bun", "bin", "flisk");
     mkdirSync(dirname(bunBin), { recursive: true });
     writeFileSync(bunBin, "#!/bin/sh");
 
@@ -594,7 +591,7 @@ describe("detectInstallation and detectInstallationForPath", () => {
   });
 
   it("detects npm installation when path contains node_modules or .npm", () => {
-    const npmBin = join(tempDir, "node_modules", ".bin", "tdk");
+    const npmBin = join(tempDir, "node_modules", ".bin", "flisk");
     mkdirSync(dirname(npmBin), { recursive: true });
     writeFileSync(npmBin, "#!/bin/sh");
 
@@ -628,9 +625,9 @@ describe("detectAllInstallations", () => {
   it("deduplicates multiple binary entries and ignores unknown", () => {
     findOnPathMock.mockReturnValue(null);
     findAllOnPathMock.mockReturnValueOnce([
-      "/usr/local/bin/tdk",
-      "/usr/bin/tdk",
-      "/nonexistent/tdk",
+      "/usr/local/bin/flisk",
+      "/usr/bin/flisk",
+      "/nonexistent/flisk",
     ]);
     execFileSyncMock.mockReturnValue("Mach-O 64-bit arm64 executable");
 
@@ -643,7 +640,7 @@ describe("upgradeViaGit", () => {
   let gitRepoDir: string;
 
   beforeEach(() => {
-    gitRepoDir = mkdtempSync(join(tmpdir(), "tdk-git-test-"));
+    gitRepoDir = mkdtempSync(join(tmpdir(), "flisk-git-test-"));
     mkdirSync(join(gitRepoDir, ".git"), { recursive: true });
     mkdirSync(join(gitRepoDir, "cli"), { recursive: true });
     writeFileSync(join(gitRepoDir, "cli", "package.json"), "{}");
@@ -769,7 +766,7 @@ describe("upgradeAllInstallations", () => {
 
   beforeEach(() => {
     process.argv[1] = "";
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-all-test-"));
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-all-test-"));
   });
 
   afterEach(() => {
@@ -791,7 +788,7 @@ describe("upgradeAllInstallations", () => {
   });
 
   it("returns true on dry-run without performing upgrades", async () => {
-    const binPath = join(tempDir, "tdk");
+    const binPath = join(tempDir, "flisk");
     writeFileSync(binPath, "ELF");
     findAllOnPathMock.mockReturnValue([binPath]);
     findOnPathMock.mockReturnValue(null);
@@ -807,9 +804,9 @@ describe("upgradeAllInstallations", () => {
   });
 
   it("skips updating binary when already current, and updates npm and bun", async () => {
-    const binPath = join(tempDir, "tdk");
+    const binPath = join(tempDir, "flisk");
     writeFileSync(binPath, "ELF");
-    const npmPath = join(tempDir, "node_modules", ".bin", "tdk");
+    const npmPath = join(tempDir, "node_modules", ".bin", "flisk");
     mkdirSync(dirname(npmPath), { recursive: true });
     writeFileSync(npmPath, "#!/bin/sh");
     findAllOnPathMock.mockReturnValue([binPath, npmPath]);
@@ -833,7 +830,7 @@ describe("upgradeAllInstallations", () => {
       expect(ok).toBe(true);
       const text = logSpy.mock.calls.flat().join(" ");
       expect(text).toContain("is already current");
-      expect(text).toContain("All TDK installations on PATH are up to date.");
+      expect(text).toContain("All Flisk installations on PATH are up to date.");
     } finally {
       logSpy.mockRestore();
     }
@@ -853,7 +850,7 @@ describe("upgradeCommand action handler", () => {
       configurable: true,
     });
     Object.defineProperty(process, "platform", { value: origPlatform, configurable: true });
-    tmp = mkdtempSync(join(tmpdir(), "tdk-cmd-test-"));
+    tmp = mkdtempSync(join(tmpdir(), "flisk-cmd-test-"));
     execSyncMock.mockReset();
     execFileSyncMock.mockReset();
     findOnPathMock.mockReset();
@@ -862,8 +859,8 @@ describe("upgradeCommand action handler", () => {
     promptConfirmMock.mockResolvedValue(true);
     getPackageVersionMock.mockReturnValue("1.3.186");
     platformMock.isWindows.mockReturnValue(false);
-    platformMock.binaryAssetName.mockReturnValue("tdk-darwin-arm64");
-    platformMock.executableName.mockReturnValue("tdk");
+    platformMock.binaryAssetName.mockReturnValue("flisk-darwin-arm64");
+    platformMock.executableName.mockReturnValue("flisk");
   });
 
   afterEach(() => {
@@ -920,11 +917,11 @@ describe("upgradeCommand action handler", () => {
 
       const res = await runUpgrade(["--all"]);
       expect(res.status).toBe(1);
-      expect(res.stderr).toContain("Could not find any TDK installations on PATH.");
+      expect(res.stderr).toContain("Could not find any Flisk installations on PATH.");
     });
 
     it("exits with 0 when confirmation prompt is cancelled", async () => {
-      const fakeBin = join(tmp, "tdk");
+      const fakeBin = join(tmp, "flisk");
       writeFileSync(fakeBin, "ELF");
       findAllOnPathMock.mockReturnValue([fakeBin]);
       findOnPathMock.mockReturnValue(null);
@@ -936,7 +933,7 @@ describe("upgradeCommand action handler", () => {
     });
 
     it("runs dry run successfully with --all --dry-run", async () => {
-      const fakeBin = join(tmp, "tdk");
+      const fakeBin = join(tmp, "flisk");
       writeFileSync(fakeBin, "ELF");
       findAllOnPathMock.mockReturnValue([fakeBin]);
       findOnPathMock.mockReturnValue(null);
@@ -955,14 +952,14 @@ describe("upgradeCommand action handler", () => {
       const res = await runUpgrade([]);
       expect(res.status).toBe(1);
       expect(res.stderr).toContain("Could not detect installation method");
-      expect(res.stdout).toContain("npm install -g @tdk-landscape/tdk-cli-core@latest");
+      expect(res.stdout).toContain("npm install -g flisk@latest");
     });
   });
 
   describe("Windows npm upgrade message", () => {
     it("prints message and returns without exiting when on Windows with npm install", async () => {
       Object.defineProperty(process, "platform", { value: "win32", configurable: true });
-      const npmPath = join(tmp, "node_modules", ".bin", "tdk");
+      const npmPath = join(tmp, "node_modules", ".bin", "flisk");
       mkdirSync(dirname(npmPath), { recursive: true });
       writeFileSync(npmPath, "#!/bin/sh");
       findOnPathMock.mockReturnValue(npmPath);
@@ -970,7 +967,7 @@ describe("upgradeCommand action handler", () => {
 
       const res = await runUpgrade([]);
       expect(res.status).toBeUndefined();
-      expect(res.stdout).toContain("use npm install -g @tdk-landscape/tdk-cli-core@latest");
+      expect(res.stdout).toContain("use npm install -g flisk@latest");
     });
   });
 
@@ -978,7 +975,7 @@ describe("upgradeCommand action handler", () => {
     let fakeBin: string;
 
     beforeEach(() => {
-      fakeBin = join(tmp, "tdk");
+      fakeBin = join(tmp, "flisk");
       writeFileSync(fakeBin, "ELF");
       findOnPathMock.mockReturnValue(fakeBin);
       Object.defineProperty(process, "execPath", { value: fakeBin, configurable: true });
@@ -1044,7 +1041,7 @@ describe("upgradeCommand action handler", () => {
 
       const res = await runUpgrade([]);
       expect(res.status).toBe(1);
-      expect(res.stderr).toContain("TDK Windows v1 supports AMD64 only");
+      expect(res.stderr).toContain("Flisk Windows v1 supports AMD64 only");
     });
 
     it("exits with 1 with Windows AMD64 specific error when on win32 x64 and binary release missing", async () => {
@@ -1060,7 +1057,7 @@ describe("upgradeCommand action handler", () => {
 
       const res = await runUpgrade([]);
       expect(res.status).toBe(1);
-      expect(res.stderr).toContain("No Windows AMD64 binary in this TDK release");
+      expect(res.stderr).toContain("No Windows AMD64 binary in this Flisk release");
     });
 
     it("exits with 1 and shows manual curl instructions when binary upgrade fails", async () => {
@@ -1117,7 +1114,7 @@ describe("upgradeCommand action handler", () => {
       const binDir = join(gitDir, "tdk-cli", "bin");
       mkdirSync(join(gitDir, ".git"), { recursive: true });
       mkdirSync(binDir, { recursive: true });
-      fakeBin = join(binDir, "tdk");
+      fakeBin = join(binDir, "flisk");
       writeFileSync(fakeBin, "#!/bin/sh");
       findOnPathMock.mockReturnValue(fakeBin);
     });
@@ -1223,7 +1220,7 @@ describe("upgradeCommand action handler", () => {
     let npmBin: string;
 
     beforeEach(() => {
-      npmBin = join(tmp, "node_modules", ".bin", "tdk");
+      npmBin = join(tmp, "node_modules", ".bin", "flisk");
       mkdirSync(dirname(npmBin), { recursive: true });
       writeFileSync(npmBin, "#!/bin/sh");
       findOnPathMock.mockReturnValue(npmBin);
@@ -1266,7 +1263,7 @@ describe("upgradeCommand action handler", () => {
       expect(res.status).toBeUndefined();
       expect(res.stdout).toContain("Upgrade complete!");
       expect(res.stdout).toContain("Version: 1.3.0 → 1.4.0");
-      expect(res.stdout).toContain("tdk --help");
+      expect(res.stdout).toContain("flisk --help");
     });
 
     it("shows restart warning when version appears unchanged after upgrade without --force", async () => {
@@ -1316,7 +1313,7 @@ describe("upgradeCommand action handler", () => {
     });
 
     it("successfully upgrades bun installation", async () => {
-      const bunPath = join(tmp, ".bun", "bin", "tdk");
+      const bunPath = join(tmp, ".bun", "bin", "flisk");
       mkdirSync(dirname(bunPath), { recursive: true });
       writeFileSync(bunPath, "#!/bin/sh");
       findOnPathMock.mockReturnValue(bunPath);

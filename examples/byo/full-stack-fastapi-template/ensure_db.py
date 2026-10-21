@@ -1,4 +1,4 @@
-"""TDK gives a bring-your-own service DATABASE_URL but does not create the database, so create it if missing."""
+"""Flisk gives a bring-your-own service DATABASE_URL but does not create the database, so create it if missing."""
 import os
 import time
 from urllib.parse import urlsplit, urlunsplit

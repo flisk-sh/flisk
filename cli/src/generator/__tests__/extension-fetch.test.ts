@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import {
@@ -90,9 +90,9 @@ function buildFixtureTarball(): Buffer {
 }
 
 beforeEach(() => {
-  projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-"));
-  destDir = mkdtempSync(join(tmpdir(), "tdk-dest-"));
-  fakeHome = mkdtempSync(join(tmpdir(), "tdk-home-"));
+  projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-"));
+  destDir = mkdtempSync(join(tmpdir(), "flisk-dest-"));
+  fakeHome = mkdtempSync(join(tmpdir(), "flisk-home-"));
 
   mkdirSync(join(destDir, "engine/topologies/tilt/generators/typescript"), { recursive: true });
   writeFileSync(

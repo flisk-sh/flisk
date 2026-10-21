@@ -1,6 +1,6 @@
 # Design
 
-## Grouping (`tdk status`)
+## Grouping (`flisk status`)
 
 A pure function in `cli/src/utils/shared-infra.ts` takes the discovered stacks and the project name and returns one Postgres instance group:
 
@@ -8,7 +8,7 @@ A pure function in `cli/src/utils/shared-infra.ts` takes the discovered stacks a
 - A resource uses the shared database when its `featuresEnabled` includes `database-management` or its `dependsOn` includes `postgres` or `database-management`.
 - Each stack that has such a resource becomes a database entry named `<project>_<stack>`, listing those resources.
 
-The function does no I/O, so it is unit-testable without Docker or Tilt. `tdk status` renders it in the human output and adds it to `--json` as `sharedInfra`.
+The function does no I/O, so it is unit-testable without Docker or Tilt. `flisk status` renders it in the human output and adds it to `--json` as `sharedInfra`.
 
 ## Per-stack reset (later PR)
 

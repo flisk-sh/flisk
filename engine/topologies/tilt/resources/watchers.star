@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 👁️ TILT SDK - FILE WATCHERS
@@ -8,7 +8,7 @@
 # =============================================================================
 #
 # This module sets up watchers for package.json files across all services.
-# When a developer runs `bun add @tdk/x`, the watcher triggers
+# When a developer runs `bun add @flisk/x`, the watcher triggers
 # automatic regeneration of TSConfig and Vite configurations.
 #
 # Usage:
@@ -23,7 +23,7 @@ def setup_package_json_watchers(services, should_enable):
     """
     Set up file watchers for package.json across all services.
     
-    When package.json changes (e.g., via `bun add @tdk/x`),
+    When package.json changes (e.g., via `bun add @flisk/x`),
     Tilt will automatically trigger config regeneration.
     
     Args:
@@ -58,7 +58,7 @@ def setup_package_json_watchers(services, should_enable):
     if watched_paths:
         print("📦 ═══════════════════════════════════════════════════════════════")
         print("📦  AUTOMATIC BRIDGE: Watching " + str(len(watched_paths)) + " package.json files")
-        print("📦  When you 'bun add @tdk/x', configs auto-regenerate!")
+        print("📦  When you 'bun add @flisk/x', configs auto-regenerate!")
         print("📦 ═══════════════════════════════════════════════════════════════")
     
     return watched_paths
@@ -157,13 +157,13 @@ echo "🔄  SDK: engine/ directory structure"
 echo "🔄 ═══════════════════════════════════════════════════════════════"
 echo ""
 echo "🚀 AUTOMATIC BRIDGE - HOW IT WORKS:"
-echo "   1. bun add @tdk/auth"
+echo "   1. bun add @flisk/auth"
 echo "   2. Tilt watches package.json"
 echo "   3. TSConfig/Vite/Manifest auto-update"
 echo ""
 echo "🎯 CONVENTION OVER CONFIGURATION:"
-echo "   @tdk/platform-x → shared-platform-engineering/platform-x/src"
-echo "   @tdk/product-x  → shared-product-engineering/product-x/src"
+echo "   @flisk/platform-x → shared-platform-engineering/platform-x/src"
+echo "   @flisk/product-x  → shared-product-engineering/product-x/src"
 echo ""
 echo "🔄 ═══════════════════════════════════════════════════════════════"
 ''',

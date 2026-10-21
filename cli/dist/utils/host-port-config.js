@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -70,7 +70,7 @@ export function isPortHeldByProjectContainers(dockerPs, projectRoot, port) {
 }
 /**
  * The HTTP ingress port to probe while a stack is running. getHostPortPlan moves a saved fallback port (8080) back to the
- * preferred one (80) as soon as that is free, which is right for the next `tdk up` but wrong for a running stack: Traefik is still
+ * preferred one (80) as soon as that is free, which is right for the next `flisk up` but wrong for a running stack: Traefik is still
  * bound to the saved port, so probing the planned one finds nothing and every runtime check is skipped. When this project's own
  * containers hold the saved port, probe that one.
  */

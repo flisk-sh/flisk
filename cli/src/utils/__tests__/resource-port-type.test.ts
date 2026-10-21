@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,7 +11,7 @@ describe("discoverResourcesFromRoot port and type", () => {
   let root = "";
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-resource-port-type-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-resource-port-type-"));
     mkdirSync(join(root, ".tdk"), { recursive: true });
     writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
   });

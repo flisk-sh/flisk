@@ -14,12 +14,12 @@
 
 리뷰하기 전에 아래를 읽으세요. 모두 합쳐 약 1시간이 걸리며, 한 번만 하면 됩니다. 이것을 읽지 않으면 AI의 의견이 맞는지 판단할 수 없습니다.
 
-**TDK란 무엇인가**
+**Flisk란 무엇인가**
 
-- [ ] [README](../../../README.md): TDK가 무엇을 하는지, 사람들이 어떤 명령을 쓰는지.
+- [ ] [README](../../../README.md): Flisk가 무엇을 하는지, 사람들이 어떤 명령을 쓰는지.
 - [ ] [프로젝트 개요](../../project-overview.md): Project → Stack → Resource 모델.
-- [ ] [범위](../../scope.md): TDK가 무엇을 위한 것이며, 무엇을 위한 것이 아닌지.
-- [ ] [생성 파일](../../generated-files.md): TDK가 쓰는 파일. 생성된 파일은 직접 편집하지 말고, 그것을 만드는 입력을 바꾸세요.
+- [ ] [범위](../../scope.md): Flisk가 무엇을 위한 것이며, 무엇을 위한 것이 아닌지.
+- [ ] [생성 파일](../../generated-files.md): Flisk가 쓰는 파일. 생성된 파일은 직접 편집하지 말고, 그것을 만드는 입력을 바꾸세요.
 
 **우리가 일하는 방식**
 
@@ -65,7 +65,7 @@ AI 버튼은 AI 어시스턴트와의 채팅을 엽니다. 그 어시스턴트�
 각 버튼은 단순한 링크입니다. AI 웹사이트를 새 탭에서 열고, 이 메시지가 미리 입력되어 있습니다.
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/tdk-landscape/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
 ```
 
 | 버튼 | 여는 곳 |
@@ -138,7 +138,7 @@ Question: what happens when `--port` is 0? The help text does not say.
 PR을 확인했고 병합해도 좋다고 판단했을 때 **Approve**를 사용하세요. 승인하면서도 작은 댓글을 남길 수 있습니다. 이때는 작성자가 병합을 막지 않는다는 것을 알 수 있도록 선택 사항이라고 분명히 표시하세요.
 
 ```markdown
-Looks good. I ran `bun run test` on this branch and tried `tdk up --dry-run` in the restaurant example: the new URLs show up as described.
+Looks good. I ran `bun run test` on this branch and tried `flisk up --dry-run` in the restaurant example: the new URLs show up as described.
 
 Optional (nit): `parsePort` could use a test for an empty string. Fine to do in a follow-up.
 ```

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
@@ -9,7 +9,7 @@ import { createMachineEnvelope, writeMachineError } from "../utils/machine-outpu
 import { findProjectRoot } from "../utils/paths.js";
 export const stacksCommand = new Command("stacks")
     .description("List all stacks and their resources")
-    .alias("ls") // Keep 'tdk ls' as shorthand
+    .alias("ls") // Keep 'flisk ls' as shorthand
     .option("-v, --verbose", "Show detailed information about each stack", false)
     .option("--services", "Include list of services in each stack", false)
     .option("--json", "Output a versioned JSON stack report", false)

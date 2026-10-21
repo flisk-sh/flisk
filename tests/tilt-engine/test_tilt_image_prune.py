@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 """
 Tests for Tilt image pruning wired from watchers.star.

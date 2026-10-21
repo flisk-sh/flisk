@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -37,7 +37,7 @@ describe("doctor environment contract", () => {
 
   it("requires Bun 1.2+ when a project has generated JavaScript services", async () => {
     expect(MIN_BUN_VERSION).toEqual([1, 2, 0]);
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-bun-floor-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-bun-floor-"));
     const originalCwd = process.cwd();
     try {
       mkdirSync(join(root, ".tdk"), { recursive: true });
@@ -64,7 +64,7 @@ describe("doctor environment contract", () => {
   });
 
   it("skips the Bun requirement when the project has no generated JavaScript services", async () => {
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-no-bun-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-no-bun-"));
     const originalCwd = process.cwd();
     try {
       mkdirSync(join(root, ".tdk"), { recursive: true });
@@ -124,9 +124,9 @@ describe("doctor environment contract", () => {
   });
 
   it("warns about /mnt/c and fails there only in strict WSL mode", () => {
-    const warning = checkWslProjectLocation("/mnt/c/Users/dev/tdk", false, true);
-    const strict = checkWslProjectLocation("/mnt/c/Users/dev/tdk", true, true);
-    const healthy = checkWslProjectLocation("/home/dev/tdk", true, true);
+    const warning = checkWslProjectLocation("/mnt/c/Users/dev/flisk", false, true);
+    const strict = checkWslProjectLocation("/mnt/c/Users/dev/flisk", true, true);
+    const healthy = checkWslProjectLocation("/home/dev/flisk", true, true);
 
     expect(warning.didPass).toBe(true);
     expect(warning.isWarning).toBe(true);
@@ -143,7 +143,7 @@ describe("doctor environment contract", () => {
       {
         name: "Host Ports",
         didPass: false,
-        message: "Ports TDK needs are taken:\n    5432 (Postgres) is used by a program",
+        message: "Ports Flisk needs are taken:\n    5432 (Postgres) is used by a program",
         fix: "Stop local Postgres",
       },
     ];

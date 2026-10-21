@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { parseTiltResourceFailures } from "../doctor-runtime.js";
@@ -29,7 +29,7 @@ describe("buildStartupReport", () => {
     expect(report.failed).toEqual([
       { name: "postgres", message: "host port 5432 is already allocated" },
     ]);
-    // frontend runs, but reaches postgres through api, so it is not ready either (as `tdk status` says).
+    // frontend runs, but reaches postgres through api, so it is not ready either (as `flisk status` says).
     expect(report.blocked).toEqual([
       { name: "api", because: ["postgres"] },
       { name: "frontend", because: ["postgres"] },
@@ -160,9 +160,9 @@ describe("formatStartupReport", () => {
     );
     expect(lines).toEqual([
       "✗ postgres failed: host port 5432 is already allocated",
-      "  Fix: stop the process using port 5432 (find it with: lsof -nP -iTCP:5432 -sTCP:LISTEN), or set TDK_POSTGRES_PORT to a free port and run tdk up",
+      "  Fix: stop the process using port 5432 (find it with: lsof -nP -iTCP:5432 -sTCP:LISTEN), or set TDK_POSTGRES_PORT to a free port and run flisk up",
       "✗ api is not ready because postgres failed",
-      "The environment is not ready: postgres failed, so 1 dependent service is not ready. Tilt is still running; inspect it or run: tdk down",
+      "The environment is not ready: postgres failed, so 1 dependent service is not ready. Tilt is still running; inspect it or run: flisk down",
     ]);
   });
 
@@ -182,7 +182,7 @@ describe("formatStartupReport", () => {
       false,
     );
     expect(lines.at(-1)).toBe(
-      "The environment is not ready: postgres failed, so 3 dependent services are not ready. Tilt is still running; inspect it or run: tdk down",
+      "The environment is not ready: postgres failed, so 3 dependent services are not ready. Tilt is still running; inspect it or run: flisk down",
     );
   });
 
@@ -192,7 +192,7 @@ describe("formatStartupReport", () => {
       false,
     );
     expect(lines.at(-1)).toBe(
-      "The environment is not ready. Tilt is still running; inspect it or run: tdk down",
+      "The environment is not ready. Tilt is still running; inspect it or run: flisk down",
     );
   });
 

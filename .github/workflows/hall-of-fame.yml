@@ -29,7 +29,7 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const MARK = '<!-- tdk:hall-of-fame -->';
+            const MARK = '<!-- flisk:hall-of-fame -->';
             const MAINTAINERS = ['kburym', 'odykyi'];
             const TITLE = 'Hall of fame: community contributors';
 

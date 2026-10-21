@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -22,7 +22,7 @@ afterEach(() => {
 
 /** Runs Tilt's own discovery over a project with one service.json and returns the discovered ports, or Tilt's error. */
 function discover(manifest: Record<string, unknown>) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-ghsa-phgf-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-ghsa-phgf-"));
   dirs.push(project);
   const serviceDir = join(project, "services/product/shop/api");
   mkdirSync(serviceDir, { recursive: true });

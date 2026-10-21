@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The native Windows CLI on windows-latest (moved from the retired windows-smoke workflow, #1300). The workflow checks out the
 # repository, sets up Node and installs dependencies; each case here is one step of its old job, with the same logic:
@@ -23,7 +23,7 @@ W1() { # typecheck the CLI, build it and run its help
   log "W1 typecheck, build and run the CLI help"
   (cd "$REPO_ROOT" && npm run typecheck)
   (cd "$REPO_ROOT/cli" && npm run build)
-  (cd "$REPO_ROOT/cli" && node bin/tdk.js --help)
+  (cd "$REPO_ROOT/cli" && node bin/flisk.js --help)
 }
 
 W2() { # the Windows platform unit tests

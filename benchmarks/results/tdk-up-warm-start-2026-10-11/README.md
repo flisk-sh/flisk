@@ -1,4 +1,4 @@
-# tdk up warm-start benchmark, 2026-10-11
+# flisk up warm-start benchmark, 2026-10-11
 
 Results of `scripts/benchmark/tdk-up-warm-start.sh` on `tdk-restaurant-example`: one cold run and three warm runs, with the Docker VM sampled. The table is in [`summary.md`](summary.md); the chart is [`span.svg`](span.svg); the raw data is in [`summary.json`](summary.json) and the per-run folders.
 
@@ -6,7 +6,7 @@ Results of `scripts/benchmark/tdk-up-warm-start.sh` on `tdk-restaurant-example`:
 
 ```bash
 scripts/benchmark/tdk-up-warm-start.sh \
-  --project <path to a TDK project> \
+  --project <path to a Flisk project> \
   --out benchmarks/results/tdk-up-warm-start-$(date +%F) \
   --cold-runs 1 --warm-runs 3 --sample-vm
 ```
@@ -26,7 +26,7 @@ A cold start (golden layers, service images and build cache all removed) takes a
 
 ## Machine
 
-macOS 26.5.2, arm64, 8 CPUs, 16 GiB; Docker Desktop with server 29.8.2; tdk 1.3.144; Tilt v0.37.7; Node v24.16.0.
+macOS 26.5.2, arm64, 8 CPUs, 16 GiB; Docker Desktop with server 29.8.2; flisk 1.3.144; Tilt v0.37.7; Node v24.16.0.
 
 ## Caveats
 

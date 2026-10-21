@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,8 +15,8 @@ describe("resource scaffold E2E", () => {
     }
   });
 
-  it("scaffolds a backend that `tdk doctor` has nothing to say about, with the health route under the key the engine reads", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-healthpath-"));
+  it("scaffolds a backend that `flisk doctor` has nothing to say about, with the health route under the key the engine reads", () => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-healthpath-"));
     runTdk(["project", "--yes"], projectRoot);
     for (const [name, type] of [
       ["fresh-api", "backend"],
@@ -46,8 +46,8 @@ describe("resource scaffold E2E", () => {
     );
   }, 120000);
 
-  it("calls a deprecated service.json field deprecated, not unknown, in `tdk doctor`", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-deprecated-"));
+  it("calls a deprecated service.json field deprecated, not unknown, in `flisk doctor`", () => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-deprecated-"));
     runTdk(["project", "--yes"], projectRoot);
     runTdk(["resource", "dep-api", "--type", "backend", "--stack", "app", "--yes"], projectRoot);
     const servicePath = join(projectRoot, "services", "app", "dep-api", "service.json");

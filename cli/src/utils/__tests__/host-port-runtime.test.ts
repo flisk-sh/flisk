@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 function project(savedHttp: number | null, name = "tdk-restaurant-example"): string {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "tdk-runtime-port-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "flisk-runtime-port-")));
   dirs.push(root);
   mkdirSync(join(root, ".tdk", ".tdk-out"), { recursive: true });
   writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ project: { name } }));

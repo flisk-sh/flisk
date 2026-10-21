@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
 import { realpathSync, statfsSync } from "node:fs";
@@ -13,24 +13,25 @@ import {
   tdkNetworkOwner,
   tdkNetworkPrefixes,
 } from "./down-cleanup.js";
+import { executableName, legacyExecutableName } from "./platform.js";
 import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
 
 const execFilePromise = promisify(execFile);
 const DOCKER_TIMEOUT_MS = 15_000;
 
-/** The networks `tdk doctor` creates to test capacity; an interrupted run leaves one behind. */
-const PROBE_NETWORK = /^tdk_doctor_probe_(\d+)$/;
+/** The networks `flisk doctor` creates to test capacity; an interrupted run leaves one behind. */
+const PROBE_NETWORK = /^flisk_doctor_probe_(\d+)$/;
 
 export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
 
-/** One repair `tdk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
+/** One repair `flisk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
 export interface DoctorAction {
   id: string;
   check: string;
   /**
    * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
-   * TDK project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
+   * Flisk project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
    * (Docker build cache, dangling images), only planned while free disk space is low.
    */
   scope: "project" | "probe" | "machine" | "host";
@@ -136,7 +137,7 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean);
-      // One inspect per network: another process (a doctor probe, `tdk down`) can remove one mid-listing, and a
+      // One inspect per network: another process (a doctor probe, `flisk down`) can remove one mid-listing, and a
       // batched inspect would then fail for all of them.
       const inspected = await Promise.all(
         names.map(async (name): Promise<DockerNetwork | null> => {
@@ -224,13 +225,13 @@ export const dockerFixDeps = createDockerFixDeps();
 export interface PlanContext {
   /** `tilt up` processes for this project (see `projectTiltPids`). */
   tiltPids?: number[];
-  /** `--scope=machine`: also plan unused networks of other TDK projects. */
+  /** `--scope=machine`: also plan unused networks of other Flisk projects. */
   machine?: boolean;
 }
 
 /**
  * What `--fix` would do: stop this project's stale Tilt; remove unused networks that are a leftover doctor probe or
- * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other TDK projects' unused
+ * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other Flisk projects' unused
  * networks are planned only with `context.machine`, each naming its owner.
  */
 export async function planDoctorFixes(
@@ -259,7 +260,7 @@ export async function planDoctorFixes(
   }
   const projectBusy =
     liveTilt.length > 0
-      ? `Tilt is running for this project (pid ${liveTilt.join(", ")}); run tdk down first`
+      ? `Tilt is running for this project (pid ${liveTilt.join(", ")}); run flisk down first`
       : undefined;
 
   const networks = await deps.listNetworks();
@@ -412,9 +413,9 @@ async function readTdkVersion(path: string): Promise<string | null> {
   }
 }
 
-/** Every distinct `tdk` on PATH (symlinks to one binary count once), in PATH order. */
+/** Every distinct Flisk install on PATH (symlinks to one binary count once), in PATH order. */
 export async function findTdkInstalls(
-  paths: string[] = findAllOnPath("tdk"),
+  paths: string[] = [...findAllOnPath(executableName()), ...findAllOnPath(legacyExecutableName())],
   readVersion: (path: string) => Promise<string | null> = readTdkVersion,
 ): Promise<TdkInstall[]> {
   const seen = new Set<string>();
@@ -433,20 +434,20 @@ export async function findTdkInstalls(
   return installs;
 }
 
-/** Two `tdk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
+/** Two `flisk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
 export async function checkDuplicateTdkInstalls(installs?: TdkInstall[]): Promise<CheckResult> {
   const found = installs ?? (await findTdkInstalls());
   if (found.length <= 1) {
-    return { name: "TDK installs", didPass: true, message: "One tdk install on PATH" };
+    return { name: "Flisk installs", didPass: true, message: "One flisk install on PATH" };
   }
   const list = found.map((i) => `${i.path} (${i.version ?? "version unknown"})`).join(", ");
   const versions = new Set(found.map((i) => i.version));
   return {
-    name: "TDK installs",
+    name: "Flisk installs",
     didPass: false,
     isWarning: true,
-    message: `${found.length} tdk installs on PATH${versions.size > 1 ? " with different versions" : ""}: ${list}`,
-    fix: "Keep one: remove the others, or run tdk upgrade. The first on PATH is the one your shell runs; tools that launch /usr/local/bin/tdk directly may use another",
+    message: `${found.length} flisk installs on PATH${versions.size > 1 ? " with different versions" : ""}: ${list}`,
+    fix: "Keep one: remove the others, or run flisk upgrade. The first on PATH is the one your shell runs; tools that launch /usr/local/bin/flisk directly may use another",
   };
 }
 

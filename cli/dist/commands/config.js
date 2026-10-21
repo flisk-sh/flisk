@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -188,7 +188,7 @@ export const configCommand = new Command("config")
             ...problems.map((p) => p.path),
         ];
         const result = verifyMasterConfigs(projectRoot, { manifestPaths });
-        // Same predicate as tdk doctor's Shared platform Postgres check.
+        // Same predicate as flisk doctor's Shared platform Postgres check.
         const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
         const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
         const sharedPostgresErrors = sharedPostgres.unknownDependsOnNames.map(({ resource, name }) => `dependsOn "${name}" on ${resource} is not a known service or stack (shared platform Postgres names are postgres and database-management)`);
@@ -218,24 +218,24 @@ export const configCommand = new Command("config")
         if (!prismaConsistency.didPass)
             showError(prismaConsistency.message);
         if (sharedPostgres.willStart) {
-            // Project resource set (discoverResourcesFromRoot), not a tdk up --only filter.
+            // Project resource set (discoverResourcesFromRoot), not a flisk up --only filter.
             // Feature-on alone is not new behavior — print gray so default projects are not noisy.
             // dependsOn is the reason Postgres starts when the feature is off — green.
             if (sharedPostgres.reason === "feature" && sharedPostgres.dependsOnUsers.length === 0) {
                 const source = sharedPostgres.featureOnFromTiltfile || sharedPostgres.featureOnFromSpecMaster
                     ? " (generated Tiltfile/spec.master)"
                     : "";
-                console.log(chalk.gray(`ℹ️  Postgres will start because database-management is enabled${source} (project-wide; not a tdk up selection)`));
+                console.log(chalk.gray(`ℹ️  Postgres will start because database-management is enabled${source} (project-wide; not a flisk up selection)`));
             }
             else if (sharedPostgres.reason === "feature") {
-                console.log(chalk.yellow(`ℹ️  Postgres will start because database-management is enabled and resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; tdk up may select a subset)`));
+                console.log(chalk.yellow(`ℹ️  Postgres will start because database-management is enabled and resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`));
             }
             else {
-                console.log(chalk.green(`ℹ️  Postgres will start because resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; tdk up may select a subset)`));
+                console.log(chalk.green(`ℹ️  Postgres will start because resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`));
             }
         }
         else if (sharedPostgres.focusWouldEnableDatabaseManagement) {
-            console.log(chalk.yellow("ℹ️  Postgres will not start from project.json/generated Tiltfile, but default focus/CORE_INFRA expansion would enable database-management on a typical tdk up"));
+            console.log(chalk.yellow("ℹ️  Postgres will not start from project.json/generated Tiltfile, but default focus/CORE_INFRA expansion would enable database-management on a typical flisk up"));
         }
         if (result.valid && sharedPostgresErrors.length === 0 && prismaConsistency.didPass) {
             console.log(chalk.green("✅ All files are in sync!"));
@@ -250,10 +250,10 @@ export const configCommand = new Command("config")
                 console.log(chalk.gray(`\n${diff}`));
             const schemaErrors = result.errors.filter((error) => error.includes(".schemaVersion:"));
             if (schemaErrors.length > 0) {
-                console.log(chalk.gray("\nRun `tdk config migrate` to fix schemaVersion."));
+                console.log(chalk.gray("\nRun `flisk config migrate` to fix schemaVersion."));
             }
             if (result.diffs.length > 0) {
-                console.log(chalk.gray("\nRun `tdk config regenerate` to fix generated files."));
+                console.log(chalk.gray("\nRun `flisk config regenerate` to fix generated files."));
             }
             process.exit(1);
         }
@@ -303,7 +303,7 @@ export const configCommand = new Command("config")
             spawnSync(editorCmd, editorArgs, { stdio: "inherit" });
         }
         console.log(chalk.green("\n✅ Editor closed."));
-        console.log(chalk.gray("Run `tdk config regenerate` to apply changes."));
+        console.log(chalk.gray("Run `flisk config regenerate` to apply changes."));
     });
 }));
 /**
@@ -341,7 +341,7 @@ async function toggleInfraService(service, enabled) {
     writeJsonFile(projectJsonPath, config);
     const action = enabled ? "Enabled" : "Disabled";
     console.log(chalk.green(`✓ ${action}: ${service}`));
-    console.log(chalk.gray("Run `tdk config regenerate` to apply."));
+    console.log(chalk.gray("Run `flisk config regenerate` to apply."));
 }
 configCommand
     .addCommand(new Command("enable-infra")

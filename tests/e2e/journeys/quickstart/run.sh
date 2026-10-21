@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The README quickstart on a clean machine (moved from the retired quickstart-e2e workflow, #1298). Each case is one step of the old workflow, with the
-# same logic: Q1 scaffolds, Q2 runs tdk up and waits for every /health, Q3 records the time to a healthy stack, Q4 checks that each
+# same logic: Q1 scaffolds, Q2 runs flisk up and waits for every /health, Q3 records the time to a healthy stack, Q4 checks that each
 # frontend serves its built app. The project stays at $RUNNER_TEMP/shop (or $TMPDIR/shop locally) so the workflow's diagnostics and
 # artifact paths do not change.
 #
@@ -21,23 +21,23 @@ RESOURCES=(orders-api storefront vue-app)
 Q1() { # scaffold the quickstart project: a backend, a React frontend and a Vue frontend
   log "Q1 scaffold the quickstart project"
   mkdir -p "$DIR" && cd "$DIR"
-  # Start of the "time to healthy stack" clock: from `tdk project --yes` to every /health URL answering (see Q3).
+  # Start of the "time to healthy stack" clock: from `flisk project --yes` to every /health URL answering (see Q3).
   date +%s > "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/quickstart-t0"
-  tdk project --yes
-  tdk doctor
-  printf 'y\n' | tdk resource orders-api --type backend --stack shop
+  flisk project --yes
+  flisk doctor
+  printf 'y\n' | flisk resource orders-api --type backend --stack shop
   # Frontends go through the framework providers and their Starlark Vite templates. Published versions from before --framework existed
   # skip them, so the nightly check of `latest` keeps testing what it can.
-  if tdk resource --help | grep -q -- '--framework'; then
-    # No --path: this exercises the default folder (which tdk picks so that project.json discovery finds it) and the public/ folder the
+  if flisk resource --help | grep -q -- '--framework'; then
+    # No --path: this exercises the default folder (which flisk picks so that project.json discovery finds it) and the public/ folder the
     # frontend Docker build copies.
-    printf 'y\n' | tdk resource storefront --type frontend --stack shop
-    printf 'y\n' | tdk resource vue-app --type frontend --framework vue --stack shop
+    printf 'y\n' | flisk resource storefront --type frontend --stack shop
+    printf 'y\n' | flisk resource vue-app --type frontend --framework vue --stack shop
     FRONTENDS="storefront:root vue-app:app"
     export FRONTENDS
     echo "FRONTENDS=storefront:root vue-app:app" >> "${GITHUB_ENV:-/dev/null}"
   else
-    echo "::notice::this tdk version has no --framework; testing the backend only"
+    echo "::notice::this flisk version has no --framework; testing the backend only"
   fi
   # Log what discovery will see, so a missing service is obvious here rather than 20 minutes later as a 404.
   echo "::group::scaffolded project"
@@ -45,13 +45,13 @@ Q1() { # scaffold the quickstart project: a backend, a React frontend and a Vue 
   find . -name service.json -not -path './node_modules/*' -not -path './.tdk/*' \
     | sort | while read -r f; do echo "$f: $(jq -c '{name,type,framework,stack}' "$f")"; done
   echo "::endgroup::"
-  tdk doctor
+  flisk doctor
 }
 
-Q2() { # tdk up, then wait for every /health URL to answer through Traefik
-  log "Q2 tdk up and wait for every /health"
+Q2() { # flisk up, then wait for every /health URL to answer through Traefik
+  log "Q2 flisk up and wait for every /health"
   cd "$DIR"
-  tdk up shop > up.log 2>&1 &
+  flisk up shop > up.log 2>&1 &
   # One URL per service: the backend, plus each frontend scaffolded in Q1. Each entry is <route segment>:<Tilt resource name>.
   local services="orders:orders-api"
   local fe
@@ -65,7 +65,7 @@ Q2() { # tdk up, then wait for every /health URL to answer through Traefik
       [ -n "$url" ] && break
       sleep 2
     done
-    [ -n "$url" ] || { cat up.log; die "tdk up never printed the $svc URL"; }
+    [ -n "$url" ] || { cat up.log; die "flisk up never printed the $svc URL"; }
     urls="$urls $url"
   done
   echo "Waiting for:$urls"
@@ -92,7 +92,7 @@ Q2() { # tdk up, then wait for every /health URL to answer through Traefik
       docker images --format '{{.Repository}}:{{.Tag}}  {{.CreatedSince}}' | head -12 || true
       echo "-- tilt resources (name, update, runtime, what it is waiting on):"
       tilt get uiresources -o json 2>/dev/null | jq -r '.items[] | "\(.metadata.name)  update=\(.status.updateStatus // "-")  runtime=\(.status.runtimeStatus // "-")  waiting=\(.status.waiting // {} | tostring)  err=\((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || echo "(tilt not reachable)"
-      echo "-- tdk up log (last 8 lines):"
+      echo "-- flisk up log (last 8 lines):"
       tail -8 up.log || true
       echo "::endgroup::"
       # Tilt does not retry a failed image build, so a service whose update status is "error" will never turn healthy. Two checks in a row
@@ -134,7 +134,7 @@ Q2() { # tdk up, then wait for every /health URL to answer through Traefik
   die "not healthy within 20 minutes:$pending"
 }
 
-Q3() { # the time to a healthy stack, from tdk project --yes, recorded as a job summary line and a JSON file
+Q3() { # the time to a healthy stack, from flisk project --yes, recorded as a job summary line and a JSON file
   log "Q3 record the time to a healthy stack"
   local t0 t1 seconds
   t0="$(cat "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/quickstart-t0")"
@@ -147,8 +147,8 @@ Q3() { # the time to a healthy stack, from tdk project --yes, recorded as a job 
     {
       echo "### Time to healthy stack"
       echo ""
-      echo "- tdk version: \`${TDK_VERSION:-local}\`"
-      echo "- \`tdk project --yes\` to every /health answering: **${seconds}s** ($((seconds / 60))m $((seconds % 60))s)"
+      echo "- flisk version: \`${TDK_VERSION:-local}\`"
+      echo "- \`flisk project --yes\` to every /health answering: **${seconds}s** ($((seconds / 60))m $((seconds % 60))s)"
       echo "- Cold start: no images or build cache on the runner"
     } >> "$GITHUB_STEP_SUMMARY"
   fi

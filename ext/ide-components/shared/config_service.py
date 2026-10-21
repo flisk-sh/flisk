@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 ConfigService - File operations for Config Inspector
@@ -31,7 +31,7 @@ class ConfigService:
     """
     
     # Allowed paths for write operations
-    # NOTE: These are paths within the TDK CLI installation
+    # NOTE: These are paths within the Flisk CLI installation
     ALLOWED_PATH_PREFIXES = [
         'engine/topologies/',
     ]

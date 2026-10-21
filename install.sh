@@ -1,42 +1,27 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-# Legacy installer URL for the TDK CLI.
+# Installs the Flisk CLI from npm.
 #
-# The official installer is https://tdk-landscape.github.io/install.sh. It
-# installs the prebuilt `tdk` binary plus its bundled engine, verified
-# against the release checksums, with no Node or Bun required. This script
-# used to clone this repo and `bun link` it instead; it now hands off to the
-# official installer so old
-#   curl -fsSL https://raw.githubusercontent.com/tdk-landscape/tdk-cli-core/main/install.sh | bash
-# commands keep working and every install method gets the same result.
+#   curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | bash
 #
-# To work on TDK itself, clone the repo instead (see CONTRIBUTING.md).
+# The package is published as `flisk` and installs the `flisk` command (the
+# `tdk` and `tdk-cli` aliases stay available for older muscle memory).
+#
+# To work on Flisk itself, clone the repo instead (see CONTRIBUTING.md).
 
 set -euo pipefail
 
-# Pinned to a commit of tdk-landscape/tdk-landscape.github.io and verified
-# against the SHA-256 of that exact install.sh before it is executed.
-readonly OFFICIAL_INSTALLER="https://raw.githubusercontent.com/tdk-landscape/tdk-landscape.github.io/71ed55f1aca54f0a4c2fd45236c59228803725b4/install.sh"
-readonly OFFICIAL_INSTALLER_SHA256="add9c92c79947116d2845ecdecc2e0643e84b5aae31e6dd807dee0fe67f11fb0"
+readonly PACKAGE="flisk"
 
-echo "Using the official TDK installer: ${OFFICIAL_INSTALLER}" >&2
-installer_tmp="$(mktemp)"
-trap 'rm -f "$installer_tmp"' EXIT
-curl -fsSL "$OFFICIAL_INSTALLER" -o "$installer_tmp"
-
-if command -v sha256sum >/dev/null 2>&1; then
-  actual_sha256="$(sha256sum "$installer_tmp" | awk '{print $1}')"
-elif command -v shasum >/dev/null 2>&1; then
-  actual_sha256="$(shasum -a 256 "$installer_tmp" | awk '{print $1}')"
-else
-  echo "Error: sha256sum or shasum is required to verify the official installer." >&2
+if ! command -v npm >/dev/null 2>&1; then
+  echo "Error: npm is required to install the Flisk CLI (Node.js 22.12+)." >&2
+  echo "Install Node.js from https://nodejs.org and rerun this script." >&2
   exit 1
 fi
 
-if [[ "$actual_sha256" != "$OFFICIAL_INSTALLER_SHA256" ]]; then
-  echo "Error: official installer checksum mismatch; refusing to execute it." >&2
-  exit 1
-fi
+echo "Installing ${PACKAGE} from npm..." >&2
+npm install -g "${PACKAGE}@latest"
 
-sh "$installer_tmp"
+echo "Installed: $(command -v flisk || echo flisk)" >&2
+flisk --version

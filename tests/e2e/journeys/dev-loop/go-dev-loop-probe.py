@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-"""Drive the Go development loop of a running `tdk up` project and check what it does (#369).
+"""Drive the Go development loop of a running `flisk up` project and check what it does (#369).
 
 Called by tests/e2e/journeys/dev-loop/go-dev-loop.sh. It edits main.go, polls the service through Traefik every 25 ms, reads Tilt's own log, and exits 1
 if an acceptance check fails:
@@ -149,12 +149,12 @@ def rebuild_times() -> list[tuple[str, float]]:
             continue
         t = datetime.datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.timezone.utc).timestamp()
         t += float("0." + m.group(2))
-        if "[tdk] change detected" in m.group(3):
+        if "[flisk] change detected" in m.group(3):
             started = t
-        elif started is not None and "[tdk] rebuilt and restarted" in m.group(3):
+        elif started is not None and "[flisk] rebuilt and restarted" in m.group(3):
             cycles.append(("ok", t - started))
             started = None
-        elif started is not None and "[tdk] build failed" in m.group(3):
+        elif started is not None and "[flisk] build failed" in m.group(3):
             cycles.append(("failed", t - started))
             started = None
     return cycles

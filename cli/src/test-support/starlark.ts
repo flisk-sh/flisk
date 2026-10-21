@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -81,7 +81,7 @@ afterEach(() => {
  */
 export function evaluateStarlark(file: string, options: StarlarkOptions): StarlarkRun {
   if (!existsSync(file)) throw new Error(`Starlark module not found: ${file}`);
-  const dir = mkdtempSync(join(tmpdir(), "tdk-starlark-"));
+  const dir = mkdtempSync(join(tmpdir(), "flisk-starlark-"));
   scratchDirs.push(dir);
   for (const [path, content] of Object.entries(options.files ?? {})) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });

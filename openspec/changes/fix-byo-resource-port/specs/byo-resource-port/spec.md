@@ -4,7 +4,7 @@
 When a user creates a BYO resource with a valid `--port` value, the CLI MUST use that value in its user-facing port output and in the generated `service.json` `port` field.
 
 #### Scenario: Create a BYO resource with a custom port
-- **WHEN** the user runs `tdk resource legacy --type byo --stack shop --port 4500 --yes`
+- **WHEN** the user runs `flisk resource legacy --type byo --stack shop --port 4500 --yes`
 - **THEN** the CLI prints `Port: 4500`
 - **AND** `services/shop/legacy/service.json` contains `.port == 4500`
 

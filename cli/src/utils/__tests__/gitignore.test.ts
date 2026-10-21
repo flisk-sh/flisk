@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,7 +13,7 @@ import {
 describe("ensureGitignore", () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-gitignore-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-gitignore-"));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -49,7 +49,7 @@ describe("ensureGitignore", () => {
 describe("isInsideGitWorkTree", () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-git-tree-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-git-tree-"));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -73,7 +73,7 @@ describe("isInsideGitWorkTree", () => {
 describe("ensureSmokeRecordsIgnored", () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-smoke-ignore-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-smoke-ignore-"));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 

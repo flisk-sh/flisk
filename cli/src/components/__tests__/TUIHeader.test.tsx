@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { renderToString } from "ink";
 import { describe, expect, it } from "vitest";
@@ -29,7 +29,7 @@ describe("TUIHeader", () => {
   it("shows the version and discovered resource count in the compact layout", () => {
     const output = renderHeader(60);
 
-    expect(output).toContain("TDK v1.3.86");
+    expect(output).toContain("Flisk v1.3.86");
     expect(output).not.toContain("▓▒░");
     expect(output).toContain("3 resources discovered");
     expect(output).toContain(projectRoot);
@@ -54,14 +54,14 @@ describe("TUIHeader", () => {
   it("keeps the compact layout at 79 columns", () => {
     const output = renderHeader(79);
 
-    expect(output).toContain("TDK v1.3.86");
+    expect(output).toContain("Flisk v1.3.86");
     expectLinesToFit(output, 79);
   });
 
   it("preserves the full title frame in the wide layout", () => {
     const output = renderHeader(80);
 
-    expect(output).toContain("▓▒░ TDK NEON EDITION v1.3.86 ░▒▓");
+    expect(output).toContain("▓▒░ Flisk NEON EDITION v1.3.86 ░▒▓");
     expectLinesToFit(output, 80);
   });
 
@@ -70,7 +70,7 @@ describe("TUIHeader", () => {
     const version = "2026.10.7-preview.preview.preview.preview.preview.preview.preview.preview.";
     const output = renderHeader(80, count, version);
 
-    expect(output).toContain("TDK NEON EDITION");
+    expect(output).toContain("Flisk NEON EDITION");
     expect(output).toContain("999999999999999 resources discovered");
     expect(output).not.toContain(version);
     expectLinesToFit(output, 80);

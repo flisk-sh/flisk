@@ -1,6 +1,6 @@
 ## Context
 
-TDK CLI is a multi-language monorepo with TypeScript (CLI), Python (Discovery), and Starlark (Engine/Tilt configs). During initial exploration, several gaps were identified:
+Flisk CLI is a multi-language monorepo with TypeScript (CLI), Python (Discovery), and Starlark (Engine/Tilt configs). During initial exploration, several gaps were identified:
 
 **Current State:**
 - CLI `resource.ts` has 4 TODO comments for unimplemented features (database/cache checks, routes, worker logic, diff logic)

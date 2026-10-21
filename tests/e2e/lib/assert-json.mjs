@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // JSON assertions for the agent suite (tests/e2e/resource-types/agent/run.sh). Exits 1 with a message that names what was expected.
 //   envelope <file> [code]        file holds exactly one line: one parseable machine envelope; with [code], a failure with that code

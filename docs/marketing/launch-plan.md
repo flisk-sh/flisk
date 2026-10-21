@@ -1,6 +1,6 @@
 # Coordinated launch plan: Show HN and Reddit (Universe week)
 
-Tracks [#1444](https://github.com/tdk-landscape/tdk-cli-core/issues/1444). Clip scripts are in [clips.md](clips.md). Nothing in this file has been posted. Posting is a human action; this file is the plan and the prepared text.
+Tracks [#1444](https://github.com/flisk-sh/tdk-cli-core/issues/1444). Clip scripts are in [clips.md](clips.md). Nothing in this file has been posted. Posting is a human action; this file is the plan and the prepared text.
 
 ## Dates
 
@@ -8,7 +8,7 @@ Universe week is Oct 28-29, 2026 (Wed-Thu).
 
 | Day | Channel | Who posts | Notes |
 | --- | --- | --- | --- |
-| Tue Oct 27 | Dry run | Owner | Read the Show HN text and each Reddit post aloud against the live commands in [clips.md](clips.md). Run `tdk up <stack> --dry-run` on a fresh checkout. |
+| Tue Oct 27 | Dry run | Owner | Read the Show HN text and each Reddit post aloud against the live commands in [clips.md](clips.md). Run `flisk up <stack> --dry-run` on a fresh checkout. |
 | Wed Oct 28, ~09:00 PT | Show HN | Owner | Morning US Pacific, a weekday. Post the repo link, not the website. |
 | Thu Oct 29, 10:00 PT | r/webdev | Owner | Different angle (see below). |
 | Thu Oct 29, 14:00 PT | r/devops | Second maintainer | Different angle. Not the same text as r/webdev. |
@@ -39,12 +39,12 @@ Replace the TBD names before Tue Oct 27. A slot with no name means the launch do
 
 ## Prior coverage (check before posting)
 
-Found before the launch. Links were supplied by the owner; the HN search turned up nothing for TDK, so the HN history is still unchecked.
+Found before the launch. Links were supplied by the owner; the HN search turned up nothing for Flisk, so the HN history is still unchecked.
 
 | Item | Link | Date | What it claims | Action before Oct 28 |
 | --- | --- | --- | --- | --- |
 | dev.to article: "We ran 100 microservices on a 16GB laptop" | https://dev.to/mynameis0d3c53a3/we-ran-100-microservices-on-a-16gb-laptop-no-kubernetes-590e | Sep 27 | 10 services healthy in 8 s (161 MiB), 50 in 24 s (829 MiB), 100 in 112 s (1.6 GiB); 0 crashes, 0 OOM; benchmark script and raw JSON in the repo | Check each number against the committed benchmark JSON and `docs/claims.md`. The Show HN draft uses different figures (14 services in 4.6 s; 100 stubs in 472 s on a CI runner). Use one set of numbers, and say which hardware it came from. Link this article from the first comment as the longer write-up. |
-| HN submission "New Open Source Tool for Development Experience. TDK CLI – service.json" (not Show HN) | https://news.ycombinator.com/item?id=49924046 | about Oct 2, 2026 (16 days before Oct 18) | 1 point, 1 comment (submitter only); submitted URL is the repo, `github.com/tdk-landscape/tdk-cli-core` | Same repo URL as the planned Show HN. HN flags a resubmitted URL, so the Oct 28 post may be marked a dupe. Options: ask HN (hn@ycombinator.com) before posting, or post a different URL (the quickstart page) with the repo in the first comment. Owner decides on Tue Oct 27. |
+| HN submission "New Open Source Tool for Development Experience. Flisk CLI – service.json" (not Show HN) | https://news.ycombinator.com/item?id=49924046 | about Oct 2, 2026 (16 days before Oct 18) | 1 point, 1 comment (submitter only); submitted URL is the repo, `github.com/flisk-sh/tdk-cli-core` | Same repo URL as the planned Show HN. HN flags a resubmitted URL, so the Oct 28 post may be marked a dupe. Options: ask HN (hn@ycombinator.com) before posting, or post a different URL (the quickstart page) with the repo in the first comment. Owner decides on Tue Oct 27. |
 | Two earlier Show HN posts | TBD (owner to supply links) | TBD | TBD | Check whether either is still on the front page or drew discussion. If so, the Oct 28 post needs a new angle, or move it. HN flags a resubmission of the same URL. |
 
 ## Rules check (must be done on Tue Oct 27)
@@ -64,23 +64,23 @@ If a rule forbids the post as written, change the post to fit the rule or skip t
 
 **Title** (80 characters maximum, HN rule; the draft in #1444 was too long at about 95):
 
-> Show HN: TDK CLI – one service.json per service, then tdk up
+> Show HN: Flisk CLI – one service.json per service, then flisk up
 
 Count: 63 characters.
 
-**URL:** https://github.com/tdk-landscape/tdk-cli-core
+**URL:** https://github.com/flisk-sh/tdk-cli-core
 
 **First comment** (post it as the author, right after the submission):
 
-> Hi HN, I maintain TDK CLI. It turns one `service.json` per service into a local Docker and Tilt stack, so `tdk up <stack>` starts the services you pick and nothing else.
+> Hi HN, I maintain Flisk CLI. It turns one `service.json` per service into a local Docker and Tilt stack, so `flisk up <stack>` starts the services you pick and nothing else.
 >
-> What it does: scaffolds services (`tdk resource`), generates the Docker, Compose and Tilt files from `service.json` and `.tdk/project.json`, and checks they still match (`tdk config verify`). `tdk up <stack> --dry-run` prints the services and URLs before any container starts.
+> What it does: scaffolds services (`flisk resource`), generates the Docker, Compose and Tilt files from `service.json` and `.tdk/project.json`, and checks they still match (`flisk config verify`). `flisk up <stack> --dry-run` prints the services and URLs before any container starts.
 >
 > What it does not do: it is not a deploy tool (production stays on Helm or whatever you use), and it is not a drop-in Compose replacement for a stack you already maintain. If Compose or your own Tilt file works for you, keep it.
 >
-> Setup needs Docker and Tilt. Native Windows only supports `tdk` inspection commands; use WSL2 Ubuntu for `tdk up`. The core CLI is MIT and needs no key. Premium features are optional.
+> Setup needs Docker and Tilt. Native Windows only supports `flisk` inspection commands; use WSL2 Ubuntu for `flisk up`. The core CLI is MIT and needs no key. Premium features are optional.
 >
-> The CLI makes no outbound calls of its own except `tdk upgrade`, an optional premium fetch with a license key, and the health ping from `tdk doctor`. Details: docs/security.md (link in the reply if asked).
+> The CLI makes no outbound calls of its own except `flisk upgrade`, an optional premium fetch with a license key, and the health ping from `flisk doctor`. Details: docs/security.md (link in the reply if asked).
 >
 > Happy to answer anything about the design, the generated files, or where it falls short.
 
@@ -94,9 +94,9 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 
 **Body:**
 
-> I work on TDK CLI, a MIT-licensed tool that keeps each local service described by one `service.json`. `tdk resource` scaffolds a backend or frontend, `tdk up <stack>` starts only that stack through Docker and Tilt, and `tdk config verify` checks that the generated files still match.
+> I work on Flisk CLI, a MIT-licensed tool that keeps each local service described by one `service.json`. `flisk resource` scaffolds a backend or frontend, `flisk up <stack>` starts only that stack through Docker and Tilt, and `flisk config verify` checks that the generated files still match.
 >
-> Honest limits: it is for local development only. It is not a deploy tool. If you have two services and a working compose file, you do not need this. Repo: https://github.com/tdk-landscape/tdk-cli-core
+> Honest limits: it is for local development only. It is not a deploy tool. If you have two services and a working compose file, you do not need this. Repo: https://github.com/flisk-sh/tdk-cli-core
 >
 > If you try it and something breaks, the issue tracker is the place to tell me. I will answer what I can in the thread.
 
@@ -106,11 +106,11 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 
 **Body:**
 
-> For teams that run Helm in production but want a fast local loop: TDK CLI generates a Docker and Tilt stack from one `service.json` per service. `tdk up <stack> --dry-run` shows the services and host ports first.
+> For teams that run Helm in production but want a fast local loop: Flisk CLI generates a Docker and Tilt stack from one `service.json` per service. `flisk up <stack> --dry-run` shows the services and host ports first.
 >
 > It does not touch your cluster. It does not replace Helm. The outbound-call list is in docs/security.md, so you can check what it sends.
 >
-> Repo: https://github.com/tdk-landscape/tdk-cli-core
+> Repo: https://github.com/flisk-sh/tdk-cli-core
 
 ### r/docker: the "generated files you can read" angle
 
@@ -118,11 +118,11 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 
 **Body:**
 
-> TDK CLI writes the Docker, Compose and Tilt files for local services from one `service.json` per service. You can read them. `tdk config verify` fails if someone edits a generated file by hand, and `tdk config regenerate` puts them back.
+> Flisk CLI writes the Docker, Compose and Tilt files for local services from one `service.json` per service. You can read them. `flisk config verify` fails if someone edits a generated file by hand, and `flisk config regenerate` puts them back.
 >
-> Note on the Dockerfile: `tdk up` builds its own generated image, not the scaffolded `Dockerfile` in each service folder. The scaffolded one is a starting point for building outside TDK. If you spot a case where that is confusing, tell me in the issues.
+> Note on the Dockerfile: `flisk up` builds its own generated image, not the scaffolded `Dockerfile` in each service folder. The scaffolded one is a starting point for building outside Flisk. If you spot a case where that is confusing, tell me in the issues.
 >
-> Native Windows is inspect-only; use WSL2 Ubuntu to run it. Repo: https://github.com/tdk-landscape/tdk-cli-core
+> Native Windows is inspect-only; use WSL2 Ubuntu to run it. Repo: https://github.com/flisk-sh/tdk-cli-core
 
 ## Prepared answers
 
@@ -130,7 +130,7 @@ Keep each answer under 80 words. Link, do not paste long docs.
 
 **Why not Docker Compose / Tilt / devcontainers?**
 
-> Compose is fine for two or three services you wrote yourself, and TDK does not replace it there. TDK helps when you want scaffolding, starting one stack out of many (`tdk up <stack>`), and generated Tiltfiles. If Compose or a Tiltfile you maintain works, keep it. Full comparison with known limits: docs/compare-honest.md.
+> Compose is fine for two or three services you wrote yourself, and Flisk does not replace it there. Flisk helps when you want scaffolding, starting one stack out of many (`flisk up <stack>`), and generated Tiltfiles. If Compose or a Tiltfile you maintain works, keep it. Full comparison with known limits: docs/compare-honest.md.
 
 **Is this a deploy tool?**
 
@@ -138,19 +138,19 @@ Keep each answer under 80 words. Link, do not paste long docs.
 
 **What does it send over the network?**
 
-> No telemetry. Outbound calls are `tdk upgrade` (only when you run it), an optional premium fetch that needs a license key, and the health ping from `tdk doctor` to your local services. The full table is in docs/security.md under "What TDK sends over the network", and it is reproducible from `cli/src`. Related question: #563.
+> No telemetry. Outbound calls are `flisk upgrade` (only when you run it), an optional premium fetch that needs a license key, and the health ping from `flisk doctor` to your local services. The full table is in docs/security.md under "What Flisk sends over the network", and it is reproducible from `cli/src`. Related question: #563.
 
 **License / premium?**
 
-> The core CLI is MIT and needs no key. Premium is an optional key for extra features. `tdk up` works without a key. Source of the boundary: GOVERNANCE.md, "license boundary and donation scope".
+> The core CLI is MIT and needs no key. Premium is an optional key for extra features. `flisk up` works without a key. Source of the boundary: GOVERNANCE.md, "license boundary and donation scope".
 
 **Windows?**
 
-> Native Windows supports `tdk` inspection commands only. Run the stack from WSL2 Ubuntu. Setup: docs/wsl2.md.
+> Native Windows supports `flisk` inspection commands only. Run the stack from WSL2 Ubuntu. Setup: docs/wsl2.md.
 
 **It is just Tilt with extra steps.**
 
-> Tilt does the watching and live update. TDK writes the Tiltfile and the service files from `service.json`, so you do not hand-write them. If you already keep a Tiltfile you like, stay on it.
+> Tilt does the watching and live update. Flisk writes the Tiltfile and the service files from `service.json`, so you do not hand-write them. If you already keep a Tiltfile you like, stay on it.
 
 **Why another tool when X exists?**
 
@@ -158,7 +158,7 @@ Keep each answer under 80 words. Link, do not paste long docs.
 
 **Does it work on my stack (Python, Go, Rust, etc.)?**
 
-> Backend languages in the scaffold are bun (default), python, go, rust, and node, per `tdk resource --help`. For anything else, use `bring-your-own` with a Dockerfile. Check the docs for the exact set before you promise a language.
+> Backend languages in the scaffold are bun (default), python, go, rust, and node, per `flisk resource --help`. For anything else, use `bring-your-own` with a Dockerfile. Check the docs for the exact set before you promise a language.
 
 ## Do not
 

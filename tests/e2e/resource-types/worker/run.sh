@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # A worker resource on a live stack (openspec task 3.6, #1290; restart, error envelope and a processed job, #1294). Runs nightly, on release and by hand; see suite.json.
 #
@@ -22,11 +22,11 @@ W1() { # scaffold the worker in a project
   common_scaffold worker "$RES" --stack "$STACK" --yes
 }
 
-W2() { # tdk up, then the worker is listed as a worker in tdk status
-  log "W2 tdk up and status lists $RES as a worker"
+W2() { # flisk up, then the worker is listed as a worker in flisk status
+  log "W2 flisk up and status lists $RES as a worker"
   : >"$DIR/up.log"
   start_stack "$STACK"
-  # A worker serves no route, so tdk status gives it no Traefik url; wait for its status entry, not for a url.
+  # A worker serves no route, so flisk status gives it no Traefik url; wait for its status entry, not for a url.
   common_wait_status "$RES" worker
 }
 
@@ -44,12 +44,12 @@ worker_replaced() { # <container id from before the restart>: the newest contain
   local now; now="$(worker_container)"; [ -n "$now" ] && [ "$now" != "$1" ]
 }
 
-W4() { # tdk restart, then the worker's new container logs its start line again
-  log "W4 tdk restart $RES"
+W4() { # flisk restart, then the worker's new container logs its start line again
+  log "W4 flisk restart $RES"
   local before; before="$(worker_container)"
   # The stub may already have exited, so wait on the newest container of any state, not on a running one (see wait_restarted).
   run restart-"$RES" restart "$RES" --json
-  [ "$RC" -eq 0 ] || die "tdk restart $RES exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk restart $RES exited $RC"
   assert envelope "$OUT/restart-$RES.out"
   assert check "$OUT/restart-$RES.out" "j.errors.length === 0 && j.data.resource === '$RES' && j.data.restarted === true" "restart envelope is { resource, restarted: true }"
   poll_until "$RES container replaced after restart" 60 worker_replaced "$before" || die "$RES container id unchanged after restart"
@@ -57,7 +57,7 @@ W4() { # tdk restart, then the worker's new container logs its start line again
 }
 
 W5() { # restart with Tilt unreachable prints one TILT_NOT_RUNNING error envelope and exits 1
-  log "W5 tdk restart with no Tilt on the port: one error envelope"
+  log "W5 flisk restart with no Tilt on the port: one error envelope"
   common_error_envelope TILT_NOT_RUNNING restart "$RES" --port 1 --json
 }
 

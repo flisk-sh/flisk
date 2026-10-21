@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +19,7 @@ import {
 let root = "";
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-file-helpers-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-file-helpers-"));
 });
 
 afterEach(() => {
@@ -206,7 +206,7 @@ describe("file helpers", () => {
       ]);
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
-      expect(content).toContain("# TDK (generated files and secrets)\n");
+      expect(content).toContain("# Flisk (generated files and secrets)\n");
       expect(content).toContain(".env\n");
       expect(content).toContain(".tdk/.tdk-out/\n");
       expect(content).toContain(".tdk/.project-id\n");
@@ -221,7 +221,9 @@ describe("file helpers", () => {
       expect(added).toEqual([".tdk/.tdk-out/", ".tdk/.project-id", ".tdk/smoke/", "node_modules/"]);
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
-      expect(content.startsWith("dist\n.env\n\n# TDK (generated files and secrets)\n")).toBe(true);
+      expect(content.startsWith("dist\n.env\n\n# Flisk (generated files and secrets)\n")).toBe(
+        true,
+      );
     });
 
     it("returns empty array and does not modify file if all entries exist", () => {

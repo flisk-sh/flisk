@@ -10,5 +10,5 @@ RUN npm ci --no-audit --no-fund
 RUN chown -R node:node .
 USER node
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD node -e "require('net').connect(${PORT:-3000},'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
-# The dev server must listen beyond loopback (--host) and on the port TDK assigns.
+# The dev server must listen beyond loopback (--host) and on the port Flisk assigns.
 CMD ["sh", "-c", "npx docusaurus start --host 0.0.0.0 --port ${PORT:-3000} --no-open"]

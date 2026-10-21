@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import fs, { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -230,7 +230,7 @@ describe("discoverStacks with real temp dir", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "tdk-stacks-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "flisk-stacks-"));
     vi.mocked(findProjectRoot).mockReturnValue(tmpDir);
   });
 
@@ -273,7 +273,7 @@ describe("getResourcesForStack with real temp dir", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "tdk-res-stack-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "flisk-res-stack-"));
     vi.mocked(findProjectRoot).mockReturnValue(tmpDir);
   });
 
@@ -310,7 +310,7 @@ describe("stackExists with real temp dir", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "tdk-exists-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "flisk-exists-"));
     vi.mocked(findProjectRoot).mockReturnValue(tmpDir);
   });
 
@@ -386,7 +386,7 @@ describe("findServiceJsonFiles discovery (temp dir integration)", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "tdk-svc-json-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "flisk-svc-json-"));
     // Mock findProjectRoot to return our temp dir
     vi.mocked(findProjectRoot).mockReturnValue(tmpDir);
   });
@@ -547,7 +547,7 @@ describe("service.json warnings", () => {
   let root = "";
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-warn-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-warn-"));
     mkdirSync(join(root, "services", "api"), { recursive: true });
     writeFileSync(
       join(root, "services", "api", "service.json"),
@@ -578,7 +578,7 @@ describe("resilient service discovery", () => {
   let root = "";
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-resilient-discovery-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-resilient-discovery-"));
     vi.mocked(findProjectRoot).mockReturnValue(root);
     resetPrintedServiceWarnings();
   });
@@ -694,7 +694,7 @@ describe("single-scan discovery reuse", () => {
   let root = "";
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-single-scan-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-single-scan-"));
     mkdirSync(join(root, ".tdk"), { recursive: true });
     writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
     for (const [name, stack, port] of [
@@ -787,7 +787,7 @@ describe("single-scan discovery reuse", () => {
     const { clearDiscoveryCache, createDiscoveryContext } = await import("../discovery-context.js");
     clearDiscoveryCache();
 
-    const otherRoot = mkdtempSync(join(tmpdir(), "tdk-other-root-"));
+    const otherRoot = mkdtempSync(join(tmpdir(), "flisk-other-root-"));
     try {
       const otherDir = join(otherRoot, "services", "billing", "payment");
       mkdirSync(otherDir, { recursive: true });

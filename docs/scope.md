@@ -1,49 +1,49 @@
-# Scope: what TDK is for, and what does not carry over to production
+# Scope: what Flisk is for, and what does not carry over to production
 
-TDK is a **local development and test environment**. It starts your services on Docker with Tilt. It does not deploy anything, and it is not meant to be the source of truth for how your services run in staging or production. See [TDK and Helm](with-helm.md) for the Kubernetes side.
+Flisk is a **local development and test environment**. It starts your services on Docker with Tilt. It does not deploy anything, and it is not meant to be the source of truth for how your services run in staging or production. See [Flisk and Helm](with-helm.md) for the Kubernetes side.
 
-Facts on this page were read from the files `tdk project` and `tdk resource` generated for a scaffolded `backend` service (TDK 1.3.86) and from the repository's workflows. TDK was started through `tdk up` for that service; a real application and a staging environment were not tested.
+Facts on this page were read from the files `flisk project` and `flisk resource` generated for a scaffolded `backend` service (Flisk 1.3.86) and from the repository's workflows. Flisk was started through `flisk up` for that service; a real application and a staging environment were not tested.
 
 ## Local only, or also staging and CI?
 
 - **Local:** the intended use.
-- **CI:** it works as a throwaway environment. The repository's own [quickstart workflow](../.github/workflows/e2e-journeys.yml) runs a real `tdk up` on a GitHub-hosted runner. A copy-paste workflow for your own repository is in [Running TDK in CI](ci.md); its `tdk up` job has not been run on GitHub.
+- **CI:** it works as a throwaway environment. The repository's own [quickstart workflow](../.github/workflows/e2e-journeys.yml) runs a real `flisk up` on a GitHub-hosted runner. A copy-paste workflow for your own repository is in [Running Flisk in CI](ci.md); its `flisk up` job has not been run on GitHub.
 - **Staging or production:** no. There is no command that deploys, exports a chart, or generates cluster configuration.
 
 ## What differs from production
 
 Read from the generated Compose file and `.env` of a scaffolded backend. Check each line against your own setup.
 
-| Area | Under TDK | In production you decide |
+| Area | Under Flisk | In production you decide |
 | --- | --- | --- |
 | Runtime mode | The container runs with `NODE_ENV=development` and `TDK_ENV` from `TILT_ENV` (default `development`) | Your own environment flags |
 | Auth | `AUTH_MODE=local-jwt` signed with a `JWT_SECRET` generated per project in `.env`; or an identity service when you add one | Your real identity provider and key management |
 | Database | One shared Postgres 16 container, a database per stack (`<project>_<stack>`), password from `.env`, data in a Docker volume ([local data](data.md)) | Managed database, backups, credentials, migrations |
-| Migrations | Services may migrate at container start (`AUTO_MIGRATE` is an escape hatch); `tdk doctor` warns about it | A migrator that runs once, for example a [one-shot job](byo.md#one-shot-jobs-migrations-seeders) |
-| URLs and routing | Traefik with `*.localhost` hostnames on host ports 80 and 443 when they are free (otherwise a port from 8080-8180 and 8443-8543); hosts and ports are TDK's | Your ingress class, DNS, certificates |
+| Migrations | Services may migrate at container start (`AUTO_MIGRATE` is an escape hatch); `flisk doctor` warns about it | A migrator that runs once, for example a [one-shot job](byo.md#one-shot-jobs-migrations-seeders) |
+| URLs and routing | Traefik with `*.localhost` hostnames on host ports 80 and 443 when they are free (otherwise a port from 8080-8180 and 8443-8543); hosts and ports are Flisk's | Your ingress class, DNS, certificates |
 | Secrets | Read from the git-ignored `.env`, or Infisical when `TDK_SECRET_PROVIDER=infisical` ([environment](environment.md)) | Your secret store |
 | Resources | The generated Compose file sets limits: for the scaffolded backend 512 MB and 0.5 CPU, with 256 MB and 0.2 CPU reserved | Replicas, limits, autoscaling |
 | Restarts and health | `restart: unless-stopped`; for a generated service, a Compose health check that runs `curl` inside the image. A bring-your-own service gets no Compose health check (read in `compose.star`, not run): its image does not need `curl`, and Traefik's own health check applies | Readiness and liveness probes |
-| Networks | Per-project Docker networks (`<project>_backend`, `_database`, `_traefik-public`, and others), kept after `tdk down` unless you pass `--prune-networks` | Network policy |
+| Networks | Per-project Docker networks (`<project>_backend`, `_database`, `_traefik-public`, and others), kept after `flisk down` unless you pass `--prune-networks` | Network policy |
 
 HTTPS: Traefik has an HTTPS entry point on 443 when it is free, otherwise on a port from 8443-8543. How certificates are handled was **not checked**.
 
-## Is the Dockerfile TDK builds the one we ship?
+## Is the Dockerfile Flisk builds the one we ship?
 
-No. For a generated service, `tdk up` builds `services/<stack>/<name>/.autogenerated/Dockerfile.app.autogenerated` with the project root as build context. Its stages start `FROM <project>-l1:latest`, `-l2`, `-l3-backend` and `-l4-backend`, which are **images TDK builds locally** (the golden layers) and does not publish. That file cannot be built on a machine or in a CI job that has not built those images first. Its final stage runs as user `bun` and has `production` and `development` targets that are the same stage; it is a local image, tagged `shop_orders-api:dev`.
+No. For a generated service, `flisk up` builds `services/<stack>/<name>/.autogenerated/Dockerfile.app.autogenerated` with the project root as build context. Its stages start `FROM <project>-l1:latest`, `-l2`, `-l3-backend` and `-l4-backend`, which are **images Flisk builds locally** (the golden layers) and does not publish. That file cannot be built on a machine or in a CI job that has not built those images first. Its final stage runs as user `bun` and has `production` and `development` targets that are the same stage; it is a local image, tagged `shop_orders-api:dev`.
 
-`tdk resource` also writes a plain `Dockerfile` next to `service.json`, headed with a comment saying so. `tdk up` does not build it: for generated resources the engine builds the `.autogenerated` file above. Its `PORT`, `EXPOSE` and health check follow the `port` in `service.json` (they used to say 3000 while a backend ran on 4000). It is a starting point for building outside TDK, not the image that runs locally, and whether it is suitable to ship was not checked.
+`flisk resource` also writes a plain `Dockerfile` next to `service.json`, headed with a comment saying so. `flisk up` does not build it: for generated resources the engine builds the `.autogenerated` file above. Its `PORT`, `EXPOSE` and health check follow the `port` in `service.json` (they used to say 3000 while a backend ran on 4000). It is a starting point for building outside Flisk, not the image that runs locally, and whether it is suitable to ship was not checked.
 
 If you want the image you ship to be the image that runs locally, use a [bring-your-own resource](byo.md) with your own `Dockerfile` or `--image`. That is a way to reduce the gap, not a guarantee that local and production behave the same.
 
 ## Your existing Compose and Helm files
 
-- Left untouched: TDK did not modify a `docker-compose.yml`, `Tiltfile` or `.tiltignore` already in the repository ([gradual adoption](gradual-adoption.md)).
+- Left untouched: Flisk did not modify a `docker-compose.yml`, `Tiltfile` or `.tiltignore` already in the repository ([gradual adoption](gradual-adoption.md)).
 - Not generated: no Helm values, no chart. `.tdk/.tdk-out/` and `.autogenerated/` are local output; do not copy them into a chart.
 - Duplicated: the same facts (a port, an image, a health path) exist in `service.json` and in your chart. Nothing keeps them in sync, so check them when you change either.
 
-## Avoiding "works under TDK only"
+## Avoiding "works under Flisk only"
 
 - Run your production image, built by your own CI, through a bring-your-own resource at least once.
-- Do not rely on TDK's local auth, database name or `*.localhost` hosts inside application code; read them from environment variables.
-- Keep `NODE_ENV`-dependent behaviour tested in a non-TDK run too.
+- Do not rely on Flisk's local auth, database name or `*.localhost` hosts inside application code; read them from environment variables.
+- Keep `NODE_ENV`-dependent behaviour tested in a non-Flisk run too.

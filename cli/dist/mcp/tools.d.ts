@@ -14,12 +14,12 @@ export interface TdkRun {
  * a `bun build --compile` binary, whose argv[1] is a virtual path that exists only inside the binary.
  */
 export declare function cliInvocation(execPath?: string, script?: string | undefined, fileExists?: (path: string) => boolean): string[];
-/** Runs this same CLI (`tdk <args>`) so every tool behaves exactly like its command. */
+/** Runs this same CLI (`flisk <args>`) so every tool behaves exactly like its command. */
 export declare const runTdkCli: RunTdk;
 /** Turn a command's `--json` stdout into a tool result. A parseable envelope with errors, or `ok: false`, is an error result. */
 export declare function toToolResult(run: TdkRun): McpToolResult;
 export interface UpDeps {
-    /** Starts `tdk up` detached, with output going to a log file. */
+    /** Starts `flisk up` detached, with output going to a log file. */
     spawnUp: (args: string[], logFile: string, cwd?: string) => ChildProcess;
     readLog: (logFile: string) => string;
     sleep: (ms: number) => Promise<void>;

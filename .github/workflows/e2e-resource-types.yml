@@ -132,14 +132,14 @@ jobs:
             version="latest"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Testing @tdk-landscape/tdk-cli-core@$version"
+          echo "Testing flisk@$version"
 
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
-      - name: Install TDK
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Flisk
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           version: ${{ steps.version.outputs.version }}
 
@@ -148,11 +148,11 @@ jobs:
           TDK_VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "commit: $(git rev-parse HEAD)"
-          echo "tested package: @tdk-landscape/tdk-cli-core@$TDK_VERSION"
+          echo "tested package: flisk@$TDK_VERSION"
           echo "node: $(node --version)"
           echo "docker: $(docker --version)"
           echo "tilt: $(tilt version)"
-          echo "tdk: $(tdk --version)"
+          echo "flisk: $(flisk --version)"
 
       # The suite runs every case in order; each case is grouped in the log so a red case is easy to find.
       - name: Run the suite

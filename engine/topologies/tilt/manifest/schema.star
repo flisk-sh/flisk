@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📋 MANIFEST MODULE - SCHEMA DEFINITIONS
@@ -281,7 +281,7 @@ MANIFEST_SCHEMA = {
                 'type': 'boolean',
                 'required': False,
                 'default': False,
-                'description': 'Skip this resource during tdk up entirely (no container is created or started); a Traefik static route wakes it and its dependencies on the first request instead. Requires enable: true.',
+                'description': 'Skip this resource during flisk up entirely (no container is created or started); a Traefik static route wakes it and its dependencies on the first request instead. Requires enable: true.',
             },
         },
         'description': 'On-demand scaling via Sablier: stop idle containers, wake them on the next request. Not recommended for stateful resources (databases) with in-flight writes. (Premium - requires TDK_LICENSE_KEY; see hasSablierLicense() in extension-fetch.ts)',

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { Command } from "commander";
 import { STANDARD_PORTS } from "../utils/constants.js";
@@ -104,7 +104,7 @@ export const logsCommand = new Command("logs")
       }
 
       if (!(await isTiltAvailable())) {
-        fail("TILT_MISSING", "Tilt is not installed. Run: tdk doctor");
+        fail("TILT_MISSING", "Tilt is not installed. Run: flisk doctor");
       }
       if (services.length > 0) {
         const known = await tiltResourceNames(portText);

@@ -1,5 +1,5 @@
 # =============================================================================
-# 🎯 TDK-EXT - Extensions and IDE Components
+# 🎯 FLISK-EXT - Extensions and IDE Components
 # =============================================================================
 # This is the Tiltfile entry point for the tdk-ext repo.
 # It exports UI enhancements and IDE components.
@@ -63,4 +63,4 @@ IDE_PORTS = {
     'code_executor': 9768,
 }
 
-print("✅ TDK Extensions loaded: UI enhancements and IDE components")
+print("✅ Flisk Extensions loaded: UI enhancements and IDE components")

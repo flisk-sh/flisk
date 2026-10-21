@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
@@ -141,7 +141,9 @@ export const resourcesCommand = new Command("resources")
             `\n${formatCount(withoutStackCount, "resource")} not assigned to any stack.`,
           ),
         );
-        showDetail('Run "tdk resources --no-stack" to see them, or "tdk stack" to assign them.');
+        showDetail(
+          'Run "flisk resources --no-stack" to see them, or "flisk stack" to assign them.',
+        );
       }
     };
 

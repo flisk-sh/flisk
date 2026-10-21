@@ -44,7 +44,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/test-summary.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 
-test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, tdk)
+test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, flisk)
 	@test -n "$(GROUP)" -a -n "$(SUITE)" || { echo "usage: make test-e2e GROUP=<group> SUITE=<suite> [CASES=\"<case> ...\"]"; ls tests/e2e/*/*/suite.json | sed 's#tests/e2e/##; s#/suite.json##'; exit 2; }
 	tests/e2e/$(GROUP)/$(SUITE)/run.sh $(if $(CASES),$(CASES),all)
 
@@ -110,8 +110,8 @@ video-validate: ## Validate video generator system setup
 	@echo "🔍 Validating video generator setup..."
 	cd video-generator && swift run tdk-video validate
 
-video-generate: ## Generate the TDK CLI tutorial video (requires FFmpeg)
-	@echo "🎬 Generating TDK CLI tutorial video..."
+video-generate: ## Generate the Flisk CLI tutorial video (requires FFmpeg)
+	@echo "🎬 Generating Flisk CLI tutorial video..."
 	@echo "   This will create TDK_Tutorial_1440p.mp4 (20 min, 2K)"
 	cd video-generator && swift run tdk-video generate
 

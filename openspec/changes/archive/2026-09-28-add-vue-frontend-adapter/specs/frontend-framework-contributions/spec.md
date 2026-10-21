@@ -7,7 +7,7 @@ The repository SHALL document how contributors add a frontend framework provider
 #### Scenario: Contributor finds framework contribution instructions
 - **WHEN** a contributor reads `CONTRIBUTING.md`
 - **THEN** they can follow a link to the frontend framework contribution guide
-- **AND** the guide explains how to add a Vite-based framework provider using the same shared TDK contract
+- **AND** the guide explains how to add a Vite-based framework provider using the same shared Flisk contract
 
 #### Scenario: Contributor can determine provider scope
 - **WHEN** a contributor follows the guide to add a framework
@@ -19,7 +19,7 @@ The repository SHALL document how contributors add a frontend framework provider
 - **THEN** the guide says to copy the React provider and register one kebab-case framework id
 - **AND** limits the initial adapter contract to Vite-based SPAs and one framework per pull request
 - **AND** says not to add framework-specific Docker, nginx, Traefik, Tilt orchestration, or API-client implementations
-- **AND** says not to add the framework as a dependency of the `tdk` CLI runtime
+- **AND** says not to add the framework as a dependency of the `flisk` CLI runtime
 
 ### Requirement: Framework contributions have a review checklist
 

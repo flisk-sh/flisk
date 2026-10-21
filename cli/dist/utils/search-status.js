@@ -1,4 +1,4 @@
-/** Describes a `/` search result for the `tdk ui` header; null when there is no query. */
+/** Describes a `/` search result for the `flisk ui` header; null when there is no query. */
 export function describeSearch(query, matches, total) {
     if (!query)
         return null;

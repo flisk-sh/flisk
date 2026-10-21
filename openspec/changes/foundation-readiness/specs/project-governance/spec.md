@@ -31,7 +31,7 @@ GOVERNANCE.md SHALL state how a person becomes a maintainer, how they are remove
 
 ### Requirement: Adopter evidence
 
-ADOPTERS.md SHALL list only teams that run tdk up on their own repositories. The 100-service health fixture SHALL NOT be an adopter row.
+ADOPTERS.md SHALL list only teams that run flisk up on their own repositories. The 100-service health fixture SHALL NOT be an adopter row.
 
 #### Scenario: Fixture is offered as an adopter
 
@@ -40,5 +40,5 @@ ADOPTERS.md SHALL list only teams that run tdk up on their own repositories. The
 
 #### Scenario: Real adopter
 
-- **WHEN** a row has an organization, a public link, and a TDK version
+- **WHEN** a row has an organization, a public link, and a Flisk version
 - **THEN** the row may be added

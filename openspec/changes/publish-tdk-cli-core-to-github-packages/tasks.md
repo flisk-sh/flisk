@@ -2,7 +2,7 @@
 
 ## 1. Package and release configuration
 
-- [x] 1.1 Confirm `package.json` retains the scoped name `@tdk-landscape/tdk-cli-core` and canonical repository URL; verified with the bundled Node runtime (the environment has no npm executable).
+- [x] 1.1 Confirm `package.json` retains the scoped name `flisk` and canonical repository URL; verified with the bundled Node runtime (the environment has no npm executable).
 - [x] 1.2 Add an explicit GitHub Packages publish invocation that uses the single packed release artifact and targets `https://npm.pkg.github.com`; verified separate registry configuration for each publish step.
 - [x] 1.3 Update the release workflow so the existing release trigger publishes to GitHub Packages with `GITHUB_TOKEN` and least-privilege `packages: write`; verified no PAT is needed for repository-owned publishing.
 - [x] 1.4 Ensure a GitHub Packages publish failure is visible as a failed workflow and document how to retry that registry for the same version; the isolated publish job fails the workflow by default, and retry downloads the retained tarball and skips versions already present.
@@ -15,7 +15,7 @@
 
 ## 3. Publication and installation verification
 
-- [ ] 3.1 Run the backfill workflow for an existing npm release (or use the regular release workflow for a new version); verify `npm view @tdk-landscape/tdk-cli-core@<version> --registry=https://npm.pkg.github.com` resolves the version.
-- [ ] 3.2 Confirm the package is linked to `tdk-landscape/tdk-cli-core` and has the intended public visibility; verify the package appears on the repository Packages page.
-- [ ] 3.3 From a clean environment with documented registry mapping and read authentication, install the GitHub Packages version and verify `tdk --version` reports that version; the backfill workflow includes this authenticated verification.
-- [x] 3.4 Verify public npm publication and installation still work for version `1.3.186`; npm registry metadata resolved successfully, and a clean temporary global install reported `tdk --version` as `1.3.186`.
+- [ ] 3.1 Run the backfill workflow for an existing npm release (or use the regular release workflow for a new version); verify `npm view flisk@<version> --registry=https://npm.pkg.github.com` resolves the version.
+- [ ] 3.2 Confirm the package is linked to `flisk-sh/tdk-cli-core` and has the intended public visibility; verify the package appears on the repository Packages page.
+- [ ] 3.3 From a clean environment with documented registry mapping and read authentication, install the GitHub Packages version and verify `flisk --version` reports that version; the backfill workflow includes this authenticated verification.
+- [x] 3.4 Verify public npm publication and installation still work for version `1.3.186`; npm registry metadata resolved successfully, and a clean temporary global install reported `flisk --version` as `1.3.186`.

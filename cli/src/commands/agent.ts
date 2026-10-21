@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import * as http from "node:http";
 import chalk from "chalk";
@@ -38,7 +38,7 @@ export function httpGet(
 }
 
 /**
- * Agent containers publish no host port; the only way in is the Traefik route that `tdk status` prints as `url`
+ * Agent containers publish no host port; the only way in is the Traefik route that `flisk status` prints as `url`
  * (for example http://api.<project>.localhost:8080/api/bot). `*.localhost` does not resolve everywhere (glibc without
  * systemd-resolved), so connect to loopback and keep the route's host in the Host header, which is all Traefik matches on.
  */
@@ -126,7 +126,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg, [`Run: tdk agent sessions ${resourceName} --session-id <id>`]);
+        throw new TdkError(msg, [`Run: flisk agent sessions ${resourceName} --session-id <id>`]);
       }
 
       const portPlan = root
@@ -156,7 +156,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg, ["Start the stack with: tdk up"]);
+        throw new TdkError(msg, ["Start the stack with: flisk up"]);
       };
 
       let res: { ok: boolean; status: number };

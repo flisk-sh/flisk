@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import * as path from "node:path";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** The CLI entry point the tests run, resolved once. */
-export const tdkBin = path.resolve(here, "../../bin/tdk.js");
+export const tdkBin = path.resolve(here, "../../bin/flisk.js");
 
 export interface RunTdkOptions {
   cwd: string;
@@ -26,7 +26,7 @@ export interface RunTdkResult {
 }
 
 /**
- * Runs `tdk <args>` in a child process and returns its exit status and output.
+ * Runs `flisk <args>` in a child process and returns its exit status and output.
  * Throws when the child could not run to completion (spawn error, timeout or signal), so a test never reads
  * `status: null` as an exit code.
  */
@@ -42,7 +42,7 @@ export function runTdk(args: readonly string[], options: RunTdkOptions): RunTdkR
     env: env as NodeJS.ProcessEnv,
     timeout: options.timeout,
   });
-  const command = `tdk ${args.join(" ")}`;
+  const command = `flisk ${args.join(" ")}`;
   if (result.error) {
     throw new Error(`Could not run \`${command}\` in ${options.cwd}: ${result.error.message}`);
   }

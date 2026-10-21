@@ -43,7 +43,7 @@ export function App() {
 
   return (
     <main>
-      <p className="eyebrow">TDK · Hono · PostgreSQL · NATS · Vite · Traefik</p>
+      <p className="eyebrow">Flisk · Hono · PostgreSQL · NATS · Vite · Traefik</p>
       <h1>Order desk</h1>
       <p className="status">{message}</p>
       <form onSubmit={createOrder}>

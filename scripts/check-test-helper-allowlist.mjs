@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Stops duplicated test helpers from coming back (#1402, part of #1388). A test file under cli/src/**/__tests__ that
 // declares one of the shared helpers (runTdk, createTempProject, makeResource, ...) fails, unless the file and helper

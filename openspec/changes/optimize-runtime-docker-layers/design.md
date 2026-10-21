@@ -38,13 +38,13 @@ With direct exec, Bun becomes PID 1. The kernel does not apply default signal ac
 
 ### D3: One healthcheck config, 30 s interval with a 2 s start interval
 
-A new shared module, `engine/topologies/platform/docker/config/healthcheck.star`, replaces the per-file inlined `get_docker_healthcheck_config` copies. The copies had drifted: `l4_runtime_layers.star`'s copy lacked keys its own code read. Defaults: `interval 30s`, `start_period 30s` (unchanged), `start_interval 2s`, `timeout 5s`, `retries 3`. Golden images, the L4 runtime layer, `compose.star` and `traefik_standalone.star` all read it. Each value can be overridden per run with `TDK_HEALTHCHECK_INTERVAL_SECONDS`, `TDK_HEALTHCHECK_START_INTERVAL_SECONDS`, `TDK_HEALTHCHECK_TIMEOUT_SECONDS`, `TDK_HEALTHCHECK_START_PERIOD_SECONDS` and `TDK_HEALTHCHECK_RETRIES`. Environment variables are used because there is no per-project healthcheck setting today, and `tdk up` does not pass the project `.env` through to Tilt.
+A new shared module, `engine/topologies/platform/docker/config/healthcheck.star`, replaces the per-file inlined `get_docker_healthcheck_config` copies. The copies had drifted: `l4_runtime_layers.star`'s copy lacked keys its own code read. Defaults: `interval 30s`, `start_period 30s` (unchanged), `start_interval 2s`, `timeout 5s`, `retries 3`. Golden images, the L4 runtime layer, `compose.star` and `traefik_standalone.star` all read it. Each value can be overridden per run with `TDK_HEALTHCHECK_INTERVAL_SECONDS`, `TDK_HEALTHCHECK_START_INTERVAL_SECONDS`, `TDK_HEALTHCHECK_TIMEOUT_SECONDS`, `TDK_HEALTHCHECK_START_PERIOD_SECONDS` and `TDK_HEALTHCHECK_RETRIES`. Environment variables are used because there is no per-project healthcheck setting today, and `flisk up` does not pass the project `.env` through to Tilt.
 
 During the start period Docker probes every 2 s, so a service is marked healthy right after it starts answering (see the spec's "Startup readiness is not delayed" scenario). After that, probes drop to every 30 s. With `retries 3`, a failing service is marked unhealthy within about 90 s, compared with about 60 s today.
 
-*Alternative:* 30 s interval with no start interval. Rejected because first-healthy time would move from about 10 s to about 30 s per container, which slows every dependency chain in `tdk up`.
+*Alternative:* 30 s interval with no start interval. Rejected because first-healthy time would move from about 10 s to about 30 s per container, which slows every dependency chain in `flisk up`.
 
-`start_interval` needs Docker Engine 25+ and Compose 2.20.2+. `tdk doctor` gets a check that fails with an upgrade hint on older versions.
+`start_interval` needs Docker Engine 25+ and Compose 2.20.2+. `flisk doctor` gets a check that fails with an upgrade hint on older versions.
 
 ### D4: Golden migrator stage declares `HEALTHCHECK NONE`
 
@@ -67,15 +67,15 @@ Evidence (task 1.1, 2026-09-25): no service in `tdk-erp-system`, `tdk-saas-start
 ## Risks / Trade-offs
 
 - [The start-script parser misreads a script, e.g. `bun run dist/index.js --port 4000`] → Only a single file argument qualifies. Anything with extra tokens falls back to `bun run start`, so the fallback is always the current behaviour.
-- [Docker Engine / Compose is older than 25 / 2.20.2 and rejects `start_interval`] → New `tdk doctor` version check; the release notes state the minimum version.
+- [Docker Engine / Compose is older than 25 / 2.20.2 and rejects `start_interval`] → New `flisk doctor` version check; the release notes state the minimum version.
 - [Unhealthy detection is slower (about 90 s vs 60 s)] → Acceptable for local dev. `retries` stays configurable.
 - [A project relied on hugo without declaring the feature] → The build fails loudly (`hugo: not found`). Migration note: add `"hugo"` to `featuresEnabled`. No project in this workspace is affected (see D5 evidence).
 - [Background auto-commit tooling in this workspace pushes partial engine edits] → Make each decision's edits in one sitting and run the snapshot tests before moving on, so every intermediate push is still consistent.
 
 ## Migration Plan
 
-1. Ship the engine changes in a TDK release.
-2. In each project: run `tdk project --yes` to re-vendor `.tdk/.tdk-out/tdk-cli-ext/` and regenerate compose files and Dockerfiles, touch the Tiltfile, then rebuild golden layers with the `golden-layers-build` resource or a fresh `tdk up`.
+1. Ship the engine changes in a Flisk release.
+2. In each project: run `flisk project --yes` to re-vendor `.tdk/.tdk-out/tdk-cli-ext/` and regenerate compose files and Dockerfiles, touch the Tiltfile, then rebuild golden layers with the `golden-layers-build` resource or a fresh `flisk up`.
 3. Existing images keep working until they are rebuilt, and nothing needs to change inside services.
 
-**Rollback:** revert the engine change, re-run `tdk project --yes`, and rebuild the golden layers.
+**Rollback:** revert the engine change, re-run `flisk project --yes`, and rebuild the golden layers.

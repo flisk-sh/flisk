@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🔐 INFISICAL GENERATORS - Master Index
@@ -6,7 +6,7 @@
 # All Infisical-related generators for Tilt topology configuration
 # =============================================================================
 #
-# This module provides complete Infisical integration for the TDK CLI:
+# This module provides complete Infisical integration for the Flisk CLI:
 #   - Secret injection configuration generation
 #   - Path/folder management
 #   - Machine identity configuration

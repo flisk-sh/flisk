@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -96,14 +96,14 @@ function errorOutput(): string {
 }
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), "tdk-project-no-runtime-")));
+  root = realpathSync(mkdtempSync(join(tmpdir(), "flisk-project-no-runtime-")));
   originalCwd = process.cwd();
   process.chdir(root);
   mocks.checkDockerRuntime.mockResolvedValue({
     name: "Docker Runtime",
     didPass: false,
     message: "Docker daemon is not running",
-    fix: "Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor",
+    fix: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
   });
   mocks.checkDockerCompose.mockResolvedValue({
     name: "Docker Compose",
@@ -142,7 +142,7 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-describe("tdk project without a local runtime", () => {
+describe("flisk project without a local runtime", () => {
   it("creates the project configuration while Docker is stopped and Tilt is missing", async () => {
     await runProject({ check: false, force: false, yes: true });
 
@@ -163,8 +163,8 @@ describe("tdk project without a local runtime", () => {
     await runProject({ check: false, force: false, yes: true });
 
     expect(output()).toContain("Tilt is not installed");
-    expect(output()).toContain("tdk doctor");
-    expect(output()).toContain("tdk up");
+    expect(output()).toContain("flisk doctor");
+    expect(output()).toContain("flisk up");
   });
 
   it("clones a starter template while Docker is stopped and Tilt is missing", async () => {

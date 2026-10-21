@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliPath = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliPath = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 function runTdk(args: string[], cwd: string, env?: NodeJS.ProcessEnv) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -18,8 +18,8 @@ function runTdk(args: string[], cwd: string, env?: NodeJS.ProcessEnv) {
   });
 }
 
-describe("tdk restart", () => {
-  it("fails when called outside a TDK project", () => {
+describe("flisk restart", () => {
+  it("fails when called outside a Flisk project", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-restart-outside-"));
     try {
       const res = runTdk(["restart", "api", "--json"], tmp);

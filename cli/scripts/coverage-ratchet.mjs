@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 //
 // Coverage ratchet for the high-risk CLI areas. Reads the JSON-summary written by `bun run test:coverage`, adds up the

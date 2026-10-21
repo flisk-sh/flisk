@@ -60,8 +60,8 @@ jobs:
           mv "$RUNNER_TEMP/lifecycle/$packed" "$RUNNER_TEMP/lifecycle/tdk-cli.tgz"
           cp cli/package.json scripts/package-lifecycle-smoke.sh scripts/install-global.mjs "$RUNNER_TEMP/lifecycle/"
 
-      # A clean Node 22 image: no Tilt, no Docker project, no global tdk.
-      # Tilt and Docker are not installed, so `tdk up` is not exercised here.
+      # A clean Node 22 image: no Tilt, no Docker project, no global flisk.
+      # Tilt and Docker are not installed, so `flisk up` is not exercised here.
       - name: Install, upgrade, uninstall the packed CLI in a clean container
         run: |
           docker run --rm \

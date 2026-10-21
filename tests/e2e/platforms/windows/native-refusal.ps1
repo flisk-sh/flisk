@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The native Windows CLI contract (W3 in run.sh; moved verbatim from the "Verify native Windows CLI contract" step of
 # the retired windows-smoke workflow, #1300). Run from the cli directory. GitHub's pwsh step sets ErrorActionPreference to Stop;
@@ -7,9 +7,9 @@ $ErrorActionPreference = 'Stop'
 
 Remove-Item Env:TDK_ALLOW_NATIVE_WINDOWS -ErrorAction SilentlyContinue
 
-$version = & node bin/tdk.js --version
+$version = & node bin/flisk.js --version
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($version | Out-String))) {
-  throw 'tdk --version did not succeed.'
+  throw 'flisk --version did not succeed.'
 }
 Write-Output $version
 
@@ -19,7 +19,7 @@ function Invoke-NativeWindowsRefusal {
     [Parameter(Mandatory = $true)][string[]]$CliArgs
   )
 
-  $output = & node bin/tdk.js @CliArgs 2>&1
+  $output = & node bin/flisk.js @CliArgs 2>&1
   $exitCode = $LASTEXITCODE
   $text = $output | Out-String
   Write-Host "$Label exit code: $exitCode"
@@ -34,8 +34,8 @@ function Invoke-NativeWindowsRefusal {
   return $text
 }
 
-$null = Invoke-NativeWindowsRefusal -Label 'tdk doctor' -CliArgs @('doctor')
-$null = Invoke-NativeWindowsRefusal -Label 'tdk up --dry-run' -CliArgs @('up', '--dry-run')
+$null = Invoke-NativeWindowsRefusal -Label 'flisk doctor' -CliArgs @('doctor')
+$null = Invoke-NativeWindowsRefusal -Label 'flisk up --dry-run' -CliArgs @('up', '--dry-run')
 
 $beforeRuntimeProcesses = @(
   Get-Process -Name @('tilt', 'dockerd', 'containerd', 'com.docker.backend') -ErrorAction SilentlyContinue |
@@ -48,9 +48,9 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
   $canInspectContainers = $LASTEXITCODE -eq 0
 }
 
-$shopOutput = Invoke-NativeWindowsRefusal -Label 'tdk up shop' -CliArgs @('up', 'shop')
+$shopOutput = Invoke-NativeWindowsRefusal -Label 'flisk up shop' -CliArgs @('up', 'shop')
 if ($shopOutput -match '(?im)^(Starting|Running tilt up)') {
-  throw 'tdk up shop emitted a landscape startup message despite refusing native Windows.'
+  throw 'flisk up shop emitted a landscape startup message despite refusing native Windows.'
 }
 
 $afterRuntimeProcesses = @(
@@ -59,7 +59,7 @@ $afterRuntimeProcesses = @(
 )
 $newRuntimeProcesses = @($afterRuntimeProcesses | Where-Object { $_ -notin $beforeRuntimeProcesses })
 if ($newRuntimeProcesses.Count -gt 0) {
-  throw "tdk up shop started runtime processes: $($newRuntimeProcesses -join ', ')"
+  throw "flisk up shop started runtime processes: $($newRuntimeProcesses -join ', ')"
 }
 
 if ($canInspectContainers) {
@@ -69,7 +69,7 @@ if ($canInspectContainers) {
   }
   $newContainers = @($dockerAfter | Where-Object { $_ -notin $dockerBefore })
   if ($newContainers.Count -gt 0) {
-    throw "tdk up shop started containers: $($newContainers -join ', ')"
+    throw "flisk up shop started containers: $($newContainers -join ', ')"
   }
 }
 

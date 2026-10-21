@@ -162,13 +162,13 @@ service-backend-1, service-backend-2, ... (applications and migrators)
 
 **Via CLI** (writes `optional_infra.golden_image` in `.tdk/project.json`):
 ```bash
-tdk config disable-infra golden_image
-tdk config regenerate
+flisk config disable-infra golden_image
+flisk config regenerate
 ```
 
 Use `enable-infra` to turn it back on. The setting is for the whole project, not per service.
 
-**Focus mode**: `golden-layers-build` is one of the infrastructure resources kept enabled in focus mode (`_ALWAYS_ENABLED_INFRA_RESOURCES` in the Tiltfile), so `tdk up --only <service>` still builds the golden images.
+**Focus mode**: `golden-layers-build` is one of the infrastructure resources kept enabled in focus mode (`_ALWAYS_ENABLED_INFRA_RESOURCES` in the Tiltfile), so `flisk up --only <service>` still builds the golden images.
 
 ### Rebuild Golden Image
 
@@ -201,16 +201,16 @@ vim engine/topologies/platform/docker/build/golden_image_dockerfile.star
 
 ## Warm starts and build speed (local development only)
 
-These settings change how `tdk up` builds images on your machine. They do not change the images that run, and they do not generate Kubernetes manifests.
+These settings change how `flisk up` builds images on your machine. They do not change the images that run, and they do not generate Kubernetes manifests.
 
 - **Golden images are skipped when unchanged.** Each golden image carries a `tdk.golden.hash` label, the hash of the generated golden Dockerfile. When every golden tag exists with the current hash, `golden-layers-build` exits with "Golden images are up to date" and builds nothing.
-- **Force a golden rebuild** with `TDK_GOLDEN_REBUILD=1 tdk up ...`.
+- **Force a golden rebuild** with `TDK_GOLDEN_REBUILD=1 flisk up ...`.
 - **Golden targets build in one `docker buildx bake`** (with `--load`). The filesystem entitlement is passed only on Buildx 0.19 or later. Without buildx, each target is built with `docker build`, labelled with the same hash.
 - **Parallel image builds** come from the Docker engine: Tilt's `max_parallel_updates` is set from the engine's CPU count (minus two) and memory (about 1.5 GiB per build), with a minimum of 3 and a maximum of 8. Set `TDK_MAX_PARALLEL_BUILDS=<n>` to choose the value. If `docker info` cannot be read, Tilt's default applies and the Tilt log says why.
 - **Frontend type-checks run outside the image.** A frontend whose build script is `tsc --noEmit && vite build` builds with `bunx vite build` inside the image, and a non-blocking `<service>-typecheck` resource runs `tsc --noEmit` on the host. The resource needs the service's dependencies installed (`bun install`); without them it says so. A plain `tsc` (which emits output) and a custom Vite config keep the script's own build.
 - **Measure a start** with `node scripts/benchmark/tilt-build-durations.mjs --port <tilt port>`, which prints each resource's latest build time.
 
-**Measured on `tdk-restaurant-example`** (macOS 26.5.2, arm64, 8 CPUs; tdk 1.3.144): a cold start (all project images and build cache removed) takes 281 seconds to all eight containers healthy. Warm starts take 38 to 50 seconds to healthy, and the golden base build is skipped in about 2 seconds instead of rebuilding for 2 minutes. Full tables, the chart and the raw data are in [`benchmarks/results/tdk-up-warm-start-2026-10-11`](../../benchmarks/results/tdk-up-warm-start-2026-10-11/README.md). To measure your own project, see [`scripts/benchmark/README.md`](../../scripts/benchmark/README.md#tdk-up-warm-start-benchmark).
+**Measured on `tdk-restaurant-example`** (macOS 26.5.2, arm64, 8 CPUs; flisk 1.3.144): a cold start (all project images and build cache removed) takes 281 seconds to all eight containers healthy. Warm starts take 38 to 50 seconds to healthy, and the golden base build is skipped in about 2 seconds instead of rebuilding for 2 minutes. Full tables, the chart and the raw data are in [`benchmarks/results/tdk-up-warm-start-2026-10-11`](../../benchmarks/results/tdk-up-warm-start-2026-10-11/README.md). To measure your own project, see [`scripts/benchmark/README.md`](../../scripts/benchmark/README.md#tdk-up-warm-start-benchmark).
 
 ## File Structure
 

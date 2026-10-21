@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -114,7 +114,7 @@ describe("isForeignTilt", () => {
   });
 });
 
-describe("tdk up with a Tilt on the base port", () => {
+describe("flisk up with a Tilt on the base port", () => {
   const serving = async (port: number) => port === 10350;
   const free = async (base: number) => base + 1;
 

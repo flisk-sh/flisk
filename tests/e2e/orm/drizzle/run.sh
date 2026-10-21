@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-# A backend with the drizzle feature on a live stack (#1488). The scaffold enables `tdk resource --feature drizzle`; the API
+# A backend with the drizzle feature on a live stack (#1488). The scaffold enables `flisk resource --feature drizzle`; the API
 # gets DATABASE_URL from the platform Postgres and answers /health/db through Traefik by querying Postgres with Drizzle:
 #
 #   tests/e2e/orm/drizzle/run.sh all          every case in order, then cleanup
 #   tests/e2e/orm/drizzle/run.sh D1 D2 D3     single cases
 #   tests/e2e/orm/drizzle/run.sh list | self-check | diagnostics | cleanup
 #
-# Needs: tdk on PATH, Docker, Tilt, Node 22+, jq, curl.
+# Needs: flisk on PATH, Docker, Tilt, Node 22+, jq, curl.
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,8 +32,8 @@ D1() { # scaffold a backend with the drizzle feature
   grep -rq "drizzle-orm" "$DIR/services/$STACK/$API" || die "no drizzle-orm dependency in the scaffolded backend"
 }
 
-D2() { # tdk up, then the backend is listed as a backend in tdk status
-  log "D2 tdk up and status lists $API as a backend with drizzle"
+D2() { # flisk up, then the backend is listed as a backend in flisk status
+  log "D2 flisk up and status lists $API as a backend with drizzle"
   : >"$DIR/up.log"
   start_stack "$STACK"
   wait_status_url "$API"
@@ -58,14 +58,14 @@ D4() { # /health/db answers 200 through Traefik: the route queried Postgres thro
   assert check "$OUT/d4-health-db.out" "j.ok === true || j.status === 'ok'" "/health/db reports the Postgres query succeeded"
 }
 
-D5() { # tdk restart, then /health/db answers 200 again through Traefik
-  log "D5 tdk restart $API"
+D5() { # flisk restart, then /health/db answers 200 again through Traefik
+  log "D5 flisk restart $API"
   local before; before="$(api_container)"
   common_restart "$API" "$before" "$API answers /health/db 200 through Traefik" api_db_healthy
 }
 
 D6() { # restart with Tilt unreachable prints one TILT_NOT_RUNNING error envelope and exits 1
-  log "D6 tdk restart with no Tilt on the port: one error envelope"
+  log "D6 flisk restart with no Tilt on the port: one error envelope"
   common_error_envelope TILT_NOT_RUNNING restart "$API" --port 1 --json
 }
 

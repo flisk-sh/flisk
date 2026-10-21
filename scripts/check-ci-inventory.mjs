@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Checks .github/ci-inventory.json against the jobs in .github/workflows/*.yml (#1281, tracker #1279). Every job needs an
 // entry with a tier, no two jobs may report the same check name, the required entries must equal the main merge queue
@@ -225,7 +225,7 @@ function main(argv) {
 		else if (argv[i] === "--live") args.mode = "live";
 		else throw new Error(`unknown argument: ${argv[i]}`);
 	}
-	const repo = process.env.GITHUB_REPOSITORY ?? "tdk-landscape/tdk-cli-core";
+	const repo = process.env.GITHUB_REPOSITORY ?? "flisk-sh/tdk-cli-core";
 	const inventoryPath = path.join(args.root, ".github", "ci-inventory.json");
 	const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
 	let jobs;

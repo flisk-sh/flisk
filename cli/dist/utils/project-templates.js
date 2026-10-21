@@ -18,7 +18,7 @@ export const PROJECT_TEMPLATES = {
     },
     ecommerce: {
         repo: "https://github.com/tdk-landscape/tdk-ecommerce-example.git",
-        description: "Vue 3 storefront and Hono catalog API (needs TDK 1.3.75+ for --framework vue)",
+        description: "Vue 3 storefront and Hono catalog API (needs Flisk 1.3.75+ for --framework vue)",
     },
     example: {
         repo: "https://github.com/tdk-landscape/tdk-example.git",

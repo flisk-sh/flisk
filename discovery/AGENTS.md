@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This folder contains the **service discovery system** for TDK Landscape's Tilt infrastructure. It scans the repository for service manifests and creates Tilt resources.
+This folder contains the **service discovery system** for Flisk's Tilt infrastructure. It scans the repository for service manifests and creates Tilt resources.
 
 ## Architecture: Two-Layer Scanning with Validation
 

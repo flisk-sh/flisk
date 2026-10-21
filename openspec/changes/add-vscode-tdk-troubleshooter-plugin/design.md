@@ -1,10 +1,10 @@
 ## Context
 
-TDK CLI manages local microservice development through project, stack, resource, doctor, status, and Tilt-oriented commands. The current developer workflow is terminal-heavy: developers run commands manually, inspect logs across tools, and infer root causes from mixed CLI, Docker, Bun, Tilt, port, and config output.
+Flisk CLI manages local microservice development through project, stack, resource, doctor, status, and Tilt-oriented commands. The current developer workflow is terminal-heavy: developers run commands manually, inspect logs across tools, and infer root causes from mixed CLI, Docker, Bun, Tilt, port, and config output.
 
-The MVP introduces a VS Code-only extension in a new repository/package at `/private/var/www/2025/ollamar1/tdk-vscode-extension` that treats the TDK CLI as the operational backend. The extension should not fork orchestration logic from the CLI. It should call the CLI, parse structured output where available, preserve raw output for debugging, and present a focused editor-native workflow for orchestration and troubleshooting.
+The MVP introduces a VS Code-only extension in a new repository/package at `/private/var/www/2025/ollamar1/tdk-vscode-extension` that treats the Flisk CLI as the operational backend. The extension should not fork orchestration logic from the CLI. It should call the CLI, parse structured output where available, preserve raw output for debugging, and present a focused editor-native workflow for orchestration and troubleshooting.
 
-Stakeholders are TDK CLI maintainers, developers using TDK-managed repositories, and maintainers who need failure reports with enough context to debug quickly.
+Stakeholders are Flisk CLI maintainers, developers using TDK-managed repositories, and maintainers who need failure reports with enough context to debug quickly.
 
 ## Goals / Non-Goals
 
@@ -12,10 +12,10 @@ Stakeholders are TDK CLI maintainers, developers using TDK-managed repositories,
 
 - Provide a VS Code extension MVP that can be developed and versioned separately from the CLI.
 - Deliver a runnable one-shot implementation with scaffold, source code, tests, documentation, and a verification record.
-- Detect TDK projects and expose project, stack, resource, doctor, status, and lifecycle actions from VS Code.
+- Detect Flisk projects and expose project, stack, resource, doctor, status, and lifecycle actions from VS Code.
 - Provide a real troubleshooting flow that classifies failures, shows likely causes, links evidence, and offers safe next actions.
 - Manage notifications so background monitoring is useful without becoming noisy.
-- Document CLI JSON/status output gaps as follow-up work without changing the TDK CLI during this MVP.
+- Document CLI JSON/status output gaps as follow-up work without changing the Flisk CLI during this MVP.
 - Include a spec critique and final requirement trace before implementation is considered complete.
 
 **Non-Goals:**
@@ -25,7 +25,7 @@ Stakeholders are TDK CLI maintainers, developers using TDK-managed repositories,
 - Automatically run destructive or state-changing repairs without explicit user confirmation.
 - Build a full AI assistant or free-form chat interface in the first release.
 - Add remote/team dashboard features, cloud sync, or marketplace publishing automation in the MVP.
-- Modify the TDK CLI command contract in the MVP.
+- Modify the Flisk CLI command contract in the MVP.
 
 ## Decisions
 
@@ -35,9 +35,9 @@ Stakeholders are TDK CLI maintainers, developers using TDK-managed repositories,
 
    Alternative considered: place the extension under `tdk-cli-core/ext`. That is quicker initially, but it risks coupling extension release mechanics to CLI internals and makes it harder to ship independently. For one-shot implementation, the location is fixed to avoid blocking on repository placement.
 
-2. Use the TDK CLI as the source of truth.
+2. Use the Flisk CLI as the source of truth.
 
-   Rationale: The extension should orchestrate and troubleshoot through commands such as `tdk doctor`, `tdk status`, `tdk stacks`, `tdk resources`, `tdk up`, and `tdk down`. This avoids two implementations of project discovery, stack/resource state, and health logic.
+   Rationale: The extension should orchestrate and troubleshoot through commands such as `flisk doctor`, `flisk status`, `flisk stacks`, `flisk resources`, `flisk up`, and `flisk down`. This avoids two implementations of project discovery, stack/resource state, and health logic.
 
    Alternative considered: read config files and Tilt state directly from the extension. That may be needed for display hints, but it must not become the primary orchestration model.
 
@@ -51,7 +51,7 @@ Stakeholders are TDK CLI maintainers, developers using TDK-managed repositories,
 
 4. Build troubleshooting as deterministic rules first.
 
-   Rationale: The MVP needs reliable, reviewable classification for common failures: missing TDK CLI, unsupported CLI version, non-TDK workspace, Docker daemon unavailable, Tilt unavailable, Bun unavailable, occupied ports, invalid or missing master config, invalid service manifest, failed health endpoint, duplicate daemon, and Tilt startup failures.
+   Rationale: The MVP needs reliable, reviewable classification for common failures: missing Flisk CLI, unsupported CLI version, non-Flisk workspace, Docker daemon unavailable, Tilt unavailable, Bun unavailable, occupied ports, invalid or missing master config, invalid service manifest, failed health endpoint, duplicate daemon, and Tilt startup failures.
 
    Alternative considered: use an LLM-based troubleshooter first. That would be flashy but harder to test and risky for repair suggestions. LLM assistance can be considered later once deterministic evidence capture is solid.
 
@@ -63,13 +63,13 @@ Stakeholders are TDK CLI maintainers, developers using TDK-managed repositories,
 
 6. Keep repair actions explicit and safe.
 
-   Rationale: Troubleshooting can recommend actions such as opening logs, rerunning doctor, starting Docker docs, freeing a port guide, regenerating configs, or running a specific TDK command. Any command that changes project files, starts/stops services, prunes Docker, or modifies config must require explicit confirmation and show the exact command.
+   Rationale: Troubleshooting can recommend actions such as opening logs, rerunning doctor, starting Docker docs, freeing a port guide, regenerating configs, or running a specific Flisk command. Any command that changes project files, starts/stops services, prunes Docker, or modifies config must require explicit confirmation and show the exact command.
 
    Alternative considered: one-click auto-fix for every known issue. That is too risky for an MVP in developer workspaces.
 
 7. Ship three concrete VS Code surfaces.
 
-   Rationale: A one-shot MVP needs enough UI to prove value without becoming a full IDE. The required surfaces are a TDK Explorer tree, a Troubleshooter view, and a TDK output channel. Commands can be exposed through command palette and tree actions.
+   Rationale: A one-shot MVP needs enough UI to prove value without becoming a full IDE. The required surfaces are a Flisk Explorer tree, a Troubleshooter view, and a Flisk output channel. Commands can be exposed through command palette and tree actions.
 
    Alternative considered: command palette only. That is faster, but too weak to satisfy the orchestration and notification requirements.
 
@@ -85,7 +85,7 @@ Stakeholders are TDK CLI maintainers, developers using TDK-managed repositories,
 ## Migration Plan
 
 1. Scaffold `/private/var/www/2025/ollamar1/tdk-vscode-extension` with TypeScript, VS Code engine constraints, test harness, linting, and basic activation.
-2. Implement the command runner and workspace detector against the installed or workspace-local TDK CLI.
+2. Implement the command runner and workspace detector against the installed or workspace-local Flisk CLI.
 3. Add orchestration commands and tree/status views for projects, stacks, and resources.
 4. Add deterministic diagnostic rules and the troubleshooter webview/tree/detail UI.
 5. Add notification policy, deduplication, and user settings.

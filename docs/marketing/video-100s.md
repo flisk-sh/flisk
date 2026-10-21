@@ -10,19 +10,19 @@ Checked against `bun src/cli.ts <cmd> --help` in `cli/` at `origin/main` (CLI 1.
 
 | Command on screen | Exact form and flags | Source |
 |---|---|---|
-| `tdk project --yes` | `tdk project [template]`, `--yes` | example README, `tdk project --help` |
-| `tdk up one-backend` | `tdk up\|deploy [options] [stack-name]`; the stack is a positional argument. Drift gate applies unless `--ignore-drift` | `tdk up --help` |
-| `tdk up one-backend --dry-run` | `--dry-run`: shows what would start without starting | `tdk up --help` |
+| `flisk project --yes` | `flisk project [template]`, `--yes` | example README, `flisk project --help` |
+| `flisk up one-backend` | `flisk up\|deploy [options] [stack-name]`; the stack is a positional argument. Drift gate applies unless `--ignore-drift` | `flisk up --help` |
+| `flisk up one-backend --dry-run` | `--dry-run`: shows what would start without starting | `flisk up --help` |
 | `curl --fail http://api.one-backend.localhost/api/api-backend/health` | Route from the example README; expected body `{"status":"ok"}` | example README |
-| `tdk config verify` | `tdk config verify [--json]`. Exits 1 when the check fails (`--json` returns the same result as an envelope) | `tdk config verify --help`, `cli/src/commands/config.ts` |
-| `tdk config regenerate` | `tdk config regenerate [--dry-run]`; regenerates the 4 master config files from `.tdk/project.json` | `tdk config regenerate --help` |
-| `tdk up one-backend` (after a hand edit) | Exits with code 2 (`DRIFT_EXIT_CODE`), names the edited files, and suggests `tdk config regenerate` or `--ignore-drift` | `cli/src/commands/up.ts` (`enforceDriftGate`) |
-| `tdk ui` | `tdk ui\|interactive [--no-animations] [--high-contrast]`. Interactive terminal UI | `tdk ui --help` |
-| `tdk mcp` | Runs a Model Context Protocol server over stdio for coding agents | `tdk --help`, `cli/README.md` |
-| `tdk down` | Stops all Tilt resources; `--dry-run` shows what would stop | `tdk down --help` |
-| `npm install -g @tdk-landscape/tdk-cli-core` | Install line from the root `README.md` | `README.md:122` |
+| `flisk config verify` | `flisk config verify [--json]`. Exits 1 when the check fails (`--json` returns the same result as an envelope) | `flisk config verify --help`, `cli/src/commands/config.ts` |
+| `flisk config regenerate` | `flisk config regenerate [--dry-run]`; regenerates the 4 master config files from `.tdk/project.json` | `flisk config regenerate --help` |
+| `flisk up one-backend` (after a hand edit) | Exits with code 2 (`DRIFT_EXIT_CODE`), names the edited files, and suggests `flisk config regenerate` or `--ignore-drift` | `cli/src/commands/up.ts` (`enforceDriftGate`) |
+| `flisk ui` | `flisk ui\|interactive [--no-animations] [--high-contrast]`. Interactive terminal UI | `flisk ui --help` |
+| `flisk mcp` | Runs a Model Context Protocol server over stdio for coding agents | `flisk --help`, `cli/README.md` |
+| `flisk down` | Stops all Tilt resources; `--dry-run` shows what would stop | `flisk down --help` |
+| `npm install -g flisk` | Install line from the root `README.md` | `README.md:122` |
 
-The `tdk` on the default PATH may be an older release than `origin/main`. Re-check the table with the release you record with.
+The `flisk` on the default PATH may be an older release than `origin/main`. Re-check the table with the release you record with.
 
 ## Script
 
@@ -38,46 +38,46 @@ The `tdk` on the default PATH may be an older release than `origin/main`. Re-che
 
 > "Change one port in one file, and the stack routes to the wrong place."
 
-- On screen: edit one port by hand, run `tdk up` on the drifted project, show the real failure or the wrong route. Real output only.
-- Command: `tdk up <stack>`.
+- On screen: edit one port by hand, run `flisk up` on the drifted project, show the real failure or the wrong route. Real output only.
+- Command: `flisk up <stack>`.
 - Open item: this needs a hand-written fixture, which the one-backend example does not provide. Record it from a separate project and say so on screen.
 
 ### 0:25 to 0:55. Fix
 
-> "Each service gets one `service.json`. TDK generates the rest."
+> "Each service gets one `service.json`. Flisk generates the rest."
 
 - On screen: `services/one-backend/api/service.json` (show `stack`, `port`, `healthCheckPath`).
 - Commands, in order:
-  1. `tdk project --yes`
-  2. `tdk up one-backend`
+  1. `flisk project --yes`
+  2. `flisk up one-backend`
   3. `curl --fail http://api.one-backend.localhost/api/api-backend/health`, expected `{"status":"ok"}`.
-- Optional, only if it fits: `tdk up one-backend --dry-run` before the real run.
+- Optional, only if it fits: `flisk up one-backend --dry-run` before the real run.
 - Claim check: the README says Docker, Tilt, Bun 1.2+ and Node 22.12+ are needed. Say "needs Docker" on screen, not "no setup".
 
 ### 0:55 to 1:15. Proof
 
-> "Hand-edit a generated file, and TDK stops the stack."
+> "Hand-edit a generated file, and Flisk stops the stack."
 
-- On screen: edit a generated file under `.tdk/.tdk-out/`, then run `tdk config verify`. It reports the mismatch and exits 1. The exact message for a generated service file is not confirmed here; check the output on the recording machine before showing it.
-- Then `tdk up one-backend`: exit code 2, names the edited file, and suggests `tdk config regenerate`.
-- Then `tdk config regenerate` restores the file.
-- Commands: `tdk config verify`, `tdk up one-backend`, `tdk config regenerate`.
+- On screen: edit a generated file under `.tdk/.tdk-out/`, then run `flisk config verify`. It reports the mismatch and exits 1. The exact message for a generated service file is not confirmed here; check the output on the recording machine before showing it.
+- Then `flisk up one-backend`: exit code 2, names the edited file, and suggests `flisk config regenerate`.
+- Then `flisk config regenerate` restores the file.
+- Commands: `flisk config verify`, `flisk up one-backend`, `flisk config regenerate`.
 - Do not show `--ignore-drift` in the main flow. It only appears as the second option in the drift message.
 
 ### 1:15 to 1:35. Bigger picture
 
 > "Your agent can read the same stack."
 
-- On screen: `tdk ui` on the running stack, then the line from the README that `tdk mcp` runs an MCP server over stdio for coding agents.
-- Commands: `tdk ui`, `tdk mcp`.
-- Claim check: `tdk ui` needs a running stack. Show the stack up first.
+- On screen: `flisk ui` on the running stack, then the line from the README that `flisk mcp` runs an MCP server over stdio for coding agents.
+- Commands: `flisk ui`, `flisk mcp`.
+- Claim check: `flisk ui` needs a running stack. Show the stack up first.
 
 ### 1:35 to 1:40. Call to action
 
-> "`npm install -g @tdk-landscape/tdk-cli-core`. Link to the quickstart and to `examples/one-backend` in the description."
+> "`npm install -g flisk`. Link to the quickstart and to `examples/one-backend` in the description."
 
 - On screen: the install line and the two links.
-- Command: `npm install -g @tdk-landscape/tdk-cli-core`.
+- Command: `npm install -g flisk`.
 
 ## Timing
 

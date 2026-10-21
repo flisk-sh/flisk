@@ -1,8 +1,8 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 """Regression tests for standalone generated-project boot.
 
-Standalone TDK projects do not ship Traefik/Verdaccio compose files. The
+Standalone Flisk projects do not ship Traefik/Verdaccio compose files. The
 Tiltfile still has to load the project-root .env and publish host ports so
 the generated API is reachable at localhost:<port>.
 """

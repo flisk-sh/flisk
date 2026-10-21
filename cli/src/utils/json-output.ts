@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { writeSync } from "node:fs";
 import { createMachineEnvelope, type MachineError } from "./machine-output.js";

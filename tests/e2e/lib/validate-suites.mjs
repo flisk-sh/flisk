@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Validates every live-stack suite under tests/e2e/<group>/<suite>/: its suite.json has the documented shape, its folder
 // matches its group and name, its run.sh is executable and defines every case suite.json lists. Workflows read suite.json, so

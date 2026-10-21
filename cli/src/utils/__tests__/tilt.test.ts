@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { EventEmitter } from "node:events";
 import { join } from "node:path";
@@ -70,8 +70,8 @@ describe("getTiltfilePath error", () => {
       "Could not find project root (no .tdk/project.json found)",
     );
     expect((error as { suggestions: string[] }).suggestions).toEqual([
-      "Run this from within a TDK project",
-      "Run `tdk project --yes` to initialize a new project",
+      "Run this from within a Flisk project",
+      "Run `flisk project --yes` to initialize a new project",
     ]);
   });
 });
@@ -136,7 +136,7 @@ describe("buildTiltUpArgs", () => {
   });
 
   it("should include -- --focus=<stack> before service names when focusTargets is set", async () => {
-    // Regression test: `tdk up <stack>` used to pass only bare positional service
+    // Regression test: `flisk up <stack>` used to pass only bare positional service
     // names, which the generated Tiltfile's focus filter never reads (it only reads
     // --focus), so it silently fell back to building every stack instead of the one
     // requested. --focus must be present, carry the stack name, and be preceded by

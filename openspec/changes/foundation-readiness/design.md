@@ -13,8 +13,8 @@ Sandbox applications are closed without review if the license is not already all
 
 - Keep MIT. It is an allowlisted license. Do not relicense in this change.
 - MAINTAINERS.md lists only people who can merge. Company is required. "Independent" is allowed when there is no employer.
-- `tdk maintainers check` exits 0 only when the table has 3 people and 2 companies. Until then it exits 1 and prints the missing count. CI does not fail the build on this exit code. A foundation-apply workflow, not present in this change, would.
-- ADOPTERS.md rows require org, link to their repo or a public write-up, and the TDK version. Fixture benchmarks are forbidden in that file.
+- `flisk maintainers check` exits 0 only when the table has 3 people and 2 companies. Until then it exits 1 and prints the missing count. CI does not fail the build on this exit code. A foundation-apply workflow, not present in this change, would.
+- ADOPTERS.md rows require org, link to their repo or a public write-up, and the Flisk version. Fixture benchmarks are forbidden in that file.
 - Key-downloaded code stays out of foundation scope. GOVERNANCE.md says a donation would exclude those paths until they are in-tree under MIT.
 
 ## Risks / Trade-offs

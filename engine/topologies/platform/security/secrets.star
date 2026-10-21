@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🔐 INFISICAL SECURITY MODULE
@@ -151,7 +151,7 @@ def _generate_org_config(org_name=None, environments=None, resource_names=None):
 # =============================================================================
 
 # Project-specific service configurations should be defined in .tdk/project.json
-# This dict is kept for backward compatibility but should be empty for generic TDK CLI
+# This dict is kept for backward compatibility but should be empty for generic Flisk CLI
 PREDEFINED_RESOURCES = {}
 
 def _get_predefined_resource_config(resource_name):

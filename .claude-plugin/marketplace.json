@@ -1,17 +1,17 @@
 {
-  "name": "tdk-skills",
+  "name": "flisk-skills",
   "owner": {
-    "name": "TDK Landscape"
+    "name": "Flisk"
   },
   "metadata": {
-    "description": "Shared agent skills for the TDK CLI and landscape repositories",
+    "description": "Shared agent skills for the Flisk CLI and landscape repositories",
     "version": "1.0.0"
   },
   "plugins": [
     {
-      "name": "tdk-cli",
-      "source": "./plugins/tdk-cli",
-      "description": "Operate and troubleshoot the TDK CLI in a project repository"
+      "name": "flisk-cli",
+      "source": "./plugins/flisk-cli",
+      "description": "Operate and troubleshoot the Flisk CLI in a project repository"
     }
   ]
 }

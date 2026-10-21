@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Prints the GitHub Actions matrix for one or more e2e groups: the suites in tests/e2e/<group>/*/suite.json whose triggers
 // include the given trigger (#1290, tracker #1279). The group workflow reads it with fromJSON(needs.plan.outputs.matrix).

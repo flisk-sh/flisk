@@ -1,5 +1,5 @@
 # =============================================================================
-# 🎯 TDK-DISCOVERY - Service Discovery Plugin
+# 🎯 FLISK-DISCOVERY - Service Discovery Plugin
 # =============================================================================
 # This is the Tiltfile entry point for the tdk-discovery repo.
 # It exports manifest loading, registry, and auto-discovery daemon.
@@ -55,4 +55,4 @@ def get_daemon_command():
     """Return the command to run the discovery daemon."""
     return 'python3 ./resource_snapshot.py daemon'
 
-print("✅ TDK Discovery loaded: manifest scanning and auto-discovery")
+print("✅ Flisk Discovery loaded: manifest scanning and auto-discovery")

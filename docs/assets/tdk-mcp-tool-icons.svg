@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="286" viewBox="0 0 960 286" role="img" aria-labelledby="title desc">
-  <title id="title">Animated TDK MCP tool icon demo</title>
+  <title id="title">Animated Flisk MCP tool icon demo</title>
   <desc id="desc">Four dark cards with gently animated Doctor, Up, Status, and Logs icons.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101827"/><stop offset="1" stop-color="#192b3d"/></linearGradient>
@@ -12,7 +12,7 @@
     </style>
   </defs>
   <rect width="960" height="286" rx="24" fill="url(#bg)"/>
-  <text x="30" y="38" class="sub" style="font-weight:700;letter-spacing:2px">TDK MCP / TOOL MOTION STUDY</text>
+  <text x="30" y="38" class="sub" style="font-weight:700;letter-spacing:2px">Flisk MCP / TOOL MOTION STUDY</text>
   <g><rect class="card" x="24" y="58" width="216" height="202" rx="18"/><g class="beat"><circle cx="120" cy="104" r="33" fill="#153040" stroke="#315469"/><path class="ic heart" d="M91 105h12l8-16 11 31 9-21 7 6h13"/></g><text x="46" y="177" class="title">Doctor</text><text x="46" y="204" class="sub">Host checks</text><circle class="dot pulse" cx="207" cy="178" r="4"/></g>
   <g><rect class="card" x="264" y="58" width="216" height="202" rx="18"/><g class="rise"><circle cx="360" cy="104" r="33" fill="#153040" stroke="#315469"/><path class="ic" d="M360 122V86m-14 14 14-14 14 14"/><path d="M343 125h34" stroke="#61f0d3" stroke-width="3" stroke-linecap="round"/></g><text x="286" y="177" class="title">Up</text><text x="286" y="204" class="sub">Start services</text><path d="M448 178h10" stroke="#61f0d3" stroke-width="4" stroke-linecap="round"><animate attributeName="opacity" values=".25;1;.25" dur="1.5s" repeatCount="indefinite"/></path></g>
   <g><rect class="card" x="504" y="58" width="216" height="202" rx="18"/><g class="spin" fill="none" stroke="#61f0d3" stroke-width="3"><circle cx="600" cy="104" r="39" stroke-dasharray="2 12"/><circle cx="600" cy="104" r="47" stroke-dasharray="1 18" opacity=".45"/></g><circle cx="600" cy="104" r="5" fill="#61f0d3" class="pulse"/><text x="526" y="177" class="title">Status</text><text x="526" y="204" class="sub">Readiness pulse</text><circle cx="687" cy="178" r="4" fill="#61f0d3"><animate attributeName="r" values="2;5;2" dur="1.4s" repeatCount="indefinite"/></circle></g>

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { writeSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -55,7 +55,7 @@ describe("createJsonEmitter", () => {
   });
 
   it("writes a single schemaVersion envelope with the given data", () => {
-    const { emit } = createTrackedEmitter("UP_FAILED", "tdk up");
+    const { emit } = createTrackedEmitter("UP_FAILED", "flisk up");
     emit({ ok: true });
 
     const writes = readWrites();
@@ -68,7 +68,7 @@ describe("createJsonEmitter", () => {
   });
 
   it("includes errors passed to the emitter", () => {
-    const { emit } = createTrackedEmitter("UP_FAILED", "tdk up");
+    const { emit } = createTrackedEmitter("UP_FAILED", "flisk up");
     emit({ ok: false }, [{ code: "E1", message: "boom" }]);
 
     const writes = readWrites();
@@ -76,7 +76,7 @@ describe("createJsonEmitter", () => {
   });
 
   it("only emits once even if called multiple times", () => {
-    const { emit } = createTrackedEmitter("UP_FAILED", "tdk up");
+    const { emit } = createTrackedEmitter("UP_FAILED", "flisk up");
     emit({ first: true });
     emit({ second: true });
 
@@ -85,7 +85,7 @@ describe("createJsonEmitter", () => {
   });
 
   it("emits a failure envelope on process exit if nothing was emitted yet", () => {
-    const { exitListener } = createTrackedEmitter("UP_FAILED", "tdk up");
+    const { exitListener } = createTrackedEmitter("UP_FAILED", "flisk up");
     exitListener(1);
 
     const writes = readWrites();
@@ -94,20 +94,20 @@ describe("createJsonEmitter", () => {
     expect(parsed.data).toEqual({ ok: false });
     expect(parsed.errors[0]).toEqual({
       code: "UP_FAILED",
-      message: "tdk up exited with code 1",
+      message: "flisk up exited with code 1",
     });
   });
 
   it("reports an early exit with code 0 distinctly from a normal exit", () => {
-    const { exitListener } = createTrackedEmitter("UP_FAILED", "tdk up");
+    const { exitListener } = createTrackedEmitter("UP_FAILED", "flisk up");
     exitListener(0);
 
     const parsed = JSON.parse(readWrites()[0]);
-    expect(parsed.errors[0].message).toBe("tdk up exited before reporting a result");
+    expect(parsed.errors[0].message).toBe("flisk up exited before reporting a result");
   });
 
   it("does not emit on process exit after a result was already written", () => {
-    const { emit, exitListener } = createTrackedEmitter("UP_FAILED", "tdk up");
+    const { emit, exitListener } = createTrackedEmitter("UP_FAILED", "flisk up");
     emit({ ok: true });
     exitListener(0);
 

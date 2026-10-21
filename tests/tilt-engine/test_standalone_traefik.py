@@ -1,6 +1,6 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-"""Standalone TDK projects must serve api.{project}.localhost via Traefik."""
+"""Standalone Flisk projects must serve api.{project}.localhost via Traefik."""
 
 import json
 import shutil
@@ -68,7 +68,7 @@ def test_project_router_uses_cli_api_path():
         / "traefik_helpers.star"
     ).read_text()
     assert "def cli_api_path(" in source
-    assert "tdk up" in source
+    assert "flisk up" in source
 
 
 def test_tiltfile_keeps_traefik_in_focus_mode():

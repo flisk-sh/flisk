@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -35,7 +35,7 @@ const temporaryDirs: string[] = [];
  * it on stderr when the Tiltfile fails.
  */
 function validate(configLiteral: string, strict: boolean, field: "errors" | "warnings"): string {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-tech-stack-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-tech-stack-"));
   temporaryDirs.push(directory);
   const engine = new TemplateEngine(join(repoRoot, "cli", "templates"));
   writeFileSync(

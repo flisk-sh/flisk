@@ -1,11 +1,11 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-const cliBin = fileURLToPath(new URL("../../../bin/tdk.js", import.meta.url));
+const cliBin = fileURLToPath(new URL("../../../bin/flisk.js", import.meta.url));
 
 interface InitializeResponse {
   jsonrpc: string;
@@ -16,7 +16,7 @@ interface InitializeResponse {
   };
 }
 
-describe("tdk mcp over stdio", () => {
+describe("flisk mcp over stdio", () => {
   let child: ChildProcessWithoutNullStreams | undefined;
 
   afterEach(() => {
@@ -54,7 +54,9 @@ describe("tdk mcp over stdio", () => {
       spawned.once("exit", (code, signal) => {
         clearTimeout(timeout);
         lines.close();
-        reject(new Error(`tdk mcp exited before initialize: ${code ?? signal}; stderr: ${stderr}`));
+        reject(
+          new Error(`flisk mcp exited before initialize: ${code ?? signal}; stderr: ${stderr}`),
+        );
       });
       lines.on("line", (line) => {
         // stdout carries only JSON-RPC messages; anything else is a protocol violation worth naming.
@@ -64,7 +66,7 @@ describe("tdk mcp over stdio", () => {
         } catch {
           clearTimeout(timeout);
           lines.close();
-          reject(new Error(`tdk mcp wrote non-JSON to stdout: ${line}; stderr: ${stderr}`));
+          reject(new Error(`flisk mcp wrote non-JSON to stdout: ${line}; stderr: ${stderr}`));
           return;
         }
         if (message.id !== 1046) return;
@@ -92,7 +94,7 @@ describe("tdk mcp over stdio", () => {
       id: 1046,
       result: {
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "tdk" },
+        serverInfo: { name: "flisk" },
       },
     });
   });

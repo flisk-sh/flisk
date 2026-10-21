@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";

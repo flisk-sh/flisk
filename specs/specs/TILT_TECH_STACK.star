@@ -1,12 +1,12 @@
 #!/usr/bin/env starlark
 # -*- coding: utf-8 -*-
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🏗️ TILT TECH STACK MASTER CONFIG
 # =============================================================================
 # 
-# Defines the approved technology choices for the TDK Landscape platform.
+# Defines the approved technology choices for the Flisk Landscape platform.
 # This is the single source of truth for tech stack validation.
 #
 # See: docs/TILT_MASTER_CONFIGS.md

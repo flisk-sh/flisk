@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
-# 🎯 TDK Landscape - RESOURCE MANIFEST GENERATOR
+# 🎯 Flisk Landscape - RESOURCE MANIFEST GENERATOR
 # =============================================================================
 # Usage: ./generate-manifest.sh <stack> <resource-name> <type> [port]
 #
@@ -37,7 +37,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 print_usage() {
     cat << EOF
 ${BLUE}╔═══════════════════════════════════════════════════════════════════╗
-║  🎯  TDK Landscape RESOURCE MANIFEST GENERATOR                          ║
+║  🎯  Flisk Landscape RESOURCE MANIFEST GENERATOR                          ║
 ╚═══════════════════════════════════════════════════════════════════╝${NC}
 
 ${YELLOW}Usage:${NC}

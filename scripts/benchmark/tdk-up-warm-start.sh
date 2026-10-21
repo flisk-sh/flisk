@@ -1,8 +1,8 @@
 #!/bin/sh
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 #
-# Times `tdk up` on a TDK project: one cold run (built images and build cache removed first) and
+# Times `flisk up` on a Flisk project: one cold run (built images and build cache removed first) and
 # N warm runs. A run is timed until every Tilt resource is idle and the expected containers are
 # healthy, or until 30 minutes pass. Every run records an outcome; a run that could not establish
 # its starting state is recorded as failed and is not timed. scripts/benchmark/summarize-tdk-up.mjs
@@ -17,7 +17,7 @@
 #
 # Side effects: a cold run removes the project's built images (its golden layers and its service
 # images, matched by exact name) and runs `docker builder prune -af`, which clears the build cache for
-# every project on the machine. Every run starts with `tdk down` in the project.
+# every project on the machine. Every run starts with `flisk down` in the project.
 
 set -eu
 
@@ -45,7 +45,7 @@ done
 
 [ -n "$project" ] || { echo "--project is required" >&2; exit 2; }
 [ -n "$out" ] || { echo "--out is required" >&2; exit 2; }
-for tool in tdk tilt docker jq node; do
+for tool in flisk tilt docker jq node; do
   command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required on PATH" >&2; exit 2; }
 done
 
@@ -63,10 +63,10 @@ mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 expected="$out/expected-containers.txt"
 
-# Preflight: fail fast if the project or tools look wrong, before any long tdk up.
+# Preflight: fail fast if the project or tools look wrong, before any long flisk up.
 preflight() {
   echo "=== preflight ==="
-  echo "tdk: $(tdk --version 2>/dev/null || echo MISSING)"
+  echo "flisk: $(flisk --version 2>/dev/null || echo MISSING)"
   echo "tilt: $(tilt version 2>/dev/null | head -1 || echo MISSING)"
   echo "docker: $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo MISSING)"
   docker info >/dev/null 2>&1 || { echo "FAIL: docker daemon not responding" >&2; exit 1; }
@@ -168,9 +168,9 @@ run_once() {
   expected_containers > "$expected"
 
   echo "$name: starting ($kind)"
-  if ! (cd "$project" && tdk down > "$dir/down.log" 2>&1); then
+  if ! (cd "$project" && flisk down > "$dir/down.log" 2>&1); then
     write_run down_failed 0
-    echo "$name: tdk down failed; not timed (see $dir/down.log)" >&2
+    echo "$name: flisk down failed; not timed (see $dir/down.log)" >&2
     return 0
   fi
   if [ "$kind" = cold ]; then
@@ -185,7 +185,7 @@ run_once() {
 
   : > "$dir/vm-samples.txt"
   start=$(date +%s)
-  (cd "$project" && tdk up > "$dir/up.log" 2>&1) &
+  (cd "$project" && flisk up > "$dir/up.log" 2>&1) &
   waited=0
   outcome=timeout
   # Progress every ~30 s so a long run is not silent.
@@ -199,7 +199,7 @@ run_once() {
     if [ $((waited % progress_every)) -eq 0 ] && [ "$waited" -gt 0 ]; then
       echo "$name: still waiting (${waited}s) $(progress_snapshot)"
       if [ -s "$dir/up.log" ]; then
-        echo "$name: recent tdk up output:"
+        echo "$name: recent flisk up output:"
         tail -n 5 "$dir/up.log" | sed 's/^/  /'
       fi
     fi
@@ -217,7 +217,7 @@ run_once() {
 }
 
 {
-  echo "tdk: $(tdk --version 2>/dev/null || echo unknown)"
+  echo "flisk: $(flisk --version 2>/dev/null || echo unknown)"
   echo "tilt: $(tilt version 2>/dev/null | head -1)"
   echo "docker: $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo unknown)"
   echo "node: $(node -v)"
@@ -242,7 +242,7 @@ while [ "$i" -le "$warm_runs" ]; do
   run_once "warm-$i" warm || failed=1
   i=$((i + 1))
 done
-(cd "$project" && tdk down > "$out/final-down.log" 2>&1) || true
+(cd "$project" && flisk down > "$out/final-down.log" 2>&1) || true
 
 node "$here/summarize-tdk-up.mjs" "$out" || true
 exit "$failed"

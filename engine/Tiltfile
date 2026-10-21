@@ -1,5 +1,5 @@
 # =============================================================================
-# 🎯 TDK-ENGINE - Core Execution Engine
+# 🎯 FLISK-ENGINE - Core Execution Engine
 # =============================================================================
 # This is the Tiltfile entry point for the tdk-engine repo.
 # It exports core orchestration, resource builders, and topology management.
@@ -83,4 +83,4 @@ Watchers = _Watchers
 # True when a manifest's deferStart is actually active (licensed); decides whether a `<name>-image` prebuild resource exists.
 resource_defers_start = _resource_defers_start
 
-print("✅ TDK Engine loaded: orchestration, resources, and lifecycle")
+print("✅ Flisk Engine loaded: orchestration, resources, and lifecycle")

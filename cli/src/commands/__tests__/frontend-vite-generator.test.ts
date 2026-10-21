@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -203,7 +203,7 @@ it("selects the framework entry in generated frontend health checks", () => {
 
 // A project root whose .tdk/project.json names the project, which is the npm scope and the local domain.
 function projectRootNamed(name: string) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-generator-project-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-generator-project-"));
   temporaryDirs.push(directory);
   mkdirSync(join(directory, ".tdk"));
   writeFileSync(join(directory, ".tdk", "project.json"), JSON.stringify({ project: { name } }));

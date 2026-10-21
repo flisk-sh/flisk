@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,7 +25,7 @@ function service(name: string, extra: Record<string, unknown> = {}, dir = `app/$
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-config-checks-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-config-checks-"));
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
@@ -221,7 +221,7 @@ describe("schemaVersion", () => {
     expect(result.isWarning).toBe(true);
     expect(result.message).toContain(join("services", "app", "api", "service.json"));
     expect(result.message).toContain("schemaVersion: missing");
-    expect(result.fix).toContain("tdk config migrate");
+    expect(result.fix).toContain("flisk config migrate");
   });
 
   it.each([
@@ -235,8 +235,8 @@ describe("schemaVersion", () => {
       const result = checkSchemaVersions(root);
       expect(result.isWarning).toBe(true);
       expect(result.message).toContain(`schemaVersion ${shown}`);
-      expect(result.fix).toContain("upgrade tdk");
-      expect(result.fix).not.toContain("tdk config migrate");
+      expect(result.fix).toContain("upgrade flisk");
+      expect(result.fix).not.toContain("flisk config migrate");
       expect(result.fix).not.toMatch(/set schemaVersion/i);
     },
   );
@@ -260,8 +260,8 @@ describe("schemaVersion", () => {
     service("worker", { port: 4001, schemaVersion: 99 });
     const result = checkSchemaVersions(root);
     expect(result.message).toContain("2 service.json files");
-    expect(result.fix).toContain("tdk config migrate");
-    expect(result.fix).toContain("upgrade tdk");
+    expect(result.fix).toContain("flisk config migrate");
+    expect(result.fix).toContain("upgrade flisk");
   });
 
   it("never writes to service.json", () => {
@@ -284,7 +284,7 @@ describe("schemaVersion", () => {
     warnSchemaVersions(root);
     const printed = warn.mock.calls.map((call) => String(call[0])).join("\n");
     expect(printed).toContain("worker");
-    expect(printed).toContain("tdk config migrate");
+    expect(printed).toContain("flisk config migrate");
   });
 
   it("is not part of the up gate, so a project without it still starts", () => {

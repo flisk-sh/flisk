@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Tilt IDE Code Executor
@@ -141,7 +141,7 @@ class CodeExecutorHandler(BaseIDEHandler):
                         </div>
                     </div>
                     <div class="terminal-content" id="terminal-output" style="white-space: pre-wrap; font-family: var(--font-mono);">
-                        <div class="text-muted">TDK Landscape Tilt IDE Terminal</div>
+                        <div class="text-muted">Flisk Landscape Tilt IDE Terminal</div>
                         <div class="text-muted">Type a command and press Enter to execute</div>
                         <div class="text-muted">─────────────────────────────────────────</div>
                     </div>

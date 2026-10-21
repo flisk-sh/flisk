@@ -7,5 +7,5 @@ WORKDIR /work/app
 RUN chown -R node:node .
 USER node
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD nc -z 127.0.0.1 ${PORT:-3000} || exit 1
-# next dev must listen beyond loopback (-H) and on the port TDK assigns.
+# next dev must listen beyond loopback (-H) and on the port Flisk assigns.
 CMD ["sh", "-c", "npx next dev -H 0.0.0.0 -p ${PORT:-3000}"]

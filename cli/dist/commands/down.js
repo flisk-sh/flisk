@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
@@ -60,10 +60,10 @@ export const downCommand = addYesOption(new Command("down"))
     if (options.force) {
         options.yes = true;
         if (!options.json) {
-            console.warn(chalk.yellow("Note: --force (-f) on tdk down is deprecated; use --yes (-y) instead."));
+            console.warn(chalk.yellow("Note: --force (-f) on flisk down is deprecated; use --yes (-y) instead."));
         }
     }
-    const emit = options.json ? createJsonEmitter("DOWN_FAILED", "tdk down") : undefined;
+    const emit = options.json ? createJsonEmitter("DOWN_FAILED", "flisk down") : undefined;
     await withTiltCheck(async () => {
         if (emit && options.dryRun) {
             emit({ ok: true, dryRun: true });

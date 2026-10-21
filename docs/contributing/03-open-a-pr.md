@@ -15,13 +15,13 @@ Do not say a check passed unless you ran it. If you cannot run a check, say so a
 
 ### If the golden-output test fails
 
-The generated Tilt and Compose files for three sample projects are checked against committed copies in `cli/src/generator/__tests__/golden/`. If you changed a template in `cli/templates/` or the generator on purpose, the test fails and names each file that moved. Accept the change by running `UPDATE_GOLDEN=1 bun run test -- golden-generated-output`, read the diff of the golden files, and commit them with your change. If you did not mean to change generated output, fix the cause instead of updating the files. Existing projects see the same bytes change, so `tdk config verify` reports them out of sync until their next `tdk config regenerate`; say so in the PR.
+The generated Tilt and Compose files for three sample projects are checked against committed copies in `cli/src/generator/__tests__/golden/`. If you changed a template in `cli/templates/` or the generator on purpose, the test fails and names each file that moved. Accept the change by running `UPDATE_GOLDEN=1 bun run test -- golden-generated-output`, read the diff of the golden files, and commit them with your change. If you did not mean to change generated output, fix the cause instead of updating the files. Existing projects see the same bytes change, so `flisk config verify` reports them out of sync until their next `flisk config regenerate`; say so in the PR.
 
 ## Show what changed
 
 For a bug fix or behavior change, use the same steps on `main` and your branch when possible. Paste the real before-and-after output; do not recreate it from memory. Include the command, project or fixture, and any setup needed to repeat it. Cover the empty, error, or recovery cases named in the issue.
 
-If you test the built CLI entry point, run `bun run build` first so it does not use old compiled files. Check interactive commands such as `tdk ui` in a real terminal. If an automated test is missing, say why and link an issue to add it. New behavior and bug fixes need tests in the same pull request; see [Tests in CONTRIBUTING.md](../../CONTRIBUTING.md#tests).
+If you test the built CLI entry point, run `bun run build` first so it does not use old compiled files. Check interactive commands such as `flisk ui` in a real terminal. If an automated test is missing, say why and link an issue to add it. New behavior and bug fixes need tests in the same pull request; see [Tests in CONTRIBUTING.md](../../CONTRIBUTING.md#tests).
 
 ## Push your branch
 

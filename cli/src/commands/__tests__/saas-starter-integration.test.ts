@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -7,16 +7,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// These spawn `tdk project` per test; the 5s default times out when the whole suite runs in parallel.
+// These spawn `flisk project` per test; the 5s default times out when the whole suite runs in parallel.
 vi.setConfig({ testTimeout: 60_000 });
 
 // Get the CLI bin path dynamically
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const CLI_BIN_PATH = join(__dirname, "..", "..", "..", "bin", "tdk.js");
+const CLI_BIN_PATH = join(__dirname, "..", "..", "..", "bin", "flisk.js");
 
-// `tdk doctor` requires these (see REQUIRED_ENV_VARS in ../../utils/env-validator.ts);
-// an empty .env satisfies `tdk project`'s docker-compose validation but leaves doctor
+// `flisk doctor` requires these (see REQUIRED_ENV_VARS in ../../utils/env-validator.ts);
+// an empty .env satisfies `flisk project`'s docker-compose validation but leaves doctor
 // reporting "Environment not ready". Use the same defaults env-validator would generate.
 function writeTestEnvFile(starterRoot: string) {
   writeFileSync(
@@ -37,7 +37,7 @@ function runCli(cwd: string, args: string[], env: Record<string, string> = {}): 
   });
   if (result.status !== 0) {
     throw new Error(
-      `tdk ${args.join(" ")} failed in ${cwd} (exit ${result.status}):\n${result.stderr}`,
+      `flisk ${args.join(" ")} failed in ${cwd} (exit ${result.status}):\n${result.stderr}`,
     );
   }
   return result.stdout;
@@ -82,7 +82,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
   });
 
   /**
-   * Verifies that `tdk project saas` clones the repo correctly with required
+   * Verifies that `flisk project saas` clones the repo correctly with required
    * structure (services/stack/service/service.json files).
    */
   it("should clone saas-starter with valid file structure", () => {
@@ -114,10 +114,10 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
   }, 30000); // 30s: clones the real saas-starter repo over the network
 
   /**
-   * Verifies that `tdk project --yes` (after cloning) correctly discovers
+   * Verifies that `flisk project --yes` (after cloning) correctly discovers
    * the existing service stacks (app, billing) from service.json files and
    * auto-populates them in project.json's pre_alpha services, so that
-   * `tdk up` will enable them (before fix: they were silently filtered out
+   * `flisk up` will enable them (before fix: they were silently filtered out
    * in Tilt discovery).
    */
   it("should auto-populate discovered services in project.json", () => {
@@ -173,7 +173,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
   });
 
   /**
-   * Verifies that `tdk doctor` correctly reports master configs as present
+   * Verifies that `flisk doctor` correctly reports master configs as present
    * (they are in .tdk/.tdk-out/, not the project root).
    */
   it("should pass doctor check after project init", () => {

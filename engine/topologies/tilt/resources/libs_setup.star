@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🚀 TILT SDK - LIBRARY SETUP ORCHESTRATOR
@@ -24,7 +24,7 @@ def setup_libraries(ctx, should_enable_fn, ddd_libs, platform_libs, product_libs
         Dict mapping package_name -> tilt_resource_name
     """
     library_map = {}
-    internal_scope = ctx.get('internal_scope', '@tdk/')
+    internal_scope = ctx.get('internal_scope', '@flisk/')
     library_roots = ctx.get('library_roots', {})
     print("📚 setup_libraries called for " + str(len(platform_libs) + len(product_libs) + len(ddd_libs)) + " potential libraries")
 

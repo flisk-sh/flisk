@@ -1,6 +1,6 @@
 ## Context
 
-TDK currently targets Linux and macOS, with Unix assumptions in platform detection, PATH lookup, process execution, file operations, doctor diagnostics, and release installation. The requested product is native Windows 10 22H2+, Windows 11, and Windows Server 2022+ on AMD64; WSL2 Ubuntu remains Linux. The CLI binary is `tdk.exe`, with `tdk-cli` beside it. The implementation spans the CLI repository and separate release and website repositories, so this plan is tracked in `tdk-cli-core` while naming those external deliverables explicitly.
+Flisk currently targets Linux and macOS, with Unix assumptions in platform detection, PATH lookup, process execution, file operations, doctor diagnostics, and release installation. The requested product is native Windows 10 22H2+, Windows 11, and Windows Server 2022+ on AMD64; WSL2 Ubuntu remains Linux. The CLI binary is `tdk.exe`, with `tdk-cli` beside it. The implementation spans the CLI repository and separate release and website repositories, so this plan is tracked in `tdk-cli-core` while naming those external deliverables explicitly.
 
 ## Goals / Non-Goals
 
@@ -16,11 +16,11 @@ TDK currently targets Linux and macOS, with Unix assumptions in platform detecti
 
 - Centralize OS, architecture, asset naming, executable naming, and Windows executable lookup suffixes in `cli/src/utils/platform.ts`. Test mapping through an injectable pure function if mutating Node process globals is unsupported.
 - Add `findOnPath` and replace Unix `which`/`command -v` usage across `cli/src`. Use `node:path` for paths and `execFile`/`spawn` with argument arrays, `shell: false`, and `windowsHide: true` for Windows child processes.
-- Make upgrade installation detection explicit: compiled `tdk`/`tdk.exe` installs upgrade their executable; npm-installed Node entry points receive the exact npm upgrade instruction and exit successfully; other entry points fail clearly. Use filesystem APIs for rename/removal and Node download facilities rather than shell utilities.
+- Make upgrade installation detection explicit: compiled `flisk`/`tdk.exe` installs upgrade their executable; npm-installed Node entry points receive the exact npm upgrade instruction and exit successfully; other entry points fail clearly. Use filesystem APIs for rename/removal and Node download facilities rather than shell utilities.
 - Keep Windows-specific diagnostics behind platform checks. Reuse the Node port bind probe, add PowerShell/netsh checks for process owners and excluded ranges, check `tdk.localhost` and a sample wildcard host via DNS lookup, and expose numeric loopback URLs alongside routed hostnames on Windows.
 - Keep generated containers Linux-based and preserve project-relative mount conventions. Doctor explains Docker Desktop Linux container mode, project-drive file sharing, and Windows port/DNS issues; it does not silently alter port defaults.
 - Add Windows PowerShell completion in marked, idempotent profile blocks without changing Bash, Zsh, or Fish behavior.
-- Cross-compile `bun-windows-x64` to `tdk-windows-amd64.exe`; include it in checksums and the binary ZIP. Add a PowerShell installer in the website repository that verifies the exe checksum, unpacks the engine beside the executable, supports user-selected install directories, and appends PATH only when needed.
+- Cross-compile `bun-windows-x64` to `flisk-windows-amd64.exe`; include it in checksums and the binary ZIP. Add a PowerShell installer in the website repository that verifies the exe checksum, unpacks the engine beside the executable, supports user-selected install directories, and appends PATH only when needed.
 - Add Windows smoke CI for CLI setup, targeted unit tests, and help output, plus a PE signature check for the cross-compiled asset. Do not claim Docker e2e on a runner where Docker is unavailable.
 - Update platform support language and Windows setup/troubleshooting docs across named repositories; Windows support claims become valid only after Windows CI and the physical-device acceptance checklist pass.
 
@@ -43,5 +43,5 @@ TDK currently targets Linux and macOS, with Unix assumptions in platform detecti
 
 ## Open Questions
 
-- Which exact working directories/repository checkouts are available for the separate `tdk-cli-releases`, `tdk-landscape.github.io`, and TDK website documentation changes when implementation begins?
-- Should `tdk doctor --fix-windows-dns` be added in v1, or should v1 provide the required exact elevated hosts-file instructions only? The minimum specified behavior is detection plus instructions, so implementation can ship that without an elevated mutation command.
+- Which exact working directories/repository checkouts are available for the separate `tdk-cli-releases`, `tdk-landscape.github.io`, and Flisk website documentation changes when implementation begins?
+- Should `flisk doctor --fix-windows-dns` be added in v1, or should v1 provide the required exact elevated hosts-file instructions only? The minimum specified behavior is detection plus instructions, so implementation can ship that without an elevated mutation command.

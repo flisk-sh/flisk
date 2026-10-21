@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 
 set -euo pipefail
 
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readonly RELEASE_REPOSITORY="tdk-landscape/tdk-cli-releases"
+readonly RELEASE_REPOSITORY="${TDK_RELEASE_REPOSITORY:-flisk-sh/tdk-cli-releases}"
 readonly VERSION="$(node -p "require('${ROOT_DIR}/cli/package.json').version")"
 readonly RELEASE_TAG="v${VERSION}"
 readonly RELEASE_DIR="${ROOT_DIR}/release-dist-${RELEASE_TAG#v}"
@@ -29,14 +29,14 @@ build_target() {
 }
 
 if [[ "${PUBLISH}" != "--publish-only" ]]; then
-  build_target bun-linux-x64 tdk-linux-amd64
-  build_target bun-linux-arm64 tdk-linux-arm64
-  build_target bun-darwin-x64 tdk-darwin-amd64
-  build_target bun-darwin-arm64 tdk-darwin-arm64
-  build_target bun-windows-x64 tdk-windows-amd64.exe
+  build_target bun-linux-x64 flisk-linux-amd64
+  build_target bun-linux-arm64 flisk-linux-arm64
+  build_target bun-darwin-x64 flisk-darwin-amd64
+  build_target bun-darwin-arm64 flisk-darwin-arm64
+  build_target bun-windows-x64 flisk-windows-amd64.exe
 
-  test -s "${RELEASE_DIR}/tdk-windows-amd64.exe"
-  if [[ "$(head -c 2 "${RELEASE_DIR}/tdk-windows-amd64.exe" | od -An -t x1 | tr -d ' \n')" != "4d5a" ]]; then
+  test -s "${RELEASE_DIR}/flisk-windows-amd64.exe"
+  if [[ "$(head -c 2 "${RELEASE_DIR}/flisk-windows-amd64.exe" | od -An -t x1 | tr -d ' \n')" != "4d5a" ]]; then
     echo "Windows binary is not a PE executable (missing MZ signature)" >&2
     exit 1
   fi
@@ -54,13 +54,13 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
   cp -R "${ROOT_DIR}/ext" "${RELEASE_DIR}/tdk-cli/ext"
   mkdir -p "${RELEASE_DIR}/tdk-cli/cli"
   cp -R "${ROOT_DIR}/cli/templates" "${RELEASE_DIR}/tdk-cli/cli/templates"
-  # `tdk project` copies these into every project; generated Dockerfiles run them.
+  # `flisk project` copies these into every project; generated Dockerfiles run them.
   mkdir -p "${RELEASE_DIR}/tdk-cli/shared-platform-engineering"
   cp -R "${ROOT_DIR}/shared-platform-engineering/docker-templates" \
     "${RELEASE_DIR}/tdk-cli/shared-platform-engineering/docker-templates"
 
   # Smoke-test the binary for this machine the way users install it (binary with
-  # tdk-cli/ next to it): `tdk project` must find the engine and runtime assets.
+  # tdk-cli/ next to it): `flisk project` must find the engine and runtime assets.
   host_binary="tdk-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
   if [ -x "${RELEASE_DIR}/${host_binary}" ]; then
     smoke_dir="$(mktemp -d)"
@@ -83,14 +83,14 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
     # Fixed filename (no version/tag in the name) so install.sh can always
     # find it via the stable /releases/latest/download/ URL, unlike the zip
     # below whose name embeds the tag and changes every release.
-    tar -czf tdk-cli-engine.tar.gz tdk-cli
-    # install.sh and `tdk upgrade` verify the binary and the engine tarball
+    tar -czf flisk-cli-engine.tar.gz tdk-cli
+    # install.sh and `flisk upgrade` verify the binary and the engine tarball
     # against this file before installing them.
-    shasum -a 256 tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
-      tdk-windows-amd64.exe \
-      tdk-cli-engine.tar.gz > checksums.txt
+    shasum -a 256 flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
+      flisk-windows-amd64.exe \
+      flisk-cli-engine.tar.gz > checksums.txt
     zip -qr "tdk-cli-${RELEASE_TAG}-binaries.zip" \
-      tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 tdk-windows-amd64.exe \
+      flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 flisk-windows-amd64.exe \
       tdk-cli checksums.txt
   )
 
@@ -98,12 +98,12 @@ fi
 
 validate_release_assets() {
   local required=(
-    tdk-linux-amd64
-    tdk-linux-arm64
-    tdk-darwin-amd64
-    tdk-darwin-arm64
-    tdk-windows-amd64.exe
-    tdk-cli-engine.tar.gz
+    flisk-linux-amd64
+    flisk-linux-arm64
+    flisk-darwin-amd64
+    flisk-darwin-arm64
+    flisk-windows-amd64.exe
+    flisk-cli-engine.tar.gz
     checksums.txt
     "tdk-cli-${RELEASE_TAG}-binaries.zip"
   )
@@ -116,15 +116,15 @@ validate_release_assets() {
     fi
   done
 
-  if [[ "$(head -c 2 "${RELEASE_DIR}/tdk-windows-amd64.exe" | od -An -t x1 | tr -d ' \n')" != "4d5a" ]]; then
+  if [[ "$(head -c 2 "${RELEASE_DIR}/flisk-windows-amd64.exe" | od -An -t x1 | tr -d ' \n')" != "4d5a" ]]; then
     echo "Windows binary is not a PE executable (missing MZ signature)" >&2
     return 1
   fi
 
   local checksum_asset
   for checksum_asset in \
-    tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
-    tdk-windows-amd64.exe tdk-cli-engine.tar.gz; do
+    flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
+    flisk-windows-amd64.exe flisk-cli-engine.tar.gz; do
     local checksum_entries
     checksum_entries="$(awk -v name="${checksum_asset}" '$2 == name { count++ } END { print count + 0 }' "${RELEASE_DIR}/checksums.txt")"
     if [[ "${checksum_entries}" != "1" ]]; then
@@ -141,8 +141,8 @@ validate_release_assets() {
   local zip_contents
   zip_contents="$(unzip -Z1 "${RELEASE_DIR}/tdk-cli-${RELEASE_TAG}-binaries.zip")"
   for asset in \
-    tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
-    tdk-windows-amd64.exe checksums.txt; do
+    flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
+    flisk-windows-amd64.exe checksums.txt; do
     if ! grep -Fxq "${asset}" <<<"${zip_contents}"; then
       echo "Binary ZIP is missing ${asset}" >&2
       return 1
@@ -171,14 +171,14 @@ fi
 # already packed inside the zip, and `gh release upload` can't take a
 # directory as an asset.
 readonly ASSETS=(
-  "${RELEASE_DIR}/tdk-linux-amd64"
-  "${RELEASE_DIR}/tdk-linux-arm64"
-  "${RELEASE_DIR}/tdk-darwin-amd64"
-  "${RELEASE_DIR}/tdk-darwin-arm64"
-  "${RELEASE_DIR}/tdk-windows-amd64.exe"
+  "${RELEASE_DIR}/flisk-linux-amd64"
+  "${RELEASE_DIR}/flisk-linux-arm64"
+  "${RELEASE_DIR}/flisk-darwin-amd64"
+  "${RELEASE_DIR}/flisk-darwin-arm64"
+  "${RELEASE_DIR}/flisk-windows-amd64.exe"
   "${RELEASE_DIR}/checksums.txt"
   "${RELEASE_DIR}/tdk-cli-${RELEASE_TAG}-binaries.zip"
-  "${RELEASE_DIR}/tdk-cli-engine.tar.gz"
+  "${RELEASE_DIR}/flisk-cli-engine.tar.gz"
 )
 
 # Never mark a release latest until every asset is uploaded. `gh release create
@@ -195,9 +195,9 @@ else
   generated_notes_file="$(mktemp)"
   trap 'rm -f "${release_notes_file}" "${generated_notes_file}"' EXIT
   cat > "${release_notes_file}" <<EOF
-## TDK CLI ${RELEASE_TAG#v}
+## Flisk CLI ${RELEASE_TAG#v}
 
-TDK CLI ${RELEASE_TAG#v} includes the changes listed below. The release assets contain verified Linux, macOS, and Windows AMD64 binaries plus the bundled runtime engine.
+Flisk CLI ${RELEASE_TAG#v} includes the changes listed below. The release assets contain verified Linux, macOS, and Windows AMD64 binaries plus the bundled runtime engine.
 EOF
 
   # Releases are hosted separately from source, so their tags cannot drive
@@ -233,9 +233,9 @@ EOF
         echo "SOURCE_COMMIT or GITHUB_SHA is required to generate release notes" >&2
         exit 1
       fi
-      source_commit_date="$(gh api "repos/tdk-landscape/tdk-cli-core/commits/${source_commit}" --jq '.commit.committer.date')"
+      source_commit_date="$(gh api "repos/flisk-sh/tdk-cli-core/commits/${source_commit}" --jq '.commit.committer.date')"
       since="${previous_published_at}"
-      gh api --paginate "repos/tdk-landscape/tdk-cli-core/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100" \
+      gh api --paginate "repos/flisk-sh/tdk-cli-core/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100" \
         --jq ".[] | select(.merged_at != null and .merged_at >= \"${since}\" and .merged_at <= \"${source_commit_date}\") | [.number, .title, .user.login, .html_url, .merged_at] | @tsv" \
         > "${generated_notes_file}"
       if [[ -s "${generated_notes_file}" ]]; then
@@ -251,14 +251,14 @@ EOF
       fi
       since_url="${since//:/%3A}"
       source_commit_date_url="${source_commit_date//:/%3A}"
-      printf '\n[Full Changelog](https://github.com/tdk-landscape/tdk-cli-core/commits/%s?since=%s&until=%s)\n' \
+      printf '\n[Full Changelog](https://github.com/flisk-sh/tdk-cli-core/commits/%s?since=%s&until=%s)\n' \
         "${source_commit}" "${since_url}" "${source_commit_date_url}" >> "${release_notes_file}"
     fi
   fi
 
   gh release create "${RELEASE_TAG}" \
     --repo "${RELEASE_REPOSITORY}" \
-    --title "TDK CLI ${RELEASE_TAG#v}" \
+    --title "Flisk CLI ${RELEASE_TAG#v}" \
     --notes-file "${release_notes_file}" \
     --draft \
     "${ASSETS[@]}"
@@ -268,8 +268,8 @@ remote_assets="$(gh release view "${RELEASE_TAG}" --repo "${RELEASE_REPOSITORY}"
 verify_dir="$(mktemp -d)"
 trap 'rm -rf "${verify_dir}"' EXIT
 for asset in \
-  tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
-  tdk-windows-amd64.exe tdk-cli-engine.tar.gz checksums.txt \
+  flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
+  flisk-windows-amd64.exe flisk-cli-engine.tar.gz checksums.txt \
   "tdk-cli-${RELEASE_TAG}-binaries.zip"; do
   if ! grep -Fxq "${asset}" <<<"${remote_assets}"; then
     echo "Published release is missing required asset: ${asset}" >&2

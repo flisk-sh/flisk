@@ -1,18 +1,18 @@
-# TDK CLI Core — Agent & LLM Contracts
+# Flisk CLI Core — Agent & LLM Contracts
 
-> TDK is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
+> Flisk is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
 
 See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt).
 
 ## Core Concepts & Capabilities
 
-- **Local Runtime, Not a Deployment Tool**: TDK configures and runs services locally on your machine via Docker and Tilt. It does not replace Helm, Argo CD, or Kubernetes in production.
+- **Local Runtime, Not a Deployment Tool**: Flisk configures and runs services locally on your machine via Docker and Tilt. It does not replace Helm, Argo CD, or Kubernetes in production.
 - **Resource Types**: `backend`, `frontend`, `worker`, `mcp`, `agent`, `bring-your-own` (plus config types `library`, `sdk`, `migrator`).
 - **AI Agent Systems**:
-  - `agent` resource type: Long-running agent process with `files` durability (named volume surviving `tdk down`), sticky session routing via `x-session-id`, graceful SIGTERM turn draining, `/health` (liveness) and `/ready` (application readiness for callers).
+  - `agent` resource type: Long-running agent process with `files` durability (named volume surviving `flisk down`), sticky session routing via `x-session-id`, graceful SIGTERM turn draining, `/health` (liveness) and `/ready` (application readiness for callers).
   - `mcp` resource type: Standard Model Context Protocol servers over Streamable HTTP (`/mcp`) routed via Traefik.
-  - `tdk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate TDK (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `restart_resource`, `list_agents`, `get_agent_sessions`):
-    - `doctor`: Check whether this machine can run the TDK stack and optionally validate a project.
+  - `flisk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate Flisk (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `restart_resource`, `list_agents`, `get_agent_sessions`):
+    - `doctor`: Check whether this machine can run the Flisk stack and optionally validate a project.
     - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
     - `down`: Stop the running stack.
     - `status`: Inspect stacks, resources, ingress URLs, ports, and Tilt readiness.
@@ -25,16 +25,16 @@ See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website
 
 ## Essential CLI Commands
 
-- `tdk project --yes`: Initialize a TDK project in the current directory (`.tdk/project.json`).
-- `tdk resource <name> --type <backend|frontend|worker|mcp|agent> --stack <stack> [--yes]`: Scaffold a new service.
-  - For agents: `tdk resource <name> --type agent --stack <stack> [--runtime custom] [--durability files]`
-  - For MCP servers: `tdk resource <name> --type mcp --stack <stack>`
-- `tdk up [stack] [--only <service...>] [--dry-run] [--json]`: Start local containers and live reload.
-- `tdk down [--json]`: Stop services and clean up containers (named volumes survive; remove agent-state volumes with `docker volume rm`).
-- `tdk status [--json]`: Report health, readiness, and active URLs.
-- `tdk doctor [--fix] [--json]`: Verify container engine (Docker/Podman/Colima), ports, and system prerequisites.
-- `tdk logs [--service <name>] [--tail <n>] [--json]`: Inspect service output.
-- `tdk mcp`: Launch the TDK MCP server over stdio for coding assistants.
+- `flisk project --yes`: Initialize a Flisk project in the current directory (`.tdk/project.json`).
+- `flisk resource <name> --type <backend|frontend|worker|mcp|agent> --stack <stack> [--yes]`: Scaffold a new service.
+  - For agents: `flisk resource <name> --type agent --stack <stack> [--runtime custom] [--durability files]`
+  - For MCP servers: `flisk resource <name> --type mcp --stack <stack>`
+- `flisk up [stack] [--only <service...>] [--dry-run] [--json]`: Start local containers and live reload.
+- `flisk down [--json]`: Stop services and clean up containers (named volumes survive; remove agent-state volumes with `docker volume rm`).
+- `flisk status [--json]`: Report health, readiness, and active URLs.
+- `flisk doctor [--fix] [--json]`: Verify container engine (Docker/Podman/Colima), ports, and system prerequisites.
+- `flisk logs [--service <name>] [--tail <n>] [--json]`: Inspect service output.
+- `flisk mcp`: Launch the Flisk MCP server over stdio for coding assistants.
 
 ## Key Schemas & Specifications
 
@@ -44,11 +44,11 @@ See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website
 
 ## Documentation & Guides
 
-- [AI Agents in TDK](ai-agents.md): Comprehensive guide on running agent systems with checkpointing and session routing.
-- [Agent Framework Comparison](../compare-honest.md#ai-agent-frameworks-and-workflow-engines-libfx-langgraph-mastra-vercel-workflows-temporal): Where TDK sits vs. libfx, LangGraph, Mastra, Vercel Workflows, and Temporal.
-- [Agent Hosts](../agent-hosts.md): Running TDK in Dev Containers, Codespaces, and remote agent environments.
+- [AI Agents in Flisk](ai-agents.md): Comprehensive guide on running agent systems with checkpointing and session routing.
+- [Agent Framework Comparison](../compare-honest.md#ai-agent-frameworks-and-workflow-engines-libfx-langgraph-mastra-vercel-workflows-temporal): Where Flisk sits vs. libfx, LangGraph, Mastra, Vercel Workflows, and Temporal.
+- [Agent Hosts](../agent-hosts.md): Running Flisk in Dev Containers, Codespaces, and remote agent environments.
 - [MCP Resources](../mcp.md): Scaffolding Model Context Protocol servers.
-- [Set up the TDK MCP server](../agent-tooling/tdk-mcp-setup.md): Installing TDK and connecting Codex, Claude Code, Claude Desktop, or Cursor to the local stdio server.
+- [Set up the Flisk MCP server](../agent-tooling/flisk-mcp-setup.md): Installing Flisk and connecting Codex, Claude Code, Claude Desktop, or Cursor to the local stdio server.
 - [Mega Cheat Sheet](../cheat-sheet.md): Comprehensive reference of all commands and options.
 - [Website llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt): Product-level index of the site, docs, examples, and skills.
 
@@ -58,4 +58,4 @@ Portable Agent Skills for driving the CLI live in [tdk-skills](https://github.co
 
 Full index: [tdk-skills llms.txt](https://raw.githubusercontent.com/tdk-landscape/tdk-skills/main/llms.txt).
 
-Key skills: tdk-doctor, tdk-troubleshoot, layer-autoresearch, tdk-scaffold, tdk-agents, tdk-benchmark, tdk-ports, tdk-generated-files, tdk-data, and more (see the index for the complete list of 20+ skills).
+Key skills: flisk-doctor, flisk-troubleshoot, layer-autoresearch, tdk-scaffold, tdk-agents, tdk-benchmark, tdk-ports, tdk-generated-files, tdk-data, and more (see the index for the complete list of 20+ skills).

@@ -1,4 +1,4 @@
-# 第一次为 TDK 做贡献
+# 第一次为 Flisk 做贡献
 
 [English](../README.md) | 简体中文 | [繁體中文](README-zh_tw.md) | [日本語](README-ja.md) | [한국어](README-ko.md)
 
@@ -17,9 +17,9 @@
 | 修复 CLI 命令或添加选项 | [CLI 指南](02-feature-recipes-zh_cn.md#修改-cli-命令) |
 | 添加 Vue 之类的前端框架 | [前端 provider 指南](../../frontend-framework-providers.md) |
 | 添加数据库或基础设施工具 | [数据库与工具指南](02-feature-recipes-zh_cn.md#添加数据库或基础设施工具) |
-| 修改 TDK 发现服务或生成配置的方式 | [引擎与发现指南](02-feature-recipes-zh_cn.md#修改引擎或服务发现) |
+| 修改 Flisk 发现服务或生成配置的方式 | [引擎与发现指南](02-feature-recipes-zh_cn.md#修改引擎或服务发现) |
 | 修正文字、链接或拼写 | [文档指南](02-feature-recipes-zh_cn.md#修改文档) |
-| 无需代码，试用 TDK 或示例并告诉我们结果 | [试用并报告](try-and-report-zh_cn.md) |
+| 无需代码，试用 Flisk 或示例并告诉我们结果 | [试用并报告](try-and-report-zh_cn.md) |
 | 无需代码，查找并报告 bug | [查找 bug](../finding-bugs.md) |
 | 审查别人的 pull request | [审查 PR](04-review-a-pr-zh_cn.md) |
 
@@ -33,8 +33,8 @@
 
 **不确定代码在哪里？** 在仓库中搜索你看到的命令、配置项、生成的文件名或服务名，然后找到它的测试。仍然不确定的话，请先开一个 issue 再进行大的改动。
 
-**要修改面向用户的契约或 TDK 的多个部分？** 编码前先遵循 [OpenSpec 指南](01-first-change-zh_cn.md#何时编写变更提案)。小的拼写和文档修正不需要提案。
+**要修改面向用户的契约或 Flisk 的多个部分？** 编码前先遵循 [OpenSpec 指南](01-first-change-zh_cn.md#何时编写变更提案)。小的拼写和文档修正不需要提案。
 
 ## 需要帮助？
 
-请写明你尝试了什么、期望什么、实际发生了什么，然后[开一个 issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)。提问前不必先解决问题。
+请写明你尝试了什么、期望什么、实际发生了什么，然后[开一个 issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)。提问前不必先解决问题。

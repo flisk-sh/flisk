@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
@@ -7,12 +7,12 @@ import { getPackageVersion } from "../utils/paths.js";
 
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
- * pinned version so a push to its main branch cannot change what `tdk import` does. Move the pin
+ * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `TDK_IMPORT_PACKAGE` overrides the package spec.
  */
 export const IMPORT_PACKAGE = "@tdk-landscape/tdk-import@0.2.1";
 
-/** Minimum TDK core release supporting buildContext required by tdk import (#634). */
+/** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export const MIN_CORE_VERSION = "1.3.104";
 
 /** Recommended core version with automatic Tiltfile bootstrapping for imported stacks (#1018). */
@@ -99,7 +99,7 @@ export function isVersionAtLeast(current: string, minimum: string): boolean {
 }
 
 /**
- * Checks whether the running TDK CLI meets the minimum version required to adopt Compose repos.
+ * Checks whether the running Flisk CLI meets the minimum version required to adopt Compose repos.
  * If the installed core is older than the buildContext release (1.3.104), exit before writing
  * and print the upgrade command.
  */
@@ -114,7 +114,7 @@ export function checkCoreVersion(
   if (!isVersionAtLeast(currentVersion, MIN_CORE_VERSION)) {
     return {
       ok: false,
-      message: `tdk import: installed TDK core (${currentVersion}) is older than the required ${MIN_CORE_VERSION} (buildContext release). Upgrade with: tdk upgrade`,
+      message: `flisk import: installed Flisk core (${currentVersion}) is older than the required ${MIN_CORE_VERSION} (buildContext release). Upgrade with: flisk upgrade`,
     };
   }
   return { ok: true };
@@ -152,7 +152,7 @@ export function runImport(
     });
     child.on("error", (err) => {
       console.error(
-        `tdk import: could not run npx (${err.message}). Install Node.js/npm and retry.`,
+        `flisk import: could not run npx (${err.message}). Install Node.js/npm and retry.`,
       );
       resolve(127);
     });

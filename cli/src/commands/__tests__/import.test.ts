@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
@@ -26,7 +26,7 @@ function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
   return { calls, spawnFn };
 }
 
-describe("tdk import", () => {
+describe("flisk import", () => {
   it("forwards every argument, including flags, to tdk-import", () => {
     const inv = importInvocation([".", "--dry-run", "--force"], {}, "linux");
     expect(inv).toEqual({
@@ -182,7 +182,7 @@ describe("tdk import", () => {
           await runImport(forwarded, spawnFn, () => "1.3.183");
         });
 
-        await testCmd.parseAsync(["node", "tdk", ...commandArgs], { from: "node" });
+        await testCmd.parseAsync(["node", "flisk", ...commandArgs], { from: "node" });
 
         expect(calls).toHaveLength(1);
         const spawnedArgs = calls[0]?.[1] as string[];
@@ -219,7 +219,7 @@ describe("tdk import", () => {
       expect(check.ok).toBe(false);
       expect(check.message).toContain("1.3.103");
       expect(check.message).toContain(MIN_CORE_VERSION);
-      expect(check.message).toContain("tdk upgrade");
+      expect(check.message).toContain("flisk upgrade");
     });
 
     it("permits --dry-run even on older core versions since nothing is written", () => {
@@ -238,7 +238,7 @@ describe("tdk import", () => {
       const exitCode = await runImport([".", "--yes"], spawnFn, () => "1.3.100");
       expect(exitCode).toBe(1);
       expect(calls).toHaveLength(0);
-      expect(err).toHaveBeenCalledWith(expect.stringContaining("tdk upgrade"));
+      expect(err).toHaveBeenCalledWith(expect.stringContaining("flisk upgrade"));
       err.mockRestore();
     });
   });

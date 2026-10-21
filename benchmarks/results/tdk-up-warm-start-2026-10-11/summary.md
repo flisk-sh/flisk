@@ -1,4 +1,4 @@
-# tdk up warm-start benchmark
+# flisk up warm-start benchmark
 
 | Run | Kind | Outcome | Span (s) | Wall (s) | golden-layers-build (s) | Healthy | Failed resources | Docker VM peak (MiB) |
 |---|---|---|---:|---:|---:|---:|---:|---:|
@@ -7,7 +7,7 @@
 | warm-2 | warm | settled | 32.3 | 38 | 1.6 (skipped) | 8/8 | 0 | 2865 |
 | warm-3 | warm | settled | 36.0 | 40 | 1.8 (skipped) | 8/8 | 0 | 2538 |
 
-Span is from the first Tilt build step to the last build finishing. Wall is from launching `tdk up` until every resource was idle and the expected containers were healthy (outcome `settled`), or until the 30-minute limit (`timeout`). Runs with any other outcome were not timed.
+Span is from the first Tilt build step to the last build finishing. Wall is from launching `flisk up` until every resource was idle and the expected containers were healthy (outcome `settled`), or until the 30-minute limit (`timeout`). Runs with any other outcome were not timed.
 
 ## Build time per service (s)
 
@@ -22,7 +22,7 @@ Span is from the first Tilt build step to the last build finishing. Wall is from
 
 ## Environment
 
-- tdk: 1.3.144
+- flisk: 1.3.144
 - tilt: v0.37.7, built 2026-08-15
 - docker: 29.8.2
 - node: v24.16.0

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The real example apps on a clean machine (moved from the retired examples-e2e workflow, #1299). Each case is one step of the old workflow, with the
 # same logic: A1 installs the published CLI, A2 sets up the project and runs doctor, A3 installs the frontend dependencies for the
-# host typecheck, and A4 runs tdk up and requires the real routes to answer. The workflow checks out the app into $REPO_ROOT/example,
+# host typecheck, and A4 runs flisk up and requires the real routes to answer. The workflow checks out the app into $REPO_ROOT/example,
 # runs one matrix leg per app and passes that leg's route checks in API_CHECKS and WEB_CHECKS ("pattern|path" lines). TDK_VERSION
-# picks the npm version (latest by default). The workflow keeps its checkouts, Tilt and Postgres setup, tdk down and diagnostics.
+# picks the npm version (latest by default). The workflow keeps its checkouts, Tilt and Postgres setup, flisk down and diagnostics.
 #
 #   API_CHECKS=$'reservation|/api/v1/reservations' WEB_CHECKS=$'floor-app|/' moved from the retired examples-e2e A1 A2 A3 A4
 set -euo pipefail
@@ -16,21 +16,21 @@ source "$SUITE_DIR/../../lib/lib.sh"
 e2e_init real-apps real-apps
 DIR="$REPO_ROOT/example"
 # The app is a checkout owned by the workflow, not scratch space: the default cleanup only stops it, and never removes it.
-e2e_cleanup() { [ -d "$DIR" ] && (cd "$DIR" && tdk down >/dev/null 2>&1 || true); }
+e2e_cleanup() { [ -d "$DIR" ] && (cd "$DIR" && flisk down >/dev/null 2>&1 || true); }
 
-A1() { # install TDK from npm
-  log "A1 install TDK from npm"
+A1() { # install Flisk from npm
+  log "A1 install Flisk from npm"
   cd "$REPO_ROOT"
   TDK_VERSION="${TDK_VERSION:-latest}"
-  node scripts/install-global.mjs "@tdk-landscape/tdk-cli-core@${TDK_VERSION}"
-  tdk --version
+  node scripts/install-global.mjs "flisk@${TDK_VERSION}"
+  flisk --version
 }
 
-A2() { # set up the project and check it with tdk doctor
-  log "A2 set up the project and check it with tdk doctor"
+A2() { # set up the project and check it with flisk doctor
+  log "A2 set up the project and check it with flisk doctor"
   cd "$DIR"
-  tdk project --yes
-  tdk doctor
+  flisk project --yes
+  flisk doctor
 }
 
 A3() { # install frontend dependencies for the host typecheck
@@ -47,14 +47,14 @@ A3() { # install frontend dependencies for the host typecheck
   done
 }
 
-A4() { # tdk up, then prove the real routes answer
-  log "A4 tdk up, then prove the real routes answer"
+A4() { # flisk up, then prove the real routes answer
+  log "A4 flisk up, then prove the real routes answer"
   cd "$DIR"
   WAIT_MINUTES="${WAIT_MINUTES:-18}"
-  tdk up > up.log 2>&1 &
+  flisk up > up.log 2>&1 &
   started="$(date +%s)"
 
-  # tdk up prints the URL of every service it will start, then hands off to Tilt.
+  # flisk up prints the URL of every service it will start, then hands off to Tilt.
   for _ in $(seq 1 90); do
     grep -q "Running tilt up" up.log && break
     sleep 2
@@ -63,17 +63,17 @@ A4() { # tdk up, then prove the real routes answer
   [ -s urls.txt ] || grep -oE 'https?://[^ ]+' up.log | sort -u > urls.txt || true
   # Every routed URL ends in /health (frontends have an nginx healthcheck
   # too), so that suffix can't tell backend from frontend. The Traefik
-  # host prefix TDK generates can: api.<project>.localhost vs
+  # host prefix Flisk generates can: api.<project>.localhost vs
   # app.<project>.localhost.
   grep -E '^https?://api\.' urls.txt > backend-urls.txt || true
   grep -E '^https?://app\.' urls.txt > web-urls.txt || true
-  echo "::group::URLs tdk up printed"
+  echo "::group::URLs flisk up printed"
   cat urls.txt
   echo "::endgroup::"
   total="$(wc -l < backend-urls.txt | tr -d ' ')"
   if [ "$total" -eq 0 ]; then
     head -60 up.log
-    echo "::error::tdk up printed no backend /health URLs"
+    echo "::error::flisk up printed no backend /health URLs"
     exit 1
   fi
 

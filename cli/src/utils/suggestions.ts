@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Every cell is written before it is read, so the fallback never changes the result.
 function cell(row: readonly number[], index: number): number {

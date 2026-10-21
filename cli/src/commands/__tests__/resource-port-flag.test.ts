@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +17,7 @@ describe("--port for every port-assigned resource type", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-port-flag-test-"));
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-port-flag-test-"));
     mkdirSync(join(tempDir, ".tdk"), { recursive: true });
     writeFileSync(
       join(tempDir, ".tdk", "project.json"),
@@ -67,7 +67,7 @@ describe("--port for every port-assigned resource type", () => {
 
   async function createResource(name: string, type: string, args: string[] = []): Promise<string> {
     await resourceCommand.parseAsync(
-      ["node", "tdk", name, "--type", type, "--stack", "shop", "--yes", ...args],
+      ["node", "flisk", name, "--type", type, "--stack", "shop", "--yes", ...args],
       { from: "node" },
     );
     return join(tempDir, "services", "shop", name, "service.json");

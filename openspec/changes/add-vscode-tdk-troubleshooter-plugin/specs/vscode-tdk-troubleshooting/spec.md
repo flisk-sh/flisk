@@ -1,22 +1,22 @@
 ## ADDED Requirements
 
-### Requirement: Troubleshooter classifies common TDK failures
+### Requirement: Troubleshooter classifies common Flisk failures
 The extension SHALL classify common local development failures using deterministic diagnostic rules based on CLI results, environment checks, and captured command evidence.
 
 #### Scenario: Missing prerequisite
-- **WHEN** Docker, Tilt, Bun, or the TDK CLI is missing or unavailable
+- **WHEN** Docker, Tilt, Bun, or the Flisk CLI is missing or unavailable
 - **THEN** the troubleshooter identifies the missing prerequisite and presents the evidence that caused the classification
 
 #### Scenario: Port conflict
-- **WHEN** a TDK command or doctor result indicates that a required port is occupied
+- **WHEN** a Flisk command or doctor result indicates that a required port is occupied
 - **THEN** the troubleshooter identifies the affected port and resource when that information is available
 
 #### Scenario: Invalid project configuration
-- **WHEN** TDK project defaults, tech stack config, Tiltfile, or service manifests are missing or invalid
+- **WHEN** Flisk project defaults, tech stack config, Tiltfile, or service manifests are missing or invalid
 - **THEN** the troubleshooter identifies the invalid configuration area and links to the relevant file or command output when available
 
 #### Scenario: Tilt startup failure
-- **WHEN** a TDK lifecycle command reports a Tilt startup failure
+- **WHEN** a Flisk lifecycle command reports a Tilt startup failure
 - **THEN** the troubleshooter identifies the failure as Tilt-related and preserves the relevant command output as evidence
 
 ### Requirement: Troubleshooter presents likely cause and next action
@@ -49,8 +49,8 @@ The extension SHALL retain recent diagnostic context for failed commands so user
 - **THEN** the troubleshooter records the command metadata, raw output, parsed issue fingerprints, and timestamp
 
 ### Requirement: CLI contract gaps are documented
-The extension SHALL document any missing or unstable TDK CLI output contract encountered during implementation instead of requiring CLI changes for the MVP.
+The extension SHALL document any missing or unstable Flisk CLI output contract encountered during implementation instead of requiring CLI changes for the MVP.
 
 #### Scenario: CLI output cannot be parsed robustly
-- **WHEN** an adapter cannot reliably parse a TDK CLI command output
+- **WHEN** an adapter cannot reliably parse a Flisk CLI command output
 - **THEN** the extension keeps raw output available and records the missing structured-output need in CLI contract gap documentation

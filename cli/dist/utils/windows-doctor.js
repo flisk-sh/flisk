@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
@@ -6,7 +6,7 @@ import { parsePublishedPortHolders, probeHostPort } from "./doctor-runtime.js";
 import { findProjectRoot } from "./paths.js";
 import { getProjectName } from "./service-urls.js";
 import { findOnPath } from "./which.js";
-const WINDOWS_DNS_FAILURE = "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by tdk networks.";
+const WINDOWS_DNS_FAILURE = "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.";
 function loopbackAddresses(addresses) {
     return (addresses.length > 0 &&
         addresses.every((address) => address === "127.0.0.1" || address === "::1"));
@@ -36,7 +36,7 @@ export function checkWindowsRuntimeTools() {
         return {
             name: "Windows Runtime Tools",
             didPass: false,
-            message: "Docker is not running. Start Docker Desktop, wait until it is Running, then retry tdk doctor.",
+            message: "Docker is not running. Start Docker Desktop, wait until it is Running, then retry flisk doctor.",
             fix: "Install Docker Desktop and start it in Linux container mode.",
         };
     }
@@ -76,8 +76,8 @@ export function checkWindowsDockerMode() {
             return {
                 name: "Docker container mode",
                 didPass: false,
-                message: "Docker Desktop is using Windows containers. Switch to Linux containers. TDK stacks are Linux images.",
-                fix: "Switch Docker Desktop to Linux containers. TDK does not run Windows containers.",
+                message: "Docker Desktop is using Windows containers. Switch to Linux containers. Flisk stacks are Linux images.",
+                fix: "Switch Docker Desktop to Linux containers. Flisk does not run Windows containers.",
             };
         }
         return {
@@ -90,7 +90,7 @@ export function checkWindowsDockerMode() {
         return {
             name: "Docker container mode",
             didPass: false,
-            message: "Docker is not running. Start Docker Desktop, wait until it is Running, then retry tdk doctor.",
+            message: "Docker is not running. Start Docker Desktop, wait until it is Running, then retry flisk doctor.",
         };
     }
 }
@@ -107,7 +107,7 @@ export async function checkWindowsHostConfiguration() {
     const requiredPorts = [80, 443, 5432];
     const excluded = requiredPorts.filter((port) => excludedRanges.some(([start, end]) => port >= start && port <= end));
     if (excluded.length > 0) {
-        warnings.push(`⚠️ Windows reserved port${excluded.length > 1 ? "s" : ""} ${excluded.join(", ")} for Hyper-V/WSL. Fix: disable the conflicting Windows feature or change TDK ports in project config. Common fix: run \`net stop winnat\` then \`net start winnat\` in an Administrator terminal, then retry \`tdk doctor\`.`);
+        warnings.push(`⚠️ Windows reserved port${excluded.length > 1 ? "s" : ""} ${excluded.join(", ")} for Hyper-V/WSL. Fix: disable the conflicting Windows feature or change Flisk ports in project config. Common fix: run \`net stop winnat\` then \`net start winnat\` in an Administrator terminal, then retry \`flisk doctor\`.`);
     }
     const occupied = [];
     for (const port of requiredPorts) {
@@ -158,7 +158,7 @@ export async function checkWindowsHostConfiguration() {
             windowsHide: true,
         }).trim();
         if (autocrlf.toLowerCase() === "true") {
-            warnings.push("git core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in TDK repos.");
+            warnings.push("git core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.");
         }
     }
     catch {
@@ -170,7 +170,7 @@ export async function checkWindowsHostConfiguration() {
         didPass: dnsOk && externallyOccupied.length === 0,
         message: warnings.length > 0
             ? warnings.join("\n")
-            : "Required ports are available and TDK localhost DNS resolves to loopback",
+            : "Required ports are available and Flisk localhost DNS resolves to loopback",
         ...(dnsOk ? {} : { fix: WINDOWS_DNS_FAILURE }),
     };
 }

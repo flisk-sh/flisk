@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
-// Behaviour of the Starlark planners that `tdk up` runs at Tiltfile load: the frontend build plan and the
+// Behaviour of the Starlark planners that `flisk up` runs at Tiltfile load: the frontend build plan and the
 // Tilt build concurrency. They run under Tilt's own Starlark interpreter, so these tests spawn Tilt.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const framePlan = join(

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # An mcp resource on a live stack, moved from scripts/verify-mcp.sh (#1296, openspec task 3.2). Scaffold it, bring it up through a
-# real `tdk up` and Traefik, and talk to it with the official MCP TypeScript SDK client (not just curl): connect, list the tools,
+# real `flisk up` and Traefik, and talk to it with the official MCP TypeScript SDK client (not just curl): connect, list the tools,
 # call the `echo` tool. The client uses the real host name api.<project>.localhost, so this also shows that a client resolves it.
 # Runs nightly, on release and by hand; see suite.json.
 #
 #   tests/e2e/resource-types/mcp/run.sh all            every case in order, then cleanup
 #   tests/e2e/resource-types/mcp/run.sh P1 P2 P3       single cases
-# Needs: tdk on PATH, Docker, Tilt, Node 22+, jq, curl, and network access (P3 installs the MCP SDK into a temp directory).
+# Needs: flisk on PATH, Docker, Tilt, Node 22+, jq, curl, and network access (P3 installs the MCP SDK into a temp directory).
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,8 +29,8 @@ P1() { # scaffold the mcp resource
   common_scaffold mcp "$RES" --stack "$STACK" --yes
 }
 
-P2() { # tdk up, listed as an mcp resource, healthy through Traefik
-  log "P2 tdk up, $RES listed as mcp, healthy through Traefik"
+P2() { # flisk up, listed as an mcp resource, healthy through Traefik
+  log "P2 flisk up, $RES listed as mcp, healthy through Traefik"
   : >"$DIR/up.log"
   start_stack "$STACK"
   wait_status_url "$RES"

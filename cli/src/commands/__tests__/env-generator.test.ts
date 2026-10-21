@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -243,7 +243,7 @@ check('TDK_T_QUOTED_PATH', 'found')
   });
 
   it("does nothing, without failing, when there is no .env", () => {
-    const dir = mkdtempSync(join(tmpdir(), "tdk-dotenv-none-"));
+    const dir = mkdtempSync(join(tmpdir(), "flisk-dotenv-none-"));
     temporaryDirs.push(dir);
     expectPasses(`${load(dir)}
 check('TDK_T_NOTHING', '<unset>')

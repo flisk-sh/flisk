@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, } from "node:fs";
@@ -10,7 +10,7 @@ import { join } from "node:path";
  * implementation - available by default on macOS and Linux.
  */
 export function extractTarball(data, destDir) {
-    const tempDir = mkdtempSync(join(tmpdir(), "tdk-ext-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-ext-"));
     const tmpFile = join(tempDir, "bundle.tar.gz");
     writeFileSync(tmpFile, data);
     mkdirSync(destDir, { recursive: true });

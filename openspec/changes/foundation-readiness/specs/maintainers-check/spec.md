@@ -8,7 +8,7 @@ Give the CLI a check that reports whether the maintainer file meets the publishe
 
 ### Requirement: Check command
 
-The CLI SHALL provide `tdk maintainers check`, which reads MAINTAINERS.md and counts distinct Company values, treating "Independent" as its own company.
+The CLI SHALL provide `flisk maintainers check`, which reads MAINTAINERS.md and counts distinct Company values, treating "Independent" as its own company.
 
 #### Scenario: Short of the bar
 

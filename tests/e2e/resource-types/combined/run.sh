@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The combined leg (#1290): an agent and a worker boot in one stack, so a regression that only shows when two resource types
 # share a Tiltfile, a Compose project or a focus list fails here. Runs nightly, on release and by hand; see suite.json.
@@ -29,20 +29,20 @@ X1() { # one project, the agent and the worker scaffolded into it
   rm -rf "$DIR"; mkdir -p "$DIR"
   (cd "$DIR" && git init -q .)
   run "scaffold-project" project --yes
-  [ "$RC" -eq 0 ] || die "tdk project --yes exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk project --yes exited $RC"
   run "scaffold-$AGENT" resource "$AGENT" --type agent --stack "$STACK" --yes
-  [ "$RC" -eq 0 ] || die "tdk resource $AGENT --type agent exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk resource $AGENT --type agent exited $RC"
   run "scaffold-$WORKER" resource "$WORKER" --type worker --stack "$STACK" --yes
-  [ "$RC" -eq 0 ] || die "tdk resource $WORKER --type worker exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk resource $WORKER --type worker exited $RC"
 }
 
-X2() { # tdk up, then both resources are listed with their types
-  log "X2 tdk up and status lists both resources"
+X2() { # flisk up, then both resources are listed with their types
+  log "X2 flisk up and status lists both resources"
   : >"$DIR/up.log"
   start_stack "$STACK"
   poll_until "$AGENT listed as agent and $WORKER as worker" "${READY_TIMEOUT:-120}" both_listed
   run x2-status status --json
-  assert check "$OUT/x2-status.out" "j.errors.length === 0 && j.data.resources.some(r => r.name === '$AGENT' && r.type === 'agent') && j.data.resources.some(r => r.name === '$WORKER' && r.type === 'worker')" "tdk status --json lists $AGENT as agent and $WORKER as worker"
+  assert check "$OUT/x2-status.out" "j.errors.length === 0 && j.data.resources.some(r => r.name === '$AGENT' && r.type === 'agent') && j.data.resources.some(r => r.name === '$WORKER' && r.type === 'worker')" "flisk status --json lists $AGENT as agent and $WORKER as worker"
 }
 
 X3() { # the worker's container logged its start line while the agent was up

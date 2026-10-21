@@ -1,9 +1,9 @@
-# UI Enhancements Extension for TDK Landscape Tilt IDE
+# UI Enhancements Extension for Flisk Landscape Tilt IDE
 # Provides tooltips, icons, help panels, and cron jobs monitoring
 
 name: ui-enhancements
 version: 1.0.0
-author: TDK Landscape Platform Team
+author: Flisk Landscape Platform Team
 description: |
   Enhances the Tilt web UI with:
   - Contextual tooltips for all resources

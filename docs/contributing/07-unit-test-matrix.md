@@ -1,6 +1,6 @@
 # 7. Run unit tests in a matrix
 
-Unit tests run in one `cli` vitest job today, and the matrix on this page is **proposed, not yet in CI**. This page describes how to split them into parallel matrix legs in the same shape as the e2e groups (see [run e2e suites in a matrix](06-e2e-matrix.md)), and how to write a new unit test so it fits a leg. It is the model for the coverage and unit-test items in the [test-quality initiative](https://github.com/tdk-landscape/tdk-cli-core/issues/1388).
+Unit tests run in one `cli` vitest job today, and the matrix on this page is **proposed, not yet in CI**. This page describes how to split them into parallel matrix legs in the same shape as the e2e groups (see [run e2e suites in a matrix](06-e2e-matrix.md)), and how to write a new unit test so it fits a leg. It is the model for the coverage and unit-test items in the [test-quality initiative](https://github.com/flisk-sh/tdk-cli-core/issues/1388).
 
 ## What a unit test is here
 
@@ -9,7 +9,7 @@ A unit test lives in `cli/src/**/__tests__/` and does not boot a live stack. Thr
 | Kind | File pattern | Runs in |
 |---|---|---|
 | unit | `*.test.ts` that mocks I/O | the unit matrix |
-| CLI integration | `*-e2e.test.ts` that spawns `tdk` on a temp project, no stack | the vitest run; not a live-stack group |
+| CLI integration | `*-e2e.test.ts` that spawns `flisk` on a temp project, no stack | the vitest run; not a live-stack group |
 | stack-backed | anything that boots a running Tilt or Compose stack | a live-stack e2e suite, see [write an e2e test](05-write-e2e.md) |
 
 Some tests run a real tool without a stack, such as Tilt for the Starlark generator tests. They are not fully mocked. They stay in the unit job until they are split out, so do not describe them as mocked.
@@ -93,7 +93,7 @@ A command's own test file then covers only what is specific to that command (wha
 
 Tests that start the CLI or build a project on disk use `cli/src/test-support/` instead of copying the boilerplate:
 
-- `runTdk(args, { cwd, input?, env? })` runs `tdk` in a child process and returns `{ status, stdout, stderr }`. It throws when the child cannot run or is killed, so a missing exit code never reads as a pass.
+- `runTdk(args, { cwd, input?, env? })` runs `flisk` in a child process and returns `{ status, stdout, stderr }`. It throws when the child cannot run or is killed, so a missing exit code never reads as a pass.
 - `createTempProject(spec)` writes a project under a temporary directory and removes it when the test finishes. `spec` lists stacks, resources and generated config files, so a test states only what it needs.
 - `parseEnvelope(stdout)` asserts that stdout is one JSON line with `schemaVersion`, `data` and `errors`, and returns it.
 

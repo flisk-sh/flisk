@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # ====================================================================
 # Container Debug Helper Script
@@ -157,7 +157,7 @@ diagnostics_menu() {
     case $choice in
         1)
             echo -e "${BLUE}Testing network connectivity...${NC}"
-            run_command "$resource_name" "nc -zv registry.npmjs.org 443 && nc -zv TDK Landscape-verdaccio 4873"
+            run_command "$resource_name" "nc -zv registry.npmjs.org 443 && nc -zv Flisk-verdaccio 4873"
             ;;
         2)
             echo -e "${BLUE}Viewing configuration files...${NC}"

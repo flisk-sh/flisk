@@ -1,8 +1,8 @@
-# TDK CLI Agent Guidelines
+# Flisk CLI Agent Guidelines
 
 ## API Conventions & Standards
 
-This document defines the coding standards and API conventions for the TDK CLI package. All contributions should follow these guidelines to maintain consistency.
+This document defines the coding standards and API conventions for the Flisk CLI package. All contributions should follow these guidelines to maintain consistency.
 
 ---
 
@@ -75,7 +75,7 @@ Group exports by category with comments:
 
 ```typescript
 /**
- * Component exports for TDK CLI UI
+ * Component exports for Flisk CLI UI
  */
 
 // Main UI components
@@ -168,7 +168,7 @@ import { TdkError } from '../utils/errors.js';
 // ✅ Good
 throw new TdkError(
   'Resource not found',
-  ['Check the resource name', 'Run tdk resources to list all'],
+  ['Check the resource name', 'Run flisk resources to list all'],
   1  // exit code
 );
 
@@ -259,8 +259,8 @@ src/
 │   ├── validation.ts  # Validation utilities
 │   └── formatting.ts  # Formatting utilities
 ├── commands/
-│   ├── resource.ts    # tdk resource command
-│   ├── stack.ts       # tdk stack command
+│   ├── resource.ts    # flisk resource command
+│   ├── stack.ts       # flisk stack command
 │   └── ...
 └── components/
     ├── TabBar.tsx     # UI components

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -36,7 +36,7 @@ export interface ContainerState {
   exitCode: number;
 }
 
-/** Whether this container's compose project belongs to the TDK project, however the engine spelled the separator. */
+/** Whether this container's compose project belongs to the Flisk project, however the engine spelled the separator. */
 export function belongsToProject(composeProject: string, projectName: string): boolean {
   const prefix = toComposeProjectPrefix(projectName).toLowerCase();
   const label = composeProject.replace(/-/g, "_").toLowerCase();
@@ -60,10 +60,10 @@ export function isCrashLooping(state: ContainerState, now = Date.now()): boolean
 export function crashLoopHint(logs: string, state: ContainerState): string | null {
   const database = /database "([^"]+)" does not exist/i.exec(logs);
   if (database) {
-    return `database "${database[1]}" does not exist: re-run the project's database provisioning (tdk up) or create it`;
+    return `database "${database[1]}" does not exist: re-run the project's database provisioning (flisk up) or create it`;
   }
   if (/Cannot find module|MODULE_NOT_FOUND|module not found/i.test(logs)) {
-    return "a module is missing from the image: rebuild it (tdk up --force) after checking the resource's dependencies";
+    return "a module is missing from the image: rebuild it (flisk up --force) after checking the resource's dependencies";
   }
   if (/EADDRINUSE|address already in use/i.test(logs)) {
     return "the port inside the container is already in use: check for two processes started by the same command";

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 """
 featuresEnabled "drizzle": accepted by the schema enum, validator warns without databaseName,

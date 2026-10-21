@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📋 TILT SDK - MANIFEST NORMALIZATION & DISCOVERY
@@ -79,7 +79,7 @@ def _load_and_normalize(manifest_path, warn_only=True):
     
     # BUG FIX: Normalize various path patterns to project-relative paths
     # Pattern 1: Worktrees - .worktrees/task1-dry/services/platform/...
-    # Pattern 2: TDK output - .tdk/.tdk-out/../.. or .tdk/.tdk-out/../../path
+    # Pattern 2: Flisk output - .tdk/.tdk-out/../.. or .tdk/.tdk-out/../../path
     
     if resource_path.startswith('.worktrees/'):
         # Extract the part after the worktree name
@@ -93,7 +93,7 @@ def _load_and_normalize(manifest_path, warn_only=True):
         if len(parts) >= 3:
             resource_path = '/'.join(parts[2:])
     elif '.tdk/.tdk-out/../..' in resource_path:
-        # Handle TDK output paths like: /path/to/.tdk/.tdk-out/../.. or .tdk/.tdk-out/../../services/...
+        # Handle Flisk output paths like: /path/to/.tdk/.tdk-out/../.. or .tdk/.tdk-out/../../services/...
         tdk_idx = resource_path.find('.tdk/.tdk-out/../..')
         if tdk_idx != -1:
             after_tdk = resource_path[tdk_idx + len('.tdk/.tdk-out/../..'):]
@@ -101,7 +101,7 @@ def _load_and_normalize(manifest_path, warn_only=True):
                 after_tdk = after_tdk[1:]
             resource_path = after_tdk
     elif resource_path.endswith('.tdk/.tdk-out/../..'):
-        # Handle bare TDK output path that ends with just the resolution pattern
+        # Handle bare Flisk output path that ends with just the resolution pattern
         resource_path = ''
     
     # Apply smart defaults

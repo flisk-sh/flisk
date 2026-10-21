@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * True for a resource that runs as an HTTP API service behind the Traefik API host: a backend, or an `mcp` server (a Model Context

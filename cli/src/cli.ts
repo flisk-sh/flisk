@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import { showHelp } from "./commands/help.js";
@@ -13,7 +13,7 @@ const program = createProgram();
 if (process.argv.length === 2) {
   const result = await runColdPreflight();
   console.log(formatColdPreflight(result));
-  console.log("\nCommands: tdk doctor | tdk project --yes | tdk --help");
+  console.log("\nCommands: flisk doctor | flisk project --yes | flisk --help");
   process.exit(result.ok ? 0 : 1);
 }
 

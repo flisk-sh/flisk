@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Pure transform for AI "Write spec" buttons on issue bodies. This is the
 // only implementation; .github/workflows/ai-spec-buttons.yml checks the
@@ -31,7 +31,7 @@ export const PROMPTS = {
 // the issues workflow checks out the default branch, and a branch raw URL
 // 404s after merge. Shared with scripts/ai-review-buttons.mjs.
 export const BADGE_BASE =
-  "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges";
+  "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges";
 export const BADGE_URLS = {
   grok: `${BADGE_BASE}/grok.svg`,
   claude: `${BADGE_BASE}/claude.svg`,
@@ -46,17 +46,17 @@ export const SKIP_TEMPLATE_SIGNATURES = {
     "### What would you like to know?",
     "### How do you run your services locally today?",
   ],
-  "i-booted-tdk": [
+  "i-booted-flisk": [
     "### Minutes until first healthy URL",
     "### Commands you ran",
   ],
-  "we-use-tdk": [
+  "we-use-flisk": [
     "### Anything a maintainer should know",
     "### I am allowed to list this organization",
   ],
   "premium_license": [
     "### Which paid features do you need?",
-    "### What are you building with TDK?",
+    "### What are you building with Flisk?",
   ],
 };
 

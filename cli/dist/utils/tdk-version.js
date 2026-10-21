@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -43,8 +43,8 @@ export function evaluateTdkVersionFloor(projectRoot, currentVersion) {
         return {
             status: "too-old",
             required: requiredText,
-            message: `tdk ${currentVersion} is older than the ${requiredText} this project requires (minTdkVersion)`,
-            fix: "Run: tdk upgrade",
+            message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (minTdkVersion)`,
+            fix: "Run: flisk upgrade",
         };
     }
     return { status: "ok", required: requiredText };

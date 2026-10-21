@@ -1,11 +1,11 @@
 # MCP resources
 
 `--type mcp` scaffolds a [Model Context Protocol](https://modelcontextprotocol.io) server that runs in your landscape like any other
-service: Docker builds it, `tdk up` starts it, Traefik routes to it, and its health route gates boot order.
+service: Docker builds it, `flisk up` starts it, Traefik routes to it, and its health route gates boot order.
 
 ```bash
-tdk resource docs-mcp --type mcp --stack shop
-tdk up shop
+flisk resource docs-mcp --type mcp --stack shop
+flisk up shop
 ```
 
 ## What you get
@@ -49,7 +49,7 @@ Edit `buildServer()` in `src/index.ts`. Register tools, resources and prompts th
 come back as an MCP error result (`isError: true`), not as a crash. See the
 [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) for the full API.
 
-## How it fits TDK
+## How it fits Flisk
 
 `mcp` is a resource type of its own, next to `backend`, `frontend`, `worker`, `bring-your-own` and `sdk`. Internally the engine
 runs it as a backend: when it loads a `service.json` whose `appType` is `mcp`, it treats the manifest as `appType: "backend"` and
@@ -58,7 +58,7 @@ keeps a `mcp: true` flag, so the Dockerfile, Compose entry, Traefik route and he
 
 ## What has and has not been checked
 
-Checked, with a real `tdk up` in an isolated project: the scaffold builds on Bun in the engine's image, the resource goes healthy, and
+Checked, with a real `flisk up` in an isolated project: the scaffold builds on Bun in the engine's image, the resource goes healthy, and
 `initialize`, `tools/list` and `tools/call` (the `echo` tool, with a valid argument) answer through Traefik. The CLI tests cover the
 scaffold, the type lists, the rejected combinations and the engine normalization.
 
@@ -71,8 +71,8 @@ suite, which runs on CI nightly, after each release and by hand. Run it yourself
 make test-e2e GROUP=resource-types SUITE=mcp
 ```
 
-It scaffolds a throwaway `mcp` resource, starts it through `tdk up`, runs that client against it, and removes only what it created. It
-needs Docker, Tilt, `tdk` on `PATH`, Node 22+ and network access (it installs the SDK into a temporary folder).
+It scaffolds a throwaway `mcp` resource, starts it through `flisk up`, runs that client against it, and removes only what it created. It
+needs Docker, Tilt, `flisk` on `PATH`, Node 22+ and network access (it installs the SDK into a temporary folder).
 
 Not checked:
 

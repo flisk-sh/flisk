@@ -1,6 +1,6 @@
 ## Purpose
 
-Makes sure every TDK resource type is exercised on a real stack, with a common set of cases, so a new type or a type-specific regression cannot ship untested.
+Makes sure every Flisk resource type is exercised on a real stack, with a common set of cases, so a new type or a type-specific regression cannot ship untested.
 
 ## ADDED Requirements
 
@@ -23,7 +23,7 @@ A type MAY be listed on an allowlist only with a reason and a link to an open is
 - **THEN** the coverage check fails until the allowlist entry is removed
 
 ### Requirement: Resource-type suites cover a common set of cases
-Each resource-type suite SHALL cover scaffolding with `tdk resource`, a bounded wait in `tdk status --json`, the type's observable contract, `tdk restart` with a wait for the replaced container, and at least one error path asserting a single JSON envelope. A case that does not apply SHALL be listed as not applicable with the reason.
+Each resource-type suite SHALL cover scaffolding with `flisk resource`, a bounded wait in `flisk status --json`, the type's observable contract, `flisk restart` with a wait for the replaced container, and at least one error path asserting a single JSON envelope. A case that does not apply SHALL be listed as not applicable with the reason.
 
 #### Scenario: Observable contract per type
 - **WHEN** the suite checks the type's contract
@@ -31,7 +31,7 @@ Each resource-type suite SHALL cover scaffolding with `tdk resource`, a bounded 
 
 #### Scenario: Worker suite
 - **WHEN** the `worker` suite runs
-- **THEN** it scaffolds a worker, waits for it in `tdk status --json`, proves the worker processed a job, restarts it, and asserts one error envelope
+- **THEN** it scaffolds a worker, waits for it in `flisk status --json`, proves the worker processed a job, restarts it, and asserts one error envelope
 
 #### Scenario: Case not applicable
 - **WHEN** a type has no HTTP route, such as `migrator`
@@ -56,7 +56,7 @@ The cases every type shares (scaffold, bounded status wait, restart with a wait 
 - **THEN** the common cases run from `common.sh` with `appType=worker`, then the worker's own case proves a job was processed
 
 ### Requirement: Matrix legs share setup and can share one stack
-Every leg SHALL install the CLI tarball packed once for the run and use the composite setup actions. Nightly and release runs SHALL add one combined leg: one project with a resource of each compatible type, one `tdk up`, then each type's contract cases. Pull requests run isolated legs only, so a failure points at one type.
+Every leg SHALL install the CLI tarball packed once for the run and use the composite setup actions. Nightly and release runs SHALL add one combined leg: one project with a resource of each compatible type, one `flisk up`, then each type's contract cases. Pull requests run isolated legs only, so a failure points at one type.
 
 #### Scenario: Nightly run
 - **WHEN** the nightly run starts the resource-types group

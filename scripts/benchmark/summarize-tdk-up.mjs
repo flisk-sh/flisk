@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 
 // Turns a run directory written by scripts/benchmark/tdk-up-warm-start.sh into summary.md, summary.json and span.svg.
@@ -98,7 +98,7 @@ const services = [...new Set(runs.flatMap((r) => r.resources.map((x) => x.resour
 );
 
 const lines = [];
-lines.push("# tdk up warm-start benchmark", "");
+lines.push("# flisk up warm-start benchmark", "");
 lines.push("| Run | Kind | Outcome | Span (s) | Wall (s) | golden-layers-build (s) | Healthy | Failed resources | Docker VM peak (MiB) |");
 lines.push("|---|---|---|---:|---:|---:|---:|---:|---:|");
 for (const r of runs) {
@@ -112,7 +112,7 @@ for (const r of runs) {
 }
 lines.push(
 	"",
-	"Span is from the first Tilt build step to the last build finishing. Wall is from launching `tdk up` until every resource was idle and the expected containers were healthy (outcome `settled`), or until the 30-minute limit (`timeout`). Runs with any other outcome were not timed.",
+	"Span is from the first Tilt build step to the last build finishing. Wall is from launching `flisk up` until every resource was idle and the expected containers were healthy (outcome `settled`), or until the 30-minute limit (`timeout`). Runs with any other outcome were not timed.",
 	"",
 );
 lines.push("## Build time per service (s)", "");
@@ -159,7 +159,7 @@ const svgRows = timed.flatMap((r, i) => {
 writeFileSync(
 	join(dir, "span.svg"),
 	`<svg xmlns="http://www.w3.org/2000/svg" width="${left + width + 180}" height="${height}" font-family="-apple-system, Helvetica, Arial, sans-serif">
-<text x="${left}" y="18" font-size="14" font-weight="600">tdk up: span and golden base build per run</text>
+<text x="${left}" y="18" font-size="14" font-weight="600">flisk up: span and golden base build per run</text>
 ${svgRows.join("\n")}
 </svg>
 `,

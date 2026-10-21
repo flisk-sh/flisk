@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "sdk",
-  "description": "An sdk resource on a live project, with no stack (#1295). tdk resource --type sdk registers an sdk that already lives in packages/<name> with a service.json (appType sdk). The suite writes that package, registers it, checks tdk status lists it as an sdk, builds it with its build script and imports the built entry from a consumer.",
+  "description": "An sdk resource on a live project, with no stack (#1295). flisk resource --type sdk registers an sdk that already lives in packages/<name> with a service.json (appType sdk). The suite writes that package, registers it, checks flisk status lists it as an sdk, builds it with its build script and imports the built entry from a consumer.",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/utils/constants.ts",

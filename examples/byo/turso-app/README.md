@@ -15,18 +15,18 @@
 
 ## Check it
 
-This example cannot run alone, because its health route needs the database. Run both through a real `tdk up` and Traefik, in one
+This example cannot run alone, because its health route needs the database. Run both through a real `flisk up` and Traefik, in one
 throwaway project (needs Docker, Tilt and a built CLI):
 
 ```bash
 VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
 ```
 
-## Register it in a TDK project
+## Register it in a Flisk project
 
 ```bash
-tdk resource turso-app --type bring-your-own --stack shop --dockerfile ./Dockerfile --health-path /health --yes
+flisk resource turso-app --type bring-your-own --stack shop --dockerfile ./Dockerfile --health-path /health --yes
 ```
 
-Use a resource name that is unique across TDK projects sharing one Docker daemon. See
+Use a resource name that is unique across Flisk projects sharing one Docker daemon. See
 [../README.md](../README.md) and [docs/byo.md](../../../docs/byo.md) for the container contract.

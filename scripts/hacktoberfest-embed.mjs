@@ -1,14 +1,14 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Puts the Hacktoberfest map at the top of every open issue labelled `hacktoberfest` that does not show it yet.
 // Safe to re-run: issues that already embed the map are skipped. Needs the `gh` CLI with issues: write.
 // Run: node scripts/hacktoberfest-embed.mjs [owner/repo]
 import { execFileSync } from "node:child_process";
 
-const repo = process.argv[2] ?? "tdk-landscape/tdk-cli-core";
+const repo = process.argv[2] ?? "flisk-sh/tdk-cli-core";
 const MAP = `https://raw.githubusercontent.com/${repo}/journey-map/docs/journey/hacktoberfest.svg`;
 const LIST = `https://github.com/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3Ahacktoberfest`;
-const banner = `[![TDK Hacktoberfest map](${MAP})](${LIST})
+const banner = `[![Flisk Hacktoberfest map](${MAP})](${LIST})
 
 *🎃 Part of Hacktoberfest. Filled dot = merged, hollow dot = open. Click the map for all open \`hacktoberfest\` issues.*
 

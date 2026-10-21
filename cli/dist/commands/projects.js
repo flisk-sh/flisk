@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -78,13 +78,13 @@ export const projectsCommand = new Command("projects")
         }
         if (missing.length > 0) {
             console.log(chalk.yellow("Project not fully configured!"));
-            console.log(chalk.gray('Run "tdk project" to create master config files.\n'));
+            console.log(chalk.gray('Run "flisk project" to create master config files.\n'));
         }
         else {
             console.log(chalk.gray("Quick commands:"));
-            console.log(chalk.gray("  tdk resource    - Create a new resource"));
-            console.log(chalk.gray("  tdk stack       - Organize resources into stacks"));
-            console.log(chalk.gray("  tdk up <stack>  - Start a stack"));
+            console.log(chalk.gray("  flisk resource    - Create a new resource"));
+            console.log(chalk.gray("  flisk stack       - Organize resources into stacks"));
+            console.log(chalk.gray("  flisk up <stack>  - Start a stack"));
         }
         if (options.check) {
             process.exit(missing.length === 0 ? 0 : 1);

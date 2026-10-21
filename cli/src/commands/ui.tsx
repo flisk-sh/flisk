@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { Command } from "commander";
 import { Box, render, Text, useApp, useInput, useStdin, useStdout } from "ink";
@@ -122,7 +122,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   return (
     <Box flexDirection="column" padding={2}>
       <Text bold color={theme.accent}>
-        {theme.bannerStart} TDK NEON EDITION {theme.bannerEnd}
+        {theme.bannerStart} Flisk NEON EDITION {theme.bannerEnd}
       </Text>
       <Box marginY={1} />
       <Text color={theme.foreground}>
@@ -148,8 +148,11 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({ error, onRetry }) => {
       <Box marginY={1} />
       <Text color={theme.muted}>Troubleshooting:</Text>
       <Text color={theme.muted}> 1. Check that every service.json is valid JSON</Text>
-      <Text color={theme.muted}> 2. Run tdk from your project (the folder with the Tiltfile)</Text>
-      <Text color={theme.muted}> 3. Try: tdk status --verbose</Text>
+      <Text color={theme.muted}>
+        {" "}
+        2. Run flisk from your project (the folder with the Tiltfile)
+      </Text>
+      <Text color={theme.muted}> 3. Try: flisk status --verbose</Text>
       <Box marginY={1} />
       <Text color={theme.accent}>Press [r] to retry or [q] to quit</Text>
     </Box>
@@ -167,8 +170,8 @@ const EmptyState: React.FC<{ message?: string }> = ({ message }) => {
       <Text color={theme.muted}>{theme.ascii ? "[*]" : "\u25c9"} No service.json files found</Text>
       <Box marginY={1} />
       <Text color={theme.foreground}>To get started:</Text>
-      <Text color={theme.foreground}> 1. Run: tdk project</Text>
-      <Text color={theme.foreground}> 2. Run: tdk resource api --type backend</Text>
+      <Text color={theme.foreground}> 1. Run: flisk project</Text>
+      <Text color={theme.foreground}> 2. Run: flisk resource api --type backend</Text>
       <Box marginY={1} />
       <Text color={theme.accent}>Press [r] to refresh or [q] to quit</Text>
       {/* The top-level Esc hint has to be visible here too — with no services this is the
@@ -266,7 +269,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
     services: DiscoveredResource[];
   }>({ stacks: [], services: [] });
 
-  // What the running Tilt says about each service: the same answer `tdk status` gives. Empty while no Tilt answers.
+  // What the running Tilt says about each service: the same answer `flisk status` gives. Empty while no Tilt answers.
   const [serviceStates, setServiceStates] = useState<ServiceStates>({});
   useEffect(() => {
     let cancelled = false;
@@ -1022,7 +1025,7 @@ export const TUIApp: React.FC<{ animated?: boolean }> = ({ animated = true }) =>
                         Tilt is not running or its UI is unreachable.
                       </Text>
                       <Text color={theme.muted}>
-                        Start the stack with tdk up, then press [r] to retry.
+                        Start the stack with flisk up, then press [r] to retry.
                       </Text>
                     </Box>
                   )}

@@ -2,17 +2,17 @@
 
 ## Purpose
 
-The TDK landscape has two sources of maintenance waste: a vendored duplicate of the `@tdk-landscape/tdk-cli-core` package in `beauty-crm/cli/` that has diverged from the canonical `tdk-cli/cli/`, and 13+ AI assistant config entries in `beauty-crm/` with overlapping project context spread across 8 directories and 5 root files. Consolidating both reduces maintenance burden and establishes canonical sources of truth.
+The Flisk landscape has two sources of maintenance waste: a vendored duplicate of the `flisk` package in `beauty-crm/cli/` that has diverged from the canonical `tdk-cli/cli/`, and 13+ AI assistant config entries in `beauty-crm/` with overlapping project context spread across 8 directories and 5 root files. Consolidating both reduces maintenance burden and establishes canonical sources of truth.
 
 ## Requirements
 
 ### Requirement: Single CLI source of truth
 
-All source code and tooling for the `@tdk-landscape/tdk-cli-core` package SHALL originate from `tdk-cli/cli/`. The `beauty-crm/cli/` directory SHALL NOT contain its own copy of CLI source.
+All source code and tooling for the `flisk` package SHALL originate from `tdk-cli/cli/`. The `beauty-crm/cli/` directory SHALL NOT contain its own copy of CLI source.
 
 #### Scenario: Remove duplicate CLI directory
 - **WHEN** inspecting the `beauty-crm/` project root
-- **THEN** there SHALL be no `cli/` directory containing standalone `@tdk-landscape/tdk-cli-core` source
+- **THEN** there SHALL be no `cli/` directory containing standalone `flisk` source
 
 #### Scenario: Directory removed completely (no symlink)
 - **WHEN** inspecting the `beauty-crm/` project root
@@ -41,7 +41,7 @@ All AI assistants operating in `beauty-crm/` SHALL use `CLAUDE.md` as the single
 
 ### Requirement: No regression in CLI functionality
 
-Removing `beauty-crm/cli/` SHALL NOT break any existing functionality that depends on the `@tdk-landscape/tdk-cli-core` package.
+Removing `beauty-crm/cli/` SHALL NOT break any existing functionality that depends on the `flisk` package.
 
 #### Scenario: No workspace resolution errors after removal
 - **WHEN** running `bun install` in `beauty-crm/`

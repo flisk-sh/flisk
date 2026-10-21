@@ -328,7 +328,7 @@ jobs:
           bun install --frozen-lockfile
           npm run build
 
-      # cli/dist is committed so `npm install -g github:tdk-landscape/tdk-cli-core`
+      # cli/dist is committed so `npm install -g github:flisk-sh/tdk-cli-core`
       # works without a build step. Fail if a source change was committed
       # without rebuilding it.
       # Locally: `npm run check:dist` in cli/ does both steps.
@@ -375,7 +375,7 @@ jobs:
           path: ${{ runner.temp }}/cli-tarball
 
       - name: Install globally
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           tarball: ${{ runner.temp }}/cli-tarball/tdk-landscape-tdk-cli-core-*.tgz
 
@@ -388,10 +388,10 @@ jobs:
       - name: Run the installed CLI
         working-directory: ${{ runner.temp }}
         run: |
-          tdk --version
+          flisk --version
           mkdir smoke-project && cd smoke-project
-          tdk project --yes
-          printf 'y\n' | tdk resource orders-api --type backend --stack shop
+          flisk project --yes
+          printf 'y\n' | flisk resource orders-api --type backend --stack shop
           test -f services/shop/orders-api/service.json
           echo "✅ Installed package scaffolds a project and a resource"
 

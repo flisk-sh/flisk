@@ -1,9 +1,10 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import {
   binaryAssetNameFor,
   executableName,
+  legacyExecutableName,
   pathLookups,
   tdkArchFor,
   tdkOsFor,
@@ -11,9 +12,9 @@ import {
 
 describe("platform mappings", () => {
   it.each([
-    ["linux", "x64", "tdk-linux-amd64"],
-    ["darwin", "arm64", "tdk-darwin-arm64"],
-    ["win32", "x64", "tdk-windows-amd64.exe"],
+    ["linux", "x64", "flisk-linux-amd64"],
+    ["darwin", "arm64", "flisk-darwin-arm64"],
+    ["win32", "x64", "flisk-windows-amd64.exe"],
     ["win32", "arm64", null],
     ["freebsd", "x64", null],
   ])("maps %s/%s to %s", (platformName, architecture, expected) => {
@@ -31,6 +32,10 @@ describe("platform mappings", () => {
   });
 
   it("uses the native executable name for the current operating system", () => {
-    expect(executableName()).toBe(process.platform === "win32" ? "tdk.exe" : "tdk");
+    expect(executableName()).toBe(process.platform === "win32" ? "flisk.exe" : "flisk");
+  });
+
+  it("keeps the pre-rename executable name for legacy installs", () => {
+    expect(legacyExecutableName()).toBe(process.platform === "win32" ? "tdk.exe" : "tdk");
   });
 });

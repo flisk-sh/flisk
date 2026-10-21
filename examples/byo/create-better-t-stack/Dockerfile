@@ -8,7 +8,7 @@ RUN npm create better-t-stack@latest app -- --frontend tanstack-router --backend
     --package-manager npm --no-git --no-install --web-deploy none --server-deploy none --disable-analytics
 WORKDIR /work/app
 RUN npm ci
-# Two processes: the API server (its own port) in the background, the web app on the port TDK assigns.
+# Two processes: the API server (its own port) in the background, the web app on the port Flisk assigns.
 # Vite must listen beyond loopback (--host).
 WORKDIR /work/app/apps/web
 RUN chown -R node:node .

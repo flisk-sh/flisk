@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -34,16 +34,16 @@ async function runCompletion(args: string[]): Promise<CompletionOutput> {
   }
 }
 
-const POWERSHELL_START = "# TDK-CLI-COMPLETION-START";
-const POWERSHELL_END = "# TDK-CLI-COMPLETION-END";
+const POWERSHELL_START = "# FLISK-CLI-COMPLETION-START";
+const POWERSHELL_END = "# FLISK-CLI-COMPLETION-END";
 
-describe("tdk completion --install and --output", () => {
+describe("flisk completion --install and --output", () => {
   let workDir: string;
   let previousShell: string | undefined;
   let previousPsModulePath: string | undefined;
 
   beforeEach(() => {
-    workDir = mkdtempSync(join(tmpdir(), "tdk-completion-"));
+    workDir = mkdtempSync(join(tmpdir(), "flisk-completion-"));
     home.dir = join(workDir, "home");
     mkdirSync(home.dir, { recursive: true });
     previousShell = process.env.SHELL;
@@ -69,7 +69,7 @@ describe("tdk completion --install and --output", () => {
 
     const { stdout } = await runCompletion(["bash", "--output", outputPath]);
 
-    expect(readFileSync(outputPath, "utf-8")).toContain("# TDK CLI Bash Completion");
+    expect(readFileSync(outputPath, "utf-8")).toContain("# Flisk CLI Bash Completion");
     expect(stdout).toContain("Written bash completion to:");
     expect(stdout).toContain(outputPath);
   });
@@ -77,11 +77,11 @@ describe("tdk completion --install and --output", () => {
   it("installs the bash script under ~/.bash_completion.d and prints the source line", async () => {
     const { stdout } = await runCompletion(["bash", "--install"]);
 
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
-    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _tdk_completions tdk");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
+    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _flisk_completions flisk");
     expect(stdout).toContain("Installed bash completion to:");
     expect(stdout).toContain(installPath);
-    expect(stdout).toContain("source ~/.bash_completion.d/tdk-completion.bash");
+    expect(stdout).toContain("source ~/.bash_completion.d/flisk-completion.bash");
   });
 
   it("reuses an existing bash completion directory", async () => {
@@ -89,14 +89,14 @@ describe("tdk completion --install and --output", () => {
 
     await runCompletion(["bash", "--install"]);
 
-    expect(existsSync(join(home.dir, ".bash_completion.d", "tdk-completion.bash"))).toBe(true);
+    expect(existsSync(join(home.dir, ".bash_completion.d", "flisk-completion.bash"))).toBe(true);
   });
 
   it("installs the zsh script under ~/.zsh/completions and prints the fpath hint", async () => {
     const { stdout } = await runCompletion(["zsh", "--install"]);
 
-    const installPath = join(home.dir, ".zsh", "completions", "_tdk");
-    expect(readFileSync(installPath, "utf-8")).toContain("#compdef tdk");
+    const installPath = join(home.dir, ".zsh", "completions", "_flisk");
+    expect(readFileSync(installPath, "utf-8")).toContain("#compdef flisk");
     expect(stdout).toContain("Installed zsh completion to:");
     expect(stdout).toContain("fpath+=(~/.zsh/completions)");
     expect(stdout).toContain("compinit");
@@ -105,8 +105,8 @@ describe("tdk completion --install and --output", () => {
   it("installs the fish script under ~/.config/fish/completions", async () => {
     const { stdout } = await runCompletion(["fish", "--install"]);
 
-    const installPath = join(home.dir, ".config", "fish", "completions", "tdk.fish");
-    expect(readFileSync(installPath, "utf-8")).toContain("complete -c tdk");
+    const installPath = join(home.dir, ".config", "fish", "completions", "flisk.fish");
+    expect(readFileSync(installPath, "utf-8")).toContain("complete -c flisk");
     expect(stdout).toContain("Installed fish completion to:");
     expect(stdout).toContain("Fish completions loaded automatically");
   });
@@ -124,7 +124,7 @@ describe("tdk completion --install and --output", () => {
     );
     const profile = readFileSync(installPath, "utf-8");
     expect(profile).toContain(POWERSHELL_START);
-    expect(profile).toContain("Register-ArgumentCompleter -Native -CommandName tdk");
+    expect(profile).toContain("Register-ArgumentCompleter -Native -CommandName flisk");
     expect(profile).toContain(POWERSHELL_END);
     expect(stdout).toContain("Installed powershell completion to:");
     expect(stdout).toContain("Close and reopen PowerShell");

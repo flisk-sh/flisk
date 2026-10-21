@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -43,7 +43,7 @@ function getPackageInfo(): PackageInfo {
   const packageInfo = parsed as JsonObject;
 
   packageCache = {
-    name: String(packageInfo.name ?? "@tdk-landscape/tdk-cli-core"),
+    name: String(packageInfo.name ?? "flisk"),
     version: String(packageInfo.version ?? "0.0.0"),
     fullPackage: packageInfo,
   };

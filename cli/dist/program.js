@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * The root program.
@@ -16,8 +16,8 @@ import { getRegisteredCommands } from "./commands/registry.js";
 export function createProgram() {
     const program = new Command();
     program
-        .name("tdk")
-        .description("TDK CLI — start services on your machine.")
+        .name("flisk")
+        .description("Flisk CLI — start services on your machine.")
         .version(pkg.version, "-v, --version", "Display version number")
         .option("--verbose", "Enable verbose output", false)
         .configureOutput({

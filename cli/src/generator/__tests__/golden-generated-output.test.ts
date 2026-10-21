@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -69,7 +69,7 @@ describe("the golden comparison itself", () => {
   const files = { Tiltfile: "line one\nline two\n", ".tiltignore": "node_modules/\n" };
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-golden-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-golden-"));
     compareWithGolden(files, dir, true);
   });
   afterEach(() => {

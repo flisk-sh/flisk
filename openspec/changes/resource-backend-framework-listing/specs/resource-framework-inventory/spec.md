@@ -6,7 +6,7 @@ The CLI SHALL derive every framework listing from the registered providers. The 
 
 #### Scenario: A newly registered framework is listed without a listing change
 - **WHEN** a provider is added to the backend framework registry
-- **THEN** `tdk resource --type backend --frameworks` lists it with its id, display name, language and command
+- **THEN** `flisk resource --type backend --frameworks` lists it with its id, display name, language and command
 - **AND** no listing code has to be changed
 
 #### Scenario: A language that owns its runtime is never offered with a framework
@@ -16,10 +16,10 @@ The CLI SHALL derive every framework listing from the registered providers. The 
 
 ### Requirement: The backend framework listing shows the id, the display name, and the language and runtime
 
-`tdk resource --type backend --frameworks` SHALL print one tab separated row per registered backend framework. Each row SHALL carry the framework id, the display name, the language the service is scaffolded with (which is also the runtime it runs on), the compatibility with the requested language, and the `tdk resource` command that creates it. The compatibility cell SHALL name the language it is judged against, so it is never a bare "compatible" that could be read against a different language.
+`flisk resource --type backend --frameworks` SHALL print one tab separated row per registered backend framework. Each row SHALL carry the framework id, the display name, the language the service is scaffolded with (which is also the runtime it runs on), the compatibility with the requested language, and the `flisk resource` command that creates it. The compatibility cell SHALL name the language it is judged against, so it is never a bare "compatible" that could be read against a different language.
 
 #### Scenario: The backend frameworks are listed with their language
-- **WHEN** a user runs `tdk resource --type backend --frameworks`
+- **WHEN** a user runs `flisk resource --type backend --frameworks`
 - **THEN** every registered backend framework appears exactly once
 - **AND** each row carries its id, its display name, the language it is scaffolded with, and the command that creates it
 
@@ -34,53 +34,53 @@ The CLI SHALL derive every framework listing from the registered providers. The 
 
 ### Requirement: A requested language that a framework cannot be combined with is marked
 
-`tdk resource --type backend --language <id> --frameworks` SHALL mark every framework that cannot be combined with the requested language, so the invalid combination is visible before a resource is created. A framework that can be combined with the requested language SHALL be marked compatible. The command of a row SHALL name the requested language, so a copied row scaffolds the language the listing was asked about instead of silently falling back to the default one. A framework that cannot be combined with the requested language SHALL be marked incompatible and its command SHALL create the resource in that language without a framework, because that language owns its runtime.
+`flisk resource --type backend --language <id> --frameworks` SHALL mark every framework that cannot be combined with the requested language, so the invalid combination is visible before a resource is created. A framework that can be combined with the requested language SHALL be marked compatible. The command of a row SHALL name the requested language, so a copied row scaffolds the language the listing was asked about instead of silently falling back to the default one. A framework that cannot be combined with the requested language SHALL be marked incompatible and its command SHALL create the resource in that language without a framework, because that language owns its runtime.
 
 #### Scenario: A framework that owns its runtime is marked incompatible
-- **WHEN** a user runs `tdk resource --type backend --language python --frameworks`
+- **WHEN** a user runs `flisk resource --type backend --language python --frameworks`
 - **THEN** every framework row states that it is incompatible with `--language python`
 - **AND** the command of that row creates the resource in `--language python`, without a framework
 
 #### Scenario: A compatible language keeps the framework usable
-- **WHEN** a user runs `tdk resource --type backend --language bun --frameworks`
+- **WHEN** a user runs `flisk resource --type backend --language bun --frameworks`
 - **THEN** every framework row states that it is compatible
 - **AND** the command of that row keeps the framework and names `--language bun`
 
 ### Requirement: The frontend framework listing stays compatible
 
-`tdk resource --frameworks` without a `--type` SHALL keep printing the frontend framework listing it printed before, with the same columns. `tdk resource --type frontend --frameworks` SHALL print the same listing. A `--language` without an explicit `--type` SHALL NOT change that listing and SHALL NOT fail, because `--language` belongs to the backend listing and to backend resources.
+`flisk resource --frameworks` without a `--type` SHALL keep printing the frontend framework listing it printed before, with the same columns. `flisk resource --type frontend --frameworks` SHALL print the same listing. A `--language` without an explicit `--type` SHALL NOT change that listing and SHALL NOT fail, because `--language` belongs to the backend listing and to backend resources.
 
 #### Scenario: The historical listing is unchanged
-- **WHEN** a user runs `tdk resource --frameworks`
+- **WHEN** a user runs `flisk resource --frameworks`
 - **THEN** the output lists the registered frontend frameworks with their id, display name, kind, verification and command
 - **AND** the output is the same as before this change
 
 #### Scenario: The frontend type prints the same listing
-- **WHEN** a user runs `tdk resource --type frontend --frameworks`
-- **THEN** the output is the same as `tdk resource --frameworks`
+- **WHEN** a user runs `flisk resource --type frontend --frameworks`
+- **THEN** the output is the same as `flisk resource --frameworks`
 
 #### Scenario: A language without a type keeps the frontend listing
-- **WHEN** a user runs `tdk resource --language python --frameworks`
+- **WHEN** a user runs `flisk resource --language python --frameworks`
 - **THEN** the command exits successfully
-- **AND** the output is the same as `tdk resource --frameworks`
+- **AND** the output is the same as `flisk resource --frameworks`
 
 ### Requirement: A resource type without frameworks is reported
 
 A resource type that has no framework providers SHALL fail with an actionable message that names the types that do, instead of printing an empty listing. An unknown resource type and an unknown language SHALL keep failing with the existing errors.
 
 #### Scenario: A type without frameworks fails
-- **WHEN** a user runs `tdk resource --type worker --frameworks`
+- **WHEN** a user runs `flisk resource --type worker --frameworks`
 - **THEN** the command exits non-zero with a message that no frameworks are registered for that type
 - **AND** the message names the types that do have frameworks
 
 #### Scenario: An unknown type or language keeps its error
-- **WHEN** a user runs `tdk resource --type not-a-type --frameworks`
+- **WHEN** a user runs `flisk resource --type not-a-type --frameworks`
 - **THEN** the command exits non-zero with the unknown resource type error
 - **AND** an unknown language fails with the unknown backend language error
 
 ### Requirement: The inventory is tested and documented
 
-The CLI SHALL have automated tests for the frontend and the backend listing, including the language compatibility marker and the failing type, and the `tdk resource` help text SHALL document how to list the backend frameworks.
+The CLI SHALL have automated tests for the frontend and the backend listing, including the language compatibility marker and the failing type, and the `flisk resource` help text SHALL document how to list the backend frameworks.
 
 #### Scenario: The listings are covered by the CLI test suite
 - **WHEN** the CLI test suite runs
@@ -88,6 +88,6 @@ The CLI SHALL have automated tests for the frontend and the backend listing, inc
 - **AND** a regression test pins that a `--language` without a `--type` keeps the frontend listing and exits successfully
 
 #### Scenario: The help text points at the backend listing
-- **WHEN** a user reads `tdk resource --help`
+- **WHEN** a user reads `flisk resource --help`
 - **THEN** the `--frameworks` option states that the listing follows the resource type
 - **AND** the frontend and the backend listing are both named

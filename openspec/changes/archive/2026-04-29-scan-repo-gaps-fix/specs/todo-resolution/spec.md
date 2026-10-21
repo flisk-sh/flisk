@@ -23,5 +23,5 @@ The system SHALL implement all TODO comments in cli/src/commands/resource.ts.
 The system SHALL implement the diff logic TODO in cli/src/commands/config.ts.
 
 #### Scenario: Config diff shows differences
-- **WHEN** user runs `tdk config diff`
+- **WHEN** user runs `flisk config diff`
 - **THEN** the system SHALL compare local and remote configuration and display differences

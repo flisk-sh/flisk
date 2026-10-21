@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-# Run two examples/byo services in ONE throwaway project through a real `tdk up`: a dependency (for example a database server)
+# Run two examples/byo services in ONE throwaway project through a real `flisk up`: a dependency (for example a database server)
 # and an app that connects to it over the landscape's Docker network. The check is the app's health route, so write that route
 # to need the dependency (a real round trip), and a 200 means the two actually talk.
 # Needs Docker, Tilt, and a built CLI (cli/dist). Uses unique names and random alternate ports, and removes only containers,
-# networks and images carrying its own unique project name (it never calls `tdk down`).
+# networks and images carrying its own unique project name (it never calls `flisk down`).
 #
 # The app's Dockerfile must contain an `ENV <VAR>=http://<dep-name>:<dep-port>` line; this script rewrites the host name in
 # its scratch copy to the dependency's unique run name (resource names must be unique across projects sharing one Docker daemon).
@@ -32,7 +32,7 @@ app_name="$(short "app${app//[^a-z0-9]/}")"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))
-tdk() { command "${TDK_BIN:-tdk}" "$@"; }
+flisk() { command "${TDK_BIN:-tdk}" "$@"; }
 
 cleanup() {
   pkill -f "tilt up.*$proj" >/dev/null 2>&1 || true
@@ -45,7 +45,7 @@ trap cleanup EXIT
 
 cd "$work"
 git init -q .
-tdk project --yes >/dev/null
+flisk project --yes >/dev/null
 printf '\nTDK_HTTP_PORT=%s\nTDK_HTTPS_PORT=%s\nTDK_POSTGRES_PORT=%s\n' \
   "$http_port" "$((32000 + RANDOM % 2000))" "$((34000 + RANDOM % 2000))" >> .env
 
@@ -56,10 +56,10 @@ add_resource() { # <example> <name> <health> [port]
   rm -f "services/app/$nm/README.md"
   # macOS ships bash 3.2, where expanding an empty array under `set -u` fails, so branch instead of using an array.
   if [ -n "$port" ]; then
-    (cd "services/app/$nm" && tdk resource "$nm" --type bring-your-own --stack app --register-existing \
+    (cd "services/app/$nm" && flisk resource "$nm" --type bring-your-own --stack app --register-existing \
       --dockerfile ./Dockerfile --health-path "$hp" --port "$port" --yes >/dev/null)
   else
-    (cd "services/app/$nm" && tdk resource "$nm" --type bring-your-own --stack app --register-existing \
+    (cd "services/app/$nm" && flisk resource "$nm" --type bring-your-own --stack app --register-existing \
       --dockerfile ./Dockerfile --health-path "$hp" --yes >/dev/null)
   fi
 }
@@ -81,7 +81,7 @@ for _ in $(seq 1 "${VERIFY_WAIT_SECONDS:-600}"); do
 done
 
 if [ "$status" = "200" ]; then
-  echo "PASS $app + $dep: through tdk up and Traefik, GET /api/$app_name$app_health -> 200 ($(curl -s -m 3 -H "Host: api.$proj.localhost" "$url" | head -c 120))"
+  echo "PASS $app + $dep: through flisk up and Traefik, GET /api/$app_name$app_health -> 200 ($(curl -s -m 3 -H "Host: api.$proj.localhost" "$url" | head -c 120))"
 else
   echo "FAIL $app + $dep: GET /api/$app_name$app_health -> $status" >&2
   curl -s -m 3 -H "Host: api.$proj.localhost" "$url" | head -c 300 >&2 || true

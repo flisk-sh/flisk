@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import {
   existsSync,
@@ -41,7 +41,7 @@ describe("bring-your-own resource type", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-byo-test-"));
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-byo-test-"));
     mkdirSync(join(tempDir, ".tdk"), { recursive: true });
     writeFileSync(
       join(tempDir, ".tdk", "project.json"),
@@ -77,7 +77,7 @@ describe("bring-your-own resource type", () => {
     if (output) console.log = (...values: unknown[]) => output.push(values.join(" "));
     try {
       await resourceCommand.parseAsync(
-        ["node", "tdk", "widget", "--type", "byo", "--stack", "shop", "--yes", ...args],
+        ["node", "flisk", "widget", "--type", "byo", "--stack", "shop", "--yes", ...args],
         { from: "node" },
       );
     } finally {
@@ -151,18 +151,18 @@ describe("bring-your-own resource type", () => {
     }
   });
 
-  it("lists the resource through tdk resources and tdk up --dry-run", async () => {
+  it("lists the resource through flisk resources and flisk up --dry-run", async () => {
     await createByo();
     const output: string[] = [];
     const originalLog = console.log;
     console.log = (...args: unknown[]) => output.push(args.join(" "));
 
     try {
-      await resourcesCommand.parseAsync(["node", "tdk", "--stack", "shop"], { from: "node" });
+      await resourcesCommand.parseAsync(["node", "flisk", "--stack", "shop"], { from: "node" });
       expect(output.join("\n")).toContain("widget [shop]");
 
       output.length = 0;
-      await resourcesCommand.parseAsync(["node", "tdk", "--stack", "shop", "--json"], {
+      await resourcesCommand.parseAsync(["node", "flisk", "--stack", "shop", "--json"], {
         from: "node",
       });
       const resourcesReport = JSON.parse(output.join("\n"));
@@ -173,24 +173,24 @@ describe("bring-your-own resource type", () => {
       ]);
 
       output.length = 0;
-      await statusCommand.parseAsync(["node", "tdk", "--json"], { from: "node" });
+      await statusCommand.parseAsync(["node", "flisk", "--json"], { from: "node" });
       const statusReport = JSON.parse(output.join("\n"));
       expect(statusReport.schemaVersion).toBe(1);
       expect(statusReport.data.resources).toMatchObject([{ name: "widget", stack: "shop" }]);
 
       output.length = 0;
-      await networksCommand.parseAsync(["node", "tdk", "--json"], { from: "node" });
+      await networksCommand.parseAsync(["node", "flisk", "--json"], { from: "node" });
       const networksReport = JSON.parse(output.join("\n"));
       expect(networksReport.schemaVersion).toBe(1);
       expect(networksReport.errors).toEqual([]);
       expect(networksReport.data.services).toEqual([]);
 
       output.length = 0;
-      await networksCommand.parseAsync(["node", "tdk", "--json-legacy"], { from: "node" });
+      await networksCommand.parseAsync(["node", "flisk", "--json-legacy"], { from: "node" });
       expect(JSON.parse(output.join("\n"))).toEqual([]);
 
       output.length = 0;
-      await upCommand.parseAsync(["node", "tdk", "shop", "--dry-run"], { from: "node" });
+      await upCommand.parseAsync(["node", "flisk", "shop", "--dry-run"], { from: "node" });
       expect(output.join("\n")).toContain('Would start 1 service from stack "shop"');
       expect(output.join("\n")).toContain("- widget");
     } finally {
@@ -224,7 +224,7 @@ describe("bring-your-own resource type", () => {
     const { exit } = captureExit();
 
     try {
-      await networksCommand.parseAsync(["node", "tdk", "--stack", "shop", "--json"], {
+      await networksCommand.parseAsync(["node", "flisk", "--stack", "shop", "--json"], {
         from: "node",
       });
       const report = JSON.parse(output.join("\n")) as {
@@ -251,7 +251,7 @@ describe("bring-your-own resource type", () => {
       clearDiscoveryCache();
       exit.mockClear();
       await networksCommand
-        .parseAsync(["node", "tdk", "--stack", "shop", "--raw"], { from: "node" })
+        .parseAsync(["node", "flisk", "--stack", "shop", "--raw"], { from: "node" })
         .catch(() => {});
       const raw = output.join("\n");
       expect(exit).toHaveBeenCalledWith(0);
@@ -282,7 +282,7 @@ describe("bring-your-own resource type", () => {
     });
     try {
       clearDiscoveryCache();
-      await resourcesCommand.parseAsync(["node", "tdk", "--type", "worker"], { from: "node" });
+      await resourcesCommand.parseAsync(["node", "flisk", "--type", "worker"], { from: "node" });
       const report = output.join("\n");
       expect(report).toContain("queue-worker [shop]");
       expect(report).not.toContain("orders-api");
@@ -309,7 +309,7 @@ describe("bring-your-own resource type", () => {
     try {
       clearDiscoveryCache();
       await resourcesCommand.parseAsync(
-        ["node", "tdk", "--type", "backend", "--stack", "shop", "--json"],
+        ["node", "flisk", "--type", "backend", "--stack", "shop", "--json"],
         { from: "node" },
       );
       const report = JSON.parse(output.join("\n"));
@@ -332,7 +332,7 @@ describe("bring-your-own resource type", () => {
     });
     try {
       clearDiscoveryCache();
-      await resourcesCommand.parseAsync(["node", "tdk", "--type", "backend", "--stack", "shop"], {
+      await resourcesCommand.parseAsync(["node", "flisk", "--type", "backend", "--stack", "shop"], {
         from: "node",
       });
       expect(output.join("\n")).toContain('No services found in stack "shop" with type "backend".');
@@ -355,7 +355,7 @@ describe("bring-your-own resource type", () => {
     const { exit } = captureExit();
     try {
       await resourcesCommand
-        .parseAsync(["node", "tdk", "--type", "unknown"], { from: "node" })
+        .parseAsync(["node", "flisk", "--type", "unknown"], { from: "node" })
         .catch(() => {});
       expect(exit).toHaveBeenCalledWith(1);
       const combined = [...output, ...errors].join("\n");
@@ -381,7 +381,7 @@ describe("bring-your-own resource type", () => {
 
     try {
       await upCommand
-        .parseAsync(["node", "tdk", "--only", "widgt", "--dry-run"], { from: "node" })
+        .parseAsync(["node", "flisk", "--only", "widgt", "--dry-run"], { from: "node" })
         .catch(() => {});
       expect(exit).toHaveBeenCalledWith(2);
       expect(errors.join("\n")).toContain('Did you mean "widget"?');
@@ -420,7 +420,7 @@ describe("bring-your-own resource type", () => {
 
     try {
       await upCommand
-        .parseAsync(["node", "tdk", "--only", "missing", "--dry-run", "--json"], { from: "node" })
+        .parseAsync(["node", "flisk", "--only", "missing", "--dry-run", "--json"], { from: "node" })
         .catch(() => {});
 
       // A non-string stack is an invalid service.json (GHSA-phgf-pww4-7jxc), so discovery stops before the --only check.
@@ -458,13 +458,13 @@ describe("bring-your-own resource type", () => {
         exit.mockClear();
         clearDiscoveryCache();
         await command
-          .parseAsync(["node", "tdk", "--stack", "shp"], { from: "node" })
+          .parseAsync(["node", "flisk", "--stack", "shp"], { from: "node" })
           .catch(() => {});
 
         expect(exit).toHaveBeenCalledWith(1);
         const combined = [...output, ...errors].join("\n");
         expect(combined).toContain('Stack "shp" not found');
-        expect(combined).toContain("tdk stacks");
+        expect(combined).toContain("flisk stacks");
         expect(combined).toContain('Did you mean "shop"?');
       }
     } finally {
@@ -488,7 +488,7 @@ describe("bring-your-own resource type", () => {
 
     try {
       await upCommand
-        .parseAsync(["node", "tdk", "--only", "widgt", "--dry-run", "--json"], { from: "node" })
+        .parseAsync(["node", "flisk", "--only", "widgt", "--dry-run", "--json"], { from: "node" })
         .catch(() => {});
       expect(emitted).toEqual([
         {
@@ -532,7 +532,7 @@ describe("bring-your-own resource type", () => {
         emitted.length = 0;
         exit.mockClear();
         clearDiscoveryCache();
-        await upCommand.parseAsync(["node", "tdk", ...args], { from: "node" }).catch(() => {});
+        await upCommand.parseAsync(["node", "flisk", ...args], { from: "node" }).catch(() => {});
         expect(exit).toHaveBeenCalledWith(1);
         expect(emitted).toHaveLength(1);
         expect(emitted[0]?.data).toEqual({ ok: false });
@@ -567,7 +567,7 @@ describe("bring-your-own resource type", () => {
         exit.mockClear();
         clearDiscoveryCache();
         await command
-          .parseAsync(["node", "tdk", "--stack", "shp", "--json"], { from: "node" })
+          .parseAsync(["node", "flisk", "--stack", "shp", "--json"], { from: "node" })
           .catch(() => {});
         expect(exit).toHaveBeenCalledWith(1);
         const report = output
@@ -599,7 +599,7 @@ describe("bring-your-own resource type", () => {
     delete process.env.TILT_PORT;
 
     try {
-      await upCommand.parseAsync(["node", "tdk", "shop", "--dry-run", "--force", "--quiet"], {
+      await upCommand.parseAsync(["node", "flisk", "shop", "--dry-run", "--force", "--quiet"], {
         from: "node",
       });
       expect(snapshotTree(tempDir)).toEqual(before);
@@ -703,7 +703,7 @@ describe("bring-your-own resource type", () => {
     );
   });
 
-  it("lists valid resources with a warning and keeps tdk up strict", async () => {
+  it("lists valid resources with a warning and keeps flisk up strict", async () => {
     await createByo();
     const badPath = join(tempDir, "services", "shop", "broken", "service.json");
     mkdirSync(dirname(badPath), { recursive: true });
@@ -721,7 +721,7 @@ describe("bring-your-own resource type", () => {
 
     try {
       clearDiscoveryCache();
-      await resourcesCommand.parseAsync(["node", "tdk"], { from: "node" });
+      await resourcesCommand.parseAsync(["node", "flisk"], { from: "node" });
       expect(output.join("\n")).toContain("widget [shop]");
       expect(warnings.join("\n")).toContain(badPath);
       expect(warnings.join("\n")).toContain("invalid JSON");
@@ -730,7 +730,7 @@ describe("bring-your-own resource type", () => {
       resetPrintedServiceWarnings();
       output.length = 0;
       warnings.length = 0;
-      await statusCommand.parseAsync(["node", "tdk", "--json"], { from: "node" });
+      await statusCommand.parseAsync(["node", "flisk", "--json"], { from: "node" });
       const report = JSON.parse(output.join("\n"));
       expect(report.data.resources).toMatchObject([{ name: "widget", stack: "shop" }]);
       expect(warnings.join("\n")).toContain(badPath);
@@ -745,7 +745,7 @@ describe("bring-your-own resource type", () => {
       try {
         clearDiscoveryCache();
         await upCommand
-          .parseAsync(["node", "tdk", "--dry-run", "--quiet"], { from: "node" })
+          .parseAsync(["node", "flisk", "--dry-run", "--quiet"], { from: "node" })
           .catch(() => {});
       } finally {
         error.mockRestore();

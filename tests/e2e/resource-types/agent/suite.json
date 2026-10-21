@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "agent",
-  "description": "The agent resource on a live stack: tdk agent sessions, tdk restart, graceful drain, durability, the MCP tools over stdio, and skill and doc distribution.",
+  "description": "The agent resource on a live stack: flisk agent sessions, flisk restart, graceful drain, durability, the MCP tools over stdio, and skill and doc distribution.",
   "paths": [
     "cli/src/commands/agent.ts",
     "cli/src/commands/restart.ts",

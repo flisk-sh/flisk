@@ -129,7 +129,7 @@ When Tilt starts, you'll see:
 🔍 ═══════════════════════════════════════════════════════════════
 🔍  MANIFEST-DRIVEN RESOURCE DISCOVERY
 🔍 ═══════════════════════════════════════════════════════════════
-   📂 Working directory: /private/var/www/2025/ollamar1/tdk/.tilt/core
+   📂 Working directory: /private/var/www/2025/ollamar1/flisk/.tilt/core
    📂 Resources root check: ../../services/product
    📋 Found 8 manifest files
    ✅ user-management-backend | backend | Port: 4000 | Stack: user

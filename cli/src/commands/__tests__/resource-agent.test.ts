@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -20,10 +20,10 @@ import {
 } from "../../utils/constants.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 const hasBun = spawnSync("bun", ["--version"], { encoding: "utf-8" }).status === 0;
 
-function tdk(args: string[], cwd: string, input = "y\n") {
+function flisk(args: string[], cwd: string, input = "y\n") {
   return spawnSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
@@ -93,7 +93,7 @@ describe("the agent resource type", () => {
     expect(compose).toContain("AGENT_DURABILITY={}");
     expect(compose).toContain('line.strip().startswith("# tdk-agent-volume: ")');
     expect(compose).toContain('volumes_section = "\\nvolumes:\\n"');
-    // tdk down must not remove volumes: no compose invocation in the CLI passes -v or --volumes.
+    // flisk down must not remove volumes: no compose invocation in the CLI passes -v or --volumes.
     const down = readFileSync(join(repoRoot, "cli", "src", "commands", "down.ts"), "utf-8");
     expect(down).not.toMatch(/["']-v["']|--volumes/);
   });
@@ -114,11 +114,11 @@ describe("the agent resource type", () => {
   });
 });
 
-describe("tdk resource --type agent", () => {
+describe("flisk resource --type agent", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-agent-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-agent-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
       env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
@@ -134,7 +134,7 @@ describe("tdk resource --type agent", () => {
     JSON.parse(readFileSync(join(dir(name), file), "utf-8"));
 
   it("scaffolds a long-running agent with files durability by default", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "support-agent", "--type", "agent", "--stack", "shop"],
       projectRoot,
     );
@@ -167,7 +167,7 @@ describe("tdk resource --type agent", () => {
   }, 30000);
 
   it("scaffolds an agent with postgres durability", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "pg-agent", "--type", "agent", "--durability", "postgres", "--stack", "shop"],
       projectRoot,
     );
@@ -204,7 +204,7 @@ describe("tdk resource --type agent", () => {
     expect(index).toContain("process.on('SIGTERM'");
     expect(index).toContain("server.close()");
     expect(index).toContain("process.exit(0)");
-    // Files durability writes checkpoints atomically, under the volume path TDK mounts.
+    // Files durability writes checkpoints atomically, under the volume path Flisk mounts.
     expect(index).toContain("renameSync(tmp, file)");
     expect(index).toContain("AGENT_STATE_DIR");
     expect(index).toContain("'0.0.0.0'");
@@ -214,7 +214,7 @@ describe("tdk resource --type agent", () => {
   }, 30000);
 
   it("rejects an unknown runtime, durability, or an agent flag on another type, before writing anything", () => {
-    const runtime = tdk(
+    const runtime = flisk(
       ["resource", "bad-rt", "--type", "agent", "--runtime", "libfx", "--stack", "shop"],
       projectRoot,
     );
@@ -222,14 +222,14 @@ describe("tdk resource --type agent", () => {
     expect(`${runtime.stdout}${runtime.stderr}`).toMatch(/Unknown agent runtime "libfx"/);
     expect(existsSync(dir("bad-rt"))).toBe(false);
 
-    const durability = tdk(
+    const durability = flisk(
       ["resource", "bad-dur", "--type", "agent", "--durability", "redis", "--stack", "shop"],
       projectRoot,
     );
     expect(durability.status).not.toBe(0);
     expect(existsSync(dir("bad-dur"))).toBe(false);
 
-    const wrongType = tdk(
+    const wrongType = flisk(
       ["resource", "bad-type", "--type", "backend", "--durability", "files", "--stack", "shop"],
       projectRoot,
     );
@@ -239,7 +239,7 @@ describe("tdk resource --type agent", () => {
   }, 60000);
 
   it("rejects --framework and --language, which have no meaning for an agent", () => {
-    const framework = tdk(
+    const framework = flisk(
       ["resource", "bad-fw", "--type", "agent", "--framework", "express", "--stack", "shop"],
       projectRoot,
     );
@@ -255,7 +255,7 @@ describe("tdk resource --type agent", () => {
   it.skipIf(!hasBun)(
     "keeps a session across a restart, and drains on SIGTERM",
     async () => {
-      const stateDir = mkdtempSync(join(tmpdir(), "tdk-agent-state-"));
+      const stateDir = mkdtempSync(join(tmpdir(), "flisk-agent-state-"));
       const port = String(4800 + Math.floor(Math.random() * 500));
       const source = join(dir("support-agent"), "src", "index.ts");
       const start = () =>

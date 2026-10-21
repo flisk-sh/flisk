@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,7 +42,7 @@ const dockerDown = {
   name: "Docker Runtime",
   didPass: false,
   message: "Docker daemon is not running",
-  fix: "Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor",
+  fix: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
 };
 const tiltMissing = {
   name: "Tilt",
@@ -118,7 +118,7 @@ describe("cold preflight scope", () => {
     const output = errorOutput();
     expect(output).toContain("Cold start blocked");
     expect(output).toContain("FAIL docker  Docker daemon is not running");
-    expect(output).toContain("Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor");
+    expect(output).toContain("Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor");
     expect(output).toContain("FAIL tilt    Tilt CLI not found");
   });
 
@@ -163,14 +163,14 @@ describe("runtime prerequisites", () => {
 
     expect(lines).toContain("Docker is not installed");
     expect(lines).toContain("Tilt is not installed");
-    expect(lines).toContain("tdk doctor");
-    expect(lines).toContain("tdk up");
+    expect(lines).toContain("flisk doctor");
+    expect(lines).toContain("flisk up");
   });
 
   it("still points at the runtime when both executables are installed", () => {
     const lines = formatRuntimeNextSteps({ hasDockerCli: true, hasTiltCli: true }).join("\n");
 
     expect(lines).not.toContain("is not installed");
-    expect(lines).toContain("tdk up");
+    expect(lines).toContain("flisk up");
   });
 });

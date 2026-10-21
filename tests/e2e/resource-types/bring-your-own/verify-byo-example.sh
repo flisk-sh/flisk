@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # Build one examples/byo/<name> image, run it with PORT=4000 and check it answers
 # HTTP 200 on its health path. Publishing the port through Docker's proxy only

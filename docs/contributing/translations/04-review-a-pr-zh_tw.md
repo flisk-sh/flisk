@@ -14,12 +14,12 @@
 
 審查之前請閱讀以下內容。總共大約需要一小時，只需讀一次。如果不讀，你將無法判斷 AI 的意見是否正確。
 
-**什麼是 TDK**
+**什麼是 Flisk**
 
-- [ ] [README](../../../README.md)：TDK 做什麼，以及人們使用哪些指令。
+- [ ] [README](../../../README.md)：Flisk 做什麼，以及人們使用哪些指令。
 - [ ] [專案概覽](../../project-overview.md)：Project → Stack → Resource 模型。
-- [ ] [範圍](../../scope.md)：TDK 適用於什麼，不適用於什麼。
-- [ ] [產生的檔案](../../generated-files.md)：TDK 會寫入哪些檔案。永遠不要手動編輯產生的檔案；應修改產生它們的輸入。
+- [ ] [範圍](../../scope.md)：Flisk 適用於什麼，不適用於什麼。
+- [ ] [產生的檔案](../../generated-files.md)：Flisk 會寫入哪些檔案。永遠不要手動編輯產生的檔案；應修改產生它們的輸入。
 
 **我們如何運作**
 
@@ -65,7 +65,7 @@ AI 按鈕會開啟一個與 AI 助手的對話。這個助手屬於你：它在�
 每個按鈕都是普通連結。它會在新分頁中開啟 AI 的網站，並且這段訊息已經預先輸入好了。
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/tdk-landscape/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
 ```
 
 | 按鈕 | 開啟的網站 |
@@ -138,7 +138,7 @@ Question: what happens when `--port` is 0? The help text does not say.
 當你已檢查 PR 並認為可以合併時，使用 **Approve**。你可以在核准的同時留下小意見。請明確標示為選用，讓作者知道它們不會阻擋合併。
 
 ```markdown
-Looks good. I ran `bun run test` on this branch and tried `tdk up --dry-run` in the restaurant example: the new URLs show up as described.
+Looks good. I ran `bun run test` on this branch and tried `flisk up --dry-run` in the restaurant example: the new URLs show up as described.
 
 Optional (nit): `parsePort` could use a test for an empty string. Fine to do in a follow-up.
 ```

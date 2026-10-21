@@ -2,7 +2,7 @@
 
 ### Requirement: Completion candidates come from the CLI
 
-`tdk completion` SHALL generate its scripts from the registered commands and the CLI registries. The candidate names, the sub-command names, the flags of every command and the value lists of `--type`, `--framework` and `--language` SHALL be read from the CLI at generation time. The generated scripts SHALL NOT repeat a hand-maintained list of commands, flags, resource types, frameworks or languages.
+`flisk completion` SHALL generate its scripts from the registered commands and the CLI registries. The candidate names, the sub-command names, the flags of every command and the value lists of `--type`, `--framework` and `--language` SHALL be read from the CLI at generation time. The generated scripts SHALL NOT repeat a hand-maintained list of commands, flags, resource types, frameworks or languages.
 
 #### Scenario: A new command is registered
 
@@ -39,8 +39,8 @@ The values of a flag SHALL be the values the command accepts. A command that acc
 
 #### Scenario: A command filters the resources of the project
 
-- **WHEN** the user completes the `--type` value of `tdk resources`
-- **THEN** the shell suggests every type a resource can have, including the types `tdk resource` cannot create
+- **WHEN** the user completes the `--type` value of `flisk resources`
+- **THEN** the shell suggests every type a resource can have, including the types `flisk resource` cannot create
 
 #### Scenario: The user asks for a frontend
 
@@ -54,16 +54,16 @@ The values of a flag SHALL be the values the command accepts. A command that acc
 
 ### Requirement: The project values complete from the current project
 
-The completions SHALL suggest the stacks and the resources of the current project where the shell can run the CLI. The values SHALL be read from the machine-readable output of `tdk stacks --json` and `tdk resources --json`. Every supported shell SHALL offer them behind the positional arguments of the commands that take them and behind the `--stack` and `--only` flags.
+The completions SHALL suggest the stacks and the resources of the current project where the shell can run the CLI. The values SHALL be read from the machine-readable output of `flisk stacks --json` and `flisk resources --json`. Every supported shell SHALL offer them behind the positional arguments of the commands that take them and behind the `--stack` and `--only` flags.
 
 #### Scenario: A stack name is completed
 
-- **WHEN** a user completes the `--stack` value, or the positional argument of `tdk up` or `tdk stack`
+- **WHEN** a user completes the `--stack` value, or the positional argument of `flisk up` or `flisk stack`
 - **THEN** the shell suggests the stacks of the current project
 
 #### Scenario: A resource name is completed
 
-- **WHEN** a user completes the `--only` value, or the positional argument of `tdk logs`, `tdk restart` or `tdk agent sessions`
+- **WHEN** a user completes the `--only` value, or the positional argument of `flisk logs`, `flisk restart` or `flisk agent sessions`
 - **THEN** the shell suggests the resources of the current project
 
 ### Requirement: Stale completions fail the build
@@ -86,5 +86,5 @@ The documentation SHALL explain that the completions are a copy of the CLI and S
 
 #### Scenario: A user upgrades the CLI
 
-- **WHEN** a user reads the documentation after `tdk upgrade`
-- **THEN** the documentation tells the user to run `tdk completion --shell <shell> --install` again
+- **WHEN** a user reads the documentation after `flisk upgrade`
+- **THEN** the documentation tells the user to run `flisk completion --shell <shell> --install` again

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The bundled product example on a clean runner (moved from the retired example-e2e workflow, #1299). Each case is one step of the old workflow, with the
 # same logic: D1 builds and packs the candidate CLI, D2 installs the tarball globally, D3 clones and configures the example, and D4
-# boots it with tdk up and proves the routed worker write path. The example stays at $REPO_ROOT/tdk-example, where the workflow's
+# boots it with flisk up and proves the routed worker write path. The example stays at $REPO_ROOT/tdk-example, where the workflow's
 # diagnostics and stop steps look for it. The workflow keeps its setup steps (Bun, Tilt, free ports) and its diagnostics.
 #
 #   tests/e2e/examples/default/run.sh D1 D2 D3 D4    the four steps in order
@@ -18,18 +18,18 @@ e2e_init default tdk-example
 DIR="$REPO_ROOT/tdk-example"
 # The example lives in the checkout, not in the scratch space, so the default cleanup only stops it: it never removes a directory
 # the checkout owns.
-e2e_cleanup() { [ -d "$DIR" ] && (cd "$DIR" && tdk down >/dev/null 2>&1 || true); }
+e2e_cleanup() { [ -d "$DIR" ] && (cd "$DIR" && flisk down >/dev/null 2>&1 || true); }
 
-D1() { # build and pack the candidate TDK package
-  log "D1 build and pack the candidate TDK package"
+D1() { # build and pack the candidate Flisk package
+  log "D1 build and pack the candidate Flisk package"
   cd "$REPO_ROOT"
   bun install --frozen-lockfile
   npm run build
   npm pack --pack-destination "$RUNNER_TEMP"
 }
 
-D2() { # pack and install the candidate TDK package
-  log "D2 pack and install the candidate TDK package"
+D2() { # pack and install the candidate Flisk package
+  log "D2 pack and install the candidate Flisk package"
   cd "$REPO_ROOT"
   tarball="$(npm pack --silent | tail -1)"
   node scripts/install-global.mjs "./$tarball"
@@ -38,14 +38,14 @@ D2() { # pack and install the candidate TDK package
 D3() { # clone and configure the bundled example
   log "D3 clone and configure the bundled example"
   cd "$REPO_ROOT"
-  tdk project example --path tdk-example
+  flisk project example --path tdk-example
   cd tdk-example
-  tdk project --yes
+  flisk project --yes
   # The product example intentionally uses only PostgreSQL and NATS.
   # Keep its scaffold from enabling optional Infisical resources.
   sed -i 's/^INFISICAL_ENABLED=.*/INFISICAL_ENABLED=false/' .env
-  tdk doctor --no-ping
-  tdk config verify
+  flisk doctor --no-ping
+  flisk config verify
 }
 
 D4() { # boot, health check, and prove the routed worker write path
@@ -54,7 +54,7 @@ D4() { # boot, health check, and prove the routed worker write path
   (
     cd "$DIR"
     set -euo pipefail
-    tdk up shop > up.log 2>&1 &
+    flisk up shop > up.log 2>&1 &
     tdk_pid=$!
     cleanup() {
       status=$?
@@ -67,7 +67,7 @@ D4() { # boot, health check, and prove the routed worker write path
         tilt get uiresources -o json 2>&1 | jq -r '.items[] | "\(.metadata.name): update=\(.status.updateStatus // "-") runtime=\(.status.runtimeStatus // "-") error=\((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || true
       fi
       kill "$tdk_pid" 2>/dev/null || true
-      tdk down >/dev/null 2>&1 || true
+      flisk down >/dev/null 2>&1 || true
       return "$status"
     }
     trap cleanup EXIT
@@ -79,13 +79,13 @@ D4() { # boot, health check, and prove the routed worker write path
     done
     if ! grep -q 'Running tilt up' up.log; then tail -120 up.log; exit 1; fi
 
-    # TDK chooses ingress ports from the available host ports and saves
+    # Flisk chooses ingress ports from the available host ports and saves
     # the selected plan. Read the public machine-readable doctor report
     # instead of assuming Traefik is bound to port 80.
     doctor_status=0
-    tdk doctor --json > doctor.json || doctor_status=$?
+    flisk doctor --json > doctor.json || doctor_status=$?
     if [ "$doctor_status" -ne 0 ]; then
-      echo "tdk doctor reported readiness findings while the example was starting; reading its saved port plan anyway."
+      echo "flisk doctor reported readiness findings while the example was starting; reading its saved port plan anyway."
     fi
     http_port="$(jq -er '.data.ports.http.chosen | select(type == "number")' doctor.json)"
     api="http://api.tdk-example.localhost:${http_port}/api/orders"
@@ -117,7 +117,7 @@ D4() { # boot, health check, and prove the routed worker write path
       exit 1
     fi
     echo "NATS worker observed order $order_id"
-    tdk config verify
+    flisk config verify
   )
 }
 

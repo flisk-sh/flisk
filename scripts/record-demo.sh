@@ -1,12 +1,12 @@
 #!/bin/bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # Re-record docs/assets/demo.svg, the animated terminal demo shown in README.md.
 #
-# Needs `tdk` on PATH and termtosvg (pip install termtosvg). Run from the
+# Needs `flisk` on PATH and termtosvg (pip install termtosvg). Run from the
 # repo root:  scripts/record-demo.sh
-# The demo runs real tdk commands in a temporary folder that is shown as
-# ~/my-shop. `tdk up` is only mentioned, because it needs Docker and Tilt.
+# The demo runs real flisk commands in a temporary folder that is shown as
+# ~/my-shop. `flisk up` is only mentioned, because it needs Docker and Tilt.
 set -euo pipefail
 
 if [[ "${1:-}" != "--play" ]]; then
@@ -29,17 +29,17 @@ type_cmd() {
 }
 
 clear; sleep 0.5
-type_cmd "tdk project --yes"
-tdk project --yes 2>&1 | tidy | grep --line-buffered -E "Initializing|✓ Created: .tdk/project|Generated: .tdk/.tdk-out/Tiltfile|docker-compose|✅"
+type_cmd "flisk project --yes"
+flisk project --yes 2>&1 | tidy | grep --line-buffered -E "Initializing|✓ Created: .tdk/project|Generated: .tdk/.tdk-out/Tiltfile|docker-compose|✅"
 sleep 1.8
-type_cmd "tdk resource orders-api --type backend --stack shop"
-printf 'y\n' | tdk resource orders-api --type backend --stack shop 2>&1 | tidy | grep --line-buffered -E "Port:|Path:|Dockerfile|backend source|test file|✅"
+type_cmd "flisk resource orders-api --type backend --stack shop"
+printf 'y\n' | flisk resource orders-api --type backend --stack shop 2>&1 | tidy | grep --line-buffered -E "Port:|Path:|Dockerfile|backend source|test file|✅"
 sleep 1.8
-type_cmd "tdk resource shop-web --type frontend --stack shop"
-printf 'y\n' | tdk resource shop-web --type frontend --stack shop 2>&1 | tidy | grep --line-buffered -E "Port:|Path:|✅"
+type_cmd "flisk resource shop-web --type frontend --stack shop"
+printf 'y\n' | flisk resource shop-web --type frontend --stack shop 2>&1 | tidy | grep --line-buffered -E "Port:|Path:|✅"
 sleep 1.8
-type_cmd "tdk stacks --services"
-tdk stacks --services 2>&1 | tidy | grep -v '^\s*$'
+type_cmd "flisk stacks --services"
+flisk stacks --services 2>&1 | tidy | grep -v '^\s*$'
 sleep 1.2
-printf '\n\033[2m# next: tdk up shop  (Tilt builds, runs and hot-reloads the whole stack)\033[0m\n'
+printf '\n\033[2m# next: flisk up shop  (Tilt builds, runs and hot-reloads the whole stack)\033[0m\n'
 sleep 4

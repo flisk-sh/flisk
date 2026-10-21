@@ -1,15 +1,15 @@
 ## Why
 
-Smoke response artifacts are useful for diagnosing regressions, but their current handling can expose secrets. `tdk up` writes response bodies beneath `.tdk/smoke/<service>/<step-slug>/`; those files are only guaranteed to be ignored when `tdk project` was used, and the text is kept exactly as the service returned it, without the secret redaction that `tdk logs` and `tdk doctor` already apply. The records survive `tdk down`, and the `smoke` suite in `.github/workflows/e2e-journeys.yml` publishes them as a 14-day artifact that anyone able to read the public repository's workflow run can download. The same raw text is printed in the failure line, so it also lands in public CI logs.
+Smoke response artifacts are useful for diagnosing regressions, but their current handling can expose secrets. `flisk up` writes response bodies beneath `.tdk/smoke/<service>/<step-slug>/`; those files are only guaranteed to be ignored when `flisk project` was used, and the text is kept exactly as the service returned it, without the secret redaction that `flisk logs` and `flisk doctor` already apply. The records survive `flisk down`, and the `smoke` suite in `.github/workflows/e2e-journeys.yml` publishes them as a 14-day artifact that anyone able to read the public repository's workflow run can download. The same raw text is printed in the failure line, so it also lands in public CI logs.
 
-This change addresses issue [tdk-cli-core#1771](https://github.com/tdk-landscape/tdk-cli-core/issues/1771) without removing the diagnostic value of smoke records.
+This change addresses issue [tdk-cli-core#1771](https://github.com/flisk-sh/tdk-cli-core/issues/1771) without removing the diagnostic value of smoke records.
 
 ## What Changes
 
 - Ensure `.tdk/smoke/` is ignored before smoke response records are written, independent of how the project or its `smoke` configuration was created. If the entry cannot be ensured, warn before writing the records.
 - Redact known project secrets from every smoke text sink: the stored body, the last-success copy, the printed failure snippet, and the URL and error text kept in the record.
 - Add `.tdk/smoke/` to `examples/tdk-example/.gitignore`.
-- Document the storage location, what redaction covers and its limits, how local records survive `tdk down` and can be deleted, and what CI publishes and for how long.
+- Document the storage location, what redaction covers and its limits, how local records survive `flisk down` and can be deleted, and what CI publishes and for how long.
 - Add unit tests for ignore setup, for redaction in every sink, and for the redaction-failure path.
 
 ## Capabilities

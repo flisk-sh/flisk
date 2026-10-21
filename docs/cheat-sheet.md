@@ -1,6 +1,6 @@
-# ⚡ TDK mega cheat sheet
+# ⚡ Flisk mega cheat sheet
 
-> Every `tdk` command, alias and flag on one page. Taken from `tdk <command> --help` for **v1.3.125**. Your version may differ, so run `tdk <command> --help` to check.
+> Every `flisk` command, alias and flag on one page. Taken from `flisk <command> --help` for **v1.3.125**. Your version may differ, so run `flisk <command> --help` to check.
 
 **Jump to:** [🚀 Start](#-first-five-minutes) · [🔥 Top 10](#-top-10) · [🗺️ Map](#️-how-it-fits-together) · [🌍 Project](#-project) · [📦 Resources](#-resources) · [🗂️ Stacks](#️-stacks) · [▶️ Lifecycle](#️-lifecycle) · [⚙️ Config](#️-configuration) · [🩺 Diagnostics](#-diagnostics-and-tooling) · [🤖 JSON](#-json-output-and-exit-codes) · [🌱 Env](#-environment-variables) · [📁 Files](#-files-tdk-writes) · [🍳 Recipes](#-recipes)
 
@@ -12,33 +12,33 @@ Want the short version? See the [10-row cheat sheet](../cli/README.md#cheat-shee
 ## 🚀 First five minutes
 
 ```bash
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh   # install
-tdk doctor                                                  # Docker, Tilt and Bun OK?
-tdk project --yes                                           # create the project
-tdk resource api --type backend --stack api --yes           # a Bun + Hono API
-tdk resource web --type frontend --stack api --yes          # a React app
-tdk up api                                                  # start the stack
-tdk networks                                                # where is everything?
-tdk down                                                    # stop it all
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh   # install
+flisk doctor                                                  # Docker, Tilt and Bun OK?
+flisk project --yes                                           # create the project
+flisk resource api --type backend --stack api --yes           # a Bun + Hono API
+flisk resource web --type frontend --stack api --yes          # a React app
+flisk up api                                                  # start the stack
+flisk networks                                                # where is everything?
+flisk down                                                    # stop it all
 ```
 
 > [!TIP]
-> Run `tdk` with no arguments for a quick readiness check. It exits 1 if your machine is not ready.
+> Run `flisk` with no arguments for a quick readiness check. It exits 1 if your machine is not ready.
 
 ## 🔥 Top 10
 
 | You want to… | Run |
 | --- | --- |
-| Start everything | `tdk up` |
-| Start one service and what it needs | `tdk up --only orders-api` |
-| See what is running | `tdk status --tilt` |
-| Get the URLs | `tdk networks --raw` |
-| Read recent logs | `tdk logs -s orders-api --since 5m` |
-| Add a service | `tdk resource <name> --type backend --yes` |
-| Group services | `tdk stack api --resources a b --yes` |
-| Fix "my machine is weird" | `tdk doctor` |
-| Fix "generated files drifted" | `tdk config regenerate` |
-| Stop everything | `tdk down` |
+| Start everything | `flisk up` |
+| Start one service and what it needs | `flisk up --only orders-api` |
+| See what is running | `flisk status --tilt` |
+| Get the URLs | `flisk networks --raw` |
+| Read recent logs | `flisk logs -s orders-api --since 5m` |
+| Add a service | `flisk resource <name> --type backend --yes` |
+| Group services | `flisk stack api --resources a b --yes` |
+| Fix "my machine is weird" | `flisk doctor` |
+| Fix "generated files drifted" | `flisk config regenerate` |
+| Stop everything | `flisk down` |
 
 ## 🗺️ How it fits together
 
@@ -46,24 +46,24 @@ A **project** holds **resources** (services). **Stacks** group resources so you 
 
 ```mermaid
 flowchart LR
-  A[tdk project] --> B[tdk resource]
-  I[tdk import] --> B
-  B --> C[tdk stack]
-  C --> D[tdk up]
-  D --> E[tdk status / logs / networks]
-  E --> F[tdk down]
-  D -. drift? .-> G[tdk config regenerate]
+  A[flisk project] --> B[flisk resource]
+  I[flisk import] --> B
+  B --> C[flisk stack]
+  C --> D[flisk up]
+  D --> E[flisk status / logs / networks]
+  E --> F[flisk down]
+  D -. drift? .-> G[flisk config regenerate]
   G --> D
 ```
 
 ## ⬆️ Install and update
 
 ```bash
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh
-tdk upgrade                 # alias: tdk update
-tdk upgrade --dry-run       # show what would change
-tdk upgrade --force --yes   # reinstall even if already on latest, no prompt
-tdk version                 # aliases: tdk v, tdk -v, tdk --version
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+flisk upgrade                 # alias: flisk update
+flisk upgrade --dry-run       # show what would change
+flisk upgrade --force --yes   # reinstall even if already on latest, no prompt
+flisk version                 # aliases: flisk v, flisk -v, flisk --version
 ```
 
 ## 🌐 Global options
@@ -72,47 +72,47 @@ tdk version                 # aliases: tdk v, tdk -v, tdk --version
 | --- | --- |
 | `-v`, `--version` | Print the version |
 | `--verbose` | Verbose output |
-| `-h`, `--help` | Help. `tdk help <command>` works too |
-| `tdk --doctor` | Same as `tdk doctor` |
+| `-h`, `--help` | Help. `flisk help <command>` works too |
+| `flisk --doctor` | Same as `flisk doctor` |
 
 ## 📋 Commands at a glance
 
 | Command | Aliases | What it does |
 | --- | --- | --- |
-| `tdk project [template]` | | Create or check the project's master configs, or clone a starter |
-| `tdk projects` | `info` | Show project info and config status |
-| `tdk import [dir]` | | Import the services in a directory's root `docker-compose.yml` |
-| `tdk eject` | | Write `EJECTED.md` describing the generated Tilt files |
-| `tdk resource [name]` | | Create a resource, or register an existing one |
-| `tdk resources` | | List resources |
-| `tdk stack [stack-name]` | | Assign resources to a stack |
-| `tdk stacks` | `ls` | List stacks |
-| `tdk up [stack-name]` | `deploy` | Start services |
-| `tdk down` | | Stop services |
-| `tdk status` | | Show stack and service state |
-| `tdk logs` | | Print recent logs from the running stack |
-| `tdk networks` | `urls`, `traefik` | Show Traefik-routed URLs |
-| `tdk config <subcommand>` | | Regenerate, verify, migrate or edit project config |
-| `tdk doctor` | | Check environment readiness |
-| `tdk ui` | `interactive` | Interactive terminal UI |
-| `tdk mcp` | | MCP server over stdio for coding agents |
-| `tdk runtime` | | Inspect packaged engine and template assets |
-| `tdk completion [shell]` | | Shell completion scripts |
-| `tdk upgrade` | `update` | Self-update |
-| `tdk version` | `v` | Print the version |
-| `tdk maintainers check [file]` | | Check `MAINTAINERS.md` |
+| `flisk project [template]` | | Create or check the project's master configs, or clone a starter |
+| `flisk projects` | `info` | Show project info and config status |
+| `flisk import [dir]` | | Import the services in a directory's root `docker-compose.yml` |
+| `flisk eject` | | Write `EJECTED.md` describing the generated Tilt files |
+| `flisk resource [name]` | | Create a resource, or register an existing one |
+| `flisk resources` | | List resources |
+| `flisk stack [stack-name]` | | Assign resources to a stack |
+| `flisk stacks` | `ls` | List stacks |
+| `flisk up [stack-name]` | `deploy` | Start services |
+| `flisk down` | | Stop services |
+| `flisk status` | | Show stack and service state |
+| `flisk logs` | | Print recent logs from the running stack |
+| `flisk networks` | `urls`, `traefik` | Show Traefik-routed URLs |
+| `flisk config <subcommand>` | | Regenerate, verify, migrate or edit project config |
+| `flisk doctor` | | Check environment readiness |
+| `flisk ui` | `interactive` | Interactive terminal UI |
+| `flisk mcp` | | MCP server over stdio for coding agents |
+| `flisk runtime` | | Inspect packaged engine and template assets |
+| `flisk completion [shell]` | | Shell completion scripts |
+| `flisk upgrade` | `update` | Self-update |
+| `flisk version` | `v` | Print the version |
+| `flisk maintainers check [file]` | | Check `MAINTAINERS.md` |
 
 ## 🌍 Project
 
-### `tdk project [template]`
+### `flisk project [template]`
 
 ```bash
-tdk project                          # interactive
-tdk project --yes                    # defaults, no prompts
-tdk project --check                  # do master configs exist and match?
-tdk project --config-file cfg.json   # load project config from JSON
-tdk project saas                     # clone a starter example
-tdk project saas --path my-app       # clone into my-app/
+flisk project                          # interactive
+flisk project --yes                    # defaults, no prompts
+flisk project --check                  # do master configs exist and match?
+flisk project --config-file cfg.json   # load project config from JSON
+flisk project saas                     # clone a starter example
+flisk project saas --path my-app       # clone into my-app/
 ```
 
 | Flag | Effect |
@@ -126,22 +126,22 @@ tdk project saas --path my-app       # clone into my-app/
 
 Creates `TILT_RESOURCE_DEFAULTS.star` and `TILT_TECH_STACK.star`, among others. See [configuration](configuration.md) and [the tech stack guide](tech-stack-lock.md).
 
-Project setup does not need a running Docker daemon or an installed Tilt: `tdk project` writes the project configuration and clones the template, then prints what to start before `tdk up`. `tdk up` still refuses to start without the local runtime.
+Project setup does not need a running Docker daemon or an installed Tilt: `flisk project` writes the project configuration and clones the template, then prints what to start before `flisk up`. `flisk up` still refuses to start without the local runtime.
 
-### `tdk projects` (alias `info`)
+### `flisk projects` (alias `info`)
 
 | Flag | Effect |
 | --- | --- |
 | `--check` | Validate configuration; exit 0 or 1. Use in CI |
 | `--json` | Versioned JSON report |
 
-### `tdk import [dir]`
+### `flisk import [dir]`
 
 Read the root `docker-compose.yml` of a directory (default `.`) and write one bring-your-own `service.json` per Compose service. Other Compose file names, override files, Dockerfiles and `package.json` are not read, and the plan names what was not translated.
 
 ```bash
-tdk import --dry-run                 # print the plan, write nothing
-tdk import ./legacy --yes
+flisk import --dry-run                 # print the plan, write nothing
+flisk import ./legacy --yes
 ```
 
 | Flag | Effect |
@@ -150,9 +150,9 @@ tdk import ./legacy --yes
 | `--yes` | Write without prompting |
 | `--force` | Overwrite an existing `service.json` |
 
-See [gradual adoption](gradual-adoption.md) and [adopt TDK](adopt-tdk.md).
+See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-flisk.md).
 
-### `tdk eject`
+### `flisk eject`
 
 Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the files stay in `.tdk/.tdk-out/`.
 
@@ -161,28 +161,28 @@ Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the 
 | `--dry-run` | List the generated files and what would be written |
 | `--yes` | Skip the confirmation prompt |
 
-See [leaving TDK](leaving-tdk.md).
+See [leaving Flisk](leaving-flisk.md).
 
 ## 📦 Resources
 
-### `tdk resource [name]`
+### `flisk resource [name]`
 
 ```bash
-tdk resource api --type backend --yes                         # Bun + Hono
-tdk resource api --type backend                                # asks for the framework (Hono first)
-tdk resource api --type backend --framework fastify --yes
-tdk resource api --type backend --language python --yes
-tdk resource api --type backend --feature prisma --yes
-tdk resource web --type frontend --framework vue --yes
-tdk resource --frameworks                                     # list frontend frameworks
-tdk resource --type frontend --frameworks                     # list frontend frameworks
-tdk resource --type backend --frameworks                      # list backend frameworks and their language
-tdk resource --type backend --language python --frameworks     # list backend frameworks, marking the incompatible ones
-tdk resource jobs --type worker --yes
-tdk resource tools --type mcp --yes
-tdk resource legacy --type bring-your-own --dockerfile Dockerfile --health-path /healthz
-tdk resource cache --type bring-your-own --image redis:7 --no-proxy
-tdk resource old-api --path services/old-api --register-existing
+flisk resource api --type backend --yes                         # Bun + Hono
+flisk resource api --type backend                                # asks for the framework (Hono first)
+flisk resource api --type backend --framework fastify --yes
+flisk resource api --type backend --language python --yes
+flisk resource api --type backend --feature prisma --yes
+flisk resource web --type frontend --framework vue --yes
+flisk resource --frameworks                                     # list frontend frameworks
+flisk resource --type frontend --frameworks                     # list frontend frameworks
+flisk resource --type backend --frameworks                      # list backend frameworks and their language
+flisk resource --type backend --language python --frameworks     # list backend frameworks, marking the incompatible ones
+flisk resource jobs --type worker --yes
+flisk resource tools --type mcp --yes
+flisk resource legacy --type bring-your-own --dockerfile Dockerfile --health-path /healthz
+flisk resource cache --type bring-your-own --image redis:7 --no-proxy
+flisk resource old-api --path services/old-api --register-existing
 ```
 
 | Flag | Effect |
@@ -211,13 +211,13 @@ Bring-your-own only:
 
 See [backend languages](backend-language-providers.md), [frontend frameworks](frontend-framework-providers.md), [bring-your-own](byo.md), [MCP resources](mcp.md) and [data](data.md).
 
-### `tdk resources`
+### `flisk resources`
 
 ```bash
-tdk resources --ports
-tdk resources --stack api --type backend
-tdk resources --no-stack          # resources without a stack
-tdk resources --json
+flisk resources --ports
+flisk resources --stack api --type backend
+flisk resources --no-stack          # resources without a stack
+flisk resources --json
 ```
 
 | Flag | Effect |
@@ -231,13 +231,13 @@ tdk resources --json
 
 ## 🗂️ Stacks
 
-### `tdk stack [stack-name]`
+### `flisk stack [stack-name]`
 
 ```bash
-tdk stack api                                         # pick resources interactively
-tdk stack api --resources orders-api users-api --yes  # scriptable
-tdk stack api --resources orders-api,users-api --yes
-tdk stack --list                                      # resources without a stack
+flisk stack api                                         # pick resources interactively
+flisk stack api --resources orders-api users-api --yes  # scriptable
+flisk stack api --resources orders-api,users-api --yes
+flisk stack --list                                      # resources without a stack
 ```
 
 | Flag | Effect |
@@ -246,7 +246,7 @@ tdk stack --list                                      # resources without a stac
 | `--list` | List resources without a stack |
 | `--yes` | Skip the confirmation prompt |
 
-### `tdk stacks` (alias `ls`)
+### `flisk stacks` (alias `ls`)
 
 | Flag | Effect |
 | --- | --- |
@@ -256,15 +256,15 @@ tdk stack --list                                      # resources without a stac
 
 ## ▶️ Lifecycle
 
-### `tdk up [stack-name]` (alias `deploy`)
+### `flisk up [stack-name]` (alias `deploy`)
 
 ```bash
-tdk up                         # everything
-tdk up api                     # one stack
-tdk up api --only orders-api   # one service plus its dependsOn and shared infra
-tdk up --dry-run
-tdk up --force                 # kill an existing Tilt process first
-tdk up --json &                # one JSON object when ready; Tilt keeps running
+flisk up                         # everything
+flisk up api                     # one stack
+flisk up api --only orders-api   # one service plus its dependsOn and shared infra
+flisk up --dry-run
+flisk up --force                 # kill an existing Tilt process first
+flisk up --json &                # one JSON object when ready; Tilt keeps running
 ```
 
 | Flag | Effect |
@@ -273,18 +273,18 @@ tdk up --json &                # one JSON object when ready; Tilt keeps running
 | `--dry-run` | Show what would start |
 | `-f`, `--force` | Kill an existing Tilt process before starting |
 | `--ignore-drift` | Start even if generated files differ from `service.json` |
-| `--ignore-version` | Start even if this `tdk` is older than `minTdkVersion` in `.tdk/project.json` |
+| `--ignore-version` | Start even if this `flisk` is older than `minTdkVersion` in `.tdk/project.json` |
 | `--json` | Print one JSON object when the stack is ready or the command fails. Implies `--quiet` |
 | `-q`, `--quiet` | Less output |
 | `-v`, `--verbose` | More output |
 
 > [!TIP]
-> `tdk up` prints the host ports and URLs it chose. A resource named `orders-api` is served at `/api/orders`, because a trailing `-api` is dropped.
+> `flisk up` prints the host ports and URLs it chose. A resource named `orders-api` is served at `/api/orders`, because a trailing `-api` is dropped.
 
 > [!IMPORTANT]
-> `tdk up --json` returns once the stack is ready, and Tilt keeps running. Run it in the background (`&`).
+> `flisk up --json` returns once the stack is ready, and Tilt keeps running. Run it in the background (`&`).
 
-### `tdk down`
+### `flisk down`
 
 | Flag | Effect |
 | --- | --- |
@@ -294,7 +294,7 @@ tdk up --json &                # one JSON object when ready; Tilt keeps running
 | `--json` | One JSON object on stdout |
 | `-v`, `--verbose` | More output |
 
-### `tdk status`
+### `flisk status`
 
 | Flag | Effect |
 | --- | --- |
@@ -304,14 +304,14 @@ tdk up --json &                # one JSON object when ready; Tilt keeps running
 | `-v`, `--verbose` | More detail |
 | `--json` | Versioned JSON report |
 
-### `tdk logs`
+### `flisk logs`
 
 A bounded snapshot of recent logs. It does not follow new output; for live logs, use the Tilt UI.
 
 ```bash
-tdk logs
-tdk logs -s orders-api users-api --tail 50
-tdk logs --since 5m --json
+flisk logs
+flisk logs -s orders-api users-api --tail 50
+flisk logs --since 5m --json
 ```
 
 | Flag | Effect |
@@ -322,7 +322,7 @@ tdk logs --since 5m --json
 | `--port <n>` | Tilt UI port (default `TILT_PORT` or 10350) |
 | `--json` | One JSON object |
 
-### `tdk networks` (aliases `urls`, `traefik`)
+### `flisk networks` (aliases `urls`, `traefik`)
 
 | Flag | Effect |
 | --- | --- |
@@ -334,13 +334,13 @@ tdk logs --since 5m --json
 ## ⚙️ Configuration
 
 ```bash
-tdk config regenerate --dry-run      # preview changes to the 4 master files
-tdk config regenerate                # rewrite them from .tdk/project.json
-tdk config verify --json             # do generated files match project.json?
-tdk config migrate                   # move service.json files to the current schema
-tdk config edit                      # open .tdk/project.json in $EDITOR
-tdk config enable-infra monitoring
-tdk config disable-infra elk
+flisk config regenerate --dry-run      # preview changes to the 4 master files
+flisk config regenerate                # rewrite them from .tdk/project.json
+flisk config verify --json             # do generated files match project.json?
+flisk config migrate                   # move service.json files to the current schema
+flisk config edit                      # open .tdk/project.json in $EDITOR
+flisk config enable-infra monitoring
+flisk config disable-infra elk
 ```
 
 | Subcommand | Effect |
@@ -356,13 +356,13 @@ See [configuration](configuration.md), [environment, params and secrets](environ
 
 ## 🩺 Diagnostics and tooling
 
-### `tdk doctor`
+### `flisk doctor`
 
 ```bash
-tdk doctor
-tdk doctor --no-ping                 # skip health pings
-tdk doctor --strict --json           # warnings fail, machine-readable
-tdk doctor --ping-timeout 2000
+flisk doctor
+flisk doctor --no-ping                 # skip health pings
+flisk doctor --strict --json           # warnings fail, machine-readable
+flisk doctor --ping-timeout 2000
 ```
 
 | Flag | Effect |
@@ -377,14 +377,14 @@ tdk doctor --ping-timeout 2000
 
 See the [doctor contract](reference/doctor-contract.md) and [troubleshooting](troubleshooting.md).
 
-### `tdk runtime`
+### `flisk runtime`
 
 | Flag | Effect |
 | --- | --- |
 | `--check-assets` | Check the bundled engine and template assets |
 | `--json` | Print the result as JSON |
 
-### `tdk ui` (alias `interactive`)
+### `flisk ui` (alias `interactive`)
 
 | Flag | Effect |
 | --- | --- |
@@ -394,13 +394,13 @@ See the [doctor contract](reference/doctor-contract.md) and [troubleshooting](tr
 
 See [UI](ui.md).
 
-### `tdk mcp`
+### `flisk mcp`
 
 Runs a Model Context Protocol server over stdio for coding agents. No flags. See [agent hosts](agent-hosts.md).
 
-### `tdk completion [shell]`
+### `flisk completion [shell]`
 
-Generates tab completion for `bash`, `zsh`, `fish` and `powershell`. Without a shell argument, `tdk completion` uses the shell named in `$SHELL` when it is one of these four, and `bash` otherwise.
+Generates tab completion for `bash`, `zsh`, `fish` and `powershell`. Without a shell argument, `flisk completion` uses the shell named in `$SHELL` when it is one of these four, and `bash` otherwise.
 
 The script is generated from the CLI itself: the command names, their flags, the resource types and the framework and language choices come from the registered commands and the registries, so the four shells always suggest the same commands and flags.
 
@@ -414,17 +414,17 @@ The script is generated from the CLI itself: the command names, their flags, the
 
 #### What the completions suggest
 
-- Every command the CLI registers, with its aliases (`tdk ls` for `tdk stacks`, `tdk traefik` for `tdk networks`).
-- The sub-commands of a command, for example `tdk config <TAB>` (`regenerate`, `verify`, `edit`, ...).
-- The flags of the command you are on, for example `tdk doctor --<TAB>`.
-- The values of `--type`: the types `tdk resource` creates (`backend`, `frontend`, `worker`, `mcp`, `agent`, `bring-your-own`, `sdk`) and, for `tdk resources`, every type a resource can have (`library` and `migrator` as well).
+- Every command the CLI registers, with its aliases (`flisk ls` for `flisk stacks`, `flisk traefik` for `flisk networks`).
+- The sub-commands of a command, for example `flisk config <TAB>` (`regenerate`, `verify`, `edit`, ...).
+- The flags of the command you are on, for example `flisk doctor --<TAB>`.
+- The values of `--type`: the types `flisk resource` creates (`backend`, `frontend`, `worker`, `mcp`, `agent`, `bring-your-own`, `sdk`) and, for `flisk resources`, every type a resource can have (`library` and `migrator` as well).
 - The values of `--framework` and `--language`: the frameworks of the `--type` of the command line (the frontend frameworks for `--type frontend`, the backend frameworks otherwise) and the backend languages. A type that accepts neither offers nothing, because the CLI rejects the flag for it.
-- The stacks and the resources of the current project, for `tdk up`, `tdk stack`, `tdk logs`, `tdk restart` and `tdk agent sessions`, and behind the `--stack` and `--only` flags.
+- The stacks and the resources of the current project, for `flisk up`, `flisk stack`, `flisk logs`, `flisk restart` and `flisk agent sessions`, and behind the `--stack` and `--only` flags.
 
 #### bash
 
 ```bash
-tdk completion --shell bash --install
+flisk completion --shell bash --install
 echo 'source ~/.bash_completion.d/tdk-completion.bash' >> ~/.bashrc
 source ~/.bashrc
 ```
@@ -434,7 +434,7 @@ The first command writes `~/.bash_completion.d/tdk-completion.bash`. The second 
 #### zsh
 
 ```bash
-tdk completion --shell zsh --install
+flisk completion --shell zsh --install
 cat >> ~/.zshrc <<'EOF'
 fpath+=(~/.zsh/completions)
 autoload -U compinit && compinit
@@ -447,7 +447,7 @@ The first command writes `~/.zsh/completions/_tdk`. The `fpath` line has to come
 #### fish
 
 ```fish
-tdk completion --shell fish --install
+flisk completion --shell fish --install
 ```
 
 This writes `~/.config/fish/completions/tdk.fish`, which fish loads by itself. Open a new fish session.
@@ -455,26 +455,26 @@ This writes `~/.config/fish/completions/tdk.fish`, which fish loads by itself. O
 #### PowerShell
 
 ```powershell
-tdk completion --shell powershell --install
+flisk completion --shell powershell --install
 ```
 
 This adds a block marked `# TDK-CLI-COMPLETION-START` / `# TDK-CLI-COMPLETION-END` to your PowerShell profile (`Documents\PowerShell` for PowerShell 7, `Documents\WindowsPowerShell` otherwise). Close and reopen PowerShell. PowerShell suggests the command names, the sub-commands, the flags of the current command, the values of `--type`, `--framework` and `--language` and the stacks and the resources of the current project.
 
 #### Check that it works
 
-Type `tdk do` and press Tab. The shell should offer `doctor` and `down`. If nothing happens, check that you opened a new terminal after the setup above.
+Type `flisk do` and press Tab. The shell should offer `doctor` and `down`. If nothing happens, check that you opened a new terminal after the setup above.
 
 #### After you upgrade
 
-The completions are a copy of the CLI: a new command, a new flag or a new framework shows up only after the script is regenerated. Run the same `--install` command again after `tdk upgrade`:
+The completions are a copy of the CLI: a new command, a new flag or a new framework shows up only after the script is regenerated. Run the same `--install` command again after `flisk upgrade`:
 
 ```bash
-tdk completion --shell bash --install   # or zsh, fish, powershell
+flisk completion --shell bash --install   # or zsh, fish, powershell
 ```
 
-It overwrites the old file (PowerShell: it replaces the marked block), so the completions match the new version. Without `--install`, `tdk completion <shell> > <file>` or `--output <file>` writes the script wherever you want it, and you load it yourself.
+It overwrites the old file (PowerShell: it replaces the marked block), so the completions match the new version. Without `--install`, `flisk completion <shell> > <file>` or `--output <file>` writes the script wherever you want it, and you load it yourself.
 
-### `tdk maintainers check [file]`
+### `flisk maintainers check [file]`
 
 Checks that `MAINTAINERS.md` (or `[file]`) lists 3 maintainers from 2 companies.
 
@@ -494,22 +494,22 @@ stdout holds one JSON document; diagnostics go to stderr. See [machine-readable 
 
 | Variable | Effect |
 | --- | --- |
-| `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, `TDK_POSTGRES_PORT` | Override the host ports TDK picks |
+| `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, `TDK_POSTGRES_PORT` | Override the host ports Flisk picks |
 | `TDK_BIND_ADDRESS` | Bind address for dev ports (default `127.0.0.1`; `0.0.0.0` to test from a phone) |
 | `TILT_PORT` | Tilt UI port (default 10350) |
 | `TDK_SERVICE_BASE_URL` | Base URL for doctor pings and `up` smoke checks (default `<project>.localhost`) |
-| `TDK_UP_READY_TIMEOUT_MS` | How long `tdk up --json` waits for readiness (default 15 minutes) |
-| `TDK_ALLOW_NATIVE_WINDOWS` | Set to `1` to allow `tdk up` on native Windows |
+| `TDK_UP_READY_TIMEOUT_MS` | How long `flisk up --json` waits for readiness (default 15 minutes) |
+| `TDK_ALLOW_NATIVE_WINDOWS` | Set to `1` to allow `flisk up` on native Windows |
 | `TDK_LICENSE_KEY` | Unlocks premium features such as `--ddd` |
-| `TDK_DEBUG` | Set to `1` with `tdk up --verbose` to include Starlark debug logs |
+| `TDK_DEBUG` | Set to `1` with `flisk up --verbose` to include Starlark debug logs |
 
 Project `.env` keys (`DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET`, ...) are covered in [environment, params and secrets](environment.md).
 
-## 📁 Files TDK writes
+## 📁 Files Flisk writes
 
 | Path | What it is |
 | --- | --- |
-| `.tdk/project.json` | Project settings. `tdk config regenerate` rebuilds from it |
+| `.tdk/project.json` | Project settings. `flisk config regenerate` rebuilds from it |
 | `.tdk/.tdk-out/` | The 4 master files: `Tiltfile`, `spec.master`, `TILT_RESOURCE_DEFAULTS.star`, `TILT_TECH_STACK.star` |
 | `services/<group>/<name>/service.json` | One per resource: type, port, stack, params, secrets. **Edit this** |
 | `services/<group>/<name>/.autogenerated/` | Docker and Tilt files generated from `service.json`. Don't hand-edit them |
@@ -522,19 +522,19 @@ See [generated files](generated-files.md) and [layout](layout.md).
 
 ```bash
 # CI gate
-tdk projects --json --check && tdk config verify --json && tdk doctor --no-ping --json
+flisk projects --json --check && flisk config verify --json && flisk doctor --no-ping --json
 
 # Start one service and what it needs, in the background, for an agent
-tdk up --only orders-api --json > up.json &
+flisk up --only orders-api --json > up.json &
 
 # What is running and where?
-tdk status --tilt && tdk networks --raw
+flisk status --tilt && flisk networks --raw
 
 # Last 5 minutes of logs from one service, as JSON
-tdk logs -s orders-api --since 5m --json
+flisk logs -s orders-api --since 5m --json
 
 # Clean shutdown, including unused networks
-tdk down --prune-networks
+flisk down --prune-networks
 ```
 
-More in [recipes](recipes/) and [CI](ci.md). Found a missing flag? [Open an issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new). 🙌
+More in [recipes](recipes/) and [CI](ci.md). Found a missing flag? [Open an issue](https://github.com/flisk-sh/tdk-cli-core/issues/new). 🙌

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { findExternallyOccupiedPorts, parseExcludedPortRanges } from "./windows-doctor.js";
@@ -17,7 +17,7 @@ describe("parseExcludedPortRanges", () => {
 });
 
 describe("findExternallyOccupiedPorts", () => {
-  it("ignores ports held by the current TDK project containers", () => {
+  it("ignores ports held by the current Flisk project containers", () => {
     const holders = [
       { name: "demo_traefik", ports: "0.0.0.0:80->80/tcp", publishedPorts: [80] },
       { name: "another-postgres", ports: "0.0.0.0:5432->5432/tcp", publishedPorts: [5432] },

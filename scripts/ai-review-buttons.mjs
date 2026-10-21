@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Pure transform for AI review buttons on PR bodies. This is the only
 // implementation; .github/workflows/ai-review-buttons.yml checks the default
@@ -54,7 +54,7 @@ export function buildGeneratedSection(prUrl) {
     "# Review this PR in",
     buildButtonsHtml(prUrl),
     "",
-    "<sub>Shared by [@tdk-landscape](https://github.com/tdk-landscape) · [tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core) · If this helps, please ⭐ [star tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core)</sub>",
+    "<sub>Shared by [@tdk-landscape](https://github.com/tdk-landscape) · [tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core) · If this helps, please ⭐ [star tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core)</sub>",
     "",
   ].join("\n");
 }

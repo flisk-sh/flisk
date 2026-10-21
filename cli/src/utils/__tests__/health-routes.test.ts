@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,7 +28,7 @@ describe("checkHealthRoutes", () => {
   }
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-health-routes-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-health-routes-"));
     mkdirSync(join(root, ".tdk"), { recursive: true });
     writeFileSync(
       join(root, ".tdk", "project.json"),
@@ -182,7 +182,7 @@ describe("resolveHealthPaths", () => {
 describe("findMissingHealthRoutes", () => {
   let tempDir: string;
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-missing-health-"));
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-missing-health-"));
   });
   afterEach(() => {
     rmSync(tempDir, { recursive: true, force: true });

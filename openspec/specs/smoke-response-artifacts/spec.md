@@ -6,14 +6,14 @@ Smoke checks retain the status and response body of every step under `.tdk/smoke
 ## Requirements
 ### Requirement: Each smoke step retains status and body
 
-After a smoke step receives a response, `tdk up` MUST write a record containing the service, step name, method, public URL, expected status, actual status, and response body. The body MUST be capped at 64 KiB. A capped body MUST be marked truncated.
+After a smoke step receives a response, `flisk up` MUST write a record containing the service, step name, method, public URL, expected status, actual status, and response body. The body MUST be capped at 64 KiB. A capped body MUST be marked truncated.
 
 #### Scenario: Failed step writes the record
 
 - **WHEN** a smoke step returns a status other than the expected status
 - **THEN** the record stores that status, the public URL, and the response body up to the cap
 - **AND** the failure line includes the record path
-- **AND** `tdk up` still exits non-zero
+- **AND** `flisk up` still exits non-zero
 
 #### Scenario: Passing step keeps a success copy
 
@@ -38,7 +38,7 @@ A failed step MUST NOT overwrite the last success record for that service and st
 
 ### Requirement: CI publishes the smoke record
 
-The smoke verification job MUST upload the smoke record directory when the job finishes, including when `tdk up` exits non-zero.
+The smoke verification job MUST upload the smoke record directory when the job finishes, including when `flisk up` exits non-zero.
 
 #### Scenario: Missing route in verify-smoke
 

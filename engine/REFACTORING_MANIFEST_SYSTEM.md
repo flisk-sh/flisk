@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document outlines a comprehensive refactoring of the manifest parsing and validation system in the TDK Landscape Tilt infrastructure. The goal is to move from scattered inline logic to a clean, modular, well-tested architecture.
+This document outlines a comprehensive refactoring of the manifest parsing and validation system in the Flisk Landscape Tilt infrastructure. The goal is to move from scattered inline logic to a clean, modular, well-tested architecture.
 
 **Current State:**
 - Manifest parsing scattered across `discovery.star`, `registry.star`, and multiple generator files

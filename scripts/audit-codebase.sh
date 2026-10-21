@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 #
-# TDK Codebase Audit Script
+# Flisk Codebase Audit Script
 # Scans for TODO, FIXME, BUG, HACK markers across all source files
 #
 
@@ -30,7 +30,7 @@ GO_EXTENSIONS="*.go"
 # Markers to search for
 MARKERS="TODO|FIXME|XXX|BUG|HACK"
 
-echo -e "${BLUE}🔍 TDK Codebase Audit${NC}"
+echo -e "${BLUE}🔍 Flisk Codebase Audit${NC}"
 echo -e "${GRAY}Scanning for: ${MARKERS}${NC}"
 echo ""
 
@@ -144,7 +144,7 @@ fi
 # Save report to file
 REPORT_FILE="codebase-audit-report-$(date +%Y%m%d-%H%M%S).md"
 cat > "$REPORT_FILE" << EOF
-# TDK Codebase Audit Report
+# Flisk Codebase Audit Report
 
 Generated: $(date)
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -90,7 +90,7 @@ let exitSpy: ReturnType<typeof vi.spyOn>;
 let logSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-project-command-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-project-command-"));
   mocks.findProjectRoot.mockReturnValue(root);
   mocks.assertMachineReadyOrExit.mockResolvedValue(undefined);
   mocks.generateMasterConfigs.mockResolvedValue(undefined);
@@ -273,7 +273,7 @@ describe("project command action", () => {
 
     const config = readProjectConfig();
     expect(Object.keys(config.phases)).toEqual(["pre_alpha", "alpha", "beta", "out_of_scope"]);
-    expect(config.project.name).toContain("tdk-project-command-");
+    expect(config.project.name).toContain("flisk-project-command-");
     expect(mocks.promptText).not.toHaveBeenCalled();
     expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
     expect(mocks.ensureEnvFile).toHaveBeenCalledWith(root);
@@ -298,7 +298,7 @@ describe("project command action", () => {
     await runProject({ check: false, force: true, yes: true });
 
     expect(mocks.promptConfirm).not.toHaveBeenCalled();
-    expect(readProjectConfig().project.name).toContain("tdk-project-command-");
+    expect(readProjectConfig().project.name).toContain("flisk-project-command-");
     expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
   });
 

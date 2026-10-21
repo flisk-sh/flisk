@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🧩 ORCHESTRATOR APPLY - COMPOSE RESOURCE REGISTRATION (Refactored)
@@ -79,7 +79,7 @@ def force_start_shared_platform_postgres_once(ctx, should_enable, resource_name=
 
 
 def _env_file_if_exists(env_file):
-    """.env is gitignored (no .env.example shipped) across every TDK example repo, so a
+    """.env is gitignored (no .env.example shipped) across every Flisk example repo, so a
     fresh clone must not hard-require it: docker_compose()'s env_file kwarg type-checks as
     path|string (rejects None), so only return a path when the file actually exists."""
     exists = str(local("test -f '" + env_file + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes'
@@ -334,7 +334,7 @@ def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', la
         return []
 
     if go_live_reload:
-        # Opted-in Go development loop: sync the sources into the development image, where the tdk-go-watch script rebuilds and restarts.
+        # Opted-in Go development loop: sync the sources into the development image, where the flisk-go-watch script rebuilds and restarts.
         # Dependency and Dockerfile changes cannot be picked up by a restart, so they fall back to a full image rebuild.
         source_dir = _live_update_sync_source(project_root, full_res_path, '')
         return [
@@ -419,7 +419,7 @@ def _register_docker_build(config, live_update_rules):
 
 
 def _register_deferred_image_prebuild(config, auto_init_apps):
-    """Build a deferStart resource's image during `tdk up` without creating its container.
+    """Build a deferStart resource's image during `flisk up` without creating its container.
 
     `auto_init=False` on the dc_resource skips its docker_build too (confirmed
     live on tdk-erp-system, task 7.2), so a fresh project's first request would
@@ -493,7 +493,7 @@ def _register_run_only_resource(config, resource_path, compose_project_name, aut
     compose_files = '-f ' + compose_file
     if str(local("test -f '" + port_override + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
         compose_files = compose_files + ' -f ' + port_override
-    # .env is gitignored (no .env.example shipped) across every TDK example repo, so a
+    # .env is gitignored (no .env.example shipped) across every Flisk example repo, so a
     # fresh clone must not hard-require it: only pass --env-file when it actually exists.
     env_file_flag = ''
     if str(local("test -f '" + env_file + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
@@ -522,7 +522,7 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
     app_type = config.get('app_type', 'backend')
     res_name = config['res_name']
 
-    # A sablier.enable + sablier.deferStart resource is held back from tdk up's
+    # A sablier.enable + sablier.deferStart resource is held back from flisk up's
     # normal bring-up: its container is never created or started here, only via
     # the Traefik wake path on first request. auto_init=False also skips the
     # dc_resource's docker_build, so its image is built by a separate
@@ -781,7 +781,7 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
             # static file-provider route instead, pointed at the wake gateway.
             # Scoped to backends for now, matching the proposal's motivating
             # case; frontend support is a natural follow-up, not implemented
-            # here. Dependency waking (D5): TDK's real infra dependencies
+            # here. Dependency waking (D5): Flisk's real infra dependencies
             # (database, NATS, a resource's own migrator) live in
             # separately-registered compose files that `depends_on` cannot
             # reference (confirmed empirically, see design.md D5), and they're

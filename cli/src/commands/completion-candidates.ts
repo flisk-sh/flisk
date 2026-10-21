@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * The data the shell completion scripts suggest.
@@ -23,7 +23,7 @@ export type CompletionPositional =
   | "resources"
   /** The stacks and the resources of the current project. */
   | "stacks-and-resources"
-  /** The names of the other commands (`tdk help <command>`). */
+  /** The names of the other commands (`flisk help <command>`). */
   | "commands";
 
 /** A flag a command accepts. */
@@ -46,7 +46,7 @@ export interface TypeDependentValues {
 
 /** A command the shells suggest. */
 export interface CompletionCommand {
-  /** The name the user types (`tdk doctor`). */
+  /** The name the user types (`flisk doctor`). */
   name: string;
   /** Alternative names the CLI accepts for the same command. */
   aliases: string[];
@@ -54,7 +54,7 @@ export interface CompletionCommand {
   description: string;
   /** The flags the command accepts. */
   options: CompletionOption[];
-  /** The command's own sub-commands (`tdk config verify`). */
+  /** The command's own sub-commands (`flisk config verify`). */
   subcommands: CompletionCommand[];
   /** What the command's positional argument completes, when it takes a project value. */
   positional?: CompletionPositional;
@@ -94,8 +94,8 @@ const POSITIONALS: Record<string, CompletionPositional> = {
 /**
  * The values of a flag, for the commands that accept another set than the default.
  *
- * `tdk resource` creates a resource and accepts the creatable types plus `sdk`
- * (`RESOURCE_TYPE_VALUES`), while `tdk resources` filters the resources of the project and accepts
+ * `flisk resource` creates a resource and accepts the creatable types plus `sdk`
+ * (`RESOURCE_TYPE_VALUES`), while `flisk resources` filters the resources of the project and accepts
  * every type a resource can have (`VALID_RESOURCE_TYPES`), which also holds `library` and
  * `migrator`. The completion offers exactly what the command accepts, so it never suggests a type
  * the command rejects.
@@ -117,7 +117,7 @@ const TYPE_VALUES: Record<string, TypeDependentValues> = {
       frontend: Object.keys(FRONTEND_FRAMEWORKS),
       backend: Object.keys(BACKEND_FRAMEWORKS),
     },
-    // `tdk resource` creates a backend unless the user asks for another type.
+    // `flisk resource` creates a backend unless the user asks for another type.
     fallback: Object.keys(BACKEND_FRAMEWORKS),
   },
   "--language": {
@@ -152,7 +152,7 @@ function toOptions(options: readonly Option[]): CompletionOption[] {
  * The help command of the program.
  *
  * Commander adds it to the program itself, so the name, the description and the aliases are the
- * ones the CLI registers. The help flag is offered as well: `tdk help --help` prints the help of
+ * ones the CLI registers. The help flag is offered as well: `flisk help --help` prints the help of
  * the program, exactly like the help flag of every other command.
  */
 function helpCommandOf(program: Command): CompletionCommand | undefined {

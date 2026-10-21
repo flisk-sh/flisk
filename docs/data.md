@@ -1,10 +1,10 @@
 # Local data: where it lives, how to reset, seed and snapshot
 
-How the shared Postgres behaves under TDK. Every command below was run against a real `postgres:16-alpine` container named the way TDK names it. `tdk up` itself was not run for this page.
+How the shared Postgres behaves under Flisk. Every command below was run against a real `postgres:16-alpine` container named the way Flisk names it. `flisk up` itself was not run for this page.
 
 ## Where the data lives
 
-TDK runs **one** Postgres container for the whole project. The generated `DATABASE_URL` of a service points at a database named after the project and the **stack**, so the services of one stack share a database.
+Flisk runs **one** Postgres container for the whole project. The generated `DATABASE_URL` of a service points at a database named after the project and the **stack**, so the services of one stack share a database.
 
 | Thing | Name | Example for project `my-shop`, stack `store` |
 | --- | --- | --- |
@@ -15,20 +15,20 @@ TDK runs **one** Postgres container for the whole project. The generated `DATABA
 | Volume | `database-management_<project>_postgres_data` | `database-management_my_shop_postgres_data` |
 | Host port | `15432`, or `TDK_POSTGRES_PORT` | |
 
-`<project>` is `project.name` from `.tdk/project.json` with `-` replaced by `_`. The same rule applies to the stack name. The volume name was read from existing volumes on a machine that had run TDK (for example `database-management_auth_user_postgres_data` for project `auth-user`), so check yours with `docker volume ls | grep postgres_data`. The database name was read from the generated Compose `DATABASE_URL` (for project `pilot`, stack `shop`: `.../pilot_shop`), not from a running container: list the real ones with `docker exec <container> psql -U <user> -d postgres -c '\l'`.
+`<project>` is `project.name` from `.tdk/project.json` with `-` replaced by `_`. The same rule applies to the stack name. The volume name was read from existing volumes on a machine that had run Flisk (for example `database-management_auth_user_postgres_data` for project `auth-user`), so check yours with `docker volume ls | grep postgres_data`. The database name was read from the generated Compose `DATABASE_URL` (for project `pilot`, stack `shop`: `.../pilot_shop`), not from a running container: list the real ones with `docker exec <container> psql -U <user> -d postgres -c '\l'`.
 
-## Does it survive `tdk down`?
+## Does it survive `flisk down`?
 
-Yes. `tdk down` runs `tilt down`, which removes the containers but not named volumes. Checked with a small Compose project run through `tilt down`: the container was removed and the file in the volume was still there afterwards. The next `tdk up` starts Postgres on the same volume. Since [#585](https://github.com/tdk-landscape/tdk-cli-core/pull/585) `tdk down` also stops this project's `tilt up`, and `tdk down --prune-networks` removes the project's Docker networks that no container uses; by the source it touches networks only, not volumes (not run against Docker here). Without that flag the networks are kept.
+Yes. `flisk down` runs `tilt down`, which removes the containers but not named volumes. Checked with a small Compose project run through `tilt down`: the container was removed and the file in the volume was still there afterwards. The next `flisk up` starts Postgres on the same volume. Since [#585](https://github.com/flisk-sh/tdk-cli-core/pull/585) `flisk down` also stops this project's `tilt up`, and `flisk down --prune-networks` removes the project's Docker networks that no container uses; by the source it touches networks only, not volumes (not run against Docker here). Without that flag the networks are kept.
 
 ## Start from a clean state
 
 Everything, all services:
 
 ```bash
-tdk down
+flisk down
 docker volume rm database-management_my_shop_postgres_data
-tdk up
+flisk up
 ```
 
 One stack's database (Postgres must be running; `WITH (FORCE)` disconnects the service first):
@@ -38,7 +38,7 @@ docker exec my_shop_postgres psql -U my_shop -d postgres -c "DROP DATABASE my_sh
 docker exec my_shop_postgres createdb -U my_shop -O my_shop my_shop_store
 ```
 
-The database comes back empty. Migrations run again only when your migrator runs again (`tdk up`, or restart the migrator resource in Tilt).
+The database comes back empty. Migrations run again only when your migrator runs again (`flisk up`, or restart the migrator resource in Tilt).
 
 ## Seed
 
@@ -50,7 +50,7 @@ Pick one:
   docker exec -i my_shop_postgres psql -U my_shop -d my_shop_store -v ON_ERROR_STOP=1 < seed.sql
   ```
 
-- **A one-shot resource.** Run the seed as a bring-your-own job with `--restart no`, the same way as a migration; see [One-shot jobs](byo.md#one-shot-jobs-migrations-seeders). A dbmate job was checked through a real `tdk up`. That a seed job runs after the migrator and before the API is **not checked here**; make the seed idempotent so a different order is harmless.
+- **A one-shot resource.** Run the seed as a bring-your-own job with `--restart no`, the same way as a migration; see [One-shot jobs](byo.md#one-shot-jobs-migrations-seeders). A dbmate job was checked through a real `flisk up`. That a seed job runs after the migrator and before the API is **not checked here**; make the seed idempotent so a different order is harmless.
 
 Keep seed data fake. Do not put production data in the repository.
 
@@ -74,7 +74,7 @@ insert into demo_customers (id, name, email) values
 on conflict do nothing;
 ```
 
-`seed.sh` reads the `DATABASE_URL` that TDK passes to the job and refuses a database name that has anything other than letters, digits and underscores (TDK's names only use those), so the name is safe to put in SQL. It then waits for Postgres, for at most 30 one-second tries (set `SEED_WAIT_TRIES` to change that), and exits with the last connection error if Postgres never answers. Then it creates the database if it is missing (TDK does not create it for a bring-your-own job) and runs `seed.sql`:
+`seed.sh` reads the `DATABASE_URL` that Flisk passes to the job and refuses a database name that has anything other than letters, digits and underscores (Flisk's names only use those), so the name is safe to put in SQL. It then waits for Postgres, for at most 30 one-second tries (set `SEED_WAIT_TRIES` to change that), and exits with the last connection error if Postgres never answers. Then it creates the database if it is missing (Flisk does not create it for a bring-your-own job) and runs `seed.sql`:
 
 ```sh
 #!/bin/sh
@@ -85,7 +85,7 @@ server="${url%/*}"
 case "$db" in
   ""|*[!A-Za-z0-9_]*) echo "seed: database name '$db' must use only letters, digits and underscores" >&2; exit 1 ;;
 esac
-export PGSSLMODE=disable     # TDK's Postgres has SSL off
+export PGSSLMODE=disable     # Flisk's Postgres has SSL off
 tries=0
 max="${SEED_WAIT_TRIES:-30}"
 until err=$(psql "$server/postgres" -tAc "select 1" 2>&1 >/dev/null); do
@@ -113,14 +113,14 @@ CMD ["sh", "/seed.sh"]
 Register it from that folder. `--restart no` is what makes it a one-shot job:
 
 ```bash
-tdk resource seed-demo --type bring-your-own --stack store --dockerfile ./Dockerfile --restart no --register-existing --yes
+flisk resource seed-demo --type bring-your-own --stack store --dockerfile ./Dockerfile --restart no --register-existing --yes
 ```
 
 That writes the `service.json` below. Add the `dependsOn` line yourself so the job waits for the shared Postgres; if a migrator creates your tables, list the migrator instead (a migrator already depends on `postgres`). The job does not listen on `port`, so `healthCheckPath` is not used.
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "seed-demo",
   "appType": "bring-your-own",
@@ -138,14 +138,14 @@ Restart behaviour: with `"restart": "no"` Docker does not start the container ag
 Run it and check the rows (names for project `my-shop`, as in the tables above):
 
 ```bash
-tdk up store
+flisk up store
 docker ps -a --filter name=seed-demo --format '{{.Names}}\t{{.Status}}'      # expect "Exited (0)"
 docker exec my_shop_postgres psql -U my_shop -d my_shop_store -c "select id, name from demo_customers order by id"
 ```
 
 You should see the two `Test Customer` rows. After restarting the resource, the same two rows remain.
 
-Not checked here: running this through a real `tdk up` (no Docker or Tilt available). The checked parts are `seed.sql` against a real Postgres (the second run leaves the same two rows), the shell syntax and URL handling of `seed.sh`, and the manifest against the service schema and `tdk config verify`. The Dockerfile and the `psql` calls follow the checked Atlas job.
+Not checked here: running this through a real `flisk up` (no Docker or Tilt available). The checked parts are `seed.sql` against a real Postgres (the second run leaves the same two rows), the shell syntax and URL handling of `seed.sh`, and the manifest against the service schema and `flisk config verify`. The Dockerfile and the `psql` calls follow the checked Atlas job.
 
 ## Snapshot and restore
 
@@ -157,10 +157,10 @@ docker exec my_shop_postgres pg_dump -U my_shop -Fc my_shop_store > store.dump
 docker exec -i my_shop_postgres pg_restore -U my_shop -d my_shop_store --clean --if-exists --no-owner < store.dump
 ```
 
-Both were run: after a restore, a row inserted after the snapshot was gone. A shared team snapshot is just that file; TDK has no command for it, and no tooling to scrub production data. Anonymise a dump before it leaves production.
+Both were run: after a restore, a row inserted after the snapshot was gone. A shared team snapshot is just that file; Flisk has no command for it, and no tooling to scrub production data. Anonymise a dump before it leaves production.
 
 ## Not covered
 
 - Other databases (MySQL, Mongo, Turso): only the shared Postgres was checked.
-- A built-in `tdk db reset` or `tdk db seed` command does not exist.
-- The start-up order between migrator, seed and API. Related, and still open: [#531](https://github.com/tdk-landscape/tdk-cli-core/issues/531) (an explicit, validated `dependsOn` on Postgres).
+- A built-in `flisk db reset` or `flisk db seed` command does not exist.
+- The start-up order between migrator, seed and API. Related, and still open: [#531](https://github.com/flisk-sh/tdk-cli-core/issues/531) (an explicit, validated `dependsOn` on Postgres).

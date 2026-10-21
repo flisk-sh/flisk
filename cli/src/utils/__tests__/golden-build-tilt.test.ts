@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -53,7 +53,7 @@ const EXPECTED_IMAGES = [
 
 /** The shell script Tilt would run for the golden build resource. */
 function generatedGoldenScript(): string {
-  const project = mkdtempSync(join(tmpdir(), "tdk-golden-tilt-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-golden-tilt-"));
   dirs.push(project);
   writeFileSync(
     join(project, "Tiltfile"),
@@ -85,7 +85,7 @@ interface RunGoldenOptions {
 
 /** Runs the generated script in a scratch project with a fake docker and returns what it did. */
 function runGolden(script: string, options: RunGoldenOptions) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-golden-run-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-golden-run-"));
   dirs.push(project);
   mkdirSync(join(project, dirname(GOLDEN_DOCKERFILE)), { recursive: true });
   writeFileSync(join(project, GOLDEN_DOCKERFILE), DOCKERFILE_TEXT);

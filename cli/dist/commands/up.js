@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync } from "node:fs";
 import { connect } from "node:net";
@@ -38,13 +38,13 @@ import { tiltGetUiResources, waitForTiltResourcesReady } from "../utils/up-readi
 import { enableDiscoveredStacks } from "./project.js";
 export function formatUpSuccess(port, appUrls = []) {
     return [
-        "TDK is up.",
+        "Flisk is up.",
         `Tilt UI: http://localhost:${port}`,
         "App URLs:",
         ...(appUrls.length > 0
             ? appUrls.slice(0, 5).map((url) => `  ${url}`)
-            : ["  run: tdk networks"]),
-        "Stop: tdk down",
+            : ["  run: flisk networks"]),
+        "Stop: flisk down",
     ];
 }
 export function nativeWindowsUpRefusal(platform, allowNativeWindows) {
@@ -52,7 +52,7 @@ export function nativeWindowsUpRefusal(platform, allowNativeWindows) {
         return null;
     return "Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.";
 }
-/** Why `tdk up` cannot work on this host, or null when it may proceed. Docker reachability is only probed in container hosts. */
+/** Why `flisk up` cannot work on this host, or null when it may proceed. Docker reachability is only probed in container hosts. */
 export async function hostUpRefusal(host = detectHost(), dockerReachable = defaultDockerReachable) {
     if (host.kind === "webcontainer")
         return WEBCONTAINER_UP_MESSAGE;
@@ -66,10 +66,10 @@ async function defaultDockerReachable() {
         execFile("docker", ["ps"], { timeout: 10_000 }, (error) => resolve(!error));
     });
 }
-/** Exit status for `tdk up` when generated files no longer match service.json / project.json. */
+/** Exit status for `flisk up` when generated files no longer match service.json / project.json. */
 export const DRIFT_EXIT_CODE = 2;
 /**
- * Generated service files edited by hand. Only these block `tdk up`: when service.json itself changed, `tdk up` regenerates
+ * Generated service files edited by hand. Only these block `flisk up`: when service.json itself changed, `flisk up` regenerates
  * the outputs, so stale outputs are the normal edit-then-up loop and not drift.
  */
 export function driftReport(projectRoot, resources) {
@@ -93,7 +93,7 @@ export function driftReport(projectRoot, resources) {
     return [
         "Generated files were edited by hand and no longer match service.json:",
         ...handEdited.map((file) => `  ${file}`),
-        "Run `tdk config regenerate` to discard the edits, or bypass with `tdk up --ignore-drift`.",
+        "Run `flisk config regenerate` to discard the edits, or bypass with `flisk up --ignore-drift`.",
     ];
 }
 /**
@@ -114,7 +114,7 @@ export function enforceDriftGate(projectRoot, options, exit = process.exit) {
 }
 /**
  * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minTdkVersion` in
- * .tdk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `tdk doctor`.
+ * .tdk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
  * `ignoreVersion` skips the check and says so. No minTdkVersion means no check.
  */
 export function enforceVersionFloor(projectRoot, options, currentVersion = getPackageVersion(), exit = process.exit) {
@@ -132,7 +132,7 @@ export function enforceVersionFloor(projectRoot, options, currentVersion = getPa
 const STARTUP_FAILED = Symbol("startup-failed");
 /**
  * Waits for Tilt to exit, unless startup has already failed. A readiness failure reports and exits 1 at once: Tilt keeps
- * running (`tdk down` stops it), so waiting for its exit would hang the command.
+ * running (`flisk down` stops it), so waiting for its exit would hang the command.
  */
 export async function waitForTiltUnlessStartupFailed(tiltRun, startupFailure, exit = process.exit) {
     const outcome = await Promise.race([tiltRun, startupFailure.then(() => STARTUP_FAILED)]);
@@ -171,11 +171,11 @@ export const upCommand = new Command("up")
     .option("--dry-run", "Show what would be started without starting", false)
     .option("-f, --force", "Kill existing Tilt process before starting", false)
     .option("--ignore-drift", "Start even if generated files differ from service.json", false)
-    .option("--ignore-version", "Start even if this tdk is older than minTdkVersion in .tdk/project.json", false)
+    .option("--ignore-version", "Start even if this flisk is older than minTdkVersion in .tdk/project.json", false)
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .action(async (stackName, options) => {
-    const emit = options.json ? createJsonEmitter("UP_FAILED", "tdk up") : undefined;
+    const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
     if (options.json)
         options.quiet = true;
     const portSetting = parseTiltPort(process.env.TILT_PORT);
@@ -287,7 +287,7 @@ export const upCommand = new Command("up")
                     console.log(chalk.gray(`Added ${addedEnvKeys.join(", ")} to .env (generated; existing values unchanged)`));
                 }
             }
-            // A project made by `tdk import` has .tdk/project.json but no generated files yet. Generate them rather than letting
+            // A project made by `flisk import` has .tdk/project.json but no generated files yet. Generate them rather than letting
             // Tilt fail on a missing Tiltfile.
             if (foundRoot && !existsSync(join(projectRoot, ".tdk", ".tdk-out", "Tiltfile"))) {
                 if (!options.quiet) {
@@ -401,7 +401,7 @@ export const upCommand = new Command("up")
         const { running, foreign } = await classifyTiltPorts(candidatePorts, projectRoot, async (candidate) => (await tiltGetUiResources(candidate)) !== null);
         if (foreign.length > 0 && configuredTiltPort !== undefined) {
             const other = foreign[0];
-            const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run tdk down in that project.`;
+            const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run flisk down in that project.`;
             emit?.({ ok: false }, [{ code: "TILT_PORT_IN_USE", message }]);
             showErrorAndExit(message);
         }
@@ -429,7 +429,7 @@ export const upCommand = new Command("up")
             return;
         }
         if (decision.action === "only-blocked") {
-            const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --only cannot change a running stack's services: run \`tdk down\` first, or pass --force to replace it.`;
+            const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --only cannot change a running stack's services: run \`flisk down\` first, or pass --force to replace it.`;
             emit?.({ ok: false }, [{ code: "TILT_ALREADY_RUNNING", message }]);
             showErrorAndExit(message);
         }
@@ -464,7 +464,7 @@ export const upCommand = new Command("up")
             inheritStdio: !options.quiet, // Suppress tilt output in quiet mode
         });
         // Services that declare `smoke` are checked through the public URL once Tilt is up. A miss stops Tilt (containers stay for
-        // inspection; `tdk down` removes them) and fails the command.
+        // inspection; `flisk down` removes them) and fails the command.
         const smokePlans = buildSmokePlans(servicesToStart, hostPortPlan.ingressHttp);
         let smokeFailed = false;
         let printedSuccess = false;
@@ -504,7 +504,7 @@ export const upCommand = new Command("up")
                     emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures: readiness.failures }, [
                         {
                             code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
-                            message: `${readiness.timedOut ? "Timed out waiting for resources" : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: tdk down`,
+                            message: `${readiness.timedOut ? "Timed out waiting for resources" : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
                         },
                     ]);
                 }

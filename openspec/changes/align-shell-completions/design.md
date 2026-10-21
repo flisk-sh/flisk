@@ -4,7 +4,7 @@
 
 `cli/src/program.ts` builds the root Commander program and adds the commands of `cli/src/commands/registry.ts`. The completion generator reads the same program: the command names and their flags come from `program.commands` and `program.options`, so a command that is not registered cannot be suggested and a registered command is always suggested.
 
-The completion command reaches the program through `command.parent`, the Commander reference the root program sets when it adds a sub-command. `tdk completion` therefore always runs inside the program it belongs to; a detached call fails with a clear message instead of writing a script with no candidates.
+The completion command reaches the program through `command.parent`, the Commander reference the root program sets when it adds a sub-command. `flisk completion` therefore always runs inside the program it belongs to; a detached call fails with a clear message instead of writing a script with no candidates.
 
 ### 2. The completion command does not import the registry
 
@@ -12,17 +12,17 @@ The completion command reaches the program through `command.parent`, the Command
 
 ### 3. The value lists come from the registries
 
-`--type` offers `RESOURCE_TYPE_VALUES` (`cli/src/types/index.ts`, the creatable types plus `sdk`) for `tdk resource`, which creates a resource, and `VALID_RESOURCE_TYPES` (`cli/src/utils/constants.ts`, every type a resource can have) for `tdk resources`, which filters the resources of the project. The completion offers exactly what the command accepts, so it never suggests a type the command rejects.
+`--type` offers `RESOURCE_TYPE_VALUES` (`cli/src/types/index.ts`, the creatable types plus `sdk`) for `flisk resource`, which creates a resource, and `VALID_RESOURCE_TYPES` (`cli/src/utils/constants.ts`, every type a resource can have) for `flisk resources`, which filters the resources of the project. The completion offers exactly what the command accepts, so it never suggests a type the command rejects.
 
-`--framework` and `--language` depend on the `--type` of the command line: the frontend framework ids for `--type frontend`, the backend framework ids otherwise (`tdk resource` creates a backend unless another type is asked for), and the backend language ids only for a backend. The scripts read the `--type` of the current command line, so a type that accepts neither flag offers nothing instead of a value the CLI rejects.
+`--framework` and `--language` depend on the `--type` of the command line: the frontend framework ids for `--type frontend`, the backend framework ids otherwise (`flisk resource` creates a backend unless another type is asked for), and the backend language ids only for a backend. The scripts read the `--type` of the current command line, so a type that accepts neither flag offers nothing instead of a value the CLI rejects.
 
 No script repeats a list that lives in the CLI, and a new provider is suggested as soon as it is registered.
 
 ### 4. The project values come from the machine-readable output
 
-The stack and the resource names come from `tdk stacks --json` and `tdk resources --json`, not from the human-readable output, whose layout is not a contract. Bash and Zsh read the `"name"` fields with `grep` and `sed`, Fish with `string match` and `string replace`, and PowerShell with `ConvertFrom-Json`.
+The stack and the resource names come from `flisk stacks --json` and `flisk resources --json`, not from the human-readable output, whose layout is not a contract. Bash and Zsh read the `"name"` fields with `grep` and `sed`, Fish with `string match` and `string replace`, and PowerShell with `ConvertFrom-Json`.
 
-The project values are offered behind the positional arguments (`tdk up`, `tdk stack`, `tdk logs`, `tdk restart`, `tdk agent sessions`) and behind the `--stack` and `--only` flags, in all four shells.
+The project values are offered behind the positional arguments (`flisk up`, `flisk stack`, `flisk logs`, `flisk restart`, `flisk agent sessions`) and behind the `--stack` and `--only` flags, in all four shells.
 
 ### 5. The tests read the candidates back out of the scripts
 

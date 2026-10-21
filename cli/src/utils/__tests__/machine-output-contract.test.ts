@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SCHEMA_VERSION } from "../machine-output.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 const MASTER_CONFIG_FILES = [
   "TILT_TECH_STACK.star",
@@ -29,7 +29,7 @@ describe("machine output contract: every --json command emits the standard envel
   });
 
   function createProject(): string {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-machine-contract-"));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-machine-contract-"));
     projectRoots.push(projectRoot);
 
     // .tdk/project.json

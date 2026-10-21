@@ -1,0 +1,21 @@
+---
+description: Instructs Cursor AI agent to use Flisk commands instead of hand-writing Dockerfiles or Compose manifests
+globs: ["services/**", "Tiltfile", "service.json", ".tdk/**"]
+alwaysApply: false
+---
+
+# Flisk Workspace Rules for Cursor
+
+When operating in a Flisk workspace:
+- **Never hand-write Dockerfiles or Compose files.** Let Flisk generate and maintain container manifests.
+- **Scaffold resources with Flisk:**
+  - AI Agents: `flisk resource <name> --type agent [--durability files|postgres]`
+  - MCP tool servers: `flisk resource <name> --type mcp`
+  - Backend services: `flisk resource <name> --type backend`
+- **Operate the stack with Flisk CLI or MCP tools:**
+  - `flisk up`: Start services and dependencies.
+  - `flisk down`: Stop services.
+  - `flisk status --json`: Inspect ports, Traefik routes, and readiness.
+  - `flisk doctor --json`: Run environment diagnostics.
+  - `flisk restart <name>`: Trigger live reload for a resource.
+  - `flisk agent sessions <name> --session-id <id>`: Inspect one session checkpoint (the id is required).

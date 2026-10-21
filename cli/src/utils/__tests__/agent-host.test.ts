@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { hostUpRefusal } from "../../commands/up.js";
@@ -100,7 +100,7 @@ describe("host constants and messages", () => {
   it("exports consistent remediation and doc paths", () => {
     expect(WEBCONTAINER_DOCS).toBe("docs/agent-hosts.md");
     expect(WEBCONTAINER_UP_MESSAGE).toContain(WEBCONTAINER_DOCS);
-    expect(WEBCONTAINER_UP_MESSAGE).toContain("WebContainers cannot run TDK");
+    expect(WEBCONTAINER_UP_MESSAGE).toContain("WebContainers cannot run Flisk");
     expect(DEVCONTAINER_DOCKER_FIX).toContain(WEBCONTAINER_DOCS);
     expect(DEVCONTAINER_DOCKER_FIX).toContain("docker-outside-of-docker");
   });

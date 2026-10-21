@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📚 TILT SDK - LIBRARY PATHS & DEP MAPPINGS
@@ -9,7 +9,7 @@ load('../../../topologies/tilt/common/utils.star', 'Utils')
 
 def get_lib_path_from_package_name(ctx, package_name):
     """
-    Converts @tdk/platform-logger -> shared-platform-engineering/platform-logger
+    Converts @flisk/platform-logger -> shared-platform-engineering/platform-logger
 
     Returns:
         Tuple of (path, label, tilt_resource_name) or (None, None, None) if not a library

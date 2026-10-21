@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE } from "../utils/constants.js";
 
@@ -40,7 +40,7 @@ export interface ResourceConfigFields {
   apiPath?: string;
   /** Path the container healthcheck probes (and Traefik too, unless traefik.healthCheck is set). Defaults to /health. */
   healthCheckPath?: string;
-  /** Post-start check through the public proxy URL, run by `tdk up`. See utils/smoke.ts. */
+  /** Post-start check through the public proxy URL, run by `flisk up`. See utils/smoke.ts. */
   smoke?: import("../utils/smoke.js").SmokeConfig;
   /** Traefik routing overrides. `healthCheck` is the path Traefik's load balancer probes; defaults to healthCheckPath. */
   traefik?: { host?: string; pathPrefix?: string; healthCheck?: string };
@@ -51,7 +51,7 @@ export interface ResourceConfigFields {
     enable?: boolean;
     group?: string;
     sessionDuration?: string;
-    /** Skip this resource during `tdk up` entirely; a Traefik static route wakes it on first request. Requires enable: true. */
+    /** Skip this resource during `flisk up` entirely; a Traefik static route wakes it on first request. Requires enable: true. */
     deferStart?: boolean;
   };
   /** Optional dockerfile path relative to resource dir */
@@ -127,7 +127,7 @@ export const CREATABLE_RESOURCE_TYPES = [
 ] as const;
 
 /**
- * Every value `tdk resource --type` accepts: the creatable types plus `sdk`, which registers a
+ * Every value `flisk resource --type` accepts: the creatable types plus `sdk`, which registers a
  * package that already exists instead of scaffolding one.
  */
 export const RESOURCE_TYPE_VALUES = [...CREATABLE_RESOURCE_TYPES, "sdk"] as const;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 
@@ -24,14 +24,14 @@ cleanup() {
   status=$?
   trap - EXIT
   if [ "$status" -ne 0 ] && [ -f "$project_dir/up.log" ]; then
-    echo "WSL2 smoke failed; tdk up output:" >&2
+    echo "WSL2 smoke failed; flisk up output:" >&2
     tail -120 "$project_dir/up.log" >&2 || true
   fi
   if [ -n "$tdk_pid" ]; then
     kill "$tdk_pid" 2>/dev/null || true
   fi
   if [ -d "$project_dir" ]; then
-    (cd "$project_dir" && tdk down >/dev/null 2>&1) || true
+    (cd "$project_dir" && flisk down >/dev/null 2>&1) || true
   fi
   if [ "$remove_work_dir" = true ]; then
     rm -rf "$work_dir"
@@ -40,34 +40,34 @@ cleanup() {
 }
 trap cleanup EXIT
 
-tdk project example --path "$project_dir"
+flisk project example --path "$project_dir"
 cd "$project_dir"
-tdk project --yes
+flisk project --yes
 # The default example uses PostgreSQL and NATS; keep optional Infisical resources off.
 sed -i 's/^INFISICAL_ENABLED=.*/INFISICAL_ENABLED=false/' .env
-doctor_output="$(tdk doctor --strict 2>&1)"
+doctor_output="$(flisk doctor --strict 2>&1)"
 printf '%s\n' "$doctor_output"
 ingress_port="$(printf '%s\n' "$doctor_output" | sed -nE 's/.*HTTP ([0-9]+),.*/\1/p' | head -1)"
 if [ -z "$ingress_port" ]; then
-  echo "Could not determine the HTTP ingress port from tdk doctor output" >&2
+  echo "Could not determine the HTTP ingress port from flisk doctor output" >&2
   exit 1
 fi
-tdk config verify
+flisk config verify
 
-tdk up shop >up.log 2>&1 &
+flisk up shop >up.log 2>&1 &
 tdk_pid=$!
 for _ in $(seq 1 75); do
   if grep -q 'Running tilt up' up.log; then break; fi
   if ! kill -0 "$tdk_pid" 2>/dev/null; then
     cat up.log
-    echo "tdk up exited before Tilt started" >&2
+    echo "flisk up exited before Tilt started" >&2
     exit 1
   fi
   sleep 2
 done
 if ! grep -q 'Running tilt up' up.log; then
   tail -120 up.log
-  echo "tdk up did not start Tilt within 150 seconds" >&2
+  echo "flisk up did not start Tilt within 150 seconds" >&2
   exit 1
 fi
 
@@ -105,7 +105,7 @@ check_routed_response() {
 
 check_routed_response 'API health via Traefik' "$api/health" '"ok":true'
 check_routed_response 'Worker readiness via Traefik' "$api/worker-ready" '"ready":true'
-check_routed_response 'Orders app via Traefik' "$app" '<title>TDK Orders</title>'
+check_routed_response 'Orders app via Traefik' "$app" '<title>Flisk Orders</title>'
 
 curl -fsS -X POST "$api" -H 'content-type: application/json' \
   -d '{"item":"WSL2 smoke test"}' -o "${TMPDIR:-/tmp}/tdk-wsl2-order.json"

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
@@ -55,7 +55,7 @@ export const restartCommand = new Command("restart")
           );
           process.exit(1);
         }
-        throw new TdkError(msg, ["Start the stack first with: tdk up"]);
+        throw new TdkError(msg, ["Start the stack first with: flisk up"]);
       }
 
       const result = await runTilt("trigger", [resourceName, "--port", portText], {
@@ -74,7 +74,7 @@ export const restartCommand = new Command("restart")
             );
             process.exit(1);
           }
-          throw new TdkError(msg, ["Start the stack first with: tdk up"]);
+          throw new TdkError(msg, ["Start the stack first with: flisk up"]);
         }
         if (options.json) {
           console.log(

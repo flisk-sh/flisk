@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🏗️ TILT SDK - INFRASTRUCTURE LOADER
@@ -48,7 +48,7 @@ def _docker_compose(compose_paths, env_file, infra):
     """docker_compose() wrapper for a shared platform stack, in its own Compose project.
 
     Without project_name, Compose names the project after the file's directory, so every
-    TDK project on one Docker daemon shares `database-management`, `traefik` and so on.
+    Flisk project on one Docker daemon shares `database-management`, `traefik` and so on.
     Then one project's `up` can recreate or remove another project's services.
     Tilt's builtin rejects env_file=None outright (it type-checks the kwarg as path|string,
     not Optional), so the keyword must be omitted entirely rather than passed as None.
@@ -427,7 +427,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
         fix_docker_networks_fn: Function to fix Docker networks (optional)
         docker_provider: Docker provider struct (optional, for golden image)
         write_fn: File writing function (optional, for golden image)
-        project_root: Path to project root from TDK working directory (optional, e.g., "../../")
+        project_root: Path to project root from Flisk working directory (optional, e.g., "../../")
         env_file: Path to .env file for docker-compose (optional, defaults to project_root + '.env')
     """
     # Initialize networks first
@@ -461,7 +461,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
     # Load environment file for docker-compose variables
     # Use provided env_file or construct default from root_prefix.
     # `docker compose ... --env-file <path>` hard-fails if that path doesn't exist, and
-    # .env is gitignored (with no .env.example shipped) across every TDK example repo, so
+    # .env is gitignored (with no .env.example shipped) across every Flisk example repo, so
     # a fresh clone must fall back to no --env-file flag rather than a dangling path.
     if env_file == None:
         candidate_env_file = root_prefix + '.env' if root_prefix else '.env'

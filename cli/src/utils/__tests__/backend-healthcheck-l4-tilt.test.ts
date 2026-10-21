@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -25,7 +25,7 @@ afterEach(() => {
  * (manifest_resource.star calls Docker.backend with `manifest` but no `port`) and returns its HEALTHCHECK instruction.
  */
 function renderHealthcheck(manifest: Record<string, unknown>) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-l4-healthcheck-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-l4-healthcheck-"));
   dirs.push(project);
   mkdirSync(join(project, "services/app/api"), { recursive: true });
   writeFileSync(

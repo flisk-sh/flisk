@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -59,14 +59,14 @@ describe("doctor's health-route check on the mcp scaffold", () => {
   });
 
   it("finds the /health route in the generated mcp source", () => {
-    root = mkdtempSync(join(tmpdir(), "tdk-mcp-health-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-mcp-health-"));
     mkdirSync(join(root, "src"));
     writeFileSync(join(root, "src", "index.ts"), getMcpIndexTemplate("docs-mcp"));
     expect(findMissingHealthRoutes([resource("docs-mcp", "mcp", root)])).toEqual([]);
   });
 
   it("reports an mcp resource whose source has no /health route", () => {
-    root = mkdtempSync(join(tmpdir(), "tdk-mcp-nohealth-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-mcp-nohealth-"));
     mkdirSync(join(root, "src"));
     writeFileSync(join(root, "src", "index.ts"), "console.log('no routes here');\n");
     expect(findMissingHealthRoutes([resource("docs-mcp", "mcp", root)]).map((m) => m.name)).toEqual(

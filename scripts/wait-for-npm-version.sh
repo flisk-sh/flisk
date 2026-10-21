@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # Wait for an exact package version to become visible through the public npm
 # registry. A successful `npm publish` can precede registry propagation by
@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-package_name="${1:-@tdk-landscape/tdk-cli-core}"
+package_name="${1:-flisk}"
 package_version="${2:?Usage: wait-for-npm-version.sh [package] <version> [timeout-seconds]}"
 timeout_seconds="${3:-900}"
 poll_seconds="${NPM_POLL_SECONDS:-10}"

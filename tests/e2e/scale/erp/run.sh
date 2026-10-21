@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The 100-service fixture bench booted on a clean machine (moved from the retired erp-scale-e2e workflow, #1301). The fixture is
 # tdk-landscape/tdk-erp-system, checked out next to this repository as erp/ (ERP_DIR overrides it). E1 generates the project and
-# runs tdk doctor, E2 runs tdk up and waits for every backend to answer /health through Traefik, E3 writes the report. The
+# runs flisk doctor, E2 runs flisk up and waits for every backend to answer /health through Traefik, E3 writes the report. The
 # workflow runs E1-E3 in one step, so the cases share the project and the timings; diagnostics and cleanup are the workflow's
 # failure and always steps.
 #
@@ -20,25 +20,25 @@ e2e_init erp erp
 DIR="${ERP_DIR:-$REPO_ROOT/erp}"
 RESOURCES=()
 
-E1() { # generate the project from the fixture and check the machine with tdk doctor
-  log "E1 set up the project and check it with tdk doctor"
+E1() { # generate the project from the fixture and check the machine with flisk doctor
+  log "E1 set up the project and check it with flisk doctor"
   cd "$DIR"
-  tdk project --yes
-  tdk doctor
+  flisk project --yes
+  flisk doctor
 }
 
-E2() { # tdk up, then wait for every backend to answer /health (the frontends are reported, not gated)
-  log "E2 tdk up, then wait for every backend to answer /health"
+E2() { # flisk up, then wait for every backend to answer /health (the frontends are reported, not gated)
+  log "E2 flisk up, then wait for every backend to answer /health"
   local SCOPE="${SCOPE:-full}" STACK="${STACK:-finance}" WAIT_MINUTES="${WAIT_MINUTES:-75}"
   cd "$DIR"
   if [ "$SCOPE" = "one-stack" ]; then
-    tdk up "$STACK" > up.log 2>&1 &
+    flisk up "$STACK" > up.log 2>&1 &
   else
-    tdk up > up.log 2>&1 &
+    flisk up > up.log 2>&1 &
   fi
   started="$(date +%s)"
 
-  # tdk up prints the URL of every service it will start, then hands off to Tilt.
+  # flisk up prints the URL of every service it will start, then hands off to Tilt.
   for _ in $(seq 1 90); do
     grep -q "Running tilt up" up.log && break
     sleep 2
@@ -50,7 +50,7 @@ E2() { # tdk up, then wait for every backend to answer /health (the frontends ar
   frontends="$(wc -l < frontend-urls.txt | tr -d ' ')"
   if [ "$total" -eq 0 ]; then
     head -60 up.log
-    echo "::error::tdk up printed no backend URLs"
+    echo "::error::flisk up printed no backend URLs"
     exit 1
   fi
   echo "Waiting for $total backend URLs. $frontends frontend URLs are reported but not gated."
@@ -75,7 +75,7 @@ E2() { # tdk up, then wait for every backend to answer /health (the frontends ar
       docker ps -a --format '{{.Status}}' | sed -E 's/ \(.*\)//; s/^(Up|Exited|Created|Restarting).*/\1/' | sort | uniq -c
       echo "healthy containers: $(docker ps --filter health=healthy -q | wc -l)  unhealthy: $(docker ps --filter health=unhealthy -q | wc -l)"
       echo "images: $(docker images -q | sort -u | wc -l)"
-      echo "-- tdk up log (last 5 lines):"
+      echo "-- flisk up log (last 5 lines):"
       tail -5 up.log
       echo "::endgroup::"
       bad="$(tilt get uiresources -o json 2>/dev/null | jq -r '[.items[] | select(.status.updateStatus == "error") | .metadata.name] | join(",")' || true)"
@@ -108,7 +108,7 @@ E3() { # the report: CLI version, runner size, timings, frontends, containers, m
     echo ""
     echo "| | |"
     echo "|---|---|"
-    echo "| CLI | \`$(tdk --version)\` |"
+    echo "| CLI | \`$(flisk --version)\` |"
     echo "| Runner | $(nproc) vCPU, $(free -g | awk '/Mem:/{print $2}') GB RAM |"
     echo "| Backends healthy | **${backends_total} / ${backends_total}** through Traefik |"
     echo "| Time to all backends healthy | **${all_healthy_seconds}s** (includes building every image) |"
@@ -123,7 +123,7 @@ E3() { # the report: CLI version, runner size, timings, frontends, containers, m
 # The workflow's diagnostics on failure: what a person would look at first when the boot does not finish.
 e2e_diagnostics() {
   cd "$DIR" 2>/dev/null || return 0
-  echo "::group::tdk up log (last 200 lines)"
+  echo "::group::flisk up log (last 200 lines)"
   tail -200 up.log 2>/dev/null || true
   echo "::endgroup::"
   echo "::group::containers that are not healthy"
@@ -137,12 +137,12 @@ e2e_diagnostics() {
   df -h /
   docker system df || true
   echo "::endgroup::"
-  echo "::group::tdk doctor"
-  tdk doctor || true
+  echo "::group::flisk doctor"
+  flisk doctor || true
   echo "::endgroup::"
 }
 
-# The workflow's tdk down. The fixture is a checkout, so it stays on disk; only the stack goes.
-e2e_cleanup() { (cd "$DIR" && tdk down || true); }
+# The workflow's flisk down. The fixture is a checkout, so it stays on disk; only the stack goes.
+e2e_cleanup() { (cd "$DIR" && flisk down || true); }
 
 e2e_main "$@"

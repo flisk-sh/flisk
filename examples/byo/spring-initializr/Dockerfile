@@ -15,5 +15,5 @@ COPY --from=build /work/target/app-*.jar /app/app.jar
 RUN groupadd --gid 1001 app && useradd --uid 1001 --gid app --no-create-home app
 USER app
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD bash -c "exec 3<>/dev/tcp/127.0.0.1/${PORT:-8080}" || exit 1
-# Spring binds all interfaces by default; the port comes from SERVER_PORT, which we set from TDK's PORT.
+# Spring binds all interfaces by default; the port comes from SERVER_PORT, which we set from Flisk's PORT.
 CMD ["sh", "-c", "SERVER_PORT=${PORT:-8080} exec java -jar /app/app.jar"]

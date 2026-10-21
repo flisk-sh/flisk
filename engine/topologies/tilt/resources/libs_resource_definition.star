@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📦 TILT SDK - LIBRARY RESOURCE DEFINITION
@@ -94,7 +94,7 @@ def define_library_resource(ctx, name, path, labels, internal_deps=None, consume
         or global_config.get('verdaccio_url_local')
         or PlatformDockerConstants.VERDACCIO_URL_DOCKER
     )
-    internal_scope = ctx.get('internal_scope', '@tdk/')
+    internal_scope = ctx.get('internal_scope', '@flisk/')
     pkg_name = internal_scope + name
 
     if write_fn and generate_vite_fn:

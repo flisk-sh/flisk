@@ -13,9 +13,9 @@ services in the scale benchmark as business services.
 - Confirm that the project defines readiness checks for its actual dependencies and application
   behavior. A process-only `/health` endpoint is not sufficient evidence that checkout or workers
   work.
-- Record runner type, CPU architecture, available memory, TDK version, commit, Docker Engine,
+- Record runner type, CPU architecture, available memory, Flisk version, commit, Docker Engine,
   Compose, Tilt, and Bun versions.
-- Do not run another TDK landscape on the same host during the measurement.
+- Do not run another Flisk landscape on the same host during the measurement.
 
 ## Run
 
@@ -25,14 +25,14 @@ From the project root, run:
 bash scripts/cold-boot-notes.sh . shop
 ```
 
-The script records environment versions, runs `tdk doctor`, times `tdk up shop` until TDK reports
-that Tilt is up, then polls `tdk doctor` until project checks and service health pass. It writes a
-Markdown record in `cold-boot-results/` and stops the stack with `tdk down` when complete. A failed
+The script records environment versions, runs `flisk doctor`, times `flisk up shop` until Flisk reports
+that Tilt is up, then polls `flisk doctor` until project checks and service health pass. It writes a
+Markdown record in `cold-boot-results/` and stops the stack with `flisk down` when complete. A failed
 or timed-out check is retained in the record; do not replace it with an estimated result.
 
 ## Report interpretation
 
-The timed interval includes TDK preflight, Tilt startup, image builds and application readiness. It
-does not isolate image-build time from service startup time. Preserve the raw TDK and doctor logs
+The timed interval includes Flisk preflight, Tilt startup, image builds and application readiness. It
+does not isolate image-build time from service startup time. Preserve the raw Flisk and doctor logs
 alongside the record when investigating failures. Repeat on another fresh runner before presenting
 a single run as representative. Report warm-cache runs separately.

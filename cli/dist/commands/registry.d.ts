@@ -10,5 +10,5 @@
  * there is no cycle between the two.
  */
 import type { Command } from "commander";
-/** Every command the CLI registers, in the order `tdk --help` lists them. */
+/** Every command the CLI registers, in the order `flisk --help` lists them. */
 export declare function getRegisteredCommands(): readonly Command[];

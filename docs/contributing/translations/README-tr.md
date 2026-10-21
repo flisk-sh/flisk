@@ -1,4 +1,4 @@
-# TDK'ye ilk katkınız
+# Flisk'ye ilk katkınız
 
 [English](../README.md) | Türkçe
 
@@ -17,10 +17,10 @@ Tüm depoyu anlamanıza gerek yok. Küçük bir değişiklik seçin, ilgili rehb
 | Bir CLI komutunu düzeltmek veya seçenek eklemek | [CLI rehberi](02-feature-recipes-tr.md) |
 | Vue gibi bir frontend framework eklemek | [Frontend provider rehberi](../../frontend-framework-providers.md) |
 | Bir veritabanı veya altyapı aracı eklemek | [Veritabanı ve araç rehberi](02-feature-recipes-tr.md) |
-| TDK'nın servisleri nasıl bulduğunu veya yapılandırmaları nasıl ürettiğini değiştirmek | [Engine ve keşif rehberi](02-feature-recipes-tr.md) |
+| Flisk'nın servisleri nasıl bulduğunu veya yapılandırmaları nasıl ürettiğini değiştirmek | [Engine ve keşif rehberi](02-feature-recipes-tr.md) |
 | Metin, bağlantı veya yazım hatasını düzeltmek | [Dokümantasyon rehberi](02-feature-recipes-tr.md) |
-| Kod gerektirmeden TDK'yı veya bir örneği deneyip sonucu bildirmek | [Dene ve bildir](try-and-report-tr.md) |
-| Kod gerektirmeden hata bulup bildirmek | [TDK'de hata bulma](../finding-bugs.md) |
+| Kod gerektirmeden Flisk'yı veya bir örneği deneyip sonucu bildirmek | [Dene ve bildir](try-and-report-tr.md) |
+| Kod gerektirmeden hata bulup bildirmek | [Flisk'de hata bulma](../finding-bugs.md) |
 | Başkasının pull request'ini incelemek | [PR incelemesi](04-review-a-pr-tr.md) |
 
 ## Tüm süreç
@@ -33,8 +33,8 @@ Tüm depoyu anlamanıza gerek yok. Küçük bir değişiklik seçin, ilgili rehb
 
 **Kodun nerede olduğunu bilmiyor musunuz?** Gördüğünüz komutu, yapılandırma anahtarını, üretilen dosya adını veya servis adını depoda arayın, sonra testlerini bulun. Hâlâ emin değilseniz büyük bir değişiklikten önce issue açıp sorun.
 
-**Kullanıcıya dönük bir sözleşmeyi veya TDK'nın birden fazla bölümünü mi değiştiriyorsunuz?** Kod yazmadan önce [OpenSpec rehberini](01-first-change-tr.md) izleyin. Küçük yazım ve dokümantasyon düzeltmeleri için teklif gerekmez.
+**Kullanıcıya dönük bir sözleşmeyi veya Flisk'nın birden fazla bölümünü mi değiştiriyorsunuz?** Kod yazmadan önce [OpenSpec rehberini](01-first-change-tr.md) izleyin. Küçük yazım ve dokümantasyon düzeltmeleri için teklif gerekmez.
 
 ## Yardıma mı ihtiyacınız var?
 
-Ne denediğinizi, ne beklediğinizi ve ne olduğunu yazarak [bir issue açın](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose). Soru sormadan önce sorunu çözmeniz gerekmez.
+Ne denediğinizi, ne beklediğinizi ve ne olduğunu yazarak [bir issue açın](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose). Soru sormadan önce sorunu çözmeniz gerekmez.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Turns published dependency advisories into contributor-ready GitHub issues.
 //
@@ -24,7 +24,7 @@ export const MANAGED_LABEL = "security-alert";
 
 // Hidden marker in the issue body. The alert number is the identity: an alert that
 // reopens after a dismissal keeps the same number, so it maps back to the same issue.
-export const MARKER_PREFIX = "<!-- tdk:security-alert:";
+export const MARKER_PREFIX = "<!-- flisk:security-alert:";
 export const MARKER_SUFFIX = " -->";
 
 // Labels with a fixed meaning, created when missing.
@@ -83,7 +83,7 @@ export function markerFor(source, number) {
 
 /** The alert a body belongs to, or null when the body carries no marker. */
 export function parseMarker(body) {
-	const match = /<!-- tdk:security-alert:([a-z-]+):(\d+) -->/.exec(body ?? "");
+	const match = /<!-- flisk:security-alert:([a-z-]+):(\d+) -->/.exec(body ?? "");
 	if (!match) return null;
 	return { source: match[1], number: Number(match[2]) };
 }
@@ -619,7 +619,7 @@ function closeIssue(repo, issue) {
 function parseArgs(argv) {
 	const out = {
 		dryRun: false,
-		repo: process.env.GITHUB_REPOSITORY ?? "tdk-landscape/tdk-cli-core",
+		repo: process.env.GITHUB_REPOSITORY ?? "flisk-sh/tdk-cli-core",
 	};
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];

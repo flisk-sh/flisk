@@ -4,7 +4,7 @@ The BYO resource command accepts `--port`, but the generated service configurati
 
 ## What Changes
 
-- Make `tdk resource <name> --type byo --port <port>` persist and report the requested port.
+- Make `flisk resource <name> --type byo --port <port>` persist and report the requested port.
 - Preserve the existing BYO port validation errors and the supported range of 4000–5999.
 - Add focused command tests for the accepted custom port and existing invalid-port behavior.
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { relative } from "node:path";
 import chalk from "chalk";
@@ -109,7 +109,7 @@ export function checkCircularDependencies(
   };
 }
 
-/** A port outside 1-65535 can never be bound, and `tdk up` would otherwise find out only when Docker fails. */
+/** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export function checkServicePorts(
   projectRoot = findProjectRoot() ?? process.cwd(),
   resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
@@ -136,7 +136,7 @@ export function checkServicePorts(
 
 /**
  * A service.json with no schemaVersion is how every project began, so this is a warning: it keeps working, and only
- * `tdk config migrate` writes the field. A version this tdk does not know is reported the same way, with a different fix.
+ * `flisk config migrate` writes the field. A version this flisk does not know is reported the same way, with a different fix.
  */
 export function checkSchemaVersions(
   projectRoot = findProjectRoot() ?? process.cwd(),
@@ -152,7 +152,7 @@ export function checkSchemaVersions(
     if (version === undefined) missing.push(`${file} schemaVersion: missing`);
     else
       unsupported.push(
-        `${file} schemaVersion ${JSON.stringify(version)}: this tdk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`,
+        `${file} schemaVersion ${JSON.stringify(version)}: this flisk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`,
       );
   }
 
@@ -164,9 +164,9 @@ export function checkSchemaVersions(
     };
   }
   const fixes = [
-    ...(missing.length > 0 ? ["Run `tdk config migrate` to add the missing schemaVersion"] : []),
+    ...(missing.length > 0 ? ["Run `flisk config migrate` to add the missing schemaVersion"] : []),
     ...(unsupported.length > 0
-      ? ["A version this tdk does not support cannot be migrated: upgrade tdk"]
+      ? ["A version this flisk does not support cannot be migrated: upgrade flisk"]
       : []),
   ];
   return {

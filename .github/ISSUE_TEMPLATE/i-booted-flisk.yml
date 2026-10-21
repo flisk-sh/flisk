@@ -1,5 +1,5 @@
-name: I booted TDK
-description: Share evidence from your first TDK run
+name: I booted Flisk
+description: Share evidence from your first Flisk run
 title: "boot: "
 labels: ["show-and-tell"]
 body:
@@ -13,8 +13,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: tdk --version
-      placeholder: Output of `tdk --version`
+      label: flisk --version
+      placeholder: Output of `flisk --version`
     validations:
       required: true
   - type: input

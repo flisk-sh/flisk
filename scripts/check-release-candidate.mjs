@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // The publish gate in release-binaries.yml (#1627). A release may publish only a commit that a passing Release candidate
 // (release-candidate.yml) has checked. The exact commit is the first choice. When the release commit has moved on from the

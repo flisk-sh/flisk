@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 """
 🧪 Tests for resource_snapshot.py
@@ -55,7 +55,7 @@ class TestSaveSnapshot:
             assert "timestamp" in data
     
     def test_save_creates_directory(self, temp_workspace):
-        """Test that save_snapshot creates the .tdk directory if needed."""
+        """Test that save_snapshot creates the .flisk directory if needed."""
         services = ["services/test/service.json"]
         save_snapshot(services)
         

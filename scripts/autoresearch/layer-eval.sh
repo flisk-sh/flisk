@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # Ground-truth evaluation for L1-L4 layer experiments. DO NOT EDIT during an autoresearch run.
 # Re-vendors this engine into the ERP project, regenerates Dockerfiles through Tilt, rebuilds the
@@ -9,12 +9,12 @@ set -uo pipefail
 CORE="$(cd "$(dirname "$0")/../.." && pwd)"
 ERP="${TDK_BENCH_PROJECT:-$CORE/../tdk-erp-system}"
 SAMPLE="${LAYER_EVAL_SAMPLE:-20}"
-TDK_CLI="${TDK_CLI:-$CORE/cli/bin/tdk.js}"
+TDK_CLI="${TDK_CLI:-$CORE/cli/bin/flisk.js}"
 PREFIX="$(python3 -c "import json;print(json.load(open('$ERP/.tdk/project.json'))['project']['name'])")"
 t() { date +%s; }
 
 cd "$ERP"
-TDK_EXTENSION_SOURCE="$CORE" node "$TDK_CLI" project --yes >/dev/null 2>&1 || { echo "status: crash (tdk project)"; exit 1; }
+TDK_EXTENSION_SOURCE="$CORE" node "$TDK_CLI" project --yes >/dev/null 2>&1 || { echo "status: crash (flisk project)"; exit 1; }
 tilt alpha tiltfile-result -f .tdk/.tdk-out/Tiltfile >/dev/null 2>&1 || { echo "status: crash (Tiltfile evaluation)"; exit 1; }
 
 s=$(t)

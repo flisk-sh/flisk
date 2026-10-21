@@ -2,9 +2,9 @@
 
 - [x] 1.1 Confirm `beauty-crm/cli/` is not listed in `beauty-crm/package.json` workspaces
 - [x] 1.2 Confirm no CI/CD or scripts reference `beauty-crm/cli/` as a build path
-- [x] 1.3 Verify `beauty-crm/cli/package.json` name is `@tdk-landscape/tdk-cli-core` (not `@beauty-crm/cli`)
+- [x] 1.3 Verify `beauty-crm/cli/package.json` name is `flisk` (not `@beauty-crm/cli`)
 - [x] 1.4 Verify `tdk-cli/cli/` has superset of files vs `beauty-crm/cli/` (72 vs 26 source files)
-- [x] 1.5 Check `beauty-crm/bun.lock` does NOT lock `@tdk-landscape/tdk-cli-core` to a `file:cli` path
+- [x] 1.5 Check `beauty-crm/bun.lock` does NOT lock `flisk` to a `file:cli` path
 - [x] 1.6 Check `.tilt-engine/` and `Tiltfile` for any references to `beauty-crm/cli/`
 
 ## 2. CLI Duplicate — Remove

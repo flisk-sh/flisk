@@ -9,7 +9,7 @@
 
 - [x] 2.1 Confirmed core 1.3.104 is the first released version containing `buildContext` from tdk-cli-core#525.
 - [x] 2.2 Updated the importer README with the command and core 1.3.104-or-later prerequisite; no binary version detection was added.
-- [x] 2.3 Added `docs/operator-runbook.md` with the same command and prerequisite, gated `tdk up` on a compatible core.
+- [x] 2.3 Added `docs/operator-runbook.md` with the same command and prerequisite, gated `flisk up` on a compatible core.
 - [x] 2.4 Confirmed npm latest is still 0.1.0 and documented that the importer workflow must wait for a package containing tdk-import#9.
 
 ## 3. Skip unbuildable Procfile processes

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { delimiter, extname } from "node:path";
 export function isWindows() {
@@ -33,13 +33,17 @@ export function binaryAssetNameFor(platformName, architecture) {
         return null;
     if (osName === "windows" && archName !== "amd64")
         return null;
-    const base = `tdk-${osName}-${archName}`;
+    const base = `flisk-${osName}-${archName}`;
     return osName === "windows" ? `${base}.exe` : base;
 }
 export function binaryAssetName() {
     return binaryAssetNameFor(process.platform, process.arch);
 }
 export function executableName() {
+    return isWindows() ? "flisk.exe" : "flisk";
+}
+/** Installs published before the Flisk rename shipped the binary as `tdk`. */
+export function legacyExecutableName() {
     return isWindows() ? "tdk.exe" : "tdk";
 }
 export function pathLookups(binName, windows = isWindows()) {

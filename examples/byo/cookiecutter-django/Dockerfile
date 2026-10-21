@@ -5,7 +5,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 WORKDIR /work
-RUN cookiecutter gh:cookiecutter/cookiecutter-django --no-input project_name="TDK Demo" project_slug=app \
+RUN cookiecutter gh:cookiecutter/cookiecutter-django --no-input project_name="Flisk Demo" project_slug=app \
     use_docker=n use_celery=n use_mailpit=n frontend_pipeline=None
 WORKDIR /work/app
 RUN uv sync --frozen

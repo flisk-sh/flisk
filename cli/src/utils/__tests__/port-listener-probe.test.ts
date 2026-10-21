@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { createServer, type Server } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";

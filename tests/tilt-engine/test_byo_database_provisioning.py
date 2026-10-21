@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 """
 Bring-your-own resources receive DATABASE_URL (docs/byo.md), so their stack database must be provisioned like a

@@ -1,6 +1,6 @@
 ---
 disable: false
-description: Topology specialist for TDK Landscape - expert in Tilt/Starlark, manifest-driven architecture, service discovery, and the complete local development orchestration system. Masters the infrastructure topology that enables 120+ services.
+description: Topology specialist for Flisk - expert in Tilt/Starlark, manifest-driven architecture, service discovery, and the complete local development orchestration system. Masters the infrastructure topology that enables 120+ services.
 mode: subagent
 tools:
   - write
@@ -13,7 +13,7 @@ created: 2026-03-31
 updated: 2026-04-04
 ---
 
-You are a senior topology engineer specialized in the TDK Landscape Tilt infrastructure. You are the definitive expert on the manifest-driven architecture, Starlark topology modules, service discovery, and the complete local development orchestration system.
+You are a senior topology engineer specialized in the Flisk Tilt infrastructure. You are the definitive expert on the manifest-driven architecture, Starlark topology modules, service discovery, and the complete local development orchestration system.
 
 ## Core Identity: The Infrastructure Cartographer
 
@@ -230,7 +230,7 @@ def generate_backend(path, prisma_path, write_fn, internal_deps, is_docker):
 def generate_app_dockerfile(path, resource_name, start_command):
     return '''
 # L1: Golden Image Base
-FROM tdk/golden-image-l1:latest AS base
+FROM flisk/golden-image-l1:latest AS base
 
 # L2: Dependency Installation
 FROM base AS deps
@@ -340,13 +340,13 @@ def generate_traefik_labels(resource_name, port, host, path_prefix):
 ```starlark
 # engine/topologies/tilt/resources/deps.star
 def discover_resource_libraries(ctx, resource_path):
-    """Discovers @tdk/* dependencies from package.json"""
+    """Discovers @flisk/* dependencies from package.json"""
     package_json = read_json(resource_path + "/package.json")
     deps = package_json.get("dependencies", {})
     
     return [
         name for name in deps.keys()
-        if name.startswith("@tdk/")
+        if name.startswith("@flisk/")
     ]
 
 def setup_libraries(ctx, should_enable, DDD_LIBS, PLATFORM_LIBS, PRODUCT_LIBS, generators):
@@ -539,7 +539,7 @@ load('./my_custom_extension.star', 'my_function')
 # Load from parent directory
 load('../common/utils.star', 'helper')
 
-# Load from topologies (TDK Landscape pattern)
+# Load from topologies (Flisk pattern)
 load('../../../platform/docker/index.star', 'Docker')
 ```
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -30,7 +30,7 @@ function linkHosts(text) {
   });
 }
 
-const url = "https://github.com/tdk-landscape/tdk-cli-core/issues/123";
+const url = "https://github.com/flisk-sh/tdk-cli-core/issues/123";
 
 const featureBody = [
   "### Is this a local-development or cluster-deployment request?",
@@ -45,11 +45,11 @@ const featureBody = [
 const bugBody = [
   "### What happened?",
   "",
-  "`tdk up` failed.",
+  "`flisk up` failed.",
   "",
   "### Steps to reproduce",
   "",
-  "1. tdk up api",
+  "1. flisk up api",
 ].join("\n");
 
 const docsBody = [
@@ -75,7 +75,7 @@ const bootBody = [
   "",
   "### Commands you ran",
   "",
-  "tdk project --yes",
+  "flisk project --yes",
 ].join("\n");
 
 const weUseBody = [
@@ -93,7 +93,7 @@ const premiumBody = [
   "",
   "- Sablier",
   "",
-  "### What are you building with TDK?",
+  "### What are you building with Flisk?",
   "",
   "Internal platform.",
 ].join("\n");
@@ -171,7 +171,7 @@ describe("resolveKind", () => {
       "### What happened?",
       "",
       "Mentioned that I would like to know how ports work,",
-      "and also what are you building with TDK? as a joke.",
+      "and also what are you building with Flisk? as a joke.",
     ].join("\n");
     assert.equal(resolveKind(body, "", "T"), "primitive");
   });
@@ -180,9 +180,9 @@ describe("resolveKind", () => {
 describe("buildButtonsHtml", () => {
   it("uses shared circle SVGs on main, tool-name alt text, one-line query", () => {
     const html = buildButtonsHtml("openspec", url);
-    assert.equal(BADGE_URLS.grok, "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges/grok.svg");
-    assert.equal(BADGE_URLS.claude, "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges/claude.svg");
-    assert.equal(BADGE_URLS.codex, "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges/codex.svg");
+    assert.equal(BADGE_URLS.grok, "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges/grok.svg");
+    assert.equal(BADGE_URLS.claude, "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges/claude.svg");
+    assert.equal(BADGE_URLS.codex, "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges/codex.svg");
     assert.ok(html.includes("[![Grok]("));
     assert.ok(html.includes("[![Claude]("));
     assert.ok(html.includes("[![Codex]("));

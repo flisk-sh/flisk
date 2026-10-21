@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -265,7 +265,7 @@ const IN_PROCESS_TARGETS: Record<string, { command: Command; args: string[] }> =
 
 describe("flag contract: --json", () => {
   it.each(JSON_MATRIX)(
-    "tdk $command --json prints one envelope in a project",
+    "flisk $command --json prints one envelope in a project",
     async ({ command, project }) => {
       // In-project rows run the command object in-process: the envelope is printed by the command itself, so the
       // child process adds no coverage here. Outside-project rows stay spawns, because they exercise the top-level handler.
@@ -280,7 +280,7 @@ describe("flag contract: --json", () => {
   );
 
   it.each(JSON_MATRIX)(
-    "tdk $command --json outside a project fails with a null-data envelope",
+    "flisk $command --json outside a project fails with a null-data envelope",
     ({ command }) => {
       const result = runTdk([...command, "--json"], { cwd: createTempDir() });
       expect(result.status).toBe(1);
@@ -357,7 +357,7 @@ const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
 
 describe("flag contract: --dry-run", () => {
   it.each(DRY_RUN_MATRIX)(
-    "tdk $site prints its plan and writes nothing",
+    "flisk $site prints its plan and writes nothing",
     async ({ command, project, expect: line }) => {
       const root = createTempProject(project);
       const before = snapshotTree(root);
@@ -374,7 +374,7 @@ describe("flag contract: --dry-run", () => {
 
 describe("flag contract: --yes", () => {
   it.each(YES_MATRIX)(
-    "tdk $site runs without a prompt when stdin is closed",
+    "flisk $site runs without a prompt when stdin is closed",
     ({ command, project }) => {
       const root = createTempProject(project);
       const result = runTdk([...command, "--yes"], { cwd: root, input: "", timeout: 60_000 });

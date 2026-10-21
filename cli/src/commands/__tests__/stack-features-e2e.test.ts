@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -7,13 +7,13 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// These spawn `tdk project` per test; the 5s default times out when the whole suite runs in parallel.
+// These spawn `flisk project` per test; the 5s default times out when the whole suite runs in parallel.
 vi.setConfig({ testTimeout: 60_000 });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function runTdk(args: string[], cwd: string): string {
   return execFileSync("bun", [cliBin, ...args], {
@@ -36,7 +36,7 @@ describe("stack feature E2E", () => {
   });
 
   it("generates database-management compose from pre_alpha services", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-feature-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-feature-"));
 
     const output = runTdk(["project", "--yes"], projectRoot);
     expect(output).toContain("Generated: services/platform/database-management/docker-compose.yml");
@@ -61,7 +61,7 @@ describe("stack feature E2E", () => {
     expect(compose).toContain(
       'Source: .tdk/project.json phases.*.enabledStacks includes "database-management"',
     );
-    expect(compose).toContain("container_name: tdk_stack_feature_");
+    expect(compose).toContain("container_name: flisk_stack_feature_");
     expect(compose).toContain("_postgres");
     expect(compose).toContain("_database");
     expect(compose).toContain("$" + "{TDK_POSTGRES_PORT:-15432}:5432");
@@ -75,7 +75,7 @@ describe("stack feature E2E", () => {
   });
 
   it("does not keep database-management enabled after it leaves stack services", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-feature-off-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-feature-off-"));
     runTdk(["project", "--yes"], projectRoot);
 
     const projectJsonPath = join(projectRoot, ".tdk", "project.json");
@@ -93,7 +93,7 @@ describe("stack feature E2E", () => {
   });
 
   it("dedupes a duplicated service name in project.json instead of emitting a duplicate Starlark key", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-feature-dupe-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-feature-dupe-"));
     runTdk(["project", "--yes"], projectRoot);
 
     const projectJsonPath = join(projectRoot, ".tdk", "project.json");
@@ -109,7 +109,7 @@ describe("stack feature E2E", () => {
   });
 
   it("adds newly discovered unassigned service stacks to pre_alpha on regeneration", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-discovery-sync-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-discovery-sync-"));
     runTdk(["project", "--yes"], projectRoot);
 
     const serviceDir = join(projectRoot, "services", "billing", "checkout-app");

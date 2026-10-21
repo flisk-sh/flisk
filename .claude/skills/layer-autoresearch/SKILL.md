@@ -1,6 +1,6 @@
 ---
 name: layer-autoresearch
-description: Autonomous keep/discard experiment loop (after karpathy/autoresearch) that optimises TDK's L1-L4 Docker layers toward the north star of 100 services on a 16 GB machine. Use when asked to run autoresearch on the Docker layers or to optimise the golden/runtime layers experimentally.
+description: Autonomous keep/discard experiment loop (after karpathy/autoresearch) that optimises Flisk's L1-L4 Docker layers toward the north star of 100 services on a 16 GB machine. Use when asked to run autoresearch on the Docker layers or to optimise the golden/runtime layers experimentally.
 license: MIT
 compatibility: Contributor skill. Requires a tdk-cli-core checkout, Docker and git. Does not deploy.
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Layer autoresearch
 
-Adapted from karpathy/autoresearch `program.md`. You are an autonomous researcher making the TDK runtime layers cheaper **without removing features**.
+Adapted from karpathy/autoresearch `program.md`. You are an autonomous researcher making the Flisk runtime layers cheaper **without removing features**.
 
 ## Setup (with the user, once)
 
@@ -19,7 +19,7 @@ Adapted from karpathy/autoresearch `program.md`. You are an autonomous researche
 3. Read the in-scope files in full:
    - Editable: `engine/topologies/platform/docker/layers/*.star`, `engine/topologies/platform/docker/layers/prisma/*.star`, `engine/topologies/platform/docker/build/golden_image_dockerfile.star`, `engine/topologies/platform/docker/config/healthcheck.star`.
    - Read-only ground truth: `scripts/autoresearch/layer-eval.sh`, `scripts/benchmark/container-scale.ts`, `tests/tilt-engine/test_runtime_container_footprint.py`, and the spec `openspec/specs/runtime-container-footprint` (or its change under `openspec/changes/`).
-4. Check that `../tdk-erp-system` exists with built images (`docker images | grep finance_`). If not, ask the human to run `tdk up` there once.
+4. Check that `../tdk-erp-system` exists with built images (`docker images | grep finance_`). If not, ask the human to run `flisk up` there once.
 5. Create an untracked `autoresearch-results.tsv` with the header `commit	mem_mib	image_mib	status	description`.
 6. Confirm with the user, then start.
 

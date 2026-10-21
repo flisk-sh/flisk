@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -28,7 +28,7 @@ function linkHosts(text) {
   });
 }
 
-const url = "https://github.com/tdk-landscape/tdk-cli-core/pull/645";
+const url = "https://github.com/flisk-sh/tdk-cli-core/pull/645";
 
 describe("closingIssue", () => {
   it("reads the first closing reference", () => {

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -9,7 +9,7 @@ export function usesSharedPostgres(resource) {
     const config = resource.config;
     if (!config)
         return false;
-    // service.json is not type-checked here, so a malformed value must not throw inside `tdk status`.
+    // service.json is not type-checked here, so a malformed value must not throw inside `flisk status`.
     if (Array.isArray(config.featuresEnabled) &&
         config.featuresEnabled.includes(DATABASE_MANAGEMENT_FEATURE))
         return true;

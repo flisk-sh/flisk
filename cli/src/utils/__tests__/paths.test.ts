@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,7 +11,7 @@ describe("findProjectRoot", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "tdk-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "flisk-test-"));
   });
 
   afterEach(() => {
@@ -43,7 +43,7 @@ describe("findProjectRoot", () => {
     expect(root).toBeNull();
   });
 
-  it("should return null when .tdk directory exists but no project.json inside", () => {
+  it("should return null when .flisk directory exists but no project.json inside", () => {
     mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
 
     const root = findProjectRoot(tmpDir);
@@ -55,7 +55,7 @@ describe("findProjectRoot", () => {
     expect(root).toBeNull();
   });
 
-  it("should handle when .tdk is a regular file instead of a directory", () => {
+  it("should handle when .flisk is a regular file instead of a directory", () => {
     writeFileSync(join(tmpDir, ".tdk"), "regular file");
 
     const root = findProjectRoot(tmpDir);
@@ -109,8 +109,8 @@ describe("findProjectRoot", () => {
     }
   });
 
-  it("should not confuse .tdk directory outside project root", () => {
-    const outerDir = mkdtempSync(join(tmpdir(), "tdk-outer-"));
+  it("should not confuse .flisk directory outside project root", () => {
+    const outerDir = mkdtempSync(join(tmpdir(), "flisk-outer-"));
     try {
       mkdirSync(join(outerDir, ".tdk"), { recursive: true });
       writeFileSync(join(outerDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
@@ -153,7 +153,7 @@ describe("findProjectRoot", () => {
     expect(root).toBe(tmpDir);
   });
 
-  it("should work when .tdk is a symlink to another directory", () => {
+  it("should work when .flisk is a symlink to another directory", () => {
     const realTdkDir = join(tmpDir, "real-tdk");
     mkdirSync(realTdkDir, { recursive: true });
     writeFileSync(join(realTdkDir, "project.json"), JSON.stringify({ version: "2" }));
@@ -168,7 +168,7 @@ describe("findProjectRoot", () => {
     }
   });
 
-  it("should find project root even when there are multiple .tdk directories in the path", () => {
+  it("should find project root even when there are multiple .flisk directories in the path", () => {
     // Create a .tdk/project.json in a parent and child
     mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
     writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));

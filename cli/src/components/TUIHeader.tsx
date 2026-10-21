@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { Box, Text } from "ink";
 import type React from "react";
@@ -22,8 +22,8 @@ export const TUIHeader: React.FC<TUIHeaderProps> = ({
   const theme = useTUITheme();
   const compact = terminalWidth < 80;
   const title = compact
-    ? `TDK v${version}`
-    : `${theme.bannerStart} TDK NEON EDITION v${version} ${theme.bannerEnd}`;
+    ? `Flisk v${version}`
+    : `${theme.bannerStart} Flisk NEON EDITION v${version} ${theme.bannerEnd}`;
   const resourceLabel = `${resourceCount} resource${resourceCount === 1 ? "" : "s"} discovered`;
   const paddingX = terminalWidth >= 28 ? 1 : 0;
   const contentWidth = Math.max(1, terminalWidth - paddingX * 2);

@@ -3,7 +3,7 @@
 ## 1. Dev Container configuration
 - [x] 1.1 Add `.devcontainer/devcontainer.json` based on an official Node 22 image, installing Bun and running `bun install` at the repository root in `postCreateCommand`
 - [x] 1.2 Include a minimal set of useful VS Code extensions (Biome, TypeScript)
-- [ ] 1.3 (Optional) Add a second configuration or documented override that enables Docker-in-Docker and Tilt for contributors who need to try `tdk up`; keep the default light
+- [ ] 1.3 (Optional) Add a second configuration or documented override that enables Docker-in-Docker and Tilt for contributors who need to try `flisk up`; keep the default light
 
 ## 2. Verification
 - [x] 2.1 Open the repository in a real Codespaces instance (or “Dev Containers: Reopen in Container”) and confirm the post-create install succeeds

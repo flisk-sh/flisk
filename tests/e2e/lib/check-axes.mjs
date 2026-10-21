@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Checks tests/e2e/axes.json (#1291, tracker #1279): every value an axis can take in cli/ has a leg or an allowlist entry
 // with an issue link, every leg names a suite that exists, and interactions name known axes. A source value that is missing

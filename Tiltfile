@@ -1,5 +1,5 @@
 # =============================================================================
-# 🎯 TDK CLI - Combined Tilt Development Kit
+# 🎯 Flisk CLI - Combined Tilt Development Kit
 # =============================================================================
 # This is the unified Tiltfile entry point for tdk-cli.
 # It combines: engine, discovery, specs, and ext into one repository.

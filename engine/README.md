@@ -4,7 +4,7 @@
 
 **Tilt Platform Framework Code**
 
-This directory contains the TDK Landscape Tilt infrastructure framework - the code that powers our local development orchestration.
+This directory contains the Flisk Tilt infrastructure framework - the code that powers our local development orchestration.
 
 ## What's Here
 

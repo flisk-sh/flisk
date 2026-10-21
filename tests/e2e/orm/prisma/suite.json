@@ -1,7 +1,7 @@
 {
   "group": "orm",
   "suite": "prisma",
-  "description": "The prisma feature (tdk resource --feature prisma, the only ORM the CLI supports) on a live stack: scaffold a backend with the feature, tdk up (the migrator runs prisma migrate deploy and the API waits for it), check DATABASE_URL is in the API container, and a routed health check that queries Postgres through DATABASE_URL. Replaces the #1291 allowlist entry for feature prisma in tests/e2e/axes.json (#1487, tracker #1279).",
+  "description": "The prisma feature (flisk resource --feature prisma, the only ORM the CLI supports) on a live stack: scaffold a backend with the feature, flisk up (the migrator runs prisma migrate deploy and the API waits for it), check DATABASE_URL is in the API container, and a routed health check that queries Postgres through DATABASE_URL. Replaces the #1291 allowlist entry for feature prisma in tests/e2e/axes.json (#1487, tracker #1279).",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/utils/resource-features.ts",

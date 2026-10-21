@@ -4,18 +4,18 @@
 
 你不需要了解整個儲存庫。選一個小改動，依照對應的指南操作。如果某一步不清楚，請在 issue 中提問。
 
-以下步驟只需做一次，用於安裝 TDK CLI 及其檢查所需的工具。
+以下步驟只需做一次，用於安裝 Flisk CLI 及其檢查所需的工具。
 
 ## 最快的方式：Dev Container / Codespaces
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tdk-landscape/tdk-cli-core?quickstart=1)
-[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-blue?logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-908a00?logo=gitpod)](https://gitpod.io/#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-4285F4?logo=firebase)](https://idx.google.com/import?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-F26207?logo=replit)](https://replit.com/github/tdk-landscape/tdk-cli-core)
-[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-1C1C1C?logo=devpod)](https://devpod.sh/open#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-1269D3?logo=stackblitz)](https://stackblitz.com/github/tdk-landscape/tdk-cli-core)
-[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-151515?logo=codesandbox)](https://codesandbox.io/p/github/tdk-landscape/tdk-cli-core)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/flisk-sh/tdk-cli-core?quickstart=1)
+[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-blue?logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-908a00?logo=gitpod)](https://gitpod.io/#https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-4285F4?logo=firebase)](https://idx.google.com/import?url=https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-F26207?logo=replit)](https://replit.com/github/flisk-sh/tdk-cli-core)
+[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-1C1C1C?logo=devpod)](https://devpod.sh/open#https://github.com/flisk-sh/tdk-cli-core)
+[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-1269D3?logo=stackblitz)](https://stackblitz.com/github/flisk-sh/tdk-cli-core)
+[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-151515?logo=codesandbox)](https://codesandbox.io/p/github/flisk-sh/tdk-cli-core)
 
 或者複製儲存庫後，在 VS Code 中使用 **Dev Containers: Reopen in Container**。
 
@@ -27,21 +27,21 @@ bun run lint
 bun run test
 ```
 
-Docker 和 Tilt 是選用的，不包含在預設容器中。只有需要執行 TDK 服務或完整的本機環境時才需要新增。
+Docker 和 Tilt 是選用的，不包含在預設容器中。只有需要執行 Flisk 服務或完整的本機環境時才需要新增。
 
 ## 需要準備的內容（本機安裝）
 
 - Git
 - [Bun](https://bun.sh)
 - Node.js 22.12 或更新版本
-- 僅當需要執行 TDK 服務或檢查完整本機環境時，才需要 Docker 和 [Tilt](https://docs.tilt.dev/install.html)
+- 僅當需要執行 Flisk 服務或檢查完整本機環境時，才需要 Docker 和 [Tilt](https://docs.tilt.dev/install.html)
 
 ## 將儲存庫複製到你的電腦
 
 開啟終端機並執行：
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core
 bun install
 git switch -c my-change
@@ -51,7 +51,7 @@ git switch -c my-change
 
 ## 找到一個改動
 
-1. 開啟 [good first issues](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue) 或 [help wanted issues](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted)。
+1. 開啟 [good first issues](https://github.com/flisk-sh/tdk-cli-core/labels/good%20first%20issue) 或 [help wanted issues](https://github.com/flisk-sh/tdk-cli-core/labels/help%20wanted)。
 2. 閱讀 issue，確認是否已有人在處理。
 3. 留言 `I'll take this`（或 `I would like this one`）；機器人會指派你為負責人並加上 `claimed` 標籤。如果還沒有 issue，在開始較大的功能前，先開一個描述該改動的 issue。
 4. 使用[功能指南](02-feature-recipes-zh_tw.md)找出可能需要修改的檔案和檢查項目。

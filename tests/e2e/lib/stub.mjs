@@ -1,6 +1,6 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
-// Stub agent for the error-path cases of the agent suite (tests/e2e/resource-types/agent/run.sh). Binds 127.0.0.1:<port>, standing in for the Traefik route that `tdk agent sessions` calls (the CLI is pointed here with TDK_SERVICE_BASE_URL).
+// Stub agent for the error-path cases of the agent suite (tests/e2e/resource-types/agent/run.sh). Binds 127.0.0.1:<port>, standing in for the Traefik route that `flisk agent sessions` calls (the CLI is pointed here with TDK_SERVICE_BASE_URL).
 //   node stub.mjs hang <port>               accept the connection, never answer
 //   node stub.mjs stall <port>              send 200 headers, then never finish the body
 //   node stub.mjs status <port> <code> <msg>  answer <code> with {"error": "<msg>"}

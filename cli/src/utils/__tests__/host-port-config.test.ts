@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -51,7 +51,7 @@ describe("saved host port plan", () => {
   });
 
   it("persists and restores the chosen plan", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-port-config-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-"));
     const plan: HostPortPlan = {
       ingressHttp: 8080,
       ingressHttps: 8443,
@@ -91,7 +91,7 @@ describe("saved host port plan", () => {
     delete process.env.TDK_HTTP_PORT;
     delete process.env.TDK_HTTPS_PORT;
     delete process.env.TDK_POSTGRES_PORT;
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-port-config-dry-run-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-dry-run-"));
     const plan: HostPortPlan = {
       ingressHttp: 8082,
       ingressHttps: 8445,
@@ -113,7 +113,7 @@ describe("saved host port plan", () => {
     delete process.env.TDK_HTTP_PORT;
     delete process.env.TDK_HTTPS_PORT;
     delete process.env.TDK_POSTGRES_PORT;
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-port-config-preferred-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-preferred-"));
     writeSavedHostPortPlan(projectRoot, {
       ingressHttp: 8080,
       ingressHttps: 8443,

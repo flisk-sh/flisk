@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Compare checked-in GitHub ruleset request bodies with the active repository rulesets.
 import { execFileSync } from "node:child_process";
@@ -40,7 +40,7 @@ export function compareRuleset(snapshot, live) {
 
 function main() {
 	const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-	const repo = process.env.GITHUB_REPOSITORY ?? "tdk-landscape/tdk-cli-core";
+	const repo = process.env.GITHUB_REPOSITORY ?? "flisk-sh/tdk-cli-core";
 	const summaries = JSON.parse(execFileSync("gh", ["api", `repos/${repo}/rulesets?per_page=100`], { encoding: "utf8" }));
 	const files = ["main.json", "releases.json"];
 	const problems = [];

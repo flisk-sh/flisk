@@ -1,6 +1,6 @@
 # Troubleshooting: L2 (dependency layer) Docker build failures
 
-This guide covers failures in **L2**, the dependency resolution and package caching layer of TDK's Docker image stack. It explains what L2 caches, how dependency manifest inputs and `CACHE_BUSTER` control cache invalidation, and how to diagnose and resolve errors when package installation fails or cache invalidation does not behave as expected.
+This guide covers failures in **L2**, the dependency resolution and package caching layer of Flisk's Docker image stack. It explains what L2 caches, how dependency manifest inputs and `CACHE_BUSTER` control cache invalidation, and how to diagnose and resolve errors when package installation fails or cache invalidation does not behave as expected.
 
 Outputs on this page were captured on a developer workstation running macOS with Docker Desktop 29.8.2 and Bun 1.3.11. In Case 3A, the symptom, the build-toolchain fix and the `ldd` check were run; the `gcompat` fix and the glibc `Exec format error` variant were not. Package counts, step numbers, durations and timestamps vary by project and machine.
 
@@ -8,7 +8,7 @@ Outputs on this page were captured on a developer workstation running macOS with
 
 ## What L2 is in plain words
 
-In TDK's four-tier Docker image hierarchy (L1–L4), **L2** is the dependency layer:
+In Flisk's four-tier Docker image hierarchy (L1–L4), **L2** is the dependency layer:
 
 | Layer | Name | Purpose | What it contains | Defined in |
 |---|---|---|---|---|
@@ -87,11 +87,11 @@ Docker builds use a content-addressable cache. Each instruction in a Dockerfile 
 
 When dependency verification runs in CI or pre-commit checks with frozen lockfile enforcement enabled, the package manager verifies that the lockfile strictly matches `package.json`. If a dependency was modified in `package.json` without updating the lockfile, the frozen install fails.
 
-> **Note on L2 installer vs host/CI checks:** TDK's generated L2 build runner (`install-deps.sh`) executes `bun install --force` and does **not** pass `--frozen-lockfile`. The frozen lockfile failures documented below occur during host-level verification, CI workflows (`.github/workflows/ci.yml`), or custom production Dockerfiles that enforce strict lockfile immutability, rather than during standard `tdk up` image builds.
+> **Note on L2 installer vs host/CI checks:** Flisk's generated L2 build runner (`install-deps.sh`) executes `bun install --force` and does **not** pass `--frozen-lockfile`. The frozen lockfile failures documented below occur during host-level verification, CI workflows (`.github/workflows/ci.yml`), or custom production Dockerfiles that enforce strict lockfile immutability, rather than during standard `flisk up` image builds.
 
 #### Case 1A: Out-of-date lockfile in Bun (`bun install --frozen-lockfile`)
 
-This is a standalone diagnostic. The generated L2 build runs `install-deps.sh`, which executes `bun install --force` without `--frozen-lockfile`, so this error is not the install command that a `tdk up` image build runs.
+This is a standalone diagnostic. The generated L2 build runs `install-deps.sh`, which executes `bun install --force` without `--frozen-lockfile`, so this error is not the install command that a `flisk up` image build runs.
 
 **Symptom:**
 ```text
@@ -149,7 +149,7 @@ error: lockfile had changes, but lockfile is frozen
 
 #### Case 1C: Missing or out-of-sync lockfile in npm workflows (`npm ci`)
 
-This case applies to standalone Node.js projects, CI workflows, or custom services that install with `npm` instead of Bun. `npm ci` gives clean, deterministic installs in those workflows. The standard TDK L2 generator ([`l2_dependency_layers.star`](../engine/topologies/platform/docker/layers/l2_dependency_layers.star)) does not run `npm ci`: it targets Bun and runs `install-deps.sh`, so these errors do not come from a generated L2 build.
+This case applies to standalone Node.js projects, CI workflows, or custom services that install with `npm` instead of Bun. `npm ci` gives clean, deterministic installs in those workflows. The standard Flisk L2 generator ([`l2_dependency_layers.star`](../engine/topologies/platform/docker/layers/l2_dependency_layers.star)) does not run `npm ci`: it targets Bun and runs `install-deps.sh`, so these errors do not come from a generated L2 build.
 
 **Symptom when `package-lock.json` is missing:**
 ```text
@@ -191,7 +191,7 @@ npm error Missing: is-odd@0.1.2 from lock file
 ### 2. A dependency change does not invalidate the cache when it should
 
 #### Symptom:
-You updated a dependency (such as publishing a bugfix to a local workspace package, bumping an internal library in Verdaccio, or changing a dependency on disk), but when running `tdk up` or building the container, Docker outputs (shown with `docker build --progress=plain`; step numbers come from one example service and vary):
+You updated a dependency (such as publishing a bugfix to a local workspace package, bumping an internal library in Verdaccio, or changing a dependency on disk), but when running `flisk up` or building the container, Docker outputs (shown with `docker build --progress=plain`; step numbers come from one example service and vary):
 ```text
 #17 [l2_deps_manifest  4/13] COPY package.json ./package.json
 #17 CACHED
@@ -217,7 +217,7 @@ Docker reuses the cached L2 layer (`CACHED`), and the container continues runnin
   ARG CACHE_BUSTER=2026-06-25-v1
   RUN echo "Cache buster: ${CACHE_BUSTER}"
   ```
-  Pass a new value during build to force Docker to re-run from that step onwards. The golden images (`<project>-l1` to `-l4`) must already exist, so run `tdk up` once first:
+  Pass a new value during build to force Docker to re-run from that step onwards. The golden images (`<project>-l1` to `-l4`) must already exist, so run `flisk up` once first:
   ```bash
   docker build --build-arg CACHE_BUSTER=$(date +%s) -f "$SERVICE_PATH/.autogenerated/Dockerfile.app.autogenerated" --target production .
   ```
@@ -276,7 +276,7 @@ A package that ships a glibc-only prebuilt binary can instead fail at load time 
 - **Cause:**
   1. **musl vs glibc:** The host machine is macOS or a glibc-based Linux distribution. The container runs **Alpine Linux** (`oven/bun:1.3.11-alpine`), which uses **musl libc**.
   2. Prebuilt binaries built for glibc fail to load under musl with `Exec format error` / `ERR_DLOPEN_FAILED`.
-  3. When the package falls back to compiling from source via `node-gyp`, compilation fails because `python3`, `make`, and `g++` were deliberately removed from TDK's L2 base image to keep the image lightweight (-67 MB, as noted in `golden_image_dockerfile.star`); the `find Python` lines above show this.
+  3. When the package falls back to compiling from source via `node-gyp`, compilation fails because `python3`, `make`, and `g++` were deliberately removed from Flisk's L2 base image to keep the image lightweight (-67 MB, as noted in `golden_image_dockerfile.star`); the `find Python` lines above show this.
 - **Fix:**
   1. Prefer pure JavaScript or TypeScript libraries, or packages that supply official Alpine musl prebuilds (e.g. `@prisma/client`, `esbuild`, `@biomejs/biome`).
   2. If the native package requires glibc compatibility, install `gcompat` in a custom layer:
@@ -316,7 +316,7 @@ error: @myorg/private-pkg@1.0.0 failed to resolve
 - **Cause:**
   1. On the host, the developer is logged into npm via `~/.npmrc`, or has an active VPN/SSH tunnel.
   2. Inside Docker, container builds do not inherit the host's `~/.npmrc` unless explicitly configured.
-  3. As seen in [`install-deps.sh`](../shared-platform-engineering/docker-templates/install-deps.sh), when `TDK_LICENSE_KEY` is set, TDK attempts to route private package downloads through Verdaccio at `localhost:4873` or `host.docker.internal:4873`. If the Verdaccio container is stopped, the build terminates immediately.
+  3. As seen in [`install-deps.sh`](../shared-platform-engineering/docker-templates/install-deps.sh), when `TDK_LICENSE_KEY` is set, Flisk attempts to route private package downloads through Verdaccio at `localhost:4873` or `host.docker.internal:4873`. If the Verdaccio container is stopped, the build terminates immediately.
 - **Fix:**
   1. If Verdaccio is required, verify that its container is running:
      ```bash
@@ -357,17 +357,17 @@ cannot execute binary file: Exec format error
      **/dist
      ```
      *(Note: `.tiltignore` controls Tilt file-watch events, but only `.dockerignore` prevents files from entering Docker's build context during `COPY` instructions).*
-  2. Run `tdk config verify` to verify that generated ignore files match expectations:
+  2. Run `flisk config verify` to verify that generated ignore files match expectations:
      ```bash
-     tdk config verify
+     flisk config verify
      ```
   3. If out of sync, run:
      ```bash
-     tdk config regenerate
+     flisk config regenerate
      ```
 - **Command that confirms it:**
   ```bash
-  tdk config verify
+  flisk config verify
   ```
 
 ---
@@ -375,6 +375,6 @@ cannot execute binary file: Exec format error
 ## Related documentation
 
 - [Troubleshoot L1 (base image)](troubleshoot-l1.md): Docker build failures in the foundational OS and Bun runtime layer.
-- [Troubleshooting overview](troubleshooting.md): General troubleshooting for TDK CLI and Tilt diagnostics.
+- [Troubleshooting overview](troubleshooting.md): General troubleshooting for Flisk CLI and Tilt diagnostics.
 - [Scope and non-goals](scope.md): Details on local-only golden images.
-- [Leaving TDK](leaving-tdk.md): What `tdk eject` does and how dependencies are managed.
+- [Leaving Flisk](leaving-flisk.md): What `flisk eject` does and how dependencies are managed.

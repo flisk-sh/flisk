@@ -3,7 +3,7 @@ FROM oven/bun:1@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f
 WORKDIR /work
 RUN bun create elysia app
 WORKDIR /work/app
-# The generated app hard-codes `.listen(3000)`; TDK assigns the port through PORT. Patch it, and fail the build if the line is not there.
+# The generated app hard-codes `.listen(3000)`; Flisk assigns the port through PORT. Patch it, and fail the build if the line is not there.
 RUN sed -i 's/\.listen(3000)/.listen(Number(process.env.PORT ?? 3000))/' src/index.ts \
  && grep -q 'process.env.PORT' src/index.ts
 RUN chown -R bun:bun .

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🐳 TILT SDK - TRAEFIK LABELS GENERATOR
@@ -196,7 +196,7 @@ def get_backend_traefik_labels(
     if sablier_enabled:
         labels += sablier_container_labels(manifest, resource_entry_name, "      ")
 
-    # Generate project localhost routing to match `tdk up` URLs:
+    # Generate project localhost routing to match `flisk up` URLs:
     # http://api.{project}.localhost/api/{resource-name}
     if manifest:
         stack = manifest.get("stack", "")

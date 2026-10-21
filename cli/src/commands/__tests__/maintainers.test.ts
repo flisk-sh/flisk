@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { runMaintainersCheck } from "../maintainers.js";
 
 function check(table: string | null) {
-  const dir = mkdtempSync(join(tmpdir(), "tdk-maintainers-"));
+  const dir = mkdtempSync(join(tmpdir(), "flisk-maintainers-"));
   try {
     const file = join(dir, "MAINTAINERS.md");
     if (table !== null) writeFileSync(file, table);
@@ -19,7 +19,7 @@ function check(table: string | null) {
 
 const header = "| Name | GitHub id | Company |\n| --- | --- | --- |\n";
 
-describe("tdk maintainers check", () => {
+describe("flisk maintainers check", () => {
   it("fails with missing counts when short of the bar", () => {
     const result = check(`${header}| Ada | ada | Acme |\n`);
     expect(result.exitCode).toBe(1);

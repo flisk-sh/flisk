@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -21,12 +21,12 @@ afterEach(() => {
 });
 
 /**
- * Loads one service.json the way `tdk up` does for the compose and Dockerfile generators
+ * Loads one service.json the way `flisk up` does for the compose and Dockerfile generators
  * (Manifest.load_manifest, see prepare_resource_manifests; ManifestParser.normalize is not on that path)
  * and returns the healthCheckPath they receive, or Tilt's error.
  */
 function discoverHealthCheckPath(manifest: Record<string, unknown>) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-health-path-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-health-path-"));
   dirs.push(project);
   const serviceDir = join(project, "services/product/shop/api");
   mkdirSync(serviceDir, { recursive: true });

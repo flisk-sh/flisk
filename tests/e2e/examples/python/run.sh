@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-# The Python backend example through a real tdk up (moved from the retired python-example-e2e workflow, #1299). Each case is one step of the old
+# The Python backend example through a real flisk up (moved from the retired python-example-e2e workflow, #1299). Each case is one step of the old
 # workflow, with the same logic: P1 packs and installs the candidate CLI, P2 configures the example, P3 boots it and requires routed
 # /health through Traefik, and P4 runs the pytest smoke test inside the generated image's test stage. The example stays in
 # $REPO_ROOT/examples/one-backend-python, where the workflow's failure-log upload looks for ci-logs/. The workflow keeps its setup
@@ -16,10 +16,10 @@ source "$SUITE_DIR/../../lib/lib.sh"
 e2e_init python one-backend-python
 DIR="$REPO_ROOT/examples/one-backend-python"
 # The example is part of the checkout: the default cleanup only stops it, and never removes files the checkout owns.
-e2e_cleanup() { [ -d "$DIR" ] && (cd "$DIR" && tdk down >/dev/null 2>&1 || true); }
+e2e_cleanup() { [ -d "$DIR" ] && (cd "$DIR" && flisk down >/dev/null 2>&1 || true); }
 
-P1() { # pack and install the candidate TDK package
-  log "P1 pack and install the candidate TDK package"
+P1() { # pack and install the candidate Flisk package
+  log "P1 pack and install the candidate Flisk package"
   cd "$REPO_ROOT"
   bun install --frozen-lockfile
   npm run build
@@ -30,9 +30,9 @@ P1() { # pack and install the candidate TDK package
 P2() { # configure the example
   log "P2 configure the example"
   cd "$DIR"
-  tdk project --yes
+  flisk project --yes
   sed -i 's/^INFISICAL_ENABLED=.*/INFISICAL_ENABLED=false/' .env
-  tdk doctor --no-ping
+  flisk doctor --no-ping
 }
 
 P3() { # boot and require routed /health
@@ -41,7 +41,7 @@ P3() { # boot and require routed /health
   (
     cd "$DIR"
     set -euo pipefail
-    tdk up one-backend-python > up.log 2>&1 &
+    flisk up one-backend-python > up.log 2>&1 &
     tdk_pid=$!
     cleanup() {
       status=$?
@@ -56,7 +56,7 @@ P3() { # boot and require routed /health
         jq -r '.items[] | "\(.metadata.name): update=\(.status.updateStatus // "-") runtime=\(.status.runtimeStatus // "-")"' ci-logs/tilt-uiresources.json 2>/dev/null || true
       fi
       kill "$tdk_pid" 2>/dev/null || true
-      tdk down >/dev/null 2>&1 || true
+      flisk down >/dev/null 2>&1 || true
       return "$status"
     }
     trap cleanup EXIT
@@ -68,7 +68,7 @@ P3() { # boot and require routed /health
     done
     grep -q 'Running tilt up' up.log
 
-    tdk doctor --json > doctor.json || true
+    flisk doctor --json > doctor.json || true
     http_port="$(jq -er '.data.ports.http.chosen | select(type == "number")' doctor.json)"
     url="http://api.one-backend-python.localhost:${http_port}/api/api-backend/health"
     for _ in $(seq 1 120); do

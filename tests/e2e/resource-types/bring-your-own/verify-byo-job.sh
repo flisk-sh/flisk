@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
-# Run one examples/byo-jobs/<name> one-shot job through a real `tdk up` and check the result.
+# Run one examples/byo-jobs/<name> one-shot job through a real `flisk up` and check the result.
 # Needs Docker, Tilt, and a built CLI (cli/dist). Uses an isolated throwaway project with unique
 # names and alternate ports, and removes only the containers and networks carrying its own
-# unique project name (it never calls `tdk down`, which can touch other projects' containers).
+# unique project name (it never calls `flisk down`, which can touch other projects' containers).
 #
 # Checks, in order: the container exits 0, it was not restarted (restart policy "no"), and the
-# query in verify.sql returns the text in verify.expect against TDK's Postgres.
+# query in verify.sql returns the text in verify.expect against Flisk's Postgres.
 #
 # Usage: tests/e2e/resource-types/bring-your-own/verify-byo-job.sh <name>
 set -euo pipefail
@@ -20,7 +20,7 @@ src="$root/examples/byo-jobs/$name"
 proj="job${name//[^a-z0-9]/}$$"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
-tdk() { command "${TDK_BIN:-tdk}" "$@"; }
+flisk() { command "${TDK_BIN:-tdk}" "$@"; }
 res="$proj"          # resource name; unique because Traefik watches every container on the daemon
 until_exit=${VERIFY_WAIT_SECONDS:-240}
 
@@ -29,21 +29,21 @@ cleanup() {
   docker rm -f $(docker ps -aq --filter "name=$proj") >/dev/null 2>&1 || true
   docker network ls --format '{{.Name}}' | grep "^${proj}" | xargs -r docker network rm >/dev/null 2>&1 || true
   # Tilt also tags the build as <project>_<stack>_<resource>:tilt-<hash>, so remove every tag of this run's own repository, not just :dev.
-  docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^${proj}_" | xargs -r docker rmi -f >/dev/null 2>&1 || true   # the image `tdk up` built for this run only
-  # TDK also builds per-project "golden layer" base images named <project>-l1 ... -l4-*; they are unique to this run.
+  docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^${proj}_" | xargs -r docker rmi -f >/dev/null 2>&1 || true   # the image `flisk up` built for this run only
+  # Flisk also builds per-project "golden layer" base images named <project>-l1 ... -l4-*; they are unique to this run.
   docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "^${proj}-l[0-9]+" | xargs -r docker rmi -f >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 cd "$work"
 git init -q .
-tdk project --yes >/dev/null
+flisk project --yes >/dev/null
 printf '\nTDK_HTTP_PORT=%s\nTDK_HTTPS_PORT=%s\nTDK_POSTGRES_PORT=%s\n' \
   "$((30000 + RANDOM % 2000))" "$((32000 + RANDOM % 2000))" "$((34000 + RANDOM % 2000))" >> .env
 mkdir -p "services/app/$res"
 cp -R "$src/." "services/app/$res/"
 rm -f "services/app/$res/verify.sql" "services/app/$res/verify.expect"
-(cd "services/app/$res" && tdk resource "$res" --type bring-your-own --stack app \
+(cd "services/app/$res" && flisk resource "$res" --type bring-your-own --stack app \
   --register-existing --dockerfile ./Dockerfile --restart no --yes >/dev/null)
 nohup "${TDK_BIN:-tdk}" up app >"$work/up.log" 2>&1 &
 

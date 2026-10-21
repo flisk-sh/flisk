@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -38,7 +38,7 @@ afterEach(() => {
 
 /** Evaluates a Tiltfile. A failed `fail(...)` check makes tilt exit non-zero and puts the message in stderr. */
 function expectPasses(source: string) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-stack-routers-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-stack-routers-"));
   temporaryDirs.push(directory);
   const tiltfile = join(directory, "Tiltfile");
   writeFileSync(tiltfile, source);

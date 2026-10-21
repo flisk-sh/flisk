@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # The Windows release candidate (WB1 in run.sh; moved verbatim from the windows-smoke job of .github/workflows/release-binaries.yml,
 # #1300). Run from the repository root with release-dist/ holding the candidate and VERSION set.
@@ -19,7 +19,7 @@ function Get-ExpectedHash([string]$AssetName) {
   return $found[0]
 }
 
-foreach ($asset in @("tdk-windows-amd64.exe", "tdk-cli-engine.tar.gz")) {
+foreach ($asset in @("flisk-windows-amd64.exe", "flisk-cli-engine.tar.gz")) {
   $assetPath = Join-Path $releaseDir $asset
   if (!(Test-Path -LiteralPath $assetPath -PathType Leaf)) {
     throw "Release candidate is missing $asset"
@@ -32,8 +32,8 @@ foreach ($asset in @("tdk-windows-amd64.exe", "tdk-cli-engine.tar.gz")) {
 }
 
 $exePath = Join-Path $releaseDir "tdk.exe"
-Copy-Item -LiteralPath (Join-Path $releaseDir "tdk-windows-amd64.exe") -Destination $exePath
-tar -xzf (Join-Path $releaseDir "tdk-cli-engine.tar.gz") -C $releaseDir
+Copy-Item -LiteralPath (Join-Path $releaseDir "flisk-windows-amd64.exe") -Destination $exePath
+tar -xzf (Join-Path $releaseDir "flisk-cli-engine.tar.gz") -C $releaseDir
 if ($LASTEXITCODE -ne 0) { throw "Engine archive extraction failed" }
 
 $actualVersion = (& $exePath --version).Trim()

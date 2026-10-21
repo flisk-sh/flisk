@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Doctor checks and ranks environment blockers
-`tdk doctor` SHALL check whether Docker is running, whether Docker uses Linux containers, whether Tilt meets the documented minimum version, and whether Bun meets the documented minimum when the stack requires Bun. It SHALL check whether ports 80, 443, and 5432 are bound, identify WSL projects under `/mnt/c`, and identify unsupported native Windows execution. It SHALL order remediation guidance before status summaries and SHALL exit 1 if any required check fails. Port conflicts SHALL appear before lower-priority failures in the first failure block.
+`flisk doctor` SHALL check whether Docker is running, whether Docker uses Linux containers, whether Tilt meets the documented minimum version, and whether Bun meets the documented minimum when the stack requires Bun. It SHALL check whether ports 80, 443, and 5432 are bound, identify WSL projects under `/mnt/c`, and identify unsupported native Windows execution. It SHALL order remediation guidance before status summaries and SHALL exit 1 if any required check fails. Port conflicts SHALL appear before lower-priority failures in the first failure block.
 
 #### Scenario: Required database port is already bound
 - **WHEN** port 5432 is bound while doctor reports other environment results
@@ -23,8 +23,8 @@ When running in WSL2 Ubuntu, doctor SHALL warn if the project is under `/mnt/c` 
 - **THEN** default mode warns that hot reload may be impaired, while `--strict` reports a failure and exits 1
 
 ### Requirement: Native Windows landscape startup is unsupported
-On native Windows, `tdk doctor` SHALL exit non-zero and instruct the user to use WSL2 Ubuntu with Docker Desktop integration, linking to `docs/wsl2.md`.
+On native Windows, `flisk doctor` SHALL exit non-zero and instruct the user to use WSL2 Ubuntu with Docker Desktop integration, linking to `docs/wsl2.md`.
 
 #### Scenario: Doctor runs in native Windows
-- **WHEN** `tdk doctor` detects a native Windows host
+- **WHEN** `flisk doctor` detects a native Windows host
 - **THEN** it exits non-zero and prints the WSL2 Ubuntu + Docker Desktop integration instruction and `docs/wsl2.md` link

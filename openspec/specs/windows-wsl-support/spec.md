@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: WSL2 Ubuntu is the supported Windows boot path
-Windows landscape boot documentation SHALL identify WSL2 Ubuntu with Docker Desktop integration as the Windows path. Native Windows SHALL be described as CLI inspection only, with `tdk up` unsupported by default. The native escape hatch SHALL be documented as unsupported.
+Windows landscape boot documentation SHALL identify WSL2 Ubuntu with Docker Desktop integration as the Windows path. Native Windows SHALL be described as CLI inspection only, with `flisk up` unsupported by default. The native escape hatch SHALL be documented as unsupported.
 
 #### Scenario: User follows Windows platform guidance
 - **WHEN** a user reads the platform support documentation
-- **THEN** it directs landscape boot users to WSL2 Ubuntu with Docker Desktop integration and states native Windows `tdk up` is unsupported
+- **THEN** it directs landscape boot users to WSL2 Ubuntu with Docker Desktop integration and states native Windows `flisk up` is unsupported
 
 ### Requirement: WSL2 setup is documented as runnable commands
 `docs/wsl2.md` SHALL provide a concise command list for setting up from a clean Ubuntu WSL distribution. It SHALL include Docker Desktop integration and explain that keeping the project outside `/mnt/c` improves hot reload.
@@ -29,7 +29,7 @@ If GitHub does not provide a suitable WSL runner, any WSL CI job SHALL be report
 - **THEN** the WSL smoke script and documentation remain available, while Ubuntu `example-e2e` stays the required gate
 
 ### Requirement: README stability claim changes only after evidence is green
-The current 1.x caveat SHALL remain until requirements for `tdk up` behavior, generation safety, manifest schema behavior, and the real example E2E are green on main. Only then may README support copy state macOS and Linux are supported, Windows is via WSL2 Ubuntu, native Windows is CLI-inspection-only, and 1.x generated files are a contract verified in CI.
+The current 1.x caveat SHALL remain until requirements for `flisk up` behavior, generation safety, manifest schema behavior, and the real example E2E are green on main. Only then may README support copy state macOS and Linux are supported, Windows is via WSL2 Ubuntu, native Windows is CLI-inspection-only, and 1.x generated files are a contract verified in CI.
 
 #### Scenario: Required implementation evidence is not green
 - **WHEN** one or more gated requirements are not green on main

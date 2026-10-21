@@ -1,22 +1,22 @@
-# TDK Features Reference
+# Flisk Features Reference
 
-This document describes all available features in TDK and how to control them.
+This document describes all available features in Flisk and how to control them.
 
-Stability: 1.x local dev. Generated files are a contract; verify with `tdk config verify`. Core CLI is MIT and needs no key. Premium is optional.
+Stability: 1.x local dev. Generated files are a contract; verify with `flisk config verify`. Core CLI is MIT and needs no key. Premium is optional.
 
 ## License matrix
 
 | Capability | Free | Premium |
 | --- | --- | --- |
-| `tdk up`, scaffold, Traefik, Postgres, Tilt live update, golden layers | yes | yes |
+| `flisk up`, scaffold, Traefik, Postgres, Tilt live update, golden layers | yes | yes |
 | Verdaccio, DDD scaffold, Sablier idle stop | no | key |
 | Playwright, C4, AGENTS.md | free if generated in-repo | only if the implementation is downloaded with a key |
 
-Core stays free. Premium is a separate key for the extras above; no key required to run `tdk up`. See the [license boundary and donation scope](../GOVERNANCE.md#license-boundary-and-donation-scope) for which code is MIT and which is downloaded with a key.
+Core stays free. Premium is a separate key for the extras above; no key required to run `flisk up`. See the [license boundary and donation scope](../GOVERNANCE.md#license-boundary-and-donation-scope) for which code is MIT and which is downloaded with a key.
 
 ## Overview
 
-TDK has two levels of feature control:
+Flisk has two levels of feature control:
 
 1. **Project-Level Features** - Infrastructure services available to all resources (proxy, database, etc.)
 2. **Resource-Level Features** - Code generators for individual services (api-client, prisma, etc.)
@@ -35,7 +35,7 @@ These are always enabled in the `pre_alpha` stack:
 - **Purpose**: Reverse proxy and API gateway for routing all services
 - **Default**: ✅ Enabled
 - **Service Name**: `proxy`
-- **Container ports**: 80 (HTTP), 443 (HTTPS); host ports are selected at startup and shown by `tdk up` / `tdk networks`.
+- **Container ports**: 80 (HTTP), 443 (HTTPS); host ports are selected at startup and shown by `flisk up` / `flisk networks`.
 - **Configuration**: Routes all HTTP traffic based on path/domain rules
 
 #### `database-management` (PostgreSQL)
@@ -107,17 +107,17 @@ To enable optional or premium features, edit `.tdk/project.json`:
 }
 
 # Regenerate
-tdk config regenerate
+flisk config regenerate
 ```
 
-**For Premium Features:** Set your license key before running `tdk up`:
+**For Premium Features:** Set your license key before running `flisk up`:
 
 ```bash
 export TDK_LICENSE_KEY=<your-premium-key>
-tdk up
+flisk up
 ```
 
-To get a key, use the [request form on the website](https://tdk-landscape.github.io/tdk-website/#waitlist) or open a [Premium license request](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=premium_license.yml).
+To get a key, use the [request form on the website](https://tdk-landscape.github.io/tdk-website/#waitlist) or open a [Premium license request](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=premium_license.yml).
 
 ---
 
@@ -177,7 +177,7 @@ Default features for backend services (appType: "backend", "worker", "migrator")
 - **Generates**: Domain-driven design folders and backend path aliases
 - **Purpose**: Scaffolds `domain`, `application`, `infrastructure`, and `presentation` layers
 - **License**: Premium (requires `TDK_LICENSE_KEY` with the `ddd` resource grant)
-- **Usage**: `tdk resource add <name> --type backend --ddd`
+- **Usage**: `flisk resource add <name> --type backend --ddd`
 
 ### Enable/Disable Features
 
@@ -200,7 +200,7 @@ Default features for backend services (appType: "backend", "worker", "migrator")
 After editing `service.json`, regenerate:
 
 ```bash
-tdk config regenerate
+flisk config regenerate
 ```
 
 ---
@@ -291,4 +291,4 @@ These generators always run and don't have a feature flag:
 }
 ```
 
-Then run `tdk config regenerate && tdk up`.
+Then run `flisk config regenerate && flisk up`.

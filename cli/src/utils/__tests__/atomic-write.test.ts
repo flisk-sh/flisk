@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import {
   chmodSync,
@@ -32,7 +32,7 @@ vi.mock("node:fs", async (importOriginal) => {
 
 let dir: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "tdk-atomic-"));
+  dir = mkdtempSync(join(tmpdir(), "flisk-atomic-"));
 });
 afterEach(() => {
   renameFailure.fail = false;

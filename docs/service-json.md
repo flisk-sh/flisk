@@ -1,11 +1,11 @@
 # `service.json` reference
 
-Each TDK resource is described by a `service.json` file in the resource directory. The file drives resource discovery, generated Tilt and Docker configuration, routing, dependency ordering, and editor assistance.
+Each Flisk resource is described by a `service.json` file in the resource directory. The file drives resource discovery, generated Tilt and Docker configuration, routing, dependency ordering, and editor assistance.
 
-The [service schema](../engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `tdk config verify` applies the manifest and generated-output checks described below, while `tdk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
+The [service schema](../engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `flisk config verify` applies the manifest and generated-output checks described below, while `flisk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
 
 ```text
-https://tdk-landscape.github.io/schema.service.json
+https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json
 ```
 
 ## Minimal examples
@@ -14,7 +14,7 @@ A backend resource needs a backend port. The usual backend range is `4000`–`59
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-backend",
   "appType": "backend",
@@ -29,7 +29,7 @@ A frontend normally uses a port in the `3000`–`3999` range. `framework` is opt
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-app",
   "appType": "frontend",
@@ -44,7 +44,7 @@ A worker is a background process that reads from NATS. The service schema requir
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "email-worker",
   "appType": "worker",
@@ -59,19 +59,19 @@ A worker is a background process that reads from NATS. The service schema requir
 }
 ```
 
-A worker has no HTTP server, so it needs no `healthCheckPath` or `traefik` block: TDK gives it no proxy route and no HTTP health check. `port` is optional for a worker; if you set it, use the `6000`–`6999` range.
+A worker has no HTTP server, so it needs no `healthCheckPath` or `traefik` block: Flisk gives it no proxy route and no HTTP health check. `port` is optional for a worker; if you set it, use the `6000`–`6999` range.
 
-Run `tdk resource <name> --type backend`, `tdk resource <name> --type frontend`, or `tdk resource <name> --type worker` to generate a starting manifest. Existing examples are in [`examples/tdk-example`](../examples/tdk-example).
+Run `flisk resource <name> --type backend`, `flisk resource <name> --type frontend`, or `flisk resource <name> --type worker` to generate a starting manifest. Existing examples are in [`examples/tdk-example`](../examples/tdk-example).
 
 ## Required identity and compatibility fields
 
 | Field | Type and default | Applies to | Description |
 | --- | --- | --- | --- |
 | `$schema` | string; optional | all | Editor metadata. Point it at the published schema URL for completion and inline validation. |
-| `schemaVersion` | integer; **required**, currently `1` | all | Version of the TDK manifest contract. An unsupported version is rejected; TDK does not guess how to migrate it. |
+| `schemaVersion` | integer; **required**, currently `1` | all | Version of the Flisk manifest contract. An unsupported version is rejected; Flisk does not guess how to migrate it. |
 | `appName` | string; **required** | all | Resource identifier. Use lowercase letters, numbers, and hyphens; it should match the resource directory name. |
 | `appType` | enum; required when `type` is absent | all | Resource kind: `backend`, `frontend`, `library`, `sdk`, `worker`, `migrator`, `mcp`, or `bring-your-own`. Provide either `appType` or the legacy `type` field. |
-| `type` | enum; legacy alias for `appType` | existing manifests | Older manifests may use `type`; provide it when `appType` is absent. Use `appType` in new files. During config migration, TDK copies the legacy value to `appType`. |
+| `type` | enum; legacy alias for `appType` | existing manifests | Older manifests may use `type`; provide it when `appType` is absent. Use `appType` in new files. During config migration, Flisk copies the legacy value to `appType`. |
 | `stack` | string; **required** | all | Groups related resources and influences database names, routes, and generated dependency configuration. |
 
 `appType` determines more than the label shown in the UI. It selects the generator and validation rules. A `worker` must declare the `nats` feature, while `bring-your-own` resources need a `Dockerfile` or `image` and do not receive an application scaffold.
@@ -105,7 +105,7 @@ The `language` and `framework` properties intentionally use an open id pattern i
 | `exposeViaProxy` | boolean; defaults to `true` for BYO | BYO resources | Set `false` to keep a BYO resource off Traefik; it then has no public route or HTTP health probe. |
 | `smoke` | object; optional | routable HTTP resources | Post-start checks through the public proxy URL. Use `via: "proxy"` and one or more HTTP `steps`. See the [`smoke` configuration guide](configuration.md#smoke-check-the-public-url-after-tdk-up). |
 
-`healthCheckPath` is an inside-the-container readiness probe. A `smoke` block is different: it verifies the public route printed by `tdk up`, and can perform a safe write/read-back flow. Do not use a full URL in a smoke step; its `path` is appended to the public URL.
+`healthCheckPath` is an inside-the-container readiness probe. A `smoke` block is different: it verifies the public route printed by `flisk up`, and can perform a safe write/read-back flow. Do not use a full URL in a smoke step; its `path` is appended to the public URL.
 
 ### Example: one service that depends on another
 
@@ -145,17 +145,17 @@ services/
 }
 ```
 
-What this does on `tdk up`:
+What this does on `flisk up`:
 
 - The generated Tiltfile gives `orders-backend` a Tilt `resource_deps` entry for `inventory-backend`, so Tilt starts `orders-backend` after `inventory-backend` is ready. Tilt decides when a resource is ready; for a container that has a health check, such as the `healthCheckPath` above, that is when the check passes.
-- `tdk up --only orders-backend` also starts `inventory-backend`, because a requested service brings in the services it lists in `dependsOn`. `tdk up --dry-run --json --only orders-backend` shows this under `declaredDependencies`.
+- `flisk up --only orders-backend` also starts `inventory-backend`, because a requested service brings in the services it lists in `dependsOn`. `flisk up --dry-run --json --only orders-backend` shows this under `declaredDependencies`.
 - A `dependsOn` name that matches no service is reported as an error when the manifests are checked. `postgres` and `database-management` are the exception: they refer to the shared platform Postgres.
 
-This is only local startup ordering for `tdk up`. It does not describe how you deploy the services, and it does not make `orders-backend` retry or wait if `inventory-backend` stops later. Each manifest field is described in the table above; see [`tdk up`](cheat-sheet.md#tdk-up-stack-name-alias-deploy) for `--only` and [Machine-readable CLI](reference/machine-readable-cli.md) for the JSON output.
+This is only local startup ordering for `flisk up`. It does not describe how you deploy the services, and it does not make `orders-backend` retry or wait if `inventory-backend` stops later. Each manifest field is described in the table above; see [`flisk up`](cheat-sheet.md#tdk-up-stack-name-alias-deploy) for `--only` and [Machine-readable CLI](reference/machine-readable-cli.md) for the JSON output.
 
 ### Example: Postgres, then a migrator, then an API
 
-A database-backed service usually needs three things in order: Postgres is up, the migrations have run, then the API starts. The `dependsOn` field expresses each step. The scaffold writes this pair for you: `tdk resource orders-api --type backend --stack shop --feature prisma` creates `orders-api` and `orders-api-migrator`.
+A database-backed service usually needs three things in order: Postgres is up, the migrations have run, then the API starts. The `dependsOn` field expresses each step. The scaffold writes this pair for you: `flisk resource orders-api --type backend --stack shop --feature prisma` creates `orders-api` and `orders-api-migrator`.
 
 ```text
 services/shop/
@@ -163,13 +163,13 @@ services/shop/
   orders-api/service.json
 ```
 
-Postgres has no manifest of its own. `postgres` (or `database-management`) in `dependsOn` names the shared platform Postgres that TDK runs for the project.
+Postgres has no manifest of its own. `postgres` (or `database-management`) in `dependsOn` names the shared platform Postgres that Flisk runs for the project.
 
 `services/shop/orders-api-migrator/service.json` waits for Postgres:
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-api-migrator",
   "appType": "migrator",
@@ -183,7 +183,7 @@ Postgres has no manifest of its own. `postgres` (or `database-management`) in `d
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-api",
   "appType": "backend",
@@ -197,9 +197,9 @@ Postgres has no manifest of its own. `postgres` (or `database-management`) in `d
 
 Reading it from the bottom up: `orders-api` lists `orders-api-migrator`, and the migrator lists `postgres`, so the order is Postgres, then the migrator, then the API. Each name in `dependsOn` is the `appName` of another manifest. As in the earlier example, each entry becomes a Tilt `resource_deps` edge, and a name that matches no service (other than the two Postgres names) is reported when the manifests are checked.
 
-Keep the migration command in the migrator, not in the API's start command. The migrator runs when `tdk up` starts it, and the API only starts after it, so restarting the API does not re-run migrations. The scaffolded migrator's `start` script is `prisma migrate deploy`. For a migrator that is not Prisma, see [One-shot jobs](byo.md#one-shot-jobs-migrations-seeders) and the runnable [`examples/byo-jobs/`](../examples/byo-jobs/README.md), which set `"restart": "no"` so the job is not started again after it exits.
+Keep the migration command in the migrator, not in the API's start command. The migrator runs when `flisk up` starts it, and the API only starts after it, so restarting the API does not re-run migrations. The scaffolded migrator's `start` script is `prisma migrate deploy`. For a migrator that is not Prisma, see [One-shot jobs](byo.md#one-shot-jobs-migrations-seeders) and the runnable [`examples/byo-jobs/`](../examples/byo-jobs/README.md), which set `"restart": "no"` so the job is not started again after it exits.
 
-The two manifests above pass the service schema and `tdk config verify` (no manifest or dependency error). That Tilt holds the API until the migrator finishes is **not checked here**, because it needs a running stack.
+The two manifests above pass the service schema and `flisk config verify` (no manifest or dependency error). That Tilt holds the API until the migrator finishes is **not checked here**, because it needs a running stack.
 
 ## Build and container fields
 
@@ -220,23 +220,23 @@ The two manifests above pass the service schema and `tdk config verify` (no mani
 | `params` | string map; optional | all | Non-secret values such as `BASE_URL` or `PORT`. |
 | `envVars` | object; deprecated | existing manifests | Legacy alias for `params`, read only when `params` is absent. |
 | `secrets` | object; optional | all | Secret names to inject from the project `.env` or the configured secret provider. Use `required` and optionally `optional`; never put secret values in this file. |
-| `nats` | object; optional | services using NATS | Custom `queueGroup` and `subjects`. TDK generates NATS configuration when `nats` is enabled in `featuresEnabled`. |
+| `nats` | object; optional | services using NATS | Custom `queueGroup` and `subjects`. Flisk generates NATS configuration when `nats` is enabled in `featuresEnabled`. |
 | `databaseName` | string; generated from the stack by default | database-backed services | Overrides the generated database name. |
 | `playwright` | boolean; defaults to `false` | generated frontend/services | Requests a generated Playwright configuration when enabled. |
 | `sablier` | object; disabled unless enabled | licensed services | On-demand scaling. Options are `enable`, `deferStart`, `group`, and `sessionDuration`. This is a Premium feature and requires `TDK_LICENSE_KEY`; it is not available merely by adding the JSON block. |
 | `name` | string; legacy/generated metadata | existing manifests | Retained for compatibility with older generated manifests. Prefer `appName` for the resource identity. |
 
-Do not add `jwtSecret` or other secret values to `service.json`. TDK ignores `jwtSecret` and reports that it must be removed; put secret names in `secrets` and values in the project’s ignored `.env` or the configured provider.
+Do not add `jwtSecret` or other secret values to `service.json`. Flisk ignores `jwtSecret` and reports that it must be removed; put secret names in `secrets` and values in the project’s ignored `.env` or the configured provider.
 
-Unknown fields are preserved so projects can carry application-specific metadata, but TDK reports them as warnings. A warning is not evidence that the field affects generated infrastructure.
+Unknown fields are preserved so projects can carry application-specific metadata, but Flisk reports them as warnings. A warning is not evidence that the field affects generated infrastructure.
 
 ## Validation and troubleshooting
 
 Run the checks that match the change:
 
 ```bash
-tdk config verify
-tdk doctor
+flisk config verify
+flisk doctor
 ```
 
 The JSON Schema catches editor-time type, enum, required-field, and port-range mistakes. The CLI additionally checks the manifest path and generated-output safety. Typical messages include:
@@ -249,7 +249,7 @@ services/shop/api/service.json.healthCheckPath: must be a path such as /health (
 
 The manifest validator rejects line breaks and control characters in values that reach generated YAML. It also validates the structure of `smoke`, including a non-empty `steps` array, absolute path fragments beginning with `/`, and `save` selectors such as `$.id`.
 
-If an older manifest has `type` instead of `appType`, run the config migration flow and review the diff. TDK preserves unknown fields and warns about deprecated `dependencies`, `envVars`, and ignored secret fields rather than silently deleting them.
+If an older manifest has `type` instead of `appType`, run the config migration flow and review the diff. Flisk preserves unknown fields and warns about deprecated `dependencies`, `envVars`, and ignored secret fields rather than silently deleting them.
 
 ## Keeping this reference current
 

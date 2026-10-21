@@ -35,14 +35,14 @@ jobs:
             exit 1
           fi
           METADATA="$RUNNER_TEMP/npm-package.json"
-          npm view "@tdk-landscape/tdk-cli-core@${VERSION}" name version repository.url dist.integrity --json --registry=https://registry.npmjs.org > "$METADATA"
+          npm view "flisk@${VERSION}" name version repository.url dist.integrity --json --registry=https://registry.npmjs.org > "$METADATA"
           node - "$METADATA" "$VERSION" <<'NODE'
           const fs = require('fs');
           const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
           const metadata = Array.isArray(parsed) ? parsed[0] : parsed;
           const version = process.argv[3];
-          const expectedRepository = 'git+https://github.com/tdk-landscape/tdk-cli-core.git';
-          if (!metadata || metadata.name !== '@tdk-landscape/tdk-cli-core' || metadata.version !== version) {
+          const expectedRepository = 'git+https://github.com/flisk-sh/tdk-cli-core.git';
+          if (!metadata || metadata.name !== 'flisk' || metadata.version !== version) {
             throw new Error(`Unexpected npm package identity: ${metadata?.name}@${metadata?.version}`);
           }
           if (metadata['repository.url'] !== expectedRepository) {
@@ -53,7 +53,7 @@ jobs:
             throw new Error(`Unexpected npm tarball integrity: ${integrity}`);
           }
           const encodedVersion = encodeURIComponent(version);
-          const tarballUrl = `https://registry.npmjs.org/@tdk-landscape/tdk-cli-core/-/tdk-cli-core-${encodedVersion}.tgz`;
+          const tarballUrl = `https://registry.npmjs.org/flisk/-/flisk-${encodedVersion}.tgz`;
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `tarball_url=${tarballUrl}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `tarball_integrity=${integrity}\n`);
           NODE
@@ -84,8 +84,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: | # zizmor: ignore[use-trusted-publishing] GitHub Packages does not support npm trusted publishing; authenticate with the repository GITHUB_TOKEN
-          if npm view "@tdk-landscape/tdk-cli-core@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
-            echo "@tdk-landscape/tdk-cli-core@${VERSION} is already published to GitHub Packages, skipping."
+          if npm view "flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "flisk@${VERSION} is already published to GitHub Packages, skipping."
           else
             npm publish "$RUNNER_TEMP/package/package.tgz" --registry=https://npm.pkg.github.com
           fi
@@ -99,11 +99,11 @@ jobs:
           NPMRC="$RUNNER_TEMP/consumer.npmrc"
           # npm must expand this environment reference when it reads the temporary config.
           # shellcheck disable=SC2016
-          printf '%s\n' '@tdk-landscape:registry=https://npm.pkg.github.com' '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' > "$NPMRC"
-          NPM_CONFIG_USERCONFIG="$NPMRC" npm install --global --prefix "$PREFIX" "@tdk-landscape/tdk-cli-core@${VERSION}"
-          INSTALLED_VERSION=$(PATH="$PREFIX/bin:$PATH" "$PREFIX/bin/tdk" --version)
+          printf '%s\n' 'registry=https://npm.pkg.github.com' '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' > "$NPMRC"
+          NPM_CONFIG_USERCONFIG="$NPMRC" npm install --global --prefix "$PREFIX" "flisk@${VERSION}"
+          INSTALLED_VERSION=$(PATH="$PREFIX/bin:$PATH" "$PREFIX/bin/flisk" --version)
           if [ "$INSTALLED_VERSION" != "$VERSION" ]; then
-            echo "::error::Expected tdk --version $VERSION, got $INSTALLED_VERSION"
+            echo "::error::Expected flisk --version $VERSION, got $INSTALLED_VERSION"
             exit 1
           fi
-          echo "Installed and verified tdk $INSTALLED_VERSION from GitHub Packages."
+          echo "Installed and verified flisk $INSTALLED_VERSION from GitHub Packages."

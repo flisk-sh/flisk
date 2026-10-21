@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { errorFactories } from "../../utils/errors.js";
@@ -65,7 +65,7 @@ afterEach(() => {
   logsCommand.setOptionValue("json", false);
 });
 
-describe("tdk logs --json", () => {
+describe("flisk logs --json", () => {
   it("returns one envelope with normalized lines and never follows", async () => {
     tilt.runTilt.mockResolvedValueOnce(ok(`${logLine("hi")}\n`));
     const { envelope, code } = await run("--tail", "5");
@@ -96,8 +96,8 @@ describe("tdk logs --json", () => {
           code: "COMMAND_FAILED",
           message: "Could not find project root (no .tdk/project.json found)",
           suggestions: [
-            "Run this from within a TDK project",
-            "Run `tdk project --yes` to initialize a new project",
+            "Run this from within a Flisk project",
+            "Run `flisk project --yes` to initialize a new project",
           ],
         },
       ],
@@ -122,8 +122,8 @@ describe("tdk logs --json", () => {
 
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("Could not find project root (no .tdk/project.json found)");
-    expect(errors.join("\n")).toContain("Run this from within a TDK project");
-    expect(errors.join("\n")).toContain("Run `tdk project --yes` to initialize a new project");
+    expect(errors.join("\n")).toContain("Run this from within a Flisk project");
+    expect(errors.join("\n")).toContain("Run `flisk project --yes` to initialize a new project");
     expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
     expect(tilt.runTilt).not.toHaveBeenCalled();
   });

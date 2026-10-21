@@ -1,4 +1,4 @@
-# Contributing to TDK
+# Contributing to Flisk
 
 English | [简体中文](docs/contributing/translations/CONTRIBUTING-zh_cn.md) | [繁體中文](docs/contributing/translations/CONTRIBUTING-zh_tw.md) | [日本語](docs/contributing/translations/CONTRIBUTING-ja.md) | [한국어](docs/contributing/translations/CONTRIBUTING-ko.md)
 
@@ -29,9 +29,9 @@ Welcome! Small fixes and large features are both useful. Start with the short [c
 
 Looking for an easy place to start?
 
-- Browse [good first issues](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue) for small, self-contained tasks.
-- Check [help wanted](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted) issues for tasks needing community help.
-- Visit the [Start here tracking issue (#120)](https://github.com/tdk-landscape/tdk-cli-core/issues/120) for a curated list of beginner-friendly tasks and quests.
+- Browse [good first issues](https://github.com/flisk-sh/tdk-cli-core/labels/good%20first%20issue) for small, self-contained tasks.
+- Check [help wanted](https://github.com/flisk-sh/tdk-cli-core/labels/help%20wanted) issues for tasks needing community help.
+- Visit the [Start here tracking issue (#120)](https://github.com/flisk-sh/tdk-cli-core/issues/120) for a curated list of beginner-friendly tasks and quests.
 
 ## Start here
 
@@ -46,15 +46,15 @@ The focused [frontend provider guide](docs/frontend-framework-providers.md) has 
 
 **Fastest way (recommended):** open the repository in a ready-to-use environment.
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tdk-landscape/tdk-cli-core?quickstart=1)
-[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-2f363d?style=for-the-badge&logo=visualstudiocode&logoColor=white&labelColor=2f363d)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-2f363d?style=for-the-badge&logo=gitpod&logoColor=white&labelColor=2f363d)](https://gitpod.io/#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-2f363d?style=for-the-badge&logo=firebase&logoColor=white&labelColor=2f363d)](https://idx.google.com/import?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-2f363d?style=for-the-badge&logo=replit&logoColor=white&labelColor=2f363d)](https://replit.com/github/tdk-landscape/tdk-cli-core)
-[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-2f363d?style=for-the-badge&logo=devpod&logoColor=white&labelColor=2f363d)](https://devpod.sh/open#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-2f363d?style=for-the-badge&logo=stackblitz&logoColor=white&labelColor=2f363d)](https://stackblitz.com/github/tdk-landscape/tdk-cli-core)
-[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-2f363d?style=for-the-badge&logo=codesandbox&logoColor=white&labelColor=2f363d)](https://codesandbox.io/p/github/tdk-landscape/tdk-cli-core)
-[![Open in VS Code](https://img.shields.io/badge/Open%20in-VS%20Code-2f363d?style=for-the-badge&labelColor=2f363d)](vscode://vscode.git/clone?url=https://github.com/tdk-landscape/tdk-cli-core)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/flisk-sh/tdk-cli-core?quickstart=1)
+[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-2f363d?style=for-the-badge&logo=visualstudiocode&logoColor=white&labelColor=2f363d)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-2f363d?style=for-the-badge&logo=gitpod&logoColor=white&labelColor=2f363d)](https://gitpod.io/#https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-2f363d?style=for-the-badge&logo=firebase&logoColor=white&labelColor=2f363d)](https://idx.google.com/import?url=https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-2f363d?style=for-the-badge&logo=replit&logoColor=white&labelColor=2f363d)](https://replit.com/github/flisk-sh/tdk-cli-core)
+[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-2f363d?style=for-the-badge&logo=devpod&logoColor=white&labelColor=2f363d)](https://devpod.sh/open#https://github.com/flisk-sh/tdk-cli-core)
+[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-2f363d?style=for-the-badge&logo=stackblitz&logoColor=white&labelColor=2f363d)](https://stackblitz.com/github/flisk-sh/tdk-cli-core)
+[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-2f363d?style=for-the-badge&logo=codesandbox&logoColor=white&labelColor=2f363d)](https://codesandbox.io/p/github/flisk-sh/tdk-cli-core)
+[![Open in VS Code](https://img.shields.io/badge/Open%20in-VS%20Code-2f363d?style=for-the-badge&labelColor=2f363d)](vscode://vscode.git/clone?url=https://github.com/flisk-sh/tdk-cli-core)
 [![Use with Claude Code](https://img.shields.io/badge/Use%20with-Claude%20Code-2f363d?style=for-the-badge&labelColor=2f363d)](https://claude.ai/code)
 [![Use with Codex](https://img.shields.io/badge/Use%20with-Codex-2f363d?style=for-the-badge&labelColor=2f363d)](https://chatgpt.com/codex)
 [![Use with Devin](https://img.shields.io/badge/Use%20with-Devin-2f363d?style=for-the-badge&labelColor=2f363d)](https://devin.ai)
@@ -77,20 +77,20 @@ The lightweight Dev Container provides Node.js 22 and Bun and runs `bun install`
 bun run typecheck && bun run lint && bun run test
 ```
 
-Docker and Tilt are **not** included in the default container (they are only needed when you want to try a full `tdk up`). See `.devcontainer/devcontainer.json` and the optional notes in the contributor guide if you need the heavier path.
+Docker and Tilt are **not** included in the default container (they are only needed when you want to try a full `flisk up`). See `.devcontainer/devcontainer.json` and the optional notes in the contributor guide if you need the heavier path.
 
 **Local install (alternative):**
 
 You need Git, [Bun](https://bun.sh) and Node.js 22.12+. Docker and Tilt are not needed for most changes.
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core
 bun install
 bun run typecheck && bun run lint && bun run test   # about a minute; all of it should pass before you change anything
 ```
 
-If one of these fails on a clean checkout, that is a bug in the project, not in your setup: please [open an issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose).
+If one of these fails on a clean checkout, that is a bug in the project, not in your setup: please [open an issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose).
 
 
 ## CLI conventions
@@ -100,18 +100,18 @@ If one of these fails on a clean checkout, that is a bug in the project, not in 
 
 ## Supported platforms
 
-For developing and running TDK locally:
+For developing and running Flisk locally:
 
 - **macOS and Linux**: Supported directly.
-- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows is inspect-only (`tdk --version`, `tdk doctor`, and `tdk up --dry-run`) and refutes startup (`tdk up` exits with an error indicating landscape startup requires Ubuntu on WSL2). See the [WSL2 setup guide](docs/wsl2.md) and tracking in [#622](https://github.com/tdk-landscape/tdk-cli-core/issues/622).
+- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows is inspect-only (`flisk --version`, `flisk doctor`, and `flisk up --dry-run`) and refutes startup (`flisk up` exits with an error indicating landscape startup requires Ubuntu on WSL2). See the [WSL2 setup guide](docs/wsl2.md) and tracking in [#622](https://github.com/flisk-sh/tdk-cli-core/issues/622).
 
 ## Getting help
 
 If you have questions or encounter issues while contributing:
 
-- **Bug report**: Use the [Bug report](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=bug_report.yml) template. Include steps to reproduce, what happened, what you expected, and the output of `tdk doctor` and `tdk --version`.
-- **Feature request**: Use the [Feature request](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=feature_request.yml) template to suggest an idea or improvement.
-- **Questions**: For quick questions, ideas, or general discussions that do not require an issue, use [GitHub Discussions](https://github.com/tdk-landscape/tdk-cli-core/discussions) or open a question via a blank issue.
+- **Bug report**: Use the [Bug report](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=bug_report.yml) template. Include steps to reproduce, what happened, what you expected, and the output of `flisk doctor` and `flisk --version`.
+- **Feature request**: Use the [Feature request](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=feature_request.yml) template to suggest an idea or improvement.
+- **Questions**: For quick questions, ideas, or general discussions that do not require an issue, use [GitHub Discussions](https://github.com/flisk-sh/tdk-cli-core/discussions) or open a question via a blank issue.
 
 Maintainers aim to reply within one working day.
 
@@ -128,7 +128,7 @@ The full steps for reviewers, including what to look at, are in [docs/contributi
 
 ## Changing the CLI source
 
-The CLI is committed as compiled output in `cli/dist/`, so `npm install -g github:tdk-landscape/tdk-cli-core` works without a build step. CI checks that `cli/dist/` matches `cli/src/`.
+The CLI is committed as compiled output in `cli/dist/`, so `npm install -g github:flisk-sh/tdk-cli-core` works without a build step. CI checks that `cli/dist/` matches `cli/src/`.
 
 After you change anything under `cli/src/`:
 
@@ -142,11 +142,11 @@ The CI bot can rebuild `cli/dist/` and push it for pull requests from this repos
 
 ## Tests
 
-Every new feature or behavior change needs automated tests in the same pull request. A change that affects a running stack (a resource type, a command or MCP tool that talks to the stack, `tdk up`, routing or the engine) also needs an end-to-end test. [Writing an e2e test](docs/contributing/05-write-e2e.md) explains when, where and how, including the deliberate-break evidence a new suite needs. Put tests next to the code they cover, or in the existing suite for that area (`cli/src/**/__tests__/`, `tests/fuzz/`). A bug fix adds a test that fails before the fix and passes after it. If a test is not practical, the pull request says why and links an issue that tracks adding it. Reviewers check this in every pull request, and the checks listed in [03-open-a-pr.md](docs/contributing/03-open-a-pr.md#run-the-checks-for-your-change) run the suite in CI.
+Every new feature or behavior change needs automated tests in the same pull request. A change that affects a running stack (a resource type, a command or MCP tool that talks to the stack, `flisk up`, routing or the engine) also needs an end-to-end test. [Writing an e2e test](docs/contributing/05-write-e2e.md) explains when, where and how, including the deliberate-break evidence a new suite needs. Put tests next to the code they cover, or in the existing suite for that area (`cli/src/**/__tests__/`, `tests/fuzz/`). A bug fix adds a test that fails before the fix and passes after it. If a test is not practical, the pull request says why and links an issue that tracks adding it. Reviewers check this in every pull request, and the checks listed in [03-open-a-pr.md](docs/contributing/03-open-a-pr.md#run-the-checks-for-your-change) run the suite in CI.
 
 ### Unit tests and coverage
 
-TDK uses [Vitest](https://vitest.dev/) for CLI unit testing. You can run tests directly with Bun from the repository root:
+Flisk uses [Vitest](https://vitest.dev/) for CLI unit testing. You can run tests directly with Bun from the repository root:
 
 - **Run all unit tests**:
   ```bash
@@ -222,7 +222,7 @@ CI makes coverage feedback accessible across several touchpoints:
 
 ### Example test patterns to reference
 
-New to writing tests for TDK? Take a look at these existing test suites for patterns and conventions:
+New to writing tests for Flisk? Take a look at these existing test suites for patterns and conventions:
 - **Command execution and flag contracts**: [`cli/src/commands/__tests__/completion-install.test.ts`](cli/src/commands/__tests__/completion-install.test.ts)
 - **Pure logic and validation**: [`cli/src/commands/__tests__/api-path-constants.test.ts`](cli/src/commands/__tests__/api-path-constants.test.ts)
 - **Mocking external processes and environment variables**: [`cli/src/commands/__tests__/agent-sessions.test.ts`](cli/src/commands/__tests__/agent-sessions.test.ts)
@@ -237,29 +237,29 @@ Run focused checks from the repository root while you work, then use `make test`
 | Anything that runs against a live stack | `make test-e2e GROUP=<group> SUITE=<suite>` (see [writing an e2e test](docs/contributing/05-write-e2e.md)) |
 | Multiple areas or anything before a PR | `make test` |
 
-The TypeScript target requires Bun and Node.js 22.12+. The Python target requires the packages in `tests/requirements.txt`; it includes the known clean-checkout failures tracked in [#700](https://github.com/tdk-landscape/tdk-cli-core/issues/700) rather than hiding or skipping them. The shell target runs Bash syntax validation on `scripts/verify-*.sh` and the e2e suites, validates every `tests/e2e/<group>/<suite>/suite.json`, and runs the e2e helper unit tests. It does not start a stack. Run an affected verification script separately when you need its real integration coverage; those scripts document their own arguments and may require Docker, Tilt, a built CLI or network access.
+The TypeScript target requires Bun and Node.js 22.12+. The Python target requires the packages in `tests/requirements.txt`; it includes the known clean-checkout failures tracked in [#700](https://github.com/flisk-sh/tdk-cli-core/issues/700) rather than hiding or skipping them. The shell target runs Bash syntax validation on `scripts/verify-*.sh` and the e2e suites, validates every `tests/e2e/<group>/<suite>/suite.json`, and runs the e2e helper unit tests. It does not start a stack. Run an affected verification script separately when you need its real integration coverage; those scripts document their own arguments and may require Docker, Tilt, a built CLI or network access.
 
 ## Find bugs
 
-You do not need to write code to help. Run a command, compare what it prints with what TDK promises (its `--help`, the docs, or another command), and report any difference. That is a bug.
+You do not need to write code to help. Run a command, compare what it prints with what Flisk promises (its `--help`, the docs, or another command), and report any difference. That is a bug.
 
-[Finding bugs in TDK](docs/contributing/finding-bugs.md) has the exact steps: a scratch project to test in, a checklist of commands with the output you should see, the patterns that found past bugs, and the report format maintainers can act on. For example, if `tdk networks` lists no URLs while `tdk up --dry-run` prints them, the two commands disagree, so one of them is wrong.
+[Finding bugs in Flisk](docs/contributing/finding-bugs.md) has the exact steps: a scratch project to test in, a checklist of commands with the output you should see, the patterns that found past bugs, and the report format maintainers can act on. For example, if `flisk networks` lists no URLs while `flisk up --dry-run` prints them, the two commands disagree, so one of them is wrong.
 
 ## Review pull requests
 
-You can help without writing code by reviewing open [pull requests](https://github.com/tdk-landscape/tdk-cli-core/pulls). Every PR ends with **Grok**, **Claude**, and **Codex** buttons that open an AI chat already asked to review that PR. The AI is your helper: check what it says against the diff, then submit your own review on GitHub as **Comment**, **Approve**, or **Request changes**.
+You can help without writing code by reviewing open [pull requests](https://github.com/flisk-sh/tdk-cli-core/pulls). Every PR ends with **Grok**, **Claude**, and **Codex** buttons that open an AI chat already asked to review that PR. The AI is your helper: check what it says against the diff, then submit your own review on GitHub as **Comment**, **Approve**, or **Request changes**.
 
 Before your first review, read the [required docs](docs/contributing/04-review-a-pr.md#before-your-first-review-required-reading) (about an hour, once). [Review a pull request](docs/contributing/04-review-a-pr.md) then explains the buttons step by step, with example comments for approving and for requesting changes.
 
 ## Find something to work on
 
-- [The TDK Journey](docs/journey/README.md): pick an island, finish a quest, rank up (8 kyu → 1 dan)
-- [Good first issues](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue)
-- [Help wanted](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted)
+- [The Flisk Journey](docs/journey/README.md): pick an island, finish a quest, rank up (8 kyu → 1 dan)
+- [Good first issues](https://github.com/flisk-sh/tdk-cli-core/labels/good%20first%20issue)
+- [Help wanted](https://github.com/flisk-sh/tdk-cli-core/labels/help%20wanted)
 - [Hunt for bugs](docs/contributing/finding-bugs.md) with the step-by-step checklist
-- [Report a bug or ask a question](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)
+- [Report a bug or ask a question](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)
 
-If you pick an issue, comment `I'll take this` (or `I would like this one`, `I'd like to work on this`, `Can I take this?`). A bot assigns you and adds the `claimed` label so two people do not do the same work. A claim with no pull request is nudged after 14 days and released after 21; a draft PR counts as progress. For a bug report, include the output of `tdk doctor` when you can.
+If you pick an issue, comment `I'll take this` (or `I would like this one`, `I'd like to work on this`, `Can I take this?`). A bot assigns you and adds the `claimed` label so two people do not do the same work. A claim with no pull request is nudged after 14 days and released after 21; a draft PR counts as progress. For a bug report, include the output of `flisk doctor` when you can.
 
 ## Spell check
 
@@ -269,7 +269,7 @@ Install the pinned checker with `cargo install typos-cli --version 1.50.3`, then
 
 Use labels to find work that fits your interests and experience. Maintainers apply
 labels during triage; issue forms and the PR labeler also apply some automatically.
-The live [label list](https://github.com/tdk-landscape/tdk-cli-core/labels) includes
+The live [label list](https://github.com/flisk-sh/tdk-cli-core/labels) includes
 each label's description.
 
 | Label | Meaning | When it is applied |
@@ -295,7 +295,7 @@ each label's description.
 | `hacktoberfest` | Work participating in Hacktoberfest. | Maintainers select eligible contributions for the event. |
 | `area:*` | The affected surface, such as `area: tui`, `area: doctor`, or `area: cli`. | Maintainers label issues; the PR labeler derives areas from changed paths. |
 | `tech:*` | A relevant technology, such as TypeScript, Docker, or Tilt. | Maintainers identify the tools involved in a task. |
-| `rank:*`, `island:*` | Task size and topic on the TDK Journey. | Maintainers place a quest on the contributor map. |
+| `rank:*`, `island:*` | Task size and topic on the Flisk Journey. | Maintainers place a quest on the contributor map. |
 | `event:*` | Work targeting a named event, such as GitHub Universe. | Maintainers organize event-specific work. |
 
 ## Exit codes
@@ -304,9 +304,9 @@ CLI commands use a single error style and exit code convention. Report user-faci
 
 | Exit code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | The command or check succeeded (including non-blocking warnings). | `tdk status`, `tdk config verify` on a clean project, `tdk doctor` with warnings only. |
-| `1` | A blocking finding, missing prerequisite, or command/runtime failure. | Missing `.tdk/project.json`, `tdk config verify` drift, failed `tdk doctor` check, unreachable Tilt, native Windows startup refusal, or failed smoke check. |
-| `2` | Invalid CLI arguments/flags, unknown `--only` / `--service` names, an unexpected internal error in `--json` mode, or `tdk up` hand-edited generated file drift (`DRIFT_EXIT_CODE = 2`, kept at `2` for CI compatibility). | Invalid `--port` or `--tail`, unknown service selector, malformed `.tdk/project.json` under `--json`, or `tdk up` when `.autogenerated/` files were edited by hand. |
+| `0` | The command or check succeeded (including non-blocking warnings). | `flisk status`, `flisk config verify` on a clean project, `flisk doctor` with warnings only. |
+| `1` | A blocking finding, missing prerequisite, or command/runtime failure. | Missing `.tdk/project.json`, `flisk config verify` drift, failed `flisk doctor` check, unreachable Tilt, native Windows startup refusal, or failed smoke check. |
+| `2` | Invalid CLI arguments/flags, unknown `--only` / `--service` names, an unexpected internal error in `--json` mode, or `flisk up` hand-edited generated file drift (`DRIFT_EXIT_CODE = 2`, kept at `2` for CI compatibility). | Invalid `--port` or `--tail`, unknown service selector, malformed `.tdk/project.json` under `--json`, or `flisk up` when `.autogenerated/` files were edited by hand. |
 
 ## Sign your commits
 
@@ -322,11 +322,11 @@ Every contribution matters. When your pull request is merged:
 
 ## Add your team to the adopters list
 
-Run TDK on your own repository? You can be listed in [ADOPTERS.md](ADOPTERS.md) in either of two ways: open the [We use TDK](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=we-use-tdk.yml) issue form, or add a row to the table in a pull request. [What counts](ADOPTERS.md#what-counts) explains what to link and what does not count.
+Run Flisk on your own repository? You can be listed in [ADOPTERS.md](ADOPTERS.md) in either of two ways: open the [We use Flisk](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=we-use-flisk.yml) issue form, or add a row to the table in a pull request. [What counts](ADOPTERS.md#what-counts) explains what to link and what does not count.
 
 ## Governance
 
-See [GOVERNANCE.md](GOVERNANCE.md) for how decisions are made and maintainers are added, [MAINTAINERS.md](MAINTAINERS.md) for who can merge, and [ADOPTERS.md](ADOPTERS.md) for teams using TDK.
+See [GOVERNANCE.md](GOVERNANCE.md) for how decisions are made and maintainers are added, [MAINTAINERS.md](MAINTAINERS.md) for who can merge, and [ADOPTERS.md](ADOPTERS.md) for teams using Flisk.
 
 ## Be kind
 

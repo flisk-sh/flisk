@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /// <reference types="vite/client" />
 
@@ -45,19 +45,19 @@ function loadRegisteredCommandMap(): Map<string, Command> {
   return byName;
 }
 
-/** Validate `tdk <subcommand> ...` usage snippets against registered Commander commands. */
+/** Validate `flisk <subcommand> ...` usage snippets against registered Commander commands. */
 function checkDocCliInvocations(docText: string, commands: Map<string, Command>): string[] {
   const problems: string[] = [];
   const matches = [
-    ...docText.matchAll(/`tdk\s+([a-z][\w-]*)(?:\s+([^`\n]*))?`/g),
-    ...docText.matchAll(/^\s*tdk\s+([a-z][\w-]*)(?:\s+([^\n]*))?$/gm),
+    ...docText.matchAll(/`flisk\s+([a-z][\w-]*)(?:\s+([^`\n]*))?`/g),
+    ...docText.matchAll(/^\s*flisk\s+([a-z][\w-]*)(?:\s+([^\n]*))?$/gm),
   ];
   for (const match of matches) {
     const subName = match[1];
     const rest = (match[2] ?? "").trim();
     const rootCmd = commands.get(subName);
     if (!rootCmd) {
-      problems.push(`unknown command "tdk ${subName}"`);
+      problems.push(`unknown command "flisk ${subName}"`);
       continue;
     }
 
@@ -88,7 +88,7 @@ function checkDocCliInvocations(docText: string, commands: Map<string, Command>)
       if (stripped.startsWith("-")) {
         const flagName = stripped.split("=")[0];
         if (!validFlags.has(flagName)) {
-          problems.push(`tdk ${targetCmd.name()}: unknown flag "${flagName}" in "${match[0]}"`);
+          problems.push(`flisk ${targetCmd.name()}: unknown flag "${flagName}" in "${match[0]}"`);
         }
         const opt = targetCmd.options.find((o) => o.long === flagName || o.short === flagName);
         if (
@@ -109,7 +109,7 @@ function checkDocCliInvocations(docText: string, commands: Map<string, Command>)
 
     if (positionalCount > targetCmd.registeredArguments.length) {
       problems.push(
-        `tdk ${targetCmd.name()} takes ${targetCmd.registeredArguments.length} positional argument(s), but doc has ${positionalCount} in "${match[0]}"`,
+        `flisk ${targetCmd.name()} takes ${targetCmd.registeredArguments.length} positional argument(s), but doc has ${positionalCount} in "${match[0]}"`,
       );
     }
   }
@@ -155,21 +155,21 @@ describe("argument building", () => {
 
 describe("cliInvocation", () => {
   it("re-runs a script with its interpreter", () => {
-    expect(cliInvocation("/usr/bin/node", "/opt/tdk/bin/tdk.js", () => true)).toEqual([
+    expect(cliInvocation("/usr/bin/node", "/opt/flisk/bin/flisk.js", () => true)).toEqual([
       "/usr/bin/node",
-      "/opt/tdk/bin/tdk.js",
+      "/opt/flisk/bin/flisk.js",
     ]);
   });
   it("runs a compiled binary alone, because its argv[1] is a virtual path", () => {
-    expect(cliInvocation("/usr/local/bin/tdk", "/$bunfs/root/tdk", () => false)).toEqual([
-      "/usr/local/bin/tdk",
+    expect(cliInvocation("/usr/local/bin/flisk", "/$bunfs/root/flisk", () => false)).toEqual([
+      "/usr/local/bin/flisk",
     ]);
     expect(cliInvocation("C:\\tdk.exe", "B:\\~BUN\\root\\tdk.exe", () => false)).toEqual([
       "C:\\tdk.exe",
     ]);
   });
   it("falls back to the executable when there is no script", () => {
-    expect(cliInvocation("/usr/local/bin/tdk", "")).toEqual(["/usr/local/bin/tdk"]);
+    expect(cliInvocation("/usr/local/bin/flisk", "")).toEqual(["/usr/local/bin/flisk"]);
   });
 });
 
@@ -214,7 +214,7 @@ describe("runTdkCli", () => {
 describe("defaultUpDeps", () => {
   it("reads missing logs as empty and names a temp log", async () => {
     expect(defaultUpDeps.readLog(join(tmpdir(), `tdk-missing-${Date.now()}.log`))).toBe("");
-    expect(defaultUpDeps.logFile()).toContain("tdk-mcp-up-");
+    expect(defaultUpDeps.logFile()).toContain("flisk-mcp-up-");
     expect(defaultUpDeps.now()).toBeGreaterThan(0);
     await expect(defaultUpDeps.sleep(0)).resolves.toBeUndefined();
   });
@@ -222,7 +222,7 @@ describe("defaultUpDeps", () => {
   it("starts the CLI detached with the log file as stdio", () => {
     const child = { pid: 9, unref: vi.fn() };
     spawnMock.mockReturnValue(child);
-    const log = join(tmpdir(), `tdk-mcp-up-test-${Date.now()}.log`);
+    const log = join(tmpdir(), `flisk-mcp-up-test-${Date.now()}.log`);
     try {
       expect(defaultUpDeps.spawnUp(["up", "--json"], log, "/work")).toBe(child);
       expect(spawnMock).toHaveBeenCalledWith(
@@ -265,7 +265,7 @@ describe("toToolResult", () => {
     expect(JSON.stringify(bad.data)).toContain("BAD_JSON");
     const empty = toToolResult({ exitCode: 3, stdout: "", stderr: "" });
     expect(empty.isError).toBe(true);
-    expect(JSON.stringify(empty.data)).toContain("tdk exited with code 3");
+    expect(JSON.stringify(empty.data)).toContain("flisk exited with code 3");
   });
 });
 
@@ -449,12 +449,12 @@ describe("tool list", () => {
       );
     }
 
-    // Verify the checker rejects `tdk down [stack]` and unknown flags
-    expect(checkDocCliInvocations("- `tdk down [stack] [--json]`", commands)).toEqual([
-      'tdk down takes 0 positional argument(s), but doc has 1 in "`tdk down [stack] [--json]`"',
+    // Verify the checker rejects `flisk down [stack]` and unknown flags
+    expect(checkDocCliInvocations("- `flisk down [stack] [--json]`", commands)).toEqual([
+      'flisk down takes 0 positional argument(s), but doc has 1 in "`flisk down [stack] [--json]`"',
     ]);
-    expect(checkDocCliInvocations("- `tdk down [--bogus]`", commands)).toEqual([
-      'tdk down: unknown flag "--bogus" in "`tdk down [--bogus]`"',
+    expect(checkDocCliInvocations("- `flisk down [--bogus]`", commands)).toEqual([
+      'flisk down: unknown flag "--bogus" in "`flisk down [--bogus]`"',
     ]);
   });
 });

@@ -20,7 +20,7 @@ default or the scaffold behavior:
 - `--type backend` → the backend listing.
 
 The same rule decides what `--language` means. Without an explicit `--type` the listing is the frontend
-one, and `--language` is a backend option, so it is not applied to it: `tdk resource --language python
+one, and `--language` is a backend option, so it is not applied to it: `flisk resource --language python
 --frameworks` prints the frontend listing and exits successfully, exactly as before this change. With an
 explicit `--type frontend`, `--language` is still rejected, because a frontend resource has no language.
 
@@ -49,7 +49,7 @@ code.
 
 ### 5. The listing is tested through the real binary
 
-The inventory is a CLI contract, so the test spawns `cli/bin/tdk.js` and reads the tab separated output.
+The inventory is a CLI contract, so the test spawns `cli/bin/flisk.js` and reads the tab separated output.
 A spawned process also avoids the commander state that an in-process `parseAsync` keeps between runs,
 where a `--type` from an earlier case would still be set for a later one.
 

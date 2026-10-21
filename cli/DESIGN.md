@@ -1,9 +1,9 @@
-# TDK CLI Neon Design System v3.0
+# Flisk CLI Neon Design System v3.0
 ## Cyberpunk Terminal UI - Practical & Beautiful
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║  ▓▒░ TDK NEON EDITION ░▒▓  │  /path/to/project  │  [ 36 services ]   ║
+║  ▓▒░ Flisk NEON EDITION ░▒▓  │  /path/to/project  │  [ 36 services ]   ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
 ║  [1] OVERVIEW  [2] RESOURCES  [3] EVENTS  [4] FILES  [5] CONFIG     ║
@@ -98,7 +98,7 @@
 ```
 Full (120+ cols):
 ┌────────────────────────────────────────────────────────────────────────────┐
-│  ▓▒░ TDK NEON ░▒▓  │  /path/to/project  │  36 services ready              │
+│  ▓▒░ Flisk NEON ░▒▓  │  /path/to/project  │  36 services ready              │
 │  [1] Overview  [2] Resources  [3] Events  [4] Files  [5] Config            │
 │  ┌─ Stacks ──────────────────────┐  ┌─ Details ──────────────────────┐     │
 │  │  api (5 services)        │  │  Name: api                  │     │
@@ -109,7 +109,7 @@ Full (120+ cols):
 
 Compact (80-119 cols):
 ┌────────────────────────────────────────────────────────┐
-│  ▓▒░ TDK ░▒▓  │  /path/to/project  │  36 svcs ready   │
+│  ▓▒░ Flisk ░▒▓  │  /path/to/project  │  36 svcs ready   │
 │  [1]Overview [2]Resources [3]Events [4]Files [5]Config  │
 │  ┌─ Stacks ───────────────────┐  ┌─ Details ───────┐   │
 │  │  api (5 svcs)          │  │  api       │   │
@@ -119,7 +119,7 @@ Compact (80-119 cols):
 
 Mobile (<80 cols):
 ┌─────────────────────────────────┐
-│  ▓▒░ TDK ░▒▓ │ 36 svcs ready    │
+│  ▓▒░ Flisk ░▒▓ │ 36 svcs ready    │
 │  [1][2][3][4][5]                │
 │  ┌─ Stacks ───────────────────┐
 │  │  api (5 svcs)          │
@@ -143,11 +143,11 @@ Mobile (<80 cols):
 ```
 Minimal (Best):
 ╔══════════════════════════════════════════════════════════════════════╗
-║  ▓▒░ TDK NEON EDITION ░▒▓  │  /path/to/project  │  [ 36 services ]   ║
+║  ▓▒░ Flisk NEON EDITION ░▒▓  │  /path/to/project  │  [ 36 services ]   ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
 Rules:
-- One neon accent: the title "▓▒░ TDK NEON EDITION ░▒▓"
+- One neon accent: the title "▓▒░ Flisk NEON EDITION ░▒▓"
 - Everything else: neutral colors
 - Height: 1 row
 - Separator: Single line (not double, not neon border)
@@ -341,9 +341,9 @@ Timing:
 
 ```bash
 # Disable for slow connections or user preference
-tdk ui --no-animations
+flisk ui --no-animations
 # or
-NO_ANIMATIONS=1 tdk ui
+NO_ANIMATIONS=1 flisk ui
 ```
 
 When disabled:
@@ -376,9 +376,9 @@ Wrong (Color Only):
 
 ```bash
 # For visually impaired users
-tdk ui --high-contrast
+flisk ui --high-contrast
 # or
-HIGH_CONTRAST=1 tdk ui
+HIGH_CONTRAST=1 flisk ui
 ```
 
 Changes in high contrast:
@@ -426,7 +426,7 @@ Implementation:
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║  ▓▒░ TDK NEON EDITION ░▒▓                                            ║
+║  ▓▒░ Flisk NEON EDITION ░▒▓                                            ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
 ║  ┌─ No Services Found ──────────────────────────────────────────────┐
@@ -434,7 +434,7 @@ Implementation:
 ║  │  ◉ No service.json files found in this directory                 │
 ║  │                                                                   │
 ║  │  To get started:                                                  │
-║  │    1. Run: tdk init                                              │
+║  │    1. Run: flisk init                                              │
 ║  │    2. Or create services manually                                │
 ║  │                                                                   │
 ║  │  [Press 'q' to quit]                                              │
@@ -453,7 +453,7 @@ Implementation:
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║  ▓▒░ TDK NEON EDITION ░▒▓                                            ║
+║  ▓▒░ Flisk NEON EDITION ░▒▓                                            ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
 ║  ┌─ Connection Error ────────────────────────────────────────────────┐
@@ -463,7 +463,7 @@ Implementation:
 ║  │  Troubleshooting:                                                  │
 ║  │    1. Is Tilt running? Run: tilt up                                │
 ║  │    2. Check Tiltfile exists in current directory                  │
-║  │    3. Try: tdk status --verbose                                   │
+║  │    3. Try: flisk status --verbose                                   │
 ║  │                                                                   │
 ║  │  [Press any key to retry]                                         │
 ║  │                                                                   │
@@ -481,7 +481,7 @@ Implementation:
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║  ▓▒░ TDK NEON EDITION ░▒▓                                            ║
+║  ▓▒░ Flisk NEON EDITION ░▒▓                                            ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║                                                                      ║
 ║  ┌─ Loading System ──────────────────────────────────────────────────┐
@@ -608,10 +608,10 @@ const FALLBACK_16 = {
 
 ```
 Full Unicode:
-▓▒░ TDK ░▒▓  │  api (5 svcs)  │  ✓ ready
+▓▒░ Flisk ░▒▓  │  api (5 svcs)  │  ✓ ready
 
 ASCII Fallback:
-[ TDK ]  |  api (5 svcs)  |  [OK] ready
+[ Flisk ]  |  api (5 svcs)  |  [OK] ready
 
 Border Unicode:
 ┌─ Stacks ─┐
@@ -727,7 +727,7 @@ AFTER (Restrained & Clear):
 └────────────────────────────┘
 ```
 
-**This is the TDK Neon Edition: Beautiful, Practical, Accessible.**
+**This is the Flisk Neon Edition: Beautiful, Practical, Accessible.**
 
 ---
 

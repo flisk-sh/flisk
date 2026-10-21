@@ -2,23 +2,23 @@
 
 ## Supported versions
 
-Security fixes go into the latest release published on [npm](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core). Please upgrade before reporting.
+Security fixes go into the latest release published on [npm](https://www.npmjs.com/package/flisk). Please upgrade before reporting.
 
 ## Reporting a vulnerability
 
 Please **do not** open a public issue for security problems.
 
-Report them privately through [GitHub security advisories](https://github.com/tdk-landscape/tdk-cli-core/security/advisories/new). Include:
+Report them privately through [GitHub security advisories](https://github.com/flisk-sh/tdk-cli-core/security/advisories/new). Include:
 
-- the TDK version (`tdk --version`) and your OS
+- the Flisk version (`flisk --version`) and your OS
 - steps to reproduce
 - what an attacker could do with it
 
 ## Dependency advisories are tracked in public
 
-A published advisory about a **third-party dependency** (a vulnerable `vite`, `certifi` or similar in a lockfile) is not a vulnerability in TDK, so those are tracked in the open. A workflow reads the Dependabot alerts and the osv-scanner code-scanning alerts and opens one issue per open alert, with the advisory detail and a set of labels, so a contributor can pick the fix up. The issue closes itself when the alert is fixed.
+A published advisory about a **third-party dependency** (a vulnerable `vite`, `certifi` or similar in a lockfile) is not a vulnerability in Flisk, so those are tracked in the open. A workflow reads the Dependabot alerts and the osv-scanner code-scanning alerts and opens one issue per open alert, with the advisory detail and a set of labels, so a contributor can pick the fix up. The issue closes itself when the alert is fixed.
 
-Those issues are about upstream packages, not about TDK. A vulnerability **in TDK itself** still belongs in a private report, not in a public issue.
+Those issues are about upstream packages, not about Flisk. A vulnerability **in Flisk itself** still belongs in a private report, not in a public issue.
 
 ## What happens next
 
@@ -33,8 +33,8 @@ If you do not hear back within 5 business days, please send the report again thr
 
 ## Scope
 
-In scope: the `tdk` CLI, the Tilt engine and generated local runtime files in this repository, and the published npm package `@tdk-landscape/tdk-cli-core`. TDK is a local development tool; issues in third-party services it starts (Docker, Tilt, databases) should go to those projects.
+In scope: the `flisk` CLI, the Tilt engine and generated local runtime files in this repository, and the published npm package `flisk`. Flisk is a local development tool; issues in third-party services it starts (Docker, Tilt, databases) should go to those projects.
 
-## What TDK sends and how secrets are handled
+## What Flisk sends and how secrets are handled
 
 See [docs/security.md](docs/security.md).

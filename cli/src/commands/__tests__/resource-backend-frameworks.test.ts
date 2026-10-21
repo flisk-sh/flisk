@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -16,9 +16,9 @@ import {
 import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
-function tdk(args: string[], cwd: string, input = "y\n") {
+function flisk(args: string[], cwd: string, input = "y\n") {
   return spawnSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
@@ -177,7 +177,7 @@ describe("backend framework inventory", () => {
       // A language that owns its runtime (python, go, rust, node) cannot be combined with a framework.
       expect(entry.languages).toEqual(["bun"]);
       expect(entry.compatible).toBe(true);
-      expect(entry.command).toBe(`tdk resource <name> --type backend --framework ${entry.id}`);
+      expect(entry.command).toBe(`flisk resource <name> --type backend --framework ${entry.id}`);
     }
   });
 
@@ -193,7 +193,7 @@ describe("backend framework inventory", () => {
         expect(entry.compatible).toBe(false);
         // The command creates the resource in the requested language; that language owns its runtime,
         // so no framework applies to it.
-        expect(entry.command).toBe(`tdk resource <name> --type backend --language ${languageId}`);
+        expect(entry.command).toBe(`flisk resource <name> --type backend --language ${languageId}`);
       }
     }
   });
@@ -204,7 +204,7 @@ describe("backend framework inventory", () => {
       expect(entry.compatible).toBe(true);
       // The requested language is named, so a copied row scaffolds the language that was asked about.
       expect(entry.command).toBe(
-        `tdk resource <name> --type backend --framework ${entry.id} --language bun`,
+        `flisk resource <name> --type backend --framework ${entry.id} --language bun`,
       );
     }
   });
@@ -214,11 +214,11 @@ describe("backend framework inventory", () => {
   });
 });
 
-describe("tdk resource --framework on a backend", () => {
+describe("flisk resource --framework on a backend", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-backend-framework-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-backend-framework-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
       env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
@@ -234,7 +234,7 @@ describe("tdk resource --framework on a backend", () => {
     JSON.parse(readFileSync(join(dir(name), file), "utf-8"));
 
   it("scaffolds Express with its own source and dependencies, on the shared Bun image", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "express-api", "--type", "backend", "--framework", "express", "--stack", "shop"],
       projectRoot,
     );
@@ -261,7 +261,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 15000);
 
   it("scaffolds Elysia on the shared Bun image with its own source and dependencies", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "elysia-api", "--type", "backend", "--framework", "elysia", "--stack", "shop"],
       projectRoot,
     );
@@ -281,7 +281,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 15000);
 
   it("scaffolds Fastify on the shared Bun image with its own source and dependencies", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "fastify-api", "--type", "backend", "--framework", "fastify", "--stack", "shop"],
       projectRoot,
     );
@@ -301,7 +301,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 15000);
 
   it("scaffolds NestJS with decorator options in its tsconfig, on the shared Bun image", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "nest-api", "--type", "backend", "--framework", "nestjs", "--stack", "shop"],
       projectRoot,
     );
@@ -321,7 +321,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 15000);
 
   it("scaffolds Koa on the shared Bun image with its own source and dependencies", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "koa-api", "--type", "backend", "--framework", "koa", "--stack", "shop"],
       projectRoot,
     );
@@ -337,7 +337,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 15000);
 
   it("scaffolds h3 on the shared Bun image with its own source and dependency", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "h3-api", "--type", "backend", "--framework", "h3", "--stack", "shop"],
       projectRoot,
     );
@@ -352,7 +352,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 30000);
 
   it("persists an explicit hono selection and keeps the Hono source", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "hono-api", "--type", "backend", "--framework", "hono", "--stack", "shop"],
       projectRoot,
     );
@@ -363,7 +363,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 15000);
 
   it("leaves a backend without --framework on Hono with no framework field", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "plain-api", "--type", "backend", "--stack", "shop"],
       projectRoot,
     );
@@ -377,7 +377,7 @@ describe("tdk resource --framework on a backend", () => {
   }, 15000);
 
   it("rejects an unknown framework, Python, and other resource types before writing", () => {
-    const unknown = tdk(
+    const unknown = flisk(
       ["resource", "bad-api", "--type", "backend", "--framework", "sinatra", "--stack", "shop"],
       projectRoot,
     );
@@ -385,7 +385,7 @@ describe("tdk resource --framework on a backend", () => {
     expect(`${unknown.stdout}${unknown.stderr}`).toMatch(/Unknown backend framework "sinatra"/);
     expect(existsSync(dir("bad-api"))).toBe(false);
 
-    const python = tdk(
+    const python = flisk(
       [
         "resource",
         "py-express",
@@ -404,7 +404,7 @@ describe("tdk resource --framework on a backend", () => {
     expect(`${python.stdout}${python.stderr}`).toMatch(/cannot be combined with --language python/);
     expect(existsSync(dir("py-express"))).toBe(false);
 
-    const worker = tdk(
+    const worker = flisk(
       ["resource", "job", "--type", "worker", "--framework", "express", "--stack", "shop"],
       projectRoot,
     );

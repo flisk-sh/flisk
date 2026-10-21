@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { BRING_YOUR_OWN_TYPE, DATABASE_MANAGEMENT_FEATURE } from "../constants.js";

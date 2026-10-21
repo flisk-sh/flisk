@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
@@ -13,7 +13,7 @@ import { resourceCommand } from "../resource.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function runTdk(args: string[], cwd: string, input?: string): string {
   return execFileSync(process.execPath, [cliBin, ...args], {
@@ -31,7 +31,7 @@ describe("frontend resource framework selection", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-resource-framework-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-resource-framework-"));
     runTdk(["project", "--yes"], projectRoot);
   });
 
@@ -117,7 +117,7 @@ describe("frontend resource framework selection", () => {
       "ReactDOM.createRoot",
     );
     expect(readFileSync(join(resourcePath, "src", "App.tsx"), "utf-8")).toContain(
-      "Frontend resource created with TDK",
+      "Frontend resource created with Flisk",
     );
   }, 15000);
 
@@ -530,7 +530,7 @@ describe("frontend resource framework selection", () => {
     );
 
     // apps/landing would be outside the default services/*/* discovery glob, so Tilt would
-    // never create a resource for it and `tdk up` would route to nothing.
+    // never create a resource for it and `flisk up` would route to nothing.
     expect(existsSync(join(projectRoot, "services", "shop", "landing", "service.json"))).toBe(true);
     expect(existsSync(join(projectRoot, "apps", "landing"))).toBe(false);
     expect(output).toContain("Placed in services/shop/landing instead of the usual apps/landing");
@@ -556,7 +556,7 @@ describe("frontend resource framework selection", () => {
 
     expect(existsSync(join(projectRoot, "apps", "marketing", "service.json"))).toBe(true);
     expect(output).toContain("apps/marketing is outside discovery.paths");
-    expect(output).toContain("tdk config regenerate");
+    expect(output).toContain("flisk config regenerate");
   }, 15000);
 
   it("fails for an unknown framework before creating a resource directory", async () => {
@@ -604,7 +604,7 @@ describe("frontend resource framework selection", () => {
     );
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(
-      /"angular" is not a Vite SPA provider[\s\S]*tdk resource meta-web --type bring-your-own/,
+      /"angular" is not a Vite SPA provider[\s\S]*flisk resource meta-web --type bring-your-own/,
     );
     expect(existsSync(resourcePath)).toBe(false);
   }, 15000);

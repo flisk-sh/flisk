@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,7 +10,7 @@ import { evaluateTdkVersionFloor } from "./tdk-version.js";
 let projectRoot: string;
 
 beforeEach(() => {
-  projectRoot = mkdtempSync(join(tmpdir(), "tdk-version-floor-"));
+  projectRoot = mkdtempSync(join(tmpdir(), "flisk-version-floor-"));
 });
 
 afterEach(() => {
@@ -75,7 +75,7 @@ describe("evaluateTdkVersionFloor", () => {
         status: "too-old",
         required: "1.3.80",
         message: expect.stringMatching(/1\.3\.79.*1\.3\.80/),
-        fix: expect.stringContaining("tdk upgrade"),
+        fix: expect.stringContaining("flisk upgrade"),
       });
     });
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /// <reference types="vite/client" />
 
@@ -9,10 +9,10 @@ import { createTempDir, runTdk } from "../../test-support/index.js";
 import { listedCommandNames, showHelp } from "../help.js";
 import { getRegisteredCommands } from "../registry.js";
 
-// Commands that exist for maintainers of this repository, not for people using TDK.
+// Commands that exist for maintainers of this repository, not for people using Flisk.
 const NOT_LISTED = new Set(["maintainers"]);
 
-describe("tdk --help", () => {
+describe("flisk --help", () => {
   it("lists every command that the CLI registers", () => {
     const commands = getRegisteredCommands();
     expect(commands.length).toBeGreaterThan(15);
@@ -33,7 +33,7 @@ describe("tdk --help", () => {
     try {
       showHelp();
       const output = logs.join("\n");
-      expect(output).toContain("tdk");
+      expect(output).toContain("flisk");
       expect(output).toContain(pkg.version);
       expect(output).toContain("Project Level");
       expect(output).toContain("Stack Level");
@@ -47,7 +47,7 @@ describe("tdk --help", () => {
       expect(output).toContain("--verbose");
       expect(output).toContain("Quick start:");
       expect(output).toContain("Examples:");
-      expect(output).toContain("https://github.com/tdk-landscape/tdk-cli-core");
+      expect(output).toContain("https://github.com/flisk-sh/tdk-cli-core");
     } finally {
       logSpy.mockRestore();
     }

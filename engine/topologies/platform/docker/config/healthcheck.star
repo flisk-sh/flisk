@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # Docker healthcheck timing - single source for golden images, L4 runtimes and
@@ -7,10 +7,10 @@
 # Steady-state probes are infrequent (each probe is a `docker exec`, which adds
 # up across 100+ containers), while `start_interval` keeps first-healthy time
 # fast during the start period. `start_interval` needs Docker Engine 25+ and
-# Compose 2.20.2+ (checked by `tdk doctor`).
+# Compose 2.20.2+ (checked by `flisk doctor`).
 #
 # Override per run with environment variables, e.g.:
-#   TDK_HEALTHCHECK_INTERVAL_SECONDS=15 tdk up
+#   TDK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
 # =============================================================================
 
 

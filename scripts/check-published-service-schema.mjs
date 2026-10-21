@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 // Offline check of engine/schemas/service-schema.json. It never fetches the live Pages copy:
 // that file is a deploy artifact published from main (see .github/workflows/publish-service-schema.yml),

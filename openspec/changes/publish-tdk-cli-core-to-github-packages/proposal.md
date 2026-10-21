@@ -2,7 +2,7 @@
 
 ## Why
 
-`@tdk-landscape/tdk-cli-core` is published on public npm, but consumers who prefer or require GitHub Packages have no GitHub registry distribution to install. Publishing the same release artifact to GitHub Packages provides an additional first-party channel while keeping npm as the default distribution.
+`flisk` is published on public npm, but consumers who prefer or require GitHub Packages have no GitHub registry distribution to install. Publishing the same release artifact to GitHub Packages provides an additional first-party channel while keeping npm as the default distribution.
 
 ## What Changes
 

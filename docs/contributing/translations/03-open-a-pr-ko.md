@@ -17,13 +17,13 @@
 
 ### 골든 출력 테스트가 실패하는 경우
 
-세 개의 샘플 프로젝트에서 생성된 Tilt 및 Compose 파일은 `cli/src/generator/__tests__/golden/`에 커밋된 사본과 비교됩니다. `cli/templates/` 또는 생성기를 의도적으로 바꿨다면 테스트가 실패하면서 변경된 각 파일의 이름을 알려줍니다. `UPDATE_GOLDEN=1 bun run test -- golden-generated-output`을 실행해 변경을 수용하고, golden 파일의 diff를 읽은 뒤 변경과 함께 커밋하세요. 생성 출력을 바꿀 의도가 없었다면 파일을 업데이트하지 말고 원인을 고치세요. 기존 프로젝트도 같은 바이트 변화를 보므로, 다음 `tdk config regenerate` 전까지 `tdk config verify`가 불일치를 보고합니다. 이 점을 PR에 밝히세요.
+세 개의 샘플 프로젝트에서 생성된 Tilt 및 Compose 파일은 `cli/src/generator/__tests__/golden/`에 커밋된 사본과 비교됩니다. `cli/templates/` 또는 생성기를 의도적으로 바꿨다면 테스트가 실패하면서 변경된 각 파일의 이름을 알려줍니다. `UPDATE_GOLDEN=1 bun run test -- golden-generated-output`을 실행해 변경을 수용하고, golden 파일의 diff를 읽은 뒤 변경과 함께 커밋하세요. 생성 출력을 바꿀 의도가 없었다면 파일을 업데이트하지 말고 원인을 고치세요. 기존 프로젝트도 같은 바이트 변화를 보므로, 다음 `flisk config regenerate` 전까지 `flisk config verify`가 불일치를 보고합니다. 이 점을 PR에 밝히세요.
 
 ## 변경 내용 보여주기
 
 버그 수정이나 동작 변경이라면 가능한 한 `main`과 내 브랜치에서 같은 단계를 실행하세요. 실제 변경 전후 출력을 붙여 넣고, 기억에서 재구성하지 마세요. 명령, 프로젝트 또는 픽스처, 재현에 필요한 설정을 포함하세요. issue에 언급된 빈 상태, 오류 상태, 복구 상태도 다루세요.
 
-빌드된 CLI 진입점을 테스트한다면 오래된 컴파일 파일을 쓰지 않도록 먼저 `bun run build`를 실행하세요. `tdk ui` 같은 대화형 명령은 실제 터미널에서 확인하세요. 자동화 테스트가 없다면 이유를 설명하고 테스트를 추가할 issue를 연결하세요. 새 동작과 버그 수정에는 같은 pull request에 테스트가 필요합니다. 자세한 내용은 [CONTRIBUTING.md의 테스트](../../../CONTRIBUTING.md#tests)를 보세요.
+빌드된 CLI 진입점을 테스트한다면 오래된 컴파일 파일을 쓰지 않도록 먼저 `bun run build`를 실행하세요. `flisk ui` 같은 대화형 명령은 실제 터미널에서 확인하세요. 자동화 테스트가 없다면 이유를 설명하고 테스트를 추가할 issue를 연결하세요. 새 동작과 버그 수정에는 같은 pull request에 테스트가 필요합니다. 자세한 내용은 [CONTRIBUTING.md의 테스트](../../../CONTRIBUTING.md#tests)를 보세요.
 
 ## 브랜치 push하기
 

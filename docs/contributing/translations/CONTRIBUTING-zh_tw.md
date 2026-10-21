@@ -1,4 +1,4 @@
-# 為 TDK 做出貢獻
+# 為 Flisk 做出貢獻
 
 [English](../../../CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | 繁體中文 | [日本語](CONTRIBUTING-ja.md) | [한국어](CONTRIBUTING-ko.md)
 
@@ -20,35 +20,35 @@
 你需要 Git、[Bun](https://bun.sh) 和 Node.js 22.12+。大多數變更不需要 Docker 和 Tilt。
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core
 bun install
 bun run typecheck && bun run lint && bun run test   # 約一分鐘；在你修改任何東西之前，這些都應該通過
 ```
 
-如果在全新的 checkout 上其中某一步失敗，那是專案的 bug，不是你的環境問題：請[提交 issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)。
+如果在全新的 checkout 上其中某一步失敗，那是專案的 bug，不是你的環境問題：請[提交 issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)。
 
 ## 尋找 bug
 
-不寫程式碼也能幫忙。執行一個指令，把它的輸出與 TDK 的承諾（它的 `--help`、文件或另一個指令）比較，並回報任何差異。那就是 bug。
+不寫程式碼也能幫忙。執行一個指令，把它的輸出與 Flisk 的承諾（它的 `--help`、文件或另一個指令）比較，並回報任何差異。那就是 bug。
 
-[在 TDK 中尋找 bug](../finding-bugs.md) 有具體步驟：用來測試的暫存專案、附有預期輸出的指令清單、過去找到 bug 的模式，以及維護者可以直接處理的回報格式。例如，如果 `tdk networks` 沒有列出任何 URL，而 `tdk up --dry-run` 卻印出了它們，代表兩個指令不一致，其中一個是錯的。
+[在 Flisk 中尋找 bug](../finding-bugs.md) 有具體步驟：用來測試的暫存專案、附有預期輸出的指令清單、過去找到 bug 的模式，以及維護者可以直接處理的回報格式。例如，如果 `flisk networks` 沒有列出任何 URL，而 `flisk up --dry-run` 卻印出了它們，代表兩個指令不一致，其中一個是錯的。
 
 ## 審查 pull request
 
-不寫程式碼也可以透過審查開放中的 [pull request](https://github.com/tdk-landscape/tdk-cli-core/pulls) 來幫忙。每個 PR 結尾都有 **Grok**、**Claude** 和 **Codex** 按鈕，點擊後會開啟一個已經請求審查該 PR 的 AI 對話。AI 是你的助手：請對照 diff 核實它說的內容，然後在 GitHub 上以 **Comment**、**Approve** 或 **Request changes** 提交你自己的審查。
+不寫程式碼也可以透過審查開放中的 [pull request](https://github.com/flisk-sh/tdk-cli-core/pulls) 來幫忙。每個 PR 結尾都有 **Grok**、**Claude** 和 **Codex** 按鈕，點擊後會開啟一個已經請求審查該 PR 的 AI 對話。AI 是你的助手：請對照 diff 核實它說的內容，然後在 GitHub 上以 **Comment**、**Approve** 或 **Request changes** 提交你自己的審查。
 
 第一次審查之前，請閱讀[必讀文件](../04-review-a-pr.md#before-your-first-review-required-reading)（大約一小時，只需一次）。接著 [審查 pull request](../04-review-a-pr.md) 會一步步說明這些按鈕，並提供核准和要求修改時的留言範例。
 
 ## 尋找可以做的事
 
-- 🗺️ [TDK 之旅](../../journey/README.md)：選擇一座島嶼，完成任務，提升段位（8 kyu → 1 dan）
-- [Good first issues](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue)
-- [Help wanted](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted)
+- 🗺️ [Flisk 之旅](../../journey/README.md)：選擇一座島嶼，完成任務，提升段位（8 kyu → 1 dan）
+- [Good first issues](https://github.com/flisk-sh/tdk-cli-core/labels/good%20first%20issue)
+- [Help wanted](https://github.com/flisk-sh/tdk-cli-core/labels/help%20wanted)
 - 使用逐步清單[尋找 bug](../finding-bugs.md)
-- [回報 bug 或提問](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)
+- [回報 bug 或提問](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)
 
-如果你選了一個 issue，請留言 `I'll take this`（或 `I would like this one`、`I'd like to work on this`、`Can I take this?`）。機器人會把它指派給你並加上 `claimed` 標籤，避免兩個人做同樣的工作。認領後 14 天沒有 pull request 會收到提醒，21 天後會被釋出；草稿 PR 也算是進度。回報 bug 時，請盡量附上 `tdk doctor` 的輸出。
+如果你選了一個 issue，請留言 `I'll take this`（或 `I would like this one`、`I'd like to work on this`、`Can I take this?`）。機器人會把它指派給你並加上 `claimed` 標籤，避免兩個人做同樣的工作。認領後 14 天沒有 pull request 會收到提醒，21 天後會被釋出；草稿 PR 也算是進度。回報 bug 時，請盡量附上 `flisk doctor` 的輸出。
 
 ## 拼字檢查
 
@@ -56,7 +56,7 @@ bun run typecheck && bun run lint && bun run test   # 約一分鐘；在你修�
 
 ## 標籤
 
-用標籤找到符合你興趣和經驗的工作。維護者會在分類時加上標籤；issue 表單和 PR labeler 也會自動加上一些標籤。線上的[標籤清單](https://github.com/tdk-landscape/tdk-cli-core/labels)包含每個標籤的說明。
+用標籤找到符合你興趣和經驗的工作。維護者會在分類時加上標籤；issue 表單和 PR labeler 也會自動加上一些標籤。線上的[標籤清單](https://github.com/flisk-sh/tdk-cli-core/labels)包含每個標籤的說明。
 
 | 標籤 | 意義 | 何時加上 |
 | --- | --- | --- |
@@ -81,7 +81,7 @@ bun run typecheck && bun run lint && bun run test   # 約一分鐘；在你修�
 | `hacktoberfest` | 參加 Hacktoberfest 的工作。 | 維護者選擇符合活動資格的貢獻。 |
 | `area:*` | 受影響的部分，例如 `area: tui`、`area: doctor` 或 `area: cli`。 | 維護者為 issue 加標籤；PR labeler 根據變更路徑推斷區域。 |
 | `tech:*` | 相關技術，例如 TypeScript、Docker 或 Tilt。 | 維護者識別任務涉及的工具。 |
-| `rank:*`、`island:*` | TDK 之旅中的任務規模和主題。 | 維護者把任務放到貢獻者地圖上。 |
+| `rank:*`、`island:*` | Flisk 之旅中的任務規模和主題。 | 維護者把任務放到貢獻者地圖上。 |
 | `event:*` | 針對特定活動的工作，例如 GitHub Universe。 | 維護者安排特定活動的工作。 |
 
 ## 簽署你的 commit
@@ -90,11 +90,11 @@ bun run typecheck && bun run lint && bun run test   # 約一分鐘；在你修�
 
 ## 把你的團隊加入採用者清單
 
-在你自己的儲存庫中使用 TDK？你可以透過兩種方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：開啟 [We use TDK](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=we-use-tdk.yml) issue 表單，或在 pull request 中向表格新增一列。[What counts](../../../ADOPTERS.md#what-counts) 說明了應該連結什麼，以及什麼不算。
+在你自己的儲存庫中使用 Flisk？你可以透過兩種方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：開啟 [We use Flisk](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=we-use-flisk.yml) issue 表單，或在 pull request 中向表格新增一列。[What counts](../../../ADOPTERS.md#what-counts) 說明了應該連結什麼，以及什麼不算。
 
 ## 治理
 
-請參閱 [GOVERNANCE.md](../../../GOVERNANCE.md) 了解如何做出決定以及如何新增維護者，[MAINTAINERS.md](../../../MAINTAINERS.md) 了解誰可以合併，[ADOPTERS.md](../../../ADOPTERS.md) 了解哪些團隊在使用 TDK。
+請參閱 [GOVERNANCE.md](../../../GOVERNANCE.md) 了解如何做出決定以及如何新增維護者，[MAINTAINERS.md](../../../MAINTAINERS.md) 了解誰可以合併，[ADOPTERS.md](../../../ADOPTERS.md) 了解哪些團隊在使用 Flisk。
 
 ## 友善待人
 

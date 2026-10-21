@@ -19,17 +19,17 @@
 - [x] 3.2 Add Windows Docker daemon-running and Linux-container-mode checks with the exact specified next-step messages.
 - [x] 3.3 Keep the Node port bind test; add PowerShell listener ownership and netsh excluded-range diagnostics, including IIS naming and Hyper-V/WSL guidance.
 - [x] 3.4 Add Windows DNS checks for `tdk.localhost` and a sample host, exact hosts-file guidance, project-drive file-sharing guidance, and a non-mutating `core.autocrlf` warning.
-- [x] 3.5 Update Windows `tdk networks` output to include hostname and numeric loopback URLs while preserving Unix routing defaults.
+- [x] 3.5 Update Windows `flisk networks` output to include hostname and numeric loopback URLs while preserving Unix routing defaults.
 - [x] 3.6 Review generated Compose/Tilt/templates for Windows-host assumptions; retain Linux containers and project-relative mounts, avoid host-side chmod, and preserve existing port overrides.
 
 ## 4. PowerShell completion
 
 - [x] 4.1 Extend `cli/src/commands/completion.ts` with `--shell powershell` installation into the correct current-shell profile path.
-- [x] 4.2 Make completion installation create missing profiles and idempotently replace only the marked TDK block; preserve Bash, Zsh, and Fish behavior.
+- [x] 4.2 Make completion installation create missing profiles and idempotently replace only the marked Flisk block; preserve Bash, Zsh, and Fish behavior.
 
 ## 5. Windows binary and CI
 
-- [x] 5.1 Update `scripts/release-binaries.sh` to compile Bun `bun-windows-x64` as `tdk-windows-amd64.exe`, include it in checksums and the binary ZIP, and preserve Unix names and engine archive.
+- [x] 5.1 Update `scripts/release-binaries.sh` to compile Bun `bun-windows-x64` as `flisk-windows-amd64.exe`, include it in checksums and the binary ZIP, and preserve Unix names and engine archive.
 - [x] 5.2 Update `.github/workflows/release-binaries.yml` to assert the executable exists at the script's real output location.
 - [x] 5.3 Add `.github/workflows/windows-smoke.yml` using `windows-latest`, Node 22, the repository's dependency installation convention, CLI build/typecheck, actual CLI `--help`, and targeted platform/upgrade/PATH tests without fake Docker e2e.
 - [x] 5.4 Add a Linux-side compile validation that checks the Windows artifact is non-empty and begins with `MZ`.
@@ -37,8 +37,8 @@
 ## 6. Installer and documentation across repositories
 
 - [ ] 6.1 In `tdk-landscape.github.io`, add `install.ps1` with architecture refusal, latest-release downloads, exe checksum verification, per-user/default install path, adjacent engine extraction with old-tar fallback, user PATH update, and success instructions.
-- [ ] 6.2 Update release README and download list with `tdk-windows-amd64.exe — Windows x86_64 / AMD64`, Windows manual installation commands, and installer instructions.
-- [ ] 6.3 Update `tdk-cli-core/README.md`, applicable `cli/README.md`, TDK website quickstart, website homepage/install page, and org profile README to use the exact supported-platform wording and Windows setup steps.
+- [ ] 6.2 Update release README and download list with `flisk-windows-amd64.exe — Windows x86_64 / AMD64`, Windows manual installation commands, and installer instructions.
+- [ ] 6.3 Update `tdk-cli-core/README.md`, applicable `cli/README.md`, Flisk website quickstart, website homepage/install page, and org profile README to use the exact supported-platform wording and Windows setup steps.
 - [ ] 6.4 Add a Windows problems documentation page covering only Docker Desktop state/mode, ports and Hyper-V exclusions, `*.localhost` DNS, and project-drive file sharing.
 - [ ] 6.5 Replace every specified “Windows is untested” statement and check templates for host-side `/tmp`, `/usr/local`, or shell-script assumptions without changing container-side scripts.
 

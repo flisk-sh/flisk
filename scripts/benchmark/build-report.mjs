@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk contributors
 // SPDX-License-Identifier: MIT
 
-// Builds one self-contained HTML page (no external files, no network) from a tdk up benchmark run and the
+// Builds one self-contained HTML page (no external files, no network) from a flisk up benchmark run and the
 // committed history in benchmarks/results. Published to GitHub Pages by .github/workflows/benchmarks.yml.
 //
 // Usage: node scripts/benchmark/build-report.mjs --run <run dir> --history benchmarks/results --out <dir> [--commit <sha>] [--run-url <url>]
@@ -152,7 +152,7 @@ const status = allSettled ? `<span class="pill ok">all runs settled</span>` : `<
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TDK benchmarks: tdk up warm and cold start</title>
+<title>Flisk benchmarks: flisk up warm and cold start</title>
 <style>
 :root { color-scheme: light dark; --fg:#1d1f24; --muted:#5b6170; --bg:#fff; --card:#f4f6fa; --line:#dfe3ec; --accent:#6d4aff; --ok:#1f8f4e; --bad:#c0392b; }
 @media (prefers-color-scheme: dark) { :root { --fg:#ecedf2; --muted:#a4a9b8; --bg:#101216; --card:#1a1d24; --line:#2c303b; --accent:#b79aff; } }
@@ -190,8 +190,8 @@ footer a { color: var(--accent); }
 </style></head>
 <body>
 <header>
-<h1>TDK benchmarks</h1>
-<p>How long <code>tdk up</code> takes to bring a real project's containers to healthy, cold and warm.</p>
+<h1>Flisk benchmarks</h1>
+<p>How long <code>flisk up</code> takes to bring a real project's containers to healthy, cold and warm.</p>
 <p>${status} &nbsp; project: ${esc(current.environment.project ?? "unknown")} &nbsp; commit ${esc((values.commit || "unknown").slice(0, 12))}</p>
 </header>
 <main>
@@ -209,7 +209,7 @@ footer a { color: var(--accent); }
 <section id="t-env" role="tabpanel" aria-labelledby="b-env" hidden>${envTab}</section>
 </main>
 <footer>
-Source: <a href="https://github.com/tdk-landscape/tdk-cli-core/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/tdk-up-warm-start.sh</code> · raw data in <a href="https://github.com/tdk-landscape/tdk-cli-core/tree/main/benchmarks/results">benchmarks/results</a>
+Source: <a href="https://github.com/flisk-sh/tdk-cli-core/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/tdk-up-warm-start.sh</code> · raw data in <a href="https://github.com/flisk-sh/tdk-cli-core/tree/main/benchmarks/results">benchmarks/results</a>
 </footer>
 <script>
 (function () {

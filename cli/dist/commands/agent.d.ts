@@ -6,7 +6,7 @@ export declare function httpGet(url: string, headers: Record<string, string>, ti
     text: string;
 }>;
 /**
- * Agent containers publish no host port; the only way in is the Traefik route that `tdk status` prints as `url`
+ * Agent containers publish no host port; the only way in is the Traefik route that `flisk status` prints as `url`
  * (for example http://api.<project>.localhost:8080/api/bot). `*.localhost` does not resolve everywhere (glibc without
  * systemd-resolved), so connect to loopback and keep the route's host in the Host header, which is all Traefik matches on.
  */

@@ -12,10 +12,10 @@ database)
   `io.micronaut.runtime.Micronaut`. When this was written the generator offered only `JDK_25`.
 - The build uses the project's own Maven wrapper (`./mvnw`) on `eclipse-temurin:25-jdk`; the jar runs on `eclipse-temurin:25-jre`.
 - Micronaut's Netty server listens on all interfaces; the port comes from `MICRONAUT_SERVER_PORT`, which the start command sets from
-  TDK's `PORT`.
+  Flisk's `PORT`.
 - Health path is `/health` (the Management endpoint answers `{"status":"UP"}`). The generated app has no route on `/`.
-- Through TDK, Traefik sends `Host: api.<project>.localhost`; Micronaut accepted it with no host configuration (checked through a
-  real `tdk up`).
+- Through Flisk, Traefik sends `Host: api.<project>.localhost`; Micronaut accepted it with no host configuration (checked through a
+  real `flisk up`).
 - For the other JVM examples see [spring-initializr](../spring-initializr/README.md) and [quarkus](../quarkus/README.md).
 
 ## Check it
@@ -26,17 +26,17 @@ Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on
 VERIFY_WAIT_SECONDS=120 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh micronaut /health
 ```
 
-Through a real `tdk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
+Through a real `flisk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
 VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh micronaut /health
 ```
 
-## Register it in a TDK project
+## Register it in a Flisk project
 
 ```bash
-tdk resource micronaut-api --type bring-your-own --stack shop --dockerfile ./Dockerfile --health-path /health --yes
+flisk resource micronaut-api --type bring-your-own --stack shop --dockerfile ./Dockerfile --health-path /health --yes
 ```
 
-Use a resource name that is unique across TDK projects sharing one Docker daemon. See
+Use a resource name that is unique across Flisk projects sharing one Docker daemon. See
 [../README.md](../README.md) and [docs/byo.md](../../../docs/byo.md) for the container contract.

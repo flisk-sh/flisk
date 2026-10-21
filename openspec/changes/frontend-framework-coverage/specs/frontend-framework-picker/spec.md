@@ -12,5 +12,5 @@ Interactive frontend creation SHALL offer the registered Vite SPA ids. Non-inter
 
 #### Scenario: Omitted flag stays React
 
-- **WHEN** a user runs `tdk resource web --type frontend --stack app` without `--framework`
+- **WHEN** a user runs `flisk resource web --type frontend --stack app` without `--framework`
 - **THEN** `service.json` contains `"framework": "react"`

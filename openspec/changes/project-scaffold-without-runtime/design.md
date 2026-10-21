@@ -1,22 +1,22 @@
 ## Context
 
-`tdk project` and `tdk up` share one cold preflight (`cli/src/utils/cold-preflight.ts`). The preflight runs the Docker runtime, Compose and Tilt probes and exits 1 when any machine check fails. `tdk project` calls it before it writes anything, so project setup needs a running Docker daemon and an installed Tilt even though neither is used to write files.
+`flisk project` and `flisk up` share one cold preflight (`cli/src/utils/cold-preflight.ts`). The preflight runs the Docker runtime, Compose and Tilt probes and exits 1 when any machine check fails. `flisk project` calls it before it writes anything, so project setup needs a running Docker daemon and an installed Tilt even though neither is used to write files.
 
-The readiness gate itself is correct for `tdk up`: the local runtime is exactly what starting a stack needs, and the ranked failure list with its fixes is the actionable output the CLI promises.
+The readiness gate itself is correct for `flisk up`: the local runtime is exactly what starting a stack needs, and the ranked failure list with its fixes is the actionable output the CLI promises.
 
 ## Goals / Non-Goals
 
 ### Goals
 
-- Let `tdk project` initialize a project and clone a starter template with Docker stopped and Tilt not installed.
-- Keep the runtime preflight, and its ranked actionable output, in place for `tdk up`.
+- Let `flisk project` initialize a project and clone a starter template with Docker stopped and Tilt not installed.
+- Keep the runtime preflight, and its ranked actionable output, in place for `flisk up`.
 - Report the missing runtime as a next step after project setup instead of a failure.
-- Keep `tdk doctor` as the explicit readiness check for the whole machine.
+- Keep `flisk doctor` as the explicit readiness check for the whole machine.
 
 ### Non-Goals
 
 - Probing the Docker daemon while scaffolding: the scaffold scope must not touch Docker at all.
-- Changing what `tdk up` requires, or the wording of its readiness failures.
+- Changing what `flisk up` requires, or the wording of its readiness failures.
 - Installing anything, or relaxing the Bun requirement of project setup.
 - Changing the generated project files, templates or the engine.
 
@@ -30,23 +30,23 @@ The blocking set follows the scope: the runtime scope blocks on Node, Docker, Co
 
 ### The runtime is reported, not required
 
-The next-step hint is built from `PATH` only (`detectRuntimePrerequisites`): it never contacts the Docker daemon, so it works on a machine where Docker is not installed at all. `formatRuntimeNextSteps` names every missing executable with the existing `DOCTOR_FIXES` remediation text and points at `tdk doctor` (readiness) and `tdk up` (start the stack). `tdk project` prints it after the configuration is written and after a template is cloned.
+The next-step hint is built from `PATH` only (`detectRuntimePrerequisites`): it never contacts the Docker daemon, so it works on a machine where Docker is not installed at all. `formatRuntimeNextSteps` names every missing executable with the existing `DOCTOR_FIXES` remediation text and points at `flisk doctor` (readiness) and `flisk up` (start the stack). `flisk project` prints it after the configuration is written and after a template is cloned.
 
-A missing Docker *daemon* is not detected by this hint, because detecting it would mean probing Docker. `tdk up` is the place where that is reported, with the full failure list and its fixes.
+A missing Docker *daemon* is not detected by this hint, because detecting it would mean probing Docker. `flisk up` is the place where that is reported, with the full failure list and its fixes.
 
 ### Tests fake the probes, not the machine
 
-The tests mock the doctor check functions and the `PATH` lookup, so they describe "Docker is stopped, Tilt is missing, Bun is installed" without a Docker daemon. The project test asserts that the Docker and Tilt probes are never called during setup, and the `tdk up` test asserts that the same missing runtime still exits 1 with the ranked failures and their fixes.
+The tests mock the doctor check functions and the `PATH` lookup, so they describe "Docker is stopped, Tilt is missing, Bun is installed" without a Docker daemon. The project test asserts that the Docker and Tilt probes are never called during setup, and the `flisk up` test asserts that the same missing runtime still exits 1 with the ranked failures and their fixes.
 
 ## Risks / Trade-offs
 
-- The scaffold scope keeps Node, Bun and host ports blocking, so a machine without Bun still cannot run `tdk project`. That is unchanged behavior, and Bun is needed by the generated services.
-- A developer whose Docker daemon is stopped sees no warning from `tdk project` itself, because detecting that would require probing Docker. The hint still names the runtime and `tdk doctor`.
-- `runColdPreflight` now behaves differently per scope, so every caller has to pick one. The default stays the runtime scope, which keeps the bare invocation and `tdk doctor` unchanged.
+- The scaffold scope keeps Node, Bun and host ports blocking, so a machine without Bun still cannot run `flisk project`. That is unchanged behavior, and Bun is needed by the generated services.
+- A developer whose Docker daemon is stopped sees no warning from `flisk project` itself, because detecting that would require probing Docker. The hint still names the runtime and `flisk doctor`.
+- `runColdPreflight` now behaves differently per scope, so every caller has to pick one. The default stays the runtime scope, which keeps the bare invocation and `flisk doctor` unchanged.
 
 ## Migration Plan
 
-No data migration is required. `tdk project` becomes usable without the local runtime; `tdk up` is unchanged. Rolling back is a revert of the CLI change.
+No data migration is required. `flisk project` becomes usable without the local runtime; `flisk up` is unchanged. Rolling back is a revert of the CLI change.
 
 ## Open Questions
 

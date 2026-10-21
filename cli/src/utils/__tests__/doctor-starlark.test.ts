@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -17,7 +17,7 @@ describe("Starlark doctor helpers", () => {
   let projectRoot: string;
 
   beforeEach(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-doctor-starlark-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-doctor-starlark-"));
   });
 
   afterEach(() => {
@@ -112,7 +112,7 @@ describe("checkStarlarkLoadExports", () => {
 
   beforeEach(() => {
     originalCwd = process.cwd();
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-doctor-check-starlark-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-doctor-check-starlark-"));
     process.chdir(projectRoot);
   });
 
@@ -157,7 +157,7 @@ describe("checkStarlarkLoadExports", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("Private exported symbols:");
     expect(result.message).toContain("_private_fn");
-    expect(result.fix).toContain("tdk config regenerate");
+    expect(result.fix).toContain("flisk config regenerate");
   });
 
   it("fails when reachable Starlark files have missing relative load targets", () => {
@@ -168,7 +168,7 @@ describe("checkStarlarkLoadExports", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("Missing relative load targets:");
     expect(result.message).toContain("nonexistent.star");
-    expect(result.fix).toContain("tdk config regenerate");
+    expect(result.fix).toContain("flisk config regenerate");
   });
 
   it("reports both private exports and missing targets when both occur", () => {
