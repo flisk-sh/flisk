@@ -21,6 +21,7 @@ import { PROJECT_ENV_FILE_VAR } from "../../utils/env-selection.js";
 import { requireProjectRoot } from "../../utils/errors.js";
 import { findProjectRoot } from "../../utils/paths.js";
 import { runTilt } from "../../utils/tilt.js";
+import { classifyTiltPorts } from "../../utils/tilt-port-owner.js";
 import { findTiltProcessIdsOnPort, stopTiltOnPort } from "../../utils/tilt-process.js";
 import {
   parseTiltPort,
@@ -76,6 +77,10 @@ vi.mock("node:fs", async (importOriginal) => {
 vi.mock("../../utils/host-port-config.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/host-port-config.js")>()),
   getHostPortPlan: vi.fn(async () => ({ ports: [] })),
+}));
+vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/tilt-port-owner.js")>()),
+  classifyTiltPorts: vi.fn(async () => ({ running: [] as number[], foreign: [] as unknown[] })),
 }));
 
 /**
@@ -650,6 +655,26 @@ describe("Tilt force startup", () => {
   });
 });
 
+/** The project config the command reads before it starts anything. */
+const PROJECT_JSON = {
+  version: "1.0.0",
+  project: { name: "env-file-test", version: "1.0.0" },
+  phases: Object.fromEntries(
+    ["pre_alpha", "alpha", "beta", "out_of_scope"].map((name) => [
+      name,
+      { name, description: "", enabledStacks: [] },
+    ]),
+  ),
+  optional_infra: {
+    monitoring: false,
+    elk: false,
+    debezium: false,
+    golden_image: false,
+    verdaccio: false,
+  },
+  discovery: { paths: ["services/**"] },
+};
+
 describe("tdk up --env-file", () => {
   const COMPLETE_ENV = [
     "TILT_ENV=dev",
@@ -674,6 +699,9 @@ describe("tdk up --env-file", () => {
     vi.stubEnv("TDK_ALLOW_NATIVE_WINDOWS", "1");
     vi.mocked(findProjectRoot).mockReturnValue(projectDir);
     vi.mocked(requireProjectRoot).mockReturnValue(projectDir);
+    // The command reads the project config before it starts anything.
+    mkdirSync(join(projectDir, ".tdk"), { recursive: true });
+    writeFileSync(join(projectDir, ".tdk", "project.json"), `${JSON.stringify(PROJECT_JSON)}\n`);
     vi.mocked(verifyMasterConfigs).mockReturnValue({
       valid: true,
       errors: [],
@@ -681,6 +709,10 @@ describe("tdk up --env-file", () => {
       diffs: [],
       handEdited: [],
     });
+    vi.mocked(classifyTiltPorts).mockResolvedValue({
+      running: [],
+      foreign: [],
+    } as unknown as Awaited<ReturnType<typeof classifyTiltPorts>>);
   });
 
   afterEach(() => {
@@ -804,6 +836,30 @@ describe("tdk up --env-file", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".env.integration"));
     expect(log).not.toHaveBeenCalledWith(expect.stringContaining("local-jwt-secret"));
     log.mockRestore();
+  });
+
+  it("refuses the option when a stack is already running, because it keeps its env file", async () => {
+    writeFileSync(join(projectDir, ".env.integration"), COMPLETE_ENV);
+    vi.mocked(classifyTiltPorts).mockResolvedValue({
+      running: [10350],
+      foreign: [],
+    } as unknown as Awaited<ReturnType<typeof classifyTiltPorts>>);
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      await expect(
+        upCommand.parseAsync(["--quiet", "--env-file", ".env.integration"], { from: "user" }),
+      ).rejects.toThrow("process.exit");
+
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining("--env-file applies to a new run only"),
+      );
+    } finally {
+      exit.mockRestore();
+      error.mockRestore();
+    }
   });
 
   it("keeps the project .env as the env file of the run when no file is requested", async () => {

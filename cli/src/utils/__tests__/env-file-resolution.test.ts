@@ -100,7 +100,7 @@ describe("the engine resolves the env file of a run in one place", () => {
   });
 });
 
-describe("the selected env file is read by the engine", () => {
+describe.skipIf(!hasTilt)("the selected env file is read by the engine", () => {
   it("keeps the selected value in the Tilt environment, which is what Compose interpolates", () => {
     // Docker Compose prefers the shell environment over --env-file, so the engine has to load the
     // selected file into os.environ. Otherwise the run would interpolate the project .env values.

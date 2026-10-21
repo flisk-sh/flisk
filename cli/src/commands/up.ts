@@ -347,7 +347,8 @@ export const upCommand = new Command("up")
           );
         }
         const warning = envFileWarning(envFileRoot, envFileSelection);
-        if (warning) console.log(chalk.yellow(warning));
+        // stderr, not stdout: in --json mode stdout carries the JSON envelope only.
+        if (warning) console.warn(chalk.yellow(warning));
       }
     }
     const hostRefusal = options.dryRun ? null : await hostUpRefusal();
@@ -630,6 +631,14 @@ export const upCommand = new Command("up")
         only: Boolean(options.only),
       });
       if (decision.action === "already-running") {
+        // The env file of the run belongs to the Tilt process this run starts. A stack that is
+        // already running keeps the env file it started with, so the selection would be ignored
+        // silently - say so instead of reporting a run that never happened.
+        if (envFileSelection) {
+          const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --env-file applies to a new run only: run \`tdk down\` first, or pass --force to replace the running stack.`;
+          emit?.({ ok: false }, [{ code: "ENV_FILE_ALREADY_RUNNING", message }]);
+          showErrorAndExit(message);
+        }
         const message = `Environment is already running on port ${decision.ports.join(", ")}.`;
         emit?.({
           ok: true,
