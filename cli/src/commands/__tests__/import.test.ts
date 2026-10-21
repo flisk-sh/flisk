@@ -68,7 +68,7 @@ describe("tdk import", () => {
     err.mockRestore();
   });
 
-  it("is registered as `import` and leaves --help to tdk-import", () => {
+  it("is registered as `import` and leaves --help to flisk-import", () => {
     expect(importCommand.name()).toBe("import");
     expect(importCommand.helpCommand).toBeDefined();
     expect(importCommand.options.find((o) => o.long === "--help")).toBeUndefined();

@@ -29,7 +29,7 @@ Secondary audit-only candidates, generally expected not to need a package declar
 - `tdk-demo-animation` — walkthrough assets
 - `flisk-sh/releases` — binary releases only
 - `tdk-service-definitions` — `service.json` registry
-- `tdk-import` / `tdk-app` — related tools; audit if they invoke the CLI as a package
+- `flisk-import` / `tdk-app` — related tools; audit if they invoke the CLI as a package
 
 - [x] 1.1 Audit the primary candidate repositories listed above; record URL, activity, ecosystem, manifest, lockfile, actual CLI usage, and disposition. Include additional public examples, starters, templates, and fixtures discovered under `flisk-sh`. (Snapshot recorded in `design.md`.)
 - [x] 1.2 For each candidate, verify whether its workflow genuinely installs or uses `@flisk-sh/flisk` and identify the appropriate dependency role. (Only `tdk-cli-starter` currently declares the package; other README-documented TDK usage requires a separately installed CLI and has no repo-local core dependency.)

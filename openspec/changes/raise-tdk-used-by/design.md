@@ -89,7 +89,7 @@ Secondary repositories were also checked for direct package declarations and doc
 - `tdk-demo-animation` is walkthrough assets with no root package manifest.
 - `flisk-sh/releases` provides release artifacts and global-install instructions, with no root package manifest.
 - `tdk-service-definitions` has a root manifest/lockfile for AJV validation and 84 service definitions; its README says imported seed data has not been runtime-tested. It does not declare the CLI package.
-- `tdk-import` is its own npm package and documents `tdk import` as a core CLI command; its manifest does not depend on `@flisk-sh/flisk`.
+- `flisk-import` is its own npm package and documents `tdk import` as a core CLI command; its manifest does not depend on `@flisk-sh/flisk`.
 - `tdk-app` uses the installed `tdk` CLI and documents a global package install path for its own app, but does not declare `@flisk-sh/flisk` in its manifest.
 - Additional public organization repositories `tdk-labs`, `platform`, and `tdk-cli-extensions` were not identified as example/starter repos in this first-wave audit; assess them only if their maintained workflows directly install or invoke the published core package.
 

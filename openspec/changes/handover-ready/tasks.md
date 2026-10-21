@@ -6,10 +6,10 @@
 
 ## 2. Import or refuse
 
-- [x] 2.1 Restrict `tdk import` detection to Compose, Dockerfile, `package.json` scripts, Procfile; list everything else as skipped. (in the tdk-import repo)
-- [x] 2.2 Exit 2 with a named message when nothing importable is found (e.g. Helm only); write nothing. (in the tdk-import repo)
-- [x] 2.3 Ensure `--dry-run` prints the plan and writes no files. (in the tdk-import repo)
-- [x] 2.4 Tests: two-service Compose dry-run; Helm-only refusal. (in the tdk-import repo)
+- [x] 2.1 Restrict `tdk import` detection to Compose, Dockerfile, `package.json` scripts, Procfile; list everything else as skipped. (in the flisk-import repo)
+- [x] 2.2 Exit 2 with a named message when nothing importable is found (e.g. Helm only); write nothing. (in the flisk-import repo)
+- [x] 2.3 Ensure `--dry-run` prints the plan and writes no files. (in the flisk-import repo)
+- [x] 2.4 Tests: two-service Compose dry-run; Helm-only refusal. (in the flisk-import repo)
 
 ## 3. Operator runbook
 
