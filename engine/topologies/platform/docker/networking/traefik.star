@@ -121,6 +121,11 @@ def get_backend_traefik_labels(
     reject_unsafe_value(traefik_path, 'traefik_path')
     reject_unsafe_value(traefik_resource_name, 'traefik_resource_name')
     reject_unsafe_value(health_path, 'health_path')
+    if manifest:
+        reject_unsafe_value(manifest.get('stack'), 'stack')
+        traefik_cfg = manifest.get('traefik') or {}
+        reject_unsafe_value(traefik_cfg.get('host'), 'traefik.host')
+        reject_unsafe_value(traefik_cfg.get('pathPrefix'), 'traefik.pathPrefix')
 
     backend_route_rule = backend_rule(traefik_host, traefik_path)
     backend_entrypoints = build_entrypoints(

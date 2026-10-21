@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { spawnSync } from "node:child_process";
+import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 /** Evaluates a Tiltfile. A failed `fail(...)` makes tilt exit non-zero and puts the message in stderr. */
-function runTiltfile(source: string) {
+function runTiltfile(source: string): SpawnSyncReturns<string> {
   const directory = mkdtempSync(join(tmpdir(), "tdk-unsafe-values-"));
   temporaryDirs.push(directory);
   const tiltfile = join(directory, "Tiltfile");
@@ -41,7 +41,7 @@ function runTiltfile(source: string) {
 }
 
 /** Generates the Compose entry for `orders-api` in stack `shop`, with `extra` merged into its manifest. */
-const entryFor = (extra: string) => `
+const entryFor = (extra: string): string => `
 load(${composeStar}, 'generate_backend_compose_entry')
 manifest = {'appType': 'backend', 'stack': 'shop', 'port': 4000, 'appName': 'orders-api', '_resource_path': 'services/shop/orders-api'}
 manifest.update(${extra})
@@ -62,6 +62,7 @@ describe.skipIf(!hasTilt)(
 
     it.each([
       ["healthCheckPath", `{'healthCheckPath': '/h${BAD}'}`],
+      ["port", `{'port': '4000${BAD}'}`],
       ["traefik.host", `{'traefik': {'host': 'a.local${BAD}'}}`],
       ["traefik.pathPrefix", `{'traefik': {'pathPrefix': '/api${BAD}'}}`],
       ["traefik.healthCheck", `{'traefik': {'pathPrefix': '/api', 'healthCheck': '/h${BAD}'}}`],
@@ -105,6 +106,15 @@ get_backend_traefik_labels('orders-api', 'a.local', '/api${BAD}', 'orders-api', 
 `);
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain("MANIFEST ERROR: 'traefik_path'");
+    });
+
+    it("traefik labels: refuse a line break in manifest.traefik.host even when the params are clean", () => {
+      const result = runTiltfile(`
+load(${traefikStar}, 'get_backend_traefik_labels')
+get_backend_traefik_labels('orders-api', 'a.local', '/api', 'orders-api', 4000, '/health', {'stack': 'shop', 'traefik': {'host': 'x${BAD}'}})
+`);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("MANIFEST ERROR: 'traefik.host'");
     });
   },
 );
