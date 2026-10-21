@@ -37,4 +37,4 @@ Tüm depoyu anlamanıza gerek yok. Küçük bir değişiklik seçin, ilgili rehb
 
 ## Yardıma mı ihtiyacınız var?
 
-Ne denediğinizi, ne beklediğinizi ve ne olduğunu yazarak [bir issue açın](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose). Soru sormadan önce sorunu çözmeniz gerekmez.
+Ne denediğinizi, ne beklediğinizi ve ne olduğunu yazarak [bir issue açın](https://github.com/flisk-sh/flisk/issues/new/choose). Soru sormadan önce sorunu çözmeniz gerekmez.

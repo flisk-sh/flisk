@@ -4,14 +4,14 @@
 
 コードを書いたり、洗練されたバグ報告を作ったりする必要はありません。このページでは、Flisk をインストールし、例を実行して、短いフォームで何が起きたかを伝える方法を説明します。メモが荒削りでも構いません。実際の数値が入った未完成の報告は、何もないよりずっと役に立ちます。
 
-[フォームを開く](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml)。必須の回答は3つ（何を試したか、どうだったか、何を見たか）です。残りは任意です。
+[フォームを開く](https://github.com/flisk-sh/flisk/issues/new?template=try-it-and-report.yml)。必須の回答は3つ（何を試したか、どうだったか、何を見たか）です。残りは任意です。
 
 ## 1. インストール
 
 Docker（Desktop、OrbStack、Colima のいずれか）が起動していて、Tilt 0.25.0 以降が必要です。次に Flisk CLI をインストールします。
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh
 flisk --version
 ```
 
@@ -20,8 +20,8 @@ flisk --version
 ## 2. 例を取得する
 
 ```bash
-git clone https://github.com/flisk-sh/tdk-cli-core.git
-cd tdk-cli-core/examples/one-backend-python
+git clone https://github.com/flisk-sh/flisk.git
+cd flisk/examples/one-backend-python
 ```
 
 この例は一つの FastAPI サービスです。詳しい説明は、その [README](../../../examples/one-backend-python/README.md) にあります。
@@ -46,7 +46,7 @@ curl --fail http://api.one-backend-python.localhost/api/api-backend/health
 
 ## 4. 任意: 不足している計測値
 
-以下の3つの数値は、[issue 683](https://github.com/flisk-sh/tdk-cli-core/issues/683) が待っている値です。好きなだけ計測してください。スキップしたものはその旨を書いてください。
+以下の3つの数値は、[issue 683](https://github.com/flisk-sh/flisk/issues/683) が待っている値です。好きなだけ計測してください。スキップしたものはその旨を書いてください。
 
 **初回起動。** 手順 3 の `time flisk up` の結果です。
 
@@ -84,7 +84,7 @@ issue の Postgres の部分が気になる場合は、Postgres の起動中に 
 
 ## 5. フォームに記入する
 
-[フォーム](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml)を開き、自分の言葉で答えてください。役に立つ報告の例を2つ示します（数値は説明用に作ったものです）。
+[フォーム](https://github.com/flisk-sh/flisk/issues/new?template=try-it-and-report.yml)を開き、自分の言葉で答えてください。役に立つ報告の例を2つ示します（数値は説明用に作ったものです）。
 
 **動いた、数値付き**
 

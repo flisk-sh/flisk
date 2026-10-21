@@ -4,7 +4,7 @@ For maintainers of public projects that publish a tool catalog, recommended-CLI 
 
 ## Identity
 
-- Project: Flisk CLI, canonical repo [`flisk-sh/tdk-cli-core`](https://github.com/flisk-sh/tdk-cli-core)
+- Project: Flisk CLI, canonical repo [`flisk-sh/flisk`](https://github.com/flisk-sh/flisk)
 - npm package: `flisk` (not the unrelated Turkish-dictionary `tdk-cli` on PyPI)
 - License: MIT for core (see `LICENSE`). Premium extras use a separate key; `flisk up` needs no key.
 - Sender: always a Flisk maintainer, stated as such in every issue or PR.
@@ -22,8 +22,8 @@ Local development orchestration: `flisk up` reads `service.json` files, writes t
 
 | Method | Command | Needs |
 | --- | --- | --- |
-| npm | `npm install -g flisk` | Node.js 22.12+ |
-| Prebuilt binary | `curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh \| sh` | no Node or Bun |
+| npm | `npm install -g @flisk-sh/flisk` | Node.js 22.12+ |
+| Prebuilt binary | `curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh \| sh` | no Node or Bun |
 
 The legacy `install.sh` in this repo only hands off to the official installer.
 

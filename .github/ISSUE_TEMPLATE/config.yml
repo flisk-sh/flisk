@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: Quick question or idea
-    url: https://github.com/flisk-sh/tdk-cli-core/discussions
+    url: https://github.com/flisk-sh/flisk/discussions
     about: Not sure it deserves an issue? Ask in Discussions. We aim to reply within one working day.
   - name: Request a Premium license (form)
     url: https://tdk-landscape.github.io/tdk-website/#waitlist
@@ -10,5 +10,5 @@ contact_links:
     url: https://tdk-landscape.github.io/tdk-website
     about: Guides, quickstart, and examples
   - name: Report a security vulnerability
-    url: https://github.com/flisk-sh/tdk-cli-core/security/advisories/new
+    url: https://github.com/flisk-sh/flisk/security/advisories/new
     about: Please report security issues privately

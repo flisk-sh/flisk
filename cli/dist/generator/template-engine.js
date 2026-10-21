@@ -23,12 +23,12 @@ export function loadTemplate(filename) {
         path.join(__dirname, "..", "..", "templates"), // Standard: dist/generator -> templates (also covers src/generator -> ../../templates in dev/test)
         path.join(__dirname, "..", "templates"), // Installed: dist/generator -> dist/templates
         path.join(__dirname, "..", "..", "..", "templates"), // Development: cli/dist/generator -> cli/templates
-        path.join(process.cwd(), "node_modules", "@tdk-landscape", "tdk-cli-core", "templates"), // Monorepo root
+        path.join(process.cwd(), "node_modules", "flisk", "templates"), // Monorepo root
         // Compiled single-file binary (bun build --compile): __dirname resolves inside the
         // virtual $bunfs filesystem, not a real path, so fall back to the directory the actual
-        // executable lives in. release-binaries.sh bundles cli/templates at tdk-cli/cli/templates
+        // executable lives in. release-binaries.sh bundles cli/templates at flisk/cli/templates
         // next to the platform binaries.
-        path.join(path.dirname(process.execPath), "tdk-cli", "cli", "templates"),
+        path.join(path.dirname(process.execPath), "flisk", "cli", "templates"),
     ];
     const triedPaths = [];
     for (const templateDir of templateDirs) {
@@ -559,7 +559,7 @@ const REQUIRED_DOCKER_TEMPLATE_FILES = [
 ];
 // Walk up from this module's own location looking for a directory that has
 // both Tiltfile and engine/ next to it - true when cli/ and engine/ ship
-// together in the same repo (the public tdk-cli-core layout, where a plain
+// together in the same repo (the public flisk layout, where a plain
 // `git clone` + `bun run` needs zero extra config to find the engine).
 function findSelfContainedEngineRoot() {
     let dir = import.meta.dirname || process.cwd();
@@ -587,8 +587,8 @@ export function findCliAssetRoot() {
     }
     const exeDir = path.dirname(process.execPath);
     const candidates = [
-        path.join(exeDir, "tdk-cli"),
-        path.join(process.cwd(), "node_modules", "@tdk-landscape", "tdk-cli-core"),
+        path.join(exeDir, "flisk"),
+        path.join(process.cwd(), "node_modules", "flisk"),
     ];
     return (candidates.find((candidate) => fs.existsSync(path.join(candidate, "shared-platform-engineering", "docker-templates"))) ?? null);
 }
@@ -622,9 +622,9 @@ async function vendorTdkExtension(projectRoot) {
     const vendoredDir = assertTdkGeneratedPath(projectRoot, path.join(".tdk", ".tdk-out", "tdk-cli-ext"));
     // Source resolution order:
     //   1. $TDK_EXTENSION_SOURCE (explicit override)
-    //   2. Self-contained repo (engine/ ships next to cli/ - public tdk-cli-core)
+    //   2. Self-contained repo (engine/ ships next to cli/ - public flisk)
     //   3. Executable-adjacent checkout (bundled installs)
-    //   4. Relative ../tdk-cli sibling (monorepo maintainer layout)
+    //   4. Relative ../flisk sibling (monorepo maintainer layout)
     const sources = [];
     if (process.env.TDK_EXTENSION_SOURCE) {
         sources.push(process.env.TDK_EXTENSION_SOURCE);
@@ -641,8 +641,8 @@ async function vendorTdkExtension(projectRoot) {
     // Bun's process object - it was always undefined, silently falling
     // back to cwd() instead of the binary's real location.
     const exeDir = path.dirname(process.execPath);
-    sources.push(path.join(exeDir, "tdk-cli"));
-    sources.push(path.join(projectRoot, "..", "tdk-cli"));
+    sources.push(path.join(exeDir, "flisk"));
+    sources.push(path.join(projectRoot, "..", "flisk"));
     let sourceRoot = "";
     for (const candidate of sources) {
         if (candidate &&

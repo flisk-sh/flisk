@@ -65,7 +65,7 @@ AI 按钮会打开一个与 AI 助手的聊天。这个助手属于你：它在�
 每个按钮都是普通链接。它会在新标签页中打开 AI 的网站，并且这条消息已经预先输入好了。
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/flisk/pull/123.
 ```
 
 | 按钮 | 打开的网站 |

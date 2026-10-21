@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "flisk",
+      "name": "@flisk-sh/flisk",
       "dependencies": {
         "commander": "^15.0.0",
         "handlebars": "^4.7.8",
@@ -19,7 +19,7 @@
     },
     "cli": {
       "name": "tdk-cli-internal",
-      "version": "1.3.189",
+      "version": "1.3.190",
       "bin": {
         "tdk": "bin/flisk.js",
         "tdk-cli": "bin/flisk.js",

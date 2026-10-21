@@ -2,7 +2,7 @@
   "verifiedAt": "2026-10-05T10:48:07.707Z",
   "sourceTag": "v0.1.1",
   "sourceCommit": "14480fb3425a3876b9cc8c6f07fdf430bfa10af8",
-  "publishRun": "https://github.com/flisk-sh/tdk-cli-core/actions/runs/37298395884",
+  "publishRun": "https://github.com/flisk-sh/flisk/actions/runs/37298395884",
   "publishInputs": {
     "ref": "v0.1.1",
     "dry_run": false

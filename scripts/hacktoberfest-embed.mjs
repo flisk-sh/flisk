@@ -5,7 +5,7 @@
 // Run: node scripts/hacktoberfest-embed.mjs [owner/repo]
 import { execFileSync } from "node:child_process";
 
-const repo = process.argv[2] ?? "flisk-sh/tdk-cli-core";
+const repo = process.argv[2] ?? "flisk-sh/flisk";
 const MAP = `https://raw.githubusercontent.com/${repo}/journey-map/docs/journey/hacktoberfest.svg`;
 const LIST = `https://github.com/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3Ahacktoberfest`;
 const banner = `[![Flisk Hacktoberfest map](${MAP})](${LIST})

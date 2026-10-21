@@ -27,7 +27,7 @@ If PATH contains more than one Flisk install, run `flisk upgrade --all` to updat
 
 ## Install a specific version
 
-- npm: `npm install -g flisk@1.3.80`
+- npm: `npm install -g @flisk-sh/flisk@1.3.80`
 - `flisk upgrade` always goes to the latest release; it has no version argument.
 - `install.sh` and the release binaries: whether `install.sh` can install an older tag is **not documented**. Versions are listed on the [releases page](https://github.com/flisk-sh/tdk-cli-releases/releases).
 

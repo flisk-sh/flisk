@@ -100,7 +100,7 @@ jobs:
           current=$(node -p "require('./package.json').version")
           # main is protected, so the bot's version-bump push is usually rejected and package.json
           # lags behind. Start from the newest published version instead of counting up from it.
-          latest=$(npm view "flisk" version 2>/dev/null || true)
+          latest=$(npm view "@flisk-sh/flisk" version 2>/dev/null || true)
           version=$(node -e '
             const [cur, latest] = process.argv.slice(1);
             const parse = (v) => v.split(".").map(Number);
@@ -108,7 +108,7 @@ jobs:
               && n > parse(cur)[i] && parse(latest).slice(0, i).every((m, j) => m === parse(cur)[j]));
             console.log(newer ? latest : cur);
           ' "$current" "$latest")
-          while npm view "flisk@${version}" version >/dev/null 2>&1 \
+          while npm view "@flisk-sh/flisk@${version}" version >/dev/null 2>&1 \
             || gh release view "v${version}" --repo "${TDK_RELEASE_REPOSITORY:-flisk-sh/tdk-cli-releases}" >/dev/null 2>&1; do
             version=$(node -p 'const [a, b, c] = process.argv[1].split(".").map(Number); [a, b, c + 1].join(".")' "$version")
           done
@@ -320,7 +320,7 @@ jobs:
             echo "::error::Expected package version $VERSION, got $PKG_VERSION"
             exit 1
           fi
-          if npm view "flisk@${PKG_VERSION}" version >/dev/null 2>&1; then
+          if npm view "@flisk-sh/flisk@${PKG_VERSION}" version >/dev/null 2>&1; then
             echo "flisk@${PKG_VERSION} is already published, skipping."
           else
             npm publish "$TARBALL" --access public --provenance
@@ -397,7 +397,7 @@ jobs:
             gh release upload "v${VERSION}" --clobber checksums.txt checksums.txt.sigstore.json
           else
             gh release create "v${VERSION}" --draft --latest=false --title "v${VERSION}" \
-              --notes "Signed checksums for flisk ${VERSION}. The binaries are on https://github.com/flisk-sh/tdk-cli-releases/releases/tag/v${VERSION} and the npm package is flisk@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/flisk-sh/tdk-cli-core/.github/workflows/release-binaries.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
+              --notes "Signed checksums for flisk ${VERSION}. The binaries are on https://github.com/flisk-sh/tdk-cli-releases/releases/tag/v${VERSION} and the npm package is flisk@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/release-binaries.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
               checksums.txt checksums.txt.sigstore.json
           fi
 
@@ -456,7 +456,7 @@ jobs:
             echo "::error::Expected package tarball was not downloaded"
             exit 1
           fi
-          if npm view "flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+          if npm view "@flisk-sh/flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "flisk@${VERSION} is already published to GitHub Packages, skipping."
           else
             npm publish "$TARBALL" --registry=https://npm.pkg.github.com

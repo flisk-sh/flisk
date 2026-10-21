@@ -37,4 +37,4 @@
 
 ## 需要協助？
 
-請寫明你嘗試了什麼、預期什麼、實際發生了什麼，然後[開一個 issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)。提問前不必先解決問題。
+請寫明你嘗試了什麼、預期什麼、實際發生了什麼，然後[開一個 issue](https://github.com/flisk-sh/flisk/issues/new/choose)。提問前不必先解決問題。

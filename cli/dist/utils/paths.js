@@ -32,7 +32,7 @@ function getPackageInfo() {
     }
     const packageInfo = parsed;
     packageCache = {
-        name: String(packageInfo.name ?? "flisk"),
+        name: String(packageInfo.name ?? "@flisk-sh/flisk"),
         version: String(packageInfo.version ?? "0.0.0"),
         fullPackage: packageInfo,
     };

@@ -619,7 +619,7 @@ function closeIssue(repo, issue) {
 function parseArgs(argv) {
 	const out = {
 		dryRun: false,
-		repo: process.env.GITHUB_REPOSITORY ?? "flisk-sh/tdk-cli-core",
+		repo: process.env.GITHUB_REPOSITORY ?? "flisk-sh/flisk",
 	};
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];

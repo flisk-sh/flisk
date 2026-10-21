@@ -8,7 +8,7 @@ The people with merge rights are listed in [MAINTAINERS.md](../MAINTAINERS.md). 
 
 | System | What it is used for | Who can act | How the second maintainer gets access |
 | --- | --- | --- | --- |
-| GitHub repository `flisk-sh/tdk-cli-core` | Code, issues, pull requests, releases | Maintainers with admin or merge rights | Added as a repository admin by an existing admin |
+| GitHub repository `flisk-sh/flisk` | Code, issues, pull requests, releases | Maintainers with admin or merge rights | Added as a repository admin by an existing admin |
 | npm package `flisk` | Publishing the CLI | Maintainers listed as npm owners | Added as an npm package owner by an existing owner |
 | `NPM_TOKEN` repository secret | Automated publish from the release workflow (`release-binaries.yml`, `publish-tdk-import.yml`) | Repository admins | Admins can read and rotate the token in repository settings |
 | Release signing | Sigstore keyless signing in the release workflow | No private key; the workflow identity signs | Nothing to hand over: any maintainer who can run the release workflow can produce a signed release |

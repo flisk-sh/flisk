@@ -32,7 +32,7 @@ export function resolveStarlarkLoadTarget(
   modulePath: string,
   projectRoot: string,
 ): string | null {
-  if (modulePath === "ext://tdk-cli") {
+  if (modulePath === "ext://flisk" || modulePath === "ext://tdk-cli") {
     return join(projectRoot, ".tdk", ".tdk-out", "tdk-cli-ext", "Tiltfile");
   }
 

@@ -19,7 +19,7 @@ Flisk runs **one** Postgres container for the whole project. The generated `DATA
 
 ## Does it survive `flisk down`?
 
-Yes. `flisk down` runs `tilt down`, which removes the containers but not named volumes. Checked with a small Compose project run through `tilt down`: the container was removed and the file in the volume was still there afterwards. The next `flisk up` starts Postgres on the same volume. Since [#585](https://github.com/flisk-sh/tdk-cli-core/pull/585) `flisk down` also stops this project's `tilt up`, and `flisk down --prune-networks` removes the project's Docker networks that no container uses; by the source it touches networks only, not volumes (not run against Docker here). Without that flag the networks are kept.
+Yes. `flisk down` runs `tilt down`, which removes the containers but not named volumes. Checked with a small Compose project run through `tilt down`: the container was removed and the file in the volume was still there afterwards. The next `flisk up` starts Postgres on the same volume. Since [#585](https://github.com/flisk-sh/flisk/pull/585) `flisk down` also stops this project's `tilt up`, and `flisk down --prune-networks` removes the project's Docker networks that no container uses; by the source it touches networks only, not volumes (not run against Docker here). Without that flag the networks are kept.
 
 ## Start from a clean state
 
@@ -120,7 +120,7 @@ That writes the `service.json` below. Add the `dependsOn` line yourself so the j
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "seed-demo",
   "appType": "bring-your-own",
@@ -163,4 +163,4 @@ Both were run: after a restore, a row inserted after the snapshot was gone. A sh
 
 - Other databases (MySQL, Mongo, Turso): only the shared Postgres was checked.
 - A built-in `flisk db reset` or `flisk db seed` command does not exist.
-- The start-up order between migrator, seed and API. Related, and still open: [#531](https://github.com/flisk-sh/tdk-cli-core/issues/531) (an explicit, validated `dependsOn` on Postgres).
+- The start-up order between migrator, seed and API. Related, and still open: [#531](https://github.com/flisk-sh/flisk/issues/531) (an explicit, validated `dependsOn` on Postgres).

@@ -1,7 +1,7 @@
 # Copy to .github/workflows/tdk-ci.yml in your own repository.
 # Two jobs: `verify` checks the committed Flisk files without starting any
 # container; `boot` runs a real `flisk up` and waits for every service's /health.
-# Adapted from tdk-cli-core's e2e-examples.yml and e2e-journeys.yml.
+# Adapted from flisk's e2e-examples.yml and e2e-journeys.yml.
 name: flisk
 
 on:
@@ -53,7 +53,7 @@ jobs:
 
       - name: Install flisk
         run: |
-          npm install --global "flisk@${TDK_VERSION}"
+          npm install --global "@flisk-sh/flisk@${TDK_VERSION}"
           flisk --version
 
       # A fresh clone has neither the git-ignored .env nor .tdk/.tdk-out/, so
@@ -99,7 +99,7 @@ jobs:
 
       - name: Install flisk
         run: |
-          npm install --global "flisk@${TDK_VERSION}"
+          npm install --global "@flisk-sh/flisk@${TDK_VERSION}"
           flisk --version
 
       - name: Generate the local project files
@@ -191,7 +191,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      # `--prune-networks` came with tdk-cli-core PR #585; an older flisk rejects
+      # `--prune-networks` came with flisk PR #585; an older flisk rejects
       # the flag, so fall back to a plain `flisk down`.
       - name: flisk down
         if: always()

@@ -42,7 +42,7 @@ B2() { # cold and warm starts of flisk up, each until eight services answer
 B3() { # the report: the Pages site's HTML and the raw results, plus the job summary
   log "B3 build the report"
   local COMMIT="${COMMIT:-$(git -C "$REPO_ROOT" rev-parse HEAD)}"
-  local RUN_URL="${RUN_URL:-${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-flisk-sh/tdk-cli-core}/actions/runs/${GITHUB_RUN_ID:-0}}"
+  local RUN_URL="${RUN_URL:-${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-flisk-sh/flisk}/actions/runs/${GITHUB_RUN_ID:-0}}"
   local summary="${GITHUB_STEP_SUMMARY:-$OUT/step-summary.md}"
   node "$REPO_ROOT/scripts/benchmark/build-report.mjs" \
     --run "$BENCH_OUT" \

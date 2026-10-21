@@ -1,6 +1,6 @@
 # 7. Run unit tests in a matrix
 
-Unit tests run in one `cli` vitest job today, and the matrix on this page is **proposed, not yet in CI**. This page describes how to split them into parallel matrix legs in the same shape as the e2e groups (see [run e2e suites in a matrix](06-e2e-matrix.md)), and how to write a new unit test so it fits a leg. It is the model for the coverage and unit-test items in the [test-quality initiative](https://github.com/flisk-sh/tdk-cli-core/issues/1388).
+Unit tests run in one `cli` vitest job today, and the matrix on this page is **proposed, not yet in CI**. This page describes how to split them into parallel matrix legs in the same shape as the e2e groups (see [run e2e suites in a matrix](06-e2e-matrix.md)), and how to write a new unit test so it fits a leg. It is the model for the coverage and unit-test items in the [test-quality initiative](https://github.com/flisk-sh/flisk/issues/1388).
 
 ## What a unit test is here
 

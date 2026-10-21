@@ -84,6 +84,6 @@ scripts/benchmark/tdk-up-warm-start.sh \
 
 ## CI report
 
-`.github/workflows/benchmarks.yml` runs this benchmark on the restaurant example nightly on the latest `main`, after each release, and when it is started by hand from the Actions tab (manual runs measure but do not publish). The cases are in `tests/e2e/scale/benchmarks/` (`run.sh B1 B2 B3`). It builds the CLI from the tested commit, measures one cold and three warm starts on a GitHub-hosted runner, and publishes an HTML report with tabs for warm and cold starts, per-service build times, the committed history and the environment: <https://tdk-landscape.github.io/tdk-cli-core/>.
+`.github/workflows/benchmarks.yml` runs this benchmark on the restaurant example nightly on the latest `main`, after each release, and when it is started by hand from the Actions tab (manual runs measure but do not publish). The cases are in `tests/e2e/scale/benchmarks/` (`run.sh B1 B2 B3`). It builds the CLI from the tested commit, measures one cold and three warm starts on a GitHub-hosted runner, and publishes an HTML report with tabs for warm and cold starts, per-service build times, the committed history and the environment: <https://tdk-landscape.github.io/flisk/>.
 
 The same page is built locally by `node scripts/benchmark/build-report.mjs --run <run dir> --out <dir>`; it needs no network access.

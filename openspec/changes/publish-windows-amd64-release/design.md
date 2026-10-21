@@ -1,6 +1,6 @@
 ## Context
 
-The existing pipeline in `tdk-cli-core` cross-compiles the Windows AMD64 executable and checks its PE header, checksum, and ZIP inclusion. The Windows-specific runtime path and adjacent engine layout are not exercised on a Windows runner. The release README and website materials span repositories, and the installer currently validates the executable but not the engine archive. A separate broader Windows support change already defines platform support and initial installer behavior; this design completes public release readiness without expanding the platform support claim.
+The existing pipeline in `flisk` cross-compiles the Windows AMD64 executable and checks its PE header, checksum, and ZIP inclusion. The Windows-specific runtime path and adjacent engine layout are not exercised on a Windows runner. The release README and website materials span repositories, and the installer currently validates the executable but not the engine archive. A separate broader Windows support change already defines platform support and initial installer behavior; this design completes public release readiness without expanding the platform support claim.
 
 ## Goals / Non-Goals
 

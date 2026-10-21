@@ -153,7 +153,7 @@ const runCli = (sha, runs, compares = {}) => {
   for (const [base, body] of Object.entries(compares)) {
     writeFileSync(path.join(fakeDir, `compare-${base}.json`), JSON.stringify(body));
   }
-  return spawnSync(process.execPath, [script, "--sha", sha, "--repo", "flisk-sh/tdk-cli-core"], {
+  return spawnSync(process.execPath, [script, "--sha", sha, "--repo", "flisk-sh/flisk"], {
     encoding: "utf8",
     env: { ...process.env, PATH: `${stubDir}${path.delimiter}${process.env.PATH}`, FAKE_DIR: fakeDir, GH_TOKEN: "x" },
   });

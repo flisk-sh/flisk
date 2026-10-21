@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/package/flisk?activeTab=versions) and the [binary releases](https://github.com/flisk-sh/tdk-cli-releases/releases).
+Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/package/@flisk-sh/flisk?activeTab=versions) and the [binary releases](https://github.com/flisk-sh/tdk-cli-releases/releases).
 
 ## 1.3.189 (2026-10-21)
 
@@ -12,7 +12,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 ## 1.3.188 (2026-10-20)
 
 - Security: the BYO examples install `certifi` 2026.10.19 now (was 2026.7.22). The older bundle shipped the `emSign ECC Root CA - G3` root, and the eight eMudhra intermediate CAs that chain to it had their private keys compromised and were revoked, so anyone holding one of those keys could mint a certificate for any hostname. Advisory GHSA-6q48-6c7w-9gw2 (#1779).
-- Security: `vite` moves to 8.3.3. The `launch-editor` it bundles had three Windows command-injection advisories: CVE-2026-112942, CVE-2026-112943 and CVE-2026-112944. Both advisories are tracked on the [security page](https://github.com/flisk-sh/tdk-cli-core/security) (#1780).
+- Security: `vite` moves to 8.3.3. The `launch-editor` it bundles had three Windows command-injection advisories: CVE-2026-112942, CVE-2026-112943 and CVE-2026-112944. Both advisories are tracked on the [security page](https://github.com/flisk-sh/flisk/security) (#1780).
 - `cli/pnpm-lock.yaml` is regenerated. It had drifted from `cli/package.json`, so `pnpm install --frozen-lockfile` failed there; it tracks the manifest again now (#1780).
 
 ## 1.3.151 (2026-10-12)
@@ -55,12 +55,12 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## 1.3.126 (2026-10-08)
 
-- Security: fixes [GHSA-phgf-pww4-7jxc](https://github.com/flisk-sh/tdk-cli-core/security/advisories/GHSA-phgf-pww4-7jxc) (all earlier versions). A line break in a `service.json` value was written into the generated Docker Compose file and could add keys such as `privileged: true` to a service when you ran `flisk up` or `tilt up` on a repository you did not write. `flisk` and the Tilt engine now refuse any `service.json` string key or value that contains a line break (including U+0085, U+2028 and U+2029) or another control character, and `healthCheckPath`, `traefik.host`, `traefik.pathPrefix`, `traefik.healthCheck`, `nats.queueGroup`, `databaseName`, `stack` and `image` must also match a pattern. `smoke` is exempt. `flisk up` and `flisk config regenerate` stop with an error that names the field and does not print the value, and `tilt up` stops the same way. Upgrade, and check `service.json` files from repositories you did not write.
+- Security: fixes [GHSA-phgf-pww4-7jxc](https://github.com/flisk-sh/flisk/security/advisories/GHSA-phgf-pww4-7jxc) (all earlier versions). A line break in a `service.json` value was written into the generated Docker Compose file and could add keys such as `privileged: true` to a service when you ran `flisk up` or `tilt up` on a repository you did not write. `flisk` and the Tilt engine now refuse any `service.json` string key or value that contains a line break (including U+0085, U+2028 and U+2029) or another control character, and `healthCheckPath`, `traefik.host`, `traefik.pathPrefix`, `traefik.healthCheck`, `nats.queueGroup`, `databaseName`, `stack` and `image` must also match a pattern. `smoke` is exempt. `flisk up` and `flisk config regenerate` stop with an error that names the field and does not print the value, and `tilt up` stops the same way. Upgrade, and check `service.json` files from repositories you did not write.
 - `flisk up`, `flisk status` and `flisk ui` now treat a container as ready only once its Docker health check passes. Tilt reports a running container as ready even while its health check is starting or failing, so a Postgres that never accepted connections counted as up and its dependents looked ready. A health check that is still starting now counts as starting (`waiting for postgres` on dependents), and a failing one makes `flisk up` stop with `✗ postgres failed: container is running, but its health check is failing`, the services it blocks, and how many dependents are not ready. Containers without a health check (BYO images) are unchanged. Part of #683.
 
 ## 1.3.125 (2026-10-08)
 
-- `flisk upgrade` no longer falls back to installing from the repository's moving GitHub default branch when the npm or Bun registry install fails. It reports the original install error, exits non-zero and prints the published-package command (`npm install -g flisk@latest` or `bun install -g flisk@latest`). npm `EACCES`/`EPERM` failures also point at npm's global-prefix docs and the official installer. Fixes #702.
+- `flisk upgrade` no longer falls back to installing from the repository's moving GitHub default branch when the npm or Bun registry install fails. It reports the original install error, exits non-zero and prints the published-package command (`npm install -g @flisk-sh/flisk@latest` or `bun install -g @flisk-sh/flisk@latest`). npm `EACCES`/`EPERM` failures also point at npm's global-prefix docs and the official installer. Fixes #702.
 - `flisk networks` now lists routable frontend, backend and MCP services that omit `basePath`, using the same default route the generator uses. `--json`, `--raw` and stack filtering are unchanged, and the advice that `basePath` is required is gone. Fixes #719.
 - `flisk down`, `flisk eject` and `flisk logs` report a missing or invalid project root with the shared error and suggestions, before any Docker or Tilt check. `down --json` and `logs --json` return it in one schema-versioned envelope. Fixes #722.
 - Registering an SDK resource whose path has no `service.json` now stops before scaffolding with the path and the next step (add a `service.json` with `"appType": "sdk"`, then rerun), instead of a raw `Object.entries` exception. Fixes #714.
@@ -317,7 +317,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 - Add an opt-in Python backend: `flisk resource <name> --type backend --language python` scaffolds a FastAPI service (`pyproject.toml`, `src/main.py`, a pytest smoke test) and Flisk generates its Docker image (`python:3.12-slim`, with `test` and `production` stages). The choice is saved as `language` in `service.json` only when you pass the flag; omitting it keeps the existing Bun + Hono output byte for byte. Unknown ids and `--language` on non-backend types fail before any file is written. A runnable example is in `examples/one-backend-python`, and the provider contract is in `docs/backend-language-providers.md`. Node.js is not included. (#227)
 - `flisk doctor` no longer reports "resource without a package.json" for a Python backend, and a Python service missing `pyproject.toml` or `src/main.py` now fails early with the missing file named.
 - Live reload now works: Tilt `live_update` sync paths were relative to the project root while Tilt resolves them against `.tdk/.tdk-out`, so they never matched and every source edit rebuilt the image ("Found file(s) not matching any sync"). An edit under `src/` is now copied into the running container without a rebuild, for Bun and Python services. Dependency file changes (`package.json`, `pyproject.toml`) still rebuild the image. (#228, #230)
-- The service schema (`https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json`) gains the `language` field (`bun`, `python`).
+- The service schema (`https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json`) gains the `language` field (`bun`, `python`).
 - Fix the routed health URL in the `one-backend` example README.
 - CI: WSL2 landscape gate and native Windows refusal (#220, #222, #223, #224).
 
@@ -449,7 +449,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 - `flisk up` works in a fresh project. The Tiltfile no longer aborts when a stack listed in `project.json` has no directory yet, and stacks created after `flisk project` are added to the `pre_alpha` phase so they actually start.
 - Prompts fail with an error and exit 1 when there's no input to read (CI, `< /dev/null`). Before, `flisk resource` printed its summary, exited 0 and created nothing.
 - `flisk help`: one-line header with the version, instead of a misaligned ASCII box and doubled icons.
-- One installer: `install.sh` in this repo hands off to `https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh`, which verifies release checksums. `flisk upgrade` verifies checksums too.
+- One installer: `install.sh` in this repo hands off to `https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh`, which verifies release checksums. `flisk upgrade` verifies checksums too.
 
 ## 1.3.51 (2026-09-27)
 
@@ -489,4 +489,4 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Earlier
 
-Releases before 1.3.33 are listed in the [git history](https://github.com/flisk-sh/tdk-cli-core/commits/main).
+Releases before 1.3.33 are listed in the [git history](https://github.com/flisk-sh/flisk/commits/main).

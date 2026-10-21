@@ -65,7 +65,7 @@ Biri bir PR'ı açtığında, yeniden açtığında veya düzenlediğinde [AI in
 Her düğme basit bir bağlantıdır. yapay zekânın sitesini yeni bir sekmede açar ve bu mesaj zaten yazılmış olarak gelir.
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/flisk/pull/123.
 ```
 
 | Düğme | Açılan site |

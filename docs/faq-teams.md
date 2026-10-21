@@ -1,6 +1,6 @@
 # Flisk for agencies and multi-client teams: honest FAQ
 
-Questions a team lead usually asks before moving client projects onto a new tool. Each answer says what is supported, what is not, and what is not written down yet. Anything marked **Gap** has an open issue; if your question is not here, [ask us](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=adoption-question.yml).
+Questions a team lead usually asks before moving client projects onto a new tool. Each answer says what is supported, what is not, and what is not written down yet. Anything marked **Gap** has an open issue; if your question is not here, [ask us](https://github.com/flisk-sh/flisk/issues/new?template=adoption-question.yml).
 
 ## Will it run our stacks (Java, .NET, PHP, Node, Python)?
 
@@ -10,7 +10,7 @@ Questions a team lead usually asks before moving client projects onto a new tool
 
 ## Can we try it without changing the client's repository?
 
-**Partly answered; the Gap is a mode with no Flisk files in the repository.** In a repository that already had a `package.json`, `Tiltfile`, `.tiltignore`, `docker-compose.yml` and `Dockerfile`, `flisk project --yes` left them byte-for-byte unchanged, appended four lines to `.gitignore`, and added `.tdk/project.json`, `services/platform/database-management/docker-compose.yml` and `shared-platform-engineering/docker-templates/`. [Gradual adoption](gradual-adoption.md) has the full list, what to commit and how to take it out again; the [adoption guide](adopt-flisk.md) says to run `git status` and read what changed. There is still no documented mode that keeps all Flisk files outside the repository ([#504](https://github.com/flisk-sh/tdk-cli-core/issues/504)).
+**Partly answered; the Gap is a mode with no Flisk files in the repository.** In a repository that already had a `package.json`, `Tiltfile`, `.tiltignore`, `docker-compose.yml` and `Dockerfile`, `flisk project --yes` left them byte-for-byte unchanged, appended four lines to `.gitignore`, and added `.tdk/project.json`, `services/platform/database-management/docker-compose.yml` and `shared-platform-engineering/docker-templates/`. [Gradual adoption](gradual-adoption.md) has the full list, what to commit and how to take it out again; the [adoption guide](adopt-flisk.md) says to run `git status` and read what changed. There is still no documented mode that keeps all Flisk files outside the repository ([#504](https://github.com/flisk-sh/flisk/issues/504)).
 
 ## What if the project stops being maintained?
 
@@ -28,19 +28,19 @@ Ubuntu on WSL2 with Docker Desktop is supported ([WSL2 guide](wsl2.md)). Native 
 
 ## Corporate proxy, VPN, private registry, custom CA
 
-**Not documented.** We have not tested `flisk up` behind an HTTP proxy, a TLS-intercepting proxy, or against a private npm/Maven/PyPI registry, and the docs do not describe how to pass proxy settings or extra CA certificates into the generated images. Do not assume it works; try it on one service first and tell us what breaks ([#506](https://github.com/flisk-sh/tdk-cli-core/issues/506)).
+**Not documented.** We have not tested `flisk up` behind an HTTP proxy, a TLS-intercepting proxy, or against a private npm/Maven/PyPI registry, and the docs do not describe how to pass proxy settings or extra CA certificates into the generated images. Do not assume it works; try it on one service first and tell us what breaks ([#506](https://github.com/flisk-sh/flisk/issues/506)).
 
 ## We already have docker-compose files
 
-**Gap.** There is no Compose import. Use a bring-your-own resource per service (Dockerfile or `--image`). Adding Flisk did not modify an existing `docker-compose.yml` ([gradual adoption](gradual-adoption.md)), but running both at the same time was not tested. [Compare honestly](compare-honest.md): for 2 to 3 services you already wrote, Compose is a better fit than Flisk, and you can keep both during a pilot ([#507](https://github.com/flisk-sh/tdk-cli-core/issues/507)).
+**Gap.** There is no Compose import. Use a bring-your-own resource per service (Dockerfile or `--image`). Adding Flisk did not modify an existing `docker-compose.yml` ([gradual adoption](gradual-adoption.md)), but running both at the same time was not tested. [Compare honestly](compare-honest.md): for 2 to 3 services you already wrote, Compose is a better fit than Flisk, and you can keep both during a pilot ([#507](https://github.com/flisk-sh/flisk/issues/507)).
 
 ## Ports and running two stacks at once
 
-Flisk asks for ingress ports 80 and 443 first, so routed URLs carry no port. If they are taken, or on Linux and WSL2 where a non-root user cannot check them, Flisk picks the next free ports from bounded ranges (ingress 8080 to 8180, HTTPS 8443 to 8543, Postgres 15432 to 15532, read from `host-port-plan.ts`) and prints them in `flisk up` and `flisk networks`. Environment overrides exist, for example `TDK_POSTGRES_PORT`. The ranges are small, and running more than two projects at the same time is **not documented or tested** ([#509](https://github.com/flisk-sh/tdk-cli-core/issues/509)).
+Flisk asks for ingress ports 80 and 443 first, so routed URLs carry no port. If they are taken, or on Linux and WSL2 where a non-root user cannot check them, Flisk picks the next free ports from bounded ranges (ingress 8080 to 8180, HTTPS 8443 to 8543, Postgres 15432 to 15532, read from `host-port-plan.ts`) and prints them in `flisk up` and `flisk networks`. Environment overrides exist, for example `TDK_POSTGRES_PORT`. The ranges are small, and running more than two projects at the same time is **not documented or tested** ([#509](https://github.com/flisk-sh/flisk/issues/509)).
 
 ## RAM and CPU on a 16 GB machine
 
-**Not measured.** The only published numbers are the [claims registry](claims.md) entries (a 14-service warm start and a 100-service CI fixture); neither describes memory use on a developer machine. The [pilot scorecard](pilot-scorecard.md) records memory and CPU for your own stack, and has one example record for a single scaffolded service (not a benchmark). Treat sizing as unknown until you measure your own stack ([#508](https://github.com/flisk-sh/tdk-cli-core/issues/508)).
+**Not measured.** The only published numbers are the [claims registry](claims.md) entries (a 14-service warm start and a 100-service CI fixture); neither describes memory use on a developer machine. The [pilot scorecard](pilot-scorecard.md) records memory and CPU for your own stack, and has one example record for a single scaffolded service (not a benchmark). Treat sizing as unknown until you measure your own stack ([#508](https://github.com/flisk-sh/flisk/issues/508)).
 
 ## Onboarding a new developer, and showing it to the client
 

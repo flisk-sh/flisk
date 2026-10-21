@@ -2,7 +2,7 @@
 
 ## Why
 
-GitHub's “Used by” sidebar is a visible adoption signal that helps developers discover and trust a project. As of 20 October 2026, the public `flisk-sh/tdk-cli-core` repository has no reported dependents. Official examples and starter repositories demonstrate Flisk but generally do not declare the published `flisk` package in a supported manifest, so they are not represented in GitHub's dependency graph.
+GitHub's “Used by” sidebar is a visible adoption signal that helps developers discover and trust a project. As of 20 October 2026, the public `flisk-sh/flisk` repository has no reported dependents. Official examples and starter repositories demonstrate Flisk but generally do not declare the published `flisk` package in a supported manifest, so they are not represented in GitHub's dependency graph.
 
 The project should make legitimate package usage in its official landscape visible and give external adopters clear guidance. The goal is accurate dependency metadata and discoverability, not manufacturing dependents.
 

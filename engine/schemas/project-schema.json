@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/project-schema.json",
+  "$id": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/project-schema.json",
   "title": "Flisk Project Configuration",
   "description": "Editor assistance for .tdk/project.json. Flisk's CLI remains the runtime source of truth.",
   "type": "object",

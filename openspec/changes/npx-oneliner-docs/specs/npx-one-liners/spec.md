@@ -8,7 +8,7 @@ Public markdown SHALL write npx commands as `npx -y flisk <tdk-args>`. The packa
 - **THEN** it reads `npx -y flisk resource orders-api --type backend --stack shop --yes`
 
 #### Scenario: Forbidden forms are absent
-- **WHEN** public markdown is searched for `tdk-cli-core flisk ` or an npx command ending in ` -y`
+- **WHEN** public markdown is searched for `flisk flisk ` or an npx command ending in ` -y`
 - **THEN** no first-run command matches
 
 ### Requirement: Host requirements are stated per command
@@ -42,7 +42,7 @@ Docs SHALL use these blocks, each prefixed `npx -y flisk`:
 - Single line: the three commands above chained with `&&`
 - Preview, no containers: `up shop --dry-run`
 - Frontend: `resource web --type frontend --stack shop --yes` and `resource web --type frontend --framework vue --stack shop --yes`
-- Keep-it options, placed after the npx block: `npm install -g flisk` and `curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh`
+- Keep-it options, placed after the npx block: `npm install -g @flisk-sh/flisk` and `curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh`
 
 #### Scenario: Install options ordering
 - **WHEN** a doc lists install options

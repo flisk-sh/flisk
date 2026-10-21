@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Record who maintains tdk-cli-core, how maintainers are added, and which external users count as adopters.
+Record who maintains flisk, how maintainers are added, and which external users count as adopters.
 
 ## ADDED Requirements
 

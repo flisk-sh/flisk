@@ -145,7 +145,7 @@ must pass `--stack`. Without `--yes`, prompt answers can still be supplied on st
 - 💻 `src/` — Starter code (Hono, Express, Elysia, Fastify, NestJS, Koa or h3 for backend, React, Vue, Svelte, Preact, Lit, Solid, Qwik or plain TypeScript for frontend)
 - 🧪 `tests/` — Vitest test file
 
-`service.json` files point to the published [JSON Schema](https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json) for editor autocomplete and validation. The schema source is [`engine/schemas/service-schema.json`](../engine/schemas/service-schema.json); it documents supported service fields and known `featuresEnabled` names. For the complete list of code generators controlled by `featuresEnabled`, see the [resource features guide](../docs/resource-features.md). Legacy manifests may use `type` in place of `appType`.
+`service.json` files point to the published [JSON Schema](https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json) for editor autocomplete and validation. The schema source is [`engine/schemas/service-schema.json`](../engine/schemas/service-schema.json); it documents supported service fields and known `featuresEnabled` names. For the complete list of code generators controlled by `featuresEnabled`, see the [resource features guide](../docs/resource-features.md). Legacy manifests may use `type` in place of `appType`.
 
 See the complete [`service.json` field reference](../docs/service-json.md) for field defaults, resource applicability, validation behavior, and backend/frontend examples.
 

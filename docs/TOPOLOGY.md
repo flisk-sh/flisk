@@ -1,6 +1,6 @@
 # Flisk Core Topology: Maintainer Guide
 
-This document maps the source code and generation flow in `tdk-cli-core`. It is intended for maintainers changing the CLI, templates, discovery, manifest handling, or Tilt engine. The user-facing model is **Project → Stack → Resource**; the implementation is split between a TypeScript CLI and a Starlark Tilt runtime.
+This document maps the source code and generation flow in `flisk`. It is intended for maintainers changing the CLI, templates, discovery, manifest handling, or Tilt engine. The user-facing model is **Project → Stack → Resource**; the implementation is split between a TypeScript CLI and a Starlark Tilt runtime.
 
 ## System overview
 

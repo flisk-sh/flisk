@@ -50,14 +50,14 @@ flisk import <dir> --dry-run
 flisk import <dir> --yes
 ```
 
-Start the imported stack with Flisk core **1.3.145 or later**. 1.3.104 added `buildContext` ([tdk-cli-core#525](https://github.com/flisk-sh/tdk-cli-core/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.tdk/project.json` but none yet ([tdk-cli-core#1018](https://github.com/flisk-sh/tdk-cli-core/pull/1018)). `flisk import` enforces that the installed core is at least 1.3.104 before writing; if an older core is encountered, it exits before writing and prints the upgrade command (`flisk upgrade`).
+Start the imported stack with Flisk core **1.3.145 or later**. 1.3.104 added `buildContext` ([flisk#525](https://github.com/flisk-sh/flisk/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.tdk/project.json` but none yet ([flisk#1018](https://github.com/flisk-sh/flisk/pull/1018)). `flisk import` enforces that the installed core is at least 1.3.104 before writing; if an older core is encountered, it exits before writing and prints the upgrade command (`flisk upgrade`).
 
-Put the environment values the services need in the project `.env`; values in the Compose file are never copied. Evidence of the importer running through a real `flisk up`: [#1007](https://github.com/flisk-sh/tdk-cli-core/issues/1007).
+Put the environment values the services need in the project `.env`; values in the Compose file are never copied. Evidence of the importer running through a real `flisk up`: [#1007](https://github.com/flisk-sh/flisk/issues/1007).
 
 ## Cutting a release
 
 > [!WARNING]
-> The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/flisk-sh/tdk-cli-core/issues/1657), [#1658](https://github.com/flisk-sh/tdk-cli-core/issues/1658), [#1659](https://github.com/flisk-sh/tdk-cli-core/issues/1659).
+> The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/flisk-sh/flisk/issues/1657), [#1658](https://github.com/flisk-sh/flisk/issues/1658), [#1659](https://github.com/flisk-sh/flisk/issues/1659).
 
 ### Lessons from release 1.3.187 (2026-10-20)
 
@@ -73,7 +73,7 @@ Put the environment values the services need in the project `.env`; values in th
 3. Give the Docker Compose readiness check a bounded retry/backoff and preserve the existing failure diagnostics. Keep candidate checks blocking: retry transient runner startup failures, but never mark a candidate successful by skipping the suite.
 4. Add a post-publish verification step that retries npm metadata lookup during the registry processing window and verifies the npm version and tarball, release tag/assets, checksum signature, and provenance independently.
 
-The normal release is the workflow, from a release branch (see the publish gate in [#1631](https://github.com/flisk-sh/tdk-cli-core/pull/1631)):
+The normal release is the workflow, from a release branch (see the publish gate in [#1631](https://github.com/flisk-sh/flisk/pull/1631)):
 
 1. Cut `release/rc-<timestamp>` at the commit to ship, and run the Release candidate workflow on it. Wait for it to pass.
 2. Run `gh workflow run release-binaries.yml --ref release/rc-<timestamp>`. The workflow picks the next unpublished version, builds and checks the binaries, publishes the npm package and the release in `flisk-sh/tdk-cli-releases`, and credits fixed issues.
@@ -100,10 +100,10 @@ To build a binary by hand, without publishing, run `scripts/release-binaries.sh`
 Candidates are not run on every push, so a dispatch on `main` fails until a candidate covers its commit. Check any commit with the gate before you dispatch:
 
 ```bash
-GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha <commit> --repo flisk-sh/tdk-cli-core
+GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha <commit> --repo flisk-sh/flisk
 ```
 
-Tracked in [#1627](https://github.com/flisk-sh/tdk-cli-core/issues/1627).
+Tracked in [#1627](https://github.com/flisk-sh/flisk/issues/1627).
 
 ## License key
 

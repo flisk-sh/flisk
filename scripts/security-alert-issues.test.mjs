@@ -29,7 +29,7 @@ import {
 
 const DEPENDABOT_ALERT = {
 	number: 22,
-	html_url: "https://github.com/flisk-sh/tdk-cli-core/security/dependabot/22",
+	html_url: "https://github.com/flisk-sh/flisk/security/dependabot/22",
 	dependency: {
 		package: { name: "vite", ecosystem: "npm" },
 		manifest_path: "cli/pnpm-lock.yaml",
@@ -56,7 +56,7 @@ const DEPENDABOT_ALERT = {
 
 const SCANNER_ALERT = {
 	number: 456,
-	html_url: "https://github.com/flisk-sh/tdk-cli-core/security/code-scanning/456",
+	html_url: "https://github.com/flisk-sh/flisk/security/code-scanning/456",
 	rule: {
 		id: "CVE-2026-112942",
 		severity: "warning",
@@ -283,7 +283,7 @@ test("an existing issue is updated, not duplicated", () => {
 		state: "open",
 		body: `${markerFor("dependabot", 22)}\n\nan older body`,
 		labels: ["security"],
-		html_url: "https://github.com/flisk-sh/tdk-cli-core/issues/900",
+		html_url: "https://github.com/flisk-sh/flisk/issues/900",
 	};
 	const actions = planSync(findings, [issue]);
 	assert.equal(actions.length, 1);

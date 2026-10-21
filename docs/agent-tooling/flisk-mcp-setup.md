@@ -22,13 +22,13 @@ This page is the setup path, from installing Flisk to a first `doctor` and `up`.
 Install the CLI with npm (Node.js 22.12 or newer):
 
 ```bash
-npm install -g flisk
+npm install -g @flisk-sh/flisk
 ```
 
 Or install the prebuilt binary, which needs no Node.js (macOS and Linux):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh
 ```
 
 Check that both the CLI and the MCP server are there:

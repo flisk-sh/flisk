@@ -1,6 +1,6 @@
 # Maintainers
 
-People with merge rights on tdk-cli-core. Company is the maintainer's employer, not their GitHub organization. Use `Independent` when there is no employer. See [GOVERNANCE.md](GOVERNANCE.md) for how people are added and removed.
+People with merge rights on flisk. Company is the maintainer's employer, not their GitHub organization. Use `Independent` when there is no employer. See [GOVERNANCE.md](GOVERNANCE.md) for how people are added and removed.
 
 | Name | GitHub id | Company |
 | --- | --- | --- |

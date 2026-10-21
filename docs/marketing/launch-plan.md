@@ -1,6 +1,6 @@
 # Coordinated launch plan: Show HN and Reddit (Universe week)
 
-Tracks [#1444](https://github.com/flisk-sh/tdk-cli-core/issues/1444). Clip scripts are in [clips.md](clips.md). Nothing in this file has been posted. Posting is a human action; this file is the plan and the prepared text.
+Tracks [#1444](https://github.com/flisk-sh/flisk/issues/1444). Clip scripts are in [clips.md](clips.md). Nothing in this file has been posted. Posting is a human action; this file is the plan and the prepared text.
 
 ## Dates
 
@@ -44,7 +44,7 @@ Found before the launch. Links were supplied by the owner; the HN search turned 
 | Item | Link | Date | What it claims | Action before Oct 28 |
 | --- | --- | --- | --- | --- |
 | dev.to article: "We ran 100 microservices on a 16GB laptop" | https://dev.to/mynameis0d3c53a3/we-ran-100-microservices-on-a-16gb-laptop-no-kubernetes-590e | Sep 27 | 10 services healthy in 8 s (161 MiB), 50 in 24 s (829 MiB), 100 in 112 s (1.6 GiB); 0 crashes, 0 OOM; benchmark script and raw JSON in the repo | Check each number against the committed benchmark JSON and `docs/claims.md`. The Show HN draft uses different figures (14 services in 4.6 s; 100 stubs in 472 s on a CI runner). Use one set of numbers, and say which hardware it came from. Link this article from the first comment as the longer write-up. |
-| HN submission "New Open Source Tool for Development Experience. Flisk CLI – service.json" (not Show HN) | https://news.ycombinator.com/item?id=49924046 | about Oct 2, 2026 (16 days before Oct 18) | 1 point, 1 comment (submitter only); submitted URL is the repo, `github.com/flisk-sh/tdk-cli-core` | Same repo URL as the planned Show HN. HN flags a resubmitted URL, so the Oct 28 post may be marked a dupe. Options: ask HN (hn@ycombinator.com) before posting, or post a different URL (the quickstart page) with the repo in the first comment. Owner decides on Tue Oct 27. |
+| HN submission "New Open Source Tool for Development Experience. Flisk CLI – service.json" (not Show HN) | https://news.ycombinator.com/item?id=49924046 | about Oct 2, 2026 (16 days before Oct 18) | 1 point, 1 comment (submitter only); submitted URL is the repo, `github.com/flisk-sh/flisk` | Same repo URL as the planned Show HN. HN flags a resubmitted URL, so the Oct 28 post may be marked a dupe. Options: ask HN (hn@ycombinator.com) before posting, or post a different URL (the quickstart page) with the repo in the first comment. Owner decides on Tue Oct 27. |
 | Two earlier Show HN posts | TBD (owner to supply links) | TBD | TBD | Check whether either is still on the front page or drew discussion. If so, the Oct 28 post needs a new angle, or move it. HN flags a resubmission of the same URL. |
 
 ## Rules check (must be done on Tue Oct 27)
@@ -68,7 +68,7 @@ If a rule forbids the post as written, change the post to fit the rule or skip t
 
 Count: 63 characters.
 
-**URL:** https://github.com/flisk-sh/tdk-cli-core
+**URL:** https://github.com/flisk-sh/flisk
 
 **First comment** (post it as the author, right after the submission):
 
@@ -96,7 +96,7 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 
 > I work on Flisk CLI, a MIT-licensed tool that keeps each local service described by one `service.json`. `flisk resource` scaffolds a backend or frontend, `flisk up <stack>` starts only that stack through Docker and Tilt, and `flisk config verify` checks that the generated files still match.
 >
-> Honest limits: it is for local development only. It is not a deploy tool. If you have two services and a working compose file, you do not need this. Repo: https://github.com/flisk-sh/tdk-cli-core
+> Honest limits: it is for local development only. It is not a deploy tool. If you have two services and a working compose file, you do not need this. Repo: https://github.com/flisk-sh/flisk
 >
 > If you try it and something breaks, the issue tracker is the place to tell me. I will answer what I can in the thread.
 
@@ -110,7 +110,7 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 >
 > It does not touch your cluster. It does not replace Helm. The outbound-call list is in docs/security.md, so you can check what it sends.
 >
-> Repo: https://github.com/flisk-sh/tdk-cli-core
+> Repo: https://github.com/flisk-sh/flisk
 
 ### r/docker: the "generated files you can read" angle
 
@@ -122,7 +122,7 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 >
 > Note on the Dockerfile: `flisk up` builds its own generated image, not the scaffolded `Dockerfile` in each service folder. The scaffolded one is a starting point for building outside Flisk. If you spot a case where that is confusing, tell me in the issues.
 >
-> Native Windows is inspect-only; use WSL2 Ubuntu to run it. Repo: https://github.com/flisk-sh/tdk-cli-core
+> Native Windows is inspect-only; use WSL2 Ubuntu to run it. Repo: https://github.com/flisk-sh/flisk
 
 ## Prepared answers
 

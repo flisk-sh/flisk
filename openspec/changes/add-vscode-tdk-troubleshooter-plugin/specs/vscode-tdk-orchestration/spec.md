@@ -16,7 +16,7 @@ The extension SHALL be implemented as a new VS Code extension package at `/priva
 
 #### Scenario: One-shot implementation starts
 - **WHEN** implementation begins
-- **THEN** the extension package is scaffolded outside `tdk-cli-core` at `/private/var/www/2025/ollamar1/tdk-vscode-extension`
+- **THEN** the extension package is scaffolded outside `flisk` at `/private/var/www/2025/ollamar1/tdk-vscode-extension`
 
 #### Scenario: Extension package is verified
 - **WHEN** the MVP is complete

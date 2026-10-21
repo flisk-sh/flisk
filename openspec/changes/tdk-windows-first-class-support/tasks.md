@@ -38,7 +38,7 @@
 
 - [ ] 6.1 In `tdk-landscape.github.io`, add `install.ps1` with architecture refusal, latest-release downloads, exe checksum verification, per-user/default install path, adjacent engine extraction with old-tar fallback, user PATH update, and success instructions.
 - [ ] 6.2 Update release README and download list with `flisk-windows-amd64.exe — Windows x86_64 / AMD64`, Windows manual installation commands, and installer instructions.
-- [ ] 6.3 Update `tdk-cli-core/README.md`, applicable `cli/README.md`, Flisk website quickstart, website homepage/install page, and org profile README to use the exact supported-platform wording and Windows setup steps.
+- [ ] 6.3 Update `flisk/README.md`, applicable `cli/README.md`, Flisk website quickstart, website homepage/install page, and org profile README to use the exact supported-platform wording and Windows setup steps.
 - [ ] 6.4 Add a Windows problems documentation page covering only Docker Desktop state/mode, ports and Hyper-V exclusions, `*.localhost` DNS, and project-drive file sharing.
 - [ ] 6.5 Replace every specified “Windows is untested” statement and check templates for host-side `/tmp`, `/usr/local`, or shell-script assumptions without changing container-side scripts.
 

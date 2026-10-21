@@ -1,7 +1,7 @@
 # Candidate public lists to ask. See tool-allowlist-packet.md for the schema.
 # Rows are added by hand after checking list_path and the contributing guide.
 # Nothing here is sent until the packet PR merges.
-# Checked 2026-10-04. tdk-cli-core then: 15 stars, created 2026-09-19, MIT.
+# Checked 2026-10-04. flisk then: 15 stars, created 2026-09-19, MIT.
 targets:
   - url: https://github.com/veggiemonk/awesome-docker
     list_path: README.md
@@ -22,7 +22,7 @@ targets:
     channel: pr
     notes: >-
       BLOCKED. contributing.md requires at least 3 months of age and 20 GitHub
-      stars; tdk-cli-core is created 2026-09-19 with 15 stars. Earliest 2026-12-19,
+      stars; flisk is created 2026-09-19 with 15 stars. Earliest 2026-12-19,
       and only if stars >= 20. It also says AI-generated PRs are not welcome and
       wants one PR per app with human reasoning, so a human writes it.
   - url: https://github.com/mfornos/awesome-microservices

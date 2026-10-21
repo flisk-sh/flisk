@@ -25,6 +25,6 @@ Flisk currently supports macOS and Linux, while native Windows users cannot inst
 ## Impact
 
 - CLI source and tests under `cli/src`, especially platform utilities, upgrade, doctor, completions, and project lifecycle commands.
-- Binary release scripts and GitHub workflows in `tdk-cli-core`.
+- Binary release scripts and GitHub workflows in `flisk`.
 - The separate `tdk-cli-releases` and `tdk-landscape.github.io` repositories, plus Flisk website and organization documentation where platform support is described.
 - Native Windows requirements: PowerShell, `tar.exe`, `Get-FileHash`, Docker Desktop in Linux container mode, Tilt for Windows, and Bun for generated services; Node.js is optional except for npm installations.

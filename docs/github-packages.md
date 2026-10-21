@@ -15,7 +15,7 @@ Create a classic GitHub personal access token with `read:packages` access (and a
 
 ```sh
 export GITHUB_PACKAGES_TOKEN="<your-read:packages-token>"
-npm install -g flisk
+npm install -g @flisk-sh/flisk
 flisk --version
 ```
 
@@ -24,7 +24,7 @@ In CI, store the token as a secret and expose it as `GITHUB_PACKAGES_TOKEN` for 
 The mapping above only redirects the `@tdk-landscape` scope. To return to the default public npm installation, remove that mapping and run:
 
 ```sh
-npm install -g flisk
+npm install -g @flisk-sh/flisk
 ```
 
 ## Maintainer release checks
@@ -35,8 +35,8 @@ To add an already released npm version to GitHub Packages without creating anoth
 
 After the first GitHub Packages publication:
 
-1. Open the package under the repository's **Packages** tab and confirm it is connected to `flisk-sh/tdk-cli-core`.
+1. Open the package under the repository's **Packages** tab and confirm it is connected to `flisk-sh/flisk`.
 2. Check the package visibility. If it is restricted, change its visibility to public in the package settings so consumers can install it as intended.
-3. Verify the released version with `npm view flisk@<version> --registry=https://npm.pkg.github.com`.
+3. Verify the released version with `npm view @flisk-sh/flisk@<version> --registry=https://npm.pkg.github.com`.
 
 If the GitHub Packages publish job fails after npm publication, rerun the `publish-github-packages` job in the same workflow run while its artifact is retained. It downloads the exact tarball produced for that release and skips the version if it is already present. A failed package publish fails the workflow rather than silently reporting a complete dual publication.

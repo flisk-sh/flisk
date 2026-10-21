@@ -1,6 +1,6 @@
 ## Context
 
-Flisk currently targets Linux and macOS, with Unix assumptions in platform detection, PATH lookup, process execution, file operations, doctor diagnostics, and release installation. The requested product is native Windows 10 22H2+, Windows 11, and Windows Server 2022+ on AMD64; WSL2 Ubuntu remains Linux. The CLI binary is `tdk.exe`, with `tdk-cli` beside it. The implementation spans the CLI repository and separate release and website repositories, so this plan is tracked in `tdk-cli-core` while naming those external deliverables explicitly.
+Flisk currently targets Linux and macOS, with Unix assumptions in platform detection, PATH lookup, process execution, file operations, doctor diagnostics, and release installation. The requested product is native Windows 10 22H2+, Windows 11, and Windows Server 2022+ on AMD64; WSL2 Ubuntu remains Linux. The CLI binary is `tdk.exe`, with `tdk-cli` beside it. The implementation spans the CLI repository and separate release and website repositories, so this plan is tracked in `flisk` while naming those external deliverables explicitly.
 
 ## Goals / Non-Goals
 

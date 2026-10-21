@@ -37,4 +37,4 @@
 
 ## 도움이 필요하신가요?
 
-시도한 것, 기대한 것, 실제로 일어난 일을 적어 [issue를 여세요](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose). 질문하기 전에 문제를 해결할 필요는 없습니다.
+시도한 것, 기대한 것, 실제로 일어난 일을 적어 [issue를 여세요](https://github.com/flisk-sh/flisk/issues/new/choose). 질문하기 전에 문제를 해결할 필요는 없습니다.

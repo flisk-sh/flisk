@@ -4,17 +4,17 @@
 
 Go from an empty folder to a running tech stack with one command. Built for agents.
 
-[![npm version](https://img.shields.io/npm/v/flisk.svg?style=flat&color=blue)](https://www.npmjs.com/package/flisk) [![npm weekly downloads](https://img.shields.io/npm/dw/flisk?style=flat&color=blue)](https://www.npmjs.com/package/flisk) [![unpacked size](https://img.shields.io/npm/unpacked-size/flisk)](https://packagephobia.com/result?p=flisk) [![install size](https://badgen.net/packagephobia/install/flisk)](https://packagephobia.com/result?p=flisk) [![GitHub stars](https://img.shields.io/github/stars/flisk-sh/tdk-cli-core?style=flat&logo=github)](https://github.com/flisk-sh/tdk-cli-core/stargazers) [![OSS Insight](https://img.shields.io/badge/OSS%20Insight-analytics-blue)](https://ossinsight.io/analyze/flisk-sh/tdk-cli-core) [![X followers: 1,605](https://img.shields.io/badge/X%20followers-1%2C605-1DA1F2?style=flat&logo=x&logoColor=white)](https://x.com/brookservers)
-[![Journeys E2E](https://github.com/flisk-sh/tdk-cli-core/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/flisk-sh/tdk-cli-core/actions/workflows/e2e-journeys.yml) [![ERP fixture scale E2E](https://github.com/flisk-sh/tdk-cli-core/actions/workflows/e2e-scale-full.yml/badge.svg)](https://github.com/flisk-sh/tdk-cli-core/actions/workflows/e2e-scale-full.yml) [![Example apps E2E](https://github.com/flisk-sh/tdk-cli-core/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/flisk-sh/tdk-cli-core/actions/workflows/e2e-real-apps.yml) [![CodeQL](https://github.com/flisk-sh/tdk-cli-core/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/flisk-sh/tdk-cli-core/security/code-scanning) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/flisk-sh/tdk-cli-core/badge)](https://scorecard.dev/viewer/?uri=github.com/flisk-sh/tdk-cli-core) [![Known Vulnerabilities](https://snyk.io/test/github/flisk-sh/tdk-cli-core/badge.svg)](https://snyk.io/test/github/flisk-sh/tdk-cli-core) [![Socket Badge](https://badge.socket.dev/npm/package/flisk/latest)](https://socket.dev/npm/package/flisk/overview)
+[![npm version](https://img.shields.io/npm/v/@flisk-sh/flisk.svg?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![npm weekly downloads](https://img.shields.io/npm/dw/@flisk-sh/flisk?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![unpacked size](https://img.shields.io/npm/unpacked-size/@flisk-sh/flisk)](https://packagephobia.com/result?p=@flisk-sh/flisk) [![install size](https://badgen.net/packagephobia/install/@flisk-sh/flisk)](https://packagephobia.com/result?p=@flisk-sh/flisk) [![GitHub stars](https://img.shields.io/github/stars/flisk-sh/flisk?style=flat&logo=github)](https://github.com/flisk-sh/flisk/stargazers) [![OSS Insight](https://img.shields.io/badge/OSS%20Insight-analytics-blue)](https://ossinsight.io/analyze/flisk-sh/flisk) [![X followers: 1,605](https://img.shields.io/badge/X%20followers-1%2C605-1DA1F2?style=flat&logo=x&logoColor=white)](https://x.com/brookservers)
+[![Journeys E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-journeys.yml) [![ERP fixture scale E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-scale-full.yml/badge.svg)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-scale-full.yml) [![Example apps E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-real-apps.yml) [![CodeQL](https://github.com/flisk-sh/flisk/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/flisk-sh/flisk/security/code-scanning) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/flisk-sh/flisk/badge)](https://scorecard.dev/viewer/?uri=github.com/flisk-sh/flisk) [![Known Vulnerabilities](https://snyk.io/test/github/flisk-sh/flisk/badge.svg)](https://snyk.io/test/github/flisk-sh/flisk) [![Socket Badge](https://badge.socket.dev/npm/package/@flisk-sh/flisk/latest)](https://socket.dev/npm/package/@flisk-sh/flisk/overview)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[![ERP backends healthy](https://img.shields.io/badge/ERP%20backends%20healthy-100%2F100-brightgreen)](https://github.com/flisk-sh/tdk-cli-core/actions/runs/39160719471) [![ERP time to all healthy](https://img.shields.io/badge/ERP%20time%20to%20all%20healthy-524s-blue)](https://github.com/flisk-sh/tdk-cli-core/actions/runs/39160719471) [![ERP frontends answering](https://img.shields.io/badge/ERP%20frontends%20answering-7%2F7-brightgreen)](https://github.com/flisk-sh/tdk-cli-core/actions/runs/39160719471) [![ERP running containers](https://img.shields.io/badge/ERP%20running%20containers-109-blue)](https://github.com/flisk-sh/tdk-cli-core/actions/runs/39160719471) [![ERP memory used](https://img.shields.io/badge/ERP%20memory%20used-1736%20MiB-blue)](https://github.com/flisk-sh/tdk-cli-core/actions/runs/39160719471)
-[![Test coverage](https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/docs/assets/coverage.svg)](https://github.com/flisk-sh/tdk-cli-core/blob/main/docs/assets/coverage.svg)
+[![ERP backends healthy](https://img.shields.io/badge/ERP%20backends%20healthy-100%2F100-brightgreen)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP time to all healthy](https://img.shields.io/badge/ERP%20time%20to%20all%20healthy-524s-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP frontends answering](https://img.shields.io/badge/ERP%20frontends%20answering-7%2F7-brightgreen)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP running containers](https://img.shields.io/badge/ERP%20running%20containers-109-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP memory used](https://img.shields.io/badge/ERP%20memory%20used-1736%20MiB-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471)
+[![Test coverage](https://raw.githubusercontent.com/flisk-sh/flisk/main/docs/assets/coverage.svg)](https://github.com/flisk-sh/flisk/blob/main/docs/assets/coverage.svg)
 
-<sub>ERP fixture scale run on a clean GitHub-hosted runner (4 vCPU, 15 GB RAM), snapshot from [run 39160719471](https://github.com/flisk-sh/tdk-cli-core/actions/runs/39160719471). The live status is in the ERP fixture scale E2E badge above.</sub>
+<sub>ERP fixture scale run on a clean GitHub-hosted runner (4 vCPU, 15 GB RAM), snapshot from [run 39160719471](https://github.com/flisk-sh/flisk/actions/runs/39160719471). The live status is in the ERP fixture scale E2E badge above.</sub>
 
-<a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/daily?language=Starlark" alt="flisk-sh%2Ftdk-cli-core | Trendshift" width="250" height="55"/></a>
-<a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/weekly?language=Starlark" alt="flisk-sh%2Ftdk-cli-core | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/daily?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/weekly?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
 <p align="center">
   <a href="https://www.bestpractices.dev/projects/15310">
     <img src="https://www.bestpractices.dev/assets/openssf_bestpracticesbadge-a908f4124737f3d6b2c5abc82756bd2a435cff474b45615ce469746c31a4288c.svg" alt="OpenSSF Best Practices" height="80" align="middle" style="vertical-align: middle" />
@@ -36,7 +36,7 @@ English | [简体中文](docs/README-zh_cn.md) | [繁體中文](docs/README-zh_t
 
 <br />
 
-[Website](https://tdk-landscape.github.io/tdk-website/) · [Quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) · [Examples](https://tdk-landscape.github.io/tdk-website/docs/examples/) · [Awesome Flisk](https://github.com/tdk-landscape/awesome-tdk-framework) · [Demo](https://tdk-landscape.github.io/tdk-demo-animation/) · [Report a bug](https://github.com/flisk-sh/tdk-cli-core/issues)
+[Website](https://tdk-landscape.github.io/tdk-website/) · [Quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) · [Examples](https://tdk-landscape.github.io/tdk-website/docs/examples/) · [Awesome Flisk](https://github.com/tdk-landscape/awesome-tdk-framework) · [Demo](https://tdk-landscape.github.io/tdk-demo-animation/) · [Report a bug](https://github.com/flisk-sh/flisk/issues)
 
 </div>
 
@@ -138,14 +138,14 @@ Docker runs the containers. Tilt watches services and live-updates containers wh
 
 
 > [!IMPORTANT]
-> Get Flisk from the [flisk-sh/tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core) repository, the
-> [`flisk`](https://www.npmjs.com/package/flisk) npm package, or the
+> Get Flisk from the [flisk-sh/flisk](https://github.com/flisk-sh/flisk) repository, the
+> [`flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) npm package, or the
 > [official website](https://tdk-landscape.github.io/tdk-website/). Follow the installation links from these official sources.
 > A similar repository name or copied README does not establish that a download is official.
 
 <p align="center"><strong><a href="#quick-start">Quick start</a> · <a href="#why-tdk-cli">Why Flisk</a> · <a href="#examples">Examples</a> · <a href="#installation">Installation</a> · <a href="#faq">FAQ</a> · <a href="#docs">Documentation</a></strong></p>
 
-If Flisk helps you run your local stack, a ⭐ on [this repo](https://github.com/flisk-sh/tdk-cli-core) helps other developers find it.
+If Flisk helps you run your local stack, a ⭐ on [this repo](https://github.com/flisk-sh/flisk) helps other developers find it.
 
 `flisk ui` opens an interactive terminal dashboard for inspecting running services. Move with `↑/↓` or `j/k`, search with `/`, and press `1`–`5` to jump between tabs. See [docs/ui.md](docs/ui.md) for every key binding.
 
@@ -196,9 +196,9 @@ Teams that run `flisk up` on their own code (listed with their consent in [ADOPT
 - [MakeOffer](https://www.linkedin.com/company/makeofferio), Flisk 1.3.180
 - [Red Moon Digital](https://redmoon.digital/), Flisk 1.3.81
 
-Using Flisk too? [Tell us](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=we-use-flisk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
+Using Flisk too? [Tell us](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
 
-If Flisk saves you time, a ⭐ on [this repo](https://github.com/flisk-sh/tdk-cli-core) helps other developers find it.
+If Flisk saves you time, a ⭐ on [this repo](https://github.com/flisk-sh/flisk) helps other developers find it.
 
 ## Quick start
 
@@ -207,7 +207,7 @@ There are two ways to get started. Both end with `flisk up <stack>`.
 | | Guided scaffolder | Core CLI (manual) |
 | --- | --- | --- |
 | Best for | A first run: pick your services and get a ready project | Full control, or adding Flisk to an existing folder |
-| Package | [`@tdk-landscape/create-microservices`](https://github.com/tdk-landscape/create-microservices#readme) | [`flisk`](https://www.npmjs.com/package/flisk) (this repo) |
+| Package | [`@tdk-landscape/create-microservices`](https://github.com/tdk-landscape/create-microservices#readme) | [`flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) (this repo) |
 
 ### Option A: guided scaffolder (recommended for beginners)
 
@@ -221,13 +221,13 @@ There are two ways to get started. Both end with `flisk up <stack>`.
 Run these commands from the directory where you want the new project folder to be created. The target directory must be new or empty; existing files are never overwritten.
 
 ```bash
-npm install -g flisk
+npm install -g @flisk-sh/flisk
 npm init @tdk-landscape/microservices my-project
 cd my-project
 flisk up main
 ```
 
-- `npm install -g flisk` installs the `flisk` command. Skip it if `flisk --version` already works.
+- `npm install -g @flisk-sh/flisk` installs the `flisk` command. Skip it if `flisk --version` already works.
 - `npm init @tdk-landscape/microservices my-project` asks how many services to create, then each service's name and type (`backend`, `frontend`, `worker`, or `mcp`).
 - `flisk up main` starts the stack. `main` is the default stack name; if you pass `--stack <name>` to the scaffolder, use that name instead. The scaffolder prints the exact `flisk up` command when it finishes.
 
@@ -311,7 +311,7 @@ Keep Flisk up to date to get the latest bug fixes:
 flisk upgrade
 ```
 
-`flisk update` is an alias for the same command. If you installed with npm, you can also run `npm install -g flisk@latest`. To pin a version or read what changed, see [upgrading and version pinning](docs/upgrading.md).
+`flisk update` is an alias for the same command. If you installed with npm, you can also run `npm install -g @flisk-sh/flisk@latest`. To pin a version or read what changed, see [upgrading and version pinning](docs/upgrading.md).
 
 ## Examples
 
@@ -335,9 +335,9 @@ The repository ships agent skills for common Flisk work, including `flisk-doctor
 Install the CLI from npm (requires Node.js 22.12+) or use the prebuilt binary (no Node.js or Bun required):
 
 ```bash
-npm install -g flisk
+npm install -g @flisk-sh/flisk
 # or install the prebuilt binary
-curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh
 ```
 
 Public npm is the recommended default. To install through GitHub Packages instead, configure registry authentication as described in [GitHub Packages installation](docs/github-packages.md).
@@ -383,7 +383,7 @@ Set `TDK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug 
 - [Show HN draft](docs/drafts/show-hn.md)
 - [Architecture and repository map](docs/project-overview.md)
 - [Scale fixture measurements and caveats](docs/benchmarks/scale-bench.md)
-- [Benchmark report: warm and cold start charts, history](https://tdk-landscape.github.io/tdk-cli-core/) (updated on every change to `main` that affects start-up)
+- [Benchmark report: warm and cold start charts, history](https://tdk-landscape.github.io/flisk/) (updated on every change to `main` that affects start-up)
 - [How to run the start-time benchmark](scripts/benchmark/README.md#tdk-up-warm-start-benchmark)
 
 ## History
@@ -391,10 +391,10 @@ Set `TDK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug 
 Flisk development began on 21 April 2026. The archived, read-only [tdk-landscape/flisk](https://github.com/tdk-landscape/flisk)
 repository records its [first commit](https://github.com/tdk-landscape/flisk/commit/1714637637196ed54cbfa18534230a782c05ab36)
 ("Initial commit: Flisk specs, generators, CLI, and standards") from that day. A separate `tdk-cli` history spanning 21 April to
-18 September 2026 was [imported into this repository](https://github.com/flisk-sh/tdk-cli-core/pull/670) as 306 filtered
+18 September 2026 was [imported into this repository](https://github.com/flisk-sh/flisk/pull/670) as 306 filtered
 commits. Those commits are now ancestors of `main`; the import did not change the source tree.
 
-This `tdk-cli-core` repository was created on 19 September 2026, and the `flisk` npm package was first
+This `flisk` repository was created on 19 September 2026, and the `flisk` npm package was first
 published on 21 September 2026. Those dates describe the current repository and package, not the start of Flisk development.
 
 ## Requirements and support
@@ -413,11 +413,11 @@ On native Windows, `flisk --version`, `flisk doctor`, and `flisk up --dry-run` a
 
 Core stays free. Premium is a separate key for the extras above; no key required to run `flisk up`.
 
-**Ecosystem map:** examples, articles, related tools, and notes live in [awesome-tdk-framework](https://github.com/tdk-landscape/awesome-tdk-framework). Star this repo (`tdk-cli-core`) if the CLI is what you run; use the awesome list to browse the rest.
+**Ecosystem map:** examples, articles, related tools, and notes live in [awesome-tdk-framework](https://github.com/tdk-landscape/awesome-tdk-framework). Star this repo (`flisk`) if the CLI is what you run; use the awesome list to browse the rest.
 
 <p align="center">
 
-**Share:** [X](https://twitter.com/intent/tweet?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A&url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core) · [Bluesky](https://bsky.app/intent/compose?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core) · [Threads](https://www.threads.net/intent/post?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core) · [Mastodon](https://mastodon.social/share?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core) · [Reddit](https://www.reddit.com/submit?title=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command&url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core) · [Hacker News](https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core&t=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command) · [Facebook](https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core) · [LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core&mini=true&title=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command&summary=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.) · [Telegram](https://t.me/share/url?url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core&text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A) · [WhatsApp](https://wa.me/?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core) · [Email](mailto:?subject=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command&body=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-core)
+**Share:** [X](https://twitter.com/intent/tweet?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A&url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk) · [Bluesky](https://bsky.app/intent/compose?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk) · [Threads](https://www.threads.net/intent/post?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk) · [Mastodon](https://mastodon.social/share?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk) · [Reddit](https://www.reddit.com/submit?title=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command&url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk) · [Hacker News](https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk&t=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command) · [Facebook](https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk) · [LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk&mini=true&title=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command&summary=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.) · [Telegram](https://t.me/share/url?url=https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk&text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A) · [WhatsApp](https://wa.me/?text=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk) · [Email](mailto:?subject=Flisk%20CLI%3A%20start%20local%20services%20with%20one%20command&body=I%20just%20used%20TDK%20CLI%20to%20start%20my%20local%20services%20with%20one%20command%2C%20and%20it%27s%20great%21%20It%27s%20free%20and%20open%20source.%20Check%20it%20out%3A%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk)
 
 </p>
 
@@ -464,10 +464,10 @@ Yes. If your existing setup already gives you a working local environment, keep 
 Update first; a recent release may already fix it. Run `flisk upgrade` (also available as `flisk update`), or:
 
 ```bash
-npm install -g flisk@latest
+npm install -g @flisk-sh/flisk@latest
 ```
 
-Then run `flisk doctor` and retry the same task. If the problem persists, [open an issue](https://github.com/flisk-sh/tdk-cli-core/issues) with your Flisk version, operating system, steps to reproduce, and the error output. See [upgrading and version pinning](docs/upgrading.md) and [troubleshooting](docs/troubleshooting.md).
+Then run `flisk doctor` and retry the same task. If the problem persists, [open an issue](https://github.com/flisk-sh/flisk/issues) with your Flisk version, operating system, steps to reproduce, and the error output. See [upgrading and version pinning](docs/upgrading.md) and [troubleshooting](docs/troubleshooting.md).
 
 </details>
 

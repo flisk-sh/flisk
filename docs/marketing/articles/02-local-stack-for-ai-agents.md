@@ -5,11 +5,11 @@ tags: ai, docker, devtools, typescript
 canonical_url: https://tdk-landscape.github.io/tdk-website/docs/quickstart/
 ---
 
-<!-- Draft for #1447. Question source: flisk-sh/tdk-cli-core#792 ("catch hand-edited generated files with `flisk config verify` in CI, ask how"). Every command below was run against flisk 1.3.178. -->
+<!-- Draft for #1447. Question source: flisk-sh/flisk#792 ("catch hand-edited generated files with `flisk config verify` in CI, ask how"). Every command below was run against flisk 1.3.178. -->
 
 "My agent edits the generated files in my local stack. How do I catch that in CI?"
 
-That is the question behind [issue #792](https://github.com/flisk-sh/tdk-cli-core/issues/792). It matters more once an AI agent is editing your repo: an agent that hand-edits a generated Tiltfile will happily "fix" it, and the next `flisk up` runs the broken version.
+That is the question behind [issue #792](https://github.com/flisk-sh/flisk/issues/792). It matters more once an AI agent is editing your repo: an agent that hand-edits a generated Tiltfile will happily "fix" it, and the next `flisk up` runs the broken version.
 
 The answer is a drift check. Flisk writes the generated files, `flisk config verify` checks that they still match `.tdk/project.json`, and `flisk config regenerate` puts them back.
 
@@ -68,6 +68,6 @@ If it fails, the job fails. The agent's edit never reaches `main`, and the fix i
 
 ## Try it
 
-The [tdk-example landscape](https://github.com/flisk-sh/tdk-cli-core/tree/main/examples/tdk-example) is a small working stack with an API, PostgreSQL, a NATS worker and a UI. Run `flisk project --yes`, then `flisk config verify`, and you have the check running on a real project. The [one-backend example](https://github.com/flisk-sh/tdk-cli-core/tree/main/examples/one-backend) is the smallest version if you only want the agent and MCP resources.
+The [tdk-example landscape](https://github.com/flisk-sh/flisk/tree/main/examples/tdk-example) is a small working stack with an API, PostgreSQL, a NATS worker and a UI. Run `flisk project --yes`, then `flisk config verify`, and you have the check running on a real project. The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) is the smallest version if you only want the agent and MCP resources.
 
 Next step: the [quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) gets you from zero to `flisk up` in a few minutes.

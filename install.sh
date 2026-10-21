@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 # Installs the Flisk CLI from npm.
 #
-#   curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | bash
 #
 # The package is published as `flisk` and installs the `flisk` command (the
 # `tdk` and `tdk-cli` aliases stay available for older muscle memory).
@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-readonly PACKAGE="flisk"
+readonly PACKAGE="@flisk-sh/flisk"
 
 if ! command -v npm >/dev/null 2>&1; then
   echo "Error: npm is required to install the Flisk CLI (Node.js 22.12+)." >&2

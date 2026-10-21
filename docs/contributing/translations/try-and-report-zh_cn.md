@@ -4,14 +4,14 @@
 
 你不需要编写代码，也不需要撰写精美的 bug 报告。本页介绍如何安装 Flisk、运行一个示例，并通过一份简短的表单告诉我们发生了什么。粗略的笔记也没问题：一份带有真实数据的未完成报告，比没有报告更有帮助。
 
-[打开表单](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml)。它有三个简短的必填项（你尝试了什么、结果如何、你看到了什么），其余都是可选的。
+[打开表单](https://github.com/flisk-sh/flisk/issues/new?template=try-it-and-report.yml)。它有三个简短的必填项（你尝试了什么、结果如何、你看到了什么），其余都是可选的。
 
 ## 1. 安装
 
 你需要运行中的 Docker（Desktop、OrbStack 或 Colima），以及 Tilt 0.25.0 或更新版本。然后安装 Flisk CLI：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh
 flisk --version
 ```
 
@@ -20,8 +20,8 @@ flisk --version
 ## 2. 获取示例
 
 ```bash
-git clone https://github.com/flisk-sh/tdk-cli-core.git
-cd tdk-cli-core/examples/one-backend-python
+git clone https://github.com/flisk-sh/flisk.git
+cd flisk/examples/one-backend-python
 ```
 
 该示例是一个 FastAPI 服务。完整说明请参阅它自己的 [README](../../../examples/one-backend-python/README.md)。
@@ -46,7 +46,7 @@ curl --fail http://api.one-backend-python.localhost/api/api-backend/health
 
 ## 4. 可选：我们缺少的计时数据
 
-这三个数字是 [issue 683](https://github.com/flisk-sh/tdk-cli-core/issues/683) 正在等待的数据。你可以按需完成任意数量的测量，并说明你跳过了哪些。
+这三个数字是 [issue 683](https://github.com/flisk-sh/flisk/issues/683) 正在等待的数据。你可以按需完成任意数量的测量，并说明你跳过了哪些。
 
 **首次启动。** 第 3 步中 `time flisk up` 的结果。
 
@@ -84,7 +84,7 @@ uvicorn main:app --app-dir src --port 4000 --reload
 
 ## 5. 填写表单
 
-打开[表单](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml)，用你自己的话作答。下面给出两个有用报告的示例（数字为虚构，仅作说明）：
+打开[表单](https://github.com/flisk-sh/flisk/issues/new?template=try-it-and-report.yml)，用你自己的话作答。下面给出两个有用报告的示例（数字为虚构，仅作说明）：
 
 **运行成功，并附有数字**
 

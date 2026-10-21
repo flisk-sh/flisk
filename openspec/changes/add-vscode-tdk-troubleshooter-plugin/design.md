@@ -33,7 +33,7 @@ Stakeholders are Flisk CLI maintainers, developers using TDK-managed repositorie
 
    Rationale: VS Code extension packaging, activation lifecycle, tests, and release cadence differ from the CLI. A separate package keeps the CLI focused and allows extension-specific dependencies such as `@types/vscode`, `vsce`, and VS Code test harnesses.
 
-   Alternative considered: place the extension under `tdk-cli-core/ext`. That is quicker initially, but it risks coupling extension release mechanics to CLI internals and makes it harder to ship independently. For one-shot implementation, the location is fixed to avoid blocking on repository placement.
+   Alternative considered: place the extension under `flisk/ext`. That is quicker initially, but it risks coupling extension release mechanics to CLI internals and makes it harder to ship independently. For one-shot implementation, the location is fixed to avoid blocking on repository placement.
 
 2. Use the Flisk CLI as the source of truth.
 

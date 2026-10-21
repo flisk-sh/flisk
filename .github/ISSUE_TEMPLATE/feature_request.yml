@@ -39,4 +39,4 @@ body:
     attributes:
       value: >-
         Flisk runs local development on Docker + Tilt. For cluster deployments, keep
-        your Helm or other Kubernetes workflow. See [Flisk + Helm](https://github.com/flisk-sh/tdk-cli-core/blob/main/docs/with-helm.md).
+        your Helm or other Kubernetes workflow. See [Flisk + Helm](https://github.com/flisk-sh/flisk/blob/main/docs/with-helm.md).

@@ -225,7 +225,7 @@ function main(argv) {
 		else if (argv[i] === "--live") args.mode = "live";
 		else throw new Error(`unknown argument: ${argv[i]}`);
 	}
-	const repo = process.env.GITHUB_REPOSITORY ?? "flisk-sh/tdk-cli-core";
+	const repo = process.env.GITHUB_REPOSITORY ?? "flisk-sh/flisk";
 	const inventoryPath = path.join(args.root, ".github", "ci-inventory.json");
 	const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
 	let jobs;

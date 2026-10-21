@@ -35,13 +35,13 @@ jobs:
             exit 1
           fi
           METADATA="$RUNNER_TEMP/npm-package.json"
-          npm view "flisk@${VERSION}" name version repository.url dist.integrity --json --registry=https://registry.npmjs.org > "$METADATA"
+          npm view "@flisk-sh/flisk@${VERSION}" name version repository.url dist.integrity --json --registry=https://registry.npmjs.org > "$METADATA"
           node - "$METADATA" "$VERSION" <<'NODE'
           const fs = require('fs');
           const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
           const metadata = Array.isArray(parsed) ? parsed[0] : parsed;
           const version = process.argv[3];
-          const expectedRepository = 'git+https://github.com/flisk-sh/tdk-cli-core.git';
+          const expectedRepository = 'git+https://github.com/flisk-sh/flisk.git';
           if (!metadata || metadata.name !== 'flisk' || metadata.version !== version) {
             throw new Error(`Unexpected npm package identity: ${metadata?.name}@${metadata?.version}`);
           }
@@ -84,7 +84,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: | # zizmor: ignore[use-trusted-publishing] GitHub Packages does not support npm trusted publishing; authenticate with the repository GITHUB_TOKEN
-          if npm view "flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+          if npm view "@flisk-sh/flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "flisk@${VERSION} is already published to GitHub Packages, skipping."
           else
             npm publish "$RUNNER_TEMP/package/package.tgz" --registry=https://npm.pkg.github.com

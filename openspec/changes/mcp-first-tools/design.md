@@ -20,7 +20,7 @@
 - Keep the server bundled with the CLI. Users install Flisk using the documented npm or binary method, then configure the client to run `flisk mcp`; there is no second install step.
 - Keep the existing six-tool set. The guide uses `doctor` and `up` first while explaining the rest of the current operations.
 - Use stdio configuration with the client's `command` and `args` fields. Explain that the server starts in the project directory so the CLI discovers that project's Flisk configuration.
-- Keep the canonical client guide in `tdk-cli-core` and add a descriptive link to it from the website `llms.txt`, which already indexes AI-facing documentation.
+- Keep the canonical client guide in `flisk` and add a descriptive link to it from the website `llms.txt`, which already indexes AI-facing documentation.
 
 ## Risks / Trade-offs
 

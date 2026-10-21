@@ -209,7 +209,7 @@ footer a { color: var(--accent); }
 <section id="t-env" role="tabpanel" aria-labelledby="b-env" hidden>${envTab}</section>
 </main>
 <footer>
-Source: <a href="https://github.com/flisk-sh/tdk-cli-core/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/tdk-up-warm-start.sh</code> · raw data in <a href="https://github.com/flisk-sh/tdk-cli-core/tree/main/benchmarks/results">benchmarks/results</a>
+Source: <a href="https://github.com/flisk-sh/flisk/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/tdk-up-warm-start.sh</code> · raw data in <a href="https://github.com/flisk-sh/flisk/tree/main/benchmarks/results">benchmarks/results</a>
 </footer>
 <script>
 (function () {

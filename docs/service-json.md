@@ -5,7 +5,7 @@ Each Flisk resource is described by a `service.json` file in the resource direct
 The [service schema](../engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `flisk config verify` applies the manifest and generated-output checks described below, while `flisk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
 
 ```text
-https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json
+https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json
 ```
 
 ## Minimal examples
@@ -14,7 +14,7 @@ A backend resource needs a backend port. The usual backend range is `4000`–`59
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-backend",
   "appType": "backend",
@@ -29,7 +29,7 @@ A frontend normally uses a port in the `3000`–`3999` range. `framework` is opt
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-app",
   "appType": "frontend",
@@ -44,7 +44,7 @@ A worker is a background process that reads from NATS. The service schema requir
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "email-worker",
   "appType": "worker",
@@ -169,7 +169,7 @@ Postgres has no manifest of its own. `postgres` (or `database-management`) in `d
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-api-migrator",
   "appType": "migrator",
@@ -183,7 +183,7 @@ Postgres has no manifest of its own. `postgres` (or `database-management`) in `d
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-api",
   "appType": "backend",

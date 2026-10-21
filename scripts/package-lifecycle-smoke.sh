@@ -12,7 +12,7 @@
 #   usage: bash scripts/package-lifecycle-smoke.sh <tarball> <cli/package.json>
 set -euo pipefail
 
-readonly PACKAGE="flisk"
+readonly PACKAGE="@flisk-sh/flisk"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ "$#" -ne 2 ]; then

@@ -2,7 +2,7 @@
 
 ## Why
 
-`flisk doctor`, `flisk up`, `flisk status`, `flisk ui`, `flisk logs`, `flisk config verify`, `flisk config regenerate`, `flisk config migrate`, and `flisk import` already exist. Their results are not stable enough to trust, and regenerate, migrate, and import are easy to confuse. This change locks those commands. It does not add commands. Issue: https://github.com/flisk-sh/tdk-cli-core/issues/661
+`flisk doctor`, `flisk up`, `flisk status`, `flisk ui`, `flisk logs`, `flisk config verify`, `flisk config regenerate`, `flisk config migrate`, and `flisk import` already exist. Their results are not stable enough to trust, and regenerate, migrate, and import are easy to confuse. This change locks those commands. It does not add commands. Issue: https://github.com/flisk-sh/flisk/issues/661
 
 ## What Changes
 

@@ -1,6 +1,6 @@
 # 6. Run e2e suites in a matrix
 
-Live-stack tests run as a GitHub Actions matrix. Each suite is one leg, and each leg boots its own stack. Legs run in parallel, so a new suite adds a leg without making the others wait. This page explains how the matrix is built, how to add a suite to it, and how to add a new group of suites in the same way. It is the model for every e2e item in the [test-quality initiative](https://github.com/flisk-sh/tdk-cli-core/issues/1388).
+Live-stack tests run as a GitHub Actions matrix. Each suite is one leg, and each leg boots its own stack. Legs run in parallel, so a new suite adds a leg without making the others wait. This page explains how the matrix is built, how to add a suite to it, and how to add a new group of suites in the same way. It is the model for every e2e item in the [test-quality initiative](https://github.com/flisk-sh/flisk/issues/1388).
 
 The worked example is the `resource-types` group, which runs from [`e2e-resource-types.yml`](../../.github/workflows/e2e-resource-types.yml). Read [write an e2e test](05-write-e2e.md) first for how a suite's `run.sh` is written.
 

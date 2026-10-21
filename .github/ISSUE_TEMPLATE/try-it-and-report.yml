@@ -8,7 +8,7 @@ body:
       value: |
         No need to be formal. Tell us what you ran and what you saw, even if it worked and even if it is only half a report. Numbers and pasted output are the most useful part.
 
-        Not sure how to do the steps? [Try it and report what you saw](https://github.com/flisk-sh/tdk-cli-core/blob/main/docs/contributing/try-and-report.md) walks through them, with filled-in examples.
+        Not sure how to do the steps? [Try it and report what you saw](https://github.com/flisk-sh/flisk/blob/main/docs/contributing/try-and-report.md) walks through them, with filled-in examples.
   - type: input
     id: what
     attributes:

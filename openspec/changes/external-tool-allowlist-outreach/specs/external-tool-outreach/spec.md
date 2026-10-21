@@ -32,7 +32,7 @@ An issue SHALL be opened only in a public repository that already documents exte
 
 ### Requirement: Affiliation is disclosed
 
-Every issue and pull request SHALL state that the author maintains Flisk CLI, link the canonical repo `flisk-sh/tdk-cli-core`, and name the license (MIT for core).
+Every issue and pull request SHALL state that the author maintains Flisk CLI, link the canonical repo `flisk-sh/flisk`, and name the license (MIT for core).
 
 #### Scenario: Issue opened without disclosure
 - **WHEN** a draft does not identify the author as a Flisk maintainer

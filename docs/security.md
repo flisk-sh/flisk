@@ -65,7 +65,7 @@ The workflow runs on the `repository_vulnerability_alert` event and on a nightly
 
   ```bash
   cosign verify-blob --bundle checksums.txt.sigstore.json \
-    --certificate-identity-regexp 'https://github.com/flisk-sh/tdk-cli-core/.github/workflows/release-binaries.yml@.*' \
+    --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/release-binaries.yml@.*' \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt
   shasum -a 256 -c checksums.txt   # then check the file you downloaded against the verified list
   ```

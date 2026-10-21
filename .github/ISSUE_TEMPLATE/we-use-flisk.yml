@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        List only teams that run `flisk up` on their own repositories. See [What counts](https://github.com/flisk-sh/tdk-cli-core/blob/main/ADOPTERS.md#what-counts) before you submit. Benchmark fixtures, "evaluating", and forks of the examples do not count.
+        List only teams that run `flisk up` on their own repositories. See [What counts](https://github.com/flisk-sh/flisk/blob/main/ADOPTERS.md#what-counts) before you submit. Benchmark fixtures, "evaluating", and forks of the examples do not count.
   - type: input
     id: organization
     attributes:

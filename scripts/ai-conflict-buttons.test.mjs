@@ -28,7 +28,7 @@ function linkHosts(text) {
   });
 }
 
-const url = "https://github.com/flisk-sh/tdk-cli-core/pull/645";
+const url = "https://github.com/flisk-sh/flisk/pull/645";
 
 describe("closingIssue", () => {
   it("reads the first closing reference", () => {

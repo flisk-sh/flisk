@@ -1,4 +1,4 @@
-Tracking issue: [#673](https://github.com/flisk-sh/tdk-cli-core/issues/673)
+Tracking issue: [#673](https://github.com/flisk-sh/flisk/issues/673)
 
 ## Why
 

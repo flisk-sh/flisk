@@ -40,7 +40,7 @@ Repairs available today:
 
 Without `--scope=machine`, networks of other projects are never planned. Networks with containers attached are never planned. Project networks are also skipped while a Tilt runs for the project, because a starting stack creates its networks before any container joins them. Outside a project only probes are repaired.
 
-With `--fix`, `data.actions` is added (additive within schema version 1): an array of `{id, check, scope, command, status, reason}` with `status` one of `planned` (dry run), `applied`, `skipped` or `failed`. A `failed` action makes the report not ready and the exit code 1. Not yet implemented from the original proposal (flisk-sh/tdk-cli-core#1214): repairs for host port collisions, a `--fix` for known crash-loop causes, and creating fewer networks by default.
+With `--fix`, `data.actions` is added (additive within schema version 1): an array of `{id, check, scope, command, status, reason}` with `status` one of `planned` (dry run), `applied`, `skipped` or `failed`. A `failed` action makes the report not ready and the exit code 1. Not yet implemented from the original proposal (flisk-sh/flisk#1214): repairs for host port collisions, a `--fix` for known crash-loop causes, and creating fewer networks by default.
 
 ## Duplicate installs
 

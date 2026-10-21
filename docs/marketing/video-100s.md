@@ -20,7 +20,7 @@ Checked against `bun src/cli.ts <cmd> --help` in `cli/` at `origin/main` (CLI 1.
 | `flisk ui` | `flisk ui\|interactive [--no-animations] [--high-contrast]`. Interactive terminal UI | `flisk ui --help` |
 | `flisk mcp` | Runs a Model Context Protocol server over stdio for coding agents | `flisk --help`, `cli/README.md` |
 | `flisk down` | Stops all Tilt resources; `--dry-run` shows what would stop | `flisk down --help` |
-| `npm install -g flisk` | Install line from the root `README.md` | `README.md:122` |
+| `npm install -g @flisk-sh/flisk` | Install line from the root `README.md` | `README.md:122` |
 
 The `flisk` on the default PATH may be an older release than `origin/main`. Re-check the table with the release you record with.
 
@@ -74,10 +74,10 @@ The `flisk` on the default PATH may be an older release than `origin/main`. Re-c
 
 ### 1:35 to 1:40. Call to action
 
-> "`npm install -g flisk`. Link to the quickstart and to `examples/one-backend` in the description."
+> "`npm install -g @flisk-sh/flisk`. Link to the quickstart and to `examples/one-backend` in the description."
 
 - On screen: the install line and the two links.
-- Command: `npm install -g flisk`.
+- Command: `npm install -g @flisk-sh/flisk`.
 
 ## Timing
 

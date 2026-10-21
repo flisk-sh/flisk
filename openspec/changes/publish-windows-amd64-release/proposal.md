@@ -18,4 +18,4 @@ The CLI can already produce a Windows AMD64 executable, but compile-time checks 
 
 ## Impact
 
-Affects the binary release script and workflow in `tdk-cli-core`, `install.ps1` in `tdk-landscape.github.io`, and Windows download documentation in `tdk-cli-releases`, `tdk-website`, and `awesome-tdk-framework`. Publishing still targets `tdk-cli-releases`; source remains in `tdk-cli-core`.
+Affects the binary release script and workflow in `flisk`, `install.ps1` in `tdk-landscape.github.io`, and Windows download documentation in `tdk-cli-releases`, `tdk-website`, and `awesome-tdk-framework`. Publishing still targets `tdk-cli-releases`; source remains in `flisk`.

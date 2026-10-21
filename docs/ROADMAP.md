@@ -1,6 +1,6 @@
 # Roadmap
 
-This page says what Flisk intends to do and not do over the next 12 months. It is a plan, not a promise of dates. Work moves between items as issues are opened and closed; the [issue tracker](https://github.com/flisk-sh/tdk-cli-core/issues) and [CHANGELOG.md](../CHANGELOG.md) are the record of what has shipped.
+This page says what Flisk intends to do and not do over the next 12 months. It is a plan, not a promise of dates. Work moves between items as issues are opened and closed; the [issue tracker](https://github.com/flisk-sh/flisk/issues) and [CHANGELOG.md](../CHANGELOG.md) are the record of what has shipped.
 
 ## Intended (next 12 months)
 

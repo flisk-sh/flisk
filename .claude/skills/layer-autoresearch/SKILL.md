@@ -2,7 +2,7 @@
 name: layer-autoresearch
 description: Autonomous keep/discard experiment loop (after karpathy/autoresearch) that optimises Flisk's L1-L4 Docker layers toward the north star of 100 services on a 16 GB machine. Use when asked to run autoresearch on the Docker layers or to optimise the golden/runtime layers experimentally.
 license: MIT
-compatibility: Contributor skill. Requires a tdk-cli-core checkout, Docker and git. Does not deploy.
+compatibility: Contributor skill. Requires a flisk checkout, Docker and git. Does not deploy.
 metadata:
   author: tdk-landscape
   version: "1.0"

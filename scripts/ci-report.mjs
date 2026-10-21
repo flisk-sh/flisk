@@ -199,7 +199,7 @@ function gh(args) {
 }
 
 function repoName() {
-	return process.env.GITHUB_REPOSITORY ?? "flisk-sh/tdk-cli-core";
+	return process.env.GITHUB_REPOSITORY ?? "flisk-sh/flisk";
 }
 
 function fetchRuns(days) {

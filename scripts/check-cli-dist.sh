@@ -25,7 +25,7 @@ To fix it, from the repository root:
   git commit -m "Rebuild cli/dist"
   git push
 
-cli/dist is committed so `npm install -g github:flisk-sh/tdk-cli-core`
+cli/dist is committed so `npm install -g github:flisk-sh/flisk`
 works without a build step. Use `git add -f` for new files under cli/dist.
 Pull requests from forks cannot be fixed by the CI bot; push the commit to
 your own branch yourself.

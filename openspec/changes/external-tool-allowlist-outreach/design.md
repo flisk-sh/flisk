@@ -24,7 +24,7 @@ Opening issues in unrelated product repos, or asking employees to change a priva
 
 ### 1. Packet lives in-repo, sends stay manual
 
-Put `docs/outreach/tool-allowlist-packet.md` and `docs/outreach/targets.yaml` in tdk-cli-core. A maintainer copies the template into a GitHub issue. Rationale: disclosure and tone need a human; automation is how this becomes spam.
+Put `docs/outreach/tool-allowlist-packet.md` and `docs/outreach/targets.yaml` in flisk. A maintainer copies the template into a GitHub issue. Rationale: disclosure and tone need a human; automation is how this becomes spam.
 
 ### 2. Qualify a target before drafting
 
@@ -51,5 +51,5 @@ Docs-only. No runtime migration. First five targets are chosen by hand and revie
 
 ## Open Questions
 
-- Should the packet live in `tdk-cli-core` or `awesome-tdk-framework`?
+- Should the packet live in `flisk` or `awesome-tdk-framework`?
 - Do we want a short "supply-chain notes" page (install script, checksums, engine tarball) linked from every issue?

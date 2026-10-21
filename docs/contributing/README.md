@@ -36,4 +36,4 @@ You do not need to understand the whole repository. Pick one small change, follo
 
 ## Need a hand?
 
-[Open an issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose) with what you tried, what you expected, and what happened. You do not need to solve the problem before asking.
+[Open an issue](https://github.com/flisk-sh/flisk/issues/new/choose) with what you tried, what you expected, and what happened. You do not need to solve the problem before asking.

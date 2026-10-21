@@ -73,7 +73,7 @@ Consider a backend service located at `services/shop/orders-api/service.json`:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-api",
   "appType": "backend",
@@ -90,7 +90,7 @@ Edit `featuresEnabled` to include `"prisma"`:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/service-schema.json",
+  "$schema": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/service-schema.json",
   "schemaVersion": 1,
   "appName": "orders-api",
   "appType": "backend",

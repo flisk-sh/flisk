@@ -19,7 +19,7 @@ Save it as `.github/workflows/tdk-ci.yml`. The same file lives in the repository
 # Copy to .github/workflows/tdk-ci.yml in your own repository.
 # Two jobs: `verify` checks the committed Flisk files without starting any
 # container; `boot` runs a real `flisk up` and waits for every service's /health.
-# Adapted from tdk-cli-core's e2e-examples.yml and e2e-journeys.yml.
+# Adapted from flisk's e2e-examples.yml and e2e-journeys.yml.
 name: flisk
 
 on:
@@ -67,7 +67,7 @@ jobs:
 
       - name: Install flisk
         run: |
-          npm install --global "flisk@${TDK_VERSION}"
+          npm install --global "@flisk-sh/flisk@${TDK_VERSION}"
           flisk --version
 
       # A fresh clone has neither the git-ignored .env nor .tdk/.tdk-out/, so
@@ -109,7 +109,7 @@ jobs:
 
       - name: Install flisk
         run: |
-          npm install --global "flisk@${TDK_VERSION}"
+          npm install --global "@flisk-sh/flisk@${TDK_VERSION}"
           flisk --version
 
       - name: Generate the local project files
@@ -201,7 +201,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      # `--prune-networks` came with tdk-cli-core PR #585; an older flisk rejects
+      # `--prune-networks` came with flisk PR #585; an older flisk rejects
       # the flag, so fall back to a plain `flisk down`.
       - name: flisk down
         if: always()
@@ -214,8 +214,8 @@ Change three values at the top: `TDK_VERSION`, `TDK_STACK` and `HEALTH_SERVICES`
 
 | Method | Used in the workflow | Notes |
 | --- | --- | --- |
-| `npm install --global flisk@<version>` | Yes | Needs Node.js 22.12+ ([README](../README.md#installation)); `actions/setup-node` with `node-version: 22` is what this repository's workflows use. Pinning the version is [documented](upgrading.md#install-a-specific-version). |
-| `curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh \| sh` | No | Prebuilt binary, no Node.js. Whether it can install an older version is [not documented](upgrading.md#install-a-specific-version), so it cannot be pinned the same way. Its script was not audited ([security](security.md)). |
+| `npm install --global @flisk-sh/flisk@<version>` | Yes | Needs Node.js 22.12+ ([README](../README.md#installation)); `actions/setup-node` with `node-version: 22` is what this repository's workflows use. Pinning the version is [documented](upgrading.md#install-a-specific-version). |
+| `curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh \| sh` | No | Prebuilt binary, no Node.js. Whether it can install an older version is [not documented](upgrading.md#install-a-specific-version), so it cannot be pinned the same way. Its script was not audited ([security](security.md)). |
 | Tilt | Yes, `curl ... tilt-dev/tilt/master/scripts/install.sh \| bash` | The command every workflow in this repository uses. It installs whatever the script's current default is; this repository does not pin a Tilt version. |
 
 `flisk upgrade` is not used in CI: it goes to the latest release and has no version argument.
@@ -268,7 +268,7 @@ Mirrors [`e2e-journeys.yml`](../.github/workflows/e2e-journeys.yml), reduced to 
 3. Poll the URLs every 10 seconds until all answer with a 2xx status. At most 120 polls, which is the 20 minutes `e2e-journeys.yml` allows; the quickstart suite's 30-minute timeout is the value in `tests/e2e/journeys/quickstart/suite.json`.
 4. Once a minute, ask Tilt (`tilt get uiresources`) for resources whose update status is `error`. Tilt does not retry a failed image build, so after two checks in a row the job stops with the resource names instead of waiting out the timeout. The quickstart workflow also stops early when Tilt has no resource for a service (a service Flisk never discovered); that check is left out here.
 5. Collect `docker ps -a`, `tilt get uiresources`, `flisk doctor` and the last 200 lines of every container into `tdk-logs/`, and upload it with `actions/upload-artifact` (kept 7 days, a choice). The step runs on success too, so a green run leaves the same record.
-6. `flisk down --prune-networks`. `--prune-networks` came with PR [#585](https://github.com/flisk-sh/tdk-cli-core/pull/585) and is under **Unreleased** in the CHANGELOG; an older flisk rejects the flag (exit 1 for an unknown option, checked), so the step falls back to `flisk down`. Without the flag the project's Docker networks stay. `flisk down` needs no confirmation, so `--force` is unnecessary. On a throwaway runner the networks do not matter; on a self-hosted runner they do.
+6. `flisk down --prune-networks`. `--prune-networks` came with PR [#585](https://github.com/flisk-sh/flisk/pull/585) and is under **Unreleased** in the CHANGELOG; an older flisk rejects the flag (exit 1 for an unknown option, checked), so the step falls back to `flisk down`. Without the flag the project's Docker networks stay. `flisk down` needs no confirmation, so `--force` is unnecessary. On a throwaway runner the networks do not matter; on a self-hosted runner they do.
 
 Not covered by the repository's own workflows, so not claimed here: caching Docker layers or the images Flisk builds locally. None of this repository's workflows does it. On a clean runner the first `flisk up` builds the project's golden layers and each service image from scratch; how long that takes for your stack was not measured.
 

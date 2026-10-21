@@ -11,7 +11,7 @@ Flisk supports Ubuntu running in WSL2. Native Windows can inspect the CLI, but `
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash
-   curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+   curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh
    ```
 
 ## Install and boot the bundled example
@@ -61,7 +61,7 @@ Stop the stack from the first terminal with `Ctrl+C`, then run `flisk down` from
 
 With Flisk and Docker Desktop WSL integration already available, run `bash scripts/wsl2-smoke.sh` from the Flisk repository checkout inside Ubuntu. It copies the bundled example into a temporary directory, checks doctor and generated configuration, boots the stack, exercises the same routed write and worker observation, and tears the stack down. Pass a directory path to keep the copied example for inspection.
 
-The WSL2 smoke workflow was removed at the end-to-end cutover (#1302), so no CI job runs it now. Its steps are the cases of [`tests/e2e/platforms/wsl2`](../tests/e2e/platforms/wsl2/run.sh), and it runs on `windows-2022`, provisions Ubuntu 24.04 under WSL2, and installs Docker Engine inside that distro. [The successful run on merge commit `ad7c5c0`](https://github.com/flisk-sh/tdk-cli-core/actions/runs/36903887190) records HTTP 200 responses for the routed API, worker-readiness, and app checks, followed by a successful NATS worker observation. This CI path tests Docker Engine inside WSL2; it does not test Docker Desktop WSL integration.
+The WSL2 smoke workflow was removed at the end-to-end cutover (#1302), so no CI job runs it now. Its steps are the cases of [`tests/e2e/platforms/wsl2`](../tests/e2e/platforms/wsl2/run.sh), and it runs on `windows-2022`, provisions Ubuntu 24.04 under WSL2, and installs Docker Engine inside that distro. [The successful run on merge commit `ad7c5c0`](https://github.com/flisk-sh/flisk/actions/runs/36903887190) records HTTP 200 responses for the routed API, worker-readiness, and app checks, followed by a successful NATS worker observation. This CI path tests Docker Engine inside WSL2; it does not test Docker Desktop WSL integration.
 
 ## Troubleshooting
 

@@ -2,13 +2,13 @@
 
 ## Supported versions
 
-Security fixes go into the latest release published on [npm](https://www.npmjs.com/package/flisk). Please upgrade before reporting.
+Security fixes go into the latest release published on [npm](https://www.npmjs.com/package/@flisk-sh/flisk). Please upgrade before reporting.
 
 ## Reporting a vulnerability
 
 Please **do not** open a public issue for security problems.
 
-Report them privately through [GitHub security advisories](https://github.com/flisk-sh/tdk-cli-core/security/advisories/new). Include:
+Report them privately through [GitHub security advisories](https://github.com/flisk-sh/flisk/security/advisories/new). Include:
 
 - the Flisk version (`flisk --version`) and your OS
 - steps to reproduce

@@ -31,7 +31,7 @@ This is the core monorepo. Day-to-day CLI work is under `cli/`; `engine/` and `d
 
 Flisk includes Traefik and PostgreSQL, with optional monitoring, ELK, Debezium CDC, a local npm registry, and other project features. See [docs/FEATURES.md](FEATURES.md) for the full list.
 
-The CLI, engine, and repository are MIT-licensed. Some optional features require a `TDK_LICENSE_KEY`, including on-demand service start/stop, Verdaccio, DDD scaffolding, Playwright configuration, C4 diagrams, synthetic monitoring, and selected generators. In this repository those are disabled stubs; with a key the CLI downloads their implementations. See [docs/FEATURES.md](FEATURES.md). Request a key through the [website](https://tdk-landscape.github.io/tdk-website/#waitlist) or a [premium license issue](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=premium_license.yml).
+The CLI, engine, and repository are MIT-licensed. Some optional features require a `TDK_LICENSE_KEY`, including on-demand service start/stop, Verdaccio, DDD scaffolding, Playwright configuration, C4 diagrams, synthetic monitoring, and selected generators. In this repository those are disabled stubs; with a key the CLI downloads their implementations. See [docs/FEATURES.md](FEATURES.md). Request a key through the [website](https://tdk-landscape.github.io/tdk-website/#waitlist) or a [premium license issue](https://github.com/flisk-sh/flisk/issues/new?template=premium_license.yml).
 
 ## Telemetry
 

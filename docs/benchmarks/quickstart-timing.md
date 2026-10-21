@@ -1,6 +1,6 @@
 # Quickstart timing: is "Zero-Config Local Stacks in 3 Seconds" true?
 
-Measured for [#1443](https://github.com/flisk-sh/tdk-cli-core/issues/1443). This page records
+Measured for [#1443](https://github.com/flisk-sh/flisk/issues/1443). This page records
 what was observed on one machine. It does not change the README headline.
 
 ## Result

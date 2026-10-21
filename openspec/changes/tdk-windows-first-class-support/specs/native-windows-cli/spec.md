@@ -59,7 +59,7 @@ CLI child processes SHALL be launched with explicit executable paths and argumen
 - **THEN** it invokes the resolved Docker executable through an argument-safe file execution API
 
 ### Requirement: Windows upgrade installation detection
-The upgrade command SHALL use the shared asset mapping and Windows-compatible file operations. A compiled `tdk.exe` process SHALL upgrade the executable identified by `process.execPath`; an npm-installed `node.exe` entry point SHALL print `use npm install -g flisk@latest` and exit successfully. Other installation forms SHALL fail with a clear message. Windows engine extraction SHALL target `join(dirname(tdkExePath), "tdk-cli")`; dry run SHALL print `flisk-windows-amd64.exe`.
+The upgrade command SHALL use the shared asset mapping and Windows-compatible file operations. A compiled `tdk.exe` process SHALL upgrade the executable identified by `process.execPath`; an npm-installed `node.exe` entry point SHALL print `use npm install -g @flisk-sh/flisk@latest` and exit successfully. Other installation forms SHALL fail with a clear message. Windows engine extraction SHALL target `join(dirname(tdkExePath), "tdk-cli")`; dry run SHALL print `flisk-windows-amd64.exe`.
 
 #### Scenario: Dry run reports the Windows artifact
 - **WHEN** a Windows AMD64 user runs `flisk upgrade --dry-run`

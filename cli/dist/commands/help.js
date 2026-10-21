@@ -147,6 +147,6 @@ export function showHelp() {
   `));
     console.log(chalk.gray(`  ${"═".repeat(50)}`));
     console.log(chalk.gray(`  For more help: ${chalk.cyan("flisk help [command]")}`));
-    console.log(chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/flisk-sh/tdk-cli-core")}`));
+    console.log(chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/flisk-sh/flisk")}`));
     console.log();
 }

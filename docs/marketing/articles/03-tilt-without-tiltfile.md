@@ -5,11 +5,11 @@ tags: devtools, docker, kubernetes, typescript
 canonical_url: https://tdk-landscape.github.io/tdk-website/docs/quickstart/
 ---
 
-<!-- Draft for #1447. Question source: flisk-sh/tdk-cli-core#790 ("read what `flisk up --dry-run` would start, ask about anything unclear"). Every command below was run against flisk 1.3.178. -->
+<!-- Draft for #1447. Question source: flisk-sh/flisk#790 ("read what `flisk up --dry-run` would start, ask about anything unclear"). Every command below was run against flisk 1.3.178. -->
 
 "I want Tilt to run my services, but I don't want to write a Tiltfile. What does Flisk write for Tilt, and what do I still control?"
 
-That is the question behind [issue #790](https://github.com/flisk-sh/tdk-cli-core/issues/790). The short answer: Flisk writes the Tiltfile, and you read it with a dry run before anything starts.
+That is the question behind [issue #790](https://github.com/flisk-sh/flisk/issues/790). The short answer: Flisk writes the Tiltfile, and you read it with a dry run before anything starts.
 
 ## Look before you start
 
@@ -48,9 +48,9 @@ flisk config verify
 
 ## What you still control
 
-A project with no Tiltfile at all is the default. The [one-backend example](https://github.com/flisk-sh/tdk-cli-core/tree/main/examples/one-backend) has none in its root: `flisk up one-backend` runs the generated one.
+A project with no Tiltfile at all is the default. The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) has none in its root: `flisk up one-backend` runs the generated one.
 
-When you need more, the root `Tiltfile` is yours. `flisk eject --dry-run` reports it as "not generated, not git-ignored", so Flisk will not overwrite it. The [tdk-example landscape](https://github.com/flisk-sh/tdk-cli-core/tree/main/examples/tdk-example) has a hand-written root `Tiltfile`, and it starts with a line that sets `TDK_PROJECT_ROOT` before it loads the extension. Its `TILT_SERVICE_DEFAULTS.star` sets the platform defaults, such as the base ports (`BASE_PORT_BACKEND = 4000`) and the health check paths.
+When you need more, the root `Tiltfile` is yours. `flisk eject --dry-run` reports it as "not generated, not git-ignored", so Flisk will not overwrite it. The [tdk-example landscape](https://github.com/flisk-sh/flisk/tree/main/examples/tdk-example) has a hand-written root `Tiltfile`, and it starts with a line that sets `TDK_PROJECT_ROOT` before it loads the extension. Its `TILT_SERVICE_DEFAULTS.star` sets the platform defaults, such as the base ports (`BASE_PORT_BACKEND = 4000`) and the health check paths.
 
 So the split is:
 

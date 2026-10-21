@@ -23,6 +23,6 @@ Public repos already publish the artifacts those reviews use: awesome lists, rec
 
 ## Impact
 
-- Docs and a small data file in tdk-cli-core (or awesome-tdk-framework if the list should live next to curated links). No CLI runtime change.
+- Docs and a small data file in flisk (or awesome-tdk-framework if the list should live next to curated links). No CLI runtime change.
 - No installer, license, or telemetry change.
 - Outreach is human-sent. A script may validate a draft; it MUST NOT open issues.

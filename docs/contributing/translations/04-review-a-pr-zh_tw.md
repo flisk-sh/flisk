@@ -65,7 +65,7 @@ AI 按鈕會開啟一個與 AI 助手的對話。這個助手屬於你：它在�
 每個按鈕都是普通連結。它會在新分頁中開啟 AI 的網站，並且這段訊息已經預先輸入好了。
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/flisk/pull/123.
 ```
 
 | 按鈕 | 開啟的網站 |

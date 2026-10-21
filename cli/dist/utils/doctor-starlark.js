@@ -22,7 +22,7 @@ export function findPrivateStarlarkLoadExports(content) {
     return Array.from(privateExports).sort();
 }
 export function resolveStarlarkLoadTarget(file, modulePath, projectRoot) {
-    if (modulePath === "ext://tdk-cli") {
+    if (modulePath === "ext://flisk" || modulePath === "ext://tdk-cli") {
         return join(projectRoot, ".tdk", ".tdk-out", "tdk-cli-ext", "Tiltfile");
     }
     if (modulePath.startsWith(".") || (!modulePath.includes("://") && !modulePath.startsWith("@"))) {

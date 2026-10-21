@@ -161,8 +161,8 @@ Podman: doctor prints `Podman is running` when it is the runtime it finds, and `
 ```
 
 - **Cause:** Docker's default address pools are used up. Each Flisk project creates several networks and keeps them after `flisk down`. Docker's own error text is `all predefined address pools have been fully subnetted`; doctor matches `address pools`.
-- **Fix:** run `flisk down --prune-networks` in projects you no longer use, or `docker network prune`, which removes every unused network on that Docker daemon, whoever created it. `--prune-networks` was added in [#585](https://github.com/flisk-sh/tdk-cli-core/pull/585).
-- **If you skip doctor:** since [#589](https://github.com/flisk-sh/tdk-cli-core/pull/589), the `init-networks` resource in Tilt fails with `Failed to create Docker network <name>: <Docker's message>` and exits 1. Before it, the failure was swallowed (the command ended `|| true`), `init-networks` reported success, and the later failure was `network ... declared as external, but could not be found`, which is what [byo.md](byo.md#running-more-than-one-project) and the [moon recipe](recipes/moon.md) describe. The `Failed to create Docker network` text is in [`utils_docker_networks.star`](../engine/topologies/tilt/common/utils_docker_networks.star).
+- **Fix:** run `flisk down --prune-networks` in projects you no longer use, or `docker network prune`, which removes every unused network on that Docker daemon, whoever created it. `--prune-networks` was added in [#585](https://github.com/flisk-sh/flisk/pull/585).
+- **If you skip doctor:** since [#589](https://github.com/flisk-sh/flisk/pull/589), the `init-networks` resource in Tilt fails with `Failed to create Docker network <name>: <Docker's message>` and exits 1. Before it, the failure was swallowed (the command ended `|| true`), `init-networks` reported success, and the later failure was `network ... declared as external, but could not be found`, which is what [byo.md](byo.md#running-more-than-one-project) and the [moon recipe](recipes/moon.md) describe. The `Failed to create Docker network` text is in [`utils_docker_networks.star`](../engine/topologies/tilt/common/utils_docker_networks.star).
 - **Checked:** the doctor message is **simulated** (the stand-in `docker` failed `network create` with Docker's text). The `init-networks` and `declared as external` messages are **read from source and docs, not reproduced**; this machine's Docker pools are in use by other people's work and were not touched.
 
 Note that `flisk doctor` itself runs `docker network create tdk_doctor_probe_<pid>` and removes it, to test whether a network can be created.
@@ -342,7 +342,7 @@ A 502, 503 or 504 prints `Traefik found the route but the container isn't answer
 
 ### `flisk down` left containers running
 
-Before [#585](https://github.com/flisk-sh/tdk-cli-core/pull/585), `flisk up shop` started Tilt with `--focus=shop` but `flisk down` ran `tilt down` without it, so the stack's own containers were never removed, and a live `tilt up` could re-create a container right after it was removed. The PR changed `flisk down` to pass every discovered stack, to stop this project's own `tilt up` first, and added `flisk down --prune-networks`. Networks created by `init-networks` are kept after `flisk down` unless you pass it.
+Before [#585](https://github.com/flisk-sh/flisk/pull/585), `flisk up shop` started Tilt with `--focus=shop` but `flisk down` ran `tilt down` without it, so the stack's own containers were never removed, and a live `tilt up` could re-create a container right after it was removed. The PR changed `flisk down` to pass every discovered stack, to stop this project's own `tilt up` first, and added `flisk down --prune-networks`. Networks created by `init-networks` are kept after `flisk down` unless you pass it.
 
 - **Fix:** use a version that includes #585, then `flisk down`. On an older version, `docker ps` shows what is left; stop only containers whose names start with your project's.
 - **Checked:** read from the PR description and merged change, not reproduced.
@@ -368,7 +368,7 @@ error: script "prebuild" exited with code 1
 src/index.ts(33,14): error TS2591: Cannot find name 'process'.
 ```
 
-- **Cause:** older scaffolds had no `types` in `tsconfig.json`, and TypeScript 7 does not include `@types/*` on its own. The Docker image was not affected, because it uses the engine's own tsconfig. Fixed for new scaffolds in [#586](https://github.com/flisk-sh/tdk-cli-core/pull/586). That PR also records `Cannot find name 'Buffer'` for an `mcp` scaffold.
+- **Cause:** older scaffolds had no `types` in `tsconfig.json`, and TypeScript 7 does not include `@types/*` on its own. The Docker image was not affected, because it uses the engine's own tsconfig. Fixed for new scaffolds in [#586](https://github.com/flisk-sh/flisk/pull/586). That PR also records `Cannot find name 'Buffer'` for an `mcp` scaffold.
 - **Fix:** in an older service, add `"types": ["node"]` under `compilerOptions` in `tsconfig.json` by hand. A service scaffolded by the current code already has it.
 - **Checked:** the current scaffold was seen to contain `"types": ["node"]`; the error itself was **read from the PR, not reproduced**, because it needs an older scaffold.
 
@@ -393,7 +393,7 @@ The same source files hold messages for [agent hosts](agent-hosts.md) such as De
 If the page does not cover it, or the fix did not work:
 
 1. Run `flisk --version` and `flisk doctor` in the project, and keep the output. Add `--no-ping` if no stack is running.
-2. Open a [bug report](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=bug_report.yml). It asks for the `flisk doctor` output, the Flisk version and your operating system, and for the steps to reproduce.
+2. Open a [bug report](https://github.com/flisk-sh/flisk/issues/new?template=bug_report.yml). It asks for the `flisk doctor` output, the Flisk version and your operating system, and for the steps to reproduce.
 3. Include the exact message, not a paraphrase, and say whether `flisk up` got as far as starting Tilt.
 4. For questions that are not bugs, and for what to expect from maintainers, see [SUPPORT.md](../SUPPORT.md).
 

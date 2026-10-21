@@ -65,7 +65,7 @@ PR が開かれたり、再オープンされたり、編集されたりする�
 各ボタンは単なるリンクです。AI のウェブサイトを新しいタブで開き、このメッセージがすでに入力された状態にします。
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/flisk/pull/123.
 ```
 
 | ボタン | 開くサイト |

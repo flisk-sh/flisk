@@ -38,7 +38,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "Sync schema.service.json with tdk-cli-core (${GITHUB_SHA::7})"
+          git commit -am "Sync schema.service.json with flisk (${GITHUB_SHA::7})"
           git push origin HEAD:main
       - name: Report whether the published schema matches main
         # Publishing is best-effort, so this never fails the job. It exists so that a missing PAGES_SYNC_TOKEN (the copy step above

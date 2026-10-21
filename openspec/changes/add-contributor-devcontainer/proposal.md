@@ -28,4 +28,4 @@ None. This does not change the published Flisk CLI contract, generated stacks, o
 - New files: `.devcontainer/devcontainer.json` (and optional Dockerfile or secondary config).
 - Documentation: `CONTRIBUTING.md` and possibly `docs/contributing/01-first-change.md`.
 - No changes to the CLI runtime, package dependencies, CI workflows, or generated service artifacts.
-- Overlaps conceptually with the reference Dev Container in `agent-host-runtime` (which focuses on running the published `flisk` with host Docker). This change is specifically for contributors editing the `tdk-cli-core` source tree and can stay lighter.
+- Overlaps conceptually with the reference Dev Container in `agent-host-runtime` (which focuses on running the published `flisk` with host Docker). This change is specifically for contributors editing the `flisk` source tree and can stay lighter.

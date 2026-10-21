@@ -66,6 +66,6 @@ assert(!result.files.some(p=>p.includes('/web/')));
 assert.match(result.stdout,/web.*add a Dockerfile or image/i);
 result=run('skipped', {Procfile:'web: python app.py\n'}, ['.','--yes']);
 assert.equal(result.exit,2); assert(result.unchanged);
-const evidence = { verifiedAt:new Date().toISOString(), sourceTag:'v0.1.1', sourceCommit:'14480fb3425a3876b9cc8c6f07fdf430bfa10af8', publishRun:'https://github.com/flisk-sh/tdk-cli-core/actions/runs/37298395884', publishInputs:{ref:'v0.1.1',dry_run:false}, latest:metadata['dist-tags'].latest, tarball:dist.tarball, integrity, artifactMatches:true, freshCache:true, results };
+const evidence = { verifiedAt:new Date().toISOString(), sourceTag:'v0.1.1', sourceCommit:'14480fb3425a3876b9cc8c6f07fdf430bfa10af8', publishRun:'https://github.com/flisk-sh/flisk/actions/runs/37298395884', publishInputs:{ref:'v0.1.1',dry_run:false}, latest:metadata['dist-tags'].latest, tarball:dist.tarball, integrity, artifactMatches:true, freshCache:true, results };
 writeFileSync(process.argv[3], JSON.stringify(evidence,null,2)+'\n');
 console.log(JSON.stringify({latest:evidence.latest,artifactMatches:true,checks:results.map(({name,exit})=>({name,exit})),evidence:process.argv[3]},null,2));

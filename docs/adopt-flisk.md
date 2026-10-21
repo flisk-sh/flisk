@@ -69,7 +69,7 @@ Two things seen on that run that you may also meet:
 
 - On Flisk 1.3.86 `flisk doctor` warned about an unknown `healthCheck` field on a freshly scaffolded service. The warning is now worded `<path>/service.json.healthCheck: unknown field is preserved` (observed by running `flisk doctor --no-ping` on a `service.json` with an extra `healthCheck` field; `<path>` printed as an absolute path). A backend scaffolded by current `main` already writes `healthCheckPath`, and `flisk doctor --no-ping` printed no such warning.
 - A pilot ran `tilt down --force` directly on Tilt 0.37.7 and got `unknown flag: --force`; it did not run `flisk down --force`. Current Flisk accepts that flag for script compatibility, but it has no effect and is not passed to Tilt. Use `flisk down`.
-- Before the fix in [#600](https://github.com/flisk-sh/tdk-cli-core/pull/600), `flisk doctor` failed with `N resources without a package.json` for bring-your-own resources created with `flisk resource --type bring-your-own` (both `--dockerfile` and `--image`). That check no longer applies to them; if you still see it, upgrade `flisk` (`flisk upgrade`). It still fails for a backend, frontend or worker that has no `package.json`.
+- Before the fix in [#600](https://github.com/flisk-sh/flisk/pull/600), `flisk doctor` failed with `N resources without a package.json` for bring-your-own resources created with `flisk resource --type bring-your-own` (both `--dockerfile` and `--image`). That check no longer applies to them; if you still see it, upgrade `flisk` (`flisk upgrade`). It still fails for a backend, frontend or worker that has no `package.json`.
 
 ## 3. Keep your current setup
 
@@ -102,5 +102,5 @@ Only quote numbers you measured, with their conditions. Do not repeat the figure
 
 ## 6. Tell us
 
-- Run Flisk on your repositories? Use the [We use Flisk](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=we-use-flisk.yml) form, or add a row to [ADOPTERS.md](../ADOPTERS.md).
-- It did not fit or something broke? Search [Troubleshooting](troubleshooting.md) for the message, then [open an issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose) and include the output of `flisk doctor`.
+- Run Flisk on your repositories? Use the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) form, or add a row to [ADOPTERS.md](../ADOPTERS.md).
+- It did not fit or something broke? Search [Troubleshooting](troubleshooting.md) for the message, then [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose) and include the output of `flisk doctor`.

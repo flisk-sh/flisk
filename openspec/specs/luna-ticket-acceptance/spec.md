@@ -98,7 +98,7 @@ Flisk supports Ubuntu on WSL2. Native Windows is not supported.
 2. In Ubuntu: install Tilt.
 3. In Ubuntu:
 
-curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh
 flisk doctor
 flisk project example
 cd tdk-example

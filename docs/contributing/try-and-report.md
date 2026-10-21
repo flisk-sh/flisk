@@ -2,14 +2,14 @@
 
 You do not need to write code or a polished bug report. This page shows how to install Flisk, run an example, and tell us what happened using a short form. Rough notes are fine: a half-finished report with real numbers helps more than none.
 
-[Open the form](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml). It has three short required answers (what you tried, how it went, what you saw) and the rest is optional.
+[Open the form](https://github.com/flisk-sh/flisk/issues/new?template=try-it-and-report.yml). It has three short required answers (what you tried, how it went, what you saw) and the rest is optional.
 
 ## 1. Install
 
 You need Docker (Desktop, OrbStack or Colima) running, and Tilt 0.25.0 or newer. Then install the Flisk CLI:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | sh
 flisk --version
 ```
 
@@ -18,8 +18,8 @@ Copy the `flisk --version` output into the form's "Your setup" box. If the insta
 ## 2. Get the example
 
 ```bash
-git clone https://github.com/flisk-sh/tdk-cli-core.git
-cd tdk-cli-core/examples/one-backend-python
+git clone https://github.com/flisk-sh/flisk.git
+cd flisk/examples/one-backend-python
 ```
 
 The example is one FastAPI service. Its own [README](../../examples/one-backend-python/README.md) has the full description.
@@ -44,7 +44,7 @@ If anything fails, run `flisk status` and `flisk doctor` and paste what they pri
 
 ## 4. Optional: the timings we are missing
 
-These three numbers are what [issue 683](https://github.com/flisk-sh/tdk-cli-core/issues/683) is waiting for. Do as many as you like, and say which you skipped.
+These three numbers are what [issue 683](https://github.com/flisk-sh/flisk/issues/683) is waiting for. Do as many as you like, and say which you skipped.
 
 **First start.** The `time flisk up` result from step 3.
 
@@ -82,7 +82,7 @@ If the Postgres part of the issue matters to you, also note any connection error
 
 ## 5. Fill in the form
 
-Open the [form](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml) and answer in your own words. Two examples of what a useful report looks like (the numbers are made up, for illustration):
+Open the [form](https://github.com/flisk-sh/flisk/issues/new?template=try-it-and-report.yml) and answer in your own words. Two examples of what a useful report looks like (the numbers are made up, for illustration):
 
 **It worked, with numbers**
 
