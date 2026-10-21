@@ -2,7 +2,7 @@
 
 ## Why
 
-`tdk doctor`, `tdk up`, `tdk status`, `tdk ui`, `tdk logs`, `tdk config verify`, `tdk config regenerate`, `tdk config migrate`, and `tdk import` already exist. Their results are not stable enough to trust, and regenerate, migrate, and import are easy to confuse. This change locks those commands. It does not add commands. Issue: https://github.com/tdk-landscape/tdk-cli-core/issues/661
+`tdk doctor`, `tdk up`, `tdk status`, `tdk ui`, `tdk logs`, `tdk config verify`, `tdk config regenerate`, `tdk config migrate`, and `tdk import` already exist. Their results are not stable enough to trust, and regenerate, migrate, and import are easy to confuse. This change locks those commands. It does not add commands. Issue: https://github.com/flisk-sh/tdk-cli-core/issues/661
 
 ## What Changes
 

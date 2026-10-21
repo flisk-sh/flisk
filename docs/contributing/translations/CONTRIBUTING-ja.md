@@ -20,13 +20,13 @@
 Git、[Bun](https://bun.sh)、Node.js 22.12+ が必要です。ほとんどの変更では Docker と Tilt は不要です。
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core
 bun install
 bun run typecheck && bun run lint && bun run test   # 約1分。何かを変更する前に、すべて成功するはずです
 ```
 
-クリーンなチェックアウトでどれかが失敗した場合、それはあなたの環境ではなくプロジェクトのバグです。[issue を作成](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)してください。
+クリーンなチェックアウトでどれかが失敗した場合、それはあなたの環境ではなくプロジェクトのバグです。[issue を作成](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)してください。
 
 ## バグを探す
 
@@ -36,17 +36,17 @@ bun run typecheck && bun run lint && bun run test   # 約1分。何かを変更�
 
 ## pull request をレビューする
 
-開いている [pull request](https://github.com/tdk-landscape/tdk-cli-core/pulls) をレビューすることで、コードを書かずに貢献できます。すべての PR の末尾には **Grok**、**Claude**、**Codex** のボタンがあり、その PR のレビューを依頼済みの AI チャットが開きます。AI はあなたのアシスタントです。言っている内容を diff と照らし合わせて確認し、GitHub で **Comment**、**Approve**、**Request changes** のいずれかとして自分のレビューを送信してください。
+開いている [pull request](https://github.com/flisk-sh/tdk-cli-core/pulls) をレビューすることで、コードを書かずに貢献できます。すべての PR の末尾には **Grok**、**Claude**、**Codex** のボタンがあり、その PR のレビューを依頼済みの AI チャットが開きます。AI はあなたのアシスタントです。言っている内容を diff と照らし合わせて確認し、GitHub で **Comment**、**Approve**、**Request changes** のいずれかとして自分のレビューを送信してください。
 
 最初のレビューの前に、[必読ドキュメント](04-review-a-pr-ja.md#最初のレビューの前に-必読ドキュメント)を読んでください（約1時間、一度だけ）。そのあと [pull request をレビューする](04-review-a-pr-ja.md)で、ボタンの使い方を順に説明し、承認と修正依頼のコメント例を紹介しています。
 
 ## 取り組むことを探す
 
 - 🗺️ [TDK ジャーニー](../../journey/README.md)：島を選び、クエストをクリアして、ランクを上げましょう（8 kyu → 1 dan）
-- [Good first issues](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue)
-- [Help wanted](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted)
+- [Good first issues](https://github.com/flisk-sh/tdk-cli-core/labels/good%20first%20issue)
+- [Help wanted](https://github.com/flisk-sh/tdk-cli-core/labels/help%20wanted)
 - ステップごとのチェックリストで[バグを探す](finding-bugs-ja.md)
-- [バグを報告する、または質問する](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)
+- [バグを報告する、または質問する](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)
 
 issue を選んだら、`I'll take this`（または `I would like this one`、`I'd like to work on this`、`Can I take this?`）とコメントしてください。ボットがあなたをアサインし、`claimed` ラベルを付けるので、2人が同じ作業をすることを防げます。pull request のないまま 14 日経つとリマインドされ、21 日で解放されます。ドラフト PR も進捗として扱われます。バグ報告では、できれば `tdk doctor` の出力を添えてください。
 
@@ -56,7 +56,7 @@ issue を選んだら、`I'll take this`（または `I would like this one`、`
 
 ## ラベル
 
-ラベルを使って、自分の興味や経験に合った作業を見つけてください。メンテナーはトリアージ時にラベルを付けます。issue フォームと PR labeler も一部のラベルを自動で付けます。最新の[ラベル一覧](https://github.com/tdk-landscape/tdk-cli-core/labels)には各ラベルの説明があります。
+ラベルを使って、自分の興味や経験に合った作業を見つけてください。メンテナーはトリアージ時にラベルを付けます。issue フォームと PR labeler も一部のラベルを自動で付けます。最新の[ラベル一覧](https://github.com/flisk-sh/tdk-cli-core/labels)には各ラベルの説明があります。
 
 | ラベル | 意味 | 付けられるタイミング |
 | --- | --- | --- |
@@ -90,7 +90,7 @@ issue を選んだら、`I'll take this`（または `I would like this one`、`
 
 ## 採用者リストにチームを追加する
 
-自分のリポジトリで TDK を使っていますか？[ADOPTERS.md](../../../ADOPTERS.md) には2つの方法で掲載できます。[We use TDK](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=we-use-tdk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../../ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
+自分のリポジトリで TDK を使っていますか？[ADOPTERS.md](../../../ADOPTERS.md) には2つの方法で掲載できます。[We use TDK](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=we-use-tdk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../../ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
 
 ## ガバナンス
 

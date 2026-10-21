@@ -2,14 +2,14 @@
 title: Tilt without the Tiltfile
 published: false
 tags: devtools, docker, kubernetes, typescript
-canonical_url: https://tdk-landscape.github.io/tdk-website/docs/quickstart/
+canonical_url: https://flisk.sh/docs/quickstart/
 ---
 
-<!-- Draft for #1447. Question source: tdk-landscape/tdk-cli-core#790 ("read what `tdk up --dry-run` would start, ask about anything unclear"). Every command below was run against tdk 1.3.178. -->
+<!-- Draft for #1447. Question source: flisk-sh/tdk-cli-core#790 ("read what `tdk up --dry-run` would start, ask about anything unclear"). Every command below was run against tdk 1.3.178. -->
 
 "I want Tilt to run my services, but I don't want to write a Tiltfile. What does TDK write for Tilt, and what do I still control?"
 
-That is the question behind [issue #790](https://github.com/tdk-landscape/tdk-cli-core/issues/790). The short answer: TDK writes the Tiltfile, and you read it with a dry run before anything starts.
+That is the question behind [issue #790](https://github.com/flisk-sh/tdk-cli-core/issues/790). The short answer: TDK writes the Tiltfile, and you read it with a dry run before anything starts.
 
 ## Look before you start
 
@@ -48,9 +48,9 @@ tdk config verify
 
 ## What you still control
 
-A project with no Tiltfile at all is the default. The [one-backend example](https://github.com/tdk-landscape/tdk-cli-core/tree/main/examples/one-backend) has none in its root: `tdk up one-backend` runs the generated one.
+A project with no Tiltfile at all is the default. The [one-backend example](https://github.com/flisk-sh/tdk-cli-core/tree/main/examples/one-backend) has none in its root: `tdk up one-backend` runs the generated one.
 
-When you need more, the root `Tiltfile` is yours. `tdk eject --dry-run` reports it as "not generated, not git-ignored", so TDK will not overwrite it. The [tdk-example landscape](https://github.com/tdk-landscape/tdk-cli-core/tree/main/examples/tdk-example) has a hand-written root `Tiltfile`, and it starts with a line that sets `TDK_PROJECT_ROOT` before it loads the extension. Its `TILT_SERVICE_DEFAULTS.star` sets the platform defaults, such as the base ports (`BASE_PORT_BACKEND = 4000`) and the health check paths.
+When you need more, the root `Tiltfile` is yours. `tdk eject --dry-run` reports it as "not generated, not git-ignored", so TDK will not overwrite it. The [tdk-example landscape](https://github.com/flisk-sh/tdk-cli-core/tree/main/examples/tdk-example) has a hand-written root `Tiltfile`, and it starts with a line that sets `TDK_PROJECT_ROOT` before it loads the extension. Its `TILT_SERVICE_DEFAULTS.star` sets the platform defaults, such as the base ports (`BASE_PORT_BACKEND = 4000`) and the health check paths.
 
 So the split is:
 
@@ -59,4 +59,4 @@ So the split is:
 
 ## Try it
 
-Start with the one-backend example, run `tdk up one-backend --dry-run`, and read the `Would run:` line. Then the [quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) takes you through starting it for real with `tdk up`.
+Start with the one-backend example, run `tdk up one-backend --dry-run`, and read the `Would run:` line. Then the [quickstart](https://flisk.sh/docs/quickstart/) takes you through starting it for real with `tdk up`.

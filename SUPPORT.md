@@ -6,10 +6,10 @@ What you can expect from the maintainers of TDK. Numbers were measured from the 
 
 | You need | Go to |
 | --- | --- |
-| A question about adopting TDK | [Adoption question](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=adoption-question.yml) or [Discussions](https://github.com/tdk-landscape/tdk-cli-core/discussions) |
-| A bug | [Bug report](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=bug_report.yml) |
-| A feature | [Feature request](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=feature_request.yml) |
-| A premium key | [Premium license request](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=premium_license.yml) or the [website form](https://tdk-landscape.github.io/tdk-website/#waitlist) |
+| A question about adopting TDK | [Adoption question](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=adoption-question.yml) or [Discussions](https://github.com/flisk-sh/tdk-cli-core/discussions) |
+| A bug | [Bug report](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=bug_report.yml) |
+| A feature | [Feature request](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=feature_request.yml) |
+| A premium key | [Premium license request](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=premium_license.yml) or the [website form](https://flisk.sh/#waitlist) |
 | A security problem | [SECURITY.md](SECURITY.md), privately; never a public issue |
 
 There is no paid support contract, chat channel or phone line.
@@ -23,7 +23,7 @@ The stated aim is a reply within one working day. What the history shows:
 
 ## Roadmap
 
-There is no separate roadmap document. The plan is the open issues: [start here](https://github.com/tdk-landscape/tdk-cli-core/issues/469) links the island trackers, and each tracker lists its issues. Release notes are in the [CHANGELOG](CHANGELOG.md).
+There is no separate roadmap document. The plan is the open issues: [start here](https://github.com/flisk-sh/tdk-cli-core/issues/469) links the island trackers, and each tracker lists its issues. Release notes are in the [CHANGELOG](CHANGELOG.md).
 
 ## Releases and supported versions
 
@@ -33,7 +33,7 @@ Fixes go into the latest release only. In the last 90 days the repository had 68
 
 Two maintainers from two companies ([MAINTAINERS.md](MAINTAINERS.md)). In the last 90 days one of them authored about 59% of the commits and the other about 27% (re-counted by author name on `origin/main`: about 57% and 27%). The GitHub repository itself was created on 2026-09-19 and has a small number of stars. If either maintainer stops, you are on one maintainer; the project says it is below the three it needs for a foundation application.
 
-If the project goes quiet, core is MIT and you can fork it. A written exit path from your own repositories is still open ([#505](https://github.com/tdk-landscape/tdk-cli-core/issues/505)).
+If the project goes quiet, core is MIT and you can fork it. A written exit path from your own repositories is still open ([#505](https://github.com/flisk-sh/tdk-cli-core/issues/505)).
 
 ## Licence and premium
 

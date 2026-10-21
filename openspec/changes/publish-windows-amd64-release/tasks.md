@@ -6,7 +6,7 @@
 
 ## 2. Installer integrity
 
-- [ ] 2.1 Update `tdk-landscape.github.io/install.ps1` to parse and verify the engine archive checksum before extraction, with clear failures for missing entries and mismatches.
+- [ ] 2.1 Update `flisk-sh/tdk-landscape.github.io`'s `install.ps1` to parse and verify the engine archive checksum before extraction, with clear failures for missing entries and mismatches.
 - [ ] 2.2 Confirm executable and engine verification both happen before installation mutates the target directory.
 
 ## 3. Public documentation

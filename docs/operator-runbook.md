@@ -43,21 +43,21 @@ For a file-by-file guide to service outputs, see [Generated service files](gener
 
 `tdk import` runs the published importer, [`@tdk-landscape/tdk-import`](https://www.npmjs.com/package/@tdk-landscape/tdk-import), at the exact version pinned in `cli/src/commands/import.ts` (`IMPORT_PACKAGE`). `TDK_IMPORT_PACKAGE` overrides it. When a new importer is published, move the pin in a CLI release.
 
-It reads one file, the root `docker-compose.yml`, and writes one bring-your-own `service.json` per Compose service, plus `.tdk/project.json` if the directory is not a TDK project. It does not read other Compose file names, override files, Dockerfiles, `package.json` or Procfiles, and it names what it did not translate. See the importer's [import.md](https://github.com/tdk-landscape/tdk-import/blob/main/docs/import.md) for the mapping.
+It reads one file, the root `docker-compose.yml`, and writes one bring-your-own `service.json` per Compose service, plus `.tdk/project.json` if the directory is not a TDK project. It does not read other Compose file names, override files, Dockerfiles, `package.json` or Procfiles, and it names what it did not translate. See the importer's [import.md](https://github.com/flisk-sh/tdk-import/blob/main/docs/import.md) for the mapping.
 
 ```bash
 tdk import <dir> --dry-run
 tdk import <dir> --yes
 ```
 
-Start the imported stack with TDK core **1.3.145 or later**. 1.3.104 added `buildContext` ([tdk-cli-core#525](https://github.com/tdk-landscape/tdk-cli-core/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.tdk/project.json` but none yet ([tdk-cli-core#1018](https://github.com/tdk-landscape/tdk-cli-core/pull/1018)). `tdk import` enforces that the installed core is at least 1.3.104 before writing; if an older core is encountered, it exits before writing and prints the upgrade command (`tdk upgrade`).
+Start the imported stack with TDK core **1.3.145 or later**. 1.3.104 added `buildContext` ([tdk-cli-core#525](https://github.com/flisk-sh/tdk-cli-core/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.tdk/project.json` but none yet ([tdk-cli-core#1018](https://github.com/flisk-sh/tdk-cli-core/pull/1018)). `tdk import` enforces that the installed core is at least 1.3.104 before writing; if an older core is encountered, it exits before writing and prints the upgrade command (`tdk upgrade`).
 
-Put the environment values the services need in the project `.env`; values in the Compose file are never copied. Evidence of the importer running through a real `tdk up`: [#1007](https://github.com/tdk-landscape/tdk-cli-core/issues/1007).
+Put the environment values the services need in the project `.env`; values in the Compose file are never copied. Evidence of the importer running through a real `tdk up`: [#1007](https://github.com/flisk-sh/tdk-cli-core/issues/1007).
 
 ## Cutting a release
 
 > [!WARNING]
-> The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/tdk-landscape/tdk-cli-core/issues/1657), [#1658](https://github.com/tdk-landscape/tdk-cli-core/issues/1658), [#1659](https://github.com/tdk-landscape/tdk-cli-core/issues/1659).
+> The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/flisk-sh/tdk-cli-core/issues/1657), [#1658](https://github.com/flisk-sh/tdk-cli-core/issues/1658), [#1659](https://github.com/flisk-sh/tdk-cli-core/issues/1659).
 
 ### Lessons from release 1.3.187 (2026-10-20)
 
@@ -73,10 +73,10 @@ Put the environment values the services need in the project `.env`; values in th
 3. Give the Docker Compose readiness check a bounded retry/backoff and preserve the existing failure diagnostics. Keep candidate checks blocking: retry transient runner startup failures, but never mark a candidate successful by skipping the suite.
 4. Add a post-publish verification step that retries npm metadata lookup during the registry processing window and verifies the npm version and tarball, release tag/assets, checksum signature, and provenance independently.
 
-The normal release is the workflow, from a release branch (see the publish gate in [#1631](https://github.com/tdk-landscape/tdk-cli-core/pull/1631)):
+The normal release is the workflow, from a release branch (see the publish gate in [#1631](https://github.com/flisk-sh/tdk-cli-core/pull/1631)):
 
 1. Cut `release/rc-<timestamp>` at the commit to ship, and run the Release candidate workflow on it. Wait for it to pass.
-2. Run `gh workflow run release-binaries.yml --ref release/rc-<timestamp>`. The workflow picks the next unpublished version, builds and checks the binaries, publishes the npm package and the release in `tdk-landscape/tdk-cli-releases`, and credits fixed issues.
+2. Run `gh workflow run release-binaries.yml --ref release/rc-<timestamp>`. The workflow picks the next unpublished version, builds and checks the binaries, publishes the npm package and the release in `flisk-sh/tdk-cli-releases`, and credits fixed issues.
 3. The workflow does not commit the version it published. Open a PR on `main` that sets `version` in `package.json` and `cli/package.json` to that version, so `main` matches npm.
 4. The installer verifies each binary against `checksums.txt`.
 
@@ -100,10 +100,10 @@ To build a binary by hand, without publishing, run `scripts/release-binaries.sh`
 Candidates are not run on every push, so a dispatch on `main` fails until a candidate covers its commit. Check any commit with the gate before you dispatch:
 
 ```bash
-GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha <commit> --repo tdk-landscape/tdk-cli-core
+GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha <commit> --repo flisk-sh/tdk-cli-core
 ```
 
-Tracked in [#1627](https://github.com/tdk-landscape/tdk-cli-core/issues/1627).
+Tracked in [#1627](https://github.com/flisk-sh/tdk-cli-core/issues/1627).
 
 ## License key
 

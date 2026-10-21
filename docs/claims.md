@@ -5,7 +5,7 @@ Public numbers and measured outcomes must link to this registry. Keep the source
 | Claim | Allowed wording | Forbidden wording / source |
 | --- | --- | --- |
 | 14-service demo | “14 tiny services healthy in 4.6s on a 16 GB M1 after images existed. Not a cold boot.” | “from zero”, “cold boot”, “weeks of integration”. Source: local demo capture; warm start only. |
-| 100-service bench | “100 generated `/health` stubs, ~20 lines each, healthy through Traefik in 472s on a clean Ubuntu runner ([run](https://github.com/tdk-landscape/tdk-cli-core/actions/runs/36395860088)). Not an ERP.” | “ERP system”; “100 services still readable” without “fixture”. Images built from scratch. |
+| 100-service bench | “100 generated `/health` stubs, ~20 lines each, healthy through Traefik in 472s on a clean Ubuntu runner ([run](https://github.com/flisk-sh/tdk-cli-core/actions/runs/36395860088)). Not an ERP.” | “ERP system”; “100 services still readable” without “fixture”. Images built from scratch. |
 | Onboarding | “Designed so `tdk doctor` and `tdk up` replace a setup wiki. Not measured on a hiring cohort.” | “weeks of salary”; “day one” stated as a measured fact. |
 | ROI calculator | “Inputs are user-set. Output is arithmetic, not savings.” | Default 5 hours/week presented as typical. |
 

@@ -6,4 +6,4 @@ In short: be respectful, assume good intent, and keep discussion about the work.
 
 ## Reporting
 
-To report unacceptable behavior, open a [private security advisory](https://github.com/tdk-landscape/tdk-cli-core/security/advisories/new) or contact the maintainers through the [TDK Landscape organization](https://github.com/tdk-landscape). Reports are reviewed promptly and kept confidential.
+To report unacceptable behavior, open a [private security advisory](https://github.com/flisk-sh/tdk-cli-core/security/advisories/new) or contact the maintainers through the [TDK Landscape organization](https://github.com/flisk-sh). Reports are reviewed promptly and kept confidential.

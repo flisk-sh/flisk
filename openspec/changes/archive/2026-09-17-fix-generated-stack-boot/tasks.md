@@ -15,7 +15,7 @@
 
 - [x] 3.1 Rewrite `cli/templates/Tiltfile.hbs`: resolve vendored path -> `$TDK_EXTENSION_PATH` -> `fail(...)` with the three recovery options; remove the hardcoded `/private/var/www/2025/ollamar1/tdk-cli` path and the private GitHub fallback
 - [x] 3.2 Use truthful probes: `test -d <path> && echo yes || echo no` in both branches
-- [x] 3.3 Assert a generated Tiltfile contains no absolute host-specific paths and no `github.com/tdk-landscape/tdk-cli` URL
+- [x] 3.3 Assert a generated Tiltfile contains no absolute host-specific paths and no `github.com/flisk-sh/tdk-cli` URL
 - [x] 3.4 Run `tilt ci -f .tdk/.tdk-out/Tiltfile` on a generated project and assert the vendored extension loads, services are discovered, and the workspace reports healthy
 - [x] 3.5 Run `tdk up pre-alpha` on a two-service project and assert no git-clone retry loop; Tiltfile loading succeeds
 
@@ -24,4 +24,4 @@
 - [x] 4.1 Rebuild binaries from fixed source: `bun build --compile --target=bun-linux-amd64 --outfile tdk-linux-amd64 cli/src/cli.ts` (repeat for `bun-linux-arm64`, `bun-darwin-amd64`, `bun-darwin-arm64`)
 - [x] 4.2 Verify each rebuilt binary: `--version` matches, `project --yes` vendors the extension, and a generated service compiles and boots
 - [x] 4.3 Update `release-dist-*` snapshots, `checksums.txt`, and the binaries zip
-- [x] 4.4 Publish binaries to `tdk-landscape/tdk-cli-releases` releases with the fixed snapshots
+- [x] 4.4 Publish binaries to `flisk-sh/tdk-cli-releases` releases with the fixed snapshots

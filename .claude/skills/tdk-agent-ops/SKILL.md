@@ -4,7 +4,7 @@ description: Directs AI coding agents (Claude Code, Cursor, Codex) to operate an
 license: MIT
 compatibility: Requires the tdk CLI, Docker, and Tilt.
 metadata:
-  author: tdk-landscape
+  author: flisk-sh
   version: "1.0"
 ---
 

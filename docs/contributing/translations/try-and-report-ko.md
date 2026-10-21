@@ -4,14 +4,14 @@
 
 코드를 쓰거나 다듬어진 버그 보고서를 만들 필요는 없습니다. 이 페이지는 TDK를 설치하고, 예제를 실행하고, 짧은 폼으로 무슨 일이 있었는지 알려주는 방법을 보여줍니다. 거친 메모도 괜찮습니다. 실제 수치가 담긴 미완성 보고서가 아무것도 없는 것보다 훨씬 도움이 됩니다.
 
-[폼 열기](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=try-it-and-report.yml). 필수 답변은 세 가지(무엇을 시도했는지, 어땠는지, 무엇을 봤는지)이고 나머지는 선택 사항입니다.
+[폼 열기](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml). 필수 답변은 세 가지(무엇을 시도했는지, 어땠는지, 무엇을 봤는지)이고 나머지는 선택 사항입니다.
 
 ## 1. 설치
 
 Docker(Desktop, OrbStack 또는 Colima)가 실행 중이어야 하고, Tilt 0.25.0 이상이 필요합니다. 그다음 TDK CLI를 설치하세요.
 
 ```bash
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh
+curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh
 tdk --version
 ```
 
@@ -20,7 +20,7 @@ tdk --version
 ## 2. 예제 가져오기
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core/examples/one-backend-python
 ```
 
@@ -46,7 +46,7 @@ curl --fail http://api.one-backend-python.localhost/api/api-backend/health
 
 ## 4. 선택: 빠져 있는 측정값
 
-아래 세 가지 숫자는 [issue 683](https://github.com/tdk-landscape/tdk-cli-core/issues/683)이 기다리고 있는 값입니다. 원하는 만큼 해보고, 건너뛴 항목은 그렇다고 말해 주세요.
+아래 세 가지 숫자는 [issue 683](https://github.com/flisk-sh/tdk-cli-core/issues/683)이 기다리고 있는 값입니다. 원하는 만큼 해보고, 건너뛴 항목은 그렇다고 말해 주세요.
 
 **첫 시작.** 3단계의 `time tdk up` 결과입니다.
 
@@ -84,7 +84,7 @@ uvicorn main:app --app-dir src --port 4000 --reload
 
 ## 5. 폼 작성하기
 
-[폼](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=try-it-and-report.yml)을 열고 자신의 말로 답하세요. 유용한 보고서의 예 두 가지를 보여드립니다(숫자는 설명을 위해 만든 값입니다).
+[폼](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml)을 열고 자신의 말로 답하세요. 유용한 보고서의 예 두 가지를 보여드립니다(숫자는 설명을 위해 만든 값입니다).
 
 **작동했고, 수치 포함**
 

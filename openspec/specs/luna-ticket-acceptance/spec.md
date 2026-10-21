@@ -98,7 +98,7 @@ TDK supports Ubuntu on WSL2. Native Windows is not supported.
 2. In Ubuntu: install Tilt.
 3. In Ubuntu:
 
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh
+curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh
 tdk doctor
 tdk project example
 cd tdk-example

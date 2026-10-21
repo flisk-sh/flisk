@@ -2,7 +2,7 @@
 
 ## Context
 
-TDK CLI (`tdk up`, `service.json`, Docker + Tilt) is local-only orchestration. Core is MIT. Binaries and `checksums.txt` ship from `tdk-landscape/tdk-cli-releases`. Companies often allow or ban tools like MongoDB by policy. Those policies are usually private. The public surface is awesome lists, CLI indexes, internal-tooling docs that happen to be open, and security baselines that accept suggestions.
+TDK CLI (`tdk up`, `service.json`, Docker + Tilt) is local-only orchestration. Core is MIT. Binaries and `checksums.txt` ship from `flisk-sh/tdk-cli-releases`. Companies often allow or ban tools like MongoDB by policy. Those policies are usually private. The public surface is awesome lists, CLI indexes, internal-tooling docs that happen to be open, and security baselines that accept suggestions.
 
 Opening issues in unrelated product repos, or asking employees to change a private denylist, will be treated as spam and can get the org blocked.
 

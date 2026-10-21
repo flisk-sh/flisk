@@ -29,7 +29,7 @@ If PATH contains more than one TDK install, run `tdk upgrade --all` to update ea
 
 - npm: `npm install -g @tdk-landscape/tdk-cli-core@1.3.80`
 - `tdk upgrade` always goes to the latest release; it has no version argument.
-- `install.sh` and the release binaries: whether `install.sh` can install an older tag is **not documented**. Versions are listed on the [releases page](https://github.com/tdk-landscape/tdk-cli-releases/releases).
+- `install.sh` and the release binaries: whether `install.sh` can install an older tag is **not documented**. Versions are listed on the [releases page](https://github.com/flisk-sh/tdk-cli-releases/releases).
 
 ## What is versioned
 

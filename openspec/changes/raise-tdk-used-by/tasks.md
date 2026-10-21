@@ -6,20 +6,20 @@ The repositories below are audit candidates, not yet-confirmed consumers. The su
 
 | Repository | URL | Why it belongs | Suggested disposition |
 |---|---|---|---|
-| `tdk-example` | https://github.com/tdk-landscape/tdk-example | Smallest official multi-service example | `devDependency` if genuine use is confirmed |
-| `tdk-saas-starter` | https://github.com/tdk-landscape/tdk-saas-starter | Polished SaaS dashboard + checkout starter | `devDependency` if genuine use is confirmed |
-| `tdk-restaurant-example` | https://github.com/tdk-landscape/tdk-restaurant-example | Restaurant ops example (reservations, kitchen, floor) | `devDependency` if genuine use is confirmed |
-| `tdk-user-management` | https://github.com/tdk-landscape/tdk-user-management | Enterprise identity / SCIM / OIDC example | `devDependency` if genuine use is confirmed |
-| `tdk-ecommerce-example` | https://github.com/tdk-landscape/tdk-ecommerce-example | Vue + Hono storefront example | `devDependency` if genuine use is confirmed |
-| `tdk-erp-system` | https://github.com/tdk-landscape/tdk-erp-system | 100-service scale fixture | `devDependency` if genuine use is confirmed |
-| `tdk-cli-starter` | https://github.com/tdk-landscape/tdk-cli-starter | Cloud-dev starter / template | `devDependency` if genuine use is confirmed |
-| `create-tdk-stack` | https://github.com/tdk-landscape/create-tdk-stack | Landing page / create-app style starter | `devDependency` if genuine use is confirmed |
-| `tdk-agent-stack` | https://github.com/tdk-landscape/tdk-agent-stack | AI agent + MCP + Postgres + NATS template | `devDependency` if genuine use is confirmed |
-| `tdk-auth-queue-email-example` | https://github.com/tdk-landscape/tdk-auth-queue-email-example | OIDC + NATS + Mailpit example | `devDependency` if genuine use is confirmed |
-| `tdk-thor-storefront` | https://github.com/tdk-landscape/tdk-thor-storefront | Thor Commerce storefront landscape | `devDependency` if genuine use is confirmed |
-| `tdk-person-crud-example` | https://github.com/tdk-landscape/tdk-person-crud-example | Person CRUD (React/Express/Mongo/Redis/RabbitMQ) | `devDependency` if genuine use is confirmed |
-| `vercel-store` | https://github.com/tdk-landscape/vercel-store | Vercel-style storefront landscape | `devDependency` if genuine use is confirmed |
-| `tdk-docker-compose-example` | https://github.com/tdk-landscape/tdk-docker-compose-example | CLI-in-Compose example | Audit; may be an exception |
+| `tdk-example` | https://github.com/flisk-sh/tdk-example | Smallest official multi-service example | `devDependency` if genuine use is confirmed |
+| `tdk-saas-starter` | https://github.com/flisk-sh/tdk-saas-starter | Polished SaaS dashboard + checkout starter | `devDependency` if genuine use is confirmed |
+| `tdk-restaurant-example` | https://github.com/flisk-sh/tdk-restaurant-example | Restaurant ops example (reservations, kitchen, floor) | `devDependency` if genuine use is confirmed |
+| `tdk-user-management` | https://github.com/flisk-sh/tdk-user-management | Enterprise identity / SCIM / OIDC example | `devDependency` if genuine use is confirmed |
+| `tdk-ecommerce-example` | https://github.com/flisk-sh/tdk-ecommerce-example | Vue + Hono storefront example | `devDependency` if genuine use is confirmed |
+| `tdk-erp-system` | https://github.com/flisk-sh/tdk-erp-system | 100-service scale fixture | `devDependency` if genuine use is confirmed |
+| `tdk-cli-starter` | https://github.com/flisk-sh/tdk-cli-starter | Cloud-dev starter / template | `devDependency` if genuine use is confirmed |
+| `create-tdk-stack` | https://github.com/flisk-sh/create-tdk-stack | Landing page / create-app style starter | `devDependency` if genuine use is confirmed |
+| `tdk-agent-stack` | https://github.com/flisk-sh/tdk-agent-stack | AI agent + MCP + Postgres + NATS template | `devDependency` if genuine use is confirmed |
+| `tdk-auth-queue-email-example` | https://github.com/flisk-sh/tdk-auth-queue-email-example | OIDC + NATS + Mailpit example | `devDependency` if genuine use is confirmed |
+| `tdk-thor-storefront` | https://github.com/flisk-sh/tdk-thor-storefront | Thor Commerce storefront landscape | `devDependency` if genuine use is confirmed |
+| `tdk-person-crud-example` | https://github.com/flisk-sh/tdk-person-crud-example | Person CRUD (React/Express/Mongo/Redis/RabbitMQ) | `devDependency` if genuine use is confirmed |
+| `vercel-store` | https://github.com/flisk-sh/vercel-store | Vercel-style storefront landscape | `devDependency` if genuine use is confirmed |
+| `tdk-docker-compose-example` | https://github.com/flisk-sh/tdk-docker-compose-example | CLI-in-Compose example | Audit; may be an exception |
 
 Secondary audit-only candidates, generally expected not to need a package declaration:
 
@@ -31,14 +31,14 @@ Secondary audit-only candidates, generally expected not to need a package declar
 - `tdk-service-definitions` — `service.json` registry
 - `tdk-import` / `tdk-app` — related tools; audit if they invoke the CLI as a package
 
-- [x] 1.1 Audit the primary candidate repositories listed above; record URL, activity, ecosystem, manifest, lockfile, actual CLI usage, and disposition. Include additional public examples, starters, templates, and fixtures discovered under `tdk-landscape`. (Snapshot recorded in `design.md`.)
+- [x] 1.1 Audit the primary candidate repositories listed above; record URL, activity, ecosystem, manifest, lockfile, actual CLI usage, and disposition. Include additional public examples, starters, templates, and fixtures discovered under `flisk-sh`. (Snapshot recorded in `design.md`.)
 - [x] 1.2 For each candidate, verify whether its workflow genuinely installs or uses `@tdk-landscape/tdk-cli-core` and identify the appropriate dependency role. (Only `tdk-cli-starter` currently declares the package; other README-documented TDK usage requires a separately installed CLI and has no repo-local core dependency.)
 - [x] 1.3 Open repository-specific PRs for the confirmed TDK CLI project workflows, adding the appropriate development dependency and lockfile. Twelve PRs are listed in tracking issue #1716; all twelve consumer PRs have merged as of 20 October 2026.
 - [x] 1.4 Record exclusions and non-Node, binary-only, documentation-only, and CLI-in-Compose exceptions with reasons; do not add manifests solely to influence GitHub's count. (See audit snapshot in `design.md`.)
 
 ## 2. Verify package metadata
 
-- [x] 2.1 Inspect the published npm package metadata and confirm its repository URL points to `https://github.com/tdk-landscape/tdk-cli-core`. Verified 20 October 2026: npm latest `1.3.186`, repository `git+https://github.com/tdk-landscape/tdk-cli-core.git`.
+- [x] 2.1 Inspect the published npm package metadata and confirm its repository URL points to `https://github.com/flisk-sh/tdk-cli-core`. Verified 20 October 2026: npm latest `1.3.186`, repository `git+https://github.com/flisk-sh/tdk-cli-core.git`.
 - [x] 2.2 If the publish artifact does not preserve the canonical repository link, correct the package metadata and add a verification step to the release process. No correction was needed; published metadata is canonical.
 
 ## 3. Update genuine consumers
@@ -56,8 +56,8 @@ Secondary audit-only candidates, generally expected not to need a package declar
 
 ## 5. Track and measure
 
-- [x] 5.1 Open or update [tracking issue #1716](https://github.com/tdk-landscape/tdk-cli-core/issues/1716) with audited repositories, dispositions, and the proposal's baseline dependents observation.
-- [x] 5.2 After all consumer changes merged, re-checked GitHub's dependency graph/dependents view on 20 October 2026: GitHub displayed 5 repositories and 0 packages for `@tdk-landscape/tdk-cli-core` at https://github.com/tdk-landscape/tdk-cli-core/network/dependents. All twelve consumer PRs have merged; GitHub controls graph processing and display criteria.
+- [x] 5.1 Open or update [tracking issue #1716](https://github.com/flisk-sh/tdk-cli-core/issues/1716) with audited repositories, dispositions, and the proposal's baseline dependents observation.
+- [x] 5.2 After all consumer changes merged, re-checked GitHub's dependency graph/dependents view on 20 October 2026: GitHub displayed 5 repositories and 0 packages for `@tdk-landscape/tdk-cli-core` at https://github.com/flisk-sh/tdk-cli-core/network/dependents. All twelve consumer PRs have merged; GitHub controls graph processing and display criteria.
 - [x] 5.3 Record the display limitation and that processing timing is controlled by GitHub; no processing delay has been measured yet. Do not create artificial dependencies to reach a target number.
 - [x] 5.4 Confirm adopter documentation and package metadata are on `main` and discoverable. Verified 20 October 2026: `ADOPTERS.md` guidance is merged, and npm latest `1.3.186` retains the canonical repository URL.
 
@@ -66,4 +66,4 @@ Secondary audit-only candidates, generally expected not to need a package declar
 This is independent of npm dependency-graph recognition and the “Used by” count. The CLI is published to the public npm registry; an empty GitHub Packages tab does not block npm-based dependents from appearing.
 
 - [x] O.1 Decide whether to also publish `@tdk-landscape/tdk-cli-core` to GitHub Packages (`npm.pkg.github.com`) in addition to npmjs.com. Decision: no; it is optional and unrelated to npm dependency-graph recognition.
-- [x] O.2 If approved, configure the GitHub Packages registry and authenticated release workflow, publish a version, and connect the package to `tdk-landscape/tdk-cli-core` so it appears on the repository's Packages tab. Not applicable because O.1 was declined.
+- [x] O.2 If approved, configure the GitHub Packages registry and authenticated release workflow, publish a version, and connect the package to `flisk-sh/tdk-cli-core` so it appears on the repository's Packages tab. Not applicable because O.1 was declined.

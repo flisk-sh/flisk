@@ -20,13 +20,13 @@
 你需要 Git、[Bun](https://bun.sh) 和 Node.js 22.12+。大多数改动不需要 Docker 和 Tilt。
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core
 bun install
 bun run typecheck && bun run lint && bun run test   # 约一分钟；在你修改任何东西之前，这些都应该通过
 ```
 
-如果在全新的检出上其中某一步失败，那是项目的 bug，不是你的环境问题：请[提交 issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)。
+如果在全新的检出上其中某一步失败，那是项目的 bug，不是你的环境问题：请[提交 issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)。
 
 ## 寻找 bug
 
@@ -36,17 +36,17 @@ bun run typecheck && bun run lint && bun run test   # 约一分钟；在你修�
 
 ## 审查 pull request
 
-不写代码也可以通过审查开放的 [pull request](https://github.com/tdk-landscape/tdk-cli-core/pulls) 来帮忙。每个 PR 末尾都有 **Grok**、**Claude** 和 **Codex** 按钮，点击后会打开一个已经请求审查该 PR 的 AI 对话。AI 是你的助手：请对照 diff 核实它说的内容，然后在 GitHub 上以 **Comment**、**Approve** 或 **Request changes** 提交你自己的审查。
+不写代码也可以通过审查开放的 [pull request](https://github.com/flisk-sh/tdk-cli-core/pulls) 来帮忙。每个 PR 末尾都有 **Grok**、**Claude** 和 **Codex** 按钮，点击后会打开一个已经请求审查该 PR 的 AI 对话。AI 是你的助手：请对照 diff 核实它说的内容，然后在 GitHub 上以 **Comment**、**Approve** 或 **Request changes** 提交你自己的审查。
 
 第一次审查之前，请阅读[必读文档](../04-review-a-pr.md#before-your-first-review-required-reading)（大约一小时，只需一次）。然后 [审查 pull request](../04-review-a-pr.md) 会一步步讲解这些按钮，并提供批准和请求修改时的评论示例。
 
 ## 寻找可以做的事
 
 - 🗺️ [TDK 之旅](../../journey/README.md)：选择一个岛屿，完成任务，提升段位（8 kyu → 1 dan）
-- [Good first issues](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue)
-- [Help wanted](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted)
+- [Good first issues](https://github.com/flisk-sh/tdk-cli-core/labels/good%20first%20issue)
+- [Help wanted](https://github.com/flisk-sh/tdk-cli-core/labels/help%20wanted)
 - 使用逐步清单[寻找 bug](../finding-bugs.md)
-- [报告 bug 或提问](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)
+- [报告 bug 或提问](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)
 
 如果你选了一个 issue，请评论 `I'll take this`（或 `I would like this one`、`I'd like to work on this`、`Can I take this?`）。机器人会把它分配给你并加上 `claimed` 标签，避免两个人做同样的工作。认领后 14 天没有 pull request 会收到提醒，21 天后会被释放；草稿 PR 也算作进展。报告 bug 时，请尽量附上 `tdk doctor` 的输出。
 
@@ -56,7 +56,7 @@ bun run typecheck && bun run lint && bun run test   # 约一分钟；在你修�
 
 ## 标签
 
-用标签找到符合你兴趣和经验的工作。维护者会在分诊时添加标签；issue 表单和 PR labeler 也会自动添加一些标签。在线的[标签列表](https://github.com/tdk-landscape/tdk-cli-core/labels)包含每个标签的说明。
+用标签找到符合你兴趣和经验的工作。维护者会在分诊时添加标签；issue 表单和 PR labeler 也会自动添加一些标签。在线的[标签列表](https://github.com/flisk-sh/tdk-cli-core/labels)包含每个标签的说明。
 
 | 标签 | 含义 | 何时添加 |
 | --- | --- | --- |
@@ -90,7 +90,7 @@ bun run typecheck && bun run lint && bun run test   # 约一分钟；在你修�
 
 ## 把你的团队加入采用者列表
 
-在你自己的仓库中使用 TDK？你可以通过两种方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：打开 [We use TDK](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=we-use-tdk.yml) issue 表单，或在 pull request 中向表格添加一行。[What counts](../../../ADOPTERS.md#what-counts) 说明了应该链接什么，以及什么不算。
+在你自己的仓库中使用 TDK？你可以通过两种方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：打开 [We use TDK](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=we-use-tdk.yml) issue 表单，或在 pull request 中向表格添加一行。[What counts](../../../ADOPTERS.md#what-counts) 说明了应该链接什么，以及什么不算。
 
 ## 治理
 

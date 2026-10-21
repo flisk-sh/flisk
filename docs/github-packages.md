@@ -35,7 +35,7 @@ To add an already released npm version to GitHub Packages without creating anoth
 
 After the first GitHub Packages publication:
 
-1. Open the package under the repository's **Packages** tab and confirm it is connected to `tdk-landscape/tdk-cli-core`.
+1. Open the package under the repository's **Packages** tab and confirm it is connected to `flisk-sh/tdk-cli-core`.
 2. Check the package visibility. If it is restricted, change its visibility to public in the package settings so consumers can install it as intended.
 3. Verify the released version with `npm view @tdk-landscape/tdk-cli-core@<version> --registry=https://npm.pkg.github.com`.
 

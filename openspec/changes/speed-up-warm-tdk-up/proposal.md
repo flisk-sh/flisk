@@ -1,6 +1,6 @@
 ## Why
 
-A warm `tdk up` on `tdk-restaurant-example` takes about 2 minutes even when nothing changed ([#1023](https://github.com/tdk-landscape/tdk-cli-core/issues/1023)). Measured on TDK 1.3.144, Docker Desktop with 8 CPUs:
+A warm `tdk up` on `tdk-restaurant-example` takes about 2 minutes even when nothing changed ([#1023](https://github.com/flisk-sh/tdk-cli-core/issues/1023)). Measured on TDK 1.3.144, Docker Desktop with 8 CPUs:
 
 - `golden-layers-build` takes ~21s with every step cached, because it runs nine `docker build --target` commands one after another. Every service build waits for it.
 - Tilt builds at most 3 images at once by default, so the fourth backend and both frontends queue behind the first three.

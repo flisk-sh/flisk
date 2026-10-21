@@ -2,7 +2,7 @@
 
 ## Why
 
-`dependsOn: ["postgres"]` (or `["database-management"]`) is currently only a name. It does not start the shared platform database. Postgres starts only when the platform `database-management` feature is on. A manifest that lists either name is accepted by `tdk config verify` and `tdk doctor` and is then a no-op when that feature is off: `tdk up` starts the service and leaves Postgres off. Issue [#643](https://github.com/tdk-landscape/tdk-cli-core/issues/643) needs that dependency to be a start signal for the one shared platform Postgres.
+`dependsOn: ["postgres"]` (or `["database-management"]`) is currently only a name. It does not start the shared platform database. Postgres starts only when the platform `database-management` feature is on. A manifest that lists either name is accepted by `tdk config verify` and `tdk doctor` and is then a no-op when that feature is off: `tdk up` starts the service and leaves Postgres off. Issue [#643](https://github.com/flisk-sh/tdk-cli-core/issues/643) needs that dependency to be a start signal for the one shared platform Postgres.
 
 ## What Changes
 
@@ -20,7 +20,7 @@
 
 ## Non-goals
 
-- Prisma, migrators, and `featuresEnabled` as a product change. [#531](https://github.com/tdk-landscape/tdk-cli-core/issues/531) is "Prisma should require Postgres." Regression tests still assert that this change does **not** start Prisma when Prisma is not enabled.
+- Prisma, migrators, and `featuresEnabled` as a product change. [#531](https://github.com/flisk-sh/tdk-cli-core/issues/531) is "Prisma should require Postgres." Regression tests still assert that this change does **not** start Prisma when Prisma is not enabled.
 - A per-service database, a custom image, or a different port.
 - Changing what `tdk resource` scaffolds (`dependsOn: []` remains).
 

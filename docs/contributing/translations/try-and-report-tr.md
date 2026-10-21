@@ -4,14 +4,14 @@
 
 Kod yazmanıza veya cilalı bir hata raporu hazırlamanıza gerek yok. Bu sayfa TDK'yi nasıl kuracağınızı, bir örneği nasıl çalıştıracağınızı ve kısa bir formla neler olduğunu nasıl bildireceğinizi gösterir. Ham notlar da olabilir: gerçek sayılar içeren yarım bir rapor, hiç rapor olmamasından çok daha yardımcıdır.
 
-[Formu açın](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=try-it-and-report.yml). Üç kısa zorunlu sorusu vardır (ne denediğiniz, nasıl gittiği ve ne gördüğünüz); geri kalanı isteğe bağlıdır.
+[Formu açın](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml). Üç kısa zorunlu sorusu vardır (ne denediğiniz, nasıl gittiği ve ne gördüğünüz); geri kalanı isteğe bağlıdır.
 
 ## 1. Kurulum
 
 Docker'ın (Desktop, OrbStack veya Colima) çalışıyor olması ve Tilt 0.25.0 veya daha yeni bir sürümün kurulu olması gerekir. Ardından TDK CLI'ı kurun:
 
 ```bash
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh
+curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh
 tdk --version
 ```
 
@@ -20,7 +20,7 @@ tdk --version
 ## 2. Örneği alın
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core/examples/one-backend-python
 ```
 
@@ -46,7 +46,7 @@ Bir şey başarısız olursa `tdk status` ve `tdk doctor` çalıştırın ve yaz
 
 ## 4. İsteğe bağlı: eksik zamanlamalar
 
-Bu üç sayı, [issue 683](https://github.com/tdk-landscape/tdk-cli-core/issues/683) için beklediğimiz verilerdir. İstediğiniz kadarını yapın ve atladıklarınızı belirtin.
+Bu üç sayı, [issue 683](https://github.com/flisk-sh/tdk-cli-core/issues/683) için beklediğimiz verilerdir. İstediğiniz kadarını yapın ve atladıklarınızı belirtin.
 
 **İlk başlatma.** 3. adımdaki `time tdk up` sonucu.
 
@@ -84,7 +84,7 @@ Issue'daki Postgres kısmı önemliyse, Postgres başlarken API tarafından kayd
 
 ## 5. Formu doldurun
 
-[Formu](https://github.com/tdk-landscape/tdk-cli-core/issues/new?template=try-it-and-report.yml) açın ve cevapları kendi cümlelerinizle yazın. Faydalı bir raporun neye benzediğine dair iki örnek (sayılar uydurulmuş, sadece açıklama içindir):
+[Formu](https://github.com/flisk-sh/tdk-cli-core/issues/new?template=try-it-and-report.yml) açın ve cevapları kendi cümlelerinizle yazın. Faydalı bir raporun neye benzediğine dair iki örnek (sayılar uydurulmuş, sadece açıklama içindir):
 
 **İşe yaradı, sayılarla**
 

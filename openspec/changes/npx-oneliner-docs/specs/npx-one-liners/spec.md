@@ -42,7 +42,7 @@ Docs SHALL use these blocks, each prefixed `npx -y @tdk-landscape/tdk-cli-core`:
 - Single line: the three commands above chained with `&&`
 - Preview, no containers: `up shop --dry-run`
 - Frontend: `resource web --type frontend --stack shop --yes` and `resource web --type frontend --framework vue --stack shop --yes`
-- Keep-it options, placed after the npx block: `npm install -g @tdk-landscape/tdk-cli-core` and `curl -fsSL https://tdk-landscape.github.io/install.sh | sh`
+- Keep-it options, placed after the npx block: `npm install -g @tdk-landscape/tdk-cli-core` and `curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh`
 
 #### Scenario: Install options ordering
 - **WHEN** a doc lists install options

@@ -13,7 +13,7 @@ Every public first impression SHALL say that TDK CLI starts services on a develo
 Public pages SHALL address an engineer or tech lead who already runs several services and is tired of local Compose, Dockerfiles, and a week of setup. They SHALL NOT lead with a CTO calculator or target people who do not operate services.
 
 ### Requirement: Product naming
-Public titles, About fields, npm metadata, and social copy SHALL use `TDK CLI`; titles SHALL NOT use bare `TDK` or `Tilt Development Kit`. Organization identity SHALL retain `tdk-landscape` next to the product name. Repository names and `@tdk-landscape/tdk-cli-core` SHALL remain unchanged.
+Public titles, About fields, npm metadata, and social copy SHALL use `TDK CLI`; titles SHALL NOT use bare `TDK` or `Tilt Development Kit`. Organization identity SHALL retain `flisk-sh` next to the product name. Repository names and `@tdk-landscape/tdk-cli-core` SHALL remain unchanged.
 
 #### Scenario: npm package title
 - **WHEN** a reader opens `@tdk-landscape/tdk-cli-core`

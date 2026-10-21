@@ -13,7 +13,7 @@ Core is MIT ([FAQ](faq-teams.md#what-if-the-project-stops-being-maintained)), so
 
 ## What `tdk eject` really does
 
-Before [#610](https://github.com/tdk-landscape/tdk-cli-core/issues/610), `tdk eject --help` said "Take ownership of the generated Tilt and Docker files" and the command printed "Ejected. Tilt and Docker files are yours." and "Next: tilt up". Neither was true. Its output now says what happens. Run in a project with a backend, a frontend and a bring-your-own service (output shown is from the fixed CLI; the observations below were made on 1.3.86):
+Before [#610](https://github.com/flisk-sh/tdk-cli-core/issues/610), `tdk eject --help` said "Take ownership of the generated Tilt and Docker files" and the command printed "Ejected. Tilt and Docker files are yours." and "Next: tilt up". Neither was true. Its output now says what happens. Run in a project with a backend, a frontend and a bring-your-own service (output shown is from the fixed CLI; the observations below were made on 1.3.86):
 
 ```text
 $ tdk eject --yes

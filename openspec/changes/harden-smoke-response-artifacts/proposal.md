@@ -2,7 +2,7 @@
 
 Smoke response artifacts are useful for diagnosing regressions, but their current handling can expose secrets. `tdk up` writes response bodies beneath `.tdk/smoke/<service>/<step-slug>/`; those files are only guaranteed to be ignored when `tdk project` was used, and the text is kept exactly as the service returned it, without the secret redaction that `tdk logs` and `tdk doctor` already apply. The records survive `tdk down`, and the `smoke` suite in `.github/workflows/e2e-journeys.yml` publishes them as a 14-day artifact that anyone able to read the public repository's workflow run can download. The same raw text is printed in the failure line, so it also lands in public CI logs.
 
-This change addresses issue [tdk-cli-core#1771](https://github.com/tdk-landscape/tdk-cli-core/issues/1771) without removing the diagnostic value of smoke records.
+This change addresses issue [tdk-cli-core#1771](https://github.com/flisk-sh/tdk-cli-core/issues/1771) without removing the diagnostic value of smoke records.
 
 ## What Changes
 

@@ -8,7 +8,7 @@ Generated projects from `tdk project` and `tdk resource` shipped two blockers th
 - `cli/templates/Tiltfile.hbs`: resolve the TDK Tilt extension in order - vendored in-project copy (`.tdk/.tdk-out/tdk-cli-ext`) -> `$TDK_EXTENSION_PATH` -> fail fast with actionable instructions. Remove the hardcoded `/private/var/www/2025/ollamar1/tdk-cli` path and the private-repo fallback.
 - `cli/src/generator/template-engine.ts`: vendor the extension (engine/discovery/specs/ext) into `.tdk/.tdk-out/tdk-cli-ext/` during `generateMasterConfigs`, so `tdk up` works offline on any machine without GitHub access. Source is auto-detected via `$TDK_EXTENSION_SOURCE`, executable-adjacent checkout, or a `../tdk-cli` sibling.
 - `cli/templates/Tiltfile.hbs`: fix the local-directory probe to echo its result (`test -d <path> && echo yes || echo no`); the previous probe returned `""`, so the vendored extension was never detected and `tdk up` always failed at the new fail-fast gate.
-- Rebuild release binaries from the fixed source and republish to `tdk-landscape/tdk-cli-releases` (**BREAKING** for existing releases - new generated output shape).
+- Rebuild release binaries from the fixed source and republish to `flisk-sh/tdk-cli-releases` (**BREAKING** for existing releases - new generated output shape).
 
 ## Capabilities
 

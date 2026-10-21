@@ -37,4 +37,4 @@
 
 ## 需要帮助？
 
-请写明你尝试了什么、期望什么、实际发生了什么，然后[开一个 issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new/choose)。提问前不必先解决问题。
+请写明你尝试了什么、期望什么、实际发生了什么，然后[开一个 issue](https://github.com/flisk-sh/tdk-cli-core/issues/new/choose)。提问前不必先解决问题。

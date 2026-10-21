@@ -12,7 +12,7 @@ Want the short version? See the [10-row cheat sheet](../cli/README.md#cheat-shee
 ## 🚀 First five minutes
 
 ```bash
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh   # install
+curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh   # install
 tdk doctor                                                  # Docker, Tilt and Bun OK?
 tdk project --yes                                           # create the project
 tdk resource api --type backend --stack api --yes           # a Bun + Hono API
@@ -59,7 +59,7 @@ flowchart LR
 ## ⬆️ Install and update
 
 ```bash
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh
+curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh
 tdk upgrade                 # alias: tdk update
 tdk upgrade --dry-run       # show what would change
 tdk upgrade --force --yes   # reinstall even if already on latest, no prompt
@@ -537,4 +537,4 @@ tdk logs -s orders-api --since 5m --json
 tdk down --prune-networks
 ```
 
-More in [recipes](recipes/) and [CI](ci.md). Found a missing flag? [Open an issue](https://github.com/tdk-landscape/tdk-cli-core/issues/new). 🙌
+More in [recipes](recipes/) and [CI](ci.md). Found a missing flag? [Open an issue](https://github.com/flisk-sh/tdk-cli-core/issues/new). 🙌

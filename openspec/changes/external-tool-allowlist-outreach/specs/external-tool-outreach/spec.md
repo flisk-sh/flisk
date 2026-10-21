@@ -32,7 +32,7 @@ An issue SHALL be opened only in a public repository that already documents exte
 
 ### Requirement: Affiliation is disclosed
 
-Every issue and pull request SHALL state that the author maintains TDK CLI, link the canonical repo `tdk-landscape/tdk-cli-core`, and name the license (MIT for core).
+Every issue and pull request SHALL state that the author maintains TDK CLI, link the canonical repo `flisk-sh/tdk-cli-core`, and name the license (MIT for core).
 
 #### Scenario: Issue opened without disclosure
 - **WHEN** a draft does not identify the author as a TDK maintainer
@@ -44,7 +44,7 @@ The outreach packet SHALL include install options, checksum verification, runtim
 
 #### Scenario: Reviewer asks how to verify the binary
 - **WHEN** the packet is rendered
-- **THEN** it links the release assets and `checksums.txt` in `tdk-landscape/tdk-cli-releases` and the install script that checks those checksums
+- **THEN** it links the release assets and `checksums.txt` in `flisk-sh/tdk-cli-releases` and the install script that checks those checksums
 
 #### Scenario: Unsupported security claim
 - **WHEN** a draft says TDK CLI is certified or audited and no public report is linked

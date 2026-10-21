@@ -4,7 +4,7 @@ description: Diagnose and fix TDK (tdk-cli-core) local-dev problems with verifie
 license: MIT
 compatibility: Requires the tdk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-  author: tdk-landscape
+  author: flisk-sh
   version: "1.0"
 ---
 

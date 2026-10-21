@@ -8,7 +8,7 @@ Here is valid JSON; the explanations are outside the file so it remains parseabl
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json",
   "schemaVersion": 1,
   "appName": "api-backend",
   "appType": "backend",
@@ -112,11 +112,11 @@ For VS Code, associate both filenames with their schema in workspace settings. T
   "json.schemas": [
     {
       "fileMatch": ["/services/**/service.json"],
-      "url": "https://tdk-landscape.github.io/schema.service.json"
+      "url": "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json"
     },
     {
       "fileMatch": ["/.tdk/project.json"],
-      "url": "https://raw.githubusercontent.com/tdk-landscape/tdk-cli-core/main/engine/schemas/project-schema.json"
+      "url": "https://raw.githubusercontent.com/flisk-sh/tdk-cli-core/main/engine/schemas/project-schema.json"
     }
   ]
 }
@@ -167,7 +167,7 @@ See the [machine-readable CLI reference](reference/machine-readable-cli.md) for 
 
 ### The service schema and how it is published
 
-`engine/schemas/service-schema.json` is the source of truth; the copy at `https://tdk-landscape.github.io/schema.service.json` is a
+`engine/schemas/service-schema.json` is the source of truth; the copy at `https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json` is a
 deploy artifact for editors. It is only an editor hint. The CLI provider registries are the contract: the CLI rejects an unknown
 `framework` or `language` id before it writes a resource. So `framework` and `language` are open strings with an id pattern, their
 `examples` are a short hint rather than a list of every provider, and adding a provider never changes the schema.
@@ -176,5 +176,5 @@ deploy artifact for editors. It is only an editor hint. The CLI provider registr
   copy, because a PR that changes the schema could never match it before merge.
 - **After a change to the schema lands on `main`**, the *Publish service schema* workflow copies it to the Pages repository and then
   reports in its run summary whether the live copy matches. It needs a repository secret named `PAGES_SYNC_TOKEN` (a fine-grained
-  token with `contents: write` on `tdk-landscape/tdk-landscape.github.io`). Without it the copy is skipped with a warning and the live
+  token with `contents: write` on `flisk-sh/tdk-landscape.github.io`). Without it the copy is skipped with a warning and the live
   copy falls behind `main`; the summary says so.

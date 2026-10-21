@@ -8,7 +8,7 @@ Public pages and repository descriptions must consistently explain TDK CLI's job
 
 ## Goals
 
-- Name the product “TDK CLI” in titles, About fields, npm metadata, and social copy. Keep `tdk-landscape` next to the product name where the organization identity is shown.
+- Name the product “TDK CLI” in titles, About fields, npm metadata, and social copy. Keep `flisk-sh` next to the product name where the organization identity is shown.
 - Address one buyer: an engineer or tech lead already running several services and tired of local Compose, Dockerfiles, and a week of setup.
 - Explain the local-start boundary: one `service.json` per service, then `tdk up`; production stays on Helm, Argo CD, or Kustomize.
 - Keep performance claims paired with their hardware and fixture caveats.

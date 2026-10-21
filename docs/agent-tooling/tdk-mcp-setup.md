@@ -28,7 +28,7 @@ npm install -g @tdk-landscape/tdk-cli-core
 Or install the prebuilt binary, which needs no Node.js (macOS and Linux):
 
 ```bash
-curl -fsSL https://tdk-landscape.github.io/install.sh | sh
+curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh
 ```
 
 Check that both the CLI and the MCP server are there:

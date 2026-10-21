@@ -27,7 +27,7 @@ Vendor the extension into each generated project (`.tdk/.tdk-out/tdk-cli-ext/`) 
 In `cli/src/commands/resource.ts`, `getBackendIndexTemplate` emits `console.log('\n🚀 ...')`. The template is a JS template literal, so `\n` becomes a real newline in the emitted file. The source therefore uses `\\n` so generated files contain the two-character escape sequence and remain valid Bun source.
 
 ### D3. Fail fast instead of a private-repo fallback
-The Tiltfile resolution order is: vendored path -> `$TDK_EXTENSION_PATH` -> `fail(...)` with the three recovery options. This eliminates the infinite `git clone` retry against `github.com/tdk-landscape/tdk-cli` (private, 404 to unauthenticated clients).
+The Tiltfile resolution order is: vendored path -> `$TDK_EXTENSION_PATH` -> `fail(...)` with the three recovery options. This eliminates the infinite `git clone` retry against `github.com/flisk-sh/tdk-cli` (private, 404 to unauthenticated clients).
 
 ### D4. Truthful local probe
 The presence probe must produce output: `test -d <path> && echo yes || echo no`. A probe returning `""` (as the first iteration did) silently disables detection and routes every run to the fail-fast branch.

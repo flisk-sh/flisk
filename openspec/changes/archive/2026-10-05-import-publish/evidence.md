@@ -2,12 +2,12 @@
 
 ## Source and publication
 
-- Importer release PR: https://github.com/tdk-landscape/tdk-import/pull/11 (merged).
+- Importer release PR: https://github.com/flisk-sh/tdk-import/pull/11 (merged).
 - Tag: `v0.1.1`, commit `14480fb3425a3876b9cc8c6f07fdf430bfa10af8`.
 - Verified the commit descends from #9 (`b4502a0`) and #10 (`d335c0e`).
 - Build, typecheck, lint, and all 55 tests passed locally and in importer PR CI.
 - Lint reported only the existing configuration schema version informational notice.
-- Publish workflow: https://github.com/tdk-landscape/tdk-cli-core/actions/runs/37298395884
+- Publish workflow: https://github.com/flisk-sh/tdk-cli-core/actions/runs/37298395884
 - Inputs: `ref=v0.1.1`, `dry_run=false`.
 - First publish attempt returned npm E404. After updating the Actions credential, attempt 2 published successfully using the same tested artifact.
 - `npm view @tdk-landscape/tdk-import version` reports `0.1.1`.
@@ -37,7 +37,7 @@ Raw output and file snapshots are in `published-evidence.json`. Core `tdk up` wa
 ## Reproduce
 
 ```bash
-gh run download 37298395884 --repo tdk-landscape/tdk-cli-core --name tdk-import-tarball --dir /tmp/import-release-artifact
+gh run download 37298395884 --repo flisk-sh/tdk-cli-core --name tdk-import-tarball --dir /tmp/import-release-artifact
 node openspec/changes/archive/2026-10-05-import-publish/verify-published.mjs /tmp/import-release-artifact/tdk-landscape-tdk-import-0.1.1.tgz /tmp/import-published-evidence.json
 ```
 

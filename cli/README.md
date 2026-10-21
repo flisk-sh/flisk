@@ -145,7 +145,7 @@ must pass `--stack`. Without `--yes`, prompt answers can still be supplied on st
 - 💻 `src/` — Starter code (Hono, Express, Elysia, Fastify, NestJS, Koa or h3 for backend, React, Vue, Svelte, Preact, Lit, Solid, Qwik or plain TypeScript for frontend)
 - 🧪 `tests/` — Vitest test file
 
-`service.json` files point to the published [JSON Schema](https://tdk-landscape.github.io/schema.service.json) for editor autocomplete and validation. The schema source is [`engine/schemas/service-schema.json`](../engine/schemas/service-schema.json); it documents supported service fields and known `featuresEnabled` names. For the complete list of code generators controlled by `featuresEnabled`, see the [resource features guide](../docs/resource-features.md). Legacy manifests may use `type` in place of `appType`.
+`service.json` files point to the published [JSON Schema](https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json) for editor autocomplete and validation. The schema source is [`engine/schemas/service-schema.json`](../engine/schemas/service-schema.json); it documents supported service fields and known `featuresEnabled` names. For the complete list of code generators controlled by `featuresEnabled`, see the [resource features guide](../docs/resource-features.md). Legacy manifests may use `type` in place of `appType`.
 
 See the complete [`service.json` field reference](../docs/service-json.md) for field defaults, resource applicability, validation behavior, and backend/frontend examples.
 
@@ -459,7 +459,7 @@ tdk eject --help
 tdk import --help
 ```
 
-To bring an existing Compose repo in, `tdk import` runs [tdk-import](https://github.com/tdk-landscape/tdk-import) on the root `docker-compose.yml` (it needs `npx`). Flags `--dry-run`, `--yes` and `--force` go straight to it.
+To bring an existing Compose repo in, `tdk import` runs [tdk-import](https://github.com/flisk-sh/tdk-import) on the root `docker-compose.yml` (it needs `npx`). Flags `--dry-run`, `--yes` and `--force` go straight to it.
 
 ---
 
@@ -477,7 +477,7 @@ To bring an existing Compose repo in, `tdk import` runs [tdk-import](https://git
 
 ## 📝 License
 
-[MIT](../LICENSE) © [TDK Landscape](https://github.com/tdk-landscape)
+[MIT](../LICENSE) © [TDK Landscape](https://github.com/flisk-sh)
 
 ---
 

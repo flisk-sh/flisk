@@ -5,7 +5,7 @@ Each TDK resource is described by a `service.json` file in the resource director
 The [service schema](../engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `tdk config verify` applies the manifest and generated-output checks described below, while `tdk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
 
 ```text
-https://tdk-landscape.github.io/schema.service.json
+https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json
 ```
 
 ## Minimal examples
@@ -14,7 +14,7 @@ A backend resource needs a backend port. The usual backend range is `4000`–`59
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json",
   "schemaVersion": 1,
   "appName": "orders-backend",
   "appType": "backend",
@@ -29,7 +29,7 @@ A frontend normally uses a port in the `3000`–`3999` range. `framework` is opt
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json",
   "schemaVersion": 1,
   "appName": "orders-app",
   "appType": "frontend",
@@ -44,7 +44,7 @@ A worker is a background process that reads from NATS. The service schema requir
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json",
   "schemaVersion": 1,
   "appName": "email-worker",
   "appType": "worker",
@@ -169,7 +169,7 @@ Postgres has no manifest of its own. `postgres` (or `database-management`) in `d
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json",
   "schemaVersion": 1,
   "appName": "orders-api-migrator",
   "appType": "migrator",
@@ -183,7 +183,7 @@ Postgres has no manifest of its own. `postgres` (or `database-management`) in `d
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/schema.service.json",
+  "$schema": "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json",
   "schemaVersion": 1,
   "appName": "orders-api",
   "appType": "backend",

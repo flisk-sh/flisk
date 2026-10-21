@@ -8,9 +8,9 @@ TDK local orchestration registers a `postgres` Tilt resource only from the platf
 - `_build_infra_dependencies` in `engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star` appends `postgres` to every service's `resource_deps` only when `should_enable('database-management')` is true.
 - `_resolve_dependency_to_resource` maps a `dependsOn` short name through the services map, then a `-yaml` suffix, then stack/prefix matching, and finally returns `dep_name + '-yaml'` as a last resort. It has no special case for `postgres` or `database-management`.
 - Manifest validation and `tdk doctor` accept `postgres` / `database-management` in `dependsOn` without reporting a missing service (the name is treated as known even when no Postgres resource exists). They do **not** report that Postgres will start because of that dependency.
-- `tdk resource` still writes `"dependsOn": []` except when Prisma is enabled (which writes `["postgres"]`). That scaffold path is issue [#531](https://github.com/tdk-landscape/tdk-cli-core/issues/531) and is out of scope here.
+- `tdk resource` still writes `"dependsOn": []` except when Prisma is enabled (which writes `["postgres"]`). That scaffold path is issue [#531](https://github.com/flisk-sh/tdk-cli-core/issues/531) and is out of scope here.
 
-Issue [#533](https://github.com/tdk-landscape/tdk-cli-core/pull/533) was closed without merging. Its proposed resolution (map both names to the Tilt `postgres` resource, drop the entry when the resource does not exist, Prisma scaffolding, doctor availability checks) is **not** on `main`. This spec must not cite #533 as shipped behavior. The source for the current path is [#531](https://github.com/tdk-landscape/tdk-cli-core/issues/531).
+Issue [#533](https://github.com/flisk-sh/tdk-cli-core/pull/533) was closed without merging. Its proposed resolution (map both names to the Tilt `postgres` resource, drop the entry when the resource does not exist, Prisma scaffolding, doctor availability checks) is **not** on `main`. This spec must not cite #533 as shipped behavior. The source for the current path is [#531](https://github.com/flisk-sh/tdk-cli-core/issues/531).
 
 Problem on main: with `database-management` off, a manifest such as
 

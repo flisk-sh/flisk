@@ -9,7 +9,7 @@ Each service has one `service.json`; `tdk up` starts the local stack. No Kuberne
 ## Naming
 
 - Write `TDK CLI` in titles, About fields, npm metadata, and social copy.
-- Keep `tdk-landscape` alongside the product name in organization identity.
+- Keep `flisk-sh` alongside the product name in organization identity.
 - Do not write `Tilt Development Kit` or use bare `TDK` as the product name in titles.
 - Preserve repository names and `@tdk-landscape/tdk-cli-core`.
 - npm description/title: `TDK CLI — start services on your machine.`
@@ -31,7 +31,7 @@ The free MIT CLI is the product. Premium costs $19 per developer per month for e
 
 ## Repository About copy
 
-Use the exact lines from the supplied organization spec for `tdk-landscape`, `tdk-cli-core`, `tdk-website`, `tdk-landscape.github.io`, `tdk-example`, `tdk-erp-system`, `tdk-saas-starter`, `tdk-restaurant-example`, `tdk-user-management`, `tdk-auth-queue-email-example`, `tdk-ecommerce-example`, `tdk-docker-compose-example`, `tdk-cli-releases`, `tdk-labs`, `tdk-demo-animation`, `create-tdk-stack`, `awesome-tdk-framework`, `tdk-skills`, and `tdk-discovery`. The archived `tdk-discovery` About field cannot be changed while the repository is archived.
+Use the exact lines from the supplied organization spec for `flisk-sh`, `tdk-cli-core`, `tdk-website`, `tdk-landscape.github.io`, `tdk-example`, `tdk-erp-system`, `tdk-saas-starter`, `tdk-restaurant-example`, `tdk-user-management`, `tdk-auth-queue-email-example`, `tdk-ecommerce-example`, `tdk-docker-compose-example`, `tdk-cli-releases`, `tdk-labs`, `tdk-demo-animation`, `create-tdk-stack`, `awesome-tdk-framework`, `tdk-skills`, and `tdk-discovery`. The archived `tdk-discovery` About field cannot be changed while the repository is archived.
 
 ## Scope replies
 

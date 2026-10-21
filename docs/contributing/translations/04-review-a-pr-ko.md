@@ -65,7 +65,7 @@ AI 버튼은 AI 어시스턴트와의 채팅을 엽니다. 그 어시스턴트�
 각 버튼은 단순한 링크입니다. AI 웹사이트를 새 탭에서 열고, 이 메시지가 미리 입력되어 있습니다.
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/tdk-landscape/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
 ```
 
 | 버튼 | 여는 곳 |

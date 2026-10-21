@@ -2,7 +2,7 @@
 
 > TDK is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
 
-See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt).
+See also the product site [llms.txt](https://flisk.sh/llms.txt).
 
 ## Core Concepts & Capabilities
 
@@ -50,12 +50,12 @@ See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website
 - [MCP Resources](../mcp.md): Scaffolding Model Context Protocol servers.
 - [Set up the TDK MCP server](../agent-tooling/tdk-mcp-setup.md): Installing TDK and connecting Codex, Claude Code, Claude Desktop, or Cursor to the local stdio server.
 - [Mega Cheat Sheet](../cheat-sheet.md): Comprehensive reference of all commands and options.
-- [Website llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt): Product-level index of the site, docs, examples, and skills.
+- [Website llms.txt](https://flisk.sh/llms.txt): Product-level index of the site, docs, examples, and skills.
 
 ## Agent Skills
 
-Portable Agent Skills for driving the CLI live in [tdk-skills](https://github.com/tdk-landscape/tdk-skills). Install with `npx skills add tdk-landscape/tdk-skills`.
+Portable Agent Skills for driving the CLI live in [tdk-skills](https://github.com/flisk-sh/tdk-skills). Install with `npx skills add flisk-sh/tdk-skills`.
 
-Full index: [tdk-skills llms.txt](https://raw.githubusercontent.com/tdk-landscape/tdk-skills/main/llms.txt).
+Full index: [tdk-skills llms.txt](https://raw.githubusercontent.com/flisk-sh/tdk-skills/main/llms.txt).
 
 Key skills: tdk-doctor, tdk-troubleshoot, layer-autoresearch, tdk-scaffold, tdk-agents, tdk-benchmark, tdk-ports, tdk-generated-files, tdk-data, and more (see the index for the complete list of 20+ skills).

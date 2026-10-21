@@ -42,7 +42,7 @@ The TDK ecosystem already has an organization profile and multiple public reposi
 ## Migration Plan
 
 1. Assemble and verify the initial link inventory from the existing organization profile, TDK repositories, docs, public gists, and other known ecosystem resources.
-2. Create the public `tdk-landscape/awesome-tdk-framework` repository with root `README.md` and `CONTRIBUTING.md`; publish the curated taxonomy and link the README to the guide.
+2. Create the public `flisk-sh/awesome-tdk-framework` repository with root `README.md` and `CONTRIBUTING.md`; publish the curated taxonomy and link the README to the guide.
 3. Add a prominent catalog link to the existing TDK organization profile README and check the link in the rendered profile.
 4. Confirm the final tracked file list is exactly `README.md` and `CONTRIBUTING.md`, and confirm both render from the public repository.
 
@@ -50,4 +50,4 @@ Rollback is limited to reverting the profile link or removing/renaming the new r
 
 ## Open Questions
 
-- None blocking. Use the organization namespace `tdk-landscape` based on the existing public profile and repositories. The repository's public visibility and repository-level license/feature settings should be chosen during repository creation.
+- None blocking. Use the organization namespace `flisk-sh` based on the existing public profile and repositories. The repository's public visibility and repository-level license/feature settings should be chosen during repository creation.

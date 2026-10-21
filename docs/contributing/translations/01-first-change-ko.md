@@ -8,14 +8,14 @@
 
 ## 가장 빠른 방법: Dev Container / Codespaces
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tdk-landscape/tdk-cli-core?quickstart=1)
-[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-blue?logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-908a00?logo=gitpod)](https://gitpod.io/#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-4285F4?logo=firebase)](https://idx.google.com/import?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-F26207?logo=replit)](https://replit.com/github/tdk-landscape/tdk-cli-core)
-[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-1C1C1C?logo=devpod)](https://devpod.sh/open#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-1269D3?logo=stackblitz)](https://stackblitz.com/github/tdk-landscape/tdk-cli-core)
-[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-151515?logo=codesandbox)](https://codesandbox.io/p/github/tdk-landscape/tdk-cli-core)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/flisk-sh/tdk-cli-core?quickstart=1)
+[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-blue?logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-908a00?logo=gitpod)](https://gitpod.io/#https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-4285F4?logo=firebase)](https://idx.google.com/import?url=https://github.com/flisk-sh/tdk-cli-core)
+[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-F26207?logo=replit)](https://replit.com/github/flisk-sh/tdk-cli-core)
+[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-1C1C1C?logo=devpod)](https://devpod.sh/open#https://github.com/flisk-sh/tdk-cli-core)
+[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-1269D3?logo=stackblitz)](https://stackblitz.com/github/flisk-sh/tdk-cli-core)
+[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-151515?logo=codesandbox)](https://codesandbox.io/p/github/flisk-sh/tdk-cli-core)
 
 또는 저장소를 클론한 뒤 VS Code에서 **Dev Containers: Reopen in Container**를 실행하세요.
 
@@ -41,7 +41,7 @@ Docker와 Tilt는 선택 사항이며 기본 컨테이너에 포함되지 않습
 터미널을 열고 다음을 실행하세요.
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
+git clone https://github.com/flisk-sh/tdk-cli-core.git
 cd tdk-cli-core
 bun install
 git switch -c my-change
@@ -51,7 +51,7 @@ git switch -c my-change
 
 ## 변경 하나 찾기
 
-1. [good first issue](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue) 또는 [help wanted issue](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted)를 여세요.
+1. [good first issue](https://github.com/flisk-sh/tdk-cli-core/labels/good%20first%20issue) 또는 [help wanted issue](https://github.com/flisk-sh/tdk-cli-core/labels/help%20wanted)를 여세요.
 2. issue를 읽고 이미 누군가 작업 중인지 확인하세요.
 3. `I'll take this`(또는 `I would like this one`)라고 댓글을 다세요. 봇이 담당자로 지정하고 `claimed` 라벨을 붙입니다. issue가 없다면 큰 기능을 시작하기 전에 변경 내용을 설명하는 issue를 여세요.
 4. [기능 레시피](02-feature-recipes-ko.md)를 사용해 수정할 가능성이 있는 파일과 검사를 찾으세요.

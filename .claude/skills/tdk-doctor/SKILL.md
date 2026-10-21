@@ -4,7 +4,7 @@ description: Check or repair the local TDK development environment and project c
 license: MIT
 compatibility: Requires the tdk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-  author: tdk-landscape
+  author: flisk-sh
   version: "1.0"
 ---
 

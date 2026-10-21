@@ -6,7 +6,7 @@
 
 ## 2. Create the minimal public catalog
 
-- [x] 2.1 Create the public `tdk-landscape/awesome-tdk-framework` repository with root `README.md` and `CONTRIBUTING.md` as its only tracked files.
+- [x] 2.1 Create the public `flisk-sh/awesome-tdk-framework` repository with root `README.md` and `CONTRIBUTING.md` as its only tracked files.
 - [x] 2.2 Write the README introduction, linked table of contents, and populated task-oriented categories for all verified resources, including official projects, getting started and documentation, articles, examples, starters, integrations, operations, observability, security, and related tools; omit empty categories such as gists or videos when no relevant public resources are available.
 - [x] 2.3 Add a concise contribution pointer to the README and place inclusion criteria, entry format, provenance labels, and issue/PR submission directions in `CONTRIBUTING.md`.
 - [x] 2.4 Review the rendered README for working anchors, consistent formatting, clear descriptions, no empty sections, and reasonable scanability.

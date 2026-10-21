@@ -15,6 +15,6 @@ The server exposes nine tools: `doctor`, `up`, `down`, `status`, `logs`, `resour
 
 ## Reporting problems found while using the TDK MCP
 
-TDK is open source. When an agent or a person using `tdk mcp` hits a framework problem, open an issue in [tdk-landscape/tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core/issues) with the tdk version, a minimal reproduction, and the expected behavior. If you have a fix, open a pull request against the same repository.
+TDK is open source. When an agent or a person using `tdk mcp` hits a framework problem, open an issue in [flisk-sh/tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core/issues) with the tdk version, a minimal reproduction, and the expected behavior. If you have a fix, open a pull request against the same repository.
 
-Example: [#1204](https://github.com/tdk-landscape/tdk-cli-core/issues/1204) reports that `tdk project` output under `.tdk/.tdk-out` is picked up by Vitest in Node and TypeScript projects.
+Example: [#1204](https://github.com/flisk-sh/tdk-cli-core/issues/1204) reports that `tdk project` output under `.tdk/.tdk-out` is picked up by Vitest in Node and TypeScript projects.

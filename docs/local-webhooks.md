@@ -1,6 +1,6 @@
 # Testing webhooks locally when the real provider is unavailable
 
-Payment, email and identity providers call your service, and sooner or later you need to reproduce a delivery that went wrong without a provider account, a tunnel or the provider's cooperation. This page is a **proposed recipe**, not a TDK feature: TDK has no webhook replay command, and nothing here was run against a real provider. It came out of [discussion #373](https://github.com/orgs/tdk-landscape/discussions/373), where [@ECD5A](https://github.com/ECD5A) described the approach. Stripe is used below only as an example of documented provider behaviour; signature formats and retry rules are provider-specific, so check your provider's documentation.
+Payment, email and identity providers call your service, and sooner or later you need to reproduce a delivery that went wrong without a provider account, a tunnel or the provider's cooperation. This page is a **proposed recipe**, not a TDK feature: TDK has no webhook replay command, and nothing here was run against a real provider. It came out of [discussion #373](https://github.com/orgs/flisk-sh/discussions/373), where [@ECD5A](https://github.com/ECD5A) described the approach. Stripe is used below only as an example of documented provider behaviour; signature formats and retry rules are provider-specific, so check your provider's documentation.
 
 TDK's part is small: `tdk up` gives you the backend, the database and the route to send requests to (see [Smoke check](smoke.md) for the URL it prints). The rest is a script you keep in your repository.
 
@@ -87,7 +87,7 @@ Start with a plain script in your repository. A thin `tdk` wrapper might help la
 
 ## Harness choices
 
-From [@ECD5A's follow-up](https://github.com/orgs/tdk-landscape/discussions/373#discussioncomment-18819440) in the discussion:
+From [@ECD5A's follow-up](https://github.com/orgs/flisk-sh/discussions/373#discussioncomment-18819440) in the discussion:
 
 - **Fixtures as raw bytes.** Keep sanitized payloads on disk as bytes, with scenario metadata in a separate file. Read the bytes, sign those exact bytes and send the same buffer. For a generated variant, render it once, then sign and send that result; do not serialize it again in the HTTP client. A retry keeps the event body and ID, with a new delivery signature if your provider does that.
 - **The clock.** Inject `now()` at the handler or verifier boundary, with real time as the default. If the provider's SDK owns the time check, use its clock option if it has one; otherwise make fresh and expired signed timestamps against the real clock. Do not freeze the whole process or switch off timestamp validation.

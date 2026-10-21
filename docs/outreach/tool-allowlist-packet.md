@@ -4,7 +4,7 @@ For maintainers of public projects that publish a tool catalog, recommended-CLI 
 
 ## Identity
 
-- Project: TDK CLI, canonical repo [`tdk-landscape/tdk-cli-core`](https://github.com/tdk-landscape/tdk-cli-core)
+- Project: TDK CLI, canonical repo [`flisk-sh/tdk-cli-core`](https://github.com/flisk-sh/tdk-cli-core)
 - npm package: `@tdk-landscape/tdk-cli-core` (not the unrelated Turkish-dictionary `tdk-cli` on PyPI)
 - License: MIT for core (see `LICENSE`). Premium extras use a separate key; `tdk up` needs no key.
 - Sender: always a TDK maintainer, stated as such in every issue or PR.
@@ -23,13 +23,13 @@ Local development orchestration: `tdk up` reads `service.json` files, writes the
 | Method | Command | Needs |
 | --- | --- | --- |
 | npm | `npm install -g @tdk-landscape/tdk-cli-core` | Node.js 22.12+ |
-| Prebuilt binary | `curl -fsSL https://tdk-landscape.github.io/install.sh \| sh` | no Node or Bun |
+| Prebuilt binary | `curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh \| sh` | no Node or Bun |
 
 The legacy `install.sh` in this repo only hands off to the official installer.
 
 ## Verifying the binary
 
-Release assets and `checksums.txt` are published in [`tdk-landscape/tdk-cli-releases`](https://github.com/tdk-landscape/tdk-cli-releases/releases). The official installer downloads `checksums.txt`, computes SHA-256 of the binary and engine tarball, and aborts on mismatch (`tdk-landscape.github.io/install.sh`, functions `sha256_of` and the verify step). Caveat: older releases list only binaries in `checksums.txt`, so the engine is skipped there and the installer prints a note.
+Release assets and `checksums.txt` are published in [`flisk-sh/tdk-cli-releases`](https://github.com/flisk-sh/tdk-cli-releases/releases). The official installer downloads `checksums.txt`, computes SHA-256 of the binary and engine tarball, and aborts on mismatch (`flisk-sh.github.io/tdk-landscape.github.io/install.sh`, functions `sha256_of` and the verify step). Caveat: older releases list only binaries in `checksums.txt`, so the engine is skipped there and the installer prints a note.
 
 To check by hand: download the asset and `checksums.txt` from the same release and compare `sha256sum <asset>` against the matching line.
 

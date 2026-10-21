@@ -60,12 +60,12 @@ When someone opens, reopens, or edits a PR, the [AI review buttons workflow](../
 > **Review this PR in**
 > \[Grok\] \[Claude\] \[Codex\]
 >
-> Shared by [@tdk-landscape](https://github.com/tdk-landscape) · [tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core) · If this helps, please ⭐ [star tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core)
+> Shared by [@flisk-sh](https://github.com/flisk-sh) · [tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core) · If this helps, please ⭐ [star tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core)
 
 Each button is a plain link. It opens the AI's website in a new tab with this message already typed:
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/tdk-landscape/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/tdk-cli-core/pull/123.
 ```
 
 | Button | Opens |

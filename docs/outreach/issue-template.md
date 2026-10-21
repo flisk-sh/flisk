@@ -3,7 +3,7 @@
 Title: `Evaluate TDK CLI for <list name>?`
 
 ```markdown
-**Disclosure:** I maintain TDK CLI ([tdk-landscape/tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core), MIT).
+**Disclosure:** I maintain TDK CLI ([flisk-sh/tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core), MIT).
 
 ## What it does
 TDK CLI runs a set of local services as Docker containers through Tilt, driven by `service.json` files (`tdk up`). It is local development orchestration, not a production deploy tool.
@@ -14,7 +14,7 @@ Your <list name> (`<list_path>`) lists <quote the line or category that fits>.
 ## How to verify
 - License: MIT
 - Install: `npm install -g @tdk-landscape/tdk-cli-core` or the prebuilt binary installer
-- Checksums: `checksums.txt` is published with each release in tdk-landscape/tdk-cli-releases; the installer verifies SHA-256
+- Checksums: `checksums.txt` is published with each release in flisk-sh/tdk-cli-releases; the installer verifies SHA-256
 - Needs Docker and Tilt; macOS, Linux, Windows via WSL2
 - No audit or certification exists
 

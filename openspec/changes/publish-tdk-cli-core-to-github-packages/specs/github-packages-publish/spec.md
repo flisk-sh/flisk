@@ -12,7 +12,7 @@ For each released version, the release process SHALL publish the same package ar
 #### Scenario: Successful dual publication
 - **WHEN** a release version is published successfully
 - **THEN** that version is available from both the public npm registry and `https://npm.pkg.github.com`
-- **AND** the package metadata links the GitHub Packages package to `tdk-landscape/tdk-cli-core`
+- **AND** the package metadata links the GitHub Packages package to `flisk-sh/tdk-cli-core`
 
 ### Requirement: Authenticate repository-owned publication
 The repository release workflow SHALL authenticate GitHub Packages publication using a repository-owned GitHub Actions token with package write permission, without requiring a manually pasted personal token for that repository.

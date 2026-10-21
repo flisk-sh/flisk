@@ -4,7 +4,7 @@ description: Autonomous keep/discard experiment loop (after karpathy/autoresearc
 license: MIT
 compatibility: Contributor skill. Requires a tdk-cli-core checkout, Docker and git. Does not deploy.
 metadata:
-  author: tdk-landscape
+  author: flisk-sh
   version: "1.0"
 ---
 

@@ -22,7 +22,7 @@ Three existing commands are not the same operation:
 - Ship the boundary tests first. Do not block them on runtime work from issue #661.
 - Drift is fixed only by `tdk config regenerate`. Schema lag is fixed only by `tdk config migrate`. Bringing an existing repo in is only `tdk import`.
 - Regenerate `--dry-run` writes nothing. Migrate writes `service.json` only when the schema version is missing and the file validates. An unsupported `schemaVersion` fails with no write.
-- Import stays a pass-through to `github:tdk-landscape/tdk-import`. Exit code passes through. npx failure stays exit 127.
+- Import stays a pass-through to `github:flisk-sh/tdk-import`. Exit code passes through. npx failure stays exit 127.
 - Later changes may pick up idempotent `tdk up` and status/UI agreement. They are not tasks here.
 
 ## Risks / Trade-offs

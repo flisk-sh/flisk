@@ -4,7 +4,7 @@
 
 GitHub's dependency graph can surface public repositories that declare an ecosystem package dependency through supported manifests and lockfiles. This change concerns the published npm package `@tdk-landscape/tdk-cli-core` and a portfolio of separately maintained examples and starters. Merely installing a global CLI does not communicate a package dependency from a repository.
 
-The package metadata in the current CLI repository already points to `git+https://github.com/tdk-landscape/tdk-cli-core.git`; this should be verified against the published package and retained as a release requirement. GitHub's exact display behavior and refresh timing are external to the repository and should be observed after merges.
+The package metadata in the current CLI repository already points to `git+https://github.com/flisk-sh/tdk-cli-core.git`; this should be verified against the published package and retained as a release requirement. GitHub's exact display behavior and refresh timing are external to the repository and should be observed after merges.
 
 ## Goals / Non-goals
 
@@ -62,7 +62,7 @@ The package metadata in the current CLI repository already points to `git+https:
 
 ## Audit snapshot (20 October 2026)
 
-The `tdk-landscape` organization repository listing and each candidate's default-branch tree, root package metadata, and README were checked on this date. All 14 primary candidates were public and active in the organization listing. This is a repository-level audit: nested application `package.json` files are counted as application manifests, not evidence that the repository installs the CLI package. “Uses TDK” below means the README documents TDK CLI commands or setup; it does not by itself prove that the published npm package is installed as a project dependency.
+The `flisk-sh` organization repository listing and each candidate's default-branch tree, root package metadata, and README were checked on this date. All 14 primary candidates were public and active in the organization listing. This is a repository-level audit: nested application `package.json` files are counted as application manifests, not evidence that the repository installs the CLI package. “Uses TDK” below means the README documents TDK CLI commands or setup; it does not by itself prove that the published npm package is installed as a project dependency.
 
 | Repository | Root manifest and lockfile | Observed CLI usage | Initial disposition |
 |---|---|---|---|
@@ -93,4 +93,4 @@ Secondary repositories were also checked for direct package declarations and doc
 - `tdk-app` uses the installed `tdk` CLI and documents a global package install path for its own app, but does not declare `@tdk-landscape/tdk-cli-core` in its manifest.
 - Additional public organization repositories `tdk-labs`, `platform`, and `tdk-cli-extensions` were not identified as example/starter repos in this first-wave audit; assess them only if their maintained workflows directly install or invoke the published core package.
 
-This audit verifies current manifests and documented setup, not whether every workflow is run by maintainers. The candidates with no local declaration may be valid future dev-dependency targets if their maintainers choose a project-local installation/command workflow and update their documentation/scripts in the same repository PR. Do not add a declaration by itself to repositories that continue to use only a global or binary CLI. The tracking issue with the inventory and supplied baseline is [#1716](https://github.com/tdk-landscape/tdk-cli-core/issues/1716).
+This audit verifies current manifests and documented setup, not whether every workflow is run by maintainers. The candidates with no local declaration may be valid future dev-dependency targets if their maintainers choose a project-local installation/command workflow and update their documentation/scripts in the same repository PR. Do not add a declaration by itself to repositories that continue to use only a global or binary CLI. The tracking issue with the inventory and supplied baseline is [#1716](https://github.com/flisk-sh/tdk-cli-core/issues/1716).

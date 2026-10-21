@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Minimal public catalog repository
-The TDK resource landscape SHALL be published in a public GitHub repository named `tdk-landscape/awesome-tdk-framework`. Its only tracked files SHALL be the root-level `README.md` catalog and `CONTRIBUTING.md` guide.
+The TDK resource landscape SHALL be published in a public GitHub repository named `flisk-sh/awesome-tdk-framework`. Its only tracked files SHALL be the root-level `README.md` catalog and `CONTRIBUTING.md` guide.
 
 #### Scenario: Repository contents are constrained
 - **WHEN** the initial catalog repository is published

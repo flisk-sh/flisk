@@ -2,14 +2,14 @@
 
 TDK CLI Core is an open-source (MIT) CLI tool that turns clean service manifests (`service.json`) into fully orchestrated local Docker + Tilt development environments with zero Kubernetes on the host.
 
-See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt).
+See also the product site [llms.txt](https://flisk.sh/llms.txt).
 
 ## Quick Reference
 
-- **Repository**: https://github.com/tdk-landscape/tdk-cli-core
-- **Website**: https://tdk-landscape.github.io/tdk-website/
+- **Repository**: https://github.com/flisk-sh/tdk-cli-core
+- **Website**: https://flisk.sh/
 - **CLI Binary**: `tdk` (npm: `@tdk-landscape/tdk-cli-core`)
-- **Website llms.txt**: https://tdk-landscape.github.io/tdk-website/llms.txt
+- **Website llms.txt**: https://flisk.sh/llms.txt
 
 ---
 

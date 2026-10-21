@@ -20,7 +20,7 @@ TDK resources are spread across organization repositories, documentation, exampl
 
 ## Impact
 
-- New public GitHub repository: `tdk-landscape/awesome-tdk-framework`.
-- Existing organization profile README in `tdk-landscape-github` gains a prominent link to the catalog.
+- New public GitHub repository: `flisk-sh/awesome-tdk-framework`.
+- Existing organization profile README in `flisk-sh/.github` gains a prominent link to the catalog.
 - Initial content draws from existing TDK repositories and public resources; external links must be checked and described accurately during implementation.
 - No runtime code, APIs, or package dependencies are introduced.

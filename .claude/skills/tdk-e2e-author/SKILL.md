@@ -4,7 +4,7 @@ description: Guides an AI assistant through adding or changing an end-to-end tes
 license: MIT
 compatibility: Requires the tdk CLI, Docker, Tilt, Node 22+, jq and curl to run suites. Writing and validating them needs only the checkout.
 metadata:
-  author: tdk-landscape
+  author: flisk-sh
   version: "1.0"
 ---
 

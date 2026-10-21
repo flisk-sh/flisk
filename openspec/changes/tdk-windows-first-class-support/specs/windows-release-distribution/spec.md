@@ -27,7 +27,7 @@ The website repository SHALL provide `install.ps1` for native Windows AMD64. It 
 - **THEN** the installer extracts to a temporary directory and moves the inner files into `tdk-cli` without an extra nested folder
 
 ### Requirement: Windows installation documentation
-Installation instructions SHALL document both `irm https://tdk-landscape.github.io/install.ps1 | iex` and the safe two-step PowerShell download/run flow, plus manual Windows download/extraction commands. Platform wording SHALL consistently state `Supported platforms: macOS, Linux, and Windows 10/11 (AMD64). Windows uses Docker Desktop Linux containers. WSL2 Ubuntu works as Linux.` All locations that currently call Windows untested and are named in the change plan SHALL be updated. The Windows problems page SHALL cover only Docker Desktop stopped/Windows containers, ports or Hyper-V exclusions, `*.localhost` DNS, and project-drive file sharing.
+Installation instructions SHALL document both `irm https://flisk-sh.github.io/tdk-landscape.github.io/install.ps1 | iex` and the safe two-step PowerShell download/run flow, plus manual Windows download/extraction commands. Platform wording SHALL consistently state `Supported platforms: macOS, Linux, and Windows 10/11 (AMD64). Windows uses Docker Desktop Linux containers. WSL2 Ubuntu works as Linux.` All locations that currently call Windows untested and are named in the change plan SHALL be updated. The Windows problems page SHALL cover only Docker Desktop stopped/Windows containers, ports or Hyper-V exclusions, `*.localhost` DNS, and project-drive file sharing.
 
 #### Scenario: PowerShell install instructions
 - **WHEN** a user follows the Windows quickstart
