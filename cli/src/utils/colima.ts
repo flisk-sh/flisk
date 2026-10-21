@@ -150,8 +150,15 @@ export function planColimaRepair(
   dockerAnswers: boolean,
 ): ColimaRepair | undefined {
   if (!status.isColima) return undefined;
+  // A Lima that is an x86_64 build on Apple Silicon, or a colima CLI that cannot see the VM because of it,
+  // needs a native limactl before anything else can start.
+  if (
+    status.problem &&
+    /x86_64|rosetta|native arch|cannot see it/i.test(status.problem)
+  ) {
+    return "native-lima";
+  }
   if (!status.running) return "start";
-  if (status.problem?.includes("cannot see it")) return "native-lima";
   if (!dockerAnswers) return "restart";
   return undefined;
 }
