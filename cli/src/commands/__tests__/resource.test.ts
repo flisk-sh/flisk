@@ -87,7 +87,7 @@ describe("resource command", () => {
       expect(serviceJson).toHaveProperty("dependsOn");
       expect(serviceJson).toHaveProperty("build");
       expect(serviceJson).toHaveProperty("dev");
-      expect(serviceJson.$schema).toBe("https://tdk-landscape.github.io/schema.service.json");
+      expect(serviceJson.$schema).toBe("https://flisk.sh/schema.service.json");
     });
 
     it("adds the Prisma feature to the service manifest when requested", () => {

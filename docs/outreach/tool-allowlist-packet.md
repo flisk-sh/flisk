@@ -29,7 +29,7 @@ The legacy `install.sh` in this repo only hands off to the official installer.
 
 ## Verifying the binary
 
-Release assets and `checksums.txt` are published in [`flisk-sh/tdk-cli-releases`](https://github.com/flisk-sh/tdk-cli-releases/releases). The official installer downloads `checksums.txt`, computes SHA-256 of the binary and engine tarball, and aborts on mismatch (`tdk-landscape.github.io/install.sh`, functions `sha256_of` and the verify step). Caveat: older releases list only binaries in `checksums.txt`, so the engine is skipped there and the installer prints a note.
+Release assets and `checksums.txt` are published in [`flisk-sh/tdk-cli-releases`](https://github.com/flisk-sh/tdk-cli-releases/releases). The official installer downloads `checksums.txt`, computes SHA-256 of the binary and engine tarball, and aborts on mismatch (`flisk.sh/install.sh`, functions `sha256_of` and the verify step). Caveat: older releases list only binaries in `checksums.txt`, so the engine is skipped there and the installer prints a note.
 
 To check by hand: download the asset and `checksums.txt` from the same release and compare `sha256sum <asset>` against the matching line.
 

@@ -458,8 +458,8 @@ export async function upgradeViaNpm(): Promise<boolean> {
       console.log(
         chalk.cyan(
           isWindows()
-            ? "   irm https://tdk-landscape.github.io/install.ps1 | iex"
-            : "   curl -fsSL https://tdk-landscape.github.io/install.sh | sh",
+            ? "   irm https://flisk.sh/install.ps1 | iex"
+            : "   curl -fsSL https://flisk.sh/install.sh | sh",
         ),
       );
     }
@@ -895,7 +895,7 @@ export function createUpgradeCommand(): Command {
         } else if (installInfo.method === "binary" && binaryRelease && installInfo.path) {
           const engineDir = join(dirname(installInfo.path), "tdk-cli");
           if (isWindows()) {
-            console.log(chalk.cyan("   irm https://tdk-landscape.github.io/install.ps1 | iex"));
+            console.log(chalk.cyan("   irm https://flisk.sh/install.ps1 | iex"));
           } else {
             console.log(
               chalk.cyan(`   curl -fsSL -o ${installInfo.path} ${binaryRelease.downloadUrl}`),

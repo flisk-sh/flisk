@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { validateSmoke } from "./smoke.js";
 export const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
-export const SERVICE_MANIFEST_SCHEMA_URL = "https://tdk-landscape.github.io/schema.service.json";
+export const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 /**
  * Fields that are still read, or still tolerated, but should not be used. The warning says what replaces each one. `jwtSecret` is
  * ignored outright: a secret must not be committed (see docs/environment.md).

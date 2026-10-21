@@ -36,7 +36,7 @@ English | [简体中文](docs/README-zh_cn.md) | [繁體中文](docs/README-zh_t
 
 <br />
 
-[Website](https://tdk-landscape.github.io/tdk-website/) · [Quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) · [Examples](https://tdk-landscape.github.io/tdk-website/docs/examples/) · [Awesome Flisk](https://github.com/tdk-landscape/awesome-tdk-framework) · [Demo](https://tdk-landscape.github.io/tdk-demo-animation/) · [Report a bug](https://github.com/flisk-sh/flisk/issues)
+[Website](https://flisk.sh/) · [Quickstart](https://flisk.sh/docs/quickstart/) · [Examples](https://flisk.sh/docs/examples/) · [Awesome Flisk](https://github.com/flisk-sh/awesome-tdk-framework) · [Demo](https://tdk-landscape.github.io/tdk-demo-animation/) · [Report a bug](https://github.com/flisk-sh/flisk/issues)
 
 </div>
 
@@ -48,20 +48,20 @@ LLMs are brilliant at writing application logic, but notoriously terrible at mai
 
 ## Build your app in one click
 
-Fastest way (recommended): open the [Flisk starter](https://github.com/tdk-landscape/tdk-cli-starter) in a ready-to-use environment.
+Fastest way (recommended): open the [Flisk starter](https://github.com/flisk-sh/tdk-cli-starter) in a ready-to-use environment.
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://v0.dev/"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-v0.svg" alt="Build app with v0" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://gitpod.io/#https://github.com/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-gitpod.svg" alt="Build app with Gitpod" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://lovable.dev/"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-lovable.svg" alt="Build app with Lovable" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://bolt.new/"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-bolt.svg" alt="Build app with Bolt.new" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="vscode://vscode.git/clone?url=https://github.com/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-vscode.svg" alt="Build app with VS Code" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://github.com/codespaces/new/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-codespaces.svg" alt="Build app with Codespaces" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://v0.dev/"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-v0.svg" alt="Build app with v0" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://gitpod.io/#https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-gitpod.svg" alt="Build app with Gitpod" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://lovable.dev/"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-lovable.svg" alt="Build app with Lovable" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://bolt.new/"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-bolt.svg" alt="Build app with Bolt.new" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="vscode://vscode.git/clone?url=https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-vscode.svg" alt="Build app with VS Code" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://github.com/codespaces/new/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-codespaces.svg" alt="Build app with Codespaces" height="32"></a></td></tr>
 </table>
 
 <details>
 <summary>More build tools (7)</summary>
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://replit.com/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-replit.svg" alt="Build app with Replit" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://glitch.com/edit/#!/import/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-glitch.svg" alt="Build app with Glitch" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://devpod.sh/open#https://github.com/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-devpod.svg" alt="Build app with DevPod" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://stackblitz.com/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-stackblitz.svg" alt="Build app with StackBlitz" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://codesandbox.io/p/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-codesandbox.svg" alt="Build app with CodeSandbox" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-dev-containers.svg" alt="Build app with Dev Containers" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://studio.firebase.google.com/import?url=https://github.com/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-firebase-studio.svg" alt="Build app with Firebase Studio" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://replit.com/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-replit.svg" alt="Build app with Replit" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://glitch.com/edit/#!/import/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-glitch.svg" alt="Build app with Glitch" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://devpod.sh/open#https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-devpod.svg" alt="Build app with DevPod" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://stackblitz.com/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-stackblitz.svg" alt="Build app with StackBlitz" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://codesandbox.io/p/github/tdk-landscape/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-codesandbox.svg" alt="Build app with CodeSandbox" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-dev-containers.svg" alt="Build app with Dev Containers" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://studio.firebase.google.com/import?url=https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/tdk-landscape/tdk-cli-starter/main/.github/buttons/build-firebase-studio.svg" alt="Build app with Firebase Studio" height="32"></a></td></tr>
 </table>
 
 </details>
@@ -140,7 +140,7 @@ Docker runs the containers. Tilt watches services and live-updates containers wh
 > [!IMPORTANT]
 > Get Flisk from the [flisk-sh/flisk](https://github.com/flisk-sh/flisk) repository, the
 > [`flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) npm package, or the
-> [official website](https://tdk-landscape.github.io/tdk-website/). Follow the installation links from these official sources.
+> [official website](https://flisk.sh/). Follow the installation links from these official sources.
 > A similar repository name or copied README does not establish that a download is official.
 
 <p align="center"><strong><a href="#quick-start">Quick start</a> · <a href="#why-tdk-cli">Why Flisk</a> · <a href="#examples">Examples</a> · <a href="#installation">Installation</a> · <a href="#faq">FAQ</a> · <a href="#docs">Documentation</a></strong></p>
@@ -207,7 +207,7 @@ There are two ways to get started. Both end with `flisk up <stack>`.
 | | Guided scaffolder | Core CLI (manual) |
 | --- | --- | --- |
 | Best for | A first run: pick your services and get a ready project | Full control, or adding Flisk to an existing folder |
-| Package | [`@tdk-landscape/create-microservices`](https://github.com/tdk-landscape/create-microservices#readme) | [`flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) (this repo) |
+| Package | [`@tdk-landscape/create-microservices`](https://github.com/flisk-sh/create-microservices#readme) | [`flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) (this repo) |
 
 ### Option A: guided scaffolder (recommended for beginners)
 
@@ -239,10 +239,10 @@ To skip the prompts and get a default `api` (backend) and `web` (frontend):
 npm init @tdk-landscape/microservices my-project -- --yes
 ```
 
-For service types, all options, and non-interactive usage, see the [`@tdk-landscape/create-microservices` README](https://github.com/tdk-landscape/create-microservices#readme).
+For service types, all options, and non-interactive usage, see the [`@tdk-landscape/create-microservices` README](https://github.com/flisk-sh/create-microservices#readme).
 
 > [!NOTE]
-> Two similarly named packages exist. [`create-tdk-stack`](https://github.com/tdk-landscape/create-tdk-stack) is a landing-page app and does not scaffold projects. [`@tdk-landscape/create-microservices`](https://github.com/tdk-landscape/create-microservices#readme) is the project scaffolder used above.
+> Two similarly named packages exist. [`create-tdk-stack`](https://github.com/flisk-sh/create-tdk-stack) is a landing-page app and does not scaffold projects. [`@tdk-landscape/create-microservices`](https://github.com/flisk-sh/create-microservices#readme) is the project scaffolder used above.
 
 ### Option B: core CLI (manual)
 
@@ -294,7 +294,7 @@ You do not need to write the nginx config, Dockerfile, or a `docker-compose.yml`
 
 If Helm, Compose, or your existing Tilt setup already gives you a working local environment, keep using it. Flisk CLI is for engineers managing several services who want a clear local service contract and one command to start the stack.
 
-See [how Flisk compares to alternative dev tools](docs/comparison.md), [how Flisk CLI works alongside Helm](https://tdk-landscape.github.io/tdk-website/docs/with-helm/), the [service schema](engine/schemas/service-schema.json), and the [project configuration schema](engine/schemas/project-schema.json).
+See [how Flisk compares to alternative dev tools](docs/comparison.md), [how Flisk CLI works alongside Helm](https://flisk.sh/docs/with-helm/), the [service schema](engine/schemas/service-schema.json), and the [project configuration schema](engine/schemas/project-schema.json).
 
 ## Terminal UI
 
@@ -388,8 +388,8 @@ Set `TDK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug 
 
 ## History
 
-Flisk development began on 21 April 2026. The archived, read-only [tdk-landscape/flisk](https://github.com/tdk-landscape/flisk)
-repository records its [first commit](https://github.com/tdk-landscape/flisk/commit/1714637637196ed54cbfa18534230a782c05ab36)
+Flisk development began on 21 April 2026. The archived, read-only [tdk-landscape/flisk](https://github.com/flisk-sh/flisk)
+repository records its [first commit](https://github.com/flisk-sh/flisk/commit/1714637637196ed54cbfa18534230a782c05ab36)
 ("Initial commit: Flisk specs, generators, CLI, and standards") from that day. A separate `tdk-cli` history spanning 21 April to
 18 September 2026 was [imported into this repository](https://github.com/flisk-sh/flisk/pull/670) as 306 filtered
 commits. Those commits are now ancestors of `main`; the import did not change the source tree.
@@ -413,7 +413,7 @@ On native Windows, `flisk --version`, `flisk doctor`, and `flisk up --dry-run` a
 
 Core stays free. Premium is a separate key for the extras above; no key required to run `flisk up`.
 
-**Ecosystem map:** examples, articles, related tools, and notes live in [awesome-tdk-framework](https://github.com/tdk-landscape/awesome-tdk-framework). Star this repo (`flisk`) if the CLI is what you run; use the awesome list to browse the rest.
+**Ecosystem map:** examples, articles, related tools, and notes live in [awesome-tdk-framework](https://github.com/flisk-sh/awesome-tdk-framework). Star this repo (`flisk`) if the CLI is what you run; use the awesome list to browse the rest.
 
 <p align="center">
 

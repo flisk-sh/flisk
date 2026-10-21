@@ -2,7 +2,7 @@
 title: Stop hand-writing docker-compose.yml for a five-service app
 published: false
 tags: docker, typescript, devtools, backend
-canonical_url: https://tdk-landscape.github.io/tdk-website/docs/quickstart/
+canonical_url: https://flisk.sh/docs/quickstart/
 ---
 
 <!-- Draft for #1447. Question source: flisk-sh/flisk#756 ("move a small docker-compose project to Flisk and ask where you got stuck"). Every command below was run against flisk 1.3.178. -->
@@ -57,4 +57,4 @@ If your compose project has a `build:` section, the question is usually where th
 
 ## Try it
 
-The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) is the smallest runnable version: one service, one generated compose file for Postgres, one command to preview it. Start with the [quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/), then run `flisk up one-backend --dry-run` in the example folder to see what it would start.
+The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) is the smallest runnable version: one service, one generated compose file for Postgres, one command to preview it. Start with the [quickstart](https://flisk.sh/docs/quickstart/), then run `flisk up one-backend --dry-run` in the example folder to see what it would start.

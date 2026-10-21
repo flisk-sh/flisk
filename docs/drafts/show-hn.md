@@ -16,6 +16,6 @@ Flisk runs local development services through Docker and Tilt. It does not deplo
 The warm demo brings 14 tiny services healthy in 4.6s on a 16 GB M1 after images existed. Not a cold boot. Separately, 100 generated `/health` stubs, about 20 lines each, became healthy through Traefik in 472s on a clean Ubuntu runner; [that fixture run](https://github.com/flisk-sh/flisk/actions/runs/36395860088) is not an ERP workload.
 
 - Repo: https://github.com/flisk-sh/flisk
-- [Quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/)
+- [Quickstart](https://flisk.sh/docs/quickstart/)
 - [Comparison and known limits](../compare-honest.md)
 - [Claims registry](../claims.md)

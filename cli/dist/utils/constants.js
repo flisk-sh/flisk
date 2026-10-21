@@ -89,7 +89,7 @@ export const STANDARD_PORTS = {
     tiltUi: 10350,
     traefik: 8080,
 };
-export const QUICKSTART_DOCS_URL = "https://tdk-landscape.github.io/tdk-website/docs/quickstart/";
+export const QUICKSTART_DOCS_URL = "https://flisk.sh/docs/quickstart/";
 export const BASE_DOMAIN_DEFAULT = "tdk-project.localhost";
 export const APP_SUBDOMAIN_PREFIX = "app";
 export const API_SUBDOMAIN_PREFIX = "api";

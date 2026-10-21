@@ -2,7 +2,7 @@
 title: Tilt without the Tiltfile
 published: false
 tags: devtools, docker, kubernetes, typescript
-canonical_url: https://tdk-landscape.github.io/tdk-website/docs/quickstart/
+canonical_url: https://flisk.sh/docs/quickstart/
 ---
 
 <!-- Draft for #1447. Question source: flisk-sh/flisk#790 ("read what `flisk up --dry-run` would start, ask about anything unclear"). Every command below was run against flisk 1.3.178. -->
@@ -59,4 +59,4 @@ So the split is:
 
 ## Try it
 
-Start with the one-backend example, run `flisk up one-backend --dry-run`, and read the `Would run:` line. Then the [quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) takes you through starting it for real with `flisk up`.
+Start with the one-backend example, run `flisk up one-backend --dry-run`, and read the `Would run:` line. Then the [quickstart](https://flisk.sh/docs/quickstart/) takes you through starting it for real with `flisk up`.

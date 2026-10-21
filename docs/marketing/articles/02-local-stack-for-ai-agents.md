@@ -2,7 +2,7 @@
 title: Give your AI coding agent a local stack it cannot break
 published: false
 tags: ai, docker, devtools, typescript
-canonical_url: https://tdk-landscape.github.io/tdk-website/docs/quickstart/
+canonical_url: https://flisk.sh/docs/quickstart/
 ---
 
 <!-- Draft for #1447. Question source: flisk-sh/flisk#792 ("catch hand-edited generated files with `flisk config verify` in CI, ask how"). Every command below was run against flisk 1.3.178. -->
@@ -70,4 +70,4 @@ If it fails, the job fails. The agent's edit never reaches `main`, and the fix i
 
 The [tdk-example landscape](https://github.com/flisk-sh/flisk/tree/main/examples/tdk-example) is a small working stack with an API, PostgreSQL, a NATS worker and a UI. Run `flisk project --yes`, then `flisk config verify`, and you have the check running on a real project. The [one-backend example](https://github.com/flisk-sh/flisk/tree/main/examples/one-backend) is the smallest version if you only want the agent and MCP resources.
 
-Next step: the [quickstart](https://tdk-landscape.github.io/tdk-website/docs/quickstart/) gets you from zero to `flisk up` in a few minutes.
+Next step: the [quickstart](https://flisk.sh/docs/quickstart/) gets you from zero to `flisk up` in a few minutes.

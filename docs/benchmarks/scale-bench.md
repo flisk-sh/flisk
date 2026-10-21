@@ -4,7 +4,7 @@
 
 These figures are implementation measurements, not the reason to use Flisk. They describe generated `/health` fixtures rather than representative application workloads.
 
-Measured with [`scripts/benchmark/container-scale.ts`](../../scripts/benchmark/README.md) against the 100-service [`tdk-erp-system` fixture bench](https://github.com/tdk-landscape/tdk-erp-system), on a 16 GB machine (Docker VM: 7.75 GiB). Raw results are in [`benchmarks/results/`](../../benchmarks/results).
+Measured with [`scripts/benchmark/container-scale.ts`](../../scripts/benchmark/README.md) against the 100-service [`tdk-erp-system` fixture bench](https://github.com/flisk-sh/tdk-erp-system), on a 16 GB machine (Docker VM: 7.75 GiB). Raw results are in [`benchmarks/results/`](../../benchmarks/results).
 
 | Services | All healthy after | Total memory | Avg memory / service | Crashes / OOM kills |
 |---:|---:|---:|---:|---:|

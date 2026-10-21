@@ -8,7 +8,7 @@ Instead of running agents as detached scripts or hand-rolling complex Compose fi
 - **Session routing**: Traefik routes requests by session (`x-session-id`), keeping concurrent agent conversations isolated.
 - **Liveness and application readiness**: `/health` confirms process liveness. `/ready` verifies the checkpoint store for callers that need to wait before sending turns. Flisk's generated health check uses `healthCheckPath`, which is `/health` in this example.
 
-The product website already publishes a site-level [llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt). The files in this folder give agents browsing the source repository a CLI-focused contract.
+The product website already publishes a site-level [llms.txt](https://flisk.sh/llms.txt). The files in this folder give agents browsing the source repository a CLI-focused contract.
 
 ---
 
@@ -27,7 +27,7 @@ This creates a Bun HTTP service in `services/shop/bot` with `service.json`:
 
 ```json
 {
-  "$schema": "https://tdk-landscape.github.io/tdk-website/schemas/service-schema.json",
+  "$schema": "https://flisk.sh/schema.service.json",
   "name": "bot",
   "appType": "agent",
   "stack": "shop",
@@ -148,4 +148,4 @@ Traefik serves as the unified local gateway for your entire agent topology:
 - **Clean hostnames**: Reach your agents and APIs through `api.<project>.localhost`.
 - **Zero port conflicts**: Even with dozens of tools, agents, and backends running, Traefik multiplexes everything through a single host port.
 
-The product website already publishes a site-level [llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt).
+The product website already publishes a site-level [llms.txt](https://flisk.sh/llms.txt).

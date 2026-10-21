@@ -176,5 +176,5 @@ deploy artifact for editors. It is only an editor hint. The CLI provider registr
   copy, because a PR that changes the schema could never match it before merge.
 - **After a change to the schema lands on `main`**, the *Publish service schema* workflow copies it to the Pages repository and then
   reports in its run summary whether the live copy matches. It needs a repository secret named `PAGES_SYNC_TOKEN` (a fine-grained
-  token with `contents: write` on `tdk-landscape/tdk-landscape.github.io`). Without it the copy is skipped with a warning and the live
+  token with `contents: write` on `flisk-sh/flisk-sh.github.io`). Without it the copy is skipped with a warning and the live
   copy falls behind `main`; the summary says so.

@@ -1101,7 +1101,7 @@ describe("upgradeCommand action handler", () => {
       const res = await runUpgrade(["--yes"]);
       expect(res.status).toBe(1);
       expect(res.stderr).toContain("Upgrade failed");
-      expect(res.stdout).toContain("irm https://tdk-landscape.github.io/install.ps1 | iex");
+      expect(res.stdout).toContain("irm https://flisk.sh/install.ps1 | iex");
     });
   });
 

@@ -423,7 +423,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## 1.3.57 (2026-09-27)
 
-- Binary installs (`tdk-landscape.github.io/install.sh`) ship the Docker helper scripts generated Dockerfiles run. Before, `flisk project` warned "Flisk runtime assets not found" and image builds could fail. The release script now smoke-tests the built binary.
+- Binary installs (`flisk.sh/install.sh`) ship the Docker helper scripts generated Dockerfiles run. Before, `flisk project` warned "Flisk runtime assets not found" and image builds could fail. The release script now smoke-tests the built binary.
 
 ## 1.3.56 (2026-09-27)
 

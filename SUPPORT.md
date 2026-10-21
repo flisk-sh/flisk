@@ -9,7 +9,7 @@ What you can expect from the maintainers of Flisk. Numbers were measured from th
 | A question about adopting Flisk | [Adoption question](https://github.com/flisk-sh/flisk/issues/new?template=adoption-question.yml) or [Discussions](https://github.com/flisk-sh/flisk/discussions) |
 | A bug | [Bug report](https://github.com/flisk-sh/flisk/issues/new?template=bug_report.yml) |
 | A feature | [Feature request](https://github.com/flisk-sh/flisk/issues/new?template=feature_request.yml) |
-| A premium key | [Premium license request](https://github.com/flisk-sh/flisk/issues/new?template=premium_license.yml) or the [website form](https://tdk-landscape.github.io/tdk-website/#waitlist) |
+| A premium key | [Premium license request](https://github.com/flisk-sh/flisk/issues/new?template=premium_license.yml) or the [website form](https://flisk.sh/#waitlist) |
 | A security problem | [SECURITY.md](SECURITY.md), privately; never a public issue |
 
 There is no paid support contract, chat channel or phone line.

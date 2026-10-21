@@ -2,7 +2,7 @@
 
 > Flisk is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
 
-See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt).
+See also the product site [llms.txt](https://flisk.sh/llms.txt).
 
 ## Core Concepts & Capabilities
 
@@ -50,7 +50,7 @@ See also the product site [llms.txt](https://tdk-landscape.github.io/tdk-website
 - [MCP Resources](../mcp.md): Scaffolding Model Context Protocol servers.
 - [Set up the Flisk MCP server](../agent-tooling/flisk-mcp-setup.md): Installing Flisk and connecting Codex, Claude Code, Claude Desktop, or Cursor to the local stdio server.
 - [Mega Cheat Sheet](../cheat-sheet.md): Comprehensive reference of all commands and options.
-- [Website llms.txt](https://tdk-landscape.github.io/tdk-website/llms.txt): Product-level index of the site, docs, examples, and skills.
+- [Website llms.txt](https://flisk.sh/llms.txt): Product-level index of the site, docs, examples, and skills.
 
 ## Agent Skills
 

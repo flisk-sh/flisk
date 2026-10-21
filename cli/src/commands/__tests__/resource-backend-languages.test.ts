@@ -47,7 +47,7 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "068f15a55176c3960bae240a370244f1976879f126fddb01920c3eca3af5dd89",
   "package.json": "398877b088717f97af437af3d2233a7863af6ef442a62ba0fafcf29830d29ee1",
-  "service.json": "bc6598c626865ea3350e5204bbdb14aefd0eb0c36e64b6db6b8c6fe01ae76e6f",
+  "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "f50139530382e929db7128be7cb55f3bbc5f2fae03264979d675d3be4d0f4ef3",
   "tests/orders-api.test.ts": "a4946ac3123eb4bee78d7b84304cad8b7c36d4268688e3c878da2aaa11ef98ab",
   "tsconfig.json": "c0503e8c2d9e7cb0b77a1e0eaea674f4ee03f3182ff9f5429b9bb7ba0fabee41",

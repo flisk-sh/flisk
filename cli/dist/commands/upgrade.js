@@ -389,8 +389,8 @@ export async function upgradeViaNpm() {
             console.log(chalk.gray("\nFor EACCES or EPERM, fix npm's global prefix or use the binary installer:"));
             console.log(chalk.cyan("   https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally/"));
             console.log(chalk.cyan(isWindows()
-                ? "   irm https://tdk-landscape.github.io/install.ps1 | iex"
-                : "   curl -fsSL https://tdk-landscape.github.io/install.sh | sh"));
+                ? "   irm https://flisk.sh/install.ps1 | iex"
+                : "   curl -fsSL https://flisk.sh/install.sh | sh"));
         }
         return false;
     }
@@ -771,7 +771,7 @@ export function createUpgradeCommand() {
             else if (installInfo.method === "binary" && binaryRelease && installInfo.path) {
                 const engineDir = join(dirname(installInfo.path), "tdk-cli");
                 if (isWindows()) {
-                    console.log(chalk.cyan("   irm https://tdk-landscape.github.io/install.ps1 | iex"));
+                    console.log(chalk.cyan("   irm https://flisk.sh/install.ps1 | iex"));
                 }
                 else {
                     console.log(chalk.cyan(`   curl -fsSL -o ${installInfo.path} ${binaryRelease.downloadUrl}`));
