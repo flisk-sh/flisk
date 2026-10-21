@@ -142,7 +142,7 @@ export function nativeLimaPath(env = process.env) {
             // Verify the binary is actually a native (arm64/aarch64) build, not a Rosetta x86_64 one.
             let archOutput = "";
             try {
-                archOutput = execFileSync("file", ["-b", candidate], {
+                archOutput = execFileSync("file", ["-bL", candidate], {
                     encoding: "utf-8",
                     timeout: 5_000,
                     stdio: ["ignore", "pipe", "ignore"],
