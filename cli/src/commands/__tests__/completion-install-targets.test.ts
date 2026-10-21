@@ -214,7 +214,9 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     fsStore.files.delete(installPath);
     await runCompletion(["powershell", "--install"]);
     const freshBlock = fsStore.files.get(installPath)?.replace(/\n$/, "");
-    expect(freshBlock).toMatch(/^# FLISK-CLI-COMPLETION-START\n[\s\S]+\n# FLISK-CLI-COMPLETION-END$/);
+    expect(freshBlock).toMatch(
+      /^# FLISK-CLI-COMPLETION-START\n[\s\S]+\n# FLISK-CLI-COMPLETION-END$/,
+    );
     expect(written).toBe(`# my profile\n${freshBlock}\n# footer\n`);
   });
 });

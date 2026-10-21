@@ -45,7 +45,9 @@ export function assertTdkGeneratedPath(projectRoot: string, path: string): strin
   const absolute = isAbsolute(path) ? normalize(path) : normalize(`${projectRoot}/${path}`);
   const projectRelative = relative(projectRoot, absolute).split(sep).join("/");
   if (!isTdkGeneratedPath(projectRelative)) {
-    throw new Error(`Refusing to write outside Flisk's generated-file allowlist: ${projectRelative}`);
+    throw new Error(
+      `Refusing to write outside Flisk's generated-file allowlist: ${projectRelative}`,
+    );
   }
   let cursor = projectRoot;
   for (const segment of projectRelative.split("/")) {

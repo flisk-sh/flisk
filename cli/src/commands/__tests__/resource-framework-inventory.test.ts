@@ -135,7 +135,14 @@ describe("flisk resource --frameworks", () => {
   });
 
   it("rejects a language on a type that does not own one", () => {
-    const result = flisk(["resource", "--type", "frontend", "--language", "python", "--frameworks"]);
+    const result = flisk([
+      "resource",
+      "--type",
+      "frontend",
+      "--language",
+      "python",
+      "--frameworks",
+    ]);
 
     expect(result.status).not.toBe(0);
     expect(`${result.stdout}${result.stderr}`).toMatch(
