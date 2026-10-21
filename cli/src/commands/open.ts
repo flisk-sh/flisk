@@ -9,6 +9,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
 import { discoverResourcesWithProblems } from "../utils/services.js";
 import { readProjectName } from "../utils/shared-infra.js";
+import { startSpinner } from "../utils/spinner.js";
 import { openUrl } from "../utils/url-actions.js";
 
 export interface FrontendTarget {
@@ -39,18 +40,25 @@ export async function isFrontendReady(url: string, timeoutMs = 2000): Promise<bo
   }
 }
 
-/** The first frontend that answers, or the first one when none is up yet. */
+/**
+ * The first frontend that answers. Returns undefined when none answers within the wait, so the
+ * caller can say so instead of opening a URL that refuses the connection.
+ */
 export async function pickReadyFrontend(
   targets: FrontendTarget[],
   waitMs = 30000,
+  onWait?: (elapsedMs: number) => void,
 ): Promise<FrontendTarget | undefined> {
   if (targets.length === 0) return undefined;
-  const deadline = Date.now() + waitMs;
+  const started = Date.now();
+  const deadline = started + waitMs;
   while (true) {
     for (const target of targets) {
       if (await isFrontendReady(target.url)) return target;
     }
-    if (Date.now() >= deadline) return targets[0];
+    const elapsed = Date.now() - started;
+    if (elapsed >= waitMs) return undefined;
+    onWait?.(elapsed);
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 }
@@ -82,8 +90,23 @@ export async function openFirstFrontend(projectRootOverride?: string): Promise<s
     console.log(chalk.gray(`  - ${target.name}: ${target.url}`));
   }
 
-  const first = await pickReadyFrontend(targets);
-  if (!first) return null;
+  const spinner = startSpinner("Waiting for the frontend to answer...");
+  const first = await pickReadyFrontend(targets, 120000, (elapsed) => {
+    spinner.text = `Waiting for the frontend to answer... ${Math.round(elapsed / 1000)}s`;
+  });
+
+  if (!first) {
+    spinner.fail("No frontend answered yet.");
+    console.log(chalk.yellow("The stack is not serving the frontend yet."));
+    console.log(chalk.gray("  - Start the stack in another terminal: flisk up"));
+    console.log(chalk.gray("  - Then run this again: flisk open"));
+    for (const target of targets) {
+      console.log(chalk.gray(`  - ${target.name}: ${target.url}`));
+    }
+    return null;
+  }
+
+  spinner.succeed(`The frontend is up: ${first.name}`);
   const opened = await openUrl(first.url);
   console.log(
     opened
