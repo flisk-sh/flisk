@@ -44,8 +44,9 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // --type backend --stack shop` with no --language. Any drift here changes historical output.
 // The service.json hash was re-captured on purpose, twice, so a fresh scaffold writes the keys the engine reads and trips no warning:
 // the unread `healthCheck` became `healthCheckPath` (#402), and the deprecated `dependencies` became `dependsOn`.
-// It was re-captured a third time on 2026-10-21 for the GitHub organisation rename (tdk-landscape -> flisk-sh): the only byte that
-// changed in the scaffolded service.json is the `$schema` URL, which now points at the renamed Pages repository.
+// It was re-captured a third time on 2026-10-21 for the GitHub organisation rename: the only byte that
+// changed in the scaffolded service.json is the `$schema` URL, which now points at
+// https://flisk.sh/schema.service.json.
 // It was re-captured a fifth time on 2026-10-21 for the Flisk rebrand: the generated Dockerfile header now names
 // the CLI as Flisk, and that header is the only byte that differs.
 const BUN_BASELINE: Record<string, string> = {
