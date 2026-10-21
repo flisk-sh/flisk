@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, rmSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import { cwd } from "node:process";
 
 import chalk from "chalk";
@@ -42,14 +43,38 @@ if (templateArg) {
 
   // A second demo in the same folder gets its own directory instead of failing.
   const { nextAvailableProjectDir } = await import("./utils/one-command.js");
+  const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
   const baseName = templateTargetDir(templateArg, projectArg);
-  const targetName = nextAvailableProjectDir(baseName, (candidate) => {
-    const path = resolve(cwd(), candidate);
-    return existsSync(path) && readdirSync(path).length > 0;
-  });
-  const destination = resolve(cwd(), targetName);
-  if (targetName !== baseName) {
-    console.log(chalk.gray(`The folder ${baseName} is taken, using ${targetName} instead.`));
+  const fixedDir = projectArg ? undefined : PROJECT_TEMPLATES[templateArg]?.fixedDir;
+
+  let targetName: string;
+  if (fixedDir) {
+    // A template with a fixed directory always lands in the same place, so a demo never
+    // leaves a new folder behind in whatever folder the command was typed in.
+    targetName = join(homedir(), ".flisk", fixedDir);
+  } else {
+    targetName = nextAvailableProjectDir(baseName, (candidate) => {
+      const path = resolve(cwd(), candidate);
+      return existsSync(path) && readdirSync(path).length > 0;
+    });
+    if (targetName !== baseName) {
+      console.log(chalk.gray(`The folder ${baseName} is taken, using ${targetName} instead.`));
+    }
+  }
+  const destination = isAbsolute(targetName) ? targetName : resolve(cwd(), targetName);
+
+  if (fixedDir && existsSync(destination)) {
+    // The demo owns this directory, so a second run starts from a fresh copy of it.
+    if (existsSync(join(destination, ".tdk", "project.json"))) {
+      console.log(chalk.gray(`Refreshing the demo in ${destination}...`));
+      rmSync(destination, { recursive: true, force: true });
+    } else {
+      console.log(chalk.yellow(`${destination} already exists and is not a Flisk project.`));
+      console.log(
+        chalk.gray("  Remove it, or use --project <dir> to put the demo somewhere else."),
+      );
+      process.exit(1);
+    }
   }
 
   await cloneProjectTemplate(templateArg, targetName, runtimeNextSteps);
