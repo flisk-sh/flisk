@@ -67,7 +67,9 @@ export async function readStackProgress(
       failed += 1;
       broken.push({
         name,
-        message: (item.status?.buildHistory?.[0]?.error ?? "the resource failed").replace(/\s+/g, " ").slice(0, 160),
+        message: (item.status?.buildHistory?.[0]?.error ?? "the resource failed")
+          .replace(/\s+/g, " ")
+          .slice(0, 160),
       });
       continue;
     }
