@@ -18,6 +18,7 @@ import { basename, dirname, join, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
+import { LEGACY_PACKAGE } from "../utils/cli-command.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { PACKAGE_JSON } from "../utils/constants.js";
 import { getErrorMessage, logVerbose, showErrorAndExit } from "../utils/errors.js";
@@ -414,9 +415,7 @@ export async function getLatestVersion(): Promise<string | null> {
  */
 function removeLegacyInstallation(manager: "npm" | "bun"): void {
   const command =
-    manager === "npm"
-      ? "npm uninstall -g @tdk-landscape/tdk-cli-core"
-      : "bun remove -g @tdk-landscape/tdk-cli-core";
+    manager === "npm" ? `npm uninstall -g ${LEGACY_PACKAGE}` : `bun remove -g ${LEGACY_PACKAGE}`;
   try {
     execSync(command, { stdio: ["ignore", "ignore", "ignore"], timeout: 60000 });
   } catch {

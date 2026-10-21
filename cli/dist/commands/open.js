@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
-import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
+import { discoverResourcesWithProblems } from "../utils/services.js";
 import { readProjectName } from "../utils/shared-infra.js";
 import { openUrl } from "../utils/url-actions.js";
 /** The frontends of the current project, with the URL each one is published under. */
 export async function listFrontendTargets(projectRoot) {
-    const discovery = createDiscoveryContext();
+    const { resources } = discoverResourcesWithProblems(projectRoot);
     const plan = await getHostPortPlan(projectRoot, { inspectDocker: false });
-    const { appBase } = resolveSubdomainBases(plan?.ingressHttp);
-    return discovery.resources
+    const { appBase } = resolveSubdomainBases(plan?.ingressHttp, projectRoot);
+    return resources
         .filter((resource) => resource.config?.appType === "frontend")
         .map((resource) => ({
         name: resource.name,

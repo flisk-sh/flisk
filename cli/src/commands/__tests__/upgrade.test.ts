@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/doubles.js";
+import { LEGACY_PACKAGE } from "../../utils/cli-command.js";
 import { ProcessExitError } from "../../utils/errors.js";
 
 const execSyncMock = vi.fn();
@@ -291,7 +292,7 @@ describe("package-manager upgrade failures", () => {
     const npmStderr = "npm error code EACCES: permission denied\n";
     // The legacy-package removal runs first and fails silently; the install fails and is reported.
     execSyncMock.mockImplementationOnce(() => {
-      throw new Error("Command failed: npm uninstall -g @tdk-landscape/tdk-cli-core");
+      throw new Error(`Command failed: npm uninstall -g ${LEGACY_PACKAGE}`);
     });
     execSyncMock.mockImplementationOnce(() => {
       const error = new Error("Command failed: npm install -g @flisk-sh/flisk@latest");
@@ -305,9 +306,7 @@ describe("package-manager upgrade failures", () => {
       const ok = await upgradeViaNpm();
       expect(ok).toBe(false);
       // The legacy package owns the old `flisk` command and blocks the install, so it goes first.
-      expect(String(execSyncMock.mock.calls[0]?.[0])).toBe(
-        "npm uninstall -g @tdk-landscape/tdk-cli-core",
-      );
+      expect(String(execSyncMock.mock.calls[0]?.[0])).toBe(`npm uninstall -g ${LEGACY_PACKAGE}`);
       expect(String(execSyncMock.mock.calls[1]?.[0])).toBe("npm install -g @flisk-sh/flisk@latest");
       expect(execSyncMock.mock.calls[1]?.[1]).toMatchObject({
         stdio: ["inherit", "inherit", "pipe"],
@@ -325,6 +324,7 @@ describe("package-manager upgrade failures", () => {
   });
 
   it("does not switch to the GitHub default branch when Bun install fails", async () => {
+    execSyncMock.mockReset();
     execFileSyncMock.mockReset();
     execFileSyncMock.mockImplementationOnce(() => {
       throw new Error("registry unavailable");
@@ -334,6 +334,8 @@ describe("package-manager upgrade failures", () => {
     try {
       const ok = await upgradeViaBun();
       expect(ok).toBe(false);
+      // The legacy package owns the old `flisk` command and blocks the install, so it goes first.
+      expect(String(execSyncMock.mock.calls[0]?.[0])).toBe(`bun remove -g ${LEGACY_PACKAGE}`);
       expect(execFileSyncMock).toHaveBeenCalledTimes(1);
       expect(execFileSyncMock.mock.calls[0]?.[1]).toEqual([
         "install",

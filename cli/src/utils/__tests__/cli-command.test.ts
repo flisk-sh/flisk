@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   CLI_COMMAND,
   CLI_PACKAGE,
+  CLI_REPOSITORY,
   isCommandOnPath,
   isEmptyWorkspace,
   LEGACY_PACKAGE,
@@ -16,19 +17,19 @@ import {
   suggestedWorkspace,
 } from "../cli-command.js";
 
-/** A PATH that carries the CLI command, so the "installed" branch runs on any machine. */
-function pathWithCommand(): string {
+/** A PATH that contains a `flisk` command, so the installed branch is deterministic. */
+function pathWithFlisk(): NodeJS.ProcessEnv {
   const dir = mkdtempSync(join(tmpdir(), "flisk-bin-"));
-  const bin = join(dir, process.platform === "win32" ? "flisk.cmd" : "flisk");
-  writeFileSync(bin, process.platform === "win32" ? "@echo off\r\n" : "#!/bin/sh\nexit 0\n");
-  chmodSync(bin, 0o755);
-  return dir;
+  writeFileSync(join(dir, "flisk"), "#!/bin/sh\n");
+  chmodSync(join(dir, "flisk"), 0o755);
+  return { PATH: dir };
 }
 
 describe("cli-command", () => {
   it("names the command and the package that installs it", () => {
     expect(CLI_COMMAND).toBe("flisk");
     expect(CLI_PACKAGE).toBe("@flisk-sh/flisk");
+    expect(CLI_REPOSITORY).toBe("https://github.com/flisk-sh/flisk");
     expect(LEGACY_PACKAGE).toBe("@tdk-landscape/tdk-cli-core");
   });
 
@@ -40,14 +41,8 @@ describe("cli-command", () => {
   });
 
   it("points at the command when it is installed", () => {
-    const env = { PATH: process.env.PATH ?? "" };
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
-    const step = readyNextStep(env, dir);
-    if (isCommandOnPath("flisk", env)) {
-      expect(step).toBe("Next: flisk project --yes");
-    } else {
-      expect(step).toContain("npm install -g @flisk-sh/flisk");
-    }
+    expect(readyNextStep(pathWithFlisk(), dir)).toBe("Next: flisk project --yes");
   });
 
   it("tells an ephemeral run how to install the command", () => {
@@ -55,6 +50,7 @@ describe("cli-command", () => {
     expect(step).toContain("not on PATH");
     expect(step).toContain("npm install -g @flisk-sh/flisk");
     expect(step).toContain("npm uninstall -g @tdk-landscape/tdk-cli-core");
+    expect(step).toContain("https://github.com/flisk-sh/flisk");
     expect(step).toContain("flisk project --yes");
     expect(step).not.toBe("Next: flisk project --yes");
   });
@@ -62,7 +58,7 @@ describe("cli-command", () => {
   it("suggests a project folder instead of the current one when the folder has files", () => {
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
     writeFileSync(join(dir, "notes.txt"), "hi");
-    const step = readyNextStep({ PATH: pathWithCommand() }, dir);
+    const step = readyNextStep(pathWithFlisk(), dir);
     expect(step).toContain("mkdir -p");
     expect(step).toContain("flisk project --yes");
     expect(step).toContain("flisk project example");
@@ -71,8 +67,7 @@ describe("cli-command", () => {
   it("lets a project start in an empty folder", () => {
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
     expect(isEmptyWorkspace(dir)).toBe(true);
-    const step = readyNextStep({ PATH: pathWithCommand() }, dir);
-    expect(step).toBe("Next: flisk project --yes");
+    expect(readyNextStep(pathWithFlisk(), dir)).toBe("Next: flisk project --yes");
   });
 
   it("suggests a workspace under Documents when the machine has one", () => {

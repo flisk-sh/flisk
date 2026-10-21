@@ -22,7 +22,11 @@ export interface HealthProbe extends HealthTarget {
 }
 
 export function getProjectName(): string {
-  const root = findProjectRoot();
+  return getProjectNameFor(findProjectRoot());
+}
+
+/** The project name of a specific project root, for tools that work outside the current directory. */
+export function getProjectNameFor(root: string | null): string {
   if (root) {
     try {
       const content = readFileSync(join(root, ".tdk", PROJECT_JSON), "utf-8");
@@ -35,8 +39,11 @@ export function getProjectName(): string {
   return "tdk-project";
 }
 
-export function resolveSubdomainBases(ingressPort?: number): { appBase: string; apiBase: string } {
-  const projectName = getProjectName();
+export function resolveSubdomainBases(
+  ingressPort?: number,
+  projectRoot?: string | null,
+): { appBase: string; apiBase: string } {
+  const projectName = getProjectNameFor(projectRoot ?? findProjectRoot());
   const raw =
     process.env.TDK_SERVICE_BASE_URL ??
     `http://${projectName}.localhost${ingressPort ? `:${ingressPort}` : ""}`;

@@ -32,6 +32,8 @@ jobs:
           # Scorecard keys its published scores by the repository path the project
           # was first indexed under. This repo was renamed from tdk-landscape/tdk-cli-core
           # to flisk-sh/flisk, so the new path 404s until Scorecard re-indexes it.
+          # The fallback is that key, not a stale name: it has to stay until the score
+          # is published under flisk-sh/flisk, and it can go then.
           REPO_FALLBACK: "tdk-landscape/tdk-cli-core"
         run: |
           set -euo pipefail

@@ -2,7 +2,15 @@
 export declare const CLI_COMMAND = "flisk";
 /** The npm package that installs it. */
 export declare const CLI_PACKAGE = "@flisk-sh/flisk";
-/** The package the CLI was published under before the rename. It owns the old `flisk` command. */
+/** The repository the CLI is released from. */
+export declare const CLI_REPOSITORY = "https://github.com/flisk-sh/flisk";
+/**
+ * The package the CLI was published under before the rename. It owns the old `flisk` command.
+ *
+ * The old name stays on purpose: that package is still published, and it is the one a
+ * machine has to remove before the current package can own the command. Naming the
+ * current package here would uninstall the CLI instead of the leftover install.
+ */
 export declare const LEGACY_PACKAGE = "@tdk-landscape/tdk-cli-core";
 /** True when the command can be typed as-is, so `flisk ...` resolves. */
 export declare function isCommandOnPath(command?: string, env?: NodeJS.ProcessEnv): boolean;

@@ -4,6 +4,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { cwd } from "node:process";
+import chalk from "chalk";
 import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
@@ -45,7 +46,9 @@ if (templateArg) {
         await runStack(binPath, destination, process.env, undefined, () => {
             // The stack printed its URLs: open the first frontend that answers, the same way
             // `flisk open` does.
-            void openFirstFrontend(destination);
+            void openFirstFrontend(destination).catch((error) => {
+                console.log(chalk.yellow(`\nCould not open a browser: ${error instanceof Error ? error.message : String(error)}`));
+            });
         });
     }
     process.exit(0);
