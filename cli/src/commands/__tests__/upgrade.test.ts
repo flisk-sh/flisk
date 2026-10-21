@@ -324,6 +324,7 @@ describe("package-manager upgrade failures", () => {
   });
 
   it("does not switch to the GitHub default branch when Bun install fails", async () => {
+    execSyncMock.mockReset();
     execFileSyncMock.mockReset();
     execFileSyncMock.mockImplementationOnce(() => {
       throw new Error("registry unavailable");
@@ -333,6 +334,8 @@ describe("package-manager upgrade failures", () => {
     try {
       const ok = await upgradeViaBun();
       expect(ok).toBe(false);
+      // The legacy package owns the old `flisk` command and blocks the install, so it goes first.
+      expect(String(execSyncMock.mock.calls[0]?.[0])).toBe(`bun remove -g ${LEGACY_PACKAGE}`);
       expect(execFileSyncMock).toHaveBeenCalledTimes(1);
       expect(execFileSyncMock.mock.calls[0]?.[1]).toEqual([
         "install",
