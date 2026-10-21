@@ -116,7 +116,7 @@ For VS Code, associate both filenames with their schema in workspace settings. T
     },
     {
       "fileMatch": ["/.tdk/project.json"],
-      "url": "https://raw.githubusercontent.com/flisk-sh/flisk/main/engine/schemas/project-schema.json"
+      "url": "https://flisk.sh/project-schema.json"
     }
   ]
 }

@@ -31,6 +31,7 @@ jobs:
           fi
           git clone --depth 1 "https://x-access-token:${PAGES_SYNC_TOKEN}@github.com/flisk-sh/website.git" pages
           cp engine/schemas/service-schema.json pages/schema.service.json
+          cp engine/schemas/project-schema.json pages/project-schema.json
           cd pages
           if git diff --quiet; then
             echo "Published schema is already up to date"
@@ -38,7 +39,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "Sync schema.service.json with flisk-sh/flisk (${GITHUB_SHA::7})"
+          git commit -am "Sync the published schemas with flisk-sh/flisk (${GITHUB_SHA::7})"
           git push origin HEAD:main
       - name: Report whether the published schema matches main
         # Publishing is best-effort, so this never fails the job. It exists so that a missing PAGES_SYNC_TOKEN (the copy step above
@@ -64,8 +65,16 @@ jobs:
                   break
               time.sleep(20)
 
-          if live == main:
-              message = "The published schema at " + url + " matches main."
+          project_url = "https://flisk.sh/project-schema.json"
+          project_main = json.load(open("engine/schemas/project-schema.json"))
+          try:
+              with urllib.request.urlopen(project_url, timeout=20) as response:
+                  project_live = json.load(response)
+          except Exception:
+              project_live = None
+
+          if live == main and project_live == project_main:
+              message = "The published schemas at " + url + " and " + project_url + " match main."
               level = "notice"
           elif live is None:
               message = "Could not read " + url + " (" + error + ")."
