@@ -46,11 +46,11 @@ export const SKIP_TEMPLATE_SIGNATURES = {
     "### What would you like to know?",
     "### How do you run your services locally today?",
   ],
-  "i-booted-tdk": [
+  "i-booted-flisk": [
     "### Minutes until first healthy URL",
     "### Commands you ran",
   ],
-  "we-use-tdk": [
+  "we-use-flisk": [
     "### Anything a maintainer should know",
     "### I am allowed to list this organization",
   ],

@@ -16,7 +16,7 @@ The e2e sprawl is part of a wider CI problem. On one busy day (2026-10-17), 36 w
 - Cover **every job in every workflow**, not only e2e: a `.github/ci-inventory.json` that gives each job a tier (`gate`, `test`, `e2e`, `security`, `release`, `bot`, `report`), enforced by a check. Also: timeouts and concurrency groups everywhere, one `changes` job per pull request run, the CLI packed once per run, composite setup actions with a Bun cache, expensive and report jobs moved off `push`, path-gated security scans with full runs on `main` and nightly, narrower bot event types, a merge queue in place of rebasing every pull request, neutral results for missing secrets, a tracker for jobs that stay red, no automatic retries, and a weekly CI cost and health report with per-tier budgets.
 - Move the agent suite from `scripts/agent-e2e.sh` to `tests/e2e/resource-types/agent/` as the reference suite.
 - Add a contributor guide, `docs/contributing/05-write-e2e.md`, covering when an e2e is required, which group it belongs to, how to write one, and how to prove it can fail. It walks through the agent suite as the worked example.
-- Add a repository skill, `tdk-e2e-author`, that guides an AI assistant through the same steps. It is linked from `.agents/skills`, and `scripts/sync-tdk-skills.sh` keeps repo-local skills instead of deleting them.
+- Add a repository skill, `flisk-e2e-author`, that guides an AI assistant through the same steps. It is linked from `.agents/skills`, and `scripts/sync-tdk-skills.sh` keeps repo-local skills instead of deleting them.
 - **BREAKING (CI only):** workflow file names and some check names change. Branch protection's required checks must be updated in the same release, and old names keep working until then (see design.md).
 
 ## Capabilities
@@ -34,8 +34,8 @@ None. No e2e behavior is specified in `openspec/specs` today. `agent-e2e-ci` (#1
 
 - **Moved:** `scripts/agent-e2e.sh` and `scripts/agent-e2e/*`, `scripts/e2e/*`, `scripts/verify-*.sh`, `tests/e2e/*.test.sh` and fixtures, and the stack-booting `cli/src/commands/__tests__/*-e2e.test.ts` files where they boot a stack.
 - **Replaced:** `.github/workflows/{byo-e2e,byo-boot-e2e,cold-start-e2e,erp-scale-e2e,example-e2e,examples-e2e,go-dev-loop-e2e,python-example-e2e,quickstart-e2e,smoke-e2e,windows-smoke,wsl2-smoke,agent-e2e}.yml`, plus `benchmarks.yml` folded into the scale group.
-- **New:** `tests/e2e/lib/`, `tests/e2e/<group>/<suite>/run.sh`, `e2e-<group>.yml` workflows, `docs/contributing/05-write-e2e.md`, `.claude/skills/tdk-e2e-author/`, and a coverage check.
+- **New:** `tests/e2e/lib/`, `tests/e2e/<group>/<suite>/run.sh`, `e2e-<group>.yml` workflows, `docs/contributing/05-write-e2e.md`, `.claude/skills/flisk-e2e-author/`, and a coverage check.
 - **Changed:** `Makefile` (`make test-e2e GROUP=… SUITE=…`), `CONTRIBUTING.md` (Tests section links the guide), `docs/contributing/02-feature-recipes.md` (each recipe names its e2e), `scripts/sync-tdk-skills.sh` (keeps repo-local skills).
-- **CI-wide:** every file in `.github/workflows/` (triggers, timeouts, concurrency, setup), new `.github/actions/{setup-bun,setup-tilt,free-postgres-port,install-tdk}`, `.github/ci-inventory.json` and its check, generated `docs/ci.md`, `docs-only.yml` removed, a red-job tracker and a weekly `ci-report` workflow.
+- **CI-wide:** every file in `.github/workflows/` (triggers, timeouts, concurrency, setup), new `.github/actions/{setup-bun,setup-tilt,free-postgres-port,install-flisk}`, `.github/ci-inventory.json` and its check, generated `docs/ci.md`, `docs-only.yml` removed, a red-job tracker and a weekly `ci-report` workflow.
 - **Admin:** branch protection's required checks switch to the single aggregate gate, the merge queue is enabled, and `TDK_LICENSE_KEY` is configured or `cold-start` stays neutral (maintainer actions).
 - **Builds on:** [PR #1272](https://github.com/flisk-sh/flisk/pull/1272) (merged), whose agent suite is the reference.

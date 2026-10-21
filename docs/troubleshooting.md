@@ -10,7 +10,7 @@ Where the cause is not known, the entry says so. Messages change between release
 
 Fixes that change files or Docker state, such as `tdk down --prune-networks` or `docker network prune`, affect every project on that Docker daemon, not only the one you are in.
 
-On this page: [before anything starts](#tdk-fails-before-anything-starts) · [doctor failures](#tdk-doctor-fails) · [ports](#ports) · [services not healthy](#services-never-turn-healthy-or-are-left-behind) · [scaffolded code](#scaffolded-code) · [Windows and WSL2](#windows-and-wsl2) · [asking for help](#how-to-ask-for-help)
+On this page: [before anything starts](#tdk-fails-before-anything-starts) · [doctor failures](#flisk-doctor-fails) · [ports](#ports) · [services not healthy](#services-never-turn-healthy-or-are-left-behind) · [scaffolded code](#scaffolded-code) · [Windows and WSL2](#windows-and-wsl2) · [asking for help](#how-to-ask-for-help)
 
 ## tdk fails before anything starts
 
@@ -39,7 +39,7 @@ error: unknown command 'upp'
 - **Cause:** a typo, or a flag the command does not have. The exit code is 1.
 - **Fix:** `tdk <command> --help` lists the flags.
 - **Checked:** reproduced.
-- If an older TDK reports `unknown flag: --force`, upgrade it. Current TDK accepts the option for script compatibility and does not pass it to Tilt. The historical [pilot report](adopt-tdk.md#2-pilot-in-one-afternoon) ran `tilt down --force` directly, not `tdk down --force`.
+- If an older TDK reports `unknown flag: --force`, upgrade it. Current TDK accepts the option for script compatibility and does not pass it to Tilt. The historical [pilot report](adopt-flisk.md#2-pilot-in-one-afternoon) ran `tilt down --force` directly, not `tdk down --force`.
 
 ### `Stack "x" not found`
 
@@ -211,7 +211,7 @@ $ tdk doctor --no-ping      # no .env file
 
 - **Cause and fix:** as printed. The last one also produces a second failure, `Starlark load() issues will stop Tilt before services start:`, listing the missing file; its fix is `tdk config regenerate`.
 - **Defined in:** [`doctor-wiring.ts`](../cli/src/utils/doctor-wiring.ts) (package.json), [`doctor.ts`](../cli/src/commands/doctor.ts) (scripts, discovery, master configs, Starlark).
-- **Checked:** reproduced, each by changing one thing in a scratch project. A defect was noted in [adopt-tdk.md](adopt-tdk.md#2-pilot-in-one-afternoon): on the code that page was written against, `N resources without a package.json` was also reported for bring-your-own resources. It was not re-run for this page.
+- **Checked:** reproduced, each by changing one thing in a scratch project. A defect was noted in [adopt-flisk.md](adopt-flisk.md#2-pilot-in-one-afternoon): on the code that page was written against, `N resources without a package.json` was also reported for bring-your-own resources. It was not re-run for this page.
 
 ### `Backends without a health route`
 
@@ -233,7 +233,7 @@ $ tdk doctor --no-ping      # no .env file
 ```
 
 - **Cause:** `service.json` has a key TDK does not know. TDK leaves it in place. The scratch case added `"healthCheck": "/health"` by hand; doctor still exited 0.
-- **Fix:** none required. Remove the field, or fix its spelling, if you expected it to do something. [Pilot TDK on a real repository](adopt-tdk.md#2-pilot-in-one-afternoon) records that on TDK 1.3.86 a freshly scaffolded service produced this for `healthCheck`; a service scaffolded by the version used for this page did not.
+- **Fix:** none required. Remove the field, or fix its spelling, if you expected it to do something. [Pilot TDK on a real repository](adopt-flisk.md#2-pilot-in-one-afternoon) records that on TDK 1.3.86 a freshly scaffolded service produced this for `healthCheck`; a service scaffolded by the version used for this page did not.
 - **Defined in:** [`service-manifest.ts`](../cli/src/utils/service-manifest.ts). The warning's wording was `Unknown service.json field: ...` in the earlier capture and is `<path>.<field>: unknown field is preserved` now.
 - **Checked:** reproduced.
 

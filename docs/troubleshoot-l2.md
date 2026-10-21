@@ -377,4 +377,4 @@ cannot execute binary file: Exec format error
 - [Troubleshoot L1 (base image)](troubleshoot-l1.md): Docker build failures in the foundational OS and Bun runtime layer.
 - [Troubleshooting overview](troubleshooting.md): General troubleshooting for TDK CLI and Tilt diagnostics.
 - [Scope and non-goals](scope.md): Details on local-only golden images.
-- [Leaving TDK](leaving-tdk.md): What `tdk eject` does and how dependencies are managed.
+- [Leaving TDK](leaving-flisk.md): What `tdk eject` does and how dependencies are managed.

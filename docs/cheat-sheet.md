@@ -150,7 +150,7 @@ tdk import ./legacy --yes
 | `--yes` | Write without prompting |
 | `--force` | Overwrite an existing `service.json` |
 
-See [gradual adoption](gradual-adoption.md) and [adopt TDK](adopt-tdk.md).
+See [gradual adoption](gradual-adoption.md) and [adopt TDK](adopt-flisk.md).
 
 ### `tdk eject`
 
@@ -161,7 +161,7 @@ Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the 
 | `--dry-run` | List the generated files and what would be written |
 | `--yes` | Skip the confirmation prompt |
 
-See [leaving TDK](leaving-tdk.md).
+See [leaving TDK](leaving-flisk.md).
 
 ## 📦 Resources
 

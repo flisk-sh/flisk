@@ -1,6 +1,6 @@
 ---
-name: tdk-e2e-author
-description: Guides an AI assistant through adding or changing an end-to-end test in flisk - deciding whether one is required, choosing the group, scaffolding a suite under tests/e2e from the agent reference suite, using the shared helpers, running cases on a real stack, and capturing passing and deliberate-break evidence. Use when adding a resource type, a command or MCP tool that talks to a running stack, a provider (language or framework), or a change to tdk up, Traefik routing or the engine.
+name: flisk-e2e-author
+description: Guides an AI assistant through adding or changing an end-to-end test in flisk - deciding whether one is required, choosing the group, scaffolding a suite under tests/e2e from the agent reference suite, using the shared helpers, running cases on a real stack, and capturing passing and deliberate-break evidence. Use when adding a resource type, a command or MCP tool that talks to a running stack, a provider (language or framework), or a change to flisk up, Traefik routing or the engine.
 license: MIT
 compatibility: Requires the tdk CLI, Docker, Tilt, Node 22+, jq and curl to run suites. Writing and validating them needs only the checkout.
 metadata:
@@ -8,7 +8,7 @@ metadata:
   version: "1.0"
 ---
 
-# Writing TDK end-to-end tests
+# Writing Flisk end-to-end tests
 
 The human version of this guide is `docs/contributing/05-write-e2e.md`. Read it when you need the details. This skill is the procedure. The reference suite is `tests/e2e/resource-types/agent/`.
 
@@ -17,7 +17,7 @@ The human version of this guide is `docs/contributing/05-write-e2e.md`. Read it 
 An e2e is **required** when the change:
 - adds or changes a resource type (`VALID_RESOURCE_TYPES` in `cli/src/utils/constants.ts`). Report that a suite is required under `tests/e2e/resource-types/<type>/`;
 - adds or changes a command or MCP tool that talks to a running stack;
-- changes `tdk up`, `tdk down`, Traefik routing, or engine-generated Compose or Tilt files;
+- changes `flisk up`, `flisk down`, Traefik routing, or engine-generated Compose or Tilt files;
 - adds a provider users select with a flag (backend language, backend or frontend framework).
 
 It is **not** required when nothing starts a stack. Then write unit tests in `cli/src/**/__tests__/`. Say which case applies and why before writing anything.
@@ -39,14 +39,14 @@ If the behavior is already covered by an existing suite, add cases there instead
 Never copy a helper into a suite. Use `tests/e2e/lib/lib.sh`, and add new shared helpers there with a test in `tests/e2e/lib/__tests__/`.
 
 - One function per case, named like `A1`. Each case **creates its own preconditions**: check the state it needs (running container, data) and create it.
-- `run <name> <tdk args>` records the output, then you check `$RC` yourself. `run_in <dir> ...` runs in another project.
+- `run <name> <flisk args>` records the output, then you check `$RC` yourself. `run_in <dir> ...` runs in another project.
 - Wait only with `poll_until "<what>" <seconds> <command>`. Never use `sleep`.
-- After `tdk restart`, call `wait_restarted <resource> "$before" "<desc>" <ready command>`. The old container answers until it is replaced.
+- After `flisk restart`, call `wait_restarted <resource> "$before" "<desc>" <ready command>`. The old container answers until it is replaced.
 - A request whose result a later assertion uses goes through `traefik_request_ok`. It fails on non-2xx instead of passing an error page on.
 - Error paths: `assert envelope "$OUT/<name>.out" <CODE>`. Other checks: `assert check <file> "<js expr on j>" "<message>"`, `assert equal <a> <b>`.
 - Fake upstreams: `with_stub <port> hang|stall|status <code> <msg>|json <body>`, then `stop_stub`.
 - MCP: `mcp_session <name> '<calls json>' [cwd]`, then `mcp_structured <name> <index>`.
-- A resource-type suite covers: scaffold with `tdk resource`, a bounded wait in `tdk status --json`, the type's observable contract, `tdk restart` with a replaced-container wait, and at least one error envelope. List any case that does not apply, with the reason.
+- A resource-type suite covers: scaffold with `flisk resource`, a bounded wait in `flisk status --json`, the type's observable contract, `flisk restart` with a replaced-container wait, and at least one error envelope. List any case that does not apply, with the reason.
 
 ## 5. Run against a real stack
 

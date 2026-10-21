@@ -77,7 +77,7 @@ describe("tdk resource --type mcp", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-mcp-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-mcp-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
       env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },

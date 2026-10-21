@@ -29,7 +29,7 @@
 
 ## Guides
 
-- [Pilot TDK on a real repository](adopt-tdk.md): a team lead's guide to trying TDK in an afternoon
+- [Pilot TDK on a real repository](adopt-flisk.md): a team lead's guide to trying TDK in an afternoon
 - [Scope and non-goals](scope.md): local development only, what differs from production, which Dockerfile you ship
 - [Layout and ownership](layout.md): one project or one per repo, services in other repos, name clashes, CODEOWNERS, layouts for 5, 20 and 50 services
 - [Pilot scorecard](pilot-scorecard.md): record the same measurements and decision at the end of a pilot
@@ -39,7 +39,7 @@
 - [Troubleshooting](troubleshooting.md): tdk and Tilt messages as printed, with cause, fix and how each was checked
 - [Troubleshoot L1 (base image)](troubleshoot-l1.md): Docker build failures in the foundational OS and Bun runtime layer
 - [Troubleshoot L2 (dependency layer)](troubleshoot-l2.md): Docker build failures in package manifests, lockfiles, and dependency caching
-- [Leaving TDK](leaving-tdk.md): what `tdk eject` really does, what stays usable without TDK, what you lose
+- [Leaving TDK](leaving-flisk.md): what `tdk eject` really does, what stays usable without TDK, what you lose
 - [Local data: reset, seed, snapshot](data.md): where Postgres data lives and how to reset it
 - [Testing webhooks locally](local-webhooks.md): a proposed recipe for replaying duplicate, retried and tampered provider deliveries without the provider
 - [Upgrading and version pinning](upgrading.md): `minTdkVersion`, installing a specific version, what is versioned
@@ -47,8 +47,8 @@
 - [Smoke check](smoke.md): `tdk up` checks a service through the URL it prints
 - [Agent hosts](agent-hosts.md): Dev Containers, Codespaces and WebContainers, and what `tdk doctor` reports for them
 - [AI agents in TDK](agents/ai-agents.md): hosting agents, persistent checkpoint volumes, session routing, and recipes
-- [TDK MCP setup](agent-tooling/tdk-mcp-setup.md): install TDK and connect Codex or Claude Code over local stdio
-- [TDK MCP quick guide](agent-tooling/tdk-mcp.md): the tools a connected client exposes, and how to target a project
+- [TDK MCP setup](agent-tooling/flisk-mcp-setup.md): install TDK and connect Codex or Claude Code over local stdio
+- [TDK MCP quick guide](agent-tooling/flisk-mcp.md): the tools a connected client exposes, and how to target a project
 - [Bring-your-own resources](byo.md): wrap an existing service or image, one-shot jobs, `--restart`
 - [Frontend framework providers](frontend-framework-providers.md): add a Vite framework (React, Vue, Svelte, Preact, Lit, Solid, Qwik, plain TypeScript)
 - [MCP resources](mcp.md): `--type mcp` scaffolds a Model Context Protocol server

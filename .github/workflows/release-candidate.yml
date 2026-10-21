@@ -136,7 +136,7 @@ jobs:
           path: ${{ runner.temp }}/rc-tarball
 
       - name: Install the candidate tarball
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           tarball: ${{ runner.temp }}/rc-tarball/tdk-cli.tgz
 
@@ -192,7 +192,7 @@ jobs:
           path: ${{ runner.temp }}/rc-tarball
 
       - name: Install the candidate tarball
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           tarball: ${{ runner.temp }}/rc-tarball/tdk-cli.tgz
 

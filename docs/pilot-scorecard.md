@@ -1,6 +1,6 @@
 # Pilot scorecard
 
-At the end of a pilot a lead has to say adopt, extend or stop. This page gives every team the same measurements and the same questions, so results can be compared and shared. Pair it with the [adoption guide](adopt-tdk.md).
+At the end of a pilot a lead has to say adopt, extend or stop. This page gives every team the same measurements and the same questions, so results can be compared and shared. Pair it with the [adoption guide](adopt-flisk.md).
 
 ## Record a run
 

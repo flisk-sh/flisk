@@ -1,4 +1,4 @@
-name: We use TDK
+name: We use Flisk
 description: Ask to be listed in ADOPTERS.md without editing the table
 title: "adopter: "
 labels: ["growth"]
@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        List only teams that run `tdk up` on their own repositories. See [What counts](https://github.com/flisk-sh/flisk/blob/main/ADOPTERS.md#what-counts) before you submit. Benchmark fixtures, "evaluating", and forks of the examples do not count.
+        List only teams that run `flisk up` on their own repositories. See [What counts](https://github.com/flisk-sh/flisk/blob/main/ADOPTERS.md#what-counts) before you submit. Benchmark fixtures, "evaluating", and forks of the examples do not count.
   - type: input
     id: organization
     attributes:
@@ -33,7 +33,7 @@ body:
     id: notes
     attributes:
       label: Anything a maintainer should know
-      description: For a private team without a public repository link, put a public write-up in the link field above and explain how a maintainer can verify that you use TDK.
+      description: For a private team without a public repository link, put a public write-up in the link field above and explain how a maintainer can verify that you use Flisk.
   - type: checkboxes
     id: permission
     attributes:

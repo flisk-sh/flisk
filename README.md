@@ -196,7 +196,7 @@ Teams that run `tdk up` on their own code (listed with their consent in [ADOPTER
 - [MakeOffer](https://www.linkedin.com/company/makeofferio), TDK 1.3.180
 - [Red Moon Digital](https://redmoon.digital/), TDK 1.3.81
 
-Using TDK too? [Tell us](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
+Using TDK too? [Tell us](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
 
 If TDK saves you time, a ⭐ on [this repo](https://github.com/flisk-sh/flisk) helps other developers find it.
 
@@ -328,7 +328,7 @@ Runnable examples show TDK on real stacks. Start with the smallest one:
 
 ## Use TDK with your AI agent
 
-The repository ships agent skills for common TDK work, including `tdk-doctor` (environment checks) and `tdk-troubleshoot` (fixing `tdk` and Tilt errors), under [`.agents/skills`](.agents/skills). Agents working in this repo also follow [AGENTS.md](AGENTS.md). Use these skills to let your agent check your setup and explain failures instead of guessing at Docker or Tilt configuration.
+The repository ships agent skills for common TDK work, including `flisk-doctor` (environment checks) and `flisk-troubleshoot` (fixing `tdk` and Tilt errors), under [`.agents/skills`](.agents/skills). Agents working in this repo also follow [AGENTS.md](AGENTS.md). Use these skills to let your agent check your setup and explain failures instead of guessing at Docker or Tilt configuration.
 
 ## Installation
 
@@ -358,7 +358,7 @@ Set `TDK_DEBUG=1` before running `tdk up --verbose` to include Starlark debug lo
 - [CLI command cheat sheet](cli/README.md#cheat-sheet)
 - [Mega cheat sheet: every command and flag](docs/cheat-sheet.md)
 - [Documentation index](docs/README.md)
-- [Pilot TDK on a real repository](docs/adopt-tdk.md)
+- [Pilot TDK on a real repository](docs/adopt-flisk.md)
 - [Running AI agents in TDK](docs/agents/ai-agents.md)
 - [FAQ for agencies and multi-client teams](docs/faq-teams.md)
 - [Working alongside Helm](docs/with-helm.md)
