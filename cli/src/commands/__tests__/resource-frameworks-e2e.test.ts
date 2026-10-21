@@ -13,7 +13,7 @@ import { resourceCommand } from "../resource.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function runTdk(args: string[], cwd: string, input?: string): string {
   return execFileSync(process.execPath, [cliBin, ...args], {

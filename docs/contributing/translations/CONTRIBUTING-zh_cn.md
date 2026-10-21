@@ -90,7 +90,7 @@ bun run typecheck && bun run lint && bun run test   # 约一分钟；在你修�
 
 ## 把你的团队加入采用者列表
 
-在你自己的仓库中使用 TDK？你可以通过两种方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：打开 [We use TDK](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) issue 表单，或在 pull request 中向表格添加一行。[What counts](../../../ADOPTERS.md#what-counts) 说明了应该链接什么，以及什么不算。
+在你自己的仓库中使用 TDK？你可以通过两种方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：打开 [We use TDK](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue 表单，或在 pull request 中向表格添加一行。[What counts](../../../ADOPTERS.md#what-counts) 说明了应该链接什么，以及什么不算。
 
 ## 治理
 

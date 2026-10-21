@@ -1,5 +1,5 @@
 ---
-name: tdk-troubleshoot
+name: flisk-troubleshoot
 description: Diagnose and fix TDK (flisk) local-dev problems with verified commands. Covers `tdk doctor`, `tdk up` or `tdk down` failing or hanging, "Docker daemon is not responding", red Tilt resources (pull access denied for golden images, missing shared-platform-engineering files, TS2688 bun types, run-only "No such image"), Postgres crash loops, services never reaching healthy, a machine overloaded by many services, Docker image size vs memory questions, and benchmarking how many services fit on a machine. Use this whenever someone works in flisk or a TDK project (tdk-erp-system, tdk-saas-starter, tdk-restaurant-example, auth-user) and anything about tdk, Tilt, or Docker is broken, slow, or being measured, even if they never say "troubleshoot".
 license: MIT
 compatibility: Requires the tdk CLI, Docker and Tilt on the local machine. Does not deploy.
@@ -115,7 +115,7 @@ tilt disable <other-stack-resource> <...>
 
 ```bash
 (cd <core>/cli && bun run build)
-TDK_EXTENSION_SOURCE=<core> node <core>/cli/bin/tdk.js project --yes
+TDK_EXTENSION_SOURCE=<core> node <core>/cli/bin/flisk.js project --yes
 diff -rq <core>/engine/topologies/platform/docker .tdk/.tdk-out/tdk-cli-ext/engine/topologies/platform/docker
 ```
 

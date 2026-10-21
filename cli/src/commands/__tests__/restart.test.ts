@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliPath = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliPath = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 function runTdk(args: string[], cwd: string, env?: NodeJS.ProcessEnv) {
   return spawnSync(process.execPath, [cliPath, ...args], {

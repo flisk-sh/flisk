@@ -4,7 +4,7 @@
 //
 // ink, react and chalk (plus their transitive deps, notably es-toolkit at
 // ~18 MB) are inlined so the npm package does not install them. commander and
-// handlebars stay external. dist/ itself is committed and untouched; bin/tdk.js
+// handlebars stay external. dist/ itself is committed and untouched; bin/flisk.js
 // prefers dist-bundle/ when it exists (only inside a packed/installed package).
 
 import { readFileSync, rmSync } from "node:fs";

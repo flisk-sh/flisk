@@ -87,7 +87,7 @@ BP4() { # an interrupted tdk up is cleaned up by tdk down, and a second tdk up s
   poll_until "Docker has created a container for $SERVICE" "$READY_TIMEOUT" \
     bash -c "docker ps -aq --filter 'name=${PROJECT}-' | grep -q ."
   # Interrupt: kill the tdk process that owns this run. Its Tilt child may survive, which is the state tdk down must clear.
-  pkill -KILL -f "bin/tdk.js up app" >/dev/null 2>&1 || true
+  pkill -KILL -f "bin/flisk.js up app" >/dev/null 2>&1 || true
 
   run bp4-down down
   [ "$RC" -eq 0 ] || die "BP4: tdk down exited $RC after an interrupted up"

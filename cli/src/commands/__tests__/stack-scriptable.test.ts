@@ -10,7 +10,7 @@ import { TdkError } from "../../utils/errors.js";
 import { parseStackResourceConfig } from "../stack.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 describe("tdk stack command scriptability", () => {
   const tempDirs: string[] = [];

@@ -1,5 +1,5 @@
 ---
-name: tdk-agent-ops
+name: flisk-agent-ops
 description: Directs AI coding agents (Claude Code, Cursor, Codex) to operate and scaffold services using TDK CLI and MCP tools instead of hand-writing Dockerfiles or Compose manifests.
 license: MIT
 compatibility: Requires the tdk CLI, Docker, and Tilt.

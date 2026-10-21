@@ -42,7 +42,7 @@ function resource(
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-doctor-wiring-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-doctor-wiring-"));
   mkdirSync(join(root, ".tdk"), { recursive: true });
   writeFileSync(
     join(root, ".tdk", "project.json"),

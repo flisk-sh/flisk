@@ -23,7 +23,7 @@ W1() { # typecheck the CLI, build it and run its help
   log "W1 typecheck, build and run the CLI help"
   (cd "$REPO_ROOT" && npm run typecheck)
   (cd "$REPO_ROOT/cli" && npm run build)
-  (cd "$REPO_ROOT/cli" && node bin/tdk.js --help)
+  (cd "$REPO_ROOT/cli" && node bin/flisk.js --help)
 }
 
 W2() { # the Windows platform unit tests

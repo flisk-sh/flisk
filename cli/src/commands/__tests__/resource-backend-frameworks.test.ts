@@ -16,7 +16,7 @@ import {
 import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function tdk(args: string[], cwd: string, input = "y\n") {
   return spawnSync(process.execPath, [cliBin, ...args], {

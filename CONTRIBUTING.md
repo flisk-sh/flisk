@@ -322,7 +322,7 @@ Every contribution matters. When your pull request is merged:
 
 ## Add your team to the adopters list
 
-Run TDK on your own repository? You can be listed in [ADOPTERS.md](ADOPTERS.md) in either of two ways: open the [We use TDK](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) issue form, or add a row to the table in a pull request. [What counts](ADOPTERS.md#what-counts) explains what to link and what does not count.
+Run TDK on your own repository? You can be listed in [ADOPTERS.md](ADOPTERS.md) in either of two ways: open the [We use TDK](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue form, or add a row to the table in a pull request. [What counts](ADOPTERS.md#what-counts) explains what to link and what does not count.
 
 ## Governance
 

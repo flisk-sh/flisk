@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SCHEMA_VERSION } from "../machine-output.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 const MASTER_CONFIG_FILES = [
   "TILT_TECH_STACK.star",

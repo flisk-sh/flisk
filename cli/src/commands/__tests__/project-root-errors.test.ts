@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 const commands = ["projects", "resources", "stacks", "networks"] as const;
 // Each test starts four Bun processes in a row; under the full suite's parallel load that passes vitest's 5s default.
 const CLI_SPAWN_TIMEOUT_MS = 30_000;

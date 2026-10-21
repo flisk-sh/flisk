@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const cliPath = resolve(scriptDir, "../../cli/bin/tdk.js");
+const cliPath = resolve(scriptDir, "../../cli/bin/flisk.js");
 const builtCliPath = resolve(scriptDir, "../../cli/dist/cli.js");
 const resultsDir = resolve(scriptDir, "../../benchmarks/results");
 const { values } = parseArgs({

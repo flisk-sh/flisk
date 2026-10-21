@@ -9,7 +9,7 @@ import { expect } from "vitest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = resolve(__dirname, "../../../..");
-export const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+export const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 export function runTdk(args: string[], cwd: string, input?: string): string {
   return execFileSync(process.execPath, [cliBin, ...args], {

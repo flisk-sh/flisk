@@ -708,7 +708,7 @@ describe("parseResourceType", () => {
   });
 });
 
-const resourceCliPath = join(dirname(fileURLToPath(import.meta.url)), "../../../bin/tdk.js");
+const resourceCliPath = join(dirname(fileURLToPath(import.meta.url)), "../../../bin/flisk.js");
 
 function createResourceProject(): string {
   const projectRoot = mkdtempSync(join(tmpdir(), "tdk-resource-cli-"));

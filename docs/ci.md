@@ -284,7 +284,7 @@ The workflow uses major version tags (`actions/checkout@v7`, `actions/setup-node
 
 ## Related
 
-- [Adopting TDK](adopt-tdk.md#4-share-it-with-the-team): step 4, `tdk config verify` in CI
+- [Adopting TDK](adopt-flisk.md#4-share-it-with-the-team): step 4, `tdk config verify` in CI
 - [Upgrading and version pinning](upgrading.md)
 - [Machine-readable CLI](reference/machine-readable-cli.md): `--json` shapes and exit codes
 - [Smoke check](smoke.md)

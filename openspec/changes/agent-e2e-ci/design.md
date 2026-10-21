@@ -34,7 +34,7 @@ This is a user-visible CLI behavior change; flagging for maintainer confirmation
 A Node test spawns `tdk mcp`, speaks newline-delimited JSON-RPC over stdio (`initialize`, `tools/list`, `tools/call`), and compares each tool payload to the corresponding CLI `--json` envelope run against the same live stack. Includes `projectPath` from a different cwd and an unknown-resource call that must return a structured tool error while the server stays alive (a following call still answers).
 
 ### Distribution and docs (section D)
-Run on the same job but need no stack, so they execute first and fail fast: symlink resolution in `.agents/skills`, `sync-tdk-skills.sh` against a temp fixture source repo (keeps `tdk-agent-ops`, deletes a skill removed upstream), and a link checker over `README.md`, `docs/**`, `AGENTS.md` (relative links, anchors, no references to removed `llms.txt`/`llms-full.txt`/`docs/ai-agents.md`, all `docs/agents/llms*.txt` links resolve).
+Run on the same job but need no stack, so they execute first and fail fast: symlink resolution in `.agents/skills`, `sync-tdk-skills.sh` against a temp fixture source repo (keeps `flisk-agent-ops`, deletes a skill removed upstream), and a link checker over `README.md`, `docs/**`, `AGENTS.md` (relative links, anchors, no references to removed `llms.txt`/`llms-full.txt`/`docs/ai-agents.md`, all `docs/agents/llms*.txt` links resolve).
 
 ## Risks / Trade-offs
 

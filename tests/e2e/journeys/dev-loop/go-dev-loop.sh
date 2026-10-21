@@ -24,7 +24,7 @@ http_port=$((30000 + RANDOM % 2000))
 tilt_port=$((10400 + RANDOM % 500))
 # Vendor and run this checkout's engine, not a published one (the backgrounded `tdk up` needs it too).
 export TDK_EXTENSION_SOURCE="$root"
-tdk() { node "$root/cli/bin/tdk.js" "$@"; }
+tdk() { node "$root/cli/bin/flisk.js" "$@"; }
 
 cleanup() {
   # Anchored on the whole project name: golive123 must not match a concurrent run's golive1234.
@@ -58,7 +58,7 @@ open(path, "a").write("\n")
 PY
 
 started="$(date +%s)"
-TILT_PORT="$tilt_port" nohup node "$root/cli/bin/tdk.js" up "$proj" >"$work/up.log" 2>&1 &
+TILT_PORT="$tilt_port" nohup node "$root/cli/bin/flisk.js" up "$proj" >"$work/up.log" 2>&1 &
 
 route="/api/api/"
 health="/api/api/health"

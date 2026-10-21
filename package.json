@@ -1,7 +1,7 @@
 {
   "name": "@flisk-sh/flisk",
-  "version": "1.3.190",
-  "description": "TDK CLI — start services on your machine.",
+  "version": "1.3.191",
+  "description": "Flisk CLI — start services on your machine.",
   "homepage": "https://flisk.sh",
   "repository": {
     "type": "git",
@@ -15,8 +15,9 @@
     "cli"
   ],
   "bin": {
-    "tdk": "cli/bin/tdk.js",
-    "tdk-cli": "cli/bin/tdk.js"
+    "flisk": "cli/bin/flisk.js",
+    "tdk": "cli/bin/flisk.js",
+    "tdk-cli": "cli/bin/flisk.js"
   },
   "files": [
     "Tiltfile",
@@ -49,8 +50,9 @@
     "prepack": "node cli/scripts/bundle.mjs",
     "postpack": "rm -rf cli/dist-bundle",
     "prepare": "scripts/install-git-hooks.sh",
-    "cli": "cd cli && node bin/tdk.js",
-    "tdk": "cd cli && node bin/tdk.js"
+    "cli": "cd cli && node bin/flisk.js",
+    "tdk": "cd cli && node bin/flisk.js",
+    "flisk": "cd cli && node bin/flisk.js"
   },
   "keywords": [
     "tdk",

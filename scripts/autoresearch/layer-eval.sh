@@ -9,7 +9,7 @@ set -uo pipefail
 CORE="$(cd "$(dirname "$0")/../.." && pwd)"
 ERP="${TDK_BENCH_PROJECT:-$CORE/../tdk-erp-system}"
 SAMPLE="${LAYER_EVAL_SAMPLE:-20}"
-TDK_CLI="${TDK_CLI:-$CORE/cli/bin/tdk.js}"
+TDK_CLI="${TDK_CLI:-$CORE/cli/bin/flisk.js}"
 PREFIX="$(python3 -c "import json;print(json.load(open('$ERP/.tdk/project.json'))['project']['name'])")"
 t() { date +%s; }
 

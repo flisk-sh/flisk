@@ -68,7 +68,7 @@ jobs:
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install TDK from npm
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           version: ${{ inputs.version || 'latest' }}
 

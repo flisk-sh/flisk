@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 
 Remove-Item Env:TDK_ALLOW_NATIVE_WINDOWS -ErrorAction SilentlyContinue
 
-$version = & node bin/tdk.js --version
+$version = & node bin/flisk.js --version
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($version | Out-String))) {
   throw 'tdk --version did not succeed.'
 }
@@ -19,7 +19,7 @@ function Invoke-NativeWindowsRefusal {
     [Parameter(Mandatory = $true)][string[]]$CliArgs
   )
 
-  $output = & node bin/tdk.js @CliArgs 2>&1
+  $output = & node bin/flisk.js @CliArgs 2>&1
   $exitCode = $LASTEXITCODE
   $text = $output | Out-String
   Write-Host "$Label exit code: $exitCode"

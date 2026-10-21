@@ -4,7 +4,7 @@ Hard-won, repo-specific facts for anyone (human or agent) working here. Keep ent
 
 ## Verify before you push
 - Lint and typecheck from `cli/` by exit code, not by `| tail`: `./node_modules/.bin/biome check . ; echo $?` and `./node_modules/.bin/tsc --noEmit ; echo $?`. `npx biome` runs an unrelated v0.3.3 package that exits 0 without checking.
-- Run `npm run build` before vitest when `src/` changed: the e2e tests spawn `cli/bin/tdk.js`, which imports `dist/`.
+- Run `npm run build` before vitest when `src/` changed: the e2e tests spawn `cli/bin/flisk.js`, which imports `dist/`.
 - 2026-10-07 (#124): `scripts/benchmark/cli-startup.mjs` measures `tdk status` including its read-only Tilt availability probe; when Tilt is absent from `PATH`, each sample can spend about 10 seconds in that probe. Use the benchmark script's `--skip-status` for smoke runs and treat default status timings as probe-dominated.
 - On Windows, TypeScript preserves CRLF inside multiline template literals in generated `cli/dist` even with `--newLine lf`; normalize emitted files to LF before staging.
 - BSD sed (macOS) has no `\b`; use python `re.sub` or perl for renames and confirm with `grep -c`.

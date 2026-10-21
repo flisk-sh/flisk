@@ -15,7 +15,7 @@ import {
 } from "../../utils/constants.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function tdk(args: string[], cwd: string, input = "y\n") {
   return spawnSync(process.execPath, [cliBin, ...args], {
@@ -77,7 +77,7 @@ describe("tdk resource --type mcp", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-mcp-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-mcp-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
       env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },

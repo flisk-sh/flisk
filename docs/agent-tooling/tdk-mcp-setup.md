@@ -4,7 +4,7 @@
 
 It runs on your machine, next to your project. It is not a hosted endpoint: there is no URL to point a client at, no account to create, and no separate MCP package to install.
 
-This page is the setup path, from installing TDK to a first `doctor` and `up`. For tool calls and everyday use, see the [TDK MCP quick guide](tdk-mcp.md).
+This page is the setup path, from installing TDK to a first `doctor` and `up`. For tool calls and everyday use, see the [TDK MCP quick guide](flisk-mcp.md).
 
 ## What you need
 
@@ -38,7 +38,7 @@ tdk --version
 tdk mcp --help
 ```
 
-Both installation paths install the same CLI, and `tdk mcp` comes with it. There is no MCP package to add: no `@tdk-landscape/tdk-mcp`, no `npx @tdk-landscape/tdk-mcp`, and no MCP SDK to install. Docker and Tilt are needed to start a stack, but not to connect the client or to run `doctor`.
+Both installation paths install the same CLI, and `tdk mcp` comes with it. There is no MCP package to add: no `@tdk-landscape/flisk-mcp`, no `npx @tdk-landscape/flisk-mcp`, and no MCP SDK to install. Docker and Tilt are needed to start a stack, but not to connect the client or to run `doctor`.
 
 ## 2. Point a client at `tdk mcp`
 
@@ -109,7 +109,7 @@ Put the entry in `.cursor/mcp.json` in the project, or in `~/.cursor/mcp.json` f
 
 ## 3. First run
 
-![Animated Doctor, Up, Status, and Logs icon demo](../assets/tdk-mcp-tool-icons.svg)
+![Animated Doctor, Up, Status, and Logs icon demo](../assets/flisk-mcp-tool-icons.svg)
 
 ### 1. Run doctor
 
@@ -197,7 +197,7 @@ To start part of a stack, name the services in `only`. TDK starts their dependen
 
 ## Next
 
-- [TDK MCP quick guide](tdk-mcp.md): tool calls in a connected client, and the `projectPath` rules.
+- [TDK MCP quick guide](flisk-mcp.md): tool calls in a connected client, and the `projectPath` rules.
 - [Machine-readable CLI reference](../reference/machine-readable-cli.md): the JSON shapes and exit codes behind each tool.
 - [Doctor contract](../reference/doctor-contract.md): what doctor checks and how it reports.
 - [Operator runbook](../operator-runbook.md): Docker, Tilt, and port prerequisites for running a stack.

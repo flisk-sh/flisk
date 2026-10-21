@@ -19,7 +19,7 @@ proj="smk$$"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))
-tdk() { TDK_EXTENSION_SOURCE="$root" node "$root/cli/bin/tdk.js" "$@"; }
+tdk() { TDK_EXTENSION_SOURCE="$root" node "$root/cli/bin/flisk.js" "$@"; }
 
 cleanup() {
   if [ -n "${VERIFY_SMOKE_ARTIFACT_DIR:-}" ] && [ -d "$work/.tdk/smoke" ]; then
@@ -91,7 +91,7 @@ wait_for() { # $1 = pattern, $2 = pid
 # Phase 1: a correct smoke block passes.
 set_smoke '/records/{{id}}'
 : > up.log
-nohup node "$root/cli/bin/tdk.js" up app >"$work/up.log" 2>&1 &
+nohup node "$root/cli/bin/flisk.js" up app >"$work/up.log" 2>&1 &
 pid=$!
 if ! wait_for "Smoke check passed: $proj" "$pid"; then
   echo "FAIL smoke phase 1: no 'Smoke check passed' line" >&2
@@ -110,7 +110,7 @@ wait "$pid" 2>/dev/null || true
 set_smoke '/missing/{{id}}'
 : > up.log
 set +e
-node "$root/cli/bin/tdk.js" up app >"$work/up.log" 2>&1 &
+node "$root/cli/bin/flisk.js" up app >"$work/up.log" 2>&1 &
 pid=$!
 wait_for "Smoke check failed" "$pid"
 wait "$pid"

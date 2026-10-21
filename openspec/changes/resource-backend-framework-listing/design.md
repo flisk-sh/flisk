@@ -49,7 +49,7 @@ code.
 
 ### 5. The listing is tested through the real binary
 
-The inventory is a CLI contract, so the test spawns `cli/bin/tdk.js` and reads the tab separated output.
+The inventory is a CLI contract, so the test spawns `cli/bin/flisk.js` and reads the tab separated output.
 A spawned process also avoids the commander state that an in-process `parseAsync` keeps between runs,
 where a `--type` from an earlier case would still be set for a later one.
 

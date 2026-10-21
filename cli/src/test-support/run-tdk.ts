@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** The CLI entry point the tests run, resolved once. */
-export const tdkBin = path.resolve(here, "../../bin/tdk.js");
+export const tdkBin = path.resolve(here, "../../bin/flisk.js");
 
 export interface RunTdkOptions {
   cwd: string;

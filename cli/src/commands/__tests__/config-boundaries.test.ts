@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { importInvocation } from "../import.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const tdk = path.join(repoRoot, "cli", "bin", "tdk.js");
+const tdk = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 function projectJson(): string {
   return JSON.stringify({

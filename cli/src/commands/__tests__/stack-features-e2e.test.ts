@@ -13,7 +13,7 @@ vi.setConfig({ testTimeout: 60_000 });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function runTdk(args: string[], cwd: string): string {
   return execFileSync("bun", [cliBin, ...args], {

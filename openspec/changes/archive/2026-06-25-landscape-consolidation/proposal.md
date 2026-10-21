@@ -36,5 +36,5 @@ Fixing both reduces maintenance burden, clarifies the canonical source of truth,
 - **Files removed**: beauty-crm/cli/ (~50 files), AI root configs (5 files), AI assistant dirs (5+ dirs)
 - **Files added**: 1 symlink, 1-2 consolidated config files
 - **Dependencies**: CI/CD pipelines that reference beauty-crm/cli/ need updating
-- **Breaking Changes**: Any tooling that directly references `beauty-crm/cli/bin/tdk.js` will need to use `tdk-cli/cli/bin/tdk.js`
+- **Breaking Changes**: Any tooling that directly references `beauty-crm/cli/bin/flisk.js` will need to use `tdk-cli/cli/bin/flisk.js`
 - **Risk Level**: Low-Medium. CLI removal is mechanical and testable. AI config changes are cosmetic but need care not to break developer workflows.

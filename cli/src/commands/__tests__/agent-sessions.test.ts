@@ -13,7 +13,7 @@ import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { agentCommand, agentSessionRequest } from "../agent.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliPath = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliPath = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 function runTdk(args: string[], cwd: string) {
   return spawnSync(process.execPath, [cliPath, ...args], {

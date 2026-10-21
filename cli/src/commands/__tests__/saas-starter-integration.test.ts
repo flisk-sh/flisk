@@ -13,7 +13,7 @@ vi.setConfig({ testTimeout: 60_000 });
 // Get the CLI bin path dynamically
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const CLI_BIN_PATH = join(__dirname, "..", "..", "..", "bin", "tdk.js");
+const CLI_BIN_PATH = join(__dirname, "..", "..", "..", "bin", "flisk.js");
 
 // `tdk doctor` requires these (see REQUIRED_ENV_VARS in ../../utils/env-validator.ts);
 // an empty .env satisfies `tdk project`'s docker-compose validation but leaves doctor

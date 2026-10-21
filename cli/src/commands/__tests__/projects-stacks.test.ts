@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 describe("tdk projects and stacks", () => {
   let tempDirs: string[] = [];

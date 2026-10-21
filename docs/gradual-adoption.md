@@ -39,7 +39,7 @@ TDK starts from its own `Tiltfile` in `.tdk/.tdk-out/`, so a root `Tiltfile` the
 
 ## Taking it out again
 
-Run `tdk down` first (`--prune-networks` also removes the project's Docker networks that no container uses; Postgres data stays in its volume, see [local data](data.md#does-it-survive-tdk-down)). Then delete what the list above shows: `.tdk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, any `services/<stack>/` you added, `.env`, and the four `.gitignore` lines. [Leaving TDK](leaving-tdk.md) covers what survives, what you lose and what `tdk eject` does.
+Run `tdk down` first (`--prune-networks` also removes the project's Docker networks that no container uses; Postgres data stays in its volume, see [local data](data.md#does-it-survive-tdk-down)). Then delete what the list above shows: `.tdk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, any `services/<stack>/` you added, `.env`, and the four `.gitignore` lines. [Leaving TDK](leaving-flisk.md) covers what survives, what you lose and what `tdk eject` does.
 
 ## Not covered
 
