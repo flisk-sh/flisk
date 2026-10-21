@@ -28,7 +28,7 @@ The agent runs `tdk doctor`, then `tdk up --json` in the background, and polls `
 { "mcpServers": { "tdk": { "command": "tdk", "args": ["mcp"] } } }
 ```
 
-Tools (each runs the matching `--json` command, so they behave exactly like the CLI): `doctor`, `up`, `down`, `status`, `logs`, `resource_list`. Arguments are validated before anything runs: names may contain letters, digits, `.`, `_` and `-` only.
+Tools (each runs the matching `--json` command, so they behave exactly like the CLI): `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `restart_resource`, `list_agents`, `get_agent_sessions`. Arguments are validated before anything runs: names may contain letters, digits, `.`, `_` and `-` only. For the install path and per-client configuration, see the [TDK MCP setup guide](agent-tooling/tdk-mcp-setup.md).
 
 - `up` takes `stack`, `only` (service names), `force` and `waitSeconds`. It starts Tilt detached and returns without waiting for the stack to be ready, since a build can outlast a tool call. It watches only for an early refusal (`UNKNOWN_SERVICE`, `TILT_ALREADY_RUNNING`, an unsupported host) and otherwise returns `started: true` with the process id and a log file. Poll `status` until `data.tilt.readiness.ready` is true.
 - `status` includes `data.tilt.readiness` (`ready`, `pending`, `failures`, `enabled`), which is `null` when no Tilt answers. The same field is on `tdk status --json`.

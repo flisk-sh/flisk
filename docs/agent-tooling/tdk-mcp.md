@@ -2,6 +2,8 @@
 
 When the TDK MCP is connected to Codex, ask for an operation in plain language, for example: **“Run TDK doctor and summarize anything blocking startup.”** The connector exposes tools for host checks, project services, stack lifecycle, and recent logs.
 
+This guide assumes the server is already connected. To install TDK and point a client at `tdk mcp`, see the [TDK MCP setup guide](tdk-mcp-setup.md).
+
 ## Start with Doctor
 
 Doctor checks whether the machine can run TDK. It reports prerequisites such as Docker, Tilt, Docker Compose, available host ports, and whether the current host can start a stack. It can run outside a TDK project.

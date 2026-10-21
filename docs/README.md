@@ -47,7 +47,8 @@
 - [Smoke check](smoke.md): `tdk up` checks a service through the URL it prints
 - [Agent hosts](agent-hosts.md): Dev Containers, Codespaces and WebContainers, and what `tdk doctor` reports for them
 - [AI agents in TDK](agents/ai-agents.md): hosting agents, persistent checkpoint volumes, session routing, and recipes
-- [TDK MCP setup](agent-tooling/README.md): install TDK and connect Codex or Claude Code over local stdio
+- [TDK MCP setup](agent-tooling/tdk-mcp-setup.md): install TDK and connect Codex or Claude Code over local stdio
+- [TDK MCP quick guide](agent-tooling/tdk-mcp.md): the tools a connected client exposes, and how to target a project
 - [Bring-your-own resources](byo.md): wrap an existing service or image, one-shot jobs, `--restart`
 - [Frontend framework providers](frontend-framework-providers.md): add a Vite framework (React, Vue, Svelte, Preact, Lit, Solid, Qwik, plain TypeScript)
 - [MCP resources](mcp.md): `--type mcp` scaffolds a Model Context Protocol server
