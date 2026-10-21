@@ -32,7 +32,7 @@ const templateArg =
   readOptionValue(process.argv, "--template") ?? (await bareTemplateArg(process.argv));
 const projectArg = readOptionValue(process.argv, "--project");
 if (templateArg) {
-  const { cloneProjectTemplate } = await import("./commands/project.js");
+  const { cloneProjectTemplate, templateTargetDir } = await import("./commands/project.js");
   const { assertMachineReadyOrExit, detectRuntimePrerequisites, formatRuntimeNextSteps } =
     await import("./utils/cold-preflight.js");
   const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
@@ -45,18 +45,16 @@ if (templateArg) {
     console.log("\n\u2714 flisk is installed globally, so `flisk` works from any folder.");
   }
 
-  const destination = resolve(cwd(), projectArg || templateArg);
+  const destination = resolve(cwd(), templateTargetDir(templateArg, projectArg));
   const binPath = process.argv[1];
   if (binPath && existsSync(destination)) {
-    const { runStack, findFrontendUrl } = await import("./utils/one-command.js");
+    const { runStack } = await import("./utils/one-command.js");
     const { openUrl } = await import("./utils/url-actions.js");
     console.log(`\n\u{1F680} Starting the stack in ${destination}...\n`);
-    const result = await runStack(binPath, destination);
-    const url = findFrontendUrl(result.output);
-    if (url) {
+    await runStack(binPath, destination, process.env, undefined, (url) => {
+      void openUrl(url);
       console.log(`\n\u{1F310} Opening ${url}`);
-      await openUrl(url);
-    }
+    });
   }
   process.exit(0);
 }
