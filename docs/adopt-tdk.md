@@ -6,7 +6,7 @@ The command output below was captured on one machine (macOS, Flisk 1.3.86, Docke
 
 ## 1. Is it a fit?
 
-Read [When not to use Flisk](../README.md#when-not-to-use-tdk) and the [honest comparison](compare-honest.md) first. In short, skip Flisk if:
+Read [When not to use Flisk](../README.md#when-not-to-use-flisk) and the [honest comparison](compare-honest.md) first. In short, skip Flisk if:
 
 - your Compose or Tilt setup already gives you a working local environment
 - Helm is your whole development workflow and you do not want local services on Docker
@@ -38,7 +38,7 @@ To scaffold a new Bun/TypeScript service instead, which is what the output below
 flisk resource orders-api --type backend --stack shop --yes
 ```
 
-The bring-your-own command above is the one from [byo.md](byo.md). Run in a scratch project it created the resource (`service.json`, `AGENTS.md`, `health.conf` and a placeholder nginx `Dockerfile`); that resource was not started. Each service gets a `service.json`. Commit it with the service. A bring-your-own service must listen on the port in `service.json`, bind to `0.0.0.0`, and answer HTTP 200 on `healthCheckPath`; [byo.md](byo.md#what-tdk-needs-from-the-container) lists the full contract.
+The bring-your-own command above is the one from [byo.md](byo.md). Run in a scratch project it created the resource (`service.json`, `AGENTS.md`, `health.conf` and a placeholder nginx `Dockerfile`); that resource was not started. Each service gets a `service.json`. Commit it with the service. A bring-your-own service must listen on the port in `service.json`, bind to `0.0.0.0`, and answer HTTP 200 on `healthCheckPath`; [byo.md](byo.md#what-flisk-needs-from-the-container) lists the full contract.
 
 Then check the machine and preview the stack before starting anything:
 

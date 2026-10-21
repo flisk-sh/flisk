@@ -21,7 +21,7 @@ Flisk runs on a developer's machine. It reads a `service.json` for each service,
 ## Trust boundaries
 
 1. **The user's `service.json` and project files.** These come from the user or from a repository they cloned. They are validated before any file is generated.
-2. **The network.** Outbound calls are listed in [security.md](security.md#what-tdk-sends-over-the-network). Without a licence key and without `flisk upgrade`, the CLI makes no outbound request of its own.
+2. **The network.** Outbound calls are listed in [security.md](security.md#what-flisk-sends-over-the-network). Without a licence key and without `flisk upgrade`, the CLI makes no outbound request of its own.
 3. **Docker and the container images.** Images are pulled by Docker from registries. Tags are not digests, so a registry could move them (`docs/security.md#images`).
 4. **The release channel.** npm, GitHub release assets, and the Sigstore signature checked by `cosign` against the workflow identity.
 

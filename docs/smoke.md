@@ -33,4 +33,4 @@ The records survive `flisk down`, so a failure can still be read after the conta
 
 In CI, the `smoke` suite of `.github/workflows/e2e-journeys.yml` uploads the records of its throwaway verify project as a `smoke-records-*` artifact (14 days), even when the run fails. A workflow artifact is readable by anyone who can read the run, so do not point a workflow at a smoke step whose response echoes a credential the `.env` does not hold.
 
-Every field, the retry rules and what is not covered are in [Configuration: `smoke`](configuration.md#smoke-check-the-public-url-after-tdk-up). `tests/e2e/journeys/smoke/verify-smoke.sh` runs both outcomes through a real `flisk up`.
+Every field, the retry rules and what is not covered are in [Configuration: `smoke`](configuration.md#smoke-check-the-public-url-after-flisk-up). `tests/e2e/journeys/smoke/verify-smoke.sh` runs both outcomes through a real `flisk up`.

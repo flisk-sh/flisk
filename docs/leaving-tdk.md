@@ -41,7 +41,7 @@ Treat `flisk eject` as a note-writer, not as an exit path. A command that export
 | File | Exists after `flisk project` + `flisk resource` | Committed? |
 | --- | --- | --- |
 | `services/<stack>/<name>/service.json` | Yes | Yes |
-| `services/<stack>/<name>/Dockerfile` (generated services) | Yes. A starting point; `flisk up` builds a different file ([scope](scope.md#is-the-dockerfile-tdk-builds-the-one-we-ship)) | Yes |
+| `services/<stack>/<name>/Dockerfile` (generated services) | Yes. A starting point; `flisk up` builds a different file ([scope](scope.md#is-the-dockerfile-flisk-builds-the-one-we-ship)) | Yes |
 | `services/platform/database-management/docker-compose.yml` | Yes. Shared Postgres | Untracked, not ignored |
 | `.tdk/.tdk-out/Tiltfile`, `spec.master`, `tdk-cli-ext/` (vendored engine) | Yes (242 files) | Ignored |
 | `.tdk/.tdk-out/docker-compose.traefik.yml`, `golden-layers.Dockerfile`, `traefik-dynamic/` | **No**, written when Tilt runs | Ignored |
@@ -84,7 +84,7 @@ Not run end to end; it follows from the facts above.
 
 ## Taking Flisk out of the repository
 
-`flisk down --prune-networks` first (it also removes the project's networks that no container uses; volumes are kept, see [local data](data.md#does-it-survive-tdk-down)), then follow [gradual adoption](gradual-adoption.md#taking-it-out-again): delete `.tdk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, `EJECTED.md` if you ran eject, `.env`, the four `.gitignore` lines, and any `services/<stack>/` that exists only for Flisk.
+`flisk down --prune-networks` first (it also removes the project's networks that no container uses; volumes are kept, see [local data](data.md#does-it-survive-flisk-down)), then follow [gradual adoption](gradual-adoption.md#taking-it-out-again): delete `.tdk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, `EJECTED.md` if you ran eject, `.env`, the four `.gitignore` lines, and any `services/<stack>/` that exists only for Flisk.
 
 What survives: service source and your own Dockerfiles. `service.json`, `AGENTS.md`, `health.conf` and the placeholder Dockerfiles of bring-your-own resources are harmless to other tools but Flisk-specific; delete them if you do not want the clutter. Remove the Postgres volume yourself if you do not need the data ([local data](data.md)).
 

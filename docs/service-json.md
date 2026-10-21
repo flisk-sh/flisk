@@ -103,7 +103,7 @@ The `language` and `framework` properties intentionally use an open id pattern i
 | `healthCheckPath` | path string; defaults to `/health` for HTTP API resources | HTTP resources | Container health endpoint. Traefik uses it too unless `traefik.healthCheck` is set. Omit it for a non-HTTP BYO resource. |
 | `traefik` | object; generated when omitted | routable resources | Routing overrides: `host`, `pathPrefix`, and `healthCheck`. |
 | `exposeViaProxy` | boolean; defaults to `true` for BYO | BYO resources | Set `false` to keep a BYO resource off Traefik; it then has no public route or HTTP health probe. |
-| `smoke` | object; optional | routable HTTP resources | Post-start checks through the public proxy URL. Use `via: "proxy"` and one or more HTTP `steps`. See the [`smoke` configuration guide](configuration.md#smoke-check-the-public-url-after-tdk-up). |
+| `smoke` | object; optional | routable HTTP resources | Post-start checks through the public proxy URL. Use `via: "proxy"` and one or more HTTP `steps`. See the [`smoke` configuration guide](configuration.md#smoke-check-the-public-url-after-flisk-up). |
 
 `healthCheckPath` is an inside-the-container readiness probe. A `smoke` block is different: it verifies the public route printed by `flisk up`, and can perform a safe write/read-back flow. Do not use a full URL in a smoke step; its `path` is appended to the public URL.
 
@@ -151,7 +151,7 @@ What this does on `flisk up`:
 - `flisk up --only orders-backend` also starts `inventory-backend`, because a requested service brings in the services it lists in `dependsOn`. `flisk up --dry-run --json --only orders-backend` shows this under `declaredDependencies`.
 - A `dependsOn` name that matches no service is reported as an error when the manifests are checked. `postgres` and `database-management` are the exception: they refer to the shared platform Postgres.
 
-This is only local startup ordering for `flisk up`. It does not describe how you deploy the services, and it does not make `orders-backend` retry or wait if `inventory-backend` stops later. Each manifest field is described in the table above; see [`flisk up`](cheat-sheet.md#tdk-up-stack-name-alias-deploy) for `--only` and [Machine-readable CLI](reference/machine-readable-cli.md) for the JSON output.
+This is only local startup ordering for `flisk up`. It does not describe how you deploy the services, and it does not make `orders-backend` retry or wait if `inventory-backend` stops later. Each manifest field is described in the table above; see [`flisk up`](cheat-sheet.md#flisk-up-stack-name-alias-deploy) for `--only` and [Machine-readable CLI](reference/machine-readable-cli.md) for the JSON output.
 
 ### Example: Postgres, then a migrator, then an API
 

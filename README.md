@@ -384,7 +384,7 @@ Set `TDK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug 
 - [Architecture and repository map](docs/project-overview.md)
 - [Scale fixture measurements and caveats](docs/benchmarks/scale-bench.md)
 - [Benchmark report: warm and cold start charts, history](https://flisk-sh.github.io/flisk/) (updated on every change to `main` that affects start-up)
-- [How to run the start-time benchmark](scripts/benchmark/README.md#tdk-up-warm-start-benchmark)
+- [How to run the start-time benchmark](scripts/benchmark/README.md#flisk-up-warm-start-benchmark)
 
 ## History
 

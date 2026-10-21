@@ -10,7 +10,7 @@ Where the cause is not known, the entry says so. Messages change between release
 
 Fixes that change files or Docker state, such as `flisk down --prune-networks` or `docker network prune`, affect every project on that Docker daemon, not only the one you are in.
 
-On this page: [before anything starts](#tdk-fails-before-anything-starts) · [doctor failures](#tdk-doctor-fails) · [ports](#ports) · [services not healthy](#services-never-turn-healthy-or-are-left-behind) · [scaffolded code](#scaffolded-code) · [Windows and WSL2](#windows-and-wsl2) · [asking for help](#how-to-ask-for-help)
+On this page: [before anything starts](#flisk-fails-before-anything-starts) · [doctor failures](#flisk-doctor-fails) · [ports](#ports) · [services not healthy](#services-never-turn-healthy-or-are-left-behind) · [scaffolded code](#scaffolded-code) · [Windows and WSL2](#windows-and-wsl2) · [asking for help](#how-to-ask-for-help)
 
 ## flisk fails before anything starts
 

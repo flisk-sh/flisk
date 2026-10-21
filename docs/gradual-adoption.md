@@ -39,7 +39,7 @@ Flisk starts from its own `Tiltfile` in `.tdk/.tdk-out/`, so a root `Tiltfile` t
 
 ## Taking it out again
 
-Run `flisk down` first (`--prune-networks` also removes the project's Docker networks that no container uses; Postgres data stays in its volume, see [local data](data.md#does-it-survive-tdk-down)). Then delete what the list above shows: `.tdk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, any `services/<stack>/` you added, `.env`, and the four `.gitignore` lines. [Leaving Flisk](leaving-tdk.md) covers what survives, what you lose and what `flisk eject` does.
+Run `flisk down` first (`--prune-networks` also removes the project's Docker networks that no container uses; Postgres data stays in its volume, see [local data](data.md#does-it-survive-flisk-down)). Then delete what the list above shows: `.tdk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, any `services/<stack>/` you added, `.env`, and the four `.gitignore` lines. [Leaving Flisk](leaving-tdk.md) covers what survives, what you lose and what `flisk eject` does.
 
 ## Not covered
 
