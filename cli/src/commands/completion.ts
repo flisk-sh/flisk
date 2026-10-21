@@ -947,7 +947,9 @@ export const completionCommand = new Command("completion")
     // the CLI always offer the same commands and flags.
     const program = command.parent;
     if (!program) {
-      console.error(chalk.red("❌ The completion command must be registered on the flisk program."));
+      console.error(
+        chalk.red("❌ The completion command must be registered on the flisk program."),
+      );
       process.exit(1);
     }
 

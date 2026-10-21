@@ -1543,7 +1543,9 @@ describe("doctor --all, sections, and summary", () => {
       expect(lines.some((line) => line.includes("Machine"))).toBe(true);
       expect(lines.some((line) => line.includes("Project"))).toBe(true);
       expect(
-        lines.some((line) => line.includes("Not in a Flisk project, so project checks were skipped")),
+        lines.some((line) =>
+          line.includes("Not in a Flisk project, so project checks were skipped"),
+        ),
       ).toBe(true);
       expect(
         lines.some((line) => /^\d+ passed(?:, \d+ warned)?, \d+ failed, \d+ skipped$/.test(line)),
@@ -1651,7 +1653,9 @@ describe("doctor --all, sections, and summary", () => {
       expect(lines.some((line) => line.includes("Machine"))).toBe(true);
       expect(lines.some((line) => line.includes("Project"))).toBe(true);
       expect(
-        lines.some((line) => line.includes("Not in a Flisk project, so project checks were skipped")),
+        lines.some((line) =>
+          line.includes("Not in a Flisk project, so project checks were skipped"),
+        ),
       ).toBe(true);
       expect(lines.some((line) => line.includes("0 passed, 1 failed, 0 skipped"))).toBe(true);
     } finally {
