@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
 
-import { formatProgress, type StackProgress, readStackProgress } from "../stack-progress.js";
+import { formatProgress, readStackProgress, type StackProgress } from "../stack-progress.js";
 
 const { execFileMock } = vi.hoisted(() => ({ execFileMock: vi.fn() }));
 vi.mock("node:child_process", async (importOriginal) => ({
@@ -88,7 +88,10 @@ describe("readStackProgress", () => {
     tiltAnswers(
       JSON.stringify({
         items: [
-          { metadata: { name: "orders-api" }, status: { updateStatus: "pending", runtimeStatus: "ok" } },
+          {
+            metadata: { name: "orders-api" },
+            status: { updateStatus: "pending", runtimeStatus: "ok" },
+          },
         ],
       }),
     );
@@ -100,9 +103,7 @@ describe("readStackProgress", () => {
   it("counts a resource that is still being built as building", async () => {
     tiltAnswers(
       JSON.stringify({
-        items: [
-          { metadata: { name: "migrate" }, status: { updateStatus: "in_progress" } },
-        ],
+        items: [{ metadata: { name: "migrate" }, status: { updateStatus: "in_progress" } }],
       }),
     );
     const progress = await readStackProgress(10350);
@@ -114,7 +115,10 @@ describe("readStackProgress", () => {
     tiltAnswers(
       JSON.stringify({
         items: [
-          { metadata: { name: "orders-api" }, status: { updateStatus: "ok", runtimeStatus: "error" } },
+          {
+            metadata: { name: "orders-api" },
+            status: { updateStatus: "ok", runtimeStatus: "error" },
+          },
         ],
       }),
     );
@@ -123,7 +127,9 @@ describe("readStackProgress", () => {
   });
 
   it("names a resource without metadata unknown", async () => {
-    tiltAnswers(JSON.stringify({ items: [{ status: { updateStatus: "ok", runtimeStatus: "ok" } }] }));
+    tiltAnswers(
+      JSON.stringify({ items: [{ status: { updateStatus: "ok", runtimeStatus: "ok" } }] }),
+    );
     const progress = await readStackProgress(10350);
     expect(progress?.ready).toBe(1);
   });
