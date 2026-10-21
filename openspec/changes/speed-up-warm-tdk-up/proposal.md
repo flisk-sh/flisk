@@ -1,6 +1,6 @@
 ## Why
 
-A warm `tdk up` on `tdk-restaurant-example` takes about 2 minutes even when nothing changed ([#1023](https://github.com/flisk-sh/flisk/issues/1023)). Measured on TDK 1.3.144, Docker Desktop with 8 CPUs:
+A warm `flisk up` on `tdk-restaurant-example` takes about 2 minutes even when nothing changed ([#1023](https://github.com/flisk-sh/flisk/issues/1023)). Measured on Flisk 1.3.144, Docker Desktop with 8 CPUs:
 
 - `golden-layers-build` takes ~21s with every step cached, because it runs nine `docker build --target` commands one after another. Every service build waits for it.
 - Tilt builds at most 3 images at once by default, so the fourth backend and both frontends queue behind the first three.
@@ -19,7 +19,7 @@ An unchanged rebuild of kitchen-api with a warm cache takes 11s, so most of the 
 
 ### New Capabilities
 
-- `tdk-up-build-performance`: How `tdk up` schedules and skips image builds so a warm start does only the work that changed.
+- `tdk-up-build-performance`: How `flisk up` schedules and skips image builds so a warm start does only the work that changed.
 
 ### Modified Capabilities
 
@@ -28,6 +28,6 @@ None.
 ## Impact
 
 - Affected code: `engine/topologies/platform/docker/build/golden_image_build.star` (and its constants), the CLI Tiltfile generator in `cli/src/generator/` with its golden snapshots, and `engine/topologies/platform/docker/layers/l3_builder_layers.star` plus the TypeScript/frontend Tilt resource registration.
-- Generated projects change on the next `tdk project` / `tdk up`: the Tiltfile gains an `update_settings` call, frontend Dockerfiles change their build step, and a `<service>-typecheck` resource appears in Tilt.
+- Generated projects change on the next `flisk project` / `flisk up`: the Tiltfile gains an `update_settings` call, frontend Dockerfiles change their build step, and a `<service>-typecheck` resource appears in Tilt.
 - No change to runtime images, ports, routing, or service metadata. User-owned `package.json` scripts are not rewritten.
 - Out of scope, tracked as a follow-up: publishing golden images to a registry and using registry build caches to speed up the first start on a new machine; lockfile handling in the L2 dependency layer (see design Open Questions).

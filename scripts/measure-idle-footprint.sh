@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Checks an idle generated backend container against the runtime footprint budget
 # (openspec: runtime-container-footprint): one Bun process, <= 64 MiB, < 2% CPU.

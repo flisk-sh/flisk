@@ -32,7 +32,7 @@ These checks ran via `npx -y @tdk-landscape/tdk-import@0.1.1` in isolated direct
 | Mixed Python/Node Procfile | 0 | Writes worker service.json; skips web; says to add Dockerfile or image |
 | Python-only Procfile | 2 | Skips process; writes nothing |
 
-Raw output and file snapshots are in `published-evidence.json`. Core `tdk up` was not rerun for this package release; the existing core 1.3.104 prerequisite is unchanged.
+Raw output and file snapshots are in `published-evidence.json`. Core `flisk up` was not rerun for this package release; the existing core 1.3.104 prerequisite is unchanged.
 
 ## Reproduce
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { expect, it, vi } from "vitest";
 
@@ -26,7 +26,7 @@ vi.mock("../../utils/errors.js", async (importOriginal) => {
 import { uiCommand } from "../ui.js";
 
 it("renders the UI in Ink's alternate screen", async () => {
-  await uiCommand.parseAsync(["node", "tdk"], { from: "node" });
+  await uiCommand.parseAsync(["node", "flisk"], { from: "node" });
 
   expect(renderMock).toHaveBeenCalledOnce();
   expect(renderMock).toHaveBeenCalledWith(expect.anything(), { alternateScreen: true });

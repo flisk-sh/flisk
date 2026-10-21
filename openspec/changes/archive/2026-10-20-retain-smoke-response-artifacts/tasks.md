@@ -10,7 +10,7 @@
 
 - [x] 2.1 Extend `scripts/verify-smoke.sh` phase 2 to assert the record URL, status 404, and non-empty body.
 - [x] 2.2 Upload `.tdk/smoke/` from the smoke job with `actions/upload-artifact` and `if: always()`. Name it with the run id. Retain 14 days.
-- [x] 2.3 Confirm `.tdk/` stays gitignored and `tdk down` does not delete the record.
+- [x] 2.3 Confirm `.tdk/` stays gitignored and `flisk down` does not delete the record.
 
 ## 3. Docs
 

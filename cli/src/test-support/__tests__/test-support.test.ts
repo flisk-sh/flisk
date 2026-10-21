@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -22,7 +22,7 @@ describe("runTdk", () => {
   it("throws with the command and directory when the spawn fails", () => {
     const missing = path.join(createTempDir(), "does-not-exist");
     expect(() => runTdk(["stacks"], { cwd: missing })).toThrow(
-      /Could not run `tdk stacks`.*ENOENT/s,
+      /Could not run `flisk stacks`.*ENOENT/s,
     );
   });
 
@@ -66,7 +66,7 @@ describe("createTempProject", () => {
     expect(fs.readFileSync(path.join(root, "notes/readme.txt"), "utf-8")).toBe("hi");
   });
 
-  it("omits the .tdk folder when projectJson is null, so tdk finds no project", () => {
+  it("omits the .tdk folder when projectJson is null, so flisk finds no project", () => {
     const root = createTempProject({ projectJson: null });
     expect(fs.existsSync(path.join(root, ".tdk"))).toBe(false);
     const result = runTdk(["stacks", "--json"], { cwd: root });
@@ -75,7 +75,7 @@ describe("createTempProject", () => {
   });
 
   const created: string[] = [];
-  it("creates a project that tdk can read", () => {
+  it("creates a project that flisk can read", () => {
     const root = createTempProject({ stacks: { api: { gateway: { appType: "backend" } } } });
     created.push(root);
     const envelope = parseEnvelope(runTdk(["stacks", "--json"], { cwd: root }).stdout);

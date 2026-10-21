@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawn } from "node:child_process";
 import chalk from "chalk";
@@ -97,7 +97,7 @@ function determineDefaultDomain() {
         const localhostMatch = firstDomain.match(/([\w-]+)\.localhost$/);
         if (localhostMatch) {
             // If it looks like a service domain, try common project names
-            const commonProjects = ["tdk", "project", "app", "api", "myapp"];
+            const commonProjects = ["flisk", "project", "app", "api", "myapp"];
             for (const project of commonProjects) {
                 const testDomain = `${project}.localhost`;
                 if (domainList.includes(testDomain)) {

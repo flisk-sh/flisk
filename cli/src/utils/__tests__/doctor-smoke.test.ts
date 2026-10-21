@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { summarizeSmokeResults } from "../doctor-runtime.js";
@@ -38,7 +38,7 @@ describe("summarizeSmokeResults", () => {
     expect(result.message).toContain("reservation-api: list: expected 200, got 404");
     expect(result.message).toContain("1 service failing a smoke check (1/2 passing):");
     expect(result.fix).toContain("service.json");
-    expect(result.fix).toContain('service.json "smoke" block. Then re-run tdk doctor.');
+    expect(result.fix).toContain('service.json "smoke" block. Then re-run flisk doctor.');
   });
 
   it("falls back to default failure text when failure details are absent", () => {

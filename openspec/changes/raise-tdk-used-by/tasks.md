@@ -1,4 +1,4 @@
-# Tasks: grow legitimate TDK CLI dependents
+# Tasks: grow legitimate Flisk CLI dependents
 
 ## 1. Audit the official landscape
 
@@ -32,8 +32,8 @@ Secondary audit-only candidates, generally expected not to need a package declar
 - `flisk-import` / `tdk-app` — related tools; audit if they invoke the CLI as a package
 
 - [x] 1.1 Audit the primary candidate repositories listed above; record URL, activity, ecosystem, manifest, lockfile, actual CLI usage, and disposition. Include additional public examples, starters, templates, and fixtures discovered under `flisk-sh`. (Snapshot recorded in `design.md`.)
-- [x] 1.2 For each candidate, verify whether its workflow genuinely installs or uses `@flisk-sh/flisk` and identify the appropriate dependency role. (Only `tdk-cli-starter` currently declares the package; other README-documented TDK usage requires a separately installed CLI and has no repo-local core dependency.)
-- [x] 1.3 Open repository-specific PRs for the confirmed TDK CLI project workflows, adding the appropriate development dependency and lockfile. Twelve PRs are listed in tracking issue #1716; all twelve consumer PRs have merged as of 20 October 2026.
+- [x] 1.2 For each candidate, verify whether its workflow genuinely installs or uses `@flisk-sh/flisk` and identify the appropriate dependency role. (Only `tdk-cli-starter` currently declares the package; other README-documented Flisk usage requires a separately installed CLI and has no repo-local core dependency.)
+- [x] 1.3 Open repository-specific PRs for the confirmed Flisk CLI project workflows, adding the appropriate development dependency and lockfile. Twelve PRs are listed in tracking issue #1716; all twelve consumer PRs have merged as of 20 October 2026.
 - [x] 1.4 Record exclusions and non-Node, binary-only, documentation-only, and CLI-in-Compose exceptions with reasons; do not add manifests solely to influence GitHub's count. (See audit snapshot in `design.md`.)
 
 ## 2. Verify package metadata

@@ -1,17 +1,17 @@
-# TDK CLI evaluation packet
+# Flisk CLI evaluation packet
 
-For maintainers of public projects that publish a tool catalog, recommended-CLI list, or allowlist. This asks you to **evaluate** TDK CLI. It does not claim that TDK CLI is verified, approved, or recommended by you or by anyone else.
+For maintainers of public projects that publish a tool catalog, recommended-CLI list, or allowlist. This asks you to **evaluate** Flisk CLI. It does not claim that Flisk CLI is verified, approved, or recommended by you or by anyone else.
 
 ## Identity
 
-- Project: TDK CLI, canonical repo [`flisk-sh/flisk`](https://github.com/flisk-sh/flisk)
+- Project: Flisk CLI, canonical repo [`flisk-sh/flisk`](https://github.com/flisk-sh/flisk)
 - npm package: `@flisk-sh/flisk` (not the unrelated Turkish-dictionary `tdk-cli` on PyPI)
-- License: MIT for core (see `LICENSE`). Premium extras use a separate key; `tdk up` needs no key.
-- Sender: always a TDK maintainer, stated as such in every issue or PR.
+- License: MIT for core (see `LICENSE`). Premium extras use a separate key; `flisk up` needs no key.
+- Sender: always a Flisk maintainer, stated as such in every issue or PR.
 
 ## What it is
 
-Local development orchestration: `tdk up` reads `service.json` files, writes the configuration Tilt uses, and runs the services as local Docker containers.
+Local development orchestration: `flisk up` reads `service.json` files, writes the configuration Tilt uses, and runs the services as local Docker containers.
 
 ## What it is not
 
@@ -39,11 +39,11 @@ To check by hand: download the asset and `checksums.txt` from the same release a
 - [Tilt](https://docs.tilt.dev/install.html)
 - Bun 1.2+ for the default generated services
 
-`tdk doctor` reports local readiness.
+`flisk doctor` reports local readiness.
 
 ## Platforms
 
-macOS, Linux, and Windows through WSL2 Ubuntu. Native Windows supports inspection only (`tdk --version`, `tdk doctor`, `tdk up --dry-run`).
+macOS, Linux, and Windows through WSL2 Ubuntu. Native Windows supports inspection only (`flisk --version`, `flisk doctor`, `flisk up --dry-run`).
 
 ## Non-claims
 
@@ -79,7 +79,7 @@ One file per request in `docs/outreach/records/<owner>-<repo>.yaml`. Fields: `ta
 
 - [ ] `list_path` is a public file that already lists tools
 - [ ] The contributing guide allows this kind of issue or PR
-- [ ] The draft says the author maintains TDK CLI and names the repo and MIT license
+- [ ] The draft says the author maintains Flisk CLI and names the repo and MIT license
 - [ ] No verified, approved, recommended, audited, or certified claim without a linked target statement
 - [ ] No other `open` record for the same repo, and no `declined` within 90 days
 - [ ] A human, not a script, will file it

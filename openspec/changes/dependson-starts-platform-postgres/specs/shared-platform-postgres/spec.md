@@ -12,14 +12,14 @@ When any resource in the current selection has `dependsOn` containing `postgres`
 #### Scenario: Feature off, selected resource depends on postgres
 - **WHEN** `database-management` is off
 - **AND** a selected resource has `dependsOn: ["postgres"]`
-- **THEN** `tdk up` MUST start the shared platform Postgres using the existing platform Compose and the existing `postgres` Tilt resource
+- **THEN** `flisk up` MUST start the shared platform Postgres using the existing platform Compose and the existing `postgres` Tilt resource
 - **AND** the selected service MUST have a Tilt `resource_deps` edge on `postgres` (start order)
 
 #### Scenario: Feature off, selected resource depends on database-management
 - **WHEN** `database-management` is off
 - **AND** a selected resource has `dependsOn: ["database-management"]`
 - **THEN** the system MUST resolve that name to the same shared platform Postgres as `postgres`
-- **AND** `tdk up` MUST start that shared Postgres and the service MUST have a Tilt `resource_deps` edge on `postgres`
+- **AND** `flisk up` MUST start that shared Postgres and the service MUST have a Tilt `resource_deps` edge on `postgres`
 
 #### Scenario: Feature on keeps one shared resource; resolution and reporting still change
 - **WHEN** `database-management` is on
@@ -34,7 +34,7 @@ When any resource in the current selection has `dependsOn` containing `postgres`
 - **WHEN** Postgres starts because a selected resource depends on `postgres` or `database-management`
 - **AND** `database-management` is off
 - **THEN** the system MUST materialize the platform files under `services/platform/database-management` (the same Compose the feature uses) before or as it registers the `postgres` Tilt resource
-- **AND** the Tilt resource MUST have a compose definition so `tdk up` does not wait on a resource with no compose
+- **AND** the Tilt resource MUST have a compose definition so `flisk up` does not wait on a resource with no compose
 
 #### Scenario: Materialized compose reuses feature path image and port
 - **WHEN** platform files are materialized because of a selected `dependsOn`
@@ -95,32 +95,32 @@ The system SHALL keep the Tilt dependency edge from the selected resource to `po
 - **AND** `postgres` MUST be present exactly once among the DB edges
 
 ### Requirement: Verify and doctor report the start reason
-`tdk config verify` and `tdk doctor` SHALL report that Postgres will start because an inspected project resource depends on `postgres` or `database-management`, when that dependency is present (or when the feature is already on). They MUST NOT report `postgres` or `database-management` as a missing service when that dependency is present.
+`flisk config verify` and `flisk doctor` SHALL report that Postgres will start because an inspected project resource depends on `postgres` or `database-management`, when that dependency is present (or when the feature is already on). They MUST NOT report `postgres` or `database-management` as a missing service when that dependency is present.
 
-**Resource set rule:** verify/doctor do **not** take a `tdk up` resource filter. They evaluate the project resources they already inspect (full project discovery for those commands). The engine start path is selection-bounded; verify/doctor reporting is project-scoped. "Unselected" therefore does **not** apply to verify/doctor — a dependency on any inspected resource is enough for a will-start report.
+**Resource set rule:** verify/doctor do **not** take a `flisk up` resource filter. They evaluate the project resources they already inspect (full project discovery for those commands). The engine start path is selection-bounded; verify/doctor reporting is project-scoped. "Unselected" therefore does **not** apply to verify/doctor — a dependency on any inspected resource is enough for a will-start report.
 
 #### Scenario: Verify reports Postgres will start because of dependsOn
 - **WHEN** `database-management` is off
 - **AND** an inspected project resource has `dependsOn: ["postgres"]`
-- **THEN** `tdk config verify` MUST report that Postgres will start because of that dependency
+- **THEN** `flisk config verify` MUST report that Postgres will start because of that dependency
 - **AND** MUST NOT report `postgres` as a missing service
 
 #### Scenario: Doctor reports Postgres will start because of dependsOn
 - **WHEN** `database-management` is off
 - **AND** an inspected project resource has `dependsOn: ["database-management"]`
-- **THEN** `tdk doctor` MUST report that Postgres will start because of that dependency
+- **THEN** `flisk doctor` MUST report that Postgres will start because of that dependency
 - **AND** MUST NOT report `database-management` as a missing service
 
 #### Scenario: Verify and doctor agree on the start predicate
 - **WHEN** `database-management` is off
 - **AND** an inspected project resource has `dependsOn: ["postgres"]`
-- **THEN** both `tdk config verify` and `tdk doctor` MUST report Postgres-will-start
+- **THEN** both `flisk config verify` and `flisk doctor` MUST report Postgres-will-start
 - **AND** neither MUST claim Postgres will not start
 
 #### Scenario: Verify and doctor do not report Postgres-will-start when nothing inspected depends on it
 - **WHEN** `database-management` is off
 - **AND** no inspected project resource depends on `postgres` or `database-management`
-- **THEN** `tdk config verify` and `tdk doctor` MUST NOT report that Postgres will start because of a dependency
+- **THEN** `flisk config verify` and `flisk doctor` MUST NOT report that Postgres will start because of a dependency
 
 #### Scenario: Feature on plus dependency still reports will-start
 - **WHEN** `database-management` is on
@@ -129,17 +129,17 @@ The system SHALL keep the Tilt dependency edge from the selected resource to `po
 - **AND** MUST NOT report `postgres` as a missing service
 
 ### Requirement: Selection bounds the engine start signal only
-The engine SHALL start Postgres because of `dependsOn` only when at least one **selected** resource in the current `tdk up` run lists `postgres` or `database-management`. A `dependsOn` on a resource this run does not select MUST NOT start Postgres. This bound applies to the engine start path; it is not the verify/doctor reporting rule (see the resource set rule above).
+The engine SHALL start Postgres because of `dependsOn` only when at least one **selected** resource in the current `flisk up` run lists `postgres` or `database-management`. A `dependsOn` on a resource this run does not select MUST NOT start Postgres. This bound applies to the engine start path; it is not the verify/doctor reporting rule (see the resource set rule above).
 
 #### Scenario: Unselected dependency does not start Postgres (engine)
 - **WHEN** `database-management` is off
-- **AND** resource A (not selected by this `tdk up`) has `dependsOn: ["postgres"]`
+- **AND** resource A (not selected by this `flisk up`) has `dependsOn: ["postgres"]`
 - **AND** no selected resource depends on `postgres` or `database-management`
 - **THEN** Postgres MUST NOT start
 
 #### Scenario: Selected dependency does start Postgres (engine)
 - **WHEN** `database-management` is off
-- **AND** resource B (selected by this `tdk up`) has `dependsOn: ["postgres"]`
+- **AND** resource B (selected by this `flisk up`) has `dependsOn: ["postgres"]`
 - **THEN** Postgres MUST start
 
 #### Scenario: Partial selection starts Postgres for selected dependents only
@@ -150,11 +150,11 @@ The engine SHALL start Postgres because of `dependsOn` only when at least one **
 - **AND** S1 MUST NOT gain a `postgres` edge solely because S2 listed it
 
 #### Scenario: Engine selection bound does not change verify/doctor project scope
-- **WHEN** resource A is not selected by `tdk up`
+- **WHEN** resource A is not selected by `flisk up`
 - **AND** resource A has `dependsOn: ["postgres"]`
 - **AND** `database-management` is off
 - **THEN** the engine MUST NOT start Postgres for that run when nothing selected depends on either name
-- **AND** verify/doctor MUST still report Postgres-will-start because they inspect the whole project (no `tdk up` filter)
+- **AND** verify/doctor MUST still report Postgres-will-start because they inspect the whole project (no `flisk up` filter)
 
 ### Requirement: Unchanged paths when the dependency is absent or invalid
 With no selected `dependsOn` on `postgres` or `database-management` and `database-management` off, Postgres MUST NOT start, and the existing behavior of not registering a `postgres` resource MUST remain unchanged. Unknown `dependsOn` names remain missing-service errors. Only `postgres` and `database-management` mean the shared database.
@@ -172,7 +172,7 @@ With no selected `dependsOn` on `postgres` or `database-management` and `databas
 
 #### Scenario: Typo stays an error
 - **WHEN** a selected resource has `dependsOn: ["postgress"]`
-- **THEN** `tdk config verify`, `tdk doctor`, and dependency resolution MUST report `postgress` as a missing/unknown dependency
+- **THEN** `flisk config verify`, `flisk doctor`, and dependency resolution MUST report `postgress` as a missing/unknown dependency
 - **AND** MUST NOT treat it as the shared platform database
 - **AND** Postgres MUST NOT start because of the typo
 
@@ -228,7 +228,7 @@ Starting shared platform Postgres because of `dependsOn: ["postgres"]` or `["dat
 - **AND** #531 behavior (Prisma should require Postgres) remains a separate concern
 
 #### Scenario: Resource scaffold output unchanged
-- **WHEN** `tdk resource` scaffolds a service without Prisma enabled
+- **WHEN** `flisk resource` scaffolds a service without Prisma enabled
 - **THEN** the scaffolded `service.json` MUST still write `"dependsOn": []`
 - **AND** MUST NOT write `"dependsOn": ["postgres"]` solely because this change exists
 

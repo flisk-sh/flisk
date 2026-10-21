@@ -1,12 +1,12 @@
-# Layout and ownership: where the TDK project lives when services are in several repos
+# Layout and ownership: where the Flisk project lives when services are in several repos
 
-The question this page answers: our services are spread over several repositories and teams, so where does the TDK project go, who reviews changes to the shared parts, and what breaks if two teams pick names that clash?
+The question this page answers: our services are spread over several repositories and teams, so where does the Flisk project go, who reviews changes to the shared parts, and what breaks if two teams pick names that clash?
 
-How this page was written: the CLI (TDK 1.3.86, Tilt 0.37.7, Docker Compose 5.5.1) was run in scratch directories, and the generated files and the Tilt resource list were read. Where something was only read in the source or the docs, it says so. **`tdk up` could not be completed for these checks.** Docker on the test machine had no free address pools (`all predefined address pools have been fully subnetted`), so `docker network create` failed and the project's Postgres and Traefik did not start. No service was started through `tdk up` for this page. Since [#589](https://github.com/flisk-sh/flisk/pull/589) the `init-networks` step fails with Docker's own message when a network cannot be created; at the time of these checks it did not say so (read in the changelog, not re-run, because Docker was not used for this sweep). Everything below about what runs is therefore about what `tdk` and Tilt *generate and load*, not about containers that were observed answering requests. The Tilt resource lists were read with `tilt alpha tiltfile-result -f .tdk/.tdk-out/Tiltfile`, which evaluates the generated Tiltfile without starting anything.
+How this page was written: the CLI (Flisk 1.3.86, Tilt 0.37.7, Docker Compose 5.5.1) was run in scratch directories, and the generated files and the Tilt resource list were read. Where something was only read in the source or the docs, it says so. **`flisk up` could not be completed for these checks.** Docker on the test machine had no free address pools (`all predefined address pools have been fully subnetted`), so `docker network create` failed and the project's Postgres and Traefik did not start. No service was started through `flisk up` for this page. Since [#589](https://github.com/flisk-sh/flisk/pull/589) the `init-networks` step fails with Docker's own message when a network cannot be created; at the time of these checks it did not say so (read in the changelog, not re-run, because Docker was not used for this sweep). Everything below about what runs is therefore about what `flisk` and Tilt *generate and load*, not about containers that were observed answering requests. The Tilt resource lists were read with `tilt alpha tiltfile-result -f .tdk/.tdk-out/Tiltfile`, which evaluates the generated Tiltfile without starting anything.
 
 ## Short answer
 
-- **One TDK project is one repository tree.** `tdk` finds services by walking the project directory for `service.json` files. A service in a sibling directory is not part of the project. See [what happens with a service outside the project root](#a-service-outside-the-project-root).
+- **One Flisk project is one repository tree.** `flisk` finds services by walking the project directory for `service.json` files. A service in a sibling directory is not part of the project. See [what happens with a service outside the project root](#a-service-outside-the-project-root).
 - **Several repos, one place to run everything:** a platform repository holds the one `.tdk/project.json`, and each service gets a `service.json` there. Services whose code lives elsewhere are wrapped as [bring-your-own](byo.md) resources, either from a registry image (`image`) or from a source checkout beside the platform repo (`buildContext`). Both loaded in Tilt in the checks here; neither was started.
 - **A `service.json` inside each service repo, each repo its own project:** this is the ordinary single-repo flow, and it is the layout that keeps each team's files in their own repository. The cost is one Postgres and one Traefik per project, on the same default host ports.
 - **Not supported:** one project whose `discovery.paths` points at `service.json` files in other repositories. It looks as if it should work and fails; the details are below.
@@ -18,15 +18,15 @@ Three attempts, each in a project whose root is `l565-hub/`, with the other repo
 
 | Attempt | What was observed |
 | --- | --- |
-| `tdk resource out --type bring-your-own --path ../l565-ext/out` | Refused: `Path must be within the project directory` |
-| `service.json` written by hand in `../l565-ext/outer/`, and `"../l565-ext/*"` added to `discovery.paths` in `.tdk/project.json` | `tdk config verify` and `tdk doctor` pass (doctor prints `All resources are covered by discovery.paths`). `tdk resources`, `tdk stacks` and `tdk up --dry-run` do **not** list the service. Tilt's own discovery does load it (`Loaded: outer | Stack: ext`), and then the Tiltfile aborts with `TDK refused to write outside its generated-file allowlist: .../l565-ext/outer/.autogenerated/.env.backend.autogenerated`. The whole Tiltfile fails, not just that service |
-| A symlink inside the project (`services/ext/linked`) to a directory with a `service.json` in the other repo | Not found by `tdk resources` or by Tilt. Symlinked directories are not followed |
+| `flisk resource out --type bring-your-own --path ../l565-ext/out` | Refused: `Path must be within the project directory` |
+| `service.json` written by hand in `../l565-ext/outer/`, and `"../l565-ext/*"` added to `discovery.paths` in `.tdk/project.json` | `flisk config verify` and `flisk doctor` pass (doctor prints `All resources are covered by discovery.paths`). `flisk resources`, `flisk stacks` and `flisk up --dry-run` do **not** list the service. Tilt's own discovery does load it (`Loaded: outer | Stack: ext`), and then the Tiltfile aborts with `Flisk refused to write outside its generated-file allowlist: .../l565-ext/outer/.autogenerated/.env.backend.autogenerated`. The whole Tiltfile fails, not just that service |
+| A symlink inside the project (`services/ext/linked`) to a directory with a `service.json` in the other repo | Not found by `flisk resources` or by Tilt. Symlinked directories are not followed |
 
 Consequence: do not put `service.json` outside the project root. The CLI and Tilt disagree about it, and the generator will not write its files there.
 
-A `service.json` that is **inside** the project may build from **outside** it. This was checked with `"buildContext": "../../../../l565-ext/outer-src"` and `"dockerfile": "Dockerfile"` on a bring-your-own service in `services/ext/ctxsvc/`. `tdk resources` lists it, the Tiltfile loads it (`ctxsvc`, `ctxsvc-yaml`, `ctxsvc-run-only` and so on), and the generated Compose file has `context: ../../../services/ext/ctxsvc/../../../../l565-ext/outer-src`. The image was **not built**, and whether Tilt watches files in that outside directory was **not checked**.
+A `service.json` that is **inside** the project may build from **outside** it. This was checked with `"buildContext": "../../../../l565-ext/outer-src"` and `"dockerfile": "Dockerfile"` on a bring-your-own service in `services/ext/ctxsvc/`. `flisk resources` lists it, the Tiltfile loads it (`ctxsvc`, `ctxsvc-yaml`, `ctxsvc-run-only` and so on), and the generated Compose file has `context: ../../../services/ext/ctxsvc/../../../../l565-ext/outer-src`. The image was **not built**, and whether Tilt watches files in that outside directory was **not checked**.
 
-One more fact from this experiment: a hand-written `service.json` in a stack that is not listed in a phase's `enabledStacks` (in `.tdk/project.json`) was not loaded by the Tiltfile until the stack was added. `tdk resource` added `app` there itself in one of the projects used here, but not in another, and why it differed was not tracked down. If you write `service.json` files by hand, check that `tdk up --dry-run` and `tilt alpha tiltfile-result` list them. Whether `tdk up <stack>` makes up for a missing entry was **not checked**.
+One more fact from this experiment: a hand-written `service.json` in a stack that is not listed in a phase's `enabledStacks` (in `.tdk/project.json`) was not loaded by the Tiltfile until the stack was added. `flisk resource` added `app` there itself in one of the projects used here, but not in another, and why it differed was not tracked down. If you write `service.json` files by hand, check that `flisk up --dry-run` and `tilt alpha tiltfile-result` list them. Whether `flisk up <stack>` makes up for a missing entry was **not checked**.
 
 ## Layout A: one project in a platform repo
 
@@ -45,7 +45,7 @@ platform-repo/                     owned by the platform team
 orders-repo/                       cloned next to platform-repo only if you need its source
 ```
 
-How a developer starts only what they need without cloning every repo: services that use `image` need no source checkout; the image has to exist in a registry the machine can pull from. Pulling from a private registry is **not documented and not tested** ([#506](https://github.com/flisk-sh/flisk/issues/506)). Services that use `buildContext` need that repo cloned at the path the `service.json` names. `tdk up <stack>` and `tdk up --only <service>` start a subset; `--dry-run` printed the expected selection (`tilt up ... -- --focus=<stack> <service>`), and neither was run for real here.
+How a developer starts only what they need without cloning every repo: services that use `image` need no source checkout; the image has to exist in a registry the machine can pull from. Pulling from a private registry is **not documented and not tested** ([#506](https://github.com/flisk-sh/flisk/issues/506)). Services that use `buildContext` need that repo cloned at the path the `service.json` names. `flisk up <stack>` and `flisk up --only <service>` start a subset; `--dry-run` printed the expected selection (`tilt up ... -- --focus=<stack> <service>`), and neither was run for real here.
 
 Cost: every team's service definition lives in the platform repo, so a team changes its own port, route or image through a pull request to that repo. See [ownership](#ownership-and-codeowners).
 
@@ -73,28 +73,28 @@ What was observed for two such projects (`l565-svc-a` and `l565-svc-b`, same sta
 | The Compose project that runs the services of a stack | **No**: `app-autogenerated` in both |
 | The Compose project of Postgres and of Traefik | No (`database-management`, `tdk-out`), but their container names are prefixed |
 
-The project name is `project.name` in `.tdk/project.json`, and `tdk project` took it from the directory name. `tdk project --yes --config-file <path>` copied the file **including its `name`**, so a `project.json` shared between repos this way gives every repo the same name and the same network and database names. Give each repo its own name.
+The project name is `project.name` in `.tdk/project.json`, and `flisk project` took it from the directory name. `flisk project --yes --config-file <path>` copied the file **including its `name`**, so a `project.json` shared between repos this way gives every repo the same name and the same network and database names. Give each repo its own name.
 
 Services in different projects have different networks, so a service in `orders-repo` cannot reach one in `billing-repo` by name. That was concluded from the generated network names, not tested at runtime.
 
-Host ports: each project asks for Traefik on 80/443 and Postgres on 15432 (not 5432, which local databases often hold). When they are taken, TDK picks the next free port from a range of about a hundred ports for each of the three (8080 to 8180, 8443 to 8543, 15432 to 15532 in `host-port-plan.ts`); see the [FAQ](faq-teams.md#ports-and-running-two-stacks-at-once). Running more than two projects at once is not documented or tested ([#509](https://github.com/flisk-sh/flisk/issues/509)).
+Host ports: each project asks for Traefik on 80/443 and Postgres on 15432 (not 5432, which local databases often hold). When they are taken, Flisk picks the next free port from a range of about a hundred ports for each of the three (8080 to 8180, 8443 to 8543, 15432 to 15532 in `host-port-plan.ts`); see the [FAQ](faq-teams.md#ports-and-running-two-stacks-at-once). Running more than two projects at once is not documented or tested ([#509](https://github.com/flisk-sh/flisk/issues/509)).
 
 ## Name and port clashes
 
-- **Same stack and service name in two projects.** Fixed in the engine: the Compose project is `<project>-<stack>-autogenerated`, the container `<project>-<stack>-autogenerated-<service>-1`, the app image `<project>_<stack>_<service>:dev` and the migrator image `<project>_<stack>-db-migrator:dev`, so two projects with a `people` stack no longer remove each other's containers or overwrite each other's images. The unit and Starlark tests cover the names; a two-project `tdk up` run was **not run** yet (see the migration note for containers started before this change).
-- **Same name twice inside one project** (two directories, both `appName: "api"`): `tdk resources` printed both, and `tdk up --dry-run`, `tdk doctor` and `tdk config regenerate` raised no error. `tdk doctor` now fails with `Duplicate resource names`, naming the `service.json` paths. The generated Compose and Traefik files build the service and router names from `appName` (read in `engine/topologies/platform/docker/`), which is why it fails. What Tilt does with two resources of one name was **not checked**.
-- **Same container port.** Service ports are not published on the host in the generated Compose files (only Traefik and Postgres are), and each service has its own container. A backend and a bring-your-own service in one project both ended up with `"port": 4000`, and nothing warned. `tdk resource --port 4000` refused a second bring-your-own resource with 4000. `tdk doctor` now warns (not fails) with `Duplicate resource ports` when two backend, mcp or routed bring-your-own resources share a `port`: from the Compose files two containers can listen on 4000 at once, so it is not a certain clash. Frontends, workers, libraries and resources without a `port` are not counted. Running two services on one port through `tdk up` was **not run**.
+- **Same stack and service name in two projects.** Fixed in the engine: the Compose project is `<project>-<stack>-autogenerated`, the container `<project>-<stack>-autogenerated-<service>-1`, the app image `<project>_<stack>_<service>:dev` and the migrator image `<project>_<stack>-db-migrator:dev`, so two projects with a `people` stack no longer remove each other's containers or overwrite each other's images. The unit and Starlark tests cover the names; a two-project `flisk up` run was **not run** yet (see the migration note for containers started before this change).
+- **Same name twice inside one project** (two directories, both `appName: "api"`): `flisk resources` printed both, and `flisk up --dry-run`, `flisk doctor` and `flisk config regenerate` raised no error. `flisk doctor` now fails with `Duplicate resource names`, naming the `service.json` paths. The generated Compose and Traefik files build the service and router names from `appName` (read in `engine/topologies/platform/docker/`), which is why it fails. What Tilt does with two resources of one name was **not checked**.
+- **Same container port.** Service ports are not published on the host in the generated Compose files (only Traefik and Postgres are), and each service has its own container. A backend and a bring-your-own service in one project both ended up with `"port": 4000`, and nothing warned. `flisk resource --port 4000` refused a second bring-your-own resource with 4000. `flisk doctor` now warns (not fails) with `Duplicate resource ports` when two backend, mcp or routed bring-your-own resources share a `port`: from the Compose files two containers can listen on 4000 at once, so it is not a certain clash. Frontends, workers, libraries and resources without a `port` are not counted. Running two services on one port through `flisk up` was **not run**.
 - **One Postgres per project.** Each project has one Postgres container shared by all its services ([local data](data.md)). The database is per stack, `<project>_<stack>` (`l565_svc_b_app` here); an earlier version of `data.md` said per service and was corrected in [#584](https://github.com/flisk-sh/flisk/pull/584). Services of one stack share a database. Check the database names in your own project.
 
 ## Ownership and CODEOWNERS
 
-What in a project is shared, and where it is defined (read from the files `tdk project` and `tdk resource` wrote):
+What in a project is shared, and where it is defined (read from the files `flisk project` and `flisk resource` wrote):
 
 | File | What it controls | Committed? |
 | --- | --- | --- |
 | `.tdk/project.json` | Project name (so network and database names), stacks per phase, `discovery.paths`, optional infrastructure | Yes |
 | `services/<stack>/<name>/service.json` | One service: port, health path, image or build context, route settings | Yes |
-| `services/platform/database-management/docker-compose.yml` | The shared Postgres | Untracked after `tdk project`; whether to commit it is your call ([gradual adoption](gradual-adoption.md)) |
+| `services/platform/database-management/docker-compose.yml` | The shared Postgres | Untracked after `flisk project`; whether to commit it is your call ([gradual adoption](gradual-adoption.md)) |
 | `shared-platform-engineering/docker-templates/` | Helper shell scripts used by generated builds | Same as above |
 | `.env` and `.tdk/.tdk-out/` | Generated passwords, secrets and output | No, git-ignored |
 
@@ -120,11 +120,11 @@ An example `CODEOWNERS` for Layout A. The team names are placeholders. It was wr
 
 The catch-all is first on purpose: as GitHub documents it, the last matching pattern wins, so the specific paths below it override it. That rule was read, not tested here.
 
-To catch a `service.json` that was edited without regenerating, run `tdk config verify` in CI ([FAQ](faq-teams.md#ci)). It passed on the scratch projects and listed out-of-date files after an edit. Port clashes between teams are not detected by any command checked here, so put a review on `service.json` ports, as above.
+To catch a `service.json` that was edited without regenerating, run `flisk config verify` in CI ([FAQ](faq-teams.md#ci)). It passed on the scratch projects and listed out-of-date files after an edit. Port clashes between teams are not detected by any command checked here, so put a review on `service.json` ports, as above.
 
 ## Layouts for about 5, 20 and 50 services
 
-These are recommendations built from the checks above, not measured results. The only scale numbers TDK has are in the [claims registry](claims.md) and the [scale benchmarks](benchmarks/scale-bench.md): generated `/health` stubs, with images already built, 10 services healthy after 8 s, 50 after 24 s (829 MiB in total) and 100 after 112 s on a 16 GB machine. A real application is larger. **Memory, CPU and start time for real services are unmeasured**, and so is how many real services fit on a developer machine ([#508](https://github.com/flisk-sh/flisk/issues/508)).
+These are recommendations built from the checks above, not measured results. The only scale numbers Flisk has are in the [claims registry](claims.md) and the [scale benchmarks](benchmarks/scale-bench.md): generated `/health` stubs, with images already built, 10 services healthy after 8 s, 50 after 24 s (829 MiB in total) and 100 after 112 s on a 16 GB machine. A real application is larger. **Memory, CPU and start time for real services are unmeasured**, and so is how many real services fit on a developer machine ([#508](https://github.com/flisk-sh/flisk/issues/508)).
 
 ### About 5 services
 
@@ -147,7 +147,7 @@ platform-repo
   CODEOWNERS                   path per team (above)
 ```
 
-One project, one stack per team, `tdk up <stack>` for the stack you work on. This relies on `tdk up <stack>` pulling in what the stack depends on, which is described in its help text and was not run here. The shared Postgres and Traefik are one set for everyone. Nothing here was measured at this size.
+One project, one stack per team, `flisk up <stack>` for the stack you work on. This relies on `flisk up <stack>` pulling in what the stack depends on, which is described in its help text and was not run here. The shared Postgres and Traefik are one set for everyone. Nothing here was measured at this size.
 
 ### About 50 services
 
@@ -167,21 +167,21 @@ Which of the two is better at 50 services is **not known**; this page does not r
 
 ## Not checked
 
-- Any `tdk up` of these layouts: containers never started on the test machine (see the top of the page).
+- Any `flisk up` of these layouts: containers never started on the test machine (see the top of the page).
 - Building the image from a `buildContext` outside the project, and Tilt watching it.
-- Pulling a registry `image` (public or private) through `tdk up`.
-- Two projects running at once, including whether the shared `app-autogenerated` Compose project clashes under `tdk up`.
+- Pulling a registry `image` (public or private) through `flisk up`.
+- Two projects running at once, including whether the shared `app-autogenerated` Compose project clashes under `flisk up`.
 - Service-to-service calls between projects, and between stacks in one project.
-- `tdk up <stack>` and `--only` on a project this large.
+- `flisk up <stack>` and `--only` on a project this large.
 - CODEOWNERS behaviour on GitHub.
 - NATS, Infisical and other optional infrastructure in a shared setup.
 
 ### Migrating containers started before the project-scoped names
 
-Containers started by an earlier TDK keep the names `<stack>-autogenerated-<service>-1`. The new engine does not know them: `tdk down` and Tilt leave them running, and they keep the old image tag `<stack>_<service>:dev`. Stop them once per stack from the project root, using the old Compose project name:
+Containers started by an earlier Flisk keep the names `<stack>-autogenerated-<service>-1`. The new engine does not know them: `flisk down` and Tilt leave them running, and they keep the old image tag `<stack>_<service>:dev`. Stop them once per stack from the project root, using the old Compose project name:
 
 ```bash
 docker compose -p people-autogenerated -f services/people/.autogenerated/docker-compose.app.autogenerated.yml down --remove-orphans
 ```
 
-Only do this when the old project name belongs to this project: earlier TDK versions could not tell two projects apart, so check `docker ps -a --filter name=people-autogenerated` and its `com.docker.compose.project.working_dir` label first. The old image tags `people_<service>:dev` are not removed; `docker rmi` them when you are done.
+Only do this when the old project name belongs to this project: earlier Flisk versions could not tell two projects apart, so check `docker ps -a --filter name=people-autogenerated` and its `com.docker.compose.project.working_dir` label first. The old image tags `people_<service>:dev` are not removed; `docker rmi` them when you are done.

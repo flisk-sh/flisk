@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# Stages the free TDK Tilt extension (Tiltfile, engine/, discovery/, specs/,
+# Stages the free Flisk Tilt extension (Tiltfile, engine/, discovery/, specs/,
 # ext/) into cli/ before `npm publish`.
 #
 # npm's `files` field can only package files inside the package directory

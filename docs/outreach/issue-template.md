@@ -1,12 +1,12 @@
 # Issue template
 
-Title: `Evaluate TDK CLI for <list name>?`
+Title: `Evaluate Flisk CLI for <list name>?`
 
 ```markdown
-**Disclosure:** I maintain TDK CLI ([flisk-sh/flisk](https://github.com/flisk-sh/flisk), MIT).
+**Disclosure:** I maintain Flisk CLI ([flisk-sh/flisk](https://github.com/flisk-sh/flisk), MIT).
 
 ## What it does
-TDK CLI runs a set of local services as Docker containers through Tilt, driven by `service.json` files (`tdk up`). It is local development orchestration, not a production deploy tool.
+Flisk CLI runs a set of local services as Docker containers through Tilt, driven by `service.json` files (`flisk up`). It is local development orchestration, not a production deploy tool.
 
 ## Why this repo
 Your <list name> (`<list_path>`) lists <quote the line or category that fits>.
@@ -21,7 +21,7 @@ Your <list name> (`<list_path>`) lists <quote the line or category that fits>.
 Full facts: <link to docs/outreach/tool-allowlist-packet.md>
 
 ## The ask
-Please consider whether TDK CLI fits <list name>. Add, reject, or ignore are all fine; I won't follow up after a decline.
+Please consider whether Flisk CLI fits <list name>. Add, reject, or ignore are all fine; I won't follow up after a decline.
 ```
 
 No urgency, no "your users need this", no endorsement claims.

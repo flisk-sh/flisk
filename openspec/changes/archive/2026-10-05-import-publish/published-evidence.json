@@ -27,7 +27,7 @@
       "command": "npx -y @tdk-landscape/tdk-import@0.1.1 .",
       "exit": 2,
       "stdout": "Chart.yaml [unsupported]: Helm is not imported\n",
-      "stderr": "Error: Helm is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> tdk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
+      "stderr": "Error: Helm is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> flisk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
       "files": [
         "Chart.yaml"
       ],
@@ -38,7 +38,7 @@
       "command": "npx -y @tdk-landscape/tdk-import@0.1.1 . --dry-run",
       "exit": 2,
       "stdout": "Chart.yaml [unsupported]: Helm is not imported\n",
-      "stderr": "Error: Helm is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> tdk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
+      "stderr": "Error: Helm is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> flisk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
       "files": [
         "Chart.yaml"
       ],
@@ -49,7 +49,7 @@
       "command": "npx -y @tdk-landscape/tdk-import@0.1.1 .",
       "exit": 2,
       "stdout": "kustomization.yaml [unsupported]: Kustomize is not imported\n",
-      "stderr": "Error: Kustomize is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> tdk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
+      "stderr": "Error: Kustomize is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> flisk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
       "files": [
         "kustomization.yaml"
       ],
@@ -60,7 +60,7 @@
       "command": "npx -y @tdk-landscape/tdk-import@0.1.1 . --dry-run",
       "exit": 2,
       "stdout": "kustomization.yaml [unsupported]: Kustomize is not imported\n",
-      "stderr": "Error: Kustomize is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> tdk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
+      "stderr": "Error: Kustomize is not imported; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> flisk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
       "files": [
         "kustomization.yaml"
       ],
@@ -85,7 +85,7 @@
       "command": "npx -y @tdk-landscape/tdk-import@0.1.1 . --yes",
       "exit": 2,
       "stdout": "Procfile [procfile]: process \"web\" skipped: command \"python app.py\" is not a supported Node command and no Dockerfile or image is associated; add a Dockerfile or image\n",
-      "stderr": "Error: all 1 Procfile process(es) were skipped; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> tdk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
+      "stderr": "Error: all 1 Procfile process(es) were skipped; nothing was written\n  -> Add a Dockerfile or image for skipped Procfile processes\n  -> flisk import reads Compose, Dockerfile, package.json scripts, and Procfile\n",
       "files": [
         "Procfile"
       ],

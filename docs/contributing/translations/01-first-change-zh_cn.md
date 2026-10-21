@@ -4,7 +4,7 @@
 
 你不需要理解整个仓库。选一个小改动，按照对应的指南操作。如果某一步不清楚，请在 issue 中提问。
 
-以下步骤只需做一次，用于安装 TDK CLI 及其检查所需的工具。
+以下步骤只需做一次，用于安装 Flisk CLI 及其检查所需的工具。
 
 ## 最快的方式：Dev Container / Codespaces
 
@@ -27,14 +27,14 @@ bun run lint
 bun run test
 ```
 
-Docker 和 Tilt 是可选的，不包含在默认容器中。只有需要运行 TDK 服务或完整的本地环境时才需要添加。
+Docker 和 Tilt 是可选的，不包含在默认容器中。只有需要运行 Flisk 服务或完整的本地环境时才需要添加。
 
 ## 需要准备的内容（本地安装）
 
 - Git
 - [Bun](https://bun.sh)
 - Node.js 22.12 或更高版本
-- 仅当需要运行 TDK 服务或检查完整本地环境时，才需要 Docker 和 [Tilt](https://docs.tilt.dev/install.html)
+- 仅当需要运行 Flisk 服务或检查完整本地环境时，才需要 Docker 和 [Tilt](https://docs.tilt.dev/install.html)
 
 ## 将仓库复制到你的电脑
 

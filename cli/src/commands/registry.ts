@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * The commands the CLI registers.
@@ -37,7 +37,7 @@ import { upCommand } from "./up.js";
 import { upgradeCommand } from "./upgrade.js";
 import { versionCommand } from "./version.js";
 
-/** Every command the CLI registers, in the order `tdk --help` lists them. */
+/** Every command the CLI registers, in the order `flisk --help` lists them. */
 export function getRegisteredCommands(): readonly Command[] {
   return [
     stacksCommand,

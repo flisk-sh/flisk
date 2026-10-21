@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -45,11 +45,11 @@ const featureBody = [
 const bugBody = [
   "### What happened?",
   "",
-  "`tdk up` failed.",
+  "`flisk up` failed.",
   "",
   "### Steps to reproduce",
   "",
-  "1. tdk up api",
+  "1. flisk up api",
 ].join("\n");
 
 const docsBody = [
@@ -75,7 +75,7 @@ const bootBody = [
   "",
   "### Commands you ran",
   "",
-  "tdk project --yes",
+  "flisk project --yes",
 ].join("\n");
 
 const weUseBody = [
@@ -93,7 +93,7 @@ const premiumBody = [
   "",
   "- Sablier",
   "",
-  "### What are you building with TDK?",
+  "### What are you building with Flisk?",
   "",
   "Internal platform.",
 ].join("\n");
@@ -171,7 +171,7 @@ describe("resolveKind", () => {
       "### What happened?",
       "",
       "Mentioned that I would like to know how ports work,",
-      "and also what are you building with TDK? as a joke.",
+      "and also what are you building with Flisk? as a joke.",
     ].join("\n");
     assert.equal(resolveKind(body, "", "T"), "primitive");
   });

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { RESOURCE_DEFAULTS_FILE, TECH_STACK_FILE } from "../utils/constants.js";
 export const RESOURCE_CONFIG_APP_TYPES = [
@@ -21,7 +21,7 @@ export const CREATABLE_RESOURCE_TYPES = [
     "bring-your-own",
 ];
 /**
- * Every value `tdk resource --type` accepts: the creatable types plus `sdk`, which registers a
+ * Every value `flisk resource --type` accepts: the creatable types plus `sdk`, which registers a
  * package that already exists instead of scaffolding one.
  */
 export const RESOURCE_TYPE_VALUES = [...CREATABLE_RESOURCE_TYPES, "sdk"];

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { parseTiltResourceFailures, summarizeTiltBuildError } from "./doctor-runtime.js";
 import { portConflictFix } from "./port-conflict-fix.js";
@@ -111,7 +111,7 @@ export function formatStartupReport(report: StartupReport, timedOut: boolean): s
         ? `: ${causes.join(", ")} failed, so ${count} dependent ${count === 1 ? "service is" : "services are"} not ready`
         : "";
     lines.push(
-      `The environment is not ready${summary}. Tilt is still running; inspect it or run: tdk down`,
+      `The environment is not ready${summary}. Tilt is still running; inspect it or run: flisk down`,
     );
   }
   return lines;

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🐳 TILT SDK - DOCKER COMPOSE GENERATORS (modular)
@@ -210,7 +210,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         else:
             # A BYO Dockerfile copies paths relative to the service directory
             # (for example, `COPY app.py .`). Build with that directory as the
-            # context instead of the project root used by generated TDK apps.
+            # context instead of the project root used by generated Flisk apps.
             context_prefix = '/'.join(['..'] * (len(resource_path.split('/')) + 1))
             build_context = context_prefix + '/' + full_resource_path
             # `buildContext` (relative to the service directory) moves the context
@@ -272,7 +272,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     # Backends with a health path get it in the env, so the shared golden image's HEALTHCHECK can probe it.
     health_env = "      - TDK_HEALTH_PATH={}\n".format(health_path) if health_path else ""
     # An agent with files durability keeps its session checkpoints in a named volume. The volume is declared at the top of the
-    # generated file (generate_app_compose_from_entries reads the marker line below), so tdk down keeps it.
+    # generated file (generate_app_compose_from_entries reads the marker line below), so flisk down keeps it.
     agent_env = ""
     agent_volume_section = ""
     if manifest and type(manifest.get('agent')) == 'dict':
@@ -301,7 +301,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         )
         # BYO images may not contain curl. Traefik uses its own HTTP health
         # check labels above, so don't mark an otherwise healthy container
-        # unhealthy because the image lacks a command TDK cannot require.
+        # unhealthy because the image lacks a command Flisk cannot require.
         healthcheck_section = no_http_healthcheck_section if no_http_healthcheck_section else "" if is_byo else """    healthcheck:
       test: ["CMD", "curl", "-f", "--max-time", "5", "http://localhost:{internal_port}{health_path}"]
 """.format(internal_port=internal_port, health_path=health_path) + compose_healthcheck_timing()

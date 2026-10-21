@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -52,7 +52,7 @@ beforeEach(() => {
     name: "Docker Runtime",
     didPass: false,
     message: "Docker daemon is not running",
-    fix: "Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor",
+    fix: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
   });
   mocks.checkDockerCompose.mockResolvedValue({
     name: "Docker Compose",
@@ -87,14 +87,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("tdk up readiness gate", () => {
+describe("flisk up readiness gate", () => {
   it("blocks the startup when Docker is stopped and Tilt is missing", async () => {
-    await expect(upCommand.parseAsync(["node", "tdk", "up"], { from: "node" })).rejects.toThrow(
+    await expect(upCommand.parseAsync(["node", "flisk", "up"], { from: "node" })).rejects.toThrow(
       "process.exit(1)",
     );
 
     expect(exitSpy).toHaveBeenCalledWith(1);
-    // The readiness gate has to be what blocks the startup. Without it `tdk up`
+    // The readiness gate has to be what blocks the startup. Without it `flisk up`
     // still exits 1, but later, with "Could not find project root" - a
     // different failure that this assertion would not accept.
     const output = errorOutput();
@@ -103,14 +103,14 @@ describe("tdk up readiness gate", () => {
   });
 
   it("reports the actionable fixes for the missing runtime", async () => {
-    await expect(upCommand.parseAsync(["node", "tdk", "up"], { from: "node" })).rejects.toThrow(
+    await expect(upCommand.parseAsync(["node", "flisk", "up"], { from: "node" })).rejects.toThrow(
       "process.exit(1)",
     );
 
     const output = errorOutput();
     expect(output).toContain("Cold start blocked");
     expect(output).toContain("FAIL docker  Docker daemon is not running");
-    expect(output).toContain("Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor");
+    expect(output).toContain("Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor");
     expect(output).toContain("FAIL tilt    Tilt CLI not found");
     expect(output).toContain(
       "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh",

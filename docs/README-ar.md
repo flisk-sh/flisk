@@ -1,4 +1,4 @@
-# TDK CLI — شغّل مكدسك التقني كاملاً على جهازك
+# Flisk CLI — شغّل مكدسك التقني كاملاً على جهازك
 
 [![Test coverage](https://raw.githubusercontent.com/flisk-sh/flisk/main/docs/assets/coverage.svg)](https://github.com/flisk-sh/flisk/blob/main/docs/assets/coverage.svg)
 
@@ -7,16 +7,16 @@
 <a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/daily?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
 <a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/weekly?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
 
-انتقل من مجلد فارغ إلى مكدس تقني يعمل بأمر واحد. عرّف كل خدمة في `service.json` ثم شغّل `tdk up`. لا يحتاج الجهاز إلى Kubernetes.
+انتقل من مجلد فارغ إلى مكدس تقني يعمل بأمر واحد. عرّف كل خدمة في `service.json` ثم شغّل `flisk up`. لا يحتاج الجهاز إلى Kubernetes.
 
 البداية السريعة:
 
 ```bash
 npm install -g @flisk-sh/flisk
 mkdir shop && cd shop
-tdk project --yes
-tdk resource orders-api --type backend --stack shop --yes
-tdk up shop
+flisk project --yes
+flisk resource orders-api --type backend --stack shop --yes
+flisk up shop
 ```
 
 للدليل الكامل، راجع [README الإنجليزي](../README.md).

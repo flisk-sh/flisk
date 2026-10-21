@@ -1,12 +1,12 @@
-# Installs the TDK CLI for a CI job (#1282). One place for the installs that the workflows used to inline:
+# Installs the Flisk CLI for a CI job (#1282). One place for the installs that the workflows used to inline:
 #   tarball: <path>     installs a packed CLI tarball another job downloaded or built (ignores version)
 #   version: local      packs and installs this checkout's CLI (the tarball users would get from npm)
 #   version: latest     installs the newest published package
 #   version: 1.2.3      waits until that version is on npm, then installs it
 # The caller checks out this repository's scripts/install-global.mjs and scripts/wait-for-npm-version.sh first, and runs
 # setup-bun before this action when version is local (it needs bun install).
-name: Install TDK
-description: Install the TDK CLI from a packed tarball, this checkout (local), the latest npm release, or an exact published version
+name: Install Flisk
+description: Install the Flisk CLI from a packed tarball, this checkout (local), the latest npm release, or an exact published version
 inputs:
   version:
     description: "local, latest, or an exact npm version (ignored when tarball is set)"
@@ -43,4 +43,4 @@ runs:
           fi
           scripts/e2e/retry-infra.sh "install the published CLI" -- node scripts/install-global.mjs "@flisk-sh/flisk@${TDK_VERSION}"
         fi
-        tdk --version
+        flisk --version

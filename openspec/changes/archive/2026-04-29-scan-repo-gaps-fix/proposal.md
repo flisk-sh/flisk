@@ -1,6 +1,6 @@
 ## Why
 
-The TDK CLI codebase has accumulated technical debt through TODO comments, incomplete implementations, and gaps in test coverage. These issues create friction for developers and risk bugs in production. Now is the right time to systematically scan the repository, identify gaps, and fix them before they compound into larger problems.
+The Flisk CLI codebase has accumulated technical debt through TODO comments, incomplete implementations, and gaps in test coverage. These issues create friction for developers and risk bugs in production. Now is the right time to systematically scan the repository, identify gaps, and fix them before they compound into larger problems.
 
 ## What Changes
 

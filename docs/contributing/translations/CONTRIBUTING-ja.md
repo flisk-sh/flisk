@@ -1,4 +1,4 @@
-# TDK へのコントリビュート
+# Flisk へのコントリビュート
 
 [English](../../../CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | [繁體中文](CONTRIBUTING-zh_tw.md) | 日本語 | [한국어](CONTRIBUTING-ko.md)
 
@@ -30,9 +30,9 @@ bun run typecheck && bun run lint && bun run test   # 約1分。何かを変更�
 
 ## バグを探す
 
-コードを書かなくても手伝えます。コマンドを実行し、その出力を TDK が約束していること（`--help`、ドキュメント、または別のコマンド）と比べ、違いがあれば報告してください。それがバグです。
+コードを書かなくても手伝えます。コマンドを実行し、その出力を Flisk が約束していること（`--help`、ドキュメント、または別のコマンド）と比べ、違いがあれば報告してください。それがバグです。
 
-日本語訳の[TDK でバグを見つける](finding-bugs-ja.md)ガイドには具体的な手順があります。テスト用のスクラッチプロジェクト、期待される出力付きのコマンドチェックリスト、過去にバグを見つけたパターン、そしてメンテナーがすぐ対応できる報告フォーマットです。たとえば `tdk networks` が URL を一つも表示しないのに `tdk up --dry-run` が表示する場合、2つのコマンドが食い違っているので、どちらかが間違っています。
+日本語訳の[Flisk でバグを見つける](finding-bugs-ja.md)ガイドには具体的な手順があります。テスト用のスクラッチプロジェクト、期待される出力付きのコマンドチェックリスト、過去にバグを見つけたパターン、そしてメンテナーがすぐ対応できる報告フォーマットです。たとえば `flisk networks` が URL を一つも表示しないのに `flisk up --dry-run` が表示する場合、2つのコマンドが食い違っているので、どちらかが間違っています。
 
 ## pull request をレビューする
 
@@ -42,13 +42,13 @@ bun run typecheck && bun run lint && bun run test   # 約1分。何かを変更�
 
 ## 取り組むことを探す
 
-- 🗺️ [TDK ジャーニー](../../journey/README.md)：島を選び、クエストをクリアして、ランクを上げましょう（8 kyu → 1 dan）
+- 🗺️ [Flisk ジャーニー](../../journey/README.md)：島を選び、クエストをクリアして、ランクを上げましょう（8 kyu → 1 dan）
 - [Good first issues](https://github.com/flisk-sh/flisk/labels/good%20first%20issue)
 - [Help wanted](https://github.com/flisk-sh/flisk/labels/help%20wanted)
 - ステップごとのチェックリストで[バグを探す](finding-bugs-ja.md)
 - [バグを報告する、または質問する](https://github.com/flisk-sh/flisk/issues/new/choose)
 
-issue を選んだら、`I'll take this`（または `I would like this one`、`I'd like to work on this`、`Can I take this?`）とコメントしてください。ボットがあなたをアサインし、`claimed` ラベルを付けるので、2人が同じ作業をすることを防げます。pull request のないまま 14 日経つとリマインドされ、21 日で解放されます。ドラフト PR も進捗として扱われます。バグ報告では、できれば `tdk doctor` の出力を添えてください。
+issue を選んだら、`I'll take this`（または `I would like this one`、`I'd like to work on this`、`Can I take this?`）とコメントしてください。ボットがあなたをアサインし、`claimed` ラベルを付けるので、2人が同じ作業をすることを防げます。pull request のないまま 14 日経つとリマインドされ、21 日で解放されます。ドラフト PR も進捗として扱われます。バグ報告では、できれば `flisk doctor` の出力を添えてください。
 
 ## スペルチェック
 
@@ -81,7 +81,7 @@ issue を選んだら、`I'll take this`（または `I would like this one`、`
 | `hacktoberfest` | Hacktoberfest に参加する作業。 | メンテナーがイベント対象の貢献を選んだもの。 |
 | `area:*` | 影響を受ける部分。例：`area: tui`、`area: doctor`、`area: cli`。 | メンテナーが issue に付けます。PR labeler は変更されたパスから area を判定します。 |
 | `tech:*` | 関連する技術。例：TypeScript、Docker、Tilt。 | メンテナーがタスクに関わるツールを特定したもの。 |
-| `rank:*`、`island:*` | TDK ジャーニー上でのタスクの規模とテーマ。 | メンテナーがクエストをコントリビューターマップに配置したもの。 |
+| `rank:*`、`island:*` | Flisk ジャーニー上でのタスクの規模とテーマ。 | メンテナーがクエストをコントリビューターマップに配置したもの。 |
 | `event:*` | GitHub Universe など、特定のイベント向けの作業。 | メンテナーがイベントごとの作業を整理したもの。 |
 
 ## コミットに署名する
@@ -90,11 +90,11 @@ issue を選んだら、`I'll take this`（または `I would like this one`、`
 
 ## 採用者リストにチームを追加する
 
-自分のリポジトリで TDK を使っていますか？[ADOPTERS.md](../../../ADOPTERS.md) には2つの方法で掲載できます。[We use TDK](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../../ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
+自分のリポジトリで Flisk を使っていますか？[ADOPTERS.md](../../../ADOPTERS.md) には2つの方法で掲載できます。[We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../../ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
 
 ## ガバナンス
 
-意思決定とメンテナー追加の方法は [GOVERNANCE.md](../../../GOVERNANCE.md)、マージできる人は [MAINTAINERS.md](../../../MAINTAINERS.md)、TDK を使っているチームは [ADOPTERS.md](../../../ADOPTERS.md) を参照してください。
+意思決定とメンテナー追加の方法は [GOVERNANCE.md](../../../GOVERNANCE.md)、マージできる人は [MAINTAINERS.md](../../../MAINTAINERS.md)、Flisk を使っているチームは [ADOPTERS.md](../../../ADOPTERS.md) を参照してください。
 
 ## 思いやりを持って
 

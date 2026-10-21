@@ -11,7 +11,7 @@ The CLI MUST run a readiness preflight when invoked with no arguments and MUST r
 - **AND** the process exits with code 1
 
 #### Scenario: Cold machine is ready without a project
-- **WHEN** the CLI is invoked without arguments outside a TDK project and all machine checks pass
+- **WHEN** the CLI is invoked without arguments outside a Flisk project and all machine checks pass
 - **THEN** it states that the machine is ready and suggests creating or entering a project
 - **AND** it does not mention Prisma or a NATS broker
 - **AND** the process exits with code 0
@@ -36,9 +36,9 @@ The preflight MUST NOT require a project directory for machine checks. It MUST i
 The doctor command MUST print the same ranked cold preflight at the beginning of its report and MUST retain its existing detailed doctor output and checks.
 
 #### Scenario: Doctor invoked
-- **WHEN** a user invokes `tdk doctor` or `tdk --doctor`
+- **WHEN** a user invokes `flisk doctor` or `flisk --doctor`
 - **THEN** the ranked preflight appears before the existing detailed doctor report
-- **AND** project wiring checks are skipped when no TDK project is present
+- **AND** project wiring checks are skipped when no Flisk project is present
 
 ### Requirement: Startup commands stop before side effects
 The `project` and `up` commands MUST run the machine preflight before generating files or invoking Tilt, and MUST exit with code 1 if any of the first six machine checks fail. Help, version, completion, and other documented bypass commands MUST remain available without machine readiness.

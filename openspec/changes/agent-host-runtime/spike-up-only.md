@@ -1,4 +1,4 @@
-# Spike: `tdk up --only` and Tilt resource selection
+# Spike: `flisk up --only` and Tilt resource selection
 
 Run 2026-10-04 against a scratch copy of `tdk-ecommerce-example` (stack `store`: `catalog-api`, and `storefront-web` which has `"dependsOn": ["catalog-api"]`), Tilt 0.37.7. Selection was read with `tilt alpha tiltfile-result -f .tdk/.tdk-out/Tiltfile -- <args>`, which evaluates the Tiltfile and lists `EnabledManifests` without starting any container. Readiness behavior was read from a real Tilt with two local resources, one disabled by `config.set_enabled_resources`.
 
@@ -22,12 +22,12 @@ Always on in every case: `init-networks`, `postgres`, `traefik`, `golden-layers-
 1. **`dependsOn` exists.** `service.json` has a `dependsOn` list and the Tiltfile follows it transitively (including across stacks). The earlier note that no dependency field exists was wrong. Dependents are not pulled in: `--focus=catalog-api` does not start `storefront-web`.
 2. **Service name equals Tilt resource name** for generated app resources (`catalog-api`, `storefront-web`), so `logs --service` and `up --only` use the same names. Shared infra has no `service.json` and cannot be selected or excluded; it is always enabled.
 3. **An unknown focus name enables the whole stack.** A typo in `--only` would silently start everything, so the CLI must validate names itself (`UNKNOWN_SERVICE`, exit 2, valid names listed) before calling Tilt.
-4. **A second `tdk up` does not replace or union with a running one.** `up` finds a free Tilt port when 10350 is taken and starts a second Tilt on it, which would apply a different selection to the same containers. For `--only` that is refused (`TILT_ALREADY_RUNNING`) unless `--force` is given. This is read from the code and probed with a listener on 10350; a live replace was not run.
+4. **A second `flisk up` does not replace or union with a running one.** `up` finds a free Tilt port when 10350 is taken and starts a second Tilt on it, which would apply a different selection to the same containers. For `--only` that is refused (`TILT_ALREADY_RUNNING`) unless `--force` is given. This is read from the code and probed with a listener on 10350; a live replace was not run.
 5. **Readiness bug found, and fixed here.** Tilt reports a disabled resource with `updateStatus: none`, `runtimeStatus: none`, `disableStatus.state: Disabled`. The readiness check added with `up --json` treated those as pending, so it would wait forever (until `UP_TIMEOUT`) on any stack with resources outside the focus, including the default phase. A serve-only local resource reports `updateStatus: not_applicable`, which also read as pending. Readiness now ignores disabled resources and treats `not_applicable` as built.
 
 ## Chosen semantics
 
-- `tdk up [stack] --only <service...>` starts the named services plus their `dependsOn` closure, and the always-on infra. Unknown names fail before anything starts.
+- `flisk up [stack] --only <service...>` starts the named services plus their `dependsOn` closure, and the always-on infra. Unknown names fail before anything starts.
 - `--only` is passed to the Tiltfile as `--focus=<names>`; the stack argument only limits which names are valid.
 - `--json` readiness covers the enabled resources only, so a partial up reports ready when its own resources are running. The success object adds `requested` and `dependencies`.
 - `--only` validates names before the CLI writes anything to the project (`.env`, runtime assets, `.tdk/project.json`).
@@ -38,4 +38,4 @@ Always on in every case: `init-networks`, `postgres`, `traefik`, `golden-layers-
 
 ## Not verified
 
-A full `tdk up --only` was not run to completion (no containers or images were built). The selection was verified by evaluating the Tiltfile; the readiness change by a real Tilt with a disabled resource and by unit tests.
+A full `flisk up --only` was not run to completion (no containers or images were built). The selection was verified by evaluating the Tiltfile; the readiness change by a real Tilt with a disabled resource and by unit tests.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Repository checks that need no stack: the skill symlinks, the skill sync script and the documentation links. They were cases
 # of the agent suite; they run in make test-shell instead, since they need only the checkout and no Docker or Tilt.

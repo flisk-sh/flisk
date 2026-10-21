@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -12,7 +12,7 @@ import { parseStackResourceConfig } from "../stack.js";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
 
-describe("tdk stack command scriptability", () => {
+describe("flisk stack command scriptability", () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {

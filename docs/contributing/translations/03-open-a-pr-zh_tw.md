@@ -17,13 +17,13 @@
 
 ### 如果 golden 輸出測試失敗
 
-三個範例專案產生的 Tilt 和 Compose 檔案，會與 `cli/src/generator/__tests__/golden/` 中已提交的副本比對。如果你是刻意修改了 `cli/templates/` 中的範本或產生器，測試會失敗，並列出每個有變動的檔案。執行 `UPDATE_GOLDEN=1 bun run test -- golden-generated-output` 接受變更，閱讀 golden 檔案的差異，並與你的改動一起提交。如果你並非刻意改變產生的輸出，請修正原因，而不是更新這些檔案。現有專案也會看到相同的位元組變化，因此在它們下次執行 `tdk config regenerate` 之前，`tdk config verify` 會回報不同步；請在 PR 中說明這一點。
+三個範例專案產生的 Tilt 和 Compose 檔案，會與 `cli/src/generator/__tests__/golden/` 中已提交的副本比對。如果你是刻意修改了 `cli/templates/` 中的範本或產生器，測試會失敗，並列出每個有變動的檔案。執行 `UPDATE_GOLDEN=1 bun run test -- golden-generated-output` 接受變更，閱讀 golden 檔案的差異，並與你的改動一起提交。如果你並非刻意改變產生的輸出，請修正原因，而不是更新這些檔案。現有專案也會看到相同的位元組變化，因此在它們下次執行 `flisk config regenerate` 之前，`flisk config verify` 會回報不同步；請在 PR 中說明這一點。
 
 ## 展示改動內容
 
 對於錯誤修正或行為改動，如果可以，請在 `main` 和你的分支上執行相同的步驟。貼上真實的前後輸出，不要憑記憶重建。包括指令、專案或測試夾具，以及重現所需的任何設定。涵蓋 issue 中提到的空狀態、錯誤狀態或復原狀態。
 
-如果你要測試建置後的 CLI 進入點，請先執行 `bun run build`，以免使用舊的編譯檔案。在真實的終端機中檢查 `tdk ui` 等互動式指令。如果缺少自動化測試，請說明原因，並連結一個用於新增測試的 issue。新的行為和錯誤修正需要在同一個 pull request 中包含測試；請參閱 [CONTRIBUTING.md 中的測試](../../../CONTRIBUTING.md#tests)。
+如果你要測試建置後的 CLI 進入點，請先執行 `bun run build`，以免使用舊的編譯檔案。在真實的終端機中檢查 `flisk ui` 等互動式指令。如果缺少自動化測試，請說明原因，並連結一個用於新增測試的 issue。新的行為和錯誤修正需要在同一個 pull request 中包含測試；請參閱 [CONTRIBUTING.md 中的測試](../../../CONTRIBUTING.md#tests)。
 
 ## 推送你的分支
 

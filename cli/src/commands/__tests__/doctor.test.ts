@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,13 +44,13 @@ describe("doctor exact guidance", () => {
   it("keeps prerequisite fixes as the specified copy-paste text", () => {
     expect(DOCTOR_FIXES).toEqual({
       dockerMissing: "See https://docs.docker.com/get-docker/",
-      dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor",
+      dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
       tiltMissing:
         "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
       bunMissing: "curl -fsSL https://bun.sh/install | bash",
-      port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: tdk doctor",
-      port5432: "Stop local Postgres or change the host port. Then: tdk doctor",
-      notProject: "tdk project --yes",
+      port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: flisk doctor",
+      port5432: "Stop local Postgres or change the host port. Then: flisk doctor",
+      notProject: "flisk project --yes",
     });
     expect(WSL2_DOCTOR_MESSAGE).toBe(
       "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md",
@@ -58,10 +58,10 @@ describe("doctor exact guidance", () => {
   });
 
   it("prints exact project-aware final outcomes", () => {
-    expect(getDoctorOutcomeMessage(false, true)).toBe("Doctor passed. Next: tdk project example");
-    expect(getDoctorOutcomeMessage(true, true)).toBe("Doctor passed. Next: tdk up");
+    expect(getDoctorOutcomeMessage(false, true)).toBe("Doctor passed. Next: flisk project example");
+    expect(getDoctorOutcomeMessage(true, true)).toBe("Doctor passed. Next: flisk up");
     expect(getDoctorOutcomeMessage(true, false)).toBe(
-      "Doctor failed. Fix the items above, then run: tdk doctor",
+      "Doctor failed. Fix the items above, then run: flisk doctor",
     );
   });
 
@@ -327,7 +327,7 @@ describe("doctor generated runtime asset preflight", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("package.json");
     expect(result.message).toContain("install-deps.sh");
-    expect(result.fix).toContain("tdk project");
+    expect(result.fix).toContain("flisk project");
   });
 
   it("passes when generated Docker runtime assets are present", () => {
@@ -638,7 +638,7 @@ describe("doctor ingress + tilt runtime checks", () => {
     expect(result.fix).toMatch(/docker ps --filter publish=80|Free the conflicting/);
   });
 
-  it("points to the URL printed by tdk up when Tilt resources fail", () => {
+  it("points to the URL printed by flisk up when Tilt resources fail", () => {
     const payload = {
       items: [
         {
@@ -667,7 +667,7 @@ describe("doctor ingress + tilt runtime checks", () => {
       }) as never);
 
       expect(result.didPass).toBe(false);
-      expect(result.fix).toContain("Open the Tilt UI URL printed by tdk up");
+      expect(result.fix).toContain("Open the Tilt UI URL printed by flisk up");
       expect(result.fix).toContain(`default port ${STANDARD_PORTS.tiltUi} when TILT_PORT is unset`);
       expect(result.fix).not.toContain("localhost:10350");
     } finally {
@@ -1001,7 +1001,7 @@ describe("doctor private registry check without a Verdaccio license", () => {
     throw new Error("Failed to connect to localhost port 4873");
   }) as unknown as typeof import("node:child_process").execSync;
 
-  it("skips when the config enables Verdaccio but TDK will not start it", () => {
+  it("skips when the config enables Verdaccio but Flisk will not start it", () => {
     const projectRoot = projectWithVerdaccioEnabled();
     const result = checkPrivateNpmRegistry(
       unreachable,
@@ -1118,7 +1118,7 @@ describe("doctor resource discovery", () => {
   });
 });
 
-describe("doctor TDK version pin", () => {
+describe("doctor Flisk version pin", () => {
   let testDir: string;
   let originalCwd: string;
 
@@ -1161,7 +1161,7 @@ describe("doctor TDK version pin", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("1.3.79");
     expect(result.message).toContain("1.3.80");
-    expect(result.fix).toBe("Run: tdk upgrade");
+    expect(result.fix).toBe("Run: flisk upgrade");
   });
 
   it("fails on a value that is not MAJOR.MINOR.PATCH", () => {
@@ -1543,7 +1543,7 @@ describe("doctor --all, sections, and summary", () => {
       expect(lines.some((line) => line.includes("Machine"))).toBe(true);
       expect(lines.some((line) => line.includes("Project"))).toBe(true);
       expect(
-        lines.some((line) => line.includes("Not in a TDK project, so project checks were skipped")),
+        lines.some((line) => line.includes("Not in a Flisk project, so project checks were skipped")),
       ).toBe(true);
       expect(
         lines.some((line) => /^\d+ passed(?:, \d+ warned)?, \d+ failed, \d+ skipped$/.test(line)),
@@ -1630,7 +1630,7 @@ describe("doctor --all, sections, and summary", () => {
       const lines = log.mock.calls.map((call) => String(call[0]));
       expect(lines.some((line) => line.includes("Machine"))).toBe(true);
       expect(lines.some((line) => line.includes("Project"))).toBe(true);
-      expect(lines.some((line) => line.includes("Not in a TDK project"))).toBe(false);
+      expect(lines.some((line) => line.includes("Not in a Flisk project"))).toBe(false);
       expect(lines.some((line) => line.includes("1 passed, 0 failed, 0 skipped"))).toBe(true);
     } finally {
       log.mockRestore();
@@ -1651,7 +1651,7 @@ describe("doctor --all, sections, and summary", () => {
       expect(lines.some((line) => line.includes("Machine"))).toBe(true);
       expect(lines.some((line) => line.includes("Project"))).toBe(true);
       expect(
-        lines.some((line) => line.includes("Not in a TDK project, so project checks were skipped")),
+        lines.some((line) => line.includes("Not in a Flisk project, so project checks were skipped")),
       ).toBe(true);
       expect(lines.some((line) => line.includes("0 passed, 1 failed, 0 skipped"))).toBe(true);
     } finally {

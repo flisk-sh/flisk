@@ -1,7 +1,7 @@
 ## 1. Release asset contract and workflow gates
 
 - [x] 1.1 Validate required local and remote release assets, including PE `MZ`, complete checksums, ZIP membership, and byte-for-byte uploaded asset verification before latest promotion.
-- [x] 1.2 Add `tdk runtime --check-assets --json` to verify the bundled engine and templates without machine-readiness checks; cover the executable's adjacent `tdk-cli` layout.
+- [x] 1.2 Add `flisk runtime --check-assets --json` to verify the bundled engine and templates without machine-readiness checks; cover the executable's adjacent `tdk-cli` layout.
 - [x] 1.3 Split release build, Windows smoke, and publication into dependent jobs that pass the exact same workflow artifact; ensure failed gates prevent npm publication and latest promotion, and preserve release concurrency/version-bump behavior.
 
 ## 2. Installer integrity

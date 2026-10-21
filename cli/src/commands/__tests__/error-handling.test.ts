@@ -178,15 +178,15 @@ describe("error handling", () => {
       exit.mockClear();
       await expect(
         runCommand(async () => {
-          throw new TdkError("Custom failure", ["Try 'tdk doctor'"], 1);
+          throw new TdkError("Custom failure", ["Try 'flisk doctor'"], 1);
         }),
       ).rejects.toThrow("process.exit");
       expect(stderr[0]).toContain("❌ Custom failure");
-      expect(stderr.join("\n")).toContain("→ Try 'tdk doctor'");
+      expect(stderr.join("\n")).toContain("→ Try 'flisk doctor'");
       expect(exit).toHaveBeenCalledWith(1);
     });
 
-    it("keeps DRIFT_EXIT_CODE as 2 for tdk up drift gate", () => {
+    it("keeps DRIFT_EXIT_CODE as 2 for flisk up drift gate", () => {
       expect(DRIFT_EXIT_CODE).toBe(2);
     });
 
@@ -270,7 +270,7 @@ describe("error handling", () => {
         expect(errorSymbols).toHaveLength(1);
         expect(stderr.join("\n")).toContain("1.3.183");
         expect(stderr.join("\n")).toContain("2.0.0");
-        expect(stderr.join("\n")).toContain("tdk upgrade");
+        expect(stderr.join("\n")).toContain("flisk upgrade");
       } finally {
         rmSync(tempDir, { recursive: true, force: true });
       }
@@ -288,7 +288,7 @@ describe("error handling", () => {
       const { expectExit } = captureExit();
 
       await expect(
-        completionCommand.parseAsync(["node", "tdk", "bogus-shell"], { from: "node" }),
+        completionCommand.parseAsync(["node", "flisk", "bogus-shell"], { from: "node" }),
       ).rejects.toThrow("process.exit");
       expectExit(1);
 
@@ -340,7 +340,7 @@ describe("error handling", () => {
         const { expectExit } = captureExit();
 
         await expect(
-          configCommand.parseAsync(["node", "tdk", "verify"], { from: "node" }),
+          configCommand.parseAsync(["node", "flisk", "verify"], { from: "node" }),
         ).rejects.toThrow("process.exit");
         expectExit(1);
 

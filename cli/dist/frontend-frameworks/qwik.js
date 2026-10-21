@@ -48,7 +48,7 @@ export const App = component$(() => {
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
       <h1>${name}</h1>
-      <p>Frontend resource created with TDK</p>
+      <p>Frontend resource created with Flisk</p>
     </div>
   );
 });

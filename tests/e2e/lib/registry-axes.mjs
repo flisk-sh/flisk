@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Prints the matrix axis values the CLI's registries declare, as JSON (#1290, openspec task 3b.5). The changes job in ci.yml runs
 // it and exposes the result as an output, so a matrix built from it always matches the code. Values come from the same sources

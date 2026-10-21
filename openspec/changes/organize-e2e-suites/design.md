@@ -13,7 +13,7 @@ See proposal.md for why. This is the inventory on `origin/main` (5194a45a plus l
 | `python-example-e2e.yml` | Python provider example | examples / python | PR (path-filtered) |
 | `byo-e2e.yml` + `tests/e2e/resource-types/bring-your-own/verify-byo-python.sh` | BYO dry run | resource-types / bring-your-own | PR |
 | `byo-boot-e2e.yml` + `tests/e2e/resource-types/bring-your-own/verify-byo-python-boot.sh` | BYO boot | resource-types / bring-your-own | daily |
-| `scripts/verify-byo-{example,job,pair,tdk}.sh` | BYO variants | resource-types / bring-your-own | **never** |
+| `scripts/verify-byo-{example,job,pair,flisk}.sh` | BYO variants | resource-types / bring-your-own | **never** |
 | `scripts/verify-mcp.sh` | MCP resource | resource-types / mcp | **never** |
 | `scripts/verify-frontend-frameworks.sh` | every frontend framework | resource-types / frontend | **never** |
 | `agent-e2e.yml` + `scripts/agent-e2e.sh` (#1272) | agent resource, sessions, restart, MCP tools | resource-types / agent (reference) | PR, nightly, after release |
@@ -138,10 +138,10 @@ The axes found in the code today, which seed `tests/e2e/axes.json`:
 | `httpFramework` | `cli/src/backend-frameworks/registry.ts` | hono (default), express, fastify, nestjs | no live coverage today |
 | `frontendFramework` | `cli/src/frontend-frameworks/registry.ts` | react, vue, svelte, solid, preact, qwik, lit, vanilla, tanstack-router | `scripts/verify-frontend-frameworks.sh` (never run in CI) |
 | `agentRuntime` | `cli/src/agent-runtimes/registry.ts` | custom | — |
-| `agentDurability` | `tdk resource --durability` | files, postgres | postgres has no live coverage today |
+| `agentDurability` | `flisk resource --durability` | files, postgres | postgres has no live coverage today |
 | `feature` | `featuresEnabled` | prisma | — |
 | `infraService` | `OPTIONAL_INFRA_SERVICES` | monitoring, elk, debezium, golden_image, verdaccio | no live coverage today |
-| `byoVariant` | `examples/byo*`, `scripts/verify-byo-*.sh` | python, example, job, pair, tdk | `byo-e2e.yml`, `byo-boot-e2e.yml`, four unrun scripts |
+| `byoVariant` | `examples/byo*`, `scripts/verify-byo-*.sh` | python, example, job, pair, flisk | `byo-e2e.yml`, `byo-boot-e2e.yml`, four unrun scripts |
 | `example` | `examples/*` plus the saas-starter and restaurant repositories | default (`tdk-example`), one-backend, one-backend-python, one-backend-helm, saas-starter, restaurant | `example-e2e.yml`, `examples-e2e.yml`, `python-example-e2e.yml` |
 | `platform` | runner labels | ubuntu, windows, wsl2 | `windows-smoke.yml`, `wsl2-smoke.yml`, the Windows job in `release-binaries.yml` |
 | `installChannel` | how the CLI under test is installed | pr-tarball, npm, release-binary | install steps copied across e2e workflows |
@@ -168,7 +168,7 @@ The original plan gave each group its own pull request trigger. That makes every
 Retries turn flaky tests green and hide them. The CI report detects flakiness by finding a failure and a pass on the same commit, and a quarantine needs an issue link.
 
 ### Repo-local skills survive the sync
-`scripts/sync-tdk-skills.sh` currently deletes every directory in `.claude/skills` and every link in `.agents/skills`, then restores only the upstream ones. It will keep any skill listed in `.claude/skills/LOCAL` (one name per line) and re-create its `.agents/skills` link. `flisk-e2e-author` is the first entry. The D2 case of the agent suite extends to cover this. The alternative, putting the skill in the upstream `tdk-skills` repository, would make a contributor-only skill ship to every TDK user.
+`scripts/sync-tdk-skills.sh` currently deletes every directory in `.claude/skills` and every link in `.agents/skills`, then restores only the upstream ones. It will keep any skill listed in `.claude/skills/LOCAL` (one name per line) and re-create its `.agents/skills` link. `flisk-e2e-author` is the first entry. The D2 case of the agent suite extends to cover this. The alternative, putting the skill in the upstream `tdk-skills` repository, would make a contributor-only skill ship to every Flisk user.
 
 ### Migration order
 1. (#1272 has merged.) Extract `tests/e2e/lib/` and move the agent suite, then prove it green on CI.

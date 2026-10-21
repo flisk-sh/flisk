@@ -13,7 +13,7 @@ The existing pipeline in `flisk` cross-compiles the Windows AMD64 executable and
 **Non-Goals:**
 - Windows ARM64, Authenticode signing, package-manager distribution, Docker-based end-to-end boot, or changes to Unix asset names.
 - Republishing binaries from documentation or consumer repositories.
-- Claiming full native Windows `tdk up` support based only on CLI smoke coverage.
+- Claiming full native Windows `flisk up` support based only on CLI smoke coverage.
 
 ## Decisions
 
@@ -21,7 +21,7 @@ The existing pipeline in `flisk` cross-compiles the Windows AMD64 executable and
 - **Treat release assets as a required contract.** Validate the four existing Unix binaries, Windows executable, engine archive, checksum manifest, and versioned ZIP. Check all required local assets, checksum entries, and intended ZIP members; after upload, compare remote asset names and bytes with the candidate. Allow additional release assets that are not part of this workflow. Promote as latest only after gates pass.
 - **Verify checksums from the published manifest.** The installer will compare both executable and engine SHA-256 values against `checksums.txt` before extracting/installing. Missing entries and mismatches fail with actionable errors.
 - **Make documentation evidence-gated.** Keep pending/caveat wording until the latest release has the asset and the Windows smoke succeeds. Update the release repository README, installation story, website quick start, and framework index in the corresponding repositories once evidence exists. Retain Docker Desktop Linux-container mode and AMD64 limits.
-- **Keep manual full-boot acceptance separate from the release blocker.** Document a Windows 11 AMD64 checklist for install, doctor, scaffold, and optional `tdk up`; do not make Docker Desktop a hosted CI prerequisite.
+- **Keep manual full-boot acceptance separate from the release blocker.** Document a Windows 11 AMD64 checklist for install, doctor, scaffold, and optional `flisk up`; do not make Docker Desktop a hosted CI prerequisite.
 
 Alternatives considered: testing only the compiled file on Linux is insufficient for runtime behavior; testing `main` instead of the release candidate does not establish that the uploaded assets match; publishing latest before smoke would expose unverified assets. Rebuilding separately on Windows risks artifacts differing from those users download. Downloading a draft release in the Windows job would require cross-repository release credentials; a workflow artifact passes the exact build output without that token.
 

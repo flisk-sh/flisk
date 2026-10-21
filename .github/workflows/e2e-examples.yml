@@ -58,10 +58,10 @@ jobs:
           ports: "80 443 5432"
 
       # The four default-example cases (tests/e2e/examples/default), run in order.
-      - name: Build and pack the candidate TDK package
+      - name: Build and pack the candidate Flisk package
         run: tests/e2e/examples/default/run.sh D1
 
-      - name: Pack and install the candidate TDK package
+      - name: Pack and install the candidate Flisk package
         run: tests/e2e/examples/default/run.sh D2 # zizmor: ignore[adhoc-packages] installs our own freshly packed tarball
 
       - name: Clone and configure the bundled example
@@ -91,5 +91,5 @@ jobs:
         run: |
           if [ -d tdk-example ]; then
             cd tdk-example
-            tdk down || true
+            flisk down || true
           fi

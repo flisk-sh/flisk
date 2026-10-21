@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -200,7 +200,7 @@ describe("service manifest compatibility", () => {
       { traefik: { pathPrefix: "/api/v1/x\n    network_mode: host" } },
       { traefik: { pathPrefix: "/api", healthCheck: "/h\n    volumes: []" } },
       { nats: { queueGroup: "g: true" } },
-      { databaseName: "TDK_x\n  privileged: true" },
+      { databaseName: "Flisk_x\n  privileged: true" },
       { stack: "shop # comment" },
       { image: "app\n    privileged: true" },
       { healthCheckPath: "health" },
@@ -227,7 +227,7 @@ describe("service manifest compatibility", () => {
       {
         ...manifestBase(),
         healthCheckPath: "/api/v1/health",
-        databaseName: "TDK_shop",
+        databaseName: "Flisk_shop",
         image: "ghcr.io/acme/app:1.0@sha256:abc",
         traefik: {
           host: "shop.backend.my-project.local",

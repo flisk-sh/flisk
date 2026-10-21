@@ -1,5 +1,5 @@
 #!/usr/bin/env starlark
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🔍 TILT DISCOVERY CONFIGURATION - MASTER CONFIG
@@ -8,7 +8,7 @@
 # ⚠️  DEVELOPER NOTICE: This is a SYSTEM CONFIG file.
 #    For human-friendly docs, see: TILT_CONFIG.md
 #
-# This file defines service discovery settings for the TDK Landscape platform.
+# This file defines service discovery settings for the Flisk Landscape platform.
 # Discovery automatically finds and registers services from the filesystem.
 #
 # 📖 TO EDIT DISCOVERY SETTINGS:

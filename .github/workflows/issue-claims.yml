@@ -71,7 +71,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const DAY = 86400000;
-            const NUDGE = '<!-- tdk:claim-nudge -->';
+            const NUDGE = '<!-- flisk:claim-nudge -->';
             const MAINTAINERS = ['kburym', 'odykyi'];
             const claimed = await github.paginate(github.rest.issues.listForRepo,
               { owner, repo, state: 'open', labels: 'claimed', per_page: 100 });

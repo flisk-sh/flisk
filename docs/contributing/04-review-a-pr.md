@@ -12,12 +12,12 @@ You are responsible for the review you submit, not the AI.
 
 Read these before you review. They take about an hour in total, and you only do it once. Without them you cannot tell whether the AI's comments are right.
 
-**What TDK is**
+**What Flisk is**
 
-- [ ] [README](../../README.md): what TDK does and the commands people use.
+- [ ] [README](../../README.md): what Flisk does and the commands people use.
 - [ ] [Project overview](../project-overview.md): the Project → Stack → Resource model.
-- [ ] [Scope](../scope.md): what TDK is for, and what it is not for.
-- [ ] [Generated files](../generated-files.md): which files TDK writes. Never edit generated files by hand; change the input that produces them.
+- [ ] [Scope](../scope.md): what Flisk is for, and what it is not for.
+- [ ] [Generated files](../generated-files.md): which files Flisk writes. Never edit generated files by hand; change the input that produces them.
 
 **How we work**
 
@@ -138,7 +138,7 @@ Question: what happens when `--port` is 0? The help text does not say.
 Use **Approve** when you checked the PR and it is good to merge. You can approve and still leave small comments. Mark them clearly as optional so the author knows they do not block the merge.
 
 ```markdown
-Looks good. I ran `bun run test` on this branch and tried `tdk up --dry-run` in the restaurant example: the new URLs show up as described.
+Looks good. I ran `bun run test` on this branch and tried `flisk up --dry-run` in the restaurant example: the new URLs show up as described.
 
 Optional (nit): `parsePort` could use a test for an empty string. Fine to do in a follow-up.
 ```

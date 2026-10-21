@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -32,7 +32,7 @@ interface RunOptions {
 }
 
 /**
- * Runs `tdk resource` in process with the prompts stubbed, so the interactive path is reachable
+ * Runs `flisk resource` in process with the prompts stubbed, so the interactive path is reachable
  * without a terminal. The command is imported per run, because Commander keeps option values
  * between parses of the same command instance.
  */

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 
 set -euo pipefail
@@ -54,13 +54,13 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
   cp -R "${ROOT_DIR}/ext" "${RELEASE_DIR}/tdk-cli/ext"
   mkdir -p "${RELEASE_DIR}/tdk-cli/cli"
   cp -R "${ROOT_DIR}/cli/templates" "${RELEASE_DIR}/tdk-cli/cli/templates"
-  # `tdk project` copies these into every project; generated Dockerfiles run them.
+  # `flisk project` copies these into every project; generated Dockerfiles run them.
   mkdir -p "${RELEASE_DIR}/tdk-cli/shared-platform-engineering"
   cp -R "${ROOT_DIR}/shared-platform-engineering/docker-templates" \
     "${RELEASE_DIR}/tdk-cli/shared-platform-engineering/docker-templates"
 
   # Smoke-test the binary for this machine the way users install it (binary with
-  # tdk-cli/ next to it): `tdk project` must find the engine and runtime assets.
+  # tdk-cli/ next to it): `flisk project` must find the engine and runtime assets.
   host_binary="tdk-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
   if [ -x "${RELEASE_DIR}/${host_binary}" ]; then
     smoke_dir="$(mktemp -d)"
@@ -84,7 +84,7 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
     # find it via the stable /releases/latest/download/ URL, unlike the zip
     # below whose name embeds the tag and changes every release.
     tar -czf tdk-cli-engine.tar.gz tdk-cli
-    # install.sh and `tdk upgrade` verify the binary and the engine tarball
+    # install.sh and `flisk upgrade` verify the binary and the engine tarball
     # against this file before installing them.
     shasum -a 256 tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
       tdk-windows-amd64.exe \
@@ -195,9 +195,9 @@ else
   generated_notes_file="$(mktemp)"
   trap 'rm -f "${release_notes_file}" "${generated_notes_file}"' EXIT
   cat > "${release_notes_file}" <<EOF
-## TDK CLI ${RELEASE_TAG#v}
+## Flisk CLI ${RELEASE_TAG#v}
 
-TDK CLI ${RELEASE_TAG#v} includes the changes listed below. The release assets contain verified Linux, macOS, and Windows AMD64 binaries plus the bundled runtime engine.
+Flisk CLI ${RELEASE_TAG#v} includes the changes listed below. The release assets contain verified Linux, macOS, and Windows AMD64 binaries plus the bundled runtime engine.
 EOF
 
   # Releases are hosted separately from source, so their tags cannot drive
@@ -258,7 +258,7 @@ EOF
 
   gh release create "${RELEASE_TAG}" \
     --repo "${RELEASE_REPOSITORY}" \
-    --title "TDK CLI ${RELEASE_TAG#v}" \
+    --title "Flisk CLI ${RELEASE_TAG#v}" \
     --notes-file "${release_notes_file}" \
     --draft \
     "${ASSETS[@]}"

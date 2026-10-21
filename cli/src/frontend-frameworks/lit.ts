@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { FrontendFrameworkProvider } from "./types.js";
 
@@ -53,7 +53,7 @@ export class AppRoot extends LitElement {
   render() {
     return html\`
       <h1>${name}</h1>
-      <p>Frontend resource created with TDK</p>
+      <p>Frontend resource created with Flisk</p>
     \`;
   }
 }

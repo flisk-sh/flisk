@@ -40,7 +40,7 @@ bounded. Liveness should not fail just because a public third-party API is tempo
 ## What a valid measurement means
 
 A useful cold-boot report records the machine/runner, OS and CPU architecture, Docker engine and
-Compose versions, TDK version, commit, whether image and package caches were empty, and the time
+Compose versions, Flisk version, commit, whether image and package caches were empty, and the time
 until all twelve resources pass their real readiness checks. It should also record image-build and
 service-readiness failures, not only the first process start. Use
 [`../benchmarks/cold-boot-shop-real.md`](../benchmarks/cold-boot-shop-real.md) and

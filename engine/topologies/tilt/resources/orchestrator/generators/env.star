@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🧪 TILT SDK - ENV GENERATORS
@@ -123,7 +123,7 @@ def _uses_drizzle(manifest):
 def _generate_params_env(manifest, backend_manifest=None, write_fn=None):
     """Generate params (non-secret) environment variables from manifest.
 
-    This generates config like BASE_URL, PORT, etc. - NEVER secrets. The file is generated and verified by `tdk config verify`, so
+    This generates config like BASE_URL, PORT, etc. - NEVER secrets. The file is generated and verified by `flisk config verify`, so
     nothing secret may be written here: the JWT secret and `secrets.required` / `secrets.optional` reach the container from the
     project `.env` through the Compose entry instead.
 

@@ -1,7 +1,7 @@
 ## 1. Installation and client setup
 
-- [x] 1.1 Expand the canonical MCP setup guide to explain that `tdk mcp` ships with the CLI installation and requires no separate package
-- [x] 1.2 Add verified local stdio setup examples for Codex and Claude Code, launched from a TDK project directory
+- [x] 1.1 Expand the canonical MCP setup guide to explain that `flisk mcp` ships with the CLI installation and requires no separate package
+- [x] 1.2 Add verified local stdio setup examples for Codex and Claude Code, launched from a Flisk project directory
 - [x] 1.3 Document all current tools (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`); use `doctor` and `up` for the initial walkthrough and clarify how to check readiness
 
 ## 2. Website discovery

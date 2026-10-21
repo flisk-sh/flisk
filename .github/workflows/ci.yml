@@ -388,10 +388,10 @@ jobs:
       - name: Run the installed CLI
         working-directory: ${{ runner.temp }}
         run: |
-          tdk --version
+          flisk --version
           mkdir smoke-project && cd smoke-project
-          tdk project --yes
-          printf 'y\n' | tdk resource orders-api --type backend --stack shop
+          flisk project --yes
+          printf 'y\n' | flisk resource orders-api --type backend --stack shop
           test -f services/shop/orders-api/service.json
           echo "✅ Installed package scaffolds a project and a resource"
 

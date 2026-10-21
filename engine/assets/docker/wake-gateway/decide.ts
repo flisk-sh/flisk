@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * Pure decision logic for the wake gateway (see openspec/changes/prioritized-cold-start).
@@ -89,7 +89,7 @@ export function wakeTimeoutMs(startedViaCompose: boolean, overrideMs?: number): 
 /**
  * How long a waking request is held before the gateway answers
  * `503` + `Retry-After` while the start keeps going in the background.
- * Found live (task 7.2): during a full `tdk up` bring-up the Docker daemon
+ * Found live (task 7.2): during a full `flisk up` bring-up the Docker daemon
  * took ~5 min to start one container, and Bun.serve's 255s idle cap dropped
  * the held connection with no response at all.
  */

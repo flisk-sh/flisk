@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import { existsSync, mkdirSync } from "node:fs";
@@ -80,7 +80,7 @@ export {
 
 export const BASE_TEMPLATE = {
   port: 0, // Will be assigned
-  // `dependsOn` is the current name; `dependencies` is deprecated and `tdk doctor` warns about it, so a fresh scaffold must not write it.
+  // `dependsOn` is the current name; `dependencies` is deprecated and `flisk doctor` warns about it, so a fresh scaffold must not write it.
   dependsOn: [],
   build: {
     dockerfile: "Dockerfile",
@@ -252,16 +252,16 @@ export function createByoServiceJson(
 
 /**
  * The Vite configs a frontend's `dev`/`build` scripts point at are written by the engine
- * (Tilt loads the Starlark generator in `tdk up`), not by `tdk resource`. Without them
+ * (Tilt loads the Starlark generator in `flisk up`), not by `flisk resource`. Without them
  * `vite` stops with an esbuild "Could not resolve" stack trace, so the pre-scripts say what
  * is missing instead. Inside the engine's image build the file exists and the check passes.
  */
 function requireGeneratedViteConfig(configPath: string): string {
   // The text sits inside single quotes in a shell command: no quotes, backticks or parentheses.
   const message =
-    `${configPath} does not exist yet. TDK engine writes it when tdk up loads this resource ` +
-    "(needs Docker); tdk resource and tdk config regenerate do not create it. " +
-    "Run tdk up <stack> once, or point this script at your own Vite config to build on the host.";
+    `${configPath} does not exist yet. Flisk engine writes it when flisk up loads this resource ` +
+    "(needs Docker); flisk resource and flisk config regenerate do not create it. " +
+    "Run flisk up <stack> once, or point this script at your own Vite config to build on the host.";
   return `bun -e 'if(!require("fs").existsSync(${JSON.stringify(configPath)})){console.error(${JSON.stringify(message)});process.exit(1)}'`;
 }
 
@@ -367,7 +367,7 @@ const PG_RANGE = "^8.13.0";
 export const DRIZZLE_DB_TEMPLATE = `import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
-// DATABASE_URL is injected by TDK. The pool connects on the first query, so a missing or
+// DATABASE_URL is injected by Flisk. The pool connects on the first query, so a missing or
 // unreachable database fails /health/db instead of stopping the service at startup.
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool);
@@ -425,7 +425,7 @@ export const TSCONFIG_TEMPLATE = {
 
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 
-/** Resource types `tdk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
+/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
 export function parseResourceType(type: string): CreatableResourceType | "sdk" {
   const normalized = type === "byo" ? BRING_YOUR_OWN_TYPE : type;
   const validTypes: readonly string[] = [...RESOURCE_TYPE_VALUES];
@@ -477,7 +477,7 @@ export function parseExistingServiceJson(
  * Prints the framework inventory for the requested resource type.
  *
  * Without an explicit `--type` the listing stays the historical frontend one, byte for byte, so
- * `tdk resource --frameworks` keeps working exactly as before: `--language` is a backend option and
+ * `flisk resource --frameworks` keeps working exactly as before: `--language` is a backend option and
  * never applies to it. `--type frontend` and `--type backend` list that type's frameworks, and the
  * backend listing carries the language (and runtime) each framework is scaffolded with.
  */
@@ -593,7 +593,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       let resourceName = name;
       if (!resourceName && options.yes) {
         throw new TdkError("A resource name is required when using --yes.", [
-          "Pass the name explicitly, for example: tdk resource api --yes.",
+          "Pass the name explicitly, for example: flisk resource api --yes.",
         ]);
       }
       if (!resourceName) {
@@ -922,7 +922,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         console.log(chalk.green("\n✅ Existing resource registered successfully!"));
         console.log(chalk.gray(`\nLocation: ${fullPath}`));
         console.log(chalk.gray(`\nNext steps:`));
-        console.log(chalk.gray(`  tdk up ${stackName}`));
+        console.log(chalk.gray(`  flisk up ${stackName}`));
         return;
       }
 
@@ -990,7 +990,7 @@ EXPOSE ${port}
 
 DO NOT DELETE service.json
 
-This file contains the resource configuration for TDK.
+This file contains the resource configuration for Flisk.
 `;
         const agentsPath = resolve(fullPath, "AGENTS.md");
         if (!existsSync(agentsPath)) writeFileSync(agentsPath, agentsMdContent);
@@ -1000,7 +1000,7 @@ This file contains the resource configuration for TDK.
         console.log(chalk.green("\n✅ Bring-your-own resource created successfully!"));
         console.log(chalk.gray(`\nLocation: ${fullPath}`));
         console.log(chalk.gray(`\nNext steps:`));
-        console.log(chalk.gray(`  tdk up ${stackName}`));
+        console.log(chalk.gray(`  flisk up ${stackName}`));
         return;
       }
 
@@ -1228,7 +1228,7 @@ This file contains the resource configuration for TDK.
           featuresEnabled: ["prisma"],
         };
         migratorConfig.dependsOn = ["postgres"];
-        // A migrator serves no route, so it declares no port. The base template's placeholder 0 would fail the service port check in tdk up.
+        // A migrator serves no route, so it declares no port. The base template's placeholder 0 would fail the service port check in flisk up.
         delete (migratorConfig as { port?: number }).port;
         const migratorPackage = createPackageJson(migratorName, "migrator", undefined, true);
         migratorPackage.scripts = {
@@ -1293,7 +1293,7 @@ This file contains the resource configuration for TDK.
           chalk.yellow(
             `\n📁 Placed in ${finalResourcePath} instead of the usual ${pathAdjustedFrom}: ` +
               `discovery.paths in .tdk/project.json is ${JSON.stringify(discoveryPaths)}, ` +
-              `so ${pathAdjustedFrom} would never be started by \`tdk up\`.`,
+              `so ${pathAdjustedFrom} would never be started by \`flisk up\`.`,
           ),
         );
         console.log(chalk.gray("   Use --path to choose another folder."));
@@ -1301,18 +1301,18 @@ This file contains the resource configuration for TDK.
         console.log(
           chalk.yellow(
             `\n⚠️  ${finalResourcePath} is outside discovery.paths ${JSON.stringify(discoveryPaths)}, ` +
-              "so `tdk up` will not start this resource.",
+              "so `flisk up` will not start this resource.",
           ),
         );
         console.log(
           chalk.gray(
-            "   Add a matching pattern to discovery.paths in .tdk/project.json and run `tdk config regenerate`.",
+            "   Add a matching pattern to discovery.paths in .tdk/project.json and run `flisk config regenerate`.",
           ),
         );
       }
       console.log(chalk.gray(`\nNext steps:`));
       console.log(chalk.gray(`  cd ${finalResourcePath}`));
       console.log(chalk.gray(`  ${backendLanguage?.installHint ?? "bun install"}`));
-      console.log(chalk.gray(`  tdk up ${stackName}`));
+      console.log(chalk.gray(`  flisk up ${stackName}`));
     });
   });

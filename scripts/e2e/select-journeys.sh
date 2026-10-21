@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Chooses the journey suites (tests/e2e/journeys/*/suite.json) that run for this event, and writes the job matrix and the CLI
 # version to test to $GITHUB_OUTPUT (#1298). A suite runs when its `triggers` has this event's trigger, and on a pull request

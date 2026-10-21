@@ -1,6 +1,6 @@
 # Troubleshooting: L1 (base image) Docker build failures
 
-This guide covers failures in **L1**, the foundational base image layer of TDK's Docker image stack. It explains what L1 builds, how it relates to the rest of the L1–L4 stack, and how to diagnose and fix the errors you see when L1 fails to build or is missing.
+This guide covers failures in **L1**, the foundational base image layer of Flisk's Docker image stack. It explains what L1 builds, how it relates to the rest of the L1–L4 stack, and how to diagnose and fix the errors you see when L1 fails to build or is missing.
 
 All errors shown on this page were reproduced on a developer workstation running macOS with Docker Desktop.
 
@@ -8,7 +8,7 @@ All errors shown on this page were reproduced on a developer workstation running
 
 ## What L1 is in plain words
 
-TDK uses a four-tier layered Docker architecture (L1–L4) to make local image builds fast and cache-friendly across multiple microservices:
+Flisk uses a four-tier layered Docker architecture (L1–L4) to make local image builds fast and cache-friendly across multiple microservices:
 
 | Layer | Name | Purpose | What it contains | Defined in |
 |---|---|---|---|---|
@@ -63,24 +63,24 @@ $ docker build -f .tdk/.tdk-out/golden-layers.Dockerfile --target l1_golden -t <
 ERROR: Cannot connect to the Docker daemon at unix:///Users/<user>/.docker/run/docker.sock. Is the docker daemon running?
 ```
 
-**What `tdk doctor` prints:**
+**What `flisk doctor` prints:**
 ```text
-$ tdk doctor
+$ flisk doctor
 failed to connect to the docker API at unix:///Users/<user>/.docker/run/docker.sock: connect: no such file or directory
 ✗ Docker Desktop is open, but its engine is not responding
-ℹ Fix: Quit Docker Desktop completely (whale icon > Quit Docker Desktop), reopen it, and wait until it shows Running. If it keeps getting stuck, check free disk space. Then retry: tdk doctor
+ℹ Fix: Quit Docker Desktop completely (whale icon > Quit Docker Desktop), reopen it, and wait until it shows Running. If it keeps getting stuck, check free disk space. Then retry: flisk doctor
 ```
-Or when running `tdk up`:
+Or when running `flisk up`:
 ```text
-$ tdk up
+$ flisk up
 Cold start blocked. Bun/Prisma/NATS are not the first failure.
-They are generated after `tdk project`. Fix the machine checks below.
+They are generated after `flisk project`. Fix the machine checks below.
 FAIL docker  Docker daemon is not running
-  Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor
+  Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor
 ```
 
 - **Cause:** The Docker daemon is stopped, frozen, or starting up.
-- **Fix:** Launch Docker Desktop, OrbStack, or Colima. Wait until the whale icon or CLI status reports running (`docker info`), then re-run `tdk doctor` or `tdk up`.
+- **Fix:** Launch Docker Desktop, OrbStack, or Colima. Wait until the whale icon or CLI status reports running (`docker info`), then re-run `flisk doctor` or `flisk up`.
 
 #### Case 1B: Offline or network DNS lookup failure
 
@@ -97,7 +97,7 @@ ERROR: failed to build: failed to solve: oven/bun:1.3.11-alpine: failed to resol
 - **Fix:**
   1. Test network connectivity: `curl -I https://registry-1.docker.io/v2/`.
   2. If on a corporate network or proxy, configure the HTTP/HTTPS proxy in **Docker Desktop Settings → Proxies**.
-  3. Once connected, retry `tdk up`. To test the pull on its own, use the exact digest-pinned reference the build uses (a bare tag can resolve to a different image):
+  3. Once connected, retry `flisk up`. To test the pull on its own, use the exact digest-pinned reference the build uses (a bare tag can resolve to a different image):
      ```bash
      docker pull oven/bun:1.3.11-alpine@sha256:7ed9f74c326d1c260abe247ac423ccbf5ac92af62bb442d515d1f92f21e8ea9b
      ```
@@ -154,14 +154,14 @@ ERROR: failed to build: failed to solve: process "/bin/sh -c apk add --no-cache 
      docker run --rm alpine ping -c 2 dl-cdn.alpinelinux.org
      ```
      If the host works and the container does not, the problem is Docker's DNS or egress, not Alpine.
-  2. Restart Docker Desktop (or toggle the VPN back) and retry `tdk up`. This is enough after a network change.
+  2. Restart Docker Desktop (or toggle the VPN back) and retry `flisk up`. This is enough after a network change.
   3. Only if that fails, and only where your network allows public resolvers, set DNS in **Settings → Docker Engine**: `{"dns": ["8.8.8.8", "1.1.1.1"]}`. On corporate networks or VPNs with internal DNS these may be blocked or break private names; remove the `dns` key to restore the default.
 
 ---
 
 ### 3. Golden image is missing (Pull access denied for `<project>-l1:latest`)
 
-TDK's golden images (`<project>-l1:latest`, `<project>-l2:latest`, `<project>-l3-backend:latest`, `<project>-l4-backend:latest`) are **local-only images** built on your machine. They are never pushed to or pulled from Docker Hub.
+Flisk's golden images (`<project>-l1:latest`, `<project>-l2:latest`, `<project>-l3-backend:latest`, `<project>-l4-backend:latest`) are **local-only images** built on your machine. They are never pushed to or pulled from Docker Hub.
 
 #### Symptom:
 When starting services or building an individual service before the golden layers finish building, Docker attempts to pull the image from Docker Hub and fails:
@@ -198,18 +198,18 @@ If nothing is returned, the L1 golden image has not been built or was deleted.
 
 #### How to rebuild the L1 golden image:
 
-- **Method 1: Force rebuild via TDK (Recommended)**
-  Set `TDK_GOLDEN_REBUILD=1` and run `tdk up`:
+- **Method 1: Force rebuild via Flisk (Recommended)**
+  Set `TDK_GOLDEN_REBUILD=1` and run `flisk up`:
   ```bash
-  TDK_GOLDEN_REBUILD=1 tdk up
+  TDK_GOLDEN_REBUILD=1 flisk up
   ```
   This tells the `golden-layers-build` Tilt resource to ignore cache hashes and rebuild all golden layers.
 
 - **Method 2: Trigger in Tilt**
-  If Tilt is already running, open the Tilt web UI (`http://localhost:10350` or the port printed by `tdk up`), find the **`golden-layers-build`** resource, and click the manual reload/trigger button. Once it turns green, trigger the failed service resources.
+  If Tilt is already running, open the Tilt web UI (`http://localhost:10350` or the port printed by `flisk up`), find the **`golden-layers-build`** resource, and click the manual reload/trigger button. Once it turns green, trigger the failed service resources.
 
 - **Method 3: Build the L1 target directly with Docker (diagnostic only)**
-  This isolates whether the Dockerfile itself builds. It does not run TDK's orchestration, so it is not a full recovery: the later golden layers are not rebuilt and the hash TDK checks is not refreshed.
+  This isolates whether the Dockerfile itself builds. It does not run Flisk's orchestration, so it is not a full recovery: the later golden layers are not rebuilt and the hash Flisk checks is not refreshed.
   ```bash
   docker build -f .tdk/.tdk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
   docker image ls "*l1*"
@@ -220,6 +220,6 @@ If nothing is returned, the L1 golden image has not been built or was deleted.
 
 ## Related documentation
 
-- [Troubleshooting overview](troubleshooting.md): General troubleshooting for TDK and Tilt messages.
+- [Troubleshooting overview](troubleshooting.md): General troubleshooting for Flisk and Tilt messages.
 - [Scope and non-goals](scope.md): Details on local-only golden images and what differs from production.
-- [Leaving TDK](leaving-flisk.md): How golden layers are structured and why they are not published.
+- [Leaving Flisk](leaving-flisk.md): How golden layers are structured and why they are not published.

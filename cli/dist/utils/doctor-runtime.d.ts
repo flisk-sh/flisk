@@ -3,8 +3,8 @@ import type { CheckResult, DiscoveredResource } from "../types/index.js";
 import { type HealthProbe } from "./service-urls.js";
 import type { SmokeResult } from "./smoke.js";
 export declare const HOST_PORT_FIXES: {
-    readonly port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: tdk doctor";
-    readonly port5432: "Stop local Postgres or change the host port. Then: tdk doctor";
+    readonly port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: flisk doctor";
+    readonly port5432: "Stop local Postgres or change the host port. Then: flisk doctor";
 };
 /**
  * Quote a value for a POSIX shell command line. JSON.stringify is not enough:
@@ -152,7 +152,7 @@ export declare function findMissingHealthRoutes(resources: DiscoveredResource[])
 /**
  * A backend without its health route never passes the container healthcheck,
  * so Traefik never routes to it and every request gets a 404 - after a slow
- * image build, with nothing in `tdk up` saying why. Catch it before starting.
+ * image build, with nothing in `flisk up` saying why. Catch it before starting.
  */
 export declare function checkHealthRoutes(projectRoot?: string): CheckResult;
 export {};

@@ -4,7 +4,7 @@
 
 Tüm depoyu anlamanıza gerek yok. Küçük bir değişiklik seçin ve ilgili rehberi izleyin. Bir adım belirsizse issue üzerinden sorun.
 
-Aşağıdaki adımları bir kez yapmanız yeterlidir. TDK CLI'ı ve kontrollerini çalıştırmak için gereken araçları kurar.
+Aşağıdaki adımları bir kez yapmanız yeterlidir. Flisk CLI'ı ve kontrollerini çalıştırmak için gereken araçları kurar.
 
 ## En hızlı yol: Dev Container / Codespaces
 
@@ -27,14 +27,14 @@ bun run lint
 bun run test
 ```
 
-Docker ve Tilt isteğe bağlıdır ve varsayılan konteynerde yoktur. Yalnızca TDK servislerini veya tam yerel ortamı çalıştırmanız gerekiyorsa ekleyin.
+Docker ve Tilt isteğe bağlıdır ve varsayılan konteynerde yoktur. Yalnızca Flisk servislerini veya tam yerel ortamı çalıştırmanız gerekiyorsa ekleyin.
 
 ## Gerekenler (yerel kurulum)
 
 - Git
 - [Bun](https://bun.sh)
 - Node.js 22.12 veya daha yeni
-- Yalnızca TDK servislerini çalıştırmanız veya tam yerel ortamı kontrol etmeniz gerekiyorsa Docker ve [Tilt](https://docs.tilt.dev/install.html)
+- Yalnızca Flisk servislerini çalıştırmanız veya tam yerel ortamı kontrol etmeniz gerekiyorsa Docker ve [Tilt](https://docs.tilt.dev/install.html)
 
 ## Depoyu bilgisayarınıza kopyalayın
 

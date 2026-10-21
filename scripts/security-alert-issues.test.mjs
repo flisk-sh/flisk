@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Unit tests for scripts/security-alert-issues.mjs.
 //   node --test scripts/security-alert-issues.test.mjs
@@ -73,15 +73,15 @@ const SCANNER_ALERT = {
 
 test("the marker identifies one alert and round-trips", () => {
 	const marker = markerFor("dependabot", 22);
-	assert.equal(marker, "<!-- tdk:security-alert:dependabot:22 -->");
+	assert.equal(marker, "<!-- flisk:security-alert:dependabot:22 -->");
 	assert.deepEqual(parseMarker(`noise\n${marker}\nmore`), { source: "dependabot", number: 22 });
 	assert.equal(parseMarker("no marker here"), null);
 	assert.equal(parseMarker(undefined), null);
 });
 
 test("a body without the marker is never claimed", () => {
-	assert.equal(parseMarker("<!-- tdk:security-alert:dependabot -->"), null);
-	assert.equal(parseMarker("<!-- tdk:security-alert:dependabot:xx -->"), null);
+	assert.equal(parseMarker("<!-- flisk:security-alert:dependabot -->"), null);
+	assert.equal(parseMarker("<!-- flisk:security-alert:dependabot:xx -->"), null);
 });
 
 test("severity is normalised, and an unknown severity is medium", () => {

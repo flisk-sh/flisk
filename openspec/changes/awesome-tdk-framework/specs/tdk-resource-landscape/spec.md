@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Minimal public catalog repository
-The TDK resource landscape SHALL be published in a public GitHub repository named `flisk-sh/awesome-tdk-framework`. Its only tracked files SHALL be the root-level `README.md` catalog and `CONTRIBUTING.md` guide.
+The Flisk resource landscape SHALL be published in a public GitHub repository named `flisk-sh/awesome-tdk-framework`. Its only tracked files SHALL be the root-level `README.md` catalog and `CONTRIBUTING.md` guide.
 
 #### Scenario: Repository contents are constrained
 - **WHEN** the initial catalog repository is published
@@ -12,7 +12,7 @@ The TDK resource landscape SHALL be published in a public GitHub repository name
 - **THEN** the repository is public and renders the catalog README as its landing page
 
 ### Requirement: Navigable resource taxonomy
-The catalog README SHALL organize TDK-relevant resources under descriptive Markdown headings and provide a linked table of contents for its substantive sections.
+The catalog README SHALL organize Flisk-relevant resources under descriptive Markdown headings and provide a linked table of contents for its substantive sections.
 
 #### Scenario: Reader navigates to a topic
 - **WHEN** a reader selects a table-of-contents entry
@@ -53,8 +53,8 @@ The repository SHALL provide detailed inclusion criteria, entry formatting, prov
 - **THEN** the curation guidance in `CONTRIBUTING.md` allows maintainers to request clarification or decline the item
 
 ### Requirement: Organization profile discovery
-The existing TDK organization profile README SHALL link prominently to the public `awesome-tdk-framework` catalog.
+The existing Flisk organization profile README SHALL link prominently to the public `awesome-tdk-framework` catalog.
 
 #### Scenario: Reader starts from organization profile
-- **WHEN** a reader views the TDK organization profile
+- **WHEN** a reader views the Flisk organization profile
 - **THEN** they can follow a clearly labeled link to the catalog repository

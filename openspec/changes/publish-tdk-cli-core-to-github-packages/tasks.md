@@ -17,5 +17,5 @@
 
 - [ ] 3.1 Run the backfill workflow for an existing npm release (or use the regular release workflow for a new version); verify `npm view @flisk-sh/flisk@<version> --registry=https://npm.pkg.github.com` resolves the version.
 - [ ] 3.2 Confirm the package is linked to `flisk-sh/flisk` and has the intended public visibility; verify the package appears on the repository Packages page.
-- [ ] 3.3 From a clean environment with documented registry mapping and read authentication, install the GitHub Packages version and verify `tdk --version` reports that version; the backfill workflow includes this authenticated verification.
-- [x] 3.4 Verify public npm publication and installation still work for version `1.3.186`; npm registry metadata resolved successfully, and a clean temporary global install reported `tdk --version` as `1.3.186`.
+- [ ] 3.3 From a clean environment with documented registry mapping and read authentication, install the GitHub Packages version and verify `flisk --version` reports that version; the backfill workflow includes this authenticated verification.
+- [x] 3.4 Verify public npm publication and installation still work for version `1.3.186`; npm registry metadata resolved successfully, and a clean temporary global install reported `flisk --version` as `1.3.186`.

@@ -1,6 +1,6 @@
 # Tilt IDE Components
 
-Web-based IDE features integrated into the TDK Landscape Tilt development environment.
+Web-based IDE features integrated into the Flisk Landscape Tilt development environment.
 
 ## Overview
 

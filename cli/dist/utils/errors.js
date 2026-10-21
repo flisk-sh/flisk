@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { QUICKSTART_DOCS_URL } from "./constants.js";
@@ -74,12 +74,12 @@ export const errorFactories = {
     ]),
     stackNotFound: (name, stackNames = []) => new TdkError(`Stack "${name}" not found`, [
         ...closestNameSuggestions([name], stackNames),
-        "Run `tdk stacks` to see available stacks",
-        "Run `tdk stack` to assign resources to a stack",
+        "Run `flisk stacks` to see available stacks",
+        "Run `flisk stack` to assign resources to a stack",
     ]),
     resourceNotFound: (name, resourceNames = []) => new TdkError(`Resource "${name}" not found`, [
         ...closestNameSuggestions([name], resourceNames),
-        "Run `tdk resources` to list all resources",
+        "Run `flisk resources` to list all resources",
         "Check the resource name spelling",
     ]),
     unknownServices: (names, validNames) => {
@@ -96,8 +96,8 @@ export const errorFactories = {
         'Path cannot contain special characters like <>:"|?*',
     ]),
     notInProject: () => new TdkError("Could not find project root (no .tdk/project.json found)", [
-        "Run this from within a TDK project",
-        "Run `tdk project --yes` to initialize a new project",
+        "Run this from within a Flisk project",
+        "Run `flisk project --yes` to initialize a new project",
     ]),
 };
 export function requireProjectRoot() {
@@ -141,13 +141,13 @@ export async function withTiltCheck(action, options) {
         problems.push(errorFactories.tiltNotInstalled());
     }
     if (problems.length > 0) {
-        console.error(chalk.red(`\nTDK can't start - missing prerequisites:\n`));
+        console.error(chalk.red(`\nFlisk can't start - missing prerequisites:\n`));
         problems.forEach((problem, i) => {
             if (i > 0)
                 console.error("");
             problem.display();
         });
-        console.error(chalk.gray(`\nRun \`tdk doctor\` for a full environment check.`));
+        console.error(chalk.gray(`\nRun \`flisk doctor\` for a full environment check.`));
         process.exit(1);
     }
     return runCommand(action, options);

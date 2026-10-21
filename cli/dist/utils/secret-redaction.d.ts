@@ -21,7 +21,7 @@ export declare function redactValue<T>(value: T, secrets: readonly string[]): T;
  * are unknown, so the redactor throws instead of guessing: the caller then shows and stores nothing rather than raw text. The
  * original error is kept, so a caller can still tell an unreadable .env from another failure.
  *
- * `extraEnvPaths` are the other env files of the run (the file `tdk up --env-file` selected): their values are secrets as
+ * `extraEnvPaths` are the other env files of the run (the file `flisk up --env-file` selected): their values are secrets as
  * much as the ones in the project .env.
  */
 export declare function createEnvRedactor(projectRoot: string, extraEnvPaths?: readonly string[]): (text: string) => string;

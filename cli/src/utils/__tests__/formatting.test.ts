@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
@@ -253,7 +253,7 @@ describe("console output helpers", () => {
       expect(loggedLines()).toEqual([
         expect.stringContaining("No resources found."),
         expect.stringContaining("To create a resource:"),
-        expect.stringContaining("  tdk resource <name>"),
+        expect.stringContaining("  flisk resource <name>"),
       ]);
     });
 
@@ -262,9 +262,9 @@ describe("console output helpers", () => {
       expect(loggedLines()).toEqual([
         expect.stringContaining("No stacks found."),
         expect.stringContaining("To create a stack, use:"),
-        expect.stringContaining("  tdk stack <stack-name>"),
+        expect.stringContaining("  flisk stack <stack-name>"),
         expect.stringContaining("Or create a new resource with a stack:"),
-        expect.stringContaining("  tdk resource <name> --stack <stack-name>"),
+        expect.stringContaining("  flisk resource <name> --stack <stack-name>"),
       ]);
     });
 
@@ -273,7 +273,7 @@ describe("console output helpers", () => {
       expect(loggedLines()).toEqual([
         expect.stringContaining("No services found."),
         expect.stringContaining("To create a service:"),
-        expect.stringContaining("  tdk resource <name>"),
+        expect.stringContaining("  flisk resource <name>"),
       ]);
     });
 
@@ -282,7 +282,7 @@ describe("console output helpers", () => {
       expect(loggedLines()).toEqual([
         expect.stringContaining("No services found."),
         expect.stringContaining("To add services to this stack:"),
-        expect.stringContaining("  tdk resource <name> --stack <stack-name>"),
+        expect.stringContaining("  flisk resource <name> --stack <stack-name>"),
       ]);
     });
 
@@ -305,9 +305,9 @@ describe("console output helpers", () => {
   });
 
   describe("showCommandHeader", () => {
-    it("prints the title with the TDK prefix and a trailing blank line", () => {
+    it("prints the title with the Flisk prefix and a trailing blank line", () => {
       showCommandHeader("up");
-      expect(loggedLines()).toEqual(["TDK up\n"]);
+      expect(loggedLines()).toEqual(["Flisk up\n"]);
     });
   });
 

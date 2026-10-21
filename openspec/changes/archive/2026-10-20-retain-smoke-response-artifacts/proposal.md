@@ -1,6 +1,6 @@
 ## Why
 
-`tdk up` already prints the public URL, method, status, and a body snippet when a `smoke` step fails (#413, #414). That line is not kept. A later CI run only has whatever is still in the job log, so a regression cannot be diffed against the last response. The follow-up is to retain the status and response body as a local record and upload it as a CI artifact.
+`flisk up` already prints the public URL, method, status, and a body snippet when a `smoke` step fails (#413, #414). That line is not kept. A later CI run only has whatever is still in the job log, so a regression cannot be diffed against the last response. The follow-up is to retain the status and response body as a local record and upload it as a CI artifact.
 
 Source: https://x.com/conveebuilds/status/2106375152619667821
 
@@ -30,7 +30,7 @@ Source: https://x.com/conveebuilds/status/2106375152619667821
 
 ## Impact
 
-- Smoke runner used by `tdk up`, and its unit tests.
+- Smoke runner used by `flisk up`, and its unit tests.
 - `scripts/verify-smoke.sh` and the workflow that runs it.
 - `docs/configuration.md` and `docs/smoke.md`.
 - No service schema change. Existing `smoke` blocks keep working.

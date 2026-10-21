@@ -1,10 +1,10 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
-# Standalone Traefik compose for generated TDK projects
+# Standalone Traefik compose for generated Flisk projects
 # =============================================================================
 # Full platform checkouts load Introvertic/platform proxy compose files.
-# Standalone `tdk project` output does not ship those files, so Tilt used to
+# Standalone `flisk project` output does not ship those files, so Tilt used to
 # skip Traefik entirely and api.{project}.localhost never served.
 
 load("../constants.star", "PlatformDockerConstants")
@@ -26,7 +26,7 @@ def generate_standalone_traefik_compose(sablier_enabled = False, http_host_port 
     plugins_volume = "      - plugins-storage:/plugins-storage\n" if sablier_enabled else ""
     return """###############################################################################
 # SYSTEM-GENERATED - DO NOT EDIT
-# Standalone Traefik for TDK projects without platform/introvertic proxy files.
+# Standalone Traefik for Flisk projects without platform/introvertic proxy files.
 ###############################################################################
 
 services:

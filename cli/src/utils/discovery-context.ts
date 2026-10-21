@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { DiscoveredResource, DiscoveryContext } from "../types/index.js";
 import { findProjectRoot } from "./paths.js";
@@ -21,7 +21,7 @@ const cachedContexts = new Map<string, DiscoveryContext>();
  *
  * Mutation contract:
  * Any command that creates, mutates, or removes service manifests (`service.json`) or project
- * templates (e.g. `tdk resource`, `tdk project example`, `tdk config migrate`) MUST call
+ * templates (e.g. `flisk resource`, `flisk project example`, `flisk config migrate`) MUST call
  * `clearDiscoveryCache()` so that subsequent discovery operations within the same process
  * observe the updated filesystem state.
  *
@@ -39,7 +39,7 @@ export function clearDiscoveryCache(projectRoot?: string): void {
  * Create or retrieve the cached discovery context for the current project root.
  *
  * Caches discovery results (resources, problems, stacks, etc.) per project root to prevent
- * redundant disk scans during multi-phase command lifecycles (e.g. `tdk up`).
+ * redundant disk scans during multi-phase command lifecycles (e.g. `flisk up`).
  *
  * Different project roots maintain separate cache entries and never cross project boundaries.
  *

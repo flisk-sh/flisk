@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -71,7 +71,7 @@ const GITIGNORE_ENTRIES = [
 ];
 
 /**
- * Appends the TDK entries missing from the project's .gitignore (creating it
+ * Appends the Flisk entries missing from the project's .gitignore (creating it
  * if needed), so the first `git add .` doesn't commit .env or generated
  * output. Returns the entries it added.
  */
@@ -84,8 +84,8 @@ export function ensureGitignore(projectRoot: string): string[] {
 
   const prefix = existing && !existing.endsWith("\n") ? "\n" : "";
   const header = existing
-    ? "\n# TDK (generated files and secrets)\n"
-    : "# TDK (generated files and secrets)\n";
+    ? "\n# Flisk (generated files and secrets)\n"
+    : "# Flisk (generated files and secrets)\n";
   appendFileSync(gitignorePath, `${prefix}${header}${missing.join("\n")}\n`);
   return missing;
 }
@@ -106,7 +106,7 @@ export function isInsideGitWorkTree(startPath: string): boolean {
 
 /**
  * Makes sure the smoke records cannot be committed by accident: the project .gitignore must ignore `.tdk/smoke/` before
- * `tdk up` writes a record. Only meaningful inside a git working tree, so nothing is written outside one. Returns the
+ * `flisk up` writes a record. Only meaningful inside a git working tree, so nothing is written outside one. Returns the
  * warning to show when the entry could not be ensured, and undefined when it is.
  */
 export function ensureSmokeRecordsIgnored(projectRoot: string): string | undefined {

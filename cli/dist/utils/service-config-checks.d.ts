@@ -3,11 +3,11 @@ import type { CheckResult, DiscoveredResource } from "../types/index.js";
 export declare function checkDependsOnShape(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /** Services that wait on each other can never both start. A dependsOn name that is not a service is left to the unknown-name check. */
 export declare function checkCircularDependencies(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
-/** A port outside 1-65535 can never be bound, and `tdk up` would otherwise find out only when Docker fails. */
+/** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export declare function checkServicePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**
  * A service.json with no schemaVersion is how every project began, so this is a warning: it keeps working, and only
- * `tdk config migrate` writes the field. A version this tdk does not know is reported the same way, with a different fix.
+ * `flisk config migrate` writes the field. A version this flisk does not know is reported the same way, with a different fix.
  */
 export declare function checkSchemaVersions(projectRoot?: string, strict?: boolean, resources?: DiscoveredResource[]): CheckResult;
 /** Prints the schemaVersion warning once. It never stops anything: the project keeps working as it is. */

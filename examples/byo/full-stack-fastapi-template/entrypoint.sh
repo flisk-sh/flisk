@@ -1,7 +1,7 @@
 #!/bin/sh
-# Map TDK's environment onto what the template's settings expect, create the database, migrate, then serve.
+# Map Flisk's environment onto what the template's settings expect, create the database, migrate, then serve.
 set -eu
-# The template wants a plain postgresql:// URL; TDK's ends in a Prisma-style ?schema=public that libpq rejects.
+# The template wants a plain postgresql:// URL; Flisk's ends in a Prisma-style ?schema=public that libpq rejects.
 export DATABASE_URL="${DATABASE_URL%%\?*}"
 export PROJECT_NAME="${PROJECT_NAME:-full-stack-fastapi-template}"
 export SECRET_KEY="${SECRET_KEY:-$(python -c 'import secrets; print(secrets.token_urlsafe(32))')}"

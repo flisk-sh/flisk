@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "library",
-  "description": "A library resource on a live project, with no stack (#1295). `tdk resource --type` does not accept library, so the suite writes its package and service.json (appType library), registers it with tdk resource --path, checks tdk status lists it as a library, builds it with its build script and imports the built entry from a consumer.",
+  "description": "A library resource on a live project, with no stack (#1295). `flisk resource --type` does not accept library, so the suite writes its package and service.json (appType library), registers it with flisk resource --path, checks flisk status lists it as a library, builds it with its build script and imports the built entry from a consumer.",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/utils/constants.ts",

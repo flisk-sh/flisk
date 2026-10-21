@@ -1,10 +1,10 @@
 {
   "name": "tdk-cli-internal",
   "private": true,
-  "version": "1.3.190",
-  "description": "TDK CLI — start services on your machine.",
+  "version": "1.3.191",
+  "description": "Flisk CLI — start services on your machine.",
   "keywords": [
-    "tdk",
+    "flisk",
     "tilt",
     "cli",
     "local-dev",
@@ -20,14 +20,12 @@
     "directory": "cli"
   },
   "license": "MIT",
-  "author": "TDK Team",
+  "author": "Flisk Team",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "flisk": "bin/tdk.js",
-    "tdk": "bin/tdk.js",
-    "tdk-cli": "bin/tdk.js"
+    "flisk": "bin/tdk.js"
   },
   "files": [
     "dist",

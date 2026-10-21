@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -24,7 +24,7 @@ const REQUIRED_TEMPLATES = [
 ] as const;
 
 export const runtimeCommand = new Command("runtime")
-  .description("Inspect the packaged TDK runtime assets")
+  .description("Inspect the packaged Flisk runtime assets")
   .option("--check-assets", "Check bundled engine and template assets")
   .option("--json", "Print the check result as JSON")
   .action((options: { checkAssets?: boolean; json?: boolean }) => {
@@ -64,13 +64,13 @@ export const runtimeCommand = new Command("runtime")
     if (options.json) {
       console.log(JSON.stringify({ ok, assetRoot, missing, templateErrors }));
     } else if (ok) {
-      console.log(`TDK runtime assets found at ${assetRoot}`);
+      console.log(`Flisk runtime assets found at ${assetRoot}`);
     } else {
       console.error(
         [
           assetRoot
-            ? `Incomplete TDK runtime assets at ${assetRoot}`
-            : "TDK runtime assets not found",
+            ? `Incomplete Flisk runtime assets at ${assetRoot}`
+            : "Flisk runtime assets not found",
           ...missing.map((path) => `Missing: ${path}`),
           ...templateErrors,
         ].join("\n"),

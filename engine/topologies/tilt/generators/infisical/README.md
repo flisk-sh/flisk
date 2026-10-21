@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Infisical Starlark generators provide a complete, programmatic way to manage secret injection in the TDK CLI. This replaces shell-based configuration with type-safe Starlark code.
+The Infisical Starlark generators provide a complete, programmatic way to manage secret injection in the Flisk CLI. This replaces shell-based configuration with type-safe Starlark code.
 
 ## Architecture
 

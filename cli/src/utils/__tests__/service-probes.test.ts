@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { summarizeServiceProbes } from "../doctor-runtime.js";
@@ -34,7 +34,7 @@ describe("summarizeServiceProbes", () => {
     expect(result.message).toContain("orders-api");
     expect(result.message).toContain("HTTP 404");
     expect(result.message).toContain("no route");
-    expect(result.fix).toContain("re-run `tdk doctor`");
+    expect(result.fix).toContain("re-run `flisk doctor`");
   });
 
   it("fails on 502/503/504 and explains the container isn't answering", () => {

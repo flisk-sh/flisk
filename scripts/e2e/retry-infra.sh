@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs one infrastructure command (a package install, a tarball or image download, a daemon start) and retries it once
 # after a failure (#1383). Only wrap infrastructure in it. Never wrap an assertion, a command that checks behaviour, or
-# anything after `tdk up` reports success: a failing check must fail on its first attempt.
+# anything after `flisk up` reports success: a failing check must fail on its first attempt.
 #
 # Usage: scripts/e2e/retry-infra.sh <step label> -- <command> [args...]
 #

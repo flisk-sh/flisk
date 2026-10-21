@@ -2,7 +2,7 @@
 	"group": "journeys",
 	"suite": "cold-start",
 	"checkName": "🧊 Wake a deferred backend during bring-up",
-	"description": "The licensed deferred cold start through a real tdk up (moved from scripts/e2e/cold-start.sh, #1298): a deferStart backend has its image prebuilt and no container before its first request, tdk doctor reports it as deferred, and a request during an unrelated slow backend's start is answered by the wake gateway (503 with Retry-After or the real health response) and then succeeds on retry. One case, because the scenario is one ordered bring-up. Needs TDK_LICENSE_KEY with the sablier entitlement, so it never runs on pull_request.",
+	"description": "The licensed deferred cold start through a real flisk up (moved from scripts/e2e/cold-start.sh, #1298): a deferStart backend has its image prebuilt and no container before its first request, flisk doctor reports it as deferred, and a request during an unrelated slow backend's start is answered by the wake gateway (503 with Retry-After or the real health response) and then succeeds on retry. One case, because the scenario is one ordered bring-up. Needs TDK_LICENSE_KEY with the sablier entitlement, so it never runs on pull_request.",
 	"paths": [
 		"cli/**",
 		"engine/**",

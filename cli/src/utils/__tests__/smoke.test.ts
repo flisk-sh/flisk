@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -96,7 +96,7 @@ describe("validateSmoke", () => {
 });
 
 describe("buildSmokePlans", () => {
-  it("builds one plan per routable resource that declares smoke, from the URL tdk up prints", () => {
+  it("builds one plan per routable resource that declares smoke, from the URL flisk up prints", () => {
     const plans = buildSmokePlans(
       [
         makeResource("orders-api", "backend", { smoke: SMOKE }),

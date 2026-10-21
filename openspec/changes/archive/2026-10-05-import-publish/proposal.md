@@ -10,11 +10,11 @@ This change publishes that release and pins the docs to it.
 - Publish `@tdk-landscape/tdk-import@0.1.1` from the commit that contains #9 and #10.
 - Prove the published tarball, not a local build.
 - Pin the core runbook and the importer readme to 0.1.1.
-- Leave core 1.3.104 as the minimum for `tdk up` on an imported service.
+- Leave core 1.3.104 as the minimum for `flisk up` on an imported service.
 
 ## Impact
 - Affected: tdk-import package, `docs/operator-runbook.md`, importer README
-- Out of scope: new detectors, adopters, Windows `tdk up`, premium features
+- Out of scope: new detectors, adopters, Windows `flisk up`, premium features
 
 ---
 
@@ -79,11 +79,11 @@ Exit 2 only when every process was skipped.
 ### Requirement: commands name 0.1.1
 `docs/operator-runbook.md` and the importer README MUST show
 `npx -y @tdk-landscape/tdk-import@0.1.1`. They MUST keep the core gate:
-imported services need TDK CLI core 1.3.104 or later, and the importer does not
+imported services need Flisk CLI core 1.3.104 or later, and the importer does not
 check the installed core version.
 
 #### Scenario: reader follows the runbook
 - GIVEN 0.1.1 is the latest published safeguard release
 - WHEN a reader copies the import command
 - THEN the command includes `@0.1.1`
-- AND the page still says not to run `tdk up` on a core older than 1.3.104
+- AND the page still says not to run `flisk up` on a core older than 1.3.104

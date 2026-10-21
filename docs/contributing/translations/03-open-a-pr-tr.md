@@ -17,13 +17,13 @@ Bir kontrolü çalıştırmadıysanız geçtiğini söylemeyin. Çalıştıramı
 
 ### Golden çıktı testi başarısız olursa
 
-Üç örnek projeden üretilen Tilt ve Compose dosyaları `cli/src/generator/__tests__/golden/` içindeki kayıtlı kopyalarla karşılaştırılır. `cli/templates/` içindeki bir şablonu veya üreticiyi bilerek değiştirdiyseniz test başarısız olur ve değişen her dosyayı listeler. Değişikliği kabul etmek için `UPDATE_GOLDEN=1 bun run test -- golden-generated-output` komutunu çalıştırın, golden dosyalarının farkını okuyun ve değişikliğinizle birlikte commit edin. Üretilen çıktıyı değiştirmek istemediyseniz dosyaları güncellemek yerine nedeni düzeltin. Mevcut projeler de aynı bayt değişikliğini görür; bu nedenle bir sonraki `tdk config regenerate` çalıştırmasına kadar `tdk config verify` onları senkron dışı olarak raporlar. Bunu PR'da belirtin.
+Üç örnek projeden üretilen Tilt ve Compose dosyaları `cli/src/generator/__tests__/golden/` içindeki kayıtlı kopyalarla karşılaştırılır. `cli/templates/` içindeki bir şablonu veya üreticiyi bilerek değiştirdiyseniz test başarısız olur ve değişen her dosyayı listeler. Değişikliği kabul etmek için `UPDATE_GOLDEN=1 bun run test -- golden-generated-output` komutunu çalıştırın, golden dosyalarının farkını okuyun ve değişikliğinizle birlikte commit edin. Üretilen çıktıyı değiştirmek istemediyseniz dosyaları güncellemek yerine nedeni düzeltin. Mevcut projeler de aynı bayt değişikliğini görür; bu nedenle bir sonraki `flisk config regenerate` çalıştırmasına kadar `flisk config verify` onları senkron dışı olarak raporlar. Bunu PR'da belirtin.
 
 ## Neyin değiştiğini gösterin
 
 Bir hata düzeltmesi veya davranış değişikliği için mümkünse `main` ve kendi dalınızda aynı adımları çalıştırın. Gerçek önce-sonra çıktısını yapıştırın; hafızanızdan yeniden oluşturmayın. Komutu, projeyi veya test verisini ve tekrarlamak için gereken kurulumu ekleyin. Issue'da adı geçen boş, hata veya kurtarma durumlarını da kapsayın.
 
-Derlenmiş CLI giriş noktasını test ediyorsanız eski derlenmiş dosyaları kullanmamak için önce `bun run build` çalıştırın. `tdk ui` gibi etkileşimli komutları gerçek bir terminalde kontrol edin. Otomatik test yoksa nedenini açıklayın ve testi eklemek için bir issue bağlayın. Yeni davranış ve hata düzeltmeleri aynı pull request içinde testler gerektirir; ayrıntılar için [CONTRIBUTING.md içindeki testlere](../../../CONTRIBUTING.md#tests) bakın.
+Derlenmiş CLI giriş noktasını test ediyorsanız eski derlenmiş dosyaları kullanmamak için önce `bun run build` çalıştırın. `flisk ui` gibi etkileşimli komutları gerçek bir terminalde kontrol edin. Otomatik test yoksa nedenini açıklayın ve testi eklemek için bir issue bağlayın. Yeni davranış ve hata düzeltmeleri aynı pull request içinde testler gerektirir; ayrıntılar için [CONTRIBUTING.md içindeki testlere](../../../CONTRIBUTING.md#tests) bakın.
 
 ## Dalınızı gönderin
 

@@ -143,7 +143,7 @@ jobs:
       - name: Check the candidate version
         env:
           VERSION: ${{ needs.package.outputs.version }}
-        run: test "$(tdk --version)" = "$VERSION"
+        run: test "$(flisk --version)" = "$VERSION"
 
       - name: Run the quickstart cases (Q1-Q4)
         env:
@@ -154,13 +154,13 @@ jobs:
         if: failure()
         run: |
           cd "$RUNNER_TEMP/shop" 2>/dev/null || exit 0
-          echo "::group::tdk up log (last 300 lines)"
+          echo "::group::flisk up log (last 300 lines)"
           tail -300 up.log 2>/dev/null || true
           echo "::endgroup::"
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
-          tdk doctor || true
+          flisk doctor || true
 
-      - name: tdk down
+      - name: flisk down
         if: always()
         run: tests/e2e/journeys/quickstart/run.sh cleanup
 
@@ -199,7 +199,7 @@ jobs:
       - name: Check the candidate version
         env:
           VERSION: ${{ needs.package.outputs.version }}
-        run: test "$(tdk --version)" = "$VERSION"
+        run: test "$(flisk --version)" = "$VERSION"
 
       - name: Tool versions and commit
         run: |
@@ -207,7 +207,7 @@ jobs:
           echo "node: $(node --version)"
           echo "docker: $(docker --version)"
           echo "tilt: $(tilt version)"
-          echo "tdk: $(tdk --version)"
+          echo "flisk: $(flisk --version)"
 
       - name: Run the suite
         env:

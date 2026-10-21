@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { delimiter, extname } from "node:path";
 
@@ -44,7 +44,7 @@ export function binaryAssetName(): string | null {
 }
 
 export function executableName(): string {
-  return isWindows() ? "tdk.exe" : "tdk";
+  return isWindows() ? "tdk.exe" : "flisk";
 }
 
 export function pathLookups(binName: string, windows = isWindows()): string[] {

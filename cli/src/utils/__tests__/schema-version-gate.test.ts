@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe("enforceSchemaVersionGate", () => {
-  it("refuses a schemaVersion this tdk does not know, and says which file", () => {
+  it("refuses a schemaVersion this flisk does not know, and says which file", () => {
     service("api", { schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION + 1 });
     const seen: string[] = [];
     const exit = vi.fn(() => {
@@ -39,7 +39,7 @@ describe("enforceSchemaVersionGate", () => {
     ).toThrow("exit");
     expect(exit).toHaveBeenCalledWith(1);
     expect(seen[0]).toContain("services/app/api/service.json schemaVersion");
-    expect(seen[0]).toContain(`this tdk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`);
+    expect(seen[0]).toContain(`this flisk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`);
   });
 
   it("does not refuse a missing schemaVersion, which only warns", () => {

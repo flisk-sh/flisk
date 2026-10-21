@@ -4,7 +4,7 @@
 
 저장소 전체를 이해할 필요는 없습니다. 작은 변경 하나를 고르고, 맞는 레시피를 따라가세요. 단계가 불분명하면 issue에 질문하세요.
 
-다음 단계는 한 번만 하면 됩니다. TDK CLI와 검사에 필요한 도구를 준비합니다.
+다음 단계는 한 번만 하면 됩니다. Flisk CLI와 검사에 필요한 도구를 준비합니다.
 
 ## 가장 빠른 방법: Dev Container / Codespaces
 
@@ -27,14 +27,14 @@ bun run lint
 bun run test
 ```
 
-Docker와 Tilt는 선택 사항이며 기본 컨테이너에 포함되지 않습니다. TDK 서비스나 전체 로컬 환경을 실행해야 할 때만 추가하세요.
+Docker와 Tilt는 선택 사항이며 기본 컨테이너에 포함되지 않습니다. Flisk 서비스나 전체 로컬 환경을 실행해야 할 때만 추가하세요.
 
 ## 필요한 것 (로컬 설치)
 
 - Git
 - [Bun](https://bun.sh)
 - Node.js 22.12 이상
-- TDK 서비스를 실행하거나 전체 로컬 환경을 확인해야 할 때만 Docker와 [Tilt](https://docs.tilt.dev/install.html)
+- Flisk 서비스를 실행하거나 전체 로컬 환경을 확인해야 할 때만 Docker와 [Tilt](https://docs.tilt.dev/install.html)
 
 ## 저장소를 컴퓨터에 복사하기
 

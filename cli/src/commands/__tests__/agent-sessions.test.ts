@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawn, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -22,8 +22,8 @@ function runTdk(args: string[], cwd: string) {
   });
 }
 
-describe("tdk agent sessions", () => {
-  it("fails when called outside a TDK project", () => {
+describe("flisk agent sessions", () => {
+  it("fails when called outside a Flisk project", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-outside-"));
     try {
       const res = runTdk(["agent", "sessions", "bot", "--json"], tmp);

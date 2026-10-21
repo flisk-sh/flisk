@@ -1,9 +1,9 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { createTUITheme, getTUIStatusIcon, sectionTitle } from "../ui-theme.js";
 
-describe("tdk ui theme", () => {
+describe("flisk ui theme", () => {
   it("preserves the normal palette by default", () => {
     const theme = createTUITheme(false, {});
 

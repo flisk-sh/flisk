@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # The native Windows CLI on windows-latest (moved from the retired windows-smoke workflow, #1300). The workflow checks out the
 # repository, sets up Node and installs dependencies; each case here is one step of its old job, with the same logic:

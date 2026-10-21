@@ -1,4 +1,4 @@
-# TDK Landscape Tilt Architecture - C4 Model
+# Flisk Landscape Tilt Architecture - C4 Model
 
 ## Level 1: System Context
 

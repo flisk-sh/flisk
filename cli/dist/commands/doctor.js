@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -39,12 +39,12 @@ export { checkStarlarkLoadExports };
 const EXEC_TIMEOUT_MS = 10_000;
 export const DOCTOR_FIXES = {
     dockerMissing: "See https://docs.docker.com/get-docker/",
-    dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor",
+    dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
     tiltMissing: "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
     bunMissing: "curl -fsSL https://bun.sh/install | bash",
-    port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: tdk doctor",
-    port5432: "Stop local Postgres or change the host port. Then: tdk doctor",
-    notProject: "tdk project --yes",
+    port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: flisk doctor",
+    port5432: "Stop local Postgres or change the host port. Then: flisk doctor",
+    notProject: "flisk project --yes",
 };
 export const WSL2_DOCTOR_MESSAGE = "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
 export const NATIVE_WINDOWS_DOCTOR_MESSAGE = "Native Windows landscape boot is unsupported. Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
@@ -79,7 +79,7 @@ export function checkWslProjectLocation(projectPath, strict, isWsl = process.pla
         didPass: !strict,
         isWarning: !strict,
         message,
-        fix: "Move the repository under your WSL home directory (for example, ~/projects) and retry tdk doctor.",
+        fix: "Move the repository under your WSL home directory (for example, ~/projects) and retry flisk doctor.",
     };
 }
 /** True for IPv4 0.0.0.0 and any IPv6 unspecified form (::, 0:0::0, [::], ...). */
@@ -134,8 +134,8 @@ export function orderDoctorResults(results) {
 }
 export function getDoctorOutcomeMessage(inProject, allPassed) {
     if (!allPassed)
-        return "Doctor failed. Fix the items above, then run: tdk doctor";
-    return inProject ? "Doctor passed. Next: tdk up" : "Doctor passed. Next: tdk project example";
+        return "Doctor failed. Fix the items above, then run: flisk doctor";
+    return inProject ? "Doctor passed. Next: flisk up" : "Doctor passed. Next: flisk project example";
 }
 export const CONTAINER_CHECK_NAMES_MAP = {
     checkDockerOperatingSystem: "Docker OS",
@@ -467,8 +467,8 @@ export async function checkDockerOperatingSystem(exec = execAsync) {
         return {
             name: "Docker OS",
             didPass: false,
-            message: `Docker is using the ${osType || "unknown"} engine; TDK requires Linux containers`,
-            fix: "Switch Docker Desktop to Linux containers, enable WSL2 integration, then retry tdk doctor.",
+            message: `Docker is using the ${osType || "unknown"} engine; Flisk requires Linux containers`,
+            fix: "Switch Docker Desktop to Linux containers, enable WSL2 integration, then retry flisk doctor.",
         };
     }
     return { name: "Docker OS", didPass: true, message: "Docker is using Linux containers" };
@@ -528,7 +528,7 @@ function checkEnvironmentVariables() {
             message: `Missing required env variables: ${validation.missing.join(", ")}`,
             fix: existsSync(join(projectRoot, ".env"))
                 ? `Edit .env and set these values:\n    ${validation.missing.map((v) => `${v}=<value>`).join("\n    ")}`
-                : "No .env file yet. Run `tdk project` to create one with working defaults.",
+                : "No .env file yet. Run `flisk project` to create one with working defaults.",
         };
     }
     if (validation.invalid.length > 0) {
@@ -551,7 +551,7 @@ function checkEnvironmentVariables() {
     };
 }
 function checkMasterConfigs() {
-    // `tdk project` writes generated master configs to .tdk/.tdk-out/, not the
+    // `flisk project` writes generated master configs to .tdk/.tdk-out/, not the
     // project root, so look there (and walk up to find the project root, same
     // as every other command that reads project state).
     const projectRoot = findProjectRoot() ?? process.cwd();
@@ -568,45 +568,45 @@ function checkMasterConfigs() {
         name: "Master Configs",
         didPass: false,
         message: `Master configs missing: ${missing.join(", ")}`,
-        fix: "Run: tdk project",
+        fix: "Run: flisk project",
     };
 }
 /**
  * A repo can pin the oldest CLI it works with: `"minTdkVersion": "1.3.80"` in
- * .tdk/project.json. An older `tdk` fails here, so a team sees one clear line
- * instead of a half-working `tdk up`.
+ * .tdk/project.json. An older `flisk` fails here, so a team sees one clear line
+ * instead of a half-working `flisk up`.
  */
 export function checkTdkVersion(currentVersion = getPackageVersion()) {
     const projectRoot = findProjectRoot();
     if (!projectRoot) {
         return {
-            name: "TDK version",
+            name: "Flisk version",
             didPass: true,
             isSkipped: true,
-            message: "Not in a project - skipping TDK version check",
+            message: "Not in a project - skipping Flisk version check",
         };
     }
     const floor = evaluateTdkVersionFloor(projectRoot, currentVersion);
     if (floor.status === "none") {
         return {
-            name: "TDK version",
+            name: "Flisk version",
             didPass: true,
             isSkipped: true,
-            message: `tdk ${currentVersion} (no minTdkVersion in .tdk/project.json)`,
+            message: `flisk ${currentVersion} (no minTdkVersion in .tdk/project.json)`,
         };
     }
     if (floor.status === "malformed" || floor.status === "too-old") {
-        return { name: "TDK version", didPass: false, message: floor.message, fix: floor.fix };
+        return { name: "Flisk version", didPass: false, message: floor.message, fix: floor.fix };
     }
     return {
-        name: "TDK version",
+        name: "Flisk version",
         didPass: true,
-        message: `tdk ${currentVersion} meets minTdkVersion ${floor.required}`,
+        message: `flisk ${currentVersion} meets minTdkVersion ${floor.required}`,
     };
 }
 /**
  * Tilt only builds resources under `discovery.paths`, but the CLI finds every service.json,
- * so a resource outside them is listed and given a URL by `tdk up` yet never started.
+ * so a resource outside them is listed and given a URL by `flisk up` yet never started.
  */
 export function checkResourceDiscovery() {
     const projectRoot = findProjectRoot() ?? process.cwd();
@@ -625,11 +625,11 @@ export function checkResourceDiscovery() {
     return {
         name: "Resource Discovery",
         didPass: false,
-        message: `${formatCount(stranded.length, "resource")} outside discovery.paths ${JSON.stringify(patterns)}: ${list}. \`tdk up\` will not start them`,
-        fix: "Move each under services/<stack>/<name>, or add a matching pattern to discovery.paths in .tdk/project.json and run: tdk config regenerate",
+        message: `${formatCount(stranded.length, "resource")} outside discovery.paths ${JSON.stringify(patterns)}: ${list}. \`flisk up\` will not start them`,
+        fix: "Move each under services/<stack>/<name>, or add a matching pattern to discovery.paths in .tdk/project.json and run: flisk config regenerate",
     };
 }
-// The scripts `tdk project` copies into every project. Generated Dockerfiles
+// The scripts `flisk project` copies into every project. Generated Dockerfiles
 // may reference others; those are checked by scanning the Dockerfiles below.
 const REQUIRED_DOCKER_TEMPLATE_FILES = [
     "install-deps.sh",
@@ -686,7 +686,7 @@ export function checkGeneratedProjectRuntimeAssets() {
         name: "Generated Runtime Assets",
         didPass: false,
         message: `Generated Dockerfiles reference missing project runtime assets:\n    ${problems.join("\n    ")}`,
-        fix: "Run `tdk project --yes` (or `tdk config regenerate`) with an updated TDK. `tdk up` also refreshes these assets before starting Tilt.",
+        fix: "Run `flisk project --yes` (or `flisk config regenerate`) with an updated Flisk. `flisk up` also refreshes these assets before starting Tilt.",
     };
 }
 function checkStartupScripts() {
@@ -729,7 +729,7 @@ function checkStartupScripts() {
 }
 /**
  * Backend/frontend tsconfig generators set `"types": ["bun"]` on the
- * assumption that `@types/bun` is a direct devDependency (`tdk resource`
+ * assumption that `@types/bun` is a direct devDependency (`flisk resource`
  * adds it for new services). Nothing re-adds it if a service's package.json
  * loses that entry -- e.g. a checkout missing it entirely, or a manual edit
  * -- and the failure only surfaces later as `tsc: TS2688: Cannot find type
@@ -934,8 +934,8 @@ export function checkFrontendDockerPreflight() {
     return {
         name: "Frontend Docker Preflight",
         didPass: false,
-        message: `Frontend Docker metadata has issues that will make \`tdk up\` fail or route 404:\n    ${problems.join("\n    ")}`,
-        fix: 'Regenerate with a current TDK (`tdk config regenerate`) and ensure frontend nginx runtimes route to port 80. For React entrypoints, prefer named imports: `import { StrictMode } from "react"` and `import { createRoot } from "react-dom/client"`.',
+        message: `Frontend Docker metadata has issues that will make \`flisk up\` fail or route 404:\n    ${problems.join("\n    ")}`,
+        fix: 'Regenerate with a current Flisk (`flisk config regenerate`) and ensure frontend nginx runtimes route to port 80. For React entrypoints, prefer named imports: `import { StrictMode } from "react"` and `import { createRoot } from "react-dom/client"`.',
     };
 }
 const MEM_NEAR_LIMIT_PCT = 90;
@@ -1020,9 +1020,9 @@ export const checkContainerResourceHealth = Object.assign(function checkContaine
 });
 const DEFAULT_PING_TIMEOUT_MS = 5000;
 /**
- * Pings every routable service on the same /health URLs `tdk up` advertises.
+ * Pings every routable service on the same /health URLs `flisk up` advertises.
  *
- * This is a runtime check, not an environment one: before `tdk up` there is
+ * This is a runtime check, not an environment one: before `flisk up` there is
  * nothing to ping, so a stopped stack is reported as skipped and doctor still
  * passes. Once services are up, an unreachable endpoint is a real failure --
  * it catches the case where a container is running but Traefik never routed
@@ -1042,7 +1042,7 @@ async function checkServiceHealth(timeoutMs, ingressPort) {
     return summarizeServiceProbes(await pingHealthTargets(targets, timeoutMs));
 }
 /**
- * Runs the GET steps of each service's "smoke" block through its public URL. These are the checks `tdk up` already runs, minus the
+ * Runs the GET steps of each service's "smoke" block through its public URL. These are the checks `flisk up` already runs, minus the
  * writes, so a service with an empty /health but a missing list route is caught before anyone clicks a dead link.
  *
  * Like the health ping, this only runs once services answer. A stopped stack is skipped, not failed.
@@ -1065,11 +1065,11 @@ async function checkServiceSmoke(timeoutMs, ingressPort) {
             message: "No services responded - skipped smoke checks",
         };
     }
-    // Doctor shows the failure line too, so the body snippet is masked the same way `tdk up` masks it.
+    // Doctor shows the failure line too, so the body snippet is masked the same way `flisk up` masks it.
     return summarizeSmokeResults(await runSmokePlans(plans, safeSmokeDeps(projectRoot)));
 }
 /**
- * Requests the URL each routable service advertises, the same one `tdk networks` and the TDK App show, and warns on a 404.
+ * Requests the URL each routable service advertises, the same one `flisk networks` and the Flisk App show, and warns on a 404.
  * Like the other runtime checks, it only runs once services answer. A stopped stack is skipped, not reported.
  */
 async function checkAdvertisedEndpoints(timeoutMs, ingressPort) {
@@ -1140,7 +1140,7 @@ export function renderDoctorOutput(machineResults, projectResults, inProject, op
             }
         }
         else {
-            console.log(`${chalk.gray("○")} ${chalk.gray("Not in a TDK project, so project checks were skipped")}`);
+            console.log(`${chalk.gray("○")} ${chalk.gray("Not in a Flisk project, so project checks were skipped")}`);
         }
         console.log("");
         console.log(formatDoctorSummary(results));
@@ -1150,13 +1150,13 @@ export function renderDoctorOutput(machineResults, projectResults, inProject, op
         console.log("");
         const allPassed = results.every((check) => check.didPass || check.isSkipped || check.isWarning);
         if (allPassed && !inProject) {
-            console.log(`${chalk.gray("○")} ${chalk.gray("Not in a TDK project, so project checks were skipped")}`);
+            console.log(`${chalk.gray("○")} ${chalk.gray("Not in a Flisk project, so project checks were skipped")}`);
             console.log("");
         }
     }
 }
 export const doctorCommand = new Command("doctor")
-    .description("Check environment readiness for TDK")
+    .description("Check environment readiness for Flisk")
     .option("--all", "Run every check and show Machine and Project sections with a summary", false)
     .option("--json", "Output a versioned JSON readiness report", false)
     .exitOverride((error) => {
@@ -1171,7 +1171,7 @@ export const doctorCommand = new Command("doctor")
     .option("--strict", "Fail warnings such as a WSL project under /mnt/c")
     .option("--fix", "Repair this project's unused Docker networks and leftover doctor probes", false)
     .option("--dry-run", "With --fix: list the repairs without changing anything", false)
-    .option("--scope <scope>", "With --fix: project (default) or machine, which also removes unused networks of other TDK projects", "project")
+    .option("--scope <scope>", "With --fix: project (default) or machine, which also removes unused networks of other Flisk projects", "project")
     .option("-y, --yes", "With --fix: apply every repair without asking", false)
     .option("--ping-timeout <ms>", "Per-service ping timeout in milliseconds", String(DEFAULT_PING_TIMEOUT_MS))
     .action(async (options) => {
@@ -1202,7 +1202,7 @@ export const doctorCommand = new Command("doctor")
         return;
     }
     if (!options.json) {
-        console.log("TDK doctor checks your local Docker + Tilt development environment; it does not check cluster deployments.");
+        console.log("Flisk doctor checks your local Docker + Tilt development environment; it does not check cluster deployments.");
     }
     const host = detectHost();
     if (process.platform === "win32") {
@@ -1243,7 +1243,7 @@ export const doctorCommand = new Command("doctor")
         return;
     }
     if (!options.json) {
-        console.log(`\n${chalk.bold("🔍 TDK Doctor")}\n`);
+        console.log(`\n${chalk.bold("🔍 Flisk Doctor")}\n`);
         console.log("Checking environment...\n");
     }
     const projectRoot = findProjectRoot();
@@ -1332,7 +1332,7 @@ export const doctorCommand = new Command("doctor")
         checkBun,
         () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
         () => checkPublishedBindAddress(process.env, options.strict),
-        // Each project needs several networks; a full address pool fails `tdk up` late.
+        // Each project needs several networks; a full address pool fails `flisk up` late.
         requiresContainerRuntime("Docker Network Pool", () => checkDockerNetworkCapacity()),
         () => checkDuplicateTdkInstalls(),
     ];
@@ -1347,7 +1347,7 @@ export const doctorCommand = new Command("doctor")
         checkTypeScriptTypeDependencies,
         checkFrontendDockerPreflight,
         checkResourceDiscovery,
-        // Wiring mistakes that otherwise surface minutes into `tdk up`.
+        // Wiring mistakes that otherwise surface minutes into `flisk up`.
         () => checkResourcePackageJson(),
         () => checkDuplicateResourceNames(),
         () => checkDependsOnShape(),
@@ -1398,7 +1398,7 @@ export const doctorCommand = new Command("doctor")
     ];
     // Runs last: needs routable services (and working Traefik) to mean anything.
     if (options.ping) {
-        // Probe the port a running stack is actually on, not the one the next `tdk up` would pick.
+        // Probe the port a running stack is actually on, not the one the next `flisk up` would pick.
         const pingPort = projectRoot
             ? resolveRuntimeIngressPort(projectRoot, hostPortPlan?.ingressHttp)
             : hostPortPlan?.ingressHttp;
@@ -1406,9 +1406,9 @@ export const doctorCommand = new Command("doctor")
         projectChecks.push(requiresContainerRuntime("Service Smoke", () => checkServiceSmoke(pingTimeout, pingPort)));
         projectChecks.push(requiresContainerRuntime("Advertised Endpoints", () => checkAdvertisedEndpoints(pingTimeout, pingPort)));
     }
-    // Right after installing, people run `tdk doctor` before they have a
+    // Right after installing, people run `flisk doctor` before they have a
     // project. Only the machine checks mean anything there; the project checks
-    // would all fail with "run tdk project".
+    // would all fail with "run flisk project".
     const inProject = Boolean(projectRoot);
     let machineResults = [];
     let projectResults = [];

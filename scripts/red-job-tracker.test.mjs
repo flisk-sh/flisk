@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Unit tests for scripts/red-job-tracker.mjs. Run by `make test-shell`.
 import assert from "node:assert/strict";

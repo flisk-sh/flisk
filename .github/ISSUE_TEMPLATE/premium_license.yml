@@ -34,10 +34,10 @@ body:
   - type: input
     id: projects
     attributes:
-      label: How many TDK projects (repos) would use the key?
+      label: How many Flisk projects (repos) would use the key?
       placeholder: "e.g. 2"
   - type: textarea
     id: usecase
     attributes:
-      label: What are you building with TDK?
+      label: What are you building with Flisk?
       description: Roughly how many services, and what's missing from the free version for you.

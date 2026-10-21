@@ -1,6 +1,6 @@
-# `tdk ui` key bindings
+# `flisk ui` key bindings
 
-`tdk ui` opens an interactive terminal dashboard for the running stack. The keys below are the ones the dashboard handles.
+`flisk ui` opens an interactive terminal dashboard for the running stack. The keys below are the ones the dashboard handles.
 
 | Key | Does |
 |---|---|
@@ -26,7 +26,7 @@
 
 ## ASCII mode
 
-`tdk ui` switches to plain ASCII on its own when the environment asks for no colors:
+`flisk ui` switches to plain ASCII on its own when the environment asks for no colors:
 
 - `NO_COLOR` is set, even to an empty value, or
 - `TERM` starts with `dumb` (any letter case).
@@ -51,8 +51,8 @@ In ASCII mode there are no colors, no boxes around panels, and `--high-contrast`
 | Error mark, empty-state mark | `✗` `◉` | `[x]` `[*]` |
 | Arrow keys in key hints | `↑/↓` | `UP/DOWN` |
 
-To try it, run `NO_COLOR=1 tdk ui`. The same behavior is described in [`cli/README.md`](../cli/README.md).
+To try it, run `NO_COLOR=1 flisk ui`. The same behavior is described in [`cli/README.md`](../cli/README.md).
 
 ## Events tab
 
-The Events tab reads from Tilt, so Tilt must be running. If it is not, the tab shows "Tilt is not running or its UI is unreachable" and suggests `tdk up`. Press `r` on that tab to retry.
+The Events tab reads from Tilt, so Tilt must be running. If it is not, the tab shows "Tilt is not running or its UI is unreachable" and suggests `flisk up`. Press `r` on that tab to retry.

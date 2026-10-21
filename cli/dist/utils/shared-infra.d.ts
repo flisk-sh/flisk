@@ -1,6 +1,6 @@
 import type { DiscoveredResource, DiscoveredStack } from "../types/index.js";
 /**
- * Groups the shared platform Postgres for `tdk status`.
+ * Groups the shared platform Postgres for `flisk status`.
  *
  * One Postgres instance serves the whole project. Each stack that uses it gets its own database named
  * `<project>_<stack>` (see #584), and the services in that stack use that database. `groupSharedPostgres` is pure: it

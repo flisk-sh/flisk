@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -86,7 +86,7 @@ describe("behavioral flag contract: --force vs --yes", () => {
     promptConfirmMock.mockResolvedValue(false);
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await projectCommand.parseAsync(["node", "tdk", "--force"], { from: "node" });
+    await projectCommand.parseAsync(["node", "flisk", "--force"], { from: "node" });
 
     expect(promptConfirmMock).toHaveBeenCalledTimes(1);
     expect(promptConfirmMock).toHaveBeenCalledWith(
@@ -101,7 +101,7 @@ describe("behavioral flag contract: --force vs --yes", () => {
     promptConfirmMock.mockResolvedValue(true);
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await projectCommand.parseAsync(["node", "tdk", "--force", "--yes"], { from: "node" });
+    await projectCommand.parseAsync(["node", "flisk", "--force", "--yes"], { from: "node" });
 
     expect(promptConfirmMock).not.toHaveBeenCalled();
     const output = log.mock.calls.flat().join("\n");
@@ -121,7 +121,7 @@ describe("behavioral flag contract: --force vs --yes", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await downCommand.parseAsync(["node", "tdk", "--yes"], { from: "node" });
+    await downCommand.parseAsync(["node", "flisk", "--yes"], { from: "node" });
 
     expect(downCommand.opts().yes).toBe(true);
     expect(warn).not.toHaveBeenCalled();
@@ -134,12 +134,12 @@ describe("behavioral flag contract: --force vs --yes", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await downCommand.parseAsync(["node", "tdk", "--force"], { from: "node" });
+    await downCommand.parseAsync(["node", "flisk", "--force"], { from: "node" });
 
     expect(downCommand.opts().yes).toBe(true);
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "Note: --force (-f) on tdk down is deprecated; use --yes (-y) instead.",
+        "Note: --force (-f) on flisk down is deprecated; use --yes (-y) instead.",
       ),
     );
     expect(buildTiltDownArgsMock).toHaveBeenCalledWith(

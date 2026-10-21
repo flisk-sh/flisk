@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🔄 TILT LIFECYCLE - SERVICE STARTUP ORCHESTRATOR
@@ -37,14 +37,14 @@ load('../topologies/platform/docker/networking/traefik_constants.star',
 # Service startup phases - ensure infrastructure is ready before apps
 STARTUP_PHASES = {
     'infra': [
-        'TDK_postgres',
-        'TDK_nats',
-        'TDK_infisical',
+        'Flisk_postgres',
+        'Flisk_nats',
+        'Flisk_infisical',
         'verdaccio',
     ],
     'proxy': [
-        'TDK_traefik',
-        'TDK_dashy',
+        'Flisk_traefik',
+        'Flisk_dashy',
     ],
     'migrators': [],  # Populated dynamically based on enabled services
     'apps': [],       # Populated dynamically based on enabled services

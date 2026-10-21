@@ -14,7 +14,7 @@
   x86_64.
 - Data lives in the container's filesystem, so it is lost when the container is recreated. There is no volume here.
 - This runs **local** libSQL. It does not use Turso Cloud, auth tokens, embedded replicas or sync, and makes no performance or scale claim.
-- TDK still provides its own Postgres. Pointing an app at this server is separate from `DATABASE_URL`, which TDK sets to Postgres in
+- Flisk still provides its own Postgres. Pointing an app at this server is separate from `DATABASE_URL`, which Flisk sets to Postgres in
   every bring-your-own container.
 
 ## Check it
@@ -25,19 +25,19 @@ Needs Docker. Builds the image, runs it with `PORT=4000` and expects HTTP 200 on
 VERIFY_WAIT_SECONDS=60 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh turso /health
 ```
 
-The server together with an app that uses it, through a real `tdk up` and Traefik:
+The server together with an app that uses it, through a real `flisk up` and Traefik:
 
 ```bash
 VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-pair.sh turso 4500 /health turso-app LIBSQL_URL /health
 ```
 
-## Register it in a TDK project
+## Register it in a Flisk project
 
 Pin the port, because the app needs to know where to connect:
 
 ```bash
-tdk resource turso --type bring-your-own --stack shop --dockerfile ./Dockerfile --health-path /health --port 4500 --yes
+flisk resource turso --type bring-your-own --stack shop --dockerfile ./Dockerfile --health-path /health --port 4500 --yes
 ```
 
-Use a resource name that is unique across TDK projects sharing one Docker daemon. See
+Use a resource name that is unique across Flisk projects sharing one Docker daemon. See
 [../README.md](../README.md) and [docs/byo.md](../../../docs/byo.md) for the container contract.

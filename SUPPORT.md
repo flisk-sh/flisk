@@ -1,12 +1,12 @@
 # Support
 
-What you can expect from the maintainers of TDK. Numbers were measured from the GitHub repository on 2026-10-05, not promised.
+What you can expect from the maintainers of Flisk. Numbers were measured from the GitHub repository on 2026-10-05, not promised.
 
 ## Where to ask
 
 | You need | Go to |
 | --- | --- |
-| A question about adopting TDK | [Adoption question](https://github.com/flisk-sh/flisk/issues/new?template=adoption-question.yml) or [Discussions](https://github.com/flisk-sh/flisk/discussions) |
+| A question about adopting Flisk | [Adoption question](https://github.com/flisk-sh/flisk/issues/new?template=adoption-question.yml) or [Discussions](https://github.com/flisk-sh/flisk/discussions) |
 | A bug | [Bug report](https://github.com/flisk-sh/flisk/issues/new?template=bug_report.yml) |
 | A feature | [Feature request](https://github.com/flisk-sh/flisk/issues/new?template=feature_request.yml) |
 | A premium key | [Premium license request](https://github.com/flisk-sh/flisk/issues/new?template=premium_license.yml) or the [website form](https://flisk.sh/#waitlist) |
@@ -37,6 +37,6 @@ If the project goes quiet, core is MIT and you can fork it. A written exit path 
 
 ## Licence and premium
 
-- **Core** (the CLI, engine and generators in this repository) is MIT. `tdk up`, scaffolding, Traefik, Postgres and Tilt live update need no key, including on commercial and client projects. See the [licence matrix](docs/FEATURES.md#license-matrix).
-- **Premium** adds Verdaccio, DDD scaffolding and Sablier idle stop, plus downloaded implementations of Playwright, C4 and similar extras. In this repository those are disabled stubs; with `TDK_LICENSE_KEY` the CLI downloads the implementation and caches it for 12 hours, after which an expired or revoked key stops unlocking it. That download is one of the few network calls TDK makes: see [security](docs/security.md).
+- **Core** (the CLI, engine and generators in this repository) is MIT. `flisk up`, scaffolding, Traefik, Postgres and Tilt live update need no key, including on commercial and client projects. See the [licence matrix](docs/FEATURES.md#license-matrix).
+- **Premium** adds Verdaccio, DDD scaffolding and Sablier idle stop, plus downloaded implementations of Playwright, C4 and similar extras. In this repository those are disabled stubs; with `TDK_LICENSE_KEY` the CLI downloads the implementation and caches it for 12 hours, after which an expired or revoked key stops unlocking it. That download is one of the few network calls Flisk makes: see [security](docs/security.md).
 - **Not published anywhere in the repository:** the price, the licence terms for the premium code, and any service level. A premium key is a feature key, not an SLA. Ask in the premium request before you depend on it, and check the terms against your client contracts yourself; this is not legal advice.

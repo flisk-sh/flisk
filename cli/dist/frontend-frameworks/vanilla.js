@@ -46,7 +46,7 @@ if (root) {
   title.textContent = '${name}';
 
   const note = document.createElement('p');
-  note.textContent = 'Frontend resource created with TDK';
+  note.textContent = 'Frontend resource created with Flisk';
 
   root.replaceChildren(title, note);
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type ChildProcess, spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
@@ -37,7 +37,7 @@ export function cliInvocation(
   return [execPath, script];
 }
 
-/** Runs this same CLI (`tdk <args>`) so every tool behaves exactly like its command. */
+/** Runs this same CLI (`flisk <args>`) so every tool behaves exactly like its command. */
 export const runTdkCli: RunTdk = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const [command, ...prefix] = cliInvocation();
@@ -99,7 +99,7 @@ export function toToolResult(run: TdkRun): McpToolResult {
     return {
       data: {
         errors: [
-          { code: "NO_JSON", message: run.stderr.trim() || `tdk exited with code ${run.exitCode}` },
+          { code: "NO_JSON", message: run.stderr.trim() || `flisk exited with code ${run.exitCode}` },
         ],
       },
       isError: true,
@@ -121,7 +121,7 @@ export function toToolResult(run: TdkRun): McpToolResult {
 }
 
 export interface UpDeps {
-  /** Starts `tdk up` detached, with output going to a log file. */
+  /** Starts `flisk up` detached, with output going to a log file. */
   spawnUp: (args: string[], logFile: string, cwd?: string) => ChildProcess;
   readLog: (logFile: string) => string;
   sleep: (ms: number) => Promise<void>;
@@ -239,13 +239,13 @@ const OBJECT = (properties: Record<string, unknown>) => ({
 
 const PROJECT_PATH = {
   type: "string",
-  description: "Absolute path to the TDK project root; run this operation from that directory.",
+  description: "Absolute path to the Flisk project root; run this operation from that directory.",
 };
 
 function projectPath(value: unknown): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string" || !isAbsolute(value)) {
-    throw new Error("projectPath must be an absolute path to a TDK project root");
+    throw new Error("projectPath must be an absolute path to a Flisk project root");
   }
   return value;
 }
@@ -259,7 +259,7 @@ export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDe
     {
       name: "doctor",
       description:
-        "Check whether this machine can run the TDK stack. Optionally set projectPath to include checks for a specific TDK project. Returns data.ready and data.host.canUp; run it before `up`.",
+        "Check whether this machine can run the Flisk stack. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`.",
       inputSchema: OBJECT({
         projectPath: PROJECT_PATH,
         noPing: { type: "boolean", description: "Skip pinging running services' health endpoints" },

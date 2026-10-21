@@ -6,8 +6,8 @@
 
 ## 2. Verify native Windows contract
 
-- [x] 2.1 Extend the existing `.github/workflows/windows-smoke.yml` to run `tdk --version`, `tdk doctor`, and `tdk up --dry-run` on native Windows AMD64.
-- [x] 2.2 In the existing Windows smoke workflow, run `tdk up shop` and assert non-zero exit, WSL2 Ubuntu guidance, and no container startup.
+- [x] 2.1 Extend the existing `.github/workflows/windows-smoke.yml` to run `flisk --version`, `flisk doctor`, and `flisk up --dry-run` on native Windows AMD64.
+- [x] 2.2 In the existing Windows smoke workflow, run `flisk up shop` and assert non-zero exit, WSL2 Ubuntu guidance, and no container startup.
 - [x] 2.3 Configure the native Windows refusal check as a required default-branch check. Main branch protection requires `windows-smoke`.
 
 ## 3. Publish and verify platform evidence

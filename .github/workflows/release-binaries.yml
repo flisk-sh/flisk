@@ -80,8 +80,8 @@ jobs:
       - run: bun install --frozen-lockfile
         working-directory: cli
 
-      # The Linux compiled-binary project-generation smoke test runs tdk doctor,
-      # which requires Tilt and the TDK host ports to be available.
+      # The Linux compiled-binary project-generation smoke test runs flisk doctor,
+      # which requires Tilt and the Flisk host ports to be available.
       - name: Install Tilt for the Linux release binary smoke test
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
@@ -300,15 +300,15 @@ jobs:
                 `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
                    closingIssuesReferences(first:20){nodes{number}}}}}`, { o: owner, r: repo, n: pr.number });
               for (const { number } of res.repository.pullRequest.closingIssuesReferences.nodes) {
-                const mark = `<!-- tdk:shipped:${number} -->`;
+                const mark = `<!-- flisk:shipped:${number} -->`;
                 const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
                 if (comments.some((c) => c.body && c.body.includes(mark))) continue;
                 await github.rest.issues.createComment({ owner, repo, issue_number: number,
-                  body: `${mark}\nShipped in [v${version}](${current.html_url}) (from #${pr.number}). Update with \`tdk upgrade\`, then tell us if it works for you. 🚀` });
+                  body: `${mark}\nShipped in [v${version}](${current.html_url}) (from #${pr.number}). Update with \`flisk upgrade\`, then tell us if it works for you. 🚀` });
               }
             }
 
-      # The root package owns the public tdk bin entry and compiled CLI.
+      # The root package owns the public flisk bin entry and compiled CLI.
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -397,7 +397,7 @@ jobs:
             gh release upload "v${VERSION}" --clobber checksums.txt checksums.txt.sigstore.json
           else
             gh release create "v${VERSION}" --draft --latest=false --title "v${VERSION}" \
-              --notes "Signed checksums for tdk ${VERSION}. The binaries are on https://github.com/flisk-sh/releases/releases/tag/v${VERSION} and the npm package is @flisk-sh/flisk@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/release-binaries.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
+              --notes "Signed checksums for flisk ${VERSION}. The binaries are on https://github.com/flisk-sh/releases/releases/tag/v${VERSION} and the npm package is @flisk-sh/flisk@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/release-binaries.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
               checksums.txt checksums.txt.sigstore.json
           fi
 
@@ -497,5 +497,5 @@ jobs:
             gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
           else
             gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --latest=false --title "v${VERSION}" \
-              --notes "tdk ${VERSION}. Binaries: https://github.com/flisk-sh/releases/releases/tag/v${VERSION}"
+              --notes "flisk ${VERSION}. Binaries: https://github.com/flisk-sh/releases/releases/tag/v${VERSION}"
           fi

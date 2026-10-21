@@ -1,4 +1,4 @@
-# Contributing to TDK
+# Contributing to Flisk
 
 English | [简体中文](docs/contributing/translations/CONTRIBUTING-zh_cn.md) | [繁體中文](docs/contributing/translations/CONTRIBUTING-zh_tw.md) | [日本語](docs/contributing/translations/CONTRIBUTING-ja.md) | [한국어](docs/contributing/translations/CONTRIBUTING-ko.md)
 
@@ -77,7 +77,7 @@ The lightweight Dev Container provides Node.js 22 and Bun and runs `bun install`
 bun run typecheck && bun run lint && bun run test
 ```
 
-Docker and Tilt are **not** included in the default container (they are only needed when you want to try a full `tdk up`). See `.devcontainer/devcontainer.json` and the optional notes in the contributor guide if you need the heavier path.
+Docker and Tilt are **not** included in the default container (they are only needed when you want to try a full `flisk up`). See `.devcontainer/devcontainer.json` and the optional notes in the contributor guide if you need the heavier path.
 
 **Local install (alternative):**
 
@@ -100,16 +100,16 @@ If one of these fails on a clean checkout, that is a bug in the project, not in 
 
 ## Supported platforms
 
-For developing and running TDK locally:
+For developing and running Flisk locally:
 
 - **macOS and Linux**: Supported directly.
-- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows is inspect-only (`tdk --version`, `tdk doctor`, and `tdk up --dry-run`) and refutes startup (`tdk up` exits with an error indicating landscape startup requires Ubuntu on WSL2). See the [WSL2 setup guide](docs/wsl2.md) and tracking in [#622](https://github.com/flisk-sh/flisk/issues/622).
+- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows is inspect-only (`flisk --version`, `flisk doctor`, and `flisk up --dry-run`) and refutes startup (`flisk up` exits with an error indicating landscape startup requires Ubuntu on WSL2). See the [WSL2 setup guide](docs/wsl2.md) and tracking in [#622](https://github.com/flisk-sh/flisk/issues/622).
 
 ## Getting help
 
 If you have questions or encounter issues while contributing:
 
-- **Bug report**: Use the [Bug report](https://github.com/flisk-sh/flisk/issues/new?template=bug_report.yml) template. Include steps to reproduce, what happened, what you expected, and the output of `tdk doctor` and `tdk --version`.
+- **Bug report**: Use the [Bug report](https://github.com/flisk-sh/flisk/issues/new?template=bug_report.yml) template. Include steps to reproduce, what happened, what you expected, and the output of `flisk doctor` and `flisk --version`.
 - **Feature request**: Use the [Feature request](https://github.com/flisk-sh/flisk/issues/new?template=feature_request.yml) template to suggest an idea or improvement.
 - **Questions**: For quick questions, ideas, or general discussions that do not require an issue, use [GitHub Discussions](https://github.com/flisk-sh/flisk/discussions) or open a question via a blank issue.
 
@@ -142,11 +142,11 @@ The CI bot can rebuild `cli/dist/` and push it for pull requests from this repos
 
 ## Tests
 
-Every new feature or behavior change needs automated tests in the same pull request. A change that affects a running stack (a resource type, a command or MCP tool that talks to the stack, `tdk up`, routing or the engine) also needs an end-to-end test. [Writing an e2e test](docs/contributing/05-write-e2e.md) explains when, where and how, including the deliberate-break evidence a new suite needs. Put tests next to the code they cover, or in the existing suite for that area (`cli/src/**/__tests__/`, `tests/fuzz/`). A bug fix adds a test that fails before the fix and passes after it. If a test is not practical, the pull request says why and links an issue that tracks adding it. Reviewers check this in every pull request, and the checks listed in [03-open-a-pr.md](docs/contributing/03-open-a-pr.md#run-the-checks-for-your-change) run the suite in CI.
+Every new feature or behavior change needs automated tests in the same pull request. A change that affects a running stack (a resource type, a command or MCP tool that talks to the stack, `flisk up`, routing or the engine) also needs an end-to-end test. [Writing an e2e test](docs/contributing/05-write-e2e.md) explains when, where and how, including the deliberate-break evidence a new suite needs. Put tests next to the code they cover, or in the existing suite for that area (`cli/src/**/__tests__/`, `tests/fuzz/`). A bug fix adds a test that fails before the fix and passes after it. If a test is not practical, the pull request says why and links an issue that tracks adding it. Reviewers check this in every pull request, and the checks listed in [03-open-a-pr.md](docs/contributing/03-open-a-pr.md#run-the-checks-for-your-change) run the suite in CI.
 
 ### Unit tests and coverage
 
-TDK uses [Vitest](https://vitest.dev/) for CLI unit testing. You can run tests directly with Bun from the repository root:
+Flisk uses [Vitest](https://vitest.dev/) for CLI unit testing. You can run tests directly with Bun from the repository root:
 
 - **Run all unit tests**:
   ```bash
@@ -222,7 +222,7 @@ CI makes coverage feedback accessible across several touchpoints:
 
 ### Example test patterns to reference
 
-New to writing tests for TDK? Take a look at these existing test suites for patterns and conventions:
+New to writing tests for Flisk? Take a look at these existing test suites for patterns and conventions:
 - **Command execution and flag contracts**: [`cli/src/commands/__tests__/completion-install.test.ts`](cli/src/commands/__tests__/completion-install.test.ts)
 - **Pure logic and validation**: [`cli/src/commands/__tests__/api-path-constants.test.ts`](cli/src/commands/__tests__/api-path-constants.test.ts)
 - **Mocking external processes and environment variables**: [`cli/src/commands/__tests__/agent-sessions.test.ts`](cli/src/commands/__tests__/agent-sessions.test.ts)
@@ -241,9 +241,9 @@ The TypeScript target requires Bun and Node.js 22.12+. The Python target require
 
 ## Find bugs
 
-You do not need to write code to help. Run a command, compare what it prints with what TDK promises (its `--help`, the docs, or another command), and report any difference. That is a bug.
+You do not need to write code to help. Run a command, compare what it prints with what Flisk promises (its `--help`, the docs, or another command), and report any difference. That is a bug.
 
-[Finding bugs in TDK](docs/contributing/finding-bugs.md) has the exact steps: a scratch project to test in, a checklist of commands with the output you should see, the patterns that found past bugs, and the report format maintainers can act on. For example, if `tdk networks` lists no URLs while `tdk up --dry-run` prints them, the two commands disagree, so one of them is wrong.
+[Finding bugs in Flisk](docs/contributing/finding-bugs.md) has the exact steps: a scratch project to test in, a checklist of commands with the output you should see, the patterns that found past bugs, and the report format maintainers can act on. For example, if `flisk networks` lists no URLs while `flisk up --dry-run` prints them, the two commands disagree, so one of them is wrong.
 
 ## Review pull requests
 
@@ -253,13 +253,13 @@ Before your first review, read the [required docs](docs/contributing/04-review-a
 
 ## Find something to work on
 
-- [The TDK Journey](docs/journey/README.md): pick an island, finish a quest, rank up (8 kyu → 1 dan)
+- [The Flisk Journey](docs/journey/README.md): pick an island, finish a quest, rank up (8 kyu → 1 dan)
 - [Good first issues](https://github.com/flisk-sh/flisk/labels/good%20first%20issue)
 - [Help wanted](https://github.com/flisk-sh/flisk/labels/help%20wanted)
 - [Hunt for bugs](docs/contributing/finding-bugs.md) with the step-by-step checklist
 - [Report a bug or ask a question](https://github.com/flisk-sh/flisk/issues/new/choose)
 
-If you pick an issue, comment `I'll take this` (or `I would like this one`, `I'd like to work on this`, `Can I take this?`). A bot assigns you and adds the `claimed` label so two people do not do the same work. A claim with no pull request is nudged after 14 days and released after 21; a draft PR counts as progress. For a bug report, include the output of `tdk doctor` when you can.
+If you pick an issue, comment `I'll take this` (or `I would like this one`, `I'd like to work on this`, `Can I take this?`). A bot assigns you and adds the `claimed` label so two people do not do the same work. A claim with no pull request is nudged after 14 days and released after 21; a draft PR counts as progress. For a bug report, include the output of `flisk doctor` when you can.
 
 ## Spell check
 
@@ -295,7 +295,7 @@ each label's description.
 | `hacktoberfest` | Work participating in Hacktoberfest. | Maintainers select eligible contributions for the event. |
 | `area:*` | The affected surface, such as `area: tui`, `area: doctor`, or `area: cli`. | Maintainers label issues; the PR labeler derives areas from changed paths. |
 | `tech:*` | A relevant technology, such as TypeScript, Docker, or Tilt. | Maintainers identify the tools involved in a task. |
-| `rank:*`, `island:*` | Task size and topic on the TDK Journey. | Maintainers place a quest on the contributor map. |
+| `rank:*`, `island:*` | Task size and topic on the Flisk Journey. | Maintainers place a quest on the contributor map. |
 | `event:*` | Work targeting a named event, such as GitHub Universe. | Maintainers organize event-specific work. |
 
 ## Exit codes
@@ -304,9 +304,9 @@ CLI commands use a single error style and exit code convention. Report user-faci
 
 | Exit code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | The command or check succeeded (including non-blocking warnings). | `tdk status`, `tdk config verify` on a clean project, `tdk doctor` with warnings only. |
-| `1` | A blocking finding, missing prerequisite, or command/runtime failure. | Missing `.tdk/project.json`, `tdk config verify` drift, failed `tdk doctor` check, unreachable Tilt, native Windows startup refusal, failed smoke check, or a project whose vendored engine is too old for `tdk up --env-file`. |
-| `2` | Invalid CLI arguments/flags, unknown `--only` / `--service` names, an unexpected internal error in `--json` mode, or `tdk up` hand-edited generated file drift (`DRIFT_EXIT_CODE = 2`, kept at `2` for CI compatibility). | Invalid `--port` or `--tail`, unknown service selector, malformed `.tdk/project.json` under `--json`, `tdk up` when `.autogenerated/` files were edited by hand, or a rejected `--env-file` path that is missing, unreadable or outside the project. |
+| `0` | The command or check succeeded (including non-blocking warnings). | `flisk status`, `flisk config verify` on a clean project, `flisk doctor` with warnings only. |
+| `1` | A blocking finding, missing prerequisite, or command/runtime failure. | Missing `.tdk/project.json`, `flisk config verify` drift, failed `flisk doctor` check, unreachable Tilt, native Windows startup refusal, failed smoke check, or a project whose vendored engine is too old for `flisk up --env-file`. |
+| `2` | Invalid CLI arguments/flags, unknown `--only` / `--service` names, an unexpected internal error in `--json` mode, or `flisk up` hand-edited generated file drift (`DRIFT_EXIT_CODE = 2`, kept at `2` for CI compatibility). | Invalid `--port` or `--tail`, unknown service selector, malformed `.tdk/project.json` under `--json`, `flisk up` when `.autogenerated/` files were edited by hand, or a rejected `--env-file` path that is missing, unreadable or outside the project. |
 
 ## Sign your commits
 
@@ -322,11 +322,11 @@ Every contribution matters. When your pull request is merged:
 
 ## Add your team to the adopters list
 
-Run TDK on your own repository? You can be listed in [ADOPTERS.md](ADOPTERS.md) in either of two ways: open the [We use TDK](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue form, or add a row to the table in a pull request. [What counts](ADOPTERS.md#what-counts) explains what to link and what does not count.
+Run Flisk on your own repository? You can be listed in [ADOPTERS.md](ADOPTERS.md) in either of two ways: open the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue form, or add a row to the table in a pull request. [What counts](ADOPTERS.md#what-counts) explains what to link and what does not count.
 
 ## Governance
 
-See [GOVERNANCE.md](GOVERNANCE.md) for how decisions are made and maintainers are added, [MAINTAINERS.md](MAINTAINERS.md) for who can merge, and [ADOPTERS.md](ADOPTERS.md) for teams using TDK.
+See [GOVERNANCE.md](GOVERNANCE.md) for how decisions are made and maintainers are added, [MAINTAINERS.md](MAINTAINERS.md) for who can merge, and [ADOPTERS.md](ADOPTERS.md) for teams using Flisk.
 
 ## Be kind
 

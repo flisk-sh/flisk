@@ -1,6 +1,6 @@
 # 1. Get ready to make a change
 
-Follow these steps once. They set up the tools used by the TDK CLI and its checks.
+Follow these steps once. They set up the tools used by the Flisk CLI and its checks.
 
 ## Fastest way: Dev Container / Codespaces
 
@@ -39,7 +39,7 @@ Docker and Tilt are optional and not part of the default container. Add them onl
 - Git
 - [Bun](https://bun.sh)
 - Node.js 22.12 or newer
-- Docker and [Tilt](https://docs.tilt.dev/install.html) only if you need to run TDK services or check a full local environment
+- Docker and [Tilt](https://docs.tilt.dev/install.html) only if you need to run Flisk services or check a full local environment
 
 ## Copy the repo to your computer
 

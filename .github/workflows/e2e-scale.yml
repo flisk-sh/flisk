@@ -55,7 +55,7 @@ jobs:
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
-      - name: Install TDK from this checkout
+      - name: Install Flisk from this checkout
         uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           version: local
@@ -85,6 +85,6 @@ jobs:
         if: failure() || cancelled()
         run: tests/e2e/scale/erp/run.sh diagnostics
 
-      - name: tdk down
+      - name: flisk down
         if: always()
         run: tests/e2e/scale/erp/run.sh cleanup

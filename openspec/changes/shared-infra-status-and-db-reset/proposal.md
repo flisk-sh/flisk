@@ -6,7 +6,7 @@ Two stacks in one project share one platform Postgres container, each with its o
 
 ## What Changes
 
-- `tdk status` groups shared infrastructure by instance: one Postgres container, then each stack's database and the services that use it.
+- `flisk status` groups shared infrastructure by instance: one Postgres container, then each stack's database and the services that use it.
 - A per-stack database reset command. It drops and recreates only the target stack's database.
 - Before a reset, the CLI warns with the services that declare a dependency on that database (declared `dependsOn` only; schema inspection is a later opt-in).
 - The reset asks for confirmation by default. `--yes` skips the prompt for scripts and CI.
@@ -18,4 +18,4 @@ Two stacks in one project share one platform Postgres container, each with its o
 - Pre-reset snapshot: tracked separately in [#1048](https://github.com/flisk-sh/flisk/issues/1048).
 - Schema-based (foreign key) dependency detection: optional follow-up.
 - Sharing across separate projects, and the per-stack opt-out to its own instance: need a design pass first.
-- Cache and broker grouping in `tdk status`: no shared cache or broker instance exists in the CLI yet to group.
+- Cache and broker grouping in `flisk status`: no shared cache or broker instance exists in the CLI yet to group.

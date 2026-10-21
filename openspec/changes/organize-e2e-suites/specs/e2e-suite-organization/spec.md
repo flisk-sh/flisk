@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines where TDK's end-to-end suites live, which group each belongs to, the shape every live-stack suite follows, and how CI runs each group.
+Defines where Flisk's end-to-end suites live, which group each belongs to, the shape every live-stack suite follows, and how CI runs each group.
 
 ## ADDED Requirements
 

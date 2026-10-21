@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawn } from "node:child_process";
 import { join } from "node:path";
@@ -99,7 +99,7 @@ export function buildTiltUpArgs(
   // on - they do NOT limit which resources the generated Tiltfile enables. Its focus
   // filter (Config.apply_focus / apply_focus_filter) only reads the `--focus` flag;
   // the positional-args catch-all it also defines (`cfg['args']`) is never read. So
-  // without `--focus`, every `tdk up <stack>` silently fell back to Tilt's default
+  // without `--focus`, every `flisk up <stack>` silently fell back to Tilt's default
   // "pre-alpha" phase and built every stack in that phase, not just the one asked
   // for. Passing the stack name via `--focus` reuses the Tiltfile's own (already
   // dependency-aware) domain expansion instead of re-deriving it here.
@@ -132,12 +132,12 @@ export function buildTiltDownArgs(
   const args: string[] = [];
   addTiltfilePath(args);
 
-  // Note: `tilt down` has no `--force` or `--yes` flags. `tdk down` accepts them for
+  // Note: `tilt down` has no `--force` or `--yes` flags. `flisk down` accepts them for
   // CLI flag convention and script compatibility, but they must not be passed to Tilt.
 
   // `tilt down` re-evaluates the Tiltfile and removes only the resources that evaluation registers. Without `--focus`
-  // the Tiltfile falls back to its default phase and never registers a stack's own compose project, so `tdk up shop`
-  // containers survived `tdk down`. Pass the same selection `tdk up` used (every stack) after `--`.
+  // the Tiltfile falls back to its default phase and never registers a stack's own compose project, so `flisk up shop`
+  // containers survived `flisk down`. Pass the same selection `flisk up` used (every stack) after `--`.
   if (options.focusTargets && options.focusTargets.length > 0) {
     args.push("--", `--focus=${options.focusTargets.join(",")}`);
   }

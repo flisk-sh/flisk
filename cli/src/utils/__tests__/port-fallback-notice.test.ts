@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { createDoctorReport } from "../doctor-report.js";
@@ -17,7 +17,7 @@ describe("formatPortFallbackNotice", () => {
     });
     const http = formatPortFallbackNotice(plan).find((line) => line.startsWith("HTTP:"));
     expect(http).toBe(
-      "HTTP: wanted 80, using 8081 (selected from fallback range 8080-8180). To force 80: TDK_HTTP_PORT=80 tdk up",
+      "HTTP: wanted 80, using 8081 (selected from fallback range 8080-8180). To force 80: TDK_HTTP_PORT=80 flisk up",
     );
   });
 

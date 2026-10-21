@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # The deferred cold-start journey (moved from scripts/e2e/cold-start.sh, #1298). run.sh CS1 calls it with a fresh project directory.
 set -euo pipefail
@@ -9,9 +9,9 @@ cd "$project_dir"
 export TDK_PREMIUM_DIAGNOSTICS=1
 
 echo "::group::Scaffold deferred and deliberately slow backends"
-tdk project --yes
-printf 'y\n' | tdk resource cold-api --type backend --stack cold-start
-printf 'y\n' | tdk resource slow-api --type backend --stack cold-start
+flisk project --yes
+printf 'y\n' | flisk resource cold-api --type backend --stack cold-start
+printf 'y\n' | flisk resource slow-api --type backend --stack cold-start
 
 python3 - <<'PY'
 import json
@@ -27,7 +27,7 @@ for service_name in ("cold-api", "slow-api"):
     path.write_text(json.dumps(service, indent=2) + "\n")
 
 # Keep an unrelated service unhealthy long enough to make the cold request
-# overlap tdk up's normal bring-up, without depending on a large fixture.
+# overlap flisk up's normal bring-up, without depending on a large fixture.
 slow_sources = list(Path(".").glob("**/slow-api/src/index.ts"))
 if len(slow_sources) != 1:
     raise SystemExit(f"expected one slow-api source file; found {slow_sources}")
@@ -37,7 +37,7 @@ PY
 
 # Re-vendor after setting the manifest so a configured premium CI key overlays
 # the real Sablier implementation into this disposable project.
-tdk project --yes
+flisk project --yes
 python3 - <<'PY'
 import json
 from pathlib import Path
@@ -65,20 +65,20 @@ if missing_markers:
     )
 print("Verified cold-api deferStart manifest and licensed Sablier overlay")
 PY
-echo "Running tdk doctor after resource generation and before tdk up"
-tdk doctor
+echo "Running flisk doctor after resource generation and before flisk up"
+flisk doctor
 echo "::endgroup::"
 
 cleanup() {
-  tdk down >/dev/null 2>&1 || true
+  flisk down >/dev/null 2>&1 || true
   if [ -n "${up_pid:-}" ]; then
     kill "$up_pid" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
-tdk up cold-start > up.log 2>&1 &
+flisk up cold-start > up.log 2>&1 &
 up_pid=$!
-echo "tdk up pid=$up_pid"
+echo "flisk up pid=$up_pid"
 
 echo "Waiting for Tilt to generate the deferred Compose file and prebuild its image"
 compose_file=""
@@ -115,7 +115,7 @@ PY
   fi
   if ! kill -0 "$up_pid" 2>/dev/null; then
     cat up.log
-    echo "::error::tdk up exited before the deferred image was built"
+    echo "::error::flisk up exited before the deferred image was built"
     exit 1
   fi
   if grep -Fq "requests sablier.deferStart but the licensed Sablier overlay is disabled; starting normally" up.log; then
@@ -133,7 +133,7 @@ PY
     else
       echo "Tilt has not generated the cold-api Compose file yet"
     fi
-    echo "-- tdk up output (last 30 lines):"
+    echo "-- flisk up output (last 30 lines):"
     tail -30 up.log || true
     echo "-- Docker containers:"
     docker ps -a --format 'table {{.Names}}\t{{.Status}}' | head -20 || true
@@ -157,7 +157,7 @@ done
 
 if [ -z "$compose_file" ] || [ -z "$image" ] || ! docker image inspect "$image" >/dev/null 2>&1; then
   tail -200 up.log
-  echo "::error::deferred Compose file/image was not generated and built within 10 minutes of tdk up"
+  echo "::error::deferred Compose file/image was not generated and built within 10 minutes of flisk up"
   exit 1
 fi
 echo "Deferred image built: $image"
@@ -239,19 +239,19 @@ PY
 done
 if [ -z "$health_url" ]; then
   tail -200 up.log
-  echo "::error::tdk up did not print cold-api health URL"
+  echo "::error::flisk up did not print cold-api health URL"
   exit 1
 fi
 
 # Verify doctor classifies the absent container as intentionally deferred.
-if ! tdk doctor --no-ping > doctor.log 2>&1; then
+if ! flisk doctor --no-ping > doctor.log 2>&1; then
   cat doctor.log
-  echo "::error::tdk doctor failed while cold-api was intentionally deferred"
+  echo "::error::flisk doctor failed while cold-api was intentionally deferred"
   exit 1
 fi
 cat doctor.log
 grep -Eqi 'deferred|intentionally deferred' doctor.log || {
-  echo "::error::tdk doctor did not report the deferred resource"
+  echo "::error::flisk doctor did not report the deferred resource"
   exit 1
 }
 

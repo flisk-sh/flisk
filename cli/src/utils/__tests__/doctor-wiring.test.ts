@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { execSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -345,7 +345,7 @@ describe("checkSharedPlatformPostgres", () => {
     const result = checkSharedPlatformPostgres(root);
     expect(result.isWarning).toBe(true);
     expect(result.isSkipped).toBeFalsy();
-    expect(result.message).toContain("default tdk up takes the feature path");
+    expect(result.message).toContain("default flisk up takes the feature path");
   });
 
   it("warns about the feature path even when a project dependency suggests the force path", () => {
@@ -358,14 +358,14 @@ describe("checkSharedPlatformPostgres", () => {
     const result = checkSharedPlatformPostgres(root);
     expect(result.isWarning).toBe(true);
     expect(result.message).toContain("depend on postgres/database-management");
-    expect(result.message).toContain("default tdk up takes the feature path");
+    expect(result.message).toContain("default flisk up takes the feature path");
   });
 
   it("does not claim default focus enables the feature before generation or with empty focus", () => {
     resource("app", "api", { appType: "backend", port: 4000 });
-    expect(checkSharedPlatformPostgres(root).message).not.toContain("default tdk up");
+    expect(checkSharedPlatformPostgres(root).message).not.toContain("default flisk up");
     writeGeneratedFocus([]);
-    expect(checkSharedPlatformPostgres(root).message).not.toContain("default tdk up");
+    expect(checkSharedPlatformPostgres(root).message).not.toContain("default flisk up");
   });
 
   it("fails on unknown typo dependsOn names and still reports will-start", () => {
@@ -395,7 +395,7 @@ describe("checkSharedPlatformPostgres", () => {
     const result = checkSharedPlatformPostgres(root);
     expect(result.didPass).toBe(true);
     expect(result.message).toContain("project resource set");
-    expect(result.message).toContain("tdk up may select a subset");
+    expect(result.message).toContain("flisk up may select a subset");
   });
 
   it("does not report postgres as a missing service when the dependency is present", () => {

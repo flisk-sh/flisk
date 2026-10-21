@@ -19,13 +19,13 @@
 - [x] 3.2 Add Windows Docker daemon-running and Linux-container-mode checks with the exact specified next-step messages.
 - [x] 3.3 Keep the Node port bind test; add PowerShell listener ownership and netsh excluded-range diagnostics, including IIS naming and Hyper-V/WSL guidance.
 - [x] 3.4 Add Windows DNS checks for `tdk.localhost` and a sample host, exact hosts-file guidance, project-drive file-sharing guidance, and a non-mutating `core.autocrlf` warning.
-- [x] 3.5 Update Windows `tdk networks` output to include hostname and numeric loopback URLs while preserving Unix routing defaults.
+- [x] 3.5 Update Windows `flisk networks` output to include hostname and numeric loopback URLs while preserving Unix routing defaults.
 - [x] 3.6 Review generated Compose/Tilt/templates for Windows-host assumptions; retain Linux containers and project-relative mounts, avoid host-side chmod, and preserve existing port overrides.
 
 ## 4. PowerShell completion
 
 - [x] 4.1 Extend `cli/src/commands/completion.ts` with `--shell powershell` installation into the correct current-shell profile path.
-- [x] 4.2 Make completion installation create missing profiles and idempotently replace only the marked TDK block; preserve Bash, Zsh, and Fish behavior.
+- [x] 4.2 Make completion installation create missing profiles and idempotently replace only the marked Flisk block; preserve Bash, Zsh, and Fish behavior.
 
 ## 5. Windows binary and CI
 
@@ -38,7 +38,7 @@
 
 - [ ] 6.1 In `flisk.sh`, add `install.ps1` with architecture refusal, latest-release downloads, exe checksum verification, per-user/default install path, adjacent engine extraction with old-tar fallback, user PATH update, and success instructions.
 - [ ] 6.2 Update release README and download list with `tdk-windows-amd64.exe — Windows x86_64 / AMD64`, Windows manual installation commands, and installer instructions.
-- [ ] 6.3 Update `flisk/README.md`, applicable `cli/README.md`, TDK website quickstart, website homepage/install page, and org profile README to use the exact supported-platform wording and Windows setup steps.
+- [ ] 6.3 Update `flisk/README.md`, applicable `cli/README.md`, Flisk website quickstart, website homepage/install page, and org profile README to use the exact supported-platform wording and Windows setup steps.
 - [ ] 6.4 Add a Windows problems documentation page covering only Docker Desktop state/mode, ports and Hyper-V exclusions, `*.localhost` DNS, and project-drive file sharing.
 - [ ] 6.5 Replace every specified “Windows is untested” statement and check templates for host-side `/tmp`, `/usr/local`, or shell-script assumptions without changing container-side scripts.
 

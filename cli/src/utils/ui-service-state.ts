@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { DiscoveredResource, StackMetadata } from "../types/index.js";
 import { getDeferredResourceNames } from "./doctor-runtime.js";
@@ -26,7 +26,7 @@ export async function fetchServiceStates(
   }
 }
 
-/** The same states `tdk status` shows, put onto the stack the UI is about to draw. */
+/** The same states `flisk status` shows, put onto the stack the UI is about to draw. */
 export function applyServiceStates(metadata: StackMetadata, states: ServiceStates): StackMetadata {
   const resources = metadata.resources.map((resource) => {
     const state = states[resource.name];

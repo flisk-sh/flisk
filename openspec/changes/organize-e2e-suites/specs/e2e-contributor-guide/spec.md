@@ -5,7 +5,7 @@ Gives contributors and AI assistants one place that explains when an e2e test is
 ## ADDED Requirements
 
 ### Requirement: Contributor guide for writing e2e tests
-`docs/contributing/05-write-e2e.md` SHALL explain: when a change needs an e2e (a new resource type, a new command or MCP tool that talks to a running stack, a change to `tdk up`, Traefik routing or the engine); how to pick the group; the suite shape and shared helpers; how to run one case locally; how CI triggers it; and how to show the test can fail. It SHALL use the agent suite as a step-by-step worked example. `CONTRIBUTING.md` and the feature recipes SHALL link to it.
+`docs/contributing/05-write-e2e.md` SHALL explain: when a change needs an e2e (a new resource type, a new command or MCP tool that talks to a running stack, a change to `flisk up`, Traefik routing or the engine); how to pick the group; the suite shape and shared helpers; how to run one case locally; how CI triggers it; and how to show the test can fail. It SHALL use the agent suite as a step-by-step worked example. `CONTRIBUTING.md` and the feature recipes SHALL link to it.
 
 #### Scenario: Contributor adds an MCP tool
 - **WHEN** a contributor reads the guide while adding an MCP tool that reads a running agent

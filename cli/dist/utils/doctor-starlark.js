@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
@@ -127,6 +127,6 @@ export function checkStarlarkLoadExports() {
         name: "Starlark Load Exports",
         didPass: false,
         message: `Starlark load() issues will stop Tilt before services start:\n    ${sections.join("\n\n    ")}`,
-        fix: "Regenerate with a current TDK (`tdk config regenerate`). If the issue remains, rename loaded symbols without leading underscores and update stale load paths.",
+        fix: "Regenerate with a current Flisk (`flisk config regenerate`). If the issue remains, rename loaded symbols without leading underscores and update stale load paths.",
     };
 }

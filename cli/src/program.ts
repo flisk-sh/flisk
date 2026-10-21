@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * The root program.
@@ -18,10 +18,15 @@ export function createProgram(): Command {
   const program = new Command();
 
   program
-    .name("tdk")
-    .description("TDK CLI — start services on your machine.")
+    .name("flisk")
+    .description("Flisk CLI — start services on your machine.")
     .version(pkg.version, "-v, --version", "Display version number")
     .option("--verbose", "Enable verbose output", false)
+    .option(
+      "--template <name>",
+      "Create a project from a starter template in one command (restaurant, saas, erp, ecommerce, example)",
+    )
+    .option("--project <dir>", "Directory to create the project in (default: the template name)")
     .configureOutput({
       outputError: (str, write) => write(chalk.red(str)),
       writeOut: (str) => process.stdout.write(str),

@@ -1,5 +1,9 @@
 /** Public starter repositories plus the bundled default product example. */
 export const PROJECT_TEMPLATES = {
+    demo: {
+        repo: "https://github.com/flisk-sh/tdk-restaurant-example.git",
+        description: "The demo stack: restaurant ops with reservations, kitchen and floor control",
+    },
     restaurant: {
         repo: "https://github.com/flisk-sh/tdk-restaurant-example.git",
         description: "Restaurant ops: reservations, kitchen, floor control (Hono + Vite + Bun)",
@@ -18,7 +22,7 @@ export const PROJECT_TEMPLATES = {
     },
     ecommerce: {
         repo: "https://github.com/flisk-sh/tdk-ecommerce-example.git",
-        description: "Vue 3 storefront and Hono catalog API (needs TDK 1.3.75+ for --framework vue)",
+        description: "Vue 3 storefront and Hono catalog API (needs Flisk 1.3.75+ for --framework vue)",
     },
     example: {
         repo: "https://github.com/flisk-sh/tdk-example.git",

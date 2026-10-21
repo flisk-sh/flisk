@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -36,7 +36,7 @@ function serialize(spec: ServiceSpec, defaults: Record<string, unknown>): string
 }
 
 /**
- * Creates a temporary tdk project on disk and returns its real path. It is removed when the current test finishes.
+ * Creates a temporary flisk project on disk and returns its real path. It is removed when the current test finishes.
  * Call it from inside a test or a `beforeEach`.
  */
 export function createTempProject(spec: TempProjectSpec = {}): string {

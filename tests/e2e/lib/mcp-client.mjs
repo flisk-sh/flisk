@@ -1,6 +1,6 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-// Speaks newline-delimited JSON-RPC to `tdk mcp` over stdio.
+// Speaks newline-delimited JSON-RPC to `flisk mcp` over stdio.
 //   node mcp-client.mjs [--cwd <dir>] <calls.json>
 // <calls.json> is [{ "tool": "...", "arguments": {...} }, ...]. It runs initialize, notifications/initialized and tools/list,
 // then each call in order, and prints { initialize, tools, calls: [{ result | error }] } as JSON. Every response has a bounded wait.
@@ -17,13 +17,13 @@ if (argv[0] === "--cwd") {
 const calls = JSON.parse(readFileSync(argv[0], "utf8"));
 const RESPONSE_TIMEOUT_MS = 90_000;
 
-const child = spawn(process.env.TDK_BIN ?? "tdk", ["mcp"], { cwd, stdio: ["pipe", "pipe", "inherit"] });
+const child = spawn(process.env.TDK_BIN ?? "flisk", ["mcp"], { cwd, stdio: ["pipe", "pipe", "inherit"] });
 const pending = new Map();
 let nextId = 1;
 let exited = false;
 child.on("exit", (code) => {
   exited = true;
-  for (const { reject } of pending.values()) reject(new Error(`tdk mcp exited with code ${code}`));
+  for (const { reject } of pending.values()) reject(new Error(`flisk mcp exited with code ${code}`));
 });
 createInterface({ input: child.stdout }).on("line", (line) => {
   let message;
@@ -69,7 +69,7 @@ try {
     results.push(response.error ? { error: response.error } : { result: response.result });
   }
   // The server must still be alive after the last call.
-  if (exited) throw new Error("tdk mcp exited before the end of the session");
+  if (exited) throw new Error("flisk mcp exited before the end of the session");
   console.log(JSON.stringify({ initialize: init.result, tools: list.result?.tools ?? [], calls: results }));
   child.kill();
 } catch (error) {

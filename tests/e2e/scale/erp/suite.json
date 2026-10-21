@@ -1,7 +1,7 @@
 {
   "group": "scale",
   "suite": "erp",
-  "description": "The 100-service fixture bench (flisk-sh/tdk-erp-system) booted on a clean GitHub-hosted runner (moved from the retired erp-scale-e2e workflow, #1301): tdk project and doctor, tdk up, then every backend answering /health through Traefik, and the report with the time to all backends healthy. Manual and weekly only: a full boot builds about 107 images. The workflow keeps its name and job until the e2e-scale cutover.",
+  "description": "The 100-service fixture bench (flisk-sh/tdk-erp-system) booted on a clean GitHub-hosted runner (moved from the retired erp-scale-e2e workflow, #1301): flisk project and doctor, flisk up, then every backend answering /health through Traefik, and the report with the time to all backends healthy. Manual and weekly only: a full boot builds about 107 images. The workflow keeps its name and job until the e2e-scale cutover.",
   "paths": [
     "cli/**",
     "engine/**",

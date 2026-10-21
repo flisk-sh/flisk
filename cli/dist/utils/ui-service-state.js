@@ -14,7 +14,7 @@ export async function fetchServiceStates(services, tiltPort) {
         return {};
     }
 }
-/** The same states `tdk status` shows, put onto the stack the UI is about to draw. */
+/** The same states `flisk status` shows, put onto the stack the UI is about to draw. */
 export function applyServiceStates(metadata, states) {
     const resources = metadata.resources.map((resource) => {
         const state = states[resource.name];

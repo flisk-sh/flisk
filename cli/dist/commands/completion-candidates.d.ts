@@ -15,7 +15,7 @@ export type CompletionPositional =
  | "resources"
 /** The stacks and the resources of the current project. */
  | "stacks-and-resources"
-/** The names of the other commands (`tdk help <command>`). */
+/** The names of the other commands (`flisk help <command>`). */
  | "commands";
 /** A flag a command accepts. */
 export interface CompletionOption {
@@ -35,7 +35,7 @@ export interface TypeDependentValues {
 }
 /** A command the shells suggest. */
 export interface CompletionCommand {
-    /** The name the user types (`tdk doctor`). */
+    /** The name the user types (`flisk doctor`). */
     name: string;
     /** Alternative names the CLI accepts for the same command. */
     aliases: string[];
@@ -43,7 +43,7 @@ export interface CompletionCommand {
     description: string;
     /** The flags the command accepts. */
     options: CompletionOption[];
-    /** The command's own sub-commands (`tdk config verify`). */
+    /** The command's own sub-commands (`flisk config verify`). */
     subcommands: CompletionCommand[];
     /** What the command's positional argument completes, when it takes a project value. */
     positional?: CompletionPositional;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 
@@ -17,7 +17,7 @@ cleanup() {
 trap cleanup EXIT
 
 if ! command -v "${CLI}" >/dev/null 2>&1; then
-  echo "tdk CLI not found: ${CLI}" >&2
+  echo "flisk CLI not found: ${CLI}" >&2
   exit 1
 fi
 if ! command -v ajv >/dev/null 2>&1; then
@@ -26,7 +26,7 @@ if ! command -v ajv >/dev/null 2>&1; then
 fi
 
 # project --yes runs machine preflight (including Tilt); this contract test
-# deliberately needs no Docker or Tilt, so start from a minimal existing TDK
+# deliberately needs no Docker or Tilt, so start from a minimal existing Flisk
 # project manifest and exercise the production resource and up CLI commands.
 mkdir -p "${PROJECT_DIR}/.tdk" "${RESOURCE_DIR}"
 cat > "${PROJECT_DIR}/.tdk/project.json" <<'JSON'

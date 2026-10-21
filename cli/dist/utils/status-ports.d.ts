@@ -5,7 +5,7 @@ export interface ServicePorts {
     url: string | null;
     /** The port the process listens on inside its container. */
     containerPort: number | null;
-    /** A direct host mapping. TDK publishes services only through the ingress, so this is null today. */
+    /** A direct host mapping. Flisk publishes services only through the ingress, so this is null today. */
     hostPort: number | null;
     /** Loopback address for a resource with no route but a known port, such as a bring-your-own app. Null otherwise. */
     directUrl: string | null;

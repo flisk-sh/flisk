@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -62,7 +62,7 @@ async function runCompletion(args: string[]): Promise<CompletionOutput> {
   }
 }
 
-describe("tdk completion --install target selection (mocked fs)", () => {
+describe("flisk completion --install target selection (mocked fs)", () => {
   let previousShell: string | undefined;
   let previousPsModulePath: string | undefined;
 
@@ -94,7 +94,7 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     const { stdout } = await runCompletion(["--install"]);
 
     const installPath = join(home.dir, ".zsh", "completions", "_tdk");
-    expect(fsStore.files.get(installPath)).toContain("#compdef tdk");
+    expect(fsStore.files.get(installPath)).toContain("#compdef flisk");
     expect(stdout).toContain("Installed zsh completion to:");
   });
 
@@ -105,14 +105,14 @@ describe("tdk completion --install target selection (mocked fs)", () => {
 
     expect(stderr).toContain("Using bash completion");
     const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
-    expect(fsStore.files.get(installPath)).toContain("complete -F _tdk_completions tdk");
+    expect(fsStore.files.get(installPath)).toContain("complete -F _tdk_completions flisk");
   });
 
   it("lets the --shell option pick the install target", async () => {
     const { stdout } = await runCompletion(["--shell", "fish", "--install"]);
 
     const installPath = join(home.dir, ".config", "fish", "completions", "tdk.fish");
-    expect(fsStore.files.get(installPath)).toContain("complete -c tdk");
+    expect(fsStore.files.get(installPath)).toContain("complete -c flisk");
     expect(stdout).toContain("Installed fish completion to:");
   });
 
@@ -123,7 +123,7 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     await runCompletion(["bash", "--install"]);
     const first = fsStore.files.get(installPath);
     expect(first).toBeDefined();
-    expect(first).toContain("complete -F _tdk_completions tdk");
+    expect(first).toContain("complete -F _tdk_completions flisk");
 
     await runCompletion(["bash", "--install"]);
 
@@ -177,12 +177,12 @@ describe("tdk completion --install target selection (mocked fs)", () => {
 
     const written = fsStore.files.get(installPath);
     expect(written).toContain("# my profile");
-    expect(written).toMatch(/Set-Alias ll Get-ChildItem\n# TDK-CLI-COMPLETION-START/);
-    expect(written).toContain("Register-ArgumentCompleter -Native -CommandName tdk");
+    expect(written).toMatch(/Set-Alias ll Get-ChildItem\n# FLISK-CLI-COMPLETION-START/);
+    expect(written).toContain("Register-ArgumentCompleter -Native -CommandName flisk");
     expect(stdout).toContain("Installed powershell completion to:");
   });
 
-  it("replaces an existing TDK block in the PowerShell profile instead of duplicating it", async () => {
+  it("replaces an existing Flisk block in the PowerShell profile instead of duplicating it", async () => {
     process.env.PSModulePath = join("Documents", "PowerShell", "Modules");
     const installPath = join(
       home.dir,
@@ -192,9 +192,9 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     );
     const stale = [
       "# my profile",
-      "# TDK-CLI-COMPLETION-START",
+      "# FLISK-CLI-COMPLETION-START",
       "Register-ArgumentCompleter -Native -CommandName tdk-old",
-      "# TDK-CLI-COMPLETION-END",
+      "# FLISK-CLI-COMPLETION-END",
       "# footer",
       "",
     ].join("\n");
@@ -206,15 +206,15 @@ describe("tdk completion --install target selection (mocked fs)", () => {
     expect(written).toContain("# my profile");
     expect(written).toContain("# footer");
     expect(written).not.toContain("tdk-old");
-    expect(written).toContain("Register-ArgumentCompleter -Native -CommandName tdk");
-    expect(written?.match(/# TDK-CLI-COMPLETION-START/g)).toHaveLength(1);
-    expect(written?.match(/# TDK-CLI-COMPLETION-END/g)).toHaveLength(1);
+    expect(written).toContain("Register-ArgumentCompleter -Native -CommandName flisk");
+    expect(written?.match(/# FLISK-CLI-COMPLETION-START/g)).toHaveLength(1);
+    expect(written?.match(/# FLISK-CLI-COMPLETION-END/g)).toHaveLength(1);
 
     // The whole profile is the user's lines around exactly the block a fresh install writes.
     fsStore.files.delete(installPath);
     await runCompletion(["powershell", "--install"]);
     const freshBlock = fsStore.files.get(installPath)?.replace(/\n$/, "");
-    expect(freshBlock).toMatch(/^# TDK-CLI-COMPLETION-START\n[\s\S]+\n# TDK-CLI-COMPLETION-END$/);
+    expect(freshBlock).toMatch(/^# FLISK-CLI-COMPLETION-START\n[\s\S]+\n# FLISK-CLI-COMPLETION-END$/);
     expect(written).toBe(`# my profile\n${freshBlock}\n# footer\n`);
   });
 });

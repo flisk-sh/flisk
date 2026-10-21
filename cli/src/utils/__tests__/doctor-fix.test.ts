@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
@@ -224,7 +224,7 @@ describe("checkDuplicateTdkInstalls", () => {
     expect(result.isWarning).toBe(true);
     expect(result.message).not.toContain("different versions");
     expect(result.message).toContain(
-      "2 tdk installs on PATH: /opt/bin/tdk (1.3.155), /usr/local/bin/tdk (1.3.155)",
+      "2 flisk installs on PATH: /opt/bin/tdk (1.3.155), /usr/local/bin/tdk (1.3.155)",
     );
   });
 
@@ -238,7 +238,7 @@ describe("checkDuplicateTdkInstalls", () => {
 
   it("checks installs using system default when no installs are passed", async () => {
     const result = await checkDuplicateTdkInstalls();
-    expect(result.name).toBe("TDK installs");
+    expect(result.name).toBe("Flisk installs");
     expect(typeof result.didPass).toBe("boolean");
   });
 });
@@ -430,7 +430,7 @@ describe("--scope=machine", () => {
     net("it_ai_search_backend"),
   ];
 
-  it("plans other TDK projects' unused networks naming the owner", async () => {
+  it("plans other Flisk projects' unused networks naming the owner", async () => {
     const { deps } = fakeDocker(machineNets);
     const plan = await planDoctorFixes("it-ai-search", deps, { machine: true });
     const byId = Object.fromEntries(plan.map((a) => [a.id, a]));

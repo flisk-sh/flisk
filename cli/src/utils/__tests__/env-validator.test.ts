@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -274,7 +274,7 @@ describe("completing an existing .env", () => {
 
     expect(added).toEqual(["JWT_SECRET"]);
     expect(
-      content.startsWith("TILT_ENV=dev\nDB_PASSWORD=keep-this-password\n\n# Added by TDK"),
+      content.startsWith("TILT_ENV=dev\nDB_PASSWORD=keep-this-password\n\n# Added by Flisk"),
     ).toBe(true);
   });
 
@@ -285,7 +285,7 @@ describe("completing an existing .env", () => {
 
     expect(added).toEqual(["JWT_SECRET"]);
     expect(
-      content.startsWith("TILT_ENV=dev\nDB_PASSWORD=keep-this-password\r\n# Added by TDK"),
+      content.startsWith("TILT_ENV=dev\nDB_PASSWORD=keep-this-password\r\n# Added by Flisk"),
     ).toBe(true);
   });
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🌍 TILT SDK - ENVIRONMENT UTILITIES
@@ -8,7 +8,7 @@
 _DOTENV_NAME_FIRST = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'
 _DOTENV_NAME_REST = _DOTENV_NAME_FIRST + '0123456789'
 
-# The environment variable `tdk up --env-file <path>` sets. The CLI resolves the path and
+# The environment variable `flisk up --env-file <path>` sets. The CLI resolves the path and
 # exports it, so the engine reads one file for the whole run.
 PROJECT_ENV_FILE_VAR = 'TDK_ENV_FILE'
 
@@ -63,7 +63,7 @@ def _dotenv_value(raw):
 def project_env_file(project_root=''):
     """The project env file of this run.
 
-    `tdk up --env-file <path>` exports TDK_ENV_FILE, and the run then reads that file instead of the
+    `flisk up --env-file <path>` exports TDK_ENV_FILE, and the run then reads that file instead of the
     project `.env` - for the Tilt environment and for the Compose interpolation alike. Without the
     variable the project `.env` is used, which is what every run did before the option existed.
 

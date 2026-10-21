@@ -1,12 +1,12 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { portConflictFix } from "../port-conflict-fix.js";
 
 describe("portConflictFix", () => {
-  it("names the env var that moves a known TDK port", () => {
+  it("names the env var that moves a known Flisk port", () => {
     expect(portConflictFix("host port 5432 is already allocated")).toBe(
-      "Fix: stop the process using port 5432 (find it with: lsof -nP -iTCP:5432 -sTCP:LISTEN), or set TDK_POSTGRES_PORT to a free port and run tdk up",
+      "Fix: stop the process using port 5432 (find it with: lsof -nP -iTCP:5432 -sTCP:LISTEN), or set TDK_POSTGRES_PORT to a free port and run flisk up",
     );
   });
 

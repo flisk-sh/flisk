@@ -1,6 +1,6 @@
 import type { DiscoveredResource } from "../types/index.js";
 /**
- * A post-start check a service declares in service.json. It runs through the URL `tdk up` prints (Traefik), not inside the
+ * A post-start check a service declares in service.json. It runs through the URL `flisk up` prints (Traefik), not inside the
  * container, so it catches what `healthCheckPath` cannot: a route Traefik never registered, a shared router, a database the
  * service is not actually using.
  */
@@ -64,7 +64,7 @@ export declare function validateSmoke(smoke: unknown): string[];
 /** One plan per routable service that declares `smoke`. Workers and BYO with exposeViaProxy false have no public route. */
 export declare function buildSmokePlans(resources: DiscoveredResource[], ingressPort?: number): SmokePlan[];
 /**
- * The GET-only part of each smoke block, for `tdk doctor`. Doctor must never write to a service, and a step whose path reads
+ * The GET-only part of each smoke block, for `flisk doctor`. Doctor must never write to a service, and a step whose path reads
  * a value saved by an earlier write (`{{name}}`) cannot run on its own, so both are dropped. A service with no such steps is left out.
  * `bodyContains` is also cleared: it asserts on data that earlier writes created, so doctor would fail a healthy route whose data was removed.
  * The status check stays, which is what shows a route exists.
@@ -77,7 +77,7 @@ export declare function runSmokePlan(plan: SmokePlan, deps?: SmokeDeps): Promise
 export declare function formatSmokeFailure(result: SmokeResult): string;
 /**
  * The dependencies that keep smoke text safe: the project's own secret values are masked before anything is shown or stored.
- * Both `tdk up` and `tdk doctor` use them, so neither prints a body that holds a secret.
+ * Both `flisk up` and `flisk doctor` use them, so neither prints a body that holds a secret.
  */
 export declare function safeSmokeDeps(projectRoot: string, warn?: (message: string) => void, options?: {
     envFiles?: readonly string[];

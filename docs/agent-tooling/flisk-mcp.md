@@ -1,12 +1,12 @@
-# TDK MCP quick guide
+# Flisk MCP quick guide
 
-When the TDK MCP is connected to Codex, ask for an operation in plain language, for example: **“Run TDK doctor and summarize anything blocking startup.”** The connector exposes tools for host checks, project services, stack lifecycle, and recent logs.
+When the Flisk MCP is connected to Codex, ask for an operation in plain language, for example: **“Run Flisk doctor and summarize anything blocking startup.”** The connector exposes tools for host checks, project services, stack lifecycle, and recent logs.
 
-This guide assumes the server is already connected. To install TDK and point a client at `tdk mcp`, see the [TDK MCP setup guide](flisk-mcp-setup.md).
+This guide assumes the server is already connected. To install Flisk and point a client at `flisk mcp`, see the [Flisk MCP setup guide](flisk-mcp-setup.md).
 
 ## Start with Doctor
 
-Doctor checks whether the machine can run TDK. It reports prerequisites such as Docker, Tilt, Docker Compose, available host ports, and whether the current host can start a stack. It can run outside a TDK project.
+Doctor checks whether the machine can run Flisk. It reports prerequisites such as Docker, Tilt, Docker Compose, available host ports, and whether the current host can start a stack. It can run outside a Flisk project.
 
 ```js
 await tools.mcp__tdk__doctor({});
@@ -20,7 +20,7 @@ If the MCP server is not running from the project directory, set its absolute pa
 await tools.mcp__tdk__doctor({ projectPath: "/path/to/tdk-project" });
 ```
 
-## Inspect a TDK project
+## Inspect a Flisk project
 
 Project operations use the MCP server's current directory by default. To target a project from a projectless chat or another working directory, pass its absolute root in `projectPath`:
 
@@ -29,7 +29,7 @@ await tools.mcp__tdk__resource_list({ projectPath: "/path/to/tdk-project" });
 await tools.mcp__tdk__status({ projectPath: "/path/to/tdk-project" });
 ```
 
-The directory must contain `.tdk/project.json` or be within a TDK project. The tools return an error such as `Could not find project root` if no TDK project is available.
+The directory must contain `.tdk/project.json` or be within a Flisk project. The tools return an error such as `Could not find project root` if no Flisk project is available.
 
 ## Start, inspect logs, and stop
 
@@ -43,7 +43,7 @@ await tools.mcp__tdk__status({ projectPath });
 await tools.mcp__tdk__logs({ projectPath, tail: 200 });
 ```
 
-To start selected services, include their names in `only`; TDK includes their dependencies and shared infrastructure. `up` also accepts a `stack`, a `waitSeconds` window for early failures, and `force` to replace an existing Tilt process. For log snapshots, `logs` accepts `services`, `since` (such as `5m`), and `tail` (maximum 10,000 lines). Stop the stack with:
+To start selected services, include their names in `only`; Flisk includes their dependencies and shared infrastructure. `up` also accepts a `stack`, a `waitSeconds` window for early failures, and `force` to replace an existing Tilt process. For log snapshots, `logs` accepts `services`, `since` (such as `5m`), and `tail` (maximum 10,000 lines). Stop the stack with:
 
 ```js
 await tools.mcp__tdk__down({ projectPath: "/path/to/tdk-project" });
@@ -53,9 +53,9 @@ await tools.mcp__tdk__down({ projectPath: "/path/to/tdk-project" });
 
 Useful requests describe the check or result you want:
 
-- “Run TDK doctor and tell me what needs fixing before startup.”
-- “List this project’s TDK services and show which are ready.”
+- “Run Flisk doctor and tell me what needs fixing before startup.”
+- “List this project’s Flisk services and show which are ready.”
 - “Start only the web service and its dependencies, then check status.”
 - “Show the latest five minutes of API logs.”
 
-The MCP manages TDK stack operations. For generated project configuration, CLI exit codes, and JSON contracts, see the [machine-readable CLI reference](../reference/machine-readable-cli.md).
+The MCP manages Flisk stack operations. For generated project configuration, CLI exit codes, and JSON contracts, see the [machine-readable CLI reference](../reference/machine-readable-cli.md).

@@ -1,4 +1,4 @@
-# TDK에 기여하기
+# Flisk에 기여하기
 
 [English](../../../CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | [繁體中文](CONTRIBUTING-zh_tw.md) | [日本語](CONTRIBUTING-ja.md) | 한국어
 
@@ -30,9 +30,9 @@ bun run typecheck && bun run lint && bun run test   # 약 1분; 무엇이든 바
 
 ## 버그 찾기
 
-코드를 쓰지 않아도 도울 수 있습니다. 명령을 실행하고, 출력된 내용을 TDK가 약속한 것(`--help`, 문서, 또는 다른 명령)과 비교해 차이가 있으면 보고하세요. 그것이 버그입니다.
+코드를 쓰지 않아도 도울 수 있습니다. 명령을 실행하고, 출력된 내용을 Flisk가 약속한 것(`--help`, 문서, 또는 다른 명령)과 비교해 차이가 있으면 보고하세요. 그것이 버그입니다.
 
-[TDK에서 버그 찾기](../finding-bugs.md)에 정확한 단계가 있습니다. 테스트용 임시 프로젝트, 예상 출력이 포함된 명령 체크리스트, 과거에 버그를 찾아낸 패턴, 그리고 메인테이너가 바로 처리할 수 있는 보고 형식입니다. 예를 들어 `tdk networks`는 URL을 하나도 보여 주지 않는데 `tdk up --dry-run`은 보여 준다면, 두 명령이 서로 맞지 않으므로 둘 중 하나가 틀린 것입니다.
+[Flisk에서 버그 찾기](../finding-bugs.md)에 정확한 단계가 있습니다. 테스트용 임시 프로젝트, 예상 출력이 포함된 명령 체크리스트, 과거에 버그를 찾아낸 패턴, 그리고 메인테이너가 바로 처리할 수 있는 보고 형식입니다. 예를 들어 `flisk networks`는 URL을 하나도 보여 주지 않는데 `flisk up --dry-run`은 보여 준다면, 두 명령이 서로 맞지 않으므로 둘 중 하나가 틀린 것입니다.
 
 ## pull request 리뷰하기
 
@@ -42,13 +42,13 @@ bun run typecheck && bun run lint && bun run test   # 약 1분; 무엇이든 바
 
 ## 할 일 찾기
 
-- 🗺️ [TDK 여정](../../journey/README.md): 섬을 고르고, 퀘스트를 완료하고, 랭크를 올리세요(8 kyu → 1 dan)
+- 🗺️ [Flisk 여정](../../journey/README.md): 섬을 고르고, 퀘스트를 완료하고, 랭크를 올리세요(8 kyu → 1 dan)
 - [Good first issues](https://github.com/flisk-sh/flisk/labels/good%20first%20issue)
 - [Help wanted](https://github.com/flisk-sh/flisk/labels/help%20wanted)
 - 단계별 체크리스트로 [버그 찾기](../finding-bugs.md)
 - [버그 보고 또는 질문하기](https://github.com/flisk-sh/flisk/issues/new/choose)
 
-이슈를 골랐다면 `I'll take this`(또는 `I would like this one`, `I'd like to work on this`, `Can I take this?`)라고 댓글을 남기세요. 봇이 여러분을 담당자로 지정하고 `claimed` 라벨을 붙여 두 사람이 같은 작업을 하지 않도록 합니다. pull request 없이 14일이 지나면 알림이 가고, 21일이 지나면 해제됩니다. 초안 PR도 진행으로 인정됩니다. 버그를 보고할 때는 가능하면 `tdk doctor` 출력을 함께 넣어 주세요.
+이슈를 골랐다면 `I'll take this`(또는 `I would like this one`, `I'd like to work on this`, `Can I take this?`)라고 댓글을 남기세요. 봇이 여러분을 담당자로 지정하고 `claimed` 라벨을 붙여 두 사람이 같은 작업을 하지 않도록 합니다. pull request 없이 14일이 지나면 알림이 가고, 21일이 지나면 해제됩니다. 초안 PR도 진행으로 인정됩니다. 버그를 보고할 때는 가능하면 `flisk doctor` 출력을 함께 넣어 주세요.
 
 ## 맞춤법 검사
 
@@ -81,7 +81,7 @@ bun run typecheck && bun run lint && bun run test   # 약 1분; 무엇이든 바
 | `hacktoberfest` | Hacktoberfest에 참여하는 작업. | 메인테이너가 이벤트 대상 기여를 선택한 것. |
 | `area:*` | 영향을 받는 부분. 예: `area: tui`, `area: doctor`, `area: cli`. | 메인테이너가 이슈에 붙입니다. PR labeler는 변경된 경로로 영역을 정합니다. |
 | `tech:*` | 관련 기술. 예: TypeScript, Docker, Tilt. | 메인테이너가 작업에 관련된 도구를 식별한 것. |
-| `rank:*`, `island:*` | TDK 여정에서의 작업 규모와 주제. | 메인테이너가 퀘스트를 기여자 지도에 배치한 것. |
+| `rank:*`, `island:*` | Flisk 여정에서의 작업 규모와 주제. | 메인테이너가 퀘스트를 기여자 지도에 배치한 것. |
 | `event:*` | GitHub Universe 같은 특정 이벤트를 위한 작업. | 메인테이너가 이벤트별 작업을 정리한 것. |
 
 ## 커밋에 서명하기
@@ -90,11 +90,11 @@ bun run typecheck && bun run lint && bun run test   # 약 1분; 무엇이든 바
 
 ## 도입 팀 목록에 팀 추가하기
 
-여러분의 저장소에서 TDK를 사용하고 있나요? 두 가지 방법으로 [ADOPTERS.md](../../../ADOPTERS.md)에 등록할 수 있습니다. [We use TDK](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) 이슈 양식을 열거나, pull request로 표에 행을 추가하세요. [What counts](../../../ADOPTERS.md#what-counts)에서 무엇을 링크해야 하는지, 무엇이 해당하지 않는지 설명합니다.
+여러분의 저장소에서 Flisk를 사용하고 있나요? 두 가지 방법으로 [ADOPTERS.md](../../../ADOPTERS.md)에 등록할 수 있습니다. [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) 이슈 양식을 열거나, pull request로 표에 행을 추가하세요. [What counts](../../../ADOPTERS.md#what-counts)에서 무엇을 링크해야 하는지, 무엇이 해당하지 않는지 설명합니다.
 
 ## 거버넌스
 
-결정 방식과 메인테이너 추가 방법은 [GOVERNANCE.md](../../../GOVERNANCE.md), 병합 권한이 있는 사람은 [MAINTAINERS.md](../../../MAINTAINERS.md), TDK를 사용하는 팀은 [ADOPTERS.md](../../../ADOPTERS.md)를 참고하세요.
+결정 방식과 메인테이너 추가 방법은 [GOVERNANCE.md](../../../GOVERNANCE.md), 병합 권한이 있는 사람은 [MAINTAINERS.md](../../../MAINTAINERS.md), Flisk를 사용하는 팀은 [ADOPTERS.md](../../../ADOPTERS.md)를 참고하세요.
 
 ## 친절하게
 

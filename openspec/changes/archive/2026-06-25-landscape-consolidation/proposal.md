@@ -1,6 +1,6 @@
 ## Why
 
-The TDK landscape has accumulated two inefficiencies from its extraction from the original `beauty-crm` monorepo:
+The Flisk landscape has accumulated two inefficiencies from its extraction from the original `beauty-crm` monorepo:
 
 1. **Duplicated CLI client**: `beauty-crm/cli/` is a vendored copy of `tdk-cli/cli/` (both publish as `@flisk-sh/flisk`). This means every CLI fix must be applied twice, and the two copies have already diverged — `beauty-crm/cli/` has 9 source files while `tdk-cli/cli/` has 12 with additional features. This will only worsen over time.
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureExit, type ExitCapture, parseEnvelope } from "../../test-support/index.js";
@@ -99,7 +99,7 @@ describe("doctor JSON command", () => {
       expect(log).toHaveBeenCalledTimes(1);
 
       const rawStdout = String(log.mock.calls[0]?.[0]);
-      expect(rawStdout).not.toContain("TDK Doctor");
+      expect(rawStdout).not.toContain("Flisk Doctor");
       expect(rawStdout).not.toContain("Checking environment...");
       expect(rawStdout).not.toMatch(/[🔍✓✗○⚠]/u);
 
@@ -173,7 +173,7 @@ describe("doctor JSON command", () => {
       expect(jsonRun.log).toHaveBeenCalledTimes(1);
 
       const rawStdout = String(jsonRun.log.mock.calls[0]?.[0]);
-      expect(rawStdout).not.toContain("TDK Doctor");
+      expect(rawStdout).not.toContain("Flisk Doctor");
       expect(rawStdout).not.toContain("Checking environment...");
       expect(rawStdout).not.toMatch(/[🔍✓✗○⚠]/u);
 
@@ -196,7 +196,7 @@ describe("doctor JSON command", () => {
       );
       expect(textRun.exit).toHaveBeenCalledWith(1);
       const textLines = textRun.log.mock.calls.map((call: unknown[]) => String(call[0])).join("\n");
-      expect(textLines).toContain("TDK Doctor");
+      expect(textLines).toContain("Flisk Doctor");
       expect(textLines).toContain("Checking environment...");
     } finally {
       Object.defineProperty(process, "platform", platform);
@@ -228,7 +228,7 @@ describe("doctor JSON command", () => {
       expect(jsonRun.log).toHaveBeenCalledTimes(1);
 
       const rawStdout = String(jsonRun.log.mock.calls[0]?.[0]);
-      expect(rawStdout).not.toContain("TDK Doctor");
+      expect(rawStdout).not.toContain("Flisk Doctor");
       expect(rawStdout).not.toContain("Checking environment...");
       const report = parseEnvelope(rawStdout);
       expect(report.data.ready).toBe(true);

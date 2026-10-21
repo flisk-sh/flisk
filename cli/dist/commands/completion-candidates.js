@@ -18,8 +18,8 @@ const POSITIONALS = {
 /**
  * The values of a flag, for the commands that accept another set than the default.
  *
- * `tdk resource` creates a resource and accepts the creatable types plus `sdk`
- * (`RESOURCE_TYPE_VALUES`), while `tdk resources` filters the resources of the project and accepts
+ * `flisk resource` creates a resource and accepts the creatable types plus `sdk`
+ * (`RESOURCE_TYPE_VALUES`), while `flisk resources` filters the resources of the project and accepts
  * every type a resource can have (`VALID_RESOURCE_TYPES`), which also holds `library` and
  * `migrator`. The completion offers exactly what the command accepts, so it never suggests a type
  * the command rejects.
@@ -40,7 +40,7 @@ const TYPE_VALUES = {
             frontend: Object.keys(FRONTEND_FRAMEWORKS),
             backend: Object.keys(BACKEND_FRAMEWORKS),
         },
-        // `tdk resource` creates a backend unless the user asks for another type.
+        // `flisk resource` creates a backend unless the user asks for another type.
         fallback: Object.keys(BACKEND_FRAMEWORKS),
     },
     "--language": {
@@ -61,7 +61,7 @@ function toOptions(options) {
  * The help command of the program.
  *
  * Commander adds it to the program itself, so the name, the description and the aliases are the
- * ones the CLI registers. The help flag is offered as well: `tdk help --help` prints the help of
+ * ones the CLI registers. The help flag is offered as well: `flisk help --help` prints the help of
  * the program, exactly like the help flag of every other command.
  */
 function helpCommandOf(program) {

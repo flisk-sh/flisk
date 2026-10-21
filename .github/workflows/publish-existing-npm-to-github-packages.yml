@@ -103,7 +103,7 @@ jobs:
           NPM_CONFIG_USERCONFIG="$NPMRC" npm install --global --prefix "$PREFIX" "@flisk-sh/flisk@${VERSION}"
           INSTALLED_VERSION=$(PATH="$PREFIX/bin:$PATH" "$PREFIX/bin/tdk" --version)
           if [ "$INSTALLED_VERSION" != "$VERSION" ]; then
-            echo "::error::Expected tdk --version $VERSION, got $INSTALLED_VERSION"
+            echo "::error::Expected flisk --version $VERSION, got $INSTALLED_VERSION"
             exit 1
           fi
-          echo "Installed and verified tdk $INSTALLED_VERSION from GitHub Packages."
+          echo "Installed and verified flisk $INSTALLED_VERSION from GitHub Packages."

@@ -1,6 +1,6 @@
 # 8. Write unit tests for the CLI
 
-Unit tests in TDK verify CLI commands, generators, and utility modules without starting a live Docker or Tilt stack. This guide explains how to write fast, hermetic, and deterministic unit tests using Vitest, how to mock external systems, how to test with temporary projects and golden files, and how to avoid common pitfalls.
+Unit tests in Flisk verify CLI commands, generators, and utility modules without starting a live Docker or Tilt stack. This guide explains how to write fast, hermetic, and deterministic unit tests using Vitest, how to mock external systems, how to test with temporary projects and golden files, and how to avoid common pitfalls.
 
 For end-to-end tests that boot a running stack, see [writing an e2e test](05-write-e2e.md). For how unit tests are organized across CI shards, see [run unit tests in a matrix](07-unit-test-matrix.md).
 
@@ -8,7 +8,7 @@ For end-to-end tests that boot a running stack, see [writing an e2e test](05-wri
 
 ## 1. Unit test basics
 
-TDK uses [Vitest](https://vitest.dev/) for CLI unit testing.
+Flisk uses [Vitest](https://vitest.dev/) for CLI unit testing.
 
 ### Where tests live
 
@@ -98,7 +98,7 @@ describe("execExternalTool", () => {
 });
 ```
 
-### Mocking internal TDK utilities with `importOriginal`
+### Mocking internal Flisk utilities with `importOriginal`
 
 When you only need to override specific functions while keeping the rest of a module intact, use `importOriginal`:
 
@@ -273,7 +273,7 @@ Rather than reinventing test patterns from scratch, reference these canonical, h
   it("installs the bash script under ~/.bash_completion.d and prints the source line", async () => {
     const { stdout } = await runCompletion(["bash", "--install"]);
     const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
-    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _tdk_completions tdk");
+    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _tdk_completions flisk");
     expect(stdout).toContain("Installed bash completion to:");
   });
   ```

@@ -61,7 +61,7 @@ jobs:
           cp cli/package.json scripts/package-lifecycle-smoke.sh scripts/install-global.mjs "$RUNNER_TEMP/lifecycle/"
 
       # A clean Node 22 image: no Tilt, no Docker project, no global tdk.
-      # Tilt and Docker are not installed, so `tdk up` is not exercised here.
+      # Tilt and Docker are not installed, so `flisk up` is not exercised here.
       - name: Install, upgrade, uninstall the packed CLI in a clean container
         run: |
           docker run --rm \

@@ -3,7 +3,7 @@
 ## Requirement: Node.js Backend Provider Registration
 
 The CLI SHALL register `node` as a valid backend language provider in `BACKEND_LANGUAGES`.
-When `--language node` (case-insensitive) is passed to `tdk resource <name> --type backend`, the CLI SHALL scaffold a Node.js 22 service and set `"language": "node"` in `service.json`.
+When `--language node` (case-insensitive) is passed to `flisk resource <name> --type backend`, the CLI SHALL scaffold a Node.js 22 service and set `"language": "node"` in `service.json`.
 
 ## Requirement: Scaffolding Artifacts
 

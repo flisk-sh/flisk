@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Compare checked-in GitHub ruleset request bodies with the active repository rulesets.
 import { execFileSync } from "node:child_process";

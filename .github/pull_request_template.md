@@ -2,7 +2,7 @@
 
 <!-- Explain the change in plain language. Link the issue with Fixes #123 when applicable. -->
 
-## Which parts of TDK changed?
+## Which parts of Flisk changed?
 
 GitHub uses one static PR template, so it cannot hide or add checklist items based on your diff. Use this quick routing guide: open **Files changed**, match your paths below, then complete only those rows. A PR can match several rows. The label workflow adds matching `area:*` labels automatically once the labeler change is on the base branch; labels are a hint, not a checklist.
 
@@ -138,7 +138,7 @@ For example: a new database usually changes Tilt `.star` files, Docker/Compose `
 <summary>Documentation only</summary>
 
 - Check the links and commands you changed.
-- Read the page once as someone new to TDK.
+- Read the page once as someone new to Flisk.
 - The main CI workflow still runs for docs-only PRs; Quickstart E2E does not.
 
 </details>

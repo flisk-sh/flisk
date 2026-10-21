@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
  * helper (no color, a real exit status). A spawned process also keeps commander's option state per
  * run: an in-process parse keeps the previous run's `--type` source.
  */
-function tdk(args: readonly string[]) {
+function flisk(args: readonly string[]) {
   return runTdk(args, { cwd: repoRoot, env: { TDK_EXTENSION_SOURCE: repoRoot } });
 }
 
@@ -26,9 +26,9 @@ function rows(output: string): string[][] {
     .map((line) => line.split("\t"));
 }
 
-describe("tdk resource --frameworks", () => {
+describe("flisk resource --frameworks", () => {
   it("lists the frontend frameworks when no --type is given", () => {
-    const result = tdk(["resource", "--frameworks"]);
+    const result = flisk(["resource", "--frameworks"]);
 
     expect(result.status, result.stderr).toBe(0);
     const listed = rows(result.stdout);
@@ -40,28 +40,28 @@ describe("tdk resource --frameworks", () => {
       expect(row[2]).toBe("vite-spa");
       // The verification comes from the registry, so an unverified provider does not break the test.
       expect(row[3]).toBe(verified.get(row[0]) ? "verified" : "unverified");
-      expect(row[4]).toBe(`tdk resource <name> --type frontend --framework ${row[0]}`);
+      expect(row[4]).toBe(`flisk resource <name> --type frontend --framework ${row[0]}`);
     }
   });
 
   it("lists the same frontend frameworks for --type frontend", () => {
-    const result = tdk(["resource", "--type", "frontend", "--frameworks"]);
+    const result = flisk(["resource", "--type", "frontend", "--frameworks"]);
 
     expect(result.status, result.stderr).toBe(0);
-    expect(rows(result.stdout)).toEqual(rows(tdk(["resource", "--frameworks"]).stdout));
+    expect(rows(result.stdout)).toEqual(rows(flisk(["resource", "--frameworks"]).stdout));
   });
 
   it("keeps the frontend listing when --language is given without --type", () => {
-    const result = tdk(["resource", "--language", "python", "--frameworks"]);
+    const result = flisk(["resource", "--language", "python", "--frameworks"]);
 
     // `--language` is a backend option: without an explicit `--type` the listing stays the
     // historical frontend one and exits successfully, as it did before the listing was type aware.
     expect(result.status, result.stderr).toBe(0);
-    expect(rows(result.stdout)).toEqual(rows(tdk(["resource", "--frameworks"]).stdout));
+    expect(rows(result.stdout)).toEqual(rows(flisk(["resource", "--frameworks"]).stdout));
   });
 
   it("lists every registered backend framework with its language and command", () => {
-    const result = tdk(["resource", "--type", "backend", "--frameworks"]);
+    const result = flisk(["resource", "--type", "backend", "--frameworks"]);
 
     expect(result.status, result.stderr).toBe(0);
     const listed = rows(result.stdout);
@@ -73,12 +73,12 @@ describe("tdk resource --frameworks", () => {
       expect(row[1]).toBe(provider.label);
       expect(row[2]).toBe("bun");
       expect(row[3]).toBe("compatible with bun");
-      expect(row[4]).toBe(`tdk resource <name> --type backend --framework ${row[0]}`);
+      expect(row[4]).toBe(`flisk resource <name> --type backend --framework ${row[0]}`);
     }
   });
 
   it("marks a framework that cannot be combined with the requested language", () => {
-    const result = tdk(["resource", "--type", "backend", "--language", "python", "--frameworks"]);
+    const result = flisk(["resource", "--type", "backend", "--language", "python", "--frameworks"]);
 
     expect(result.status, result.stderr).toBe(0);
     const listed = rows(result.stdout);
@@ -89,25 +89,25 @@ describe("tdk resource --frameworks", () => {
       expect(row[3]).toBe("incompatible with --language python");
       // The command creates the resource in the requested language: that language owns its runtime,
       // so it has no framework to pick.
-      expect(row[4]).toBe("tdk resource <name> --type backend --language python");
+      expect(row[4]).toBe("flisk resource <name> --type backend --language python");
     }
   });
 
   it("keeps a language that can be combined with a framework compatible", () => {
-    const result = tdk(["resource", "--type", "backend", "--language", "bun", "--frameworks"]);
+    const result = flisk(["resource", "--type", "backend", "--language", "bun", "--frameworks"]);
 
     expect(result.status, result.stderr).toBe(0);
     for (const row of rows(result.stdout)) {
       expect(row[3]).toBe("compatible with bun");
       // The requested language is named, so a copied row scaffolds the language that was asked about.
       expect(row[4]).toBe(
-        `tdk resource <name> --type backend --framework ${row[0]} --language bun`,
+        `flisk resource <name> --type backend --framework ${row[0]} --language bun`,
       );
     }
   });
 
   it("fails for a resource type that has no frameworks", () => {
-    const result = tdk(["resource", "--type", "worker", "--frameworks"]);
+    const result = flisk(["resource", "--type", "worker", "--frameworks"]);
 
     expect(result.status).not.toBe(0);
     expect(`${result.stdout}${result.stderr}`).toMatch(
@@ -116,11 +116,11 @@ describe("tdk resource --frameworks", () => {
   });
 
   it("fails for an unknown type or language", () => {
-    const unknownType = tdk(["resource", "--type", "not-a-type", "--frameworks"]);
+    const unknownType = flisk(["resource", "--type", "not-a-type", "--frameworks"]);
     expect(unknownType.status).not.toBe(0);
     expect(`${unknownType.stdout}${unknownType.stderr}`).toMatch(/Unknown resource type/);
 
-    const unknownLanguage = tdk([
+    const unknownLanguage = flisk([
       "resource",
       "--type",
       "backend",
@@ -135,7 +135,7 @@ describe("tdk resource --frameworks", () => {
   });
 
   it("rejects a language on a type that does not own one", () => {
-    const result = tdk(["resource", "--type", "frontend", "--language", "python", "--frameworks"]);
+    const result = flisk(["resource", "--type", "frontend", "--language", "python", "--frameworks"]);
 
     expect(result.status).not.toBe(0);
     expect(`${result.stdout}${result.stderr}`).toMatch(
@@ -144,7 +144,7 @@ describe("tdk resource --frameworks", () => {
   });
 
   it("documents the backend listing in the help text", () => {
-    const result = tdk(["resource", "--help"]);
+    const result = flisk(["resource", "--help"]);
 
     expect(result.status, result.stderr).toBe(0);
     const help = result.stdout.replace(/\s+/g, " ");

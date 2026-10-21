@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The TDK landscape has two sources of maintenance waste: a vendored duplicate of the `@flisk-sh/flisk` package in `beauty-crm/cli/` that has diverged from the canonical `tdk-cli/cli/`, and 13+ AI assistant config entries in `beauty-crm/` with overlapping project context spread across 8 directories and 5 root files. Consolidating both reduces maintenance burden and establishes canonical sources of truth.
+The Flisk landscape has two sources of maintenance waste: a vendored duplicate of the `@flisk-sh/flisk` package in `beauty-crm/cli/` that has diverged from the canonical `tdk-cli/cli/`, and 13+ AI assistant config entries in `beauty-crm/` with overlapping project context spread across 8 directories and 5 root files. Consolidating both reduces maintenance burden and establishes canonical sources of truth.
 
 ## Requirements
 

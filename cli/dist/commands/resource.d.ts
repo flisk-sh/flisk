@@ -100,7 +100,7 @@ export declare const PRISMA_CONFIG_TEMPLATE = "export default {\n  schema: \"pri
 /** Version ranges for `--feature drizzle`; `drizzle-kit` must stay on the same minor as `drizzle-orm`. */
 export declare const DRIZZLE_ORM_RANGE = "^0.44.7";
 export declare const DRIZZLE_KIT_RANGE = "^0.31.8";
-export declare const DRIZZLE_DB_TEMPLATE = "import { drizzle } from 'drizzle-orm/node-postgres';\nimport { Pool } from 'pg';\n\n// DATABASE_URL is injected by TDK. The pool connects on the first query, so a missing or\n// unreachable database fails /health/db instead of stopping the service at startup.\nexport const pool = new Pool({ connectionString: process.env.DATABASE_URL });\nexport const db = drizzle(pool);\n";
+export declare const DRIZZLE_DB_TEMPLATE = "import { drizzle } from 'drizzle-orm/node-postgres';\nimport { Pool } from 'pg';\n\n// DATABASE_URL is injected by Flisk. The pool connects on the first query, so a missing or\n// unreachable database fails /health/db instead of stopping the service at startup.\nexport const pool = new Pool({ connectionString: process.env.DATABASE_URL });\nexport const db = drizzle(pool);\n";
 export declare const DRIZZLE_SCHEMA_TEMPLATE = "// Define tables here, for example with pgTable from 'drizzle-orm/pg-core'.\nexport {};\n";
 export declare const DRIZZLE_CONFIG_TEMPLATE = "import { defineConfig } from 'drizzle-kit';\n\nexport default defineConfig({\n  dialect: 'postgresql',\n  schema: './src/schema.ts',\n  out: './drizzle',\n  dbCredentials: { url: process.env.DATABASE_URL ?? '' },\n});\n";
 export declare function createResourceTsconfig(resourceType: CreatableResourceType, frameworkId?: string): {
@@ -141,7 +141,7 @@ export declare const TSCONFIG_TEMPLATE: {
     exclude: string[];
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
-/** Resource types `tdk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
+/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
 export declare function parseResourceType(type: string): CreatableResourceType | "sdk";
 type ExistingServiceConfig = {
     [key: string]: unknown;

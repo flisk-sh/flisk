@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, execSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -33,7 +33,7 @@ export function isStandaloneBinary(tdkPath) {
 /** @internal Exported for unit tests only; not part of the package API. */
 export function classifyRunningInstall(execPath, scriptPath, platformName = process.platform) {
     const runningName = (platformName === "win32" ? win32.basename(execPath) : basename(execPath)).toLowerCase();
-    if (runningName === "tdk" || runningName === "tdk.exe") {
+    if (runningName === "flisk" || runningName === "tdk.exe") {
         return { method: "binary", path: execPath };
     }
     if (runningName === "node" || runningName === "node.exe") {
@@ -219,7 +219,7 @@ export async function upgradeViaBinary(tdkPath, release) {
         console.log(chalk.yellow(`\n🔒 ${installDir} isn't writable by your user.`));
         console.log(chalk.yellow("💡 Upgrade manually instead:"));
         if (isWindows()) {
-            console.log(chalk.cyan("   Install TDK in a user-writable directory, then retry the upgrade."));
+            console.log(chalk.cyan("   Install Flisk in a user-writable directory, then retry the upgrade."));
         }
         else {
             console.log(chalk.cyan(`   curl -fsSL -o ${tdkPath} ${release.downloadUrl}`));
@@ -246,7 +246,7 @@ export async function upgradeViaBinary(tdkPath, release) {
         // The compiled binary has no source checkout to find engine/ or
         // cli/templates/ in, so it looks for a tdk-cli/ folder next to itself
         // (see template-engine.ts loadTemplate() / vendorTdkExtension()).
-        // `tdk upgrade` only used to swap the binary, leaving that folder
+        // `flisk upgrade` only used to swap the binary, leaving that folder
         // stale/missing after an upgrade - refresh it here too, every time,
         // the same way install.sh does on a fresh install.
         spinner.text = `Downloading bundled engine (${release.tag})...`;
@@ -358,7 +358,7 @@ export async function getLatestVersion() {
     }
 }
 /**
- * Removes the package the CLI shipped under before the rename. It owns the old `tdk` command,
+ * Removes the package the CLI shipped under before the rename. It owns the old `flisk` command,
  * so npm and bun refuse to install @flisk-sh/flisk next to it (EEXIST) and the upgrade dies
  * before it starts. The removal is best effort: the package is often not installed at all.
  */
@@ -432,10 +432,10 @@ export async function upgradeViaBun() {
 export async function upgradeAllInstallations(dryRun) {
     const installations = detectAllInstallations();
     if (!installations.length) {
-        console.error(chalk.red("Could not find any TDK installations on PATH."));
+        console.error(chalk.red("Could not find any Flisk installations on PATH."));
         return false;
     }
-    console.log(chalk.blue(`Found ${installations.length} TDK installation${installations.length === 1 ? "" : "s"}:`));
+    console.log(chalk.blue(`Found ${installations.length} Flisk installation${installations.length === 1 ? "" : "s"}:`));
     for (const install of installations) {
         console.log(chalk.gray(`   ${install.method}: ${install.path}`));
     }
@@ -446,7 +446,7 @@ export async function upgradeAllInstallations(dryRun) {
     const binaryInstallations = installations.filter((install) => install.method === "binary" && install.path);
     const release = binaryInstallations.length ? await getLatestBinaryRelease() : null;
     if (binaryInstallations.length && !release) {
-        console.error(chalk.red("Could not find a compatible TDK binary release for this platform."));
+        console.error(chalk.red("Could not find a compatible Flisk binary release for this platform."));
         return false;
     }
     let success = true;
@@ -490,9 +490,9 @@ export async function upgradeAllInstallations(dryRun) {
         }
     }
     if (success)
-        console.log(chalk.green.bold("\nAll TDK installations on PATH are up to date."));
+        console.log(chalk.green.bold("\nAll Flisk installations on PATH are up to date."));
     else
-        console.error(chalk.red("\nAt least one TDK installation could not be updated."));
+        console.error(chalk.red("\nAt least one Flisk installation could not be updated."));
     return success;
 }
 /** @internal Exported for unit tests only; not part of the package API. */
@@ -515,7 +515,7 @@ export async function upgradeViaGit(path) {
             encoding: "utf-8",
         }).trim();
         if (dirty) {
-            throw new Error("The TDK source checkout has local changes. Commit or stash them, then run `tdk upgrade` again.");
+            throw new Error("The Flisk source checkout has local changes. Commit or stash them, then run `flisk upgrade` again.");
         }
         const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
             cwd: path,
@@ -598,12 +598,12 @@ export async function upgradeViaGit(path) {
 export function createUpgradeCommand() {
     return addYesOption(new Command("upgrade"))
         .alias("update")
-        .description("Upgrade TDK CLI to the latest version")
+        .description("Upgrade Flisk CLI to the latest version")
         .option("-f, --force", "Upgrade even if already on the latest version", false)
-        .option("--all", "Upgrade every TDK installation found on PATH", false)
+        .option("--all", "Upgrade every Flisk installation found on PATH", false)
         .option("--dry-run", "Show what would be upgraded without actually doing it", false)
         .action(async (options) => {
-        console.log(chalk.cyan("🚀 TDK CLI Upgrade\n"));
+        console.log(chalk.cyan("🚀 Flisk CLI Upgrade\n"));
         const currentVersion = getCurrentVersion();
         console.log(chalk.gray(`Current version: ${currentVersion}`));
         const installInfo = detectInstallation();
@@ -612,12 +612,12 @@ export function createUpgradeCommand() {
         if (options.all) {
             const installations = detectAllInstallations();
             if (!installations.length) {
-                console.error(chalk.red("Could not find any TDK installations on PATH."));
+                console.error(chalk.red("Could not find any Flisk installations on PATH."));
                 process.exit(1);
             }
             if (!options.dryRun && !options.yes) {
                 const confirm = await promptConfirm({
-                    message: `Upgrade all ${installations.length} TDK installations on PATH?`,
+                    message: `Upgrade all ${installations.length} Flisk installations on PATH?`,
                     initial: true,
                 });
                 if (!confirm) {
@@ -650,12 +650,12 @@ export function createUpgradeCommand() {
             binaryRelease = await getLatestBinaryRelease();
             if (!binaryRelease) {
                 if (process.platform === "win32" && process.arch === "arm64") {
-                    showErrorAndExit("TDK Windows v1 supports AMD64 only. Use WSL2 Ubuntu or a 64-bit Intel/AMD PC.");
+                    showErrorAndExit("Flisk Windows v1 supports AMD64 only. Use WSL2 Ubuntu or a 64-bit Intel/AMD PC.");
                 }
                 if (process.platform === "win32") {
-                    showErrorAndExit("No Windows AMD64 binary in this TDK release. Need asset tdk-windows-amd64.exe.");
+                    showErrorAndExit("No Windows AMD64 binary in this Flisk release. Need asset tdk-windows-amd64.exe.");
                 }
-                showErrorAndExit(`Unsupported OS: TDK does not support this OS: ${process.platform}. Supported: linux, darwin, win32.`);
+                showErrorAndExit(`Unsupported OS: Flisk does not support this OS: ${process.platform}. Supported: linux, darwin, win32.`);
             }
             latestVersion = binaryRelease.tag.replace(/^v/, "").split("-")[0];
             if (latestVersion === currentVersion && !options.force) {
@@ -780,7 +780,7 @@ export function createUpgradeCommand() {
             console.error(chalk.red("\nUpgrade failed"));
             if (installInfo.method === "git") {
                 console.log(chalk.cyan(`   Check local changes with: git -C ${installInfo.path} status --short`));
-                console.log(chalk.cyan("   Commit or stash them, then retry: tdk upgrade"));
+                console.log(chalk.cyan("   Commit or stash them, then retry: flisk upgrade"));
             }
             else if (installInfo.method === "binary" && binaryRelease && installInfo.path) {
                 const engineDir = join(dirname(installInfo.path), "tdk-cli");
@@ -819,9 +819,9 @@ export function createUpgradeCommand() {
             console.log(chalk.gray(`   Binary:   ${installInfo.path ?? findOnPath(executableName()) ?? "unknown"}`));
             console.log();
             console.log(chalk.cyan.bold("🚀 Quick Start:"));
-            console.log(chalk.white(`   tdk --help         Show all commands`));
-            console.log(chalk.white(`   tdk networks       View service URLs`));
-            console.log(chalk.white(`   tdk doctor         Check environment`));
+            console.log(chalk.white(`   flisk --help         Show all commands`));
+            console.log(chalk.white(`   flisk networks       View service URLs`));
+            console.log(chalk.white(`   flisk doctor         Check environment`));
             if (newVersion === currentVersion && !options.force) {
                 console.log();
                 console.log(chalk.yellow("💡 Tip: Version appears unchanged. You may need to restart your terminal."));
@@ -838,12 +838,12 @@ export function createUpgradeCommand() {
             if (isPermissionError(err) && installInfo.method !== "git" && installInfo.path) {
                 console.log(chalk.yellow("💡 The installed binary isn't executable. Fix it with:"));
                 console.log(chalk.cyan(`   chmod +x ${installInfo.path}`));
-                console.log(chalk.white("   then run: tdk version"));
+                console.log(chalk.white("   then run: flisk version"));
             }
             else {
                 console.log(chalk.yellow("💡 Verify manually:"));
                 console.log(chalk.white("   1. Restart your terminal"));
-                console.log(chalk.white("   2. Run: tdk version"));
+                console.log(chalk.white("   2. Run: flisk version"));
                 if (installInfo.method === "git" && installInfo.path) {
                     console.log(chalk.white(`   3. Compare with: git -C ${installInfo.path} rev-parse HEAD`));
                 }

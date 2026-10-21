@@ -19,7 +19,7 @@
     "minTdkVersion": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Oldest tdk CLI this project works with, as MAJOR.MINOR.PATCH. tdk doctor fails on an older CLI."
+      "description": "Oldest flisk CLI this project works with, as MAJOR.MINOR.PATCH. flisk doctor fails on an older CLI."
     },
     "project": {
       "type": "object",

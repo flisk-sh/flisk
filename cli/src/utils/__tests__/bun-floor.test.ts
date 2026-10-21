@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { MIN_BUN_VERSION, versionMeetsMinimum } from "../../commands/doctor.js";
@@ -16,7 +16,7 @@ describe("bunMeetsFloor", () => {
     expect(bunMeetsFloor(version)).toBe(false);
   });
 
-  it("is the same answer tdk doctor gives for every version, because it uses doctor's floor", () => {
+  it("is the same answer flisk doctor gives for every version, because it uses doctor's floor", () => {
     for (const version of ["1.1.9", "1.2.0", "1.2.1", "1.10.0", "2.0.0", "", "x"]) {
       expect(bunMeetsFloor(version)).toBe(versionMeetsMinimum(version, MIN_BUN_VERSION));
     }

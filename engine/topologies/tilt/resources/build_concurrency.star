@@ -2,7 +2,7 @@
 # 🏗️ TILT SDK - BUILD CONCURRENCY
 # =============================================================================
 # Sets Tilt's maximum parallel updates from the Docker engine's CPU count and
-# memory, instead of Tilt's default, so a warm `tdk up` on a machine with spare
+# memory, instead of Tilt's default, so a warm `flisk up` on a machine with spare
 # capacity builds more than three images at once.
 #
 # Override with TDK_MAX_PARALLEL_BUILDS=<positive integer>.

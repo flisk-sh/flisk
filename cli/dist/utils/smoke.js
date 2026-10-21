@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -106,10 +106,10 @@ export function buildSmokePlans(resources, ingressPort) {
     }
     return plans;
 }
-/** Caps each read-only smoke check so a doctor run cannot wait the full `tdk up` budget per service. */
+/** Caps each read-only smoke check so a doctor run cannot wait the full `flisk up` budget per service. */
 const DOCTOR_SMOKE_TIMEOUT_SECONDS = 10;
 /**
- * The GET-only part of each smoke block, for `tdk doctor`. Doctor must never write to a service, and a step whose path reads
+ * The GET-only part of each smoke block, for `flisk doctor`. Doctor must never write to a service, and a step whose path reads
  * a value saved by an earlier write (`{{name}}`) cannot run on its own, so both are dropped. A service with no such steps is left out.
  * `bodyContains` is also cleared: it asserts on data that earlier writes created, so doctor would fail a healthy route whose data was removed.
  * The status check stays, which is what shows a route exists.
@@ -231,7 +231,7 @@ export async function runSmokePlan(plan, deps = {}) {
     const budgetMs = (plan.smoke.timeoutSeconds ?? DEFAULT_SMOKE_TIMEOUT_SECONDS) * 1000;
     let deadline = now() + budgetMs;
     const saved = {};
-    // A manifest with errors is still loaded, so a malformed block must fail the check, not throw out of `tdk up`.
+    // A manifest with errors is still loaded, so a malformed block must fail the check, not throw out of `flisk up`.
     const invalid = validateSmoke(plan.smoke);
     if (invalid.length > 0) {
         return {
@@ -240,7 +240,7 @@ export async function runSmokePlan(plan, deps = {}) {
             failure: `${plan.name}: invalid smoke block: ${invalid.join("; ")}`,
         };
     }
-    // `tdk up` starts the check once Tilt's UI is up, while images may still be building. Traefik then resets or 404s early requests.
+    // `flisk up` starts the check once Tilt's UI is up, while images may still be building. Traefik then resets or 404s early requests.
     // A write must not be repeated after a reset (it may have reached the service), so wait for readiness with GETs instead.
     // If the service never answers, fall through: the first step then fails with its own record.
     if (plan.readyPath) {
@@ -387,7 +387,7 @@ export function formatSmokeFailure(result) {
 }
 /**
  * The dependencies that keep smoke text safe: the project's own secret values are masked before anything is shown or stored.
- * Both `tdk up` and `tdk doctor` use them, so neither prints a body that holds a secret.
+ * Both `flisk up` and `flisk doctor` use them, so neither prints a body that holds a secret.
  */
 export function safeSmokeDeps(projectRoot, warn, options = {}) {
     return {

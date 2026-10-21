@@ -8,7 +8,7 @@ Generated backend services must always emit valid Bun source code.
 
 #### Scenario: Backend template with banner logs
 
-- **WHEN** a user runs `tdk resource api --type backend --stack pre-alpha --path services/pre-alpha/api`
+- **WHEN** a user runs `flisk resource api --type backend --stack pre-alpha --path services/pre-alpha/api`
 - **THEN** the generated `src/index.ts` contains `console.log('\n🚀 api running ...')` with an escaped `\n`
 - **AND** `bun run src/index.ts` starts the server without a syntax error
 
@@ -19,13 +19,13 @@ Generated backend services must always emit valid Bun source code.
 
 ### Requirement: Extension Vendored Into Generated Projects
 
-Every generated project must contain the TDK Tilt extension so `tdk up` works offline.
+Every generated project must contain the Flisk Tilt extension so `flisk up` works offline.
 
 #### Scenario: Project generation
 
-- **WHEN** a user runs `tdk project --yes`
+- **WHEN** a user runs `flisk project --yes`
 - **THEN** `.tdk/.tdk-out/tdk-cli-ext/` is created containing `Tiltfile`, `engine/`, `discovery/`, `specs/`, and `ext/`
-- **AND** the generation log reports `Vendored TDK extension -> .tdk/.tdk-out/tdk-cli-ext/`
+- **AND** the generation log reports `Vendored Flisk extension -> .tdk/.tdk-out/tdk-cli-ext/`
 
 #### Scenario: Extension source auto-detection
 

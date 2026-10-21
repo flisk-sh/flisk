@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,15 +27,15 @@ describe("handleDryRun", () => {
   it("returns false and prints nothing when dryRun is unset", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    expect(handleDryRun({}, "start the stack", "tdk up")).toBe(false);
+    expect(handleDryRun({}, "start the stack", "flisk up")).toBe(false);
     expect(log).not.toHaveBeenCalled();
   });
 
   it("prints the dry-run description and command when enabled", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    expect(handleDryRun({ dryRun: true }, "start the stack", "tdk up")).toBe(true);
-    expect(log.mock.calls).toEqual([["Dry run - start the stack"], ["Would run: tdk up"]]);
+    expect(handleDryRun({ dryRun: true }, "start the stack", "flisk up")).toBe(true);
+    expect(log.mock.calls).toEqual([["Dry run - start the stack"], ["Would run: flisk up"]]);
   });
 
   it.each([
@@ -44,15 +44,15 @@ describe("handleDryRun", () => {
   ])("returns false and prints nothing when %s", (_label, options) => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    expect(handleDryRun(options, "start the stack", "tdk up")).toBe(false);
+    expect(handleDryRun(options, "start the stack", "flisk up")).toBe(false);
     expect(log).not.toHaveBeenCalled();
   });
 
   it("still prints both lines when the description is empty", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    expect(handleDryRun({ dryRun: true }, "", "tdk up")).toBe(true);
-    expect(log.mock.calls).toEqual([["Dry run - "], ["Would run: tdk up"]]);
+    expect(handleDryRun({ dryRun: true }, "", "flisk up")).toBe(true);
+    expect(log.mock.calls).toEqual([["Dry run - "], ["Would run: flisk up"]]);
   });
 
   it("calls printPlan instead of the standard lines when a plan is given", () => {

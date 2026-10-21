@@ -1,4 +1,4 @@
-# TDK Landscape Tilt SDK
+# Flisk Landscape Tilt SDK
 
 ## 🏗️ Architecture Overview
 
@@ -34,7 +34,7 @@ discovery/
 
 ```starlark
 # =============================================================================
-# 🎯 TDK Landscape TILT ENTRYPOINT
+# 🎯 Flisk Landscape TILT ENTRYPOINT
 # =============================================================================
 
 # 1️⃣ LOAD CORE MODULES
@@ -168,7 +168,7 @@ library_map = Libs.setup_all(ctx, should_enable, DDD_LIBS, PLATFORM_LIBS, PRODUC
 ```starlark
 load('./engine/topologies/tilt/resources/conditions.star', 'Database')
 
-Database.provision("user")  # Creates TDK_user
+Database.provision("user")  # Creates Flisk_user
 url = Database.get_url("user")
 Database.status_resource(enabled=True)
 Database.memory_summary()

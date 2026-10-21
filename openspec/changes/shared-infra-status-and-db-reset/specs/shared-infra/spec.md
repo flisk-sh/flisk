@@ -4,7 +4,7 @@
 
 ### Requirement: Status groups the shared Postgres by stack database
 
-`tdk status` SHALL show the shared Postgres instance, one database per stack named `<project>_<stack>`, and the services that use each database.
+`flisk status` SHALL show the shared Postgres instance, one database per stack named `<project>_<stack>`, and the services that use each database.
 
 #### Scenario: Two stacks share one instance
 
@@ -18,7 +18,7 @@
 
 ### Requirement: Machine output carries the same grouping
 
-`tdk status --json` SHALL include `sharedInfra` with the same instance and database grouping.
+`flisk status --json` SHALL include `sharedInfra` with the same instance and database grouping.
 
 ### Requirement: Reset targets one stack database
 

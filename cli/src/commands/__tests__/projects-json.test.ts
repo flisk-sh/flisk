@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { createTempProject, runTdk } from "../../test-support/index.js";
@@ -28,7 +28,7 @@ function parseReport(result: ReturnType<typeof runProjects>) {
   return JSON.parse(result.stdout);
 }
 
-describe("tdk projects --json", () => {
+describe("flisk projects --json", () => {
   it("prints the project report without --check and returns 1 for missing config with --check", () => {
     const projectRoot = createProject(false);
     const plain = runProjects(projectRoot, false);

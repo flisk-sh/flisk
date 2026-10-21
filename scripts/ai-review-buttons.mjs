@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Pure transform for AI review buttons on PR bodies. This is the only
 // implementation; .github/workflows/ai-review-buttons.yml checks the default

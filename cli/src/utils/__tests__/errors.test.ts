@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/index.js";
@@ -45,8 +45,8 @@ describe("not-found error suggestions", () => {
     expect(error.message).toBe('Stack "shp" not found');
     expect(error.suggestions).toEqual([
       'Did you mean "shop"?',
-      "Run `tdk stacks` to see available stacks",
-      "Run `tdk stack` to assign resources to a stack",
+      "Run `flisk stacks` to see available stacks",
+      "Run `flisk stack` to assign resources to a stack",
     ]);
   });
 
@@ -56,7 +56,7 @@ describe("not-found error suggestions", () => {
     expect(error.message).toBe('Resource "aip" not found');
     expect(error.suggestions).toEqual([
       'Did you mean "api"?',
-      "Run `tdk resources` to list all resources",
+      "Run `flisk resources` to list all resources",
       "Check the resource name spelling",
     ]);
   });
@@ -65,8 +65,8 @@ describe("not-found error suggestions", () => {
     const error = errorFactories.stackNotFound("missing", ["api", "web"]);
 
     expect(error.suggestions).toEqual([
-      "Run `tdk stacks` to see available stacks",
-      "Run `tdk stack` to assign resources to a stack",
+      "Run `flisk stacks` to see available stacks",
+      "Run `flisk stack` to assign resources to a stack",
     ]);
   });
 
@@ -126,10 +126,10 @@ describe("not-found error suggestions", () => {
     expectExit(2);
 
     lines.length = 0;
-    const tdkErr = new TdkError("Domain failure", ["Run tdk doctor"], 1);
+    const tdkErr = new TdkError("Domain failure", ["Run flisk doctor"], 1);
     expect(() => tdkErr.exit()).toThrow("process.exit");
     expect(lines[0]).toContain("❌ Domain failure");
-    expect(lines.join("\n")).toContain("→ Run tdk doctor");
+    expect(lines.join("\n")).toContain("→ Run flisk doctor");
   });
 
   it("routes error diagnostics exclusively to stderr and keeps stdout clean for piping", () => {
@@ -157,12 +157,12 @@ describe("not-found error suggestions", () => {
       stderr.push(args.map(String).join(" "));
     });
 
-    showError("Version too old\nFix: run tdk upgrade");
+    showError("Version too old\nFix: run flisk upgrade");
 
     const prefixes = stderr.flatMap((line) => line.match(/❌/g) ?? []);
     expect(prefixes).toHaveLength(1);
     expect(stderr.join("\n")).toContain("Version too old");
-    expect(stderr.join("\n")).toContain("Fix: run tdk upgrade");
+    expect(stderr.join("\n")).toContain("Fix: run flisk upgrade");
   });
 });
 
@@ -388,7 +388,7 @@ describe("requireProjectRoot", () => {
     expect(() => requireProjectRoot()).toThrow("process.exit(1)");
 
     expect(errorOutput(err)).toContain("Could not find project root");
-    expect(errorOutput(err)).toContain("tdk project --yes");
+    expect(errorOutput(err)).toContain("flisk project --yes");
     expect(exit).toHaveBeenCalledWith(1);
   });
 });
@@ -421,10 +421,10 @@ describe("withTiltCheck", () => {
     await expect(withTiltCheck(action)).rejects.toThrow("process.exit(1)");
 
     const output = errorOutput(err);
-    expect(output).toContain("TDK can't start - missing prerequisites");
+    expect(output).toContain("Flisk can't start - missing prerequisites");
     expect(output).toContain("Docker is running but not responding");
     expect(output).toContain("colima restart");
-    expect(output).toContain("tdk doctor");
+    expect(output).toContain("flisk doctor");
     expect(output).not.toContain("Tilt CLI is not installed");
     expect(exit).toHaveBeenCalledWith(1);
     expect(action).not.toHaveBeenCalled();

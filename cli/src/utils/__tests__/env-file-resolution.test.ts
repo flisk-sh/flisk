@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
-// The env file of a run. `tdk up --env-file <path>` sets TDK_ENV_FILE, and the engine reads that file
+// The env file of a run. `flisk up --env-file <path>` sets TDK_ENV_FILE, and the engine reads that file
 // instead of the project .env - for the Tilt environment and for the Compose interpolation alike.
 // These tests run the engine's own Starlark under Tilt, so a change in the resolution shows up here.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");

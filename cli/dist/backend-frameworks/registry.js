@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { resolveAgentRuntime } from "../agent-runtimes/registry.js";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
@@ -51,7 +51,7 @@ function compatibleLanguages(frameworkId) {
 }
 /**
  * Lists the registered backend frameworks with the language (and runtime) they are scaffolded with, so
- * `tdk resource --type backend --frameworks` is the whole backend discovery surface.
+ * `flisk resource --type backend --frameworks` is the whole backend discovery surface.
  *
  * `languageId` is the language the listing is judged against; the default Bun language is used when it
  * is omitted. A language that was asked for is named in the printed command, so copying a row never
@@ -67,8 +67,8 @@ export function listBackendFrameworks(languageId) {
         // A language that owns its runtime cannot be combined with a framework, so the row carries the
         // command that creates the resource in that language, without a framework.
         const command = compatible
-            ? `tdk resource <name> --type backend --framework ${id}${languageFlag}`
-            : `tdk resource <name> --type backend${languageFlag}`;
+            ? `flisk resource <name> --type backend --framework ${id}${languageFlag}`
+            : `flisk resource <name> --type backend${languageFlag}`;
         return {
             id,
             label: provider.label,
@@ -108,7 +108,7 @@ export function resolveBackendFramework(resourceType, frameworkId, language) {
         return mcpBackendProvider;
     }
     // `agent` is scaffolded by an agent runtime (src/agent-runtimes/), not a framework. Only the default runtime is reachable here:
-    // `tdk resource` validates --runtime before it scaffolds, so the package.json and tsconfig always match the chosen runtime.
+    // `flisk resource` validates --runtime before it scaffolds, so the package.json and tsconfig always match the chosen runtime.
     if (resourceType === "agent") {
         if (frameworkId !== undefined && frameworkId !== "custom") {
             throw new TdkError("--framework cannot be combined with --type agent.", [

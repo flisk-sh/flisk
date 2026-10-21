@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { createInterface } from "node:readline";
 import { Command } from "commander";
@@ -9,7 +9,7 @@ import { getPackageVersion } from "../utils/paths.js";
 export const mcpCommand = new Command("mcp")
   .description("Run a Model Context Protocol server over stdio for coding agents")
   .action(async () => {
-    const server = createMcpServer(createTdkTools(), { name: "tdk", version: getPackageVersion() });
+    const server = createMcpServer(createTdkTools(), { name: "flisk", version: getPackageVersion() });
     // Stdout is the protocol channel. Nothing else may write to it; diagnostics go to stderr.
     const lines = createInterface({ input: process.stdin });
     const pending = new Set<Promise<void>>();

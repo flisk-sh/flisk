@@ -5,7 +5,7 @@ The CLI and generated landscape MUST start without requiring host ports 80, 443,
 
 #### Scenario: Standard ports are occupied
 - **WHEN** ports 80, 443, or 5432 are already bound by unrelated host services
-- **THEN** `tdk up` selects available fallback ports and starts the landscape without stopping those services
+- **THEN** `flisk up` selects available fallback ports and starts the landscape without stopping those services
 - **AND** prints URLs using the selected ingress port and the matching Postgres host port
 
 #### Scenario: User overrides are configured
@@ -14,15 +14,15 @@ The CLI and generated landscape MUST start without requiring host ports 80, 443,
 - **AND** a conflicting explicit value produces a clear actionable error
 
 #### Scenario: Doctor or dry-run checks ports
-- **WHEN** `tdk doctor` or `tdk up --dry-run` runs
+- **WHEN** `flisk doctor` or `flisk up --dry-run` runs
 - **THEN** it does not persist port assignments or alter generated project files
 
 #### Scenario: Wildcard localhost DNS is unavailable
 - **WHEN** a Windows/WSL host cannot resolve the generated `*.localhost` hostname
-- **THEN** `tdk networks` and successful `tdk up` output include a numeric loopback URL with the selected ingress port
+- **THEN** `flisk networks` and successful `flisk up` output include a numeric loopback URL with the selected ingress port
 
 ### Requirement: Native platform and architecture mapping
-The CLI SHALL recognize `process.platform === "win32"` as Windows and `process.arch === "x64"` as AMD64, while keeping Linux and macOS mappings unchanged. Windows ARM64 SHALL be unsupported in v1. The executable name SHALL be `tdk.exe` on Windows and `tdk` on Unix. Platform paths SHALL use `node:path` APIs.
+The CLI SHALL recognize `process.platform === "win32"` as Windows and `process.arch === "x64"` as AMD64, while keeping Linux and macOS mappings unchanged. Windows ARM64 SHALL be unsupported in v1. The executable name SHALL be `tdk.exe` on Windows and `flisk` on Unix. Platform paths SHALL use `node:path` APIs.
 
 #### Scenario: Windows AMD64 release asset
 - **WHEN** the platform is `win32` and architecture is `x64`
@@ -37,7 +37,7 @@ The CLI SHALL recognize `process.platform === "win32"` as Windows and `process.a
 - **THEN** asset names remain `tdk-linux-amd64` and `tdk-darwin-arm64`
 
 ### Requirement: Cross-platform executable lookup
-The CLI SHALL resolve Docker, Tilt, Bun, and TDK on PATH without Unix-only `which` or `command -v` commands. On Windows lookup SHALL consider executable suffixes including `.exe`, `.cmd`, and `.bat`, and SHALL split PATH using the platform path delimiter.
+The CLI SHALL resolve Docker, Tilt, Bun, and Flisk on PATH without Unix-only `which` or `command -v` commands. On Windows lookup SHALL consider executable suffixes including `.exe`, `.cmd`, and `.bat`, and SHALL split PATH using the platform path delimiter.
 
 #### Scenario: Windows executable lookup
 - **WHEN** a requested tool exists on a Windows PATH directory as an `.exe`, `.cmd`, or `.bat` file
@@ -62,7 +62,7 @@ CLI child processes SHALL be launched with explicit executable paths and argumen
 The upgrade command SHALL use the shared asset mapping and Windows-compatible file operations. A compiled `tdk.exe` process SHALL upgrade the executable identified by `process.execPath`; an npm-installed `node.exe` entry point SHALL print `use npm install -g @flisk-sh/flisk@latest` and exit successfully. Other installation forms SHALL fail with a clear message. Windows engine extraction SHALL target `join(dirname(tdkExePath), "tdk-cli")`; dry run SHALL print `tdk-windows-amd64.exe`.
 
 #### Scenario: Dry run reports the Windows artifact
-- **WHEN** a Windows AMD64 user runs `tdk upgrade --dry-run`
+- **WHEN** a Windows AMD64 user runs `flisk upgrade --dry-run`
 - **THEN** the planned asset is `tdk-windows-amd64.exe`
 
 #### Scenario: npm installation upgrade
@@ -70,11 +70,11 @@ The upgrade command SHALL use the shared asset mapping and Windows-compatible fi
 - **THEN** it prints the specified npm install command and exits without replacing npm files with an executable
 
 #### Scenario: Unsupported installation form
-- **WHEN** the running process is neither a compiled TDK binary nor an npm installation
+- **WHEN** the running process is neither a compiled Flisk binary nor an npm installation
 - **THEN** upgrade stops with a clear installation detection error
 
 ### Requirement: Windows doctor runtime checks
-`tdk doctor` SHALL check Docker, Tilt, and Bun on PATH, warn when Bun is missing, and check Node only for npm installs. It SHALL run Docker version/info, Tilt version, and Docker Compose version checks and enforce Docker Engine 25+ and Compose 2.20.2+. It SHALL report Docker-not-running with the exact next step `Start Docker Desktop and wait until it says Running.` and reject Windows-container mode with `Switch Docker Desktop to Linux containers. TDK does not run Windows containers.` Missing Tilt SHALL say `tilt.exe not found on PATH. Install Tilt from https://docs.tilt.dev/install.html`.
+`flisk doctor` SHALL check Docker, Tilt, and Bun on PATH, warn when Bun is missing, and check Node only for npm installs. It SHALL run Docker version/info, Tilt version, and Docker Compose version checks and enforce Docker Engine 25+ and Compose 2.20.2+. It SHALL report Docker-not-running with the exact next step `Start Docker Desktop and wait until it says Running.` and reject Windows-container mode with `Switch Docker Desktop to Linux containers. Flisk does not run Windows containers.` Missing Tilt SHALL say `tilt.exe not found on PATH. Install Tilt from https://docs.tilt.dev/install.html`.
 
 #### Scenario: Docker Desktop is stopped
 - **WHEN** Docker daemon checks fail because the daemon is not running
@@ -96,7 +96,7 @@ On Windows doctor SHALL retain a working Node address-bind probe for ports 80, 4
 - **THEN** doctor warns that Windows reserved the port for Hyper-V/WSL and explains the configured fix guidance
 
 #### Scenario: Wildcard localhost does not resolve
-- **WHEN** either checked TDK hostname fails to resolve to `127.0.0.1` or `::1`
+- **WHEN** either checked Flisk hostname fails to resolve to `127.0.0.1` or `::1`
 - **THEN** doctor prints the exact Windows DNS failure guidance and hosts-file lines/instructions
 
 #### Scenario: Required ports are available
@@ -104,14 +104,14 @@ On Windows doctor SHALL retain a working Node address-bind probe for ports 80, 4
 - **THEN** doctor passes the port availability check
 
 ### Requirement: Windows network output includes numeric URLs
-On Windows, `tdk networks` SHALL print both the hostname URL and a usable `127.0.0.1:<port>` URL for routed services. Linux and macOS routing defaults SHALL remain unchanged.
+On Windows, `flisk networks` SHALL print both the hostname URL and a usable `127.0.0.1:<port>` URL for routed services. Linux and macOS routing defaults SHALL remain unchanged.
 
 #### Scenario: Show hostname and loopback routes
-- **WHEN** a Windows user runs `tdk networks` for a routed service
+- **WHEN** a Windows user runs `flisk networks` for a routed service
 - **THEN** output includes its hostname URL and numeric loopback URL
 
 ### Requirement: PowerShell completion installation
-The CLI SHALL support `tdk completion --install --shell powershell` by creating or updating the current PowerShell profile and placing completion content between unique `# TDK-CLI-COMPLETION-START` and `# TDK-CLI-COMPLETION-END` markers. It SHALL create a missing profile and preserve unrelated profile content and existing Bash, Zsh, and Fish completion behavior.
+The CLI SHALL support `flisk completion --install --shell powershell` by creating or updating the current PowerShell profile and placing completion content between unique `# FLISK-CLI-COMPLETION-START` and `# FLISK-CLI-COMPLETION-END` markers. It SHALL create a missing profile and preserve unrelated profile content and existing Bash, Zsh, and Fish completion behavior.
 
 #### Scenario: Install PowerShell completion
 - **WHEN** a user installs PowerShell completion and the profile does not exist

@@ -1,6 +1,6 @@
 ## Context
 
-`tdk up` registers one Tilt `local_resource`, `golden-layers-build`, that builds the project's shared base images (L1 OS, L2 dependencies, L3 build tools, L4 runtimes) from `.tdk/.tdk-out/golden-layers.Dockerfile`. Every service `docker_build` lists it as a resource dependency. Its command is nine `docker build -f ... --target <stage> -t <prefix>-<layer>:latest` calls joined with `&&`, so even a fully cached run pays nine CLI invocations, context loads and image exports (~21s measured).
+`flisk up` registers one Tilt `local_resource`, `golden-layers-build`, that builds the project's shared base images (L1 OS, L2 dependencies, L3 build tools, L4 runtimes) from `.tdk/.tdk-out/golden-layers.Dockerfile`. Every service `docker_build` lists it as a resource dependency. Its command is nine `docker build -f ... --target <stage> -t <prefix>-<layer>:latest` calls joined with `&&`, so even a fully cached run pays nine CLI invocations, context loads and image exports (~21s measured).
 
 The generated Tiltfile never calls `update_settings`, so Tilt's default concurrency applies. In the measured run three backends started together and kitchen-worker started only when kitchen-api finished.
 
@@ -21,7 +21,7 @@ Measured timeline (2026-10-10, restaurant example, warm cache except for regener
 
 **Goals:**
 
-- A warm `tdk up` with no source or generator changes does not rebuild golden images.
+- A warm `flisk up` with no source or generator changes does not rebuild golden images.
 - Golden images, when they must be built, build their independent stages in parallel.
 - Service image builds use the CPU the Docker engine has, without oversubscribing memory.
 - Frontend images are not blocked by type-checking, while type errors stay visible.
@@ -64,9 +64,9 @@ The 1.5 GiB-per-build budget is a starting estimate from frontend builds (Vite p
 
 ### Type-check frontends outside the image build
 
-When a frontend's `build` script matches the standard form `tsc --noEmit && vite build[ ...]` (a non-emitting type-check; a plain `tsc` that emits output stays in the image), the L3 frontend stage runs `bunx vite build --config <generated build config>` directly instead of `bun run build`. TDK also registers a `<service>-typecheck` Tilt `local_resource` that runs `bunx tsc --noEmit` in the service directory on file changes. It does not gate the service, and it shows errors in Tilt.
+When a frontend's `build` script matches the standard form `tsc --noEmit && vite build[ ...]` (a non-emitting type-check; a plain `tsc` that emits output stays in the image), the L3 frontend stage runs `bunx vite build --config <generated build config>` directly instead of `bun run build`. Flisk also registers a `<service>-typecheck` Tilt `local_resource` that runs `bunx tsc --noEmit` in the service directory on file changes. It does not gate the service, and it shows errors in Tilt.
 
-When the script has any other form, the image keeps running `bun run build --config ...` exactly as today, because the script may run codegen or other steps TDK cannot see.
+When the script has any other form, the image keeps running `bun run build --config ...` exactly as today, because the script may run codegen or other steps Flisk cannot see.
 
 Alternative considered: always bypass the script. That would silently skip custom build steps in user projects.
 
@@ -74,9 +74,9 @@ Alternative considered: keep the type-check in the image as a parallel stage. It
 
 ## Risks / Trade-offs
 
-- **A stale hash label skips a needed rebuild** (for example the user deletes and retags images by hand). → The check requires every golden tag to exist with the matching label; any missing or mismatched tag triggers a full build. `tdk up --rebuild-golden` (or removing the images) forces it.
+- **A stale hash label skips a needed rebuild** (for example the user deletes and retags images by hand). → The check requires every golden tag to exist with the matching label; any missing or mismatched tag triggers a full build. `flisk up --rebuild-golden` (or removing the images) forces it.
 - **Higher concurrency exhausts Docker memory and causes OOM-killed builds.** → Memory-based cap, minimum of 3 (today's behavior), and a user override. The memory budget is checked against measurements before release.
-- **Frontend type errors no longer fail `tdk up`.** → They show as a failed `<service>-typecheck` resource in Tilt and in `tdk status`. CI and `bun run build` outside Docker still run the full script.
+- **Frontend type errors no longer fail `flisk up`.** → They show as a failed `<service>-typecheck` resource in Tilt and in `flisk status`. CI and `bun run build` outside Docker still run the full script.
 - **Bake output differs from the serial builds.** → Same Dockerfile and targets. A test compares the bake file's targets and tags with `GOLDEN_LAYERS`.
 
 ## Migration Plan
@@ -85,9 +85,9 @@ Alternative considered: keep the type-check in the image as a parallel stage. It
 2. `update_settings` in the generated Tiltfile, with golden snapshot updates.
 3. Frontend direct-Vite build step and `<service>-typecheck` resource.
 
-Each step lands separately with its own before/after timing on #1023. Existing projects pick changes up on the next `tdk project` / `tdk up`. Rollback is a revert; the hash label is harmless on older versions.
+Each step lands separately with its own before/after timing on #1023. Existing projects pick changes up on the next `flisk project` / `flisk up`. Rollback is a revert; the hash label is harmless on older versions.
 
 ## Open Questions
 
 - The L2 dependency layer does not copy `bun.lock`, while the Prisma build path does (`prisma_build.star`). The restaurant example's committed Dockerfiles, made by an older generator, did copy it. Should L2 copy the root lockfile so installs resolve locked versions, and does that work for services that are not workspace members of the root `package.json`? This affects reproducibility more than speed, so it should get its own issue.
-- Should `tdk status` treat a failed `<service>-typecheck` as degraded, or report it separately?
+- Should `flisk status` treat a failed `<service>-typecheck` as degraded, or report it separately?

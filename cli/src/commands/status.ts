@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
@@ -41,7 +41,7 @@ export const statusCommand = new Command("status")
       }
 
       if (!options.json) {
-        showStep("TDK Status\n");
+        showStep("Flisk Status\n");
         console.log(
           chalk.bold("Tilt:"),
           tiltAvailable ? chalk.green("available") : chalk.red("not found"),
@@ -57,10 +57,10 @@ export const statusCommand = new Command("status")
       let tiltResources: unknown = null;
       let queryError: string | null = null;
 
-      // A single look at the running Tilt, so a caller that started `tdk up` detached can poll for readiness. Null when no
+      // A single look at the running Tilt, so a caller that started `flisk up` detached can poll for readiness. Null when no
       // Tilt answers or its output cannot be read.
       let readiness: ReturnType<typeof evaluateTiltReadiness>["result"] | null = null;
-      // The same look at Tilt feeds readiness and each service's state, so `tdk status` and `tdk ui` cannot disagree.
+      // The same look at Tilt feeds readiness and each service's state, so `flisk status` and `flisk ui` cannot disagree.
       let serviceStates: Record<string, ServiceRuntimeState> | null = null;
       const tiltPort = getTiltPollingPort(process.env.TILT_PORT);
       if (tiltAvailable) {
@@ -74,7 +74,7 @@ export const statusCommand = new Command("status")
               queryError = `Tilt returned invalid JSON: ${error instanceof Error ? error.message : String(error)}`;
             }
           } else {
-            queryError = `No Tilt is answering on port ${tiltPort}. Start it with: tdk up`;
+            queryError = `No Tilt is answering on port ${tiltPort}. Start it with: flisk up`;
           }
         }
         if (text) {
@@ -219,13 +219,13 @@ export const statusCommand = new Command("status")
         if (result.exitCode === 0) {
           console.log(result.stdout || chalk.gray("  No active tilt resources"));
         } else {
-          showDetail(`No Tilt is answering on port ${tiltPort}. Start it with: tdk up`);
+          showDetail(`No Tilt is answering on port ${tiltPort}. Start it with: flisk up`);
         }
       }
 
       console.log();
-      showDetail('Run "tdk stacks" to see all stacks.');
-      showDetail('Run "tdk up <stack-name>" to start a stack.');
+      showDetail('Run "flisk stacks" to see all stacks.');
+      showDetail('Run "flisk up <stack-name>" to start a stack.');
     };
 
     if (options.json) {

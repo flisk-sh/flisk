@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: Canonical npx form
-Public markdown SHALL write npx commands as `npx -y @flisk-sh/flisk <tdk-args>`. The package is `@flisk-sh/flisk` and its bin is `tdk` (`package.json` `bin.tdk`). The npx `-y` flag SHALL precede the package name; it only suppresses the npx install prompt and is distinct from TDK's own `--yes`. Docs SHALL NOT write `npx … tdk <cmd>`, SHALL NOT place `-y` after the CLI args, and SHALL NOT use `npm install -g` as the first public command. Bare `tdk` remains valid after a global install or the curl binary.
+Public markdown SHALL write npx commands as `npx -y @flisk-sh/flisk <tdk-args>`. The package is `@flisk-sh/flisk` and its bin is `flisk` (`package.json` `bin.tdk`). The npx `-y` flag SHALL precede the package name; it only suppresses the npx install prompt and is distinct from Flisk's own `--yes`. Docs SHALL NOT write `npx … flisk <cmd>`, SHALL NOT place `-y` after the CLI args, and SHALL NOT use `npm install -g` as the first public command. Bare `flisk` remains valid after a global install or the curl binary.
 
 #### Scenario: Scaffolding command is written
 - **WHEN** a doc shows the backend scaffold command
 - **THEN** it reads `npx -y @flisk-sh/flisk resource orders-api --type backend --stack shop --yes`
 
 #### Scenario: Forbidden forms are absent
-- **WHEN** public markdown is searched for `flisk tdk ` or an npx command ending in ` -y`
+- **WHEN** public markdown is searched for `flisk flisk ` or an npx command ending in ` -y`
 - **THEN** no first-run command matches
 
 ### Requirement: Host requirements are stated per command
@@ -21,7 +21,7 @@ Docs SHALL state what each command needs on the host and SHALL NOT claim npx rem
 | `project --yes` | Node.js 22.12+ | containers |
 | `resource orders-api --type backend --stack shop --yes` | a project dir from `project` | Docker, Tilt |
 | `up shop --dry-run` | generated project files | containers |
-| `up shop` | Docker running, Tilt installed | a global `tdk` |
+| `up shop` | Docker running, Tilt installed | a global `flisk` |
 
 Bun, Prisma, and NATS are generated stack contents after `project`; cold npx neither installs nor starts them.
 
@@ -49,7 +49,7 @@ Docs SHALL use these blocks, each prefixed `npx -y @flisk-sh/flisk`:
 - **THEN** the npx line comes first and global install / curl follow it
 
 ### Requirement: Files in scope
-The rewrite SHALL cover `README.md`; `README-zh_cn.md`, `README-zh_tw.md`, `README-ja.md`, `README-ko.md` (commands identical, prose translated); `docs/README.md`; example READMEs opening with bare `tdk project` / `tdk up`; the website quickstart; and the `awesome-tdk-framework` install line. It SHALL NOT rewrite generated `service.json`, Tiltfiles, or claims numbers.
+The rewrite SHALL cover `README.md`; `README-zh_cn.md`, `README-zh_tw.md`, `README-ja.md`, `README-ko.md` (commands identical, prose translated); `docs/README.md`; example READMEs opening with bare `flisk project` / `flisk up`; the website quickstart; and the `awesome-tdk-framework` install line. It SHALL NOT rewrite generated `service.json`, Tiltfiles, or claims numbers.
 
 #### Scenario: Doc change is conformant
 - **WHEN** a doc change is reviewed

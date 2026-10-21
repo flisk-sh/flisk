@@ -15,7 +15,7 @@ The extension SHALL avoid user-visible notifications for successful background p
 The extension SHALL notify the user when a new or escalated issue requires attention.
 
 #### Scenario: New critical issue
-- **WHEN** a new critical TDK, Tilt, Docker, Bun, port, or configuration issue is detected
+- **WHEN** a new critical Flisk, Tilt, Docker, Bun, port, or configuration issue is detected
 - **THEN** the extension shows a notification with a concise summary and an action to open troubleshooting details
 
 #### Scenario: Issue severity escalates

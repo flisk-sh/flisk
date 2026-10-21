@@ -61,18 +61,18 @@ export declare class ProjectConfigNotFoundError extends Error {
  * filesystem errors and reports an inaccessible config as missing, which hides the real reason.
  * Only a missing file (`ENOENT`) means "not found"; every other read failure keeps its reason.
  *
- * @param projectRoot - Root directory of the TDK project.
+ * @param projectRoot - Root directory of the Flisk project.
  * @returns The validated and normalized {@link ProjectConfig}.
  */
 export declare function readProjectConfig(projectRoot: string): ProjectConfig;
 export interface GenerateMasterConfigsOptions {
     /**
-     * Overwrite a root .tiltignore that carries TDK's generated header but was edited by hand.
-     * Set by `tdk config regenerate`, the explicit "discard hand edits" command. A root
+     * Overwrite a root .tiltignore that carries Flisk's generated header but was edited by hand.
+     * Set by `flisk config regenerate`, the explicit "discard hand edits" command. A root
      * .tiltignore without the header belongs to the team and is never overwritten.
      */
     discardHandEdits?: boolean;
-    /** Suppress progress lines on stdout, for callers that print machine output (`tdk up --json`). */
+    /** Suppress progress lines on stdout, for callers that print machine output (`flisk up --json`). */
     quiet?: boolean;
 }
 export declare function generateMasterConfigs(projectRoot: string, options?: GenerateMasterConfigsOptions): Promise<void>;
@@ -90,7 +90,7 @@ export declare function verifyMasterConfigs(projectRoot: string, options?: {
         file: string;
         diff: string;
     }>;
-    /** Generated service files (project-relative) whose content differs from their TDK snapshot, i.e. edited by hand. */
+    /** Generated service files (project-relative) whose content differs from their Flisk snapshot, i.e. edited by hand. */
     handEdited: string[];
 };
 export {};

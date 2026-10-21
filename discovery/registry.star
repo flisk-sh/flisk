@@ -1,9 +1,9 @@
 #!/usr/bin/env starlark
 # -*- coding: utf-8 -*-
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
-# 🔍 DISCOVERY REGISTRY - Service Discovery for TDK CLI
+# 🔍 DISCOVERY REGISTRY - Service Discovery for Flisk CLI
 # =============================================================================
 # This module discovers services from service.json manifest files.
 # It runs discovery at module load time to avoid frozen hash issues.
@@ -313,7 +313,7 @@ def _write_file_if_changed(path, content):
         normalized in ['Tiltfile', '.tiltignore'] or
         (normalized.startswith('TILT_') and normalized.endswith('.star') and '/' not in normalized)
     ):
-        fail("TDK discovery refused to write outside its generated-file allowlist: " + path)
+        fail("Flisk discovery refused to write outside its generated-file allowlist: " + path)
 
     # Read existing file (returns empty string on error via shell)
     existing = str(local("cat " + path + " 2>/dev/null || echo ''", quiet=True, echo_off=True))

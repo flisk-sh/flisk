@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,7 +28,7 @@ vi.mock("../../utils/tilt.js", () => ({
 import { buildTiltDownArgs } from "../../utils/tilt.js";
 import { downCommand } from "../down.js";
 
-describe("tdk down", () => {
+describe("flisk down", () => {
   beforeEach(() => {
     getContainerRuntimeStatusMock.mockReset().mockReturnValue("missing");
     isTiltAvailableMock.mockReset().mockResolvedValue(false);
@@ -51,14 +51,14 @@ describe("tdk down", () => {
     process.chdir(tempDir);
 
     try {
-      await expect(downCommand.parseAsync(["node", "tdk"], { from: "node" })).rejects.toThrow(
+      await expect(downCommand.parseAsync(["node", "flisk"], { from: "node" })).rejects.toThrow(
         "exit:1",
       );
 
       const output = error.mock.calls.flat().join("\n");
       expect(output).toContain("Could not find project root (no .tdk/project.json found)");
-      expect(output).toContain("Run this from within a TDK project");
-      expect(output).toContain("Run `tdk project --yes` to initialize a new project");
+      expect(output).toContain("Run this from within a Flisk project");
+      expect(output).toContain("Run `flisk project --yes` to initialize a new project");
       expect(runTiltMock).not.toHaveBeenCalled();
       expect(getContainerRuntimeStatusMock).not.toHaveBeenCalled();
       expect(isTiltAvailableMock).not.toHaveBeenCalled();
@@ -81,7 +81,7 @@ describe("tdk down", () => {
 
     try {
       await expect(
-        downCommand.parseAsync(["node", "tdk", "--json"], { from: "node" }),
+        downCommand.parseAsync(["node", "flisk", "--json"], { from: "node" }),
       ).rejects.toThrow("exit:1");
 
       expect(log).toHaveBeenCalledTimes(1);
@@ -94,8 +94,8 @@ describe("tdk down", () => {
             code: "COMMAND_FAILED",
             message: "Could not find project root (no .tdk/project.json found)",
             suggestions: [
-              "Run this from within a TDK project",
-              "Run `tdk project --yes` to initialize a new project",
+              "Run this from within a Flisk project",
+              "Run `flisk project --yes` to initialize a new project",
             ],
           },
         ],
@@ -125,7 +125,7 @@ describe("tdk down", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
     try {
-      await downCommand.parseAsync(["node", "tdk", "--dry-run"], { from: "node" });
+      await downCommand.parseAsync(["node", "flisk", "--dry-run"], { from: "node" });
 
       const output = log.mock.calls.map((call) => call.join(" ")).join("\n");
       expect(output).toContain("Dry run - not stopping resources");
@@ -154,12 +154,12 @@ describe("tdk down", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
-      await downCommand.parseAsync(["node", "tdk", "--force"], { from: "node" });
+      await downCommand.parseAsync(["node", "flisk", "--force"], { from: "node" });
 
       expect(downCommand.opts().yes).toBe(true);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Note: --force (-f) on tdk down is deprecated; use --yes (-y) instead.",
+          "Note: --force (-f) on flisk down is deprecated; use --yes (-y) instead.",
         ),
       );
       expect(buildTiltDownArgsMock).toHaveBeenCalledWith(
@@ -191,12 +191,12 @@ describe("tdk down", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
-      await downCommand.parseAsync(["node", "tdk", "-f"], { from: "node" });
+      await downCommand.parseAsync(["node", "flisk", "-f"], { from: "node" });
 
       expect(downCommand.opts().yes).toBe(true);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Note: --force (-f) on tdk down is deprecated; use --yes (-y) instead.",
+          "Note: --force (-f) on flisk down is deprecated; use --yes (-y) instead.",
         ),
       );
       expect(buildTiltDownArgsMock).toHaveBeenCalledWith(
@@ -228,7 +228,7 @@ describe("tdk down", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
-      await downCommand.parseAsync(["node", "tdk", "-y"], { from: "node" });
+      await downCommand.parseAsync(["node", "flisk", "-y"], { from: "node" });
 
       expect(downCommand.opts().yes).toBe(true);
       expect(warn).not.toHaveBeenCalled();
@@ -241,7 +241,7 @@ describe("tdk down", () => {
       downCommand.setOptionValue("yes", false);
       warn.mockClear();
 
-      await downCommand.parseAsync(["node", "tdk", "--yes"], { from: "node" });
+      await downCommand.parseAsync(["node", "flisk", "--yes"], { from: "node" });
 
       expect(downCommand.opts().yes).toBe(true);
       expect(warn).not.toHaveBeenCalled();

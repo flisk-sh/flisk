@@ -2,7 +2,7 @@
 name: flisk-e2e-author
 description: Guides an AI assistant through adding or changing an end-to-end test in flisk - deciding whether one is required, choosing the group, scaffolding a suite under tests/e2e from the agent reference suite, using the shared helpers, running cases on a real stack, and capturing passing and deliberate-break evidence. Use when adding a resource type, a command or MCP tool that talks to a running stack, a provider (language or framework), or a change to flisk up, Traefik routing or the engine.
 license: MIT
-compatibility: Requires the tdk CLI, Docker, Tilt, Node 22+, jq and curl to run suites. Writing and validating them needs only the checkout.
+compatibility: Requires the flisk CLI, Docker, Tilt, Node 22+, jq and curl to run suites. Writing and validating them needs only the checkout.
 metadata:
   author: flisk-sh
   version: "1.0"
@@ -54,7 +54,7 @@ Never copy a helper into a suite. Use `tests/e2e/lib/lib.sh`, and add new shared
 make test-e2e GROUP=<group> SUITE=<suite> CASES="<case> ..."
 ```
 
-Run every new or changed case, then `run.sh cleanup`. If Docker, Tilt or `tdk` is unavailable, say so plainly. Do not claim the suite passes based on `bash -n` or the validator alone.
+Run every new or changed case, then `run.sh cleanup`. If Docker, Tilt or `flisk` is unavailable, say so plainly. Do not claim the suite passes based on `bash -n` or the validator alone.
 
 ## 6. Capture evidence
 

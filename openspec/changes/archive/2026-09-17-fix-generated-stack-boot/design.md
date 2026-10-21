@@ -2,18 +2,18 @@
 
 ## Context
 
-`tdk project` and `tdk resource` produce output that must run on a fresh machine with Docker + Tilt. Two defects broke this path for every user: (1) the backend source template emitted a literal newline inside a single-quoted `console.log` string, making every generated service uncompilable; (2) the generated Tiltfile pointed at an author-specific absolute path (`/private/var/www/2025/ollamar1/tdk-cli`) and fell back to a private GitHub repo that cannot be cloned, causing `tdk up` to hang in a git retry loop. The fixes below were implemented and verified in an isolated container (fixed binary rebuilt from source, `bun run` + `curl /health` green, `tilt ci` loads the vendored extension and reports a healthy workspace).
+`flisk project` and `flisk resource` produce output that must run on a fresh machine with Docker + Tilt. Two defects broke this path for every user: (1) the backend source template emitted a literal newline inside a single-quoted `console.log` string, making every generated service uncompilable; (2) the generated Tiltfile pointed at an author-specific absolute path (`/private/var/www/2025/ollamar1/tdk-cli`) and fell back to a private GitHub repo that cannot be cloned, causing `flisk up` to hang in a git retry loop. The fixes below were implemented and verified in an isolated container (fixed binary rebuilt from source, `bun run` + `curl /health` green, `tilt ci` loads the vendored extension and reports a healthy workspace).
 
 ## Goals / Non-Goals
 
 **Goals:**
 - Generated services compile and serve `/health` on first run.
-- `tdk up` loads its Tiltfile on any machine with zero network or private-repo dependency.
+- `flisk up` loads its Tiltfile on any machine with zero network or private-repo dependency.
 - Generated output contains no machine-specific paths and fails fast with actionable errors when misconfigured.
 - Extension loading uses a truthful local probe.
 
 **Non-Goals:**
-- Rewriting the TDK Tilt extension itself or its orchestration semantics.
+- Rewriting the Flisk Tilt extension itself or its orchestration semantics.
 - Making the private `tdk-cli` source repo public.
 - Changing the generated `service.json` manifest shape (tracked separately in manifest-field-migration).
 - Container-to-host DNS routing (traefik `*.beauty-crm.localhost` mapping) is outside this change.

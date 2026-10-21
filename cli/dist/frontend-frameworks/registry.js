@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { TdkError } from "../utils/errors.js";
 import { litFrontendProvider } from "./lit.js";
@@ -23,7 +23,7 @@ export const FRONTEND_FRAMEWORKS = {
     "tanstack-router": tanstackRouterFrontendProvider,
 };
 // Frameworks that own their own server or build config. They are never scaffolded as Vite SPA providers; they go through
-// `tdk resource <name> --type bring-your-own` instead.
+// `flisk resource <name> --type bring-your-own` instead.
 export const META_FRAMEWORK_IDS = [
     "next",
     "nuxt",
@@ -51,7 +51,7 @@ export function listFrontendFrameworks() {
         label: provider.label,
         kind: "vite-spa",
         verified: VERIFIED_FRONTEND_FRAMEWORKS.includes(id),
-        command: `tdk resource <name> --type frontend --framework ${id}`,
+        command: `flisk resource <name> --type frontend --framework ${id}`,
     }));
 }
 export function getFrontendFramework(frameworkId, resourceName) {
@@ -60,7 +60,7 @@ export function getFrontendFramework(frameworkId, resourceName) {
     if (!provider) {
         const supportedIds = Object.keys(FRONTEND_FRAMEWORKS).join(", ");
         const isMeta = META_FRAMEWORK_IDS.includes(id);
-        const byo = `tdk resource ${resourceName ?? "<name>"} --type bring-your-own`;
+        const byo = `flisk resource ${resourceName ?? "<name>"} --type bring-your-own`;
         throw new TdkError(`${isMeta ? `"${frameworkId}" is not a Vite SPA provider` : `Unknown frontend framework "${frameworkId}"`}. Supported frameworks: ${supportedIds}.`, [
             `Use one of: ${supportedIds}`,
             `Omit --framework to use ${DEFAULT_FRONTEND_FRAMEWORK}`,

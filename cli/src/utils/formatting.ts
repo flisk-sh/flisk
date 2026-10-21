@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import type { StatusCategory, StatusValue } from "../types/index.js";
@@ -92,22 +92,22 @@ const EMPTY_STATE_CONFIG: Record<
 > = {
   resources: {
     singular: "resource",
-    command: "tdk resource <name>",
+    command: "flisk resource <name>",
     context: "\nTo create a resource:",
   },
   stacks: {
     singular: "stack",
-    command: "tdk stack <stack-name>",
+    command: "flisk stack <stack-name>",
     context: "\nTo create a stack, use:",
   },
   services: {
     singular: "service",
-    command: "tdk resource <name>",
+    command: "flisk resource <name>",
     context: "\nTo create a service:",
   },
   "stack-services": {
     singular: "service",
-    command: "tdk resource <name> --stack <stack-name>",
+    command: "flisk resource <name> --stack <stack-name>",
     context: "\nTo add services to this stack:",
   },
 };
@@ -126,7 +126,7 @@ export function showEmptyState(itemType: EmptyStateItemType, filterContext?: str
 
   if (itemType === "stacks") {
     console.log(chalk.gray("\nOr create a new resource with a stack:"));
-    console.log(chalk.gray("  tdk resource <name> --stack <stack-name>"));
+    console.log(chalk.gray("  flisk resource <name> --stack <stack-name>"));
   }
 }
 
@@ -135,7 +135,7 @@ export function showCancelled(message?: string): void {
 }
 
 export function showCommandHeader(title: string): void {
-  console.log(chalk.blue(`TDK ${title}\n`));
+  console.log(chalk.blue(`Flisk ${title}\n`));
 }
 
 export function showAllSatisfyCondition(items: string, condition: string): void {

@@ -1,10 +1,10 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
 import { captureExit, runCompletionCommand } from "../../test-support/index.js";
 import { runtimeCommand } from "../runtime.js";
 
-describe("tdk completion", () => {
+describe("flisk completion", () => {
   it.each(["bash", "zsh", "fish", "powershell"])(
     "generates a non-empty %s script with doctor and resource completions",
     async (shell) => {
@@ -68,7 +68,7 @@ describe("tdk completion", () => {
 
     it("offers runtime --json in the fish script", async () => {
       expect(await generate("fish")).toContain(
-        "complete -c tdk -f -n '__fish_seen_subcommand_from runtime' -l json",
+        "complete -c flisk -f -n '__fish_seen_subcommand_from runtime' -l json",
       );
     });
   });

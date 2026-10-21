@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📋 MANIFEST MODULE - VALIDATOR TESTS (Phase 3)
@@ -315,7 +315,7 @@ def _test_full_validation():
         'replicas': 1,
         'runtime': 'bun',
         'featuresEnabled': ['nats', 'prisma'],
-        'databaseName': 'TDK_user',
+        'databaseName': 'Flisk_user',
         'dependsOn': [],
         'traefik': {
             'pathPrefix': '/api/v1/users',

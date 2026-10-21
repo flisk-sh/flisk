@@ -1,29 +1,29 @@
-# Design: TDK CLI organization copy
+# Design: Flisk CLI organization copy
 
 ## Buyer and job
 
-One buyer on every public page: an engineer or tech lead who already runs several services and is tired of local Compose, Dockerfiles, and a week of setup. TDK CLI starts those services on the developer's machine. It does not deploy production and it is not a Compose file maintained by hand.
+One buyer on every public page: an engineer or tech lead who already runs several services and is tired of local Compose, Dockerfiles, and a week of setup. Flisk CLI starts those services on the developer's machine. It does not deploy production and it is not a Compose file maintained by hand.
 
-Each service has one `service.json`; `tdk up` starts the local stack. No Kubernetes runs on the machine. Production stays on Helm, Argo CD, or Kustomize.
+Each service has one `service.json`; `flisk up` starts the local stack. No Kubernetes runs on the machine. Production stays on Helm, Argo CD, or Kustomize.
 
 ## Naming
 
-- Write `TDK CLI` in titles, About fields, npm metadata, and social copy.
+- Write `Flisk CLI` in titles, About fields, npm metadata, and social copy.
 - Keep `flisk-sh` alongside the product name in organization identity.
-- Do not write `Tilt Development Kit` or use bare `TDK` as the product name in titles.
+- Do not write `Tilt Development Kit` or use bare `Flisk` as the product name in titles.
 - Preserve repository names and `@flisk-sh/flisk`.
-- npm description/title: `TDK CLI — start services on your machine.`
+- npm description/title: `Flisk CLI — start services on your machine.`
 
 ## First screen
 
 - H1: `Start your services on your machine.`
-- Subhead: `Not a deploy. Not a Compose file. One service.json, then tdk up. No Kubernetes on the machine.`
+- Subhead: `Not a deploy. Not a Compose file. One service.json, then flisk up. No Kubernetes on the machine.`
 - Proof, with caveat in the same sentence: `14 services healthy in 4.6s on a 16 GB M1 once images exist.`
 - The 100 generated `/health` services are a fixture, not an ERP product.
 
 Do not put Tilt, Starlark, PSR, golden L1–L4, Infisical, Traefik, orchestration, deployment language, `docker-compose`, or “built on Tilt” in the H1, title, About, or first paragraph. The prescribed phrase “Not a deploy” in the subhead is an explicit exception to the word-level prohibition on deploy claims.
 
-Tilt may appear once in How it works or Requirements: `Docker runs the containers. Tilt runs the dev loop. TDK CLI writes that config.`
+Tilt may appear once in How it works or Requirements: `Docker runs the containers. Tilt runs the dev loop. Flisk CLI writes that config.`
 
 ## Offer and placement
 
@@ -35,8 +35,8 @@ Use the exact lines from the supplied organization spec for `flisk-sh`, `flisk`,
 
 ## Scope replies
 
-- Deploy misread: `This is not a production deploy. tdk up starts services, a database, and a proxy on your machine. No cluster. Helm still deploys production.`
-- Compose misread: `Not a Compose file you maintain. One service.json per service, then tdk up. If Compose already works for you, skip TDK CLI.`
+- Deploy misread: `This is not a production deploy. flisk up starts services, a database, and a proxy on your machine. No cluster. Helm still deploys production.`
+- Compose misread: `Not a Compose file you maintain. One service.json per service, then flisk up. If Compose already works for you, skip Flisk CLI.`
 
 Stop after that; do not explain Tilt in these replies.
 

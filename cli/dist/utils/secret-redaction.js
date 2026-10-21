@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -65,7 +65,7 @@ export function redactValue(value, secrets) {
  * are unknown, so the redactor throws instead of guessing: the caller then shows and stores nothing rather than raw text. The
  * original error is kept, so a caller can still tell an unreadable .env from another failure.
  *
- * `extraEnvPaths` are the other env files of the run (the file `tdk up --env-file` selected): their values are secrets as
+ * `extraEnvPaths` are the other env files of the run (the file `flisk up --env-file` selected): their values are secrets as
  * much as the ones in the project .env.
  */
 export function createEnvRedactor(projectRoot, extraEnvPaths = []) {

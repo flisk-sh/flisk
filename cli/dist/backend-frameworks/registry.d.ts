@@ -13,12 +13,12 @@ export interface BackendFrameworkInventoryEntry {
     languages: string[];
     /** False when the framework cannot be combined with the requested `--language`. */
     compatible: boolean;
-    /** The copy-pasteable `tdk resource` invocation. */
+    /** The copy-pasteable `flisk resource` invocation. */
     command: string;
 }
 /**
  * Lists the registered backend frameworks with the language (and runtime) they are scaffolded with, so
- * `tdk resource --type backend --frameworks` is the whole backend discovery surface.
+ * `flisk resource --type backend --frameworks` is the whole backend discovery surface.
  *
  * `languageId` is the language the listing is judged against; the default Bun language is used when it
  * is omitted. A language that was asked for is named in the printed command, so copying a row never

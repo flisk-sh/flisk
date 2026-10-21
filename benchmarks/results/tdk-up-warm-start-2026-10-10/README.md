@@ -1,4 +1,4 @@
-# Manual `tdk up` measurement, 2026-10-10 (tdk-restaurant-example)
+# Manual `flisk up` measurement, 2026-10-10 (tdk-restaurant-example)
 
 The numbers in the [#1023 comment](https://github.com/flisk-sh/flisk/issues/1023#issuecomment-6102763932) come from this run. It was made by hand before `scripts/benchmark/tdk-up-warm-start.sh` existed, so it has **no recorded wall time**, and its per-run settled check used a fixed 60-second wait. The span (first to last Tilt build) is valid. The published, reproducible run is [`tdk-up-warm-start-2026-10-11`](../tdk-up-warm-start-2026-10-11/summary.md).
 

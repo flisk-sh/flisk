@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -155,7 +155,7 @@ export async function runColdPreflight(
     );
     items.push(await safeCheck("tilt", checkTilt, "Tilt CLI not found"));
   }
-  // Outside a project Bun stays required: `tdk project` is about to create services that need it.
+  // Outside a project Bun stays required: `flisk project` is about to create services that need it.
   const bunNeeded = projectRoot ? projectNeedsBun(discoverResourcesFromRoot(projectRoot)) : true;
   let bun = false;
   const bunPath = bunNeeded ? findOnPath("bun") : undefined;
@@ -244,7 +244,7 @@ export async function runColdPreflight(
           ok: false,
           message:
             "A Prisma resource is configured, but the project Postgres service is not healthy",
-          fix: "Run `tdk up` to start the bundled Postgres, then check `tdk doctor`.",
+          fix: "Run `flisk up` to start the bundled Postgres, then check `flisk doctor`.",
         });
     }
   }
@@ -260,8 +260,8 @@ export async function runColdPreflight(
           ? `Project setup blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nFix the machine checks below.`
           : "Project setup blocked. Fix the machine checks below."
         : bunFailed
-          ? `Cold start blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nPrisma/NATS configuration is project-specific and generated after \`tdk project\`. Fix the machine checks below.`
-          : "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `tdk project`. Fix the machine checks below."
+          ? `Cold start blocked. Bun ${BUN_FLOOR_LABEL} must be installed on PATH.\nPrisma/NATS configuration is project-specific and generated after \`flisk project\`. Fix the machine checks below.`
+          : "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `flisk project`. Fix the machine checks below."
       : "Machine is ready. Project wiring is not."
     : "";
   const footer = failures.length
@@ -335,7 +335,7 @@ export function formatRuntimeNextSteps(status: RuntimePrerequisiteStatus): strin
     lines.push(`Tilt is not installed. ${DOCTOR_FIXES.tiltMissing}`);
   }
   lines.push(
-    "Docker and Tilt are only needed to start the stack: start them, then run `tdk doctor` (readiness) and `tdk up`.",
+    "Docker and Tilt are only needed to start the stack: start them, then run `flisk doctor` (readiness) and `flisk up`.",
   );
   return lines;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import type { DiscoveredResource } from "../../types/index.js";
@@ -47,7 +47,7 @@ describe("resolveOnlySelection", () => {
 describe("resolveOnlySelection vs the Tiltfile", () => {
   it("is only the service.json dependsOn closure; the Tiltfile may skip some of it", () => {
     // The Tiltfile drops a transitive dependency whose name contains "frontend" (profiles.star, resolve_dependency),
-    // so `tdk up --only` reports what Tilt enabled once it is ready, and this closure only as `declaredDependencies`.
+    // so `flisk up --only` reports what Tilt enabled once it is ready, and this closure only as `declaredDependencies`.
     const withFrontendDep = [svc("api", ["admin-frontend"]), svc("admin-frontend")];
     expect(resolveOnlySelection(["api"], withFrontendDep).dependencies).toEqual(["admin-frontend"]);
   });

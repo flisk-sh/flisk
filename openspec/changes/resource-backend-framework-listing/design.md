@@ -20,7 +20,7 @@ default or the scaffold behavior:
 - `--type backend` → the backend listing.
 
 The same rule decides what `--language` means. Without an explicit `--type` the listing is the frontend
-one, and `--language` is a backend option, so it is not applied to it: `tdk resource --language python
+one, and `--language` is a backend option, so it is not applied to it: `flisk resource --language python
 --frameworks` prints the frontend listing and exits successfully, exactly as before this change. With an
 explicit `--type frontend`, `--language` is still rejected, because a frontend resource has no language.
 

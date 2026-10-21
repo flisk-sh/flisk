@@ -16,7 +16,7 @@ Create a classic GitHub personal access token with `read:packages` access (and a
 ```sh
 export GITHUB_PACKAGES_TOKEN="<your-read:packages-token>"
 npm install -g @flisk-sh/flisk
-tdk --version
+flisk --version
 ```
 
 In CI, store the token as a secret and expose it as `GITHUB_PACKAGES_TOKEN` for the install step. Repository workflows may use `GITHUB_TOKEN` with `packages: read` when the package grants that repository access. Do not commit tokens or paste them into logs.

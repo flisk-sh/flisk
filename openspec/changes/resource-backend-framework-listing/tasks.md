@@ -1,10 +1,10 @@
 ## 1. Backend framework inventory
 
 - [x] 1.1 Add `listBackendFrameworks` to `cli/src/backend-frameworks/registry.ts`, deriving the compatible languages from `BACKEND_LANGUAGES` through `resolveBackendFramework`.
-- [x] 1.2 Make `tdk resource --frameworks` type aware in `cli/src/commands/resource.ts`: no `--type` keeps the frontend listing, `--type frontend` prints the frontend listing, `--type backend` prints the backend listing.
+- [x] 1.2 Make `flisk resource --frameworks` type aware in `cli/src/commands/resource.ts`: no `--type` keeps the frontend listing, `--type frontend` prints the frontend listing, `--type backend` prints the backend listing.
 - [x] 1.3 Mark every backend framework that cannot be combined with the requested `--language`.
 - [x] 1.4 Fail with an actionable message for a resource type that has no frameworks, and reuse the existing type and language validation errors.
-- [x] 1.5 Update the `tdk resource` help text for `--frameworks` and `--framework`.
+- [x] 1.5 Update the `flisk resource` help text for `--frameworks` and `--framework`.
 
 ## 2. Tests
 

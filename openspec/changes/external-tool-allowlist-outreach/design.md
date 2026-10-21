@@ -2,7 +2,7 @@
 
 ## Context
 
-TDK CLI (`tdk up`, `service.json`, Docker + Tilt) is local-only orchestration. Core is MIT. Binaries and `checksums.txt` ship from `flisk-sh/releases`. Companies often allow or ban tools like MongoDB by policy. Those policies are usually private. The public surface is awesome lists, CLI indexes, internal-tooling docs that happen to be open, and security baselines that accept suggestions.
+Flisk CLI (`flisk up`, `service.json`, Docker + Tilt) is local-only orchestration. Core is MIT. Binaries and `checksums.txt` ship from `flisk-sh/releases`. Companies often allow or ban tools like MongoDB by policy. Those policies are usually private. The public surface is awesome lists, CLI indexes, internal-tooling docs that happen to be open, and security baselines that accept suggestions.
 
 Opening issues in unrelated product repos, or asking employees to change a private denylist, will be treated as spam and can get the org blocked.
 
@@ -18,7 +18,7 @@ Opening issues in unrelated product repos, or asking employees to change a priva
 - Scraping employee contacts.
 - Claiming "verified by <company>".
 - Changing company denylists for databases or other vendors.
-- A `tdk` command that posts to GitHub.
+- A `flisk` command that posts to GitHub.
 
 ## Decisions
 
@@ -32,7 +32,7 @@ A row in `targets.yaml` needs `url`, `list_path` (file that already lists tools)
 
 ### 3. Issue template is fixed
 
-Sections: who we are, what TDK CLI does and does not do, why this repo (quote their list), how to verify (MIT, checksums, Docker/Tilt), the ask ("add, reject, or ignore"), and a link to this packet. No urgency, no "your users need this".
+Sections: who we are, what Flisk CLI does and does not do, why this repo (quote their list), how to verify (MIT, checksums, Docker/Tilt), the ask ("add, reject, or ignore"), and a link to this packet. No urgency, no "your users need this".
 
 ### 4. Acceptance is a link, not a badge
 

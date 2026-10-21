@@ -1,4 +1,4 @@
-# TDK CLI — 技術スタック全体を生成して起動
+# Flisk CLI — 技術スタック全体を生成して起動
 
 [![Test coverage](https://raw.githubusercontent.com/flisk-sh/flisk/main/docs/assets/coverage.svg)](https://github.com/flisk-sh/flisk/blob/main/docs/assets/coverage.svg)
 
@@ -7,16 +7,16 @@
 <a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/daily?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
 <a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/weekly?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
 
-空のフォルダから、1 つのコマンドで動くスタックまで。各サービスを `service.json` で定義し、`tdk up` を実行するだけです。マシンに Kubernetes は不要です。
+空のフォルダから、1 つのコマンドで動くスタックまで。各サービスを `service.json` で定義し、`flisk up` を実行するだけです。マシンに Kubernetes は不要です。
 
 クイックスタート:
 
 ```bash
 npm install -g @flisk-sh/flisk
 mkdir shop && cd shop
-tdk project --yes
-tdk resource orders-api --type backend --stack shop --yes
-tdk up shop
+flisk project --yes
+flisk resource orders-api --type backend --stack shop --yes
+flisk up shop
 ```
 
 詳しい説明は [英語版 README](../README.md) をご覧ください。

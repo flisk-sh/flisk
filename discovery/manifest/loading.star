@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📋 TILT SDK - MANIFEST LOADING (CEO Review: rename-service-manifest)
@@ -199,7 +199,7 @@ def _apply_manifest_defaults(manifest, resource_path):
     
     Convention over Configuration:
     - features: ["nats", "prisma"] -> usePrisma=True, useNats=True
-    - domain: "order" -> databaseName="TDK_order"
+    - domain: "order" -> databaseName="Flisk_order"
     - domain: "order" -> traefik.host="order.backend.{project}.local"
     - domain: "order" -> nats.queueGroup="order_backend_svc"
     """
@@ -221,7 +221,7 @@ def _apply_manifest_defaults(manifest, resource_path):
 
     # A bring-your-own service may not speak HTTP, so only an explicit healthCheckPath gives it one. compose.star and
     # l4_runtime_layers.star read a missing path as "no HTTP probe"; the default above would otherwise hide that.
-    # (ManifestParser.normalize applies the same rule, but `tdk up` does not load manifests through it.)
+    # (ManifestParser.normalize applies the same rule, but `flisk up` does not load manifests through it.)
     if result.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath'):
         result.pop('healthCheckPath', None)
 
@@ -349,7 +349,7 @@ def _apply_manifest_defaults(manifest, resource_path):
         # 🎯 SMART BASEPATH for frontends (convention: /{appName})
         # Was '/' + stack + 's', which appended a second 's' to an already-plural
         # stack ("operations" -> /operationss) and collided whenever one stack had
-        # two frontends. The service name is unique and matches the URL `tdk up`
+        # two frontends. The service name is unique and matches the URL `flisk up`
         # prints, so what the CLI advertises is what Traefik actually serves.
         computed_base_path = '/' + app_name
         if 'basePath' not in result:

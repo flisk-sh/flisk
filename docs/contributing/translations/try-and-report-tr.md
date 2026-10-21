@@ -1,21 +1,21 @@
-# TDK'yi deneyin ve gördüklerinizi bildirin
+# Flisk'yi deneyin ve gördüklerinizi bildirin
 
 > Bu sayfa [try-and-report.md](../try-and-report.md) dosyasının çevirisidir. Farklılık olursa İngilizce sürüm geçerlidir.
 
-Kod yazmanıza veya cilalı bir hata raporu hazırlamanıza gerek yok. Bu sayfa TDK'yi nasıl kuracağınızı, bir örneği nasıl çalıştıracağınızı ve kısa bir formla neler olduğunu nasıl bildireceğinizi gösterir. Ham notlar da olabilir: gerçek sayılar içeren yarım bir rapor, hiç rapor olmamasından çok daha yardımcıdır.
+Kod yazmanıza veya cilalı bir hata raporu hazırlamanıza gerek yok. Bu sayfa Flisk'yi nasıl kuracağınızı, bir örneği nasıl çalıştıracağınızı ve kısa bir formla neler olduğunu nasıl bildireceğinizi gösterir. Ham notlar da olabilir: gerçek sayılar içeren yarım bir rapor, hiç rapor olmamasından çok daha yardımcıdır.
 
 [Formu açın](https://github.com/flisk-sh/flisk/issues/new?template=try-it-and-report.yml). Üç kısa zorunlu sorusu vardır (ne denediğiniz, nasıl gittiği ve ne gördüğünüz); geri kalanı isteğe bağlıdır.
 
 ## 1. Kurulum
 
-Docker'ın (Desktop, OrbStack veya Colima) çalışıyor olması ve Tilt 0.25.0 veya daha yeni bir sürümün kurulu olması gerekir. Ardından TDK CLI'ı kurun:
+Docker'ın (Desktop, OrbStack veya Colima) çalışıyor olması ve Tilt 0.25.0 veya daha yeni bir sürümün kurulu olması gerekir. Ardından Flisk CLI'ı kurun:
 
 ```bash
 curl -fsSL https://flisk.sh/install.sh | sh
-tdk --version
+flisk --version
 ```
 
-`tdk --version` çıktısını formun "Your setup" kutusuna kopyalayın. Kurulum başarısız olursa bu da faydalı bir rapordur: hatayı yapıştırın ve işletim sisteminizi yazın.
+`flisk --version` çıktısını formun "Your setup" kutusuna kopyalayın. Kurulum başarısız olursa bu da faydalı bir rapordur: hatayı yapıştırın ve işletim sisteminizi yazın.
 
 ## 2. Örneği alın
 
@@ -29,32 +29,32 @@ cd flisk/examples/one-backend-python
 ## 3. Çalıştırın
 
 ```bash
-tdk project --yes
-time tdk up one-backend-python
+flisk project --yes
+time flisk up one-backend-python
 ```
 
-`tdk up` yalnızca her servis hazır olduğunda `TDK is up.` yazdırır; bu yüzden `time`'ın yazdırdığı `real` satırı, imaj derlemesi ve bağımlılık kurulumu dahil ilk başlatma süresinizdir. Servisin yanıt verip vermediğini kontrol edin:
+`flisk up` yalnızca her servis hazır olduğunda `Flisk is up.` yazdırır; bu yüzden `time`'ın yazdırdığı `real` satırı, imaj derlemesi ve bağımlılık kurulumu dahil ilk başlatma süresinizdir. Servisin yanıt verip vermediğini kontrol edin:
 
 ```bash
 curl --fail http://api.one-backend-python.localhost/api/api-backend/health
 # {"status":"ok","service":"api-backend"}
 ```
 
-80 numaralı port meşgulse TDK başka bir port seçer. Hangisi olduğunu `tdk doctor --json` gösterir.
+80 numaralı port meşgulse Flisk başka bir port seçer. Hangisi olduğunu `flisk doctor --json` gösterir.
 
-Bir şey başarısız olursa `tdk status` ve `tdk doctor` çalıştırın ve yazdırdıklarını yapıştırın. Her şeyi durdurmak için `tdk down` çalıştırın.
+Bir şey başarısız olursa `flisk status` ve `flisk doctor` çalıştırın ve yazdırdıklarını yapıştırın. Her şeyi durdurmak için `flisk down` çalıştırın.
 
 ## 4. İsteğe bağlı: eksik zamanlamalar
 
 Bu üç sayı, [issue 683](https://github.com/flisk-sh/flisk/issues/683) için beklediğimiz verilerdir. İstediğiniz kadarını yapın ve atladıklarınızı belirtin.
 
-**İlk başlatma.** 3. adımdaki `time tdk up` sonucu.
+**İlk başlatma.** 3. adımdaki `time flisk up` sonucu.
 
 **Sıcak başlatma.** Yığını durdurun ve yeniden başlatın. İmaj zaten derlenmiştir, bu yüzden daha hızlı olmalıdır:
 
 ```bash
-tdk down
-time tdk up one-backend-python
+flisk down
+time flisk up one-backend-python
 ```
 
 **Kaydetmeden hazır olmaya.** Tek bir satırı değiştirin ve servisin değişikliği sunmasına kadar geçen süreyi ölçün. `/health` tarafından döndürülen `ok` kelimesini değiştiriyoruz. Örnek README bugün her düzenlemenin imajı yeniden derlediğini söylüyor; bu nedenle milisaniye değil saniyeler bekleyin. Görmek istediğimiz sayı budur:
@@ -69,7 +69,7 @@ echo "save to ready: $(perl -e "printf '%.1f', $(now) - $start") s"
 git checkout -- "$f"   # düzenlemeyi geri al
 ```
 
-**`uvicorn --reload` ile karşılaştırın.** Aradaki farkı görebilmemiz için aynı değişikliği TDK olmadan çalıştırın. Bu, Python 3.12 veya daha yeni bir sürüm gerektirir. İkisinin CPU için yarışmaması için önce `tdk down` çalıştırın ve sanal ortamı projenin dışında tutun:
+**`uvicorn --reload` ile karşılaştırın.** Aradaki farkı görebilmemiz için aynı değişikliği Flisk olmadan çalıştırın. Bu, Python 3.12 veya daha yeni bir sürüm gerektirir. İkisinin CPU için yarışmaması için önce `flisk down` çalıştırın ve sanal ortamı projenin dışında tutun:
 
 ```bash
 cd services/one-backend-python/api
@@ -80,7 +80,7 @@ uvicorn main:app --app-dir src --port 4000 --reload
 
 İkinci bir terminalde `.localhost` URL'si yerine `http://localhost:4000/health` kullanarak örnek klasöründeki "kaydetmeden hazır olmaya" adımını tekrarlayın. Bittiğinde Ctrl-C ile durdurun.
 
-Issue'daki Postgres kısmı önemliyse, Postgres başlarken API tarafından kaydedilen bağlantı hatalarını da not edin. Bunları `tdk logs` gösterir.
+Issue'daki Postgres kısmı önemliyse, Postgres başlarken API tarafından kaydedilen bağlantı hatalarını da not edin. Bunları `flisk logs` gösterir.
 
 ## 5. Formu doldurun
 
@@ -92,18 +92,18 @@ Issue'daki Postgres kısmı önemliyse, Postgres başlarken API tarafından kayd
 |---|---|
 | Ne denediniz? | examples/one-backend-python dosyasını çalıştırdım ve süresini ölçtüm |
 | Nasıl geçti? | Çalıştı, ama bir şey yavaş ya da garipti |
-| Ne gördünüz? | İlk `tdk up` 4 dk 10 sn. Sıcak `tdk up` 35 sn. Kaydetmeden hazır olmaya: TDK ile yaklaşık 6 sn, `uvicorn --reload` ile yaklaşık 1 sn. |
-| Your setup | macOS 15, OrbStack, tdk 1.3.126 |
+| Ne gördünüz? | İlk `flisk up` 4 dk 10 sn. Sıcak `flisk up` 35 sn. Kaydetmeden hazır olmaya: Flisk ile yaklaşık 6 sn, `uvicorn --reload` ile yaklaşık 1 sn. |
+| Your setup | macOS 15, OrbStack, flisk 1.3.126 |
 
 **Başarısız oldu**
 
 | Alan | Örnek |
 |---|---|
-| Ne denediniz? | Yeni klonlanmış depoda `tdk up one-backend-python` |
+| Ne denediniz? | Yeni klonlanmış depoda `flisk up one-backend-python` |
 | Nasıl geçti? | Başarısız oldu |
-| Ne gördünüz? | Yaklaşık 2 dakika sonra `✗ api-backend failed` ile durdu. `tdk status` bunu hata olarak gösteriyor. |
-| Yapıştırılan çıktı | `tdk up` ve `tdk status` tarafından yazdırılan metin |
-| Your setup | WSL2 üzerinde Ubuntu 24.04, Docker Desktop, tdk 1.3.126 |
+| Ne gördünüz? | Yaklaşık 2 dakika sonra `✗ api-backend failed` ile durdu. `flisk status` bunu hata olarak gösteriyor. |
+| Yapıştırılan çıktı | `flisk up` ve `flisk status` tarafından yazdırılan metin |
+| Your setup | WSL2 üzerinde Ubuntu 24.04, Docker Desktop, flisk 1.3.126 |
 
 Raporu daha kolay işlenebilir kılan şeyler; hiçbiri zorunlu değil:
 
@@ -112,4 +112,4 @@ Raporu daha kolay işlenebilir kılan şeyler; hiçbiri zorunlu değil:
 - Yapıştırdığınız her şeyden parolaları ve token'ları çıkarın.
 - Bir beklentiniz varsa neyi beklediğinizi yazın.
 
-Issue'ya genellikle bir iş günü içinde yanıt vermeyi hedefliyoruz. Daha ileri gidip bilerek hata aramak isterseniz [TDK'de hata bulma](../finding-bugs.md) sayfasına bakın.
+Issue'ya genellikle bir iş günü içinde yanıt vermeyi hedefliyoruz. Daha ileri gidip bilerek hata aramak isterseniz [Flisk'de hata bulma](../finding-bugs.md) sayfasına bakın.

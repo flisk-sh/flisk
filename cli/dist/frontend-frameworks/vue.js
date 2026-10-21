@@ -41,7 +41,7 @@ createApp(App).mount('#app');
             {
                 filename: "src/App.vue",
                 content: `<script setup lang="ts">
-const message = 'Frontend resource created with TDK';
+const message = 'Frontend resource created with Flisk';
 </script>
 
 <template>

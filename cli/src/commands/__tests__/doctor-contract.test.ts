@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -143,7 +143,7 @@ describe("doctor environment contract", () => {
       {
         name: "Host Ports",
         didPass: false,
-        message: "Ports TDK needs are taken:\n    5432 (Postgres) is used by a program",
+        message: "Ports Flisk needs are taken:\n    5432 (Postgres) is used by a program",
         fix: "Stop local Postgres",
       },
     ];

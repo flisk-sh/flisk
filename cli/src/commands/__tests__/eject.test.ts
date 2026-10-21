@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import {
   existsSync,
@@ -22,7 +22,7 @@ import {
 
 const originalCwd = process.cwd();
 
-describe("tdk eject", () => {
+describe("flisk eject", () => {
   let tempDir: string;
 
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe("tdk eject", () => {
     console.log = (...args: unknown[]) => output.push(args.join(" "));
 
     try {
-      await ejectCommand.parseAsync(["node", "tdk", "--dry-run"], { from: "node" });
+      await ejectCommand.parseAsync(["node", "flisk", "--dry-run"], { from: "node" });
     } finally {
       console.log = originalLog;
     }
@@ -88,7 +88,7 @@ describe("tdk eject", () => {
     console.log = (...args: unknown[]) => output.push(args.join(" "));
 
     try {
-      await ejectCommand.parseAsync(["node", "tdk", "--yes"], { from: "node" });
+      await ejectCommand.parseAsync(["node", "flisk", "--yes"], { from: "node" });
     } finally {
       console.log = originalLog;
     }
@@ -96,12 +96,12 @@ describe("tdk eject", () => {
     expect(readFileSync(join(tempDir, "EJECTED.md"), "utf-8")).toBe(EJECTED_CONTENT);
     expect(output).toEqual([
       "Wrote EJECTED.md. Nothing was copied, moved or generated.",
-      "Generated files stay in .tdk/.tdk-out/ (git-ignored) and still need TDK inputs.",
+      "Generated files stay in .tdk/.tdk-out/ (git-ignored) and still need Flisk inputs.",
       "Run from the project root: tilt up -f .tdk/.tdk-out/Tiltfile -- --focus=<stack>",
       "Replace <stack> with a stack name under services/, or omit --focus to use the Tiltfile's default phase.",
       "Read EJECTED.md",
     ]);
-    // `tdk up` passes this exact file to Tilt; there is no Tiltfile at the project root.
+    // `flisk up` passes this exact file to Tilt; there is no Tiltfile at the project root.
     expect(TILTFILE_RELATIVE_PATH).toBe(".tdk/.tdk-out/Tiltfile");
     expect(TILT_UP_COMMAND).toContain("-f .tdk/.tdk-out/Tiltfile");
     expect(existsSync(join(tempDir, "Tiltfile"))).toBe(false);
@@ -112,7 +112,7 @@ describe("tdk eject", () => {
     const originalLog = console.log;
     console.log = () => {};
     try {
-      await ejectCommand.parseAsync(["node", "tdk", "--yes"], { from: "node" });
+      await ejectCommand.parseAsync(["node", "flisk", "--yes"], { from: "node" });
     } finally {
       console.log = originalLog;
     }
@@ -120,10 +120,10 @@ describe("tdk eject", () => {
     expect(after.filter((p) => !before.includes(p))).toEqual(["EJECTED.md"]);
 
     expect(EJECTED_CONTENT).not.toMatch(/^Keep:/m);
-    expect(EJECTED_CONTENT).not.toContain("compose files TDK wrote");
+    expect(EJECTED_CONTENT).not.toContain("compose files Flisk wrote");
     expect(EJECTED_CONTENT).toContain("written by Tilt when it runs");
     expect(EJECTED_CONTENT).toContain("`service.json` files");
-    expect(EJECTED_CONTENT).toContain("`tdk config regenerate`");
+    expect(EJECTED_CONTENT).toContain("`flisk config regenerate`");
     expect(EJECTED_CONTENT).toContain("no Tiltfile at the project root");
   });
 
@@ -133,7 +133,7 @@ describe("tdk eject", () => {
     const originalLog = console.log;
     console.log = (...args: unknown[]) => output.push(args.join(" "));
     try {
-      await ejectCommand.parseAsync(["node", "tdk", "--yes"], { from: "node" });
+      await ejectCommand.parseAsync(["node", "flisk", "--yes"], { from: "node" });
     } finally {
       console.log = originalLog;
     }
@@ -141,18 +141,18 @@ describe("tdk eject", () => {
     expect(output[0]).toContain("EJECTED.md already exists and was left unchanged");
   });
 
-  it("requires a TDK project", async () => {
+  it("requires a Flisk project", async () => {
     rmSync(join(tempDir, ".tdk", "project.json"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const { expectExit } = captureExit();
     try {
       await expect(
-        ejectCommand.parseAsync(["node", "tdk", "--dry-run"], { from: "node" }),
+        ejectCommand.parseAsync(["node", "flisk", "--dry-run"], { from: "node" }),
       ).rejects.toThrow("process.exit");
       const output = error.mock.calls.flat().join("\n");
       expect(output).toContain("Could not find project root (no .tdk/project.json found)");
-      expect(output).toContain("Run this from within a TDK project");
-      expect(output).toContain("Run `tdk project --yes` to initialize a new project");
+      expect(output).toContain("Run this from within a Flisk project");
+      expect(output).toContain("Run `flisk project --yes` to initialize a new project");
       expectExit(1);
     } finally {
       error.mockRestore();

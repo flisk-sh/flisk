@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -58,7 +58,7 @@ export function resolveEnvFilePath(projectRoot, requested, options = {}) {
     const trimmed = requested.trim();
     if (!trimmed) {
         throw new EnvFileError("ENV_FILE_INVALID", "No env file was given", [
-            "Pass the path of a project env file, for example: tdk up --env-file .env.integration",
+            "Pass the path of a project env file, for example: flisk up --env-file .env.integration",
         ]);
     }
     const baseDir = options.baseDir ?? process.cwd();
@@ -118,7 +118,7 @@ export function missingRequiredEnvKeys(values) {
 /**
  * Selects the env file of the run and checks that it can carry the run.
  *
- * The selected file replaces the project `.env` for the run, so it has to carry the same keys. TDK
+ * The selected file replaces the project `.env` for the run, so it has to carry the same keys. Flisk
  * does not complete it: a file the user named may well be committed, and writing a generated
  * credential into it would leak one.
  *
@@ -173,8 +173,8 @@ export function assertEngineSupportsEnvFile(projectRoot) {
     }
     if (content.includes(PROJECT_ENV_FILE_VAR))
         return;
-    throw new EnvFileError("ENV_FILE_ENGINE_TOO_OLD", "The TDK engine in this project does not support --env-file yet", [
-        "Run `tdk config regenerate` to refresh the vendored engine, then run `tdk up --env-file ...` again",
+    throw new EnvFileError("ENV_FILE_ENGINE_TOO_OLD", "The Flisk engine in this project does not support --env-file yet", [
+        "Run `flisk config regenerate` to refresh the vendored engine, then run `flisk up --env-file ...` again",
         `The engine copy is at ${VENDORED_ENGINE_ENV_FILE}`,
     ], ENV_FILE_ENGINE_EXIT_CODE);
 }

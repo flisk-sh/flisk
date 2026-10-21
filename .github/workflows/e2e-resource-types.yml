@@ -138,7 +138,7 @@ jobs:
       - uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
       - uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
-      - name: Install TDK
+      - name: Install Flisk
         uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           version: ${{ steps.version.outputs.version }}
@@ -152,7 +152,7 @@ jobs:
           echo "node: $(node --version)"
           echo "docker: $(docker --version)"
           echo "tilt: $(tilt version)"
-          echo "tdk: $(tdk --version)"
+          echo "flisk: $(flisk --version)"
 
       # The suite runs every case in order; each case is grouped in the log so a red case is easy to find.
       - name: Run the suite

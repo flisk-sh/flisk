@@ -62,7 +62,7 @@ export declare function missingRequiredEnvKeys(values: Map<string, string>): str
 /**
  * Selects the env file of the run and checks that it can carry the run.
  *
- * The selected file replaces the project `.env` for the run, so it has to carry the same keys. TDK
+ * The selected file replaces the project `.env` for the run, so it has to carry the same keys. Flisk
  * does not complete it: a file the user named may well be committed, and writing a generated
  * credential into it would leak one.
  *

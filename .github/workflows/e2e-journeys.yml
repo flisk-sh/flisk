@@ -126,12 +126,12 @@ jobs:
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
-      # ubuntu-latest ships a Postgres service already listening on 5432, which fails tdk doctor's host-port check.
+      # ubuntu-latest ships a Postgres service already listening on 5432, which fails flisk doctor's host-port check.
       - name: Free port 5432 (runner's preinstalled Postgres)
         if: matrix.freePostgres
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
-      - name: Install TDK
+      - name: Install Flisk
         if: matrix.install
         uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:

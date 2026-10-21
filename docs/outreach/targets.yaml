@@ -11,7 +11,7 @@ targets:
     channel: pr
     notes: >-
       .github/CONTRIBUTING.md applies a "for Docker" test and requires activity in
-      the last 2 years. Borderline: TDK's job is running local Docker containers,
+      the last 2 years. Borderline: Flisk's job is running local Docker containers,
       but Tilt and Traefik are part of the stack. The PR description must make the
       Docker connection explicit. Reviewer may reject; accept that.
   - url: https://github.com/agarrharr/awesome-cli-apps
@@ -34,7 +34,7 @@ targets:
     notes: >-
       CONTRIBUTING.md: one PR per suggestion, format "[Name](link) - Short
       description.", alphabetical order, no star or age rule. Fit is moderate: the
-      list is about microservice architecture and TDK runs local multi-service stacks.
+      list is about microservice architecture and Flisk runs local multi-service stacks.
   - url: https://github.com/wmariuss/awesome-devops
     list_path: README.md
     why: >-

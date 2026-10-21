@@ -1,5 +1,5 @@
 #!/bin/sh
-# TDK gives a bring-your-own job DATABASE_URL but does not create the database, so create it if missing.
+# Flisk gives a bring-your-own job DATABASE_URL but does not create the database, so create it if missing.
 set -eu
 url="${DATABASE_URL%%\?*}"   # drop the Prisma-style ?schema=public that Postgres refuses as a parameter
 db="${url##*/}"

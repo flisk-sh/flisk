@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { BACKEND_FRAMEWORKS } from "../../backend-frameworks/registry.js";
@@ -127,10 +127,10 @@ function zshShape(source: string): ShellShape {
 
 function fishShape(source: string): ShellShape {
   const names = [
-    ...source.matchAll(/complete -c tdk -f -n '__fish_use_subcommand' -a '([^']+)'/g),
+    ...source.matchAll(/complete -c flisk -f -n '__fish_use_subcommand' -a '([^']+)'/g),
   ].map(([, name]) => name);
   const options: Record<string, string[]> = {};
-  for (const match of source.matchAll(/complete -c tdk -f -n '([^']+)' -l ([a-z0-9-]+)/g)) {
+  for (const match of source.matchAll(/complete -c flisk -f -n '([^']+)' -l ([a-z0-9-]+)/g)) {
     const path = [...match[1].matchAll(/__fish_seen_subcommand_from ([a-z0-9-]+)/g)].map(
       ([, name]) => name,
     );
@@ -139,14 +139,14 @@ function fishShape(source: string): ShellShape {
   }
   const subcommands: Record<string, string[]> = {};
   for (const match of source.matchAll(
-    /complete -c tdk -f -n '__fish_seen_subcommand_from ([\w-]+)' -a '([^']+)' -d '/g,
+    /complete -c flisk -f -n '__fish_seen_subcommand_from ([\w-]+)' -a '([^']+)' -d '/g,
   )) {
     subcommands[match[1]] = [...(subcommands[match[1]] ?? []), match[2]];
   }
   const defaultValues: Record<string, string[]> = {};
   const commandValues: Record<string, string[]> = {};
   for (const match of source.matchAll(
-    /complete -c tdk -f -n '([^']+)' -l ([\w-]+) -d '[^']*' -r -a '([^']*)'/g,
+    /complete -c flisk -f -n '([^']+)' -l ([\w-]+) -d '[^']*' -r -a '([^']*)'/g,
   )) {
     const path = [...match[1].matchAll(/__fish_seen_subcommand_from ([\w-]+)/g)].map(
       ([, name]) => name,
@@ -229,7 +229,7 @@ function globalFlagsOf(shell: Shell): string[] {
       return flagsOf(block?.[1] ?? "");
     }
     case "fish": {
-      return [...source.matchAll(/complete -c tdk -f -l ([a-z0-9-]+)/g)].map(
+      return [...source.matchAll(/complete -c flisk -f -l ([a-z0-9-]+)/g)].map(
         ([, flag]) => `--${flag}`,
       );
     }
@@ -305,7 +305,7 @@ function projectValuesOf(shell: Shell, flag: string): boolean {
       return source.includes(flag === "--stack" ? ":stack:_tdk_stacks" : ":service:_tdk_resources");
     }
     case "fish": {
-      const command = flag === "--stack" ? "tdk stacks --json" : "tdk resources --json";
+      const command = flag === "--stack" ? "flisk stacks --json" : "flisk resources --json";
       const line = source.split("\n").find((entry) => entry.includes(`-l ${flag.slice(2)} -r`));
       return line?.includes(command) ?? false;
     }
@@ -395,7 +395,7 @@ describe("shell completion candidates", () => {
   });
 
   it("offers the resource types of the command that asks for them", () => {
-    // `tdk resource` creates a resource, `tdk resources` filters the resources of the project.
+    // `flisk resource` creates a resource, `flisk resources` filters the resources of the project.
     for (const shell of SHELLS) {
       expect(valuesOf(shell, "resource", "--type"), shell).toEqual([...RESOURCE_TYPE_VALUES]);
       expect(valuesOf(shell, "resources", "--type"), shell).toEqual([...VALID_RESOURCE_TYPES]);
@@ -424,8 +424,8 @@ describe("shell completion candidates", () => {
   it("completes the stacks and the resources of the current project", () => {
     for (const shell of SHELLS) {
       const source = renderCompletionScript(shell, candidates);
-      expect(source, shell).toContain("tdk stacks --json");
-      expect(source, shell).toContain("tdk resources --json");
+      expect(source, shell).toContain("flisk stacks --json");
+      expect(source, shell).toContain("flisk resources --json");
     }
   });
 

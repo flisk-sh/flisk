@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in tdk does not work as expected
+description: Something in flisk does not work as expected
 labels: [bug]
 body:
   - type: markdown
@@ -33,21 +33,21 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. tdk project --yes
-        2. tdk up api
+        1. flisk project --yes
+        2. flisk up api
         3. ...
     validations:
       required: true
   - type: textarea
     id: doctor
     attributes:
-      label: Output of `tdk doctor`
+      label: Output of `flisk doctor`
       render: shell
   - type: input
     id: version
     attributes:
-      label: TDK version
-      description: Output of `tdk --version`
+      label: Flisk version
+      description: Output of `flisk --version`
     validations:
       required: true
   - type: dropdown
@@ -61,5 +61,5 @@ body:
   - type: markdown
     attributes:
       value: >-
-        TDK runs local development on Docker + Tilt. For cluster deployments, keep
-        your Helm or other Kubernetes workflow. See [TDK + Helm](https://github.com/flisk-sh/flisk/blob/main/docs/with-helm.md).
+        Flisk runs local development on Docker + Tilt. For cluster deployments, keep
+        your Helm or other Kubernetes workflow. See [Flisk + Helm](https://github.com/flisk-sh/flisk/blob/main/docs/with-helm.md).

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🐳 TILT SDK - TRAEFIK HELPERS
@@ -130,7 +130,7 @@ def get_api_path(stack, manifest=None):
 
 
 def cli_api_path(resource_name, manifest=None):
-    """API path printed by `tdk up` and served on api.{project}.localhost.
+    """API path printed by `flisk up` and served on api.{project}.localhost.
 
     Matches cli/src/commands/up.ts: `/api/{name}` with a trailing `-api` stripped.
     """

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { importInvocation } from "../import.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const tdk = path.join(repoRoot, "cli", "bin", "tdk.js");
+const flisk = path.join(repoRoot, "cli", "bin", "tdk.js");
 
 function projectJson(): string {
   return JSON.stringify({
@@ -42,7 +42,7 @@ function writeProject(root: string, service: Record<string, unknown>): string {
 }
 
 function run(root: string, args: string[]) {
-  return spawnSync(process.execPath, [tdk, ...args], { cwd: root, encoding: "utf-8" });
+  return spawnSync(process.execPath, [flisk, ...args], { cwd: root, encoding: "utf-8" });
 }
 
 // Each case spawns the built CLI. Under the parallel suite and a loaded machine that exceeds 20-30s, so the budget is 120s.
@@ -117,8 +117,8 @@ describe("config command boundaries", () => {
     try {
       const verify = run(root, ["config", "verify"]);
       expect(verify.status).toBe(1);
-      expect(verify.stdout).toContain("tdk config migrate");
-      expect(verify.stdout).not.toContain("tdk config regenerate");
+      expect(verify.stdout).toContain("flisk config migrate");
+      expect(verify.stdout).not.toContain("flisk config regenerate");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

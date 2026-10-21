@@ -1,10 +1,10 @@
 ## Context
 
-Smoke records are written beneath `.tdk/smoke/<service>/<step-slug>/`. The latest response is stored in `body.txt`, and a passing response is copied to `last-success-body.txt`. That text is kept exactly as the service returned it. The repository has shared helpers in `cli/src/utils/secret-redaction.ts` (`envSecretValues()` and `redactSecrets()`), which `tdk logs` and `tdk doctor` already use, but the smoke runner does not.
+Smoke records are written beneath `.tdk/smoke/<service>/<step-slug>/`. The latest response is stored in `body.txt`, and a passing response is copied to `last-success-body.txt`. That text is kept exactly as the service returned it. The repository has shared helpers in `cli/src/utils/secret-redaction.ts` (`envSecretValues()` and `redactSecrets()`), which `flisk logs` and `flisk doctor` already use, but the smoke runner does not.
 
-`ensureGitignore()` already knows about `.tdk/smoke/`, but it is currently called only from the `tdk project` flows (`cli/src/commands/project.ts:323` and `:494`). A project that gains smoke configuration in another way can therefore write response bodies with no matching ignore entry, and `examples/tdk-example/.gitignore` has the gap today: `git check-ignore -v .tdk/smoke/orders-api/read-back/body.txt` exits 1 there, while the same check at the repository root prints `.gitignore:47:.tdk/smoke/`.
+`ensureGitignore()` already knows about `.tdk/smoke/`, but it is currently called only from the `flisk project` flows (`cli/src/commands/project.ts:323` and `:494`). A project that gains smoke configuration in another way can therefore write response bodies with no matching ignore entry, and `examples/tdk-example/.gitignore` has the gap today: `git check-ignore -v .tdk/smoke/orders-api/read-back/body.txt` exits 1 there, while the same check at the repository root prints `.gitignore:47:.tdk/smoke/`.
 
-Records intentionally survive `tdk down`. The `smoke` suite in `.github/workflows/e2e-journeys.yml` uploads them as `smoke-records-<run id>-<attempt>` with 14-day retention.
+Records intentionally survive `flisk down`. The `smoke` suite in `.github/workflows/e2e-journeys.yml` uploads them as `smoke-records-<run id>-<attempt>` with 14-day retention.
 
 The same raw response text has three more sinks than the files: the failure line prints a 200-character snippet of the body (`snippet()` in `cli/src/utils/smoke.ts`), and `latest.json` keeps the request URL and the error text. A secret in a path or in an error message reaches CI logs and the artifact even when the body file is handled.
 
@@ -12,7 +12,7 @@ The same raw response text has three more sinks than the files: the failure line
 
 **Goals:**
 
-- Keep the records out of git by default, whatever route the project took into TDK.
+- Keep the records out of git by default, whatever route the project took into Flisk.
 - Redact the secret values the project already knows about, from every place smoke text is shown or stored.
 - Keep the diagnostic value of a smoke record: status, method, URL shape, and the body shape stay readable.
 - Say plainly where the records live, how long they live, and who can read the CI copy.
@@ -21,18 +21,18 @@ The same raw response text has three more sinks than the files: the failure line
 
 - A general-purpose secret scanner. Redaction covers the values the existing helper recognises, and nothing more.
 - Changing the retry rules, the readiness gate, the 64 KiB cap, the record layout, or the CI upload and its retention.
-- Cleaning up old records on `tdk down`, or scrubbing bodies that were already written.
+- Cleaning up old records on `flisk down`, or scrubbing bodies that were already written.
 - A manifest flag to turn redaction off. Redaction is not optional.
 
 ## Decisions
 
 ### Ensure ignore protection at the record-writing path
 
-Ensure the project `.gitignore` ignores `.tdk/smoke/` before `tdk up` writes its first smoke record. Reuse `ensureGitignore()` rather than maintaining a second list of generated paths.
+Ensure the project `.gitignore` ignores `.tdk/smoke/` before `flisk up` writes its first smoke record. Reuse `ensureGitignore()` rather than maintaining a second list of generated paths.
 
 Two consequences of reusing that helper are accepted deliberately:
 
-- It adds the whole TDK set (`.env`, `.tdk/.tdk-out/`, `.tdk/.project-id`, `.tdk/smoke/`, `node_modules/`), not only `.tdk/smoke/`. Those are the same entries `tdk project` writes, and a project that has none of them has the same problem for every one of them.
+- It adds the whole Flisk set (`.env`, `.tdk/.tdk-out/`, `.tdk/.project-id`, `.tdk/smoke/`, `node_modules/`), not only `.tdk/smoke/`. Those are the same entries `flisk project` writes, and a project that has none of them has the same problem for every one of them.
 - It creates the file when it is missing. That is noise in a directory that is not a git working tree, so the CLI only calls it when the project root or one of its ancestors holds a `.git` entry (a file in a worktree, a directory in a clone). Outside a git working tree there is nothing to protect, so no `.gitignore` is created and no warning is printed.
 
 If the ignore entry cannot be ensured (a read-only `.gitignore`, for example), the CLI warns before writing the records and says that Git may track them. It never reports the directory as protected when it could not check.
@@ -55,22 +55,22 @@ Redaction is not a general scanner. It covers the values in a readable `.env`; i
 
 ### Where the redaction is wired
 
-`SmokeDeps` in `cli/src/utils/smoke.ts` already carries the injectable collaborators (`fetch`, `now`, `recordDir`, `sleep`), and `tdk up` builds it at `cli/src/commands/up.ts:687`. The runner gains a redaction hook and a warning hook there, and `tdk up` resolves them from `envSecretValues(projectRoot)` and `redactSecrets()`. The runner keeps working without them (no `.env`, or a caller that does not want redaction), so the unit tests can drive it directly.
+`SmokeDeps` in `cli/src/utils/smoke.ts` already carries the injectable collaborators (`fetch`, `now`, `recordDir`, `sleep`), and `flisk up` builds it at `cli/src/commands/up.ts:687`. The runner gains a redaction hook and a warning hook there, and `flisk up` resolves them from `envSecretValues(projectRoot)` and `redactSecrets()`. The runner keeps working without them (no `.env`, or a caller that does not want redaction), so the unit tests can drive it directly.
 
-### Keep records after `tdk down`, but explain their lifecycle
+### Keep records after `flisk down`, but explain their lifecycle
 
-Do not add cleanup on `tdk down` in this change: retaining the latest failure and the last passing response is what makes a regression diagnosable after the containers stop. Instead document that local records remain under `.tdk/smoke/` until they are deleted or overwritten by later runs, and give `rm -rf .tdk/smoke/` as the cleanup command.
+Do not add cleanup on `flisk down` in this change: retaining the latest failure and the last passing response is what makes a regression diagnosable after the containers stop. Instead document that local records remain under `.tdk/smoke/` until they are deleted or overwritten by later runs, and give `rm -rf .tdk/smoke/` as the cleanup command.
 
 Document that the `smoke` suite of `.github/workflows/e2e-journeys.yml` uploads the records as a `smoke-records-*` artifact with 14-day retention, and that anyone who can read the workflow run in this public repository can download that artifact. The upload and the retention are not changed here.
 
 ## Risks / Trade-offs
 
 - Redaction only catches values the shared helper recognises. A user must not read the result as a full secret scanner, and the documentation says so next to the feature.
-- Short secrets (under 8 characters) are not masked. That is the existing helper's rule, and changing it would change `tdk logs` and `tdk doctor` too.
-- Adding the ignore entry from `tdk up` means a `tdk up` can modify `.gitignore`. It only does so inside a git working tree, it only appends missing TDK entries, and it is idempotent.
+- Short secrets (under 8 characters) are not masked. That is the existing helper's rule, and changing it would change `flisk logs` and `flisk doctor` too.
+- Adding the ignore entry from `flisk up` means a `flisk up` can modify `.gitignore`. It only does so inside a git working tree, it only appends missing Flisk entries, and it is idempotent.
 - A warning does not prevent tracking. It makes the risk explicit before the files exist.
 - Already committed records are not removed and old history is not rewritten. The migration note tells users to review and delete what they no longer want and to rotate anything that was exposed.
-- Keeping the records after `tdk down` preserves diagnostic utility, so users have to delete them when they no longer need them.
+- Keeping the records after `flisk down` preserves diagnostic utility, so users have to delete them when they no longer need them.
 
 ## Migration Plan
 

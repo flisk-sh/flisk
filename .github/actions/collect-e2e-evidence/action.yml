@@ -2,7 +2,7 @@
 # cleanup removes the containers whose logs it reads. The bundle is uploaded for 7 days, named by case and run.
 # Bounds and redaction live in scripts/e2e/collect-evidence.sh.
 name: Collect E2E failure evidence
-description: Bundle Docker and Tilt logs, service status, tdk doctor output, and generated project files from a failed E2E job, redacted and bounded, and upload it for 7 days
+description: Bundle Docker and Tilt logs, service status, flisk doctor output, and generated project files from a failed E2E job, redacted and bounded, and upload it for 7 days
 inputs:
   name:
     description: Case or job label; names the artifact and its folder (letters, digits, dashes)

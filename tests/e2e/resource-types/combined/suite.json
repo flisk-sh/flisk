@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "combined",
-  "description": "One stack that boots an agent and a worker side by side (#1290): one tdk project, two tdk resource calls, one tdk up, both listed in tdk status, the worker logs its start line and the agent answers /ready through Traefik. Nightly, on release and by hand; a pull request runs only the type it changes.",
+  "description": "One stack that boots an agent and a worker side by side (#1290): one flisk project, two flisk resource calls, one flisk up, both listed in flisk status, the worker logs its start line and the agent answers /ready through Traefik. Nightly, on release and by hand; a pull request runs only the type it changes.",
   "paths": [
     "cli/src/commands/resource.ts",
     "cli/src/commands/agent.ts",

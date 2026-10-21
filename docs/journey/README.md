@@ -1,12 +1,12 @@
-# The TDK Journey 🗺️
+# The Flisk Journey 🗺️
 
-![The TDK Journey map](https://raw.githubusercontent.com/flisk-sh/flisk/journey-map/docs/journey/map.svg)
+![The Flisk Journey map](https://raw.githubusercontent.com/flisk-sh/flisk/journey-map/docs/journey/map.svg)
 
-![The TDK Hacktoberfest map](https://raw.githubusercontent.com/flisk-sh/flisk/journey-map/docs/journey/hacktoberfest.svg)
+![The Flisk Hacktoberfest map](https://raw.githubusercontent.com/flisk-sh/flisk/journey-map/docs/journey/hacktoberfest.svg)
 
 *The second map shows only the quests labelled [`hacktoberfest`](https://github.com/flisk-sh/flisk/labels/hacktoberfest), with a countdown to 31 October.*
 
-Contributing to TDK is a small adventure. Pick an island, finish quests, and rank up, Codewars style.
+Contributing to Flisk is a small adventure. Pick an island, finish quests, and rank up, Codewars style.
 
 ## How to play
 
@@ -33,8 +33,8 @@ Your rank is simply the hardest tier you have had merged. Merge a 7 kyu and you 
 | Island | Head issue | Good for |
 |---|---|---|
 | 🏝️ CLI Cove | [#459](https://github.com/flisk-sh/flisk/issues/459) | Commands, flags, error messages |
-| 🌊 UI Lagoon | [#460](https://github.com/flisk-sh/flisk/issues/460) | The interactive `tdk ui` (React + Ink) |
-| 🪸 Doctor Reef | [#461](https://github.com/flisk-sh/flisk/issues/461) | `tdk doctor` checks |
+| 🌊 UI Lagoon | [#460](https://github.com/flisk-sh/flisk/issues/460) | The interactive `flisk ui` (React + Ink) |
+| 🪸 Doctor Reef | [#461](https://github.com/flisk-sh/flisk/issues/461) | `flisk doctor` checks |
 | ⚓ Docs Harbor | [#462](https://github.com/flisk-sh/flisk/issues/462) | Guides and README, no code needed |
 | 🧪 Test Atoll | [#463](https://github.com/flisk-sh/flisk/issues/463) | Tests; the safest way to learn the code |
 | 🌋 Engine Volcano | [#464](https://github.com/flisk-sh/flisk/issues/464) | Starlark engine and discovery |

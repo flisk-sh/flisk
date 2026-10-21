@@ -1,4 +1,4 @@
-# TDK documentation
+# Flisk documentation
 
 [![Test coverage](https://raw.githubusercontent.com/flisk-sh/flisk/main/docs/assets/coverage.svg)](https://github.com/flisk-sh/flisk/blob/main/docs/assets/coverage.svg)
 
@@ -7,20 +7,20 @@
 - [Run one backend locally](../examples/one-backend/README.md)
 - [Run one Python backend locally](../examples/one-backend-python/README.md)
 - [Full multi-service example](../examples/tdk-example/README.md)
-- [Mega cheat sheet](cheat-sheet.md): every `tdk` command, alias and flag
+- [Mega cheat sheet](cheat-sheet.md): every `flisk` command, alias and flag
 - [Configuration and editor schemas](configuration.md)
 - [Resource features](resource-features.md): code generators, Prisma, and `featuresEnabled`
-- [Generated service files](generated-files.md): what TDK writes from `service.json`, and how to handle drift
+- [Generated service files](generated-files.md): what Flisk writes from `service.json`, and how to handle drift
 - [Environment, params and secrets](environment.md): the project `.env`, `params`, `secrets` and auth
 - [Operator runbook](operator-runbook.md): install matrix, version minimums, releases, license key
 - [WSL2 setup](wsl2.md)
-- [Install and use TDK alongside Helm](with-helm.md)
+- [Install and use Flisk alongside Helm](with-helm.md)
 
-## Understand TDK
+## Understand Flisk
 
 - [Project overview and repository map](project-overview.md)
-- [How tdk up works](how-tdk-up-works.md): lifecycle, port planning, focus filtering, and shutdown
-- [Architecture](ARCHITECTURE.md): how tdk, the engine, and discovery fit together
+- [How flisk up works](how-tdk-up-works.md): lifecycle, port planning, focus filtering, and shutdown
+- [Architecture](ARCHITECTURE.md): how flisk, the engine, and discovery fit together
 - [Features](FEATURES.md)
 - [Topology](TOPOLOGY.md)
 - [Tool comparison: docker-compose, Tilt, Skaffold, DevSpace, kind](comparison.md)
@@ -29,26 +29,26 @@
 
 ## Guides
 
-- [Pilot TDK on a real repository](adopt-flisk.md): a team lead's guide to trying TDK in an afternoon
+- [Pilot Flisk on a real repository](adopt-flisk.md): a team lead's guide to trying Flisk in an afternoon
 - [Scope and non-goals](scope.md): local development only, what differs from production, which Dockerfile you ship
 - [Layout and ownership](layout.md): one project or one per repo, services in other repos, name clashes, CODEOWNERS, layouts for 5, 20 and 50 services
 - [Pilot scorecard](pilot-scorecard.md): record the same measurements and decision at the end of a pilot
 - [FAQ for agencies and multi-client teams](faq-teams.md): honest answers on stacks, proxies, Windows, licence and exit
-- [Running TDK in CI](ci.md): a GitHub Actions workflow for your repository: `tdk config verify`, then `tdk up` and a health wait
-- [Gradual adoption](gradual-adoption.md): what TDK adds to an existing repository, what to commit, and how to remove it
-- [Troubleshooting](troubleshooting.md): tdk and Tilt messages as printed, with cause, fix and how each was checked
+- [Running Flisk in CI](ci.md): a GitHub Actions workflow for your repository: `flisk config verify`, then `flisk up` and a health wait
+- [Gradual adoption](gradual-adoption.md): what Flisk adds to an existing repository, what to commit, and how to remove it
+- [Troubleshooting](troubleshooting.md): flisk and Tilt messages as printed, with cause, fix and how each was checked
 - [Troubleshoot L1 (base image)](troubleshoot-l1.md): Docker build failures in the foundational OS and Bun runtime layer
 - [Troubleshoot L2 (dependency layer)](troubleshoot-l2.md): Docker build failures in package manifests, lockfiles, and dependency caching
-- [Leaving TDK](leaving-flisk.md): what `tdk eject` really does, what stays usable without TDK, what you lose
+- [Leaving Flisk](leaving-flisk.md): what `flisk eject` really does, what stays usable without Flisk, what you lose
 - [Local data: reset, seed, snapshot](data.md): where Postgres data lives and how to reset it
 - [Testing webhooks locally](local-webhooks.md): a proposed recipe for replaying duplicate, retried and tampered provider deliveries without the provider
 - [Upgrading and version pinning](upgrading.md): `minTdkVersion`, installing a specific version, what is versioned
-- [Security: network calls, secrets and supply chain](security.md): what TDK sends, where secrets live, image tags and release checks
-- [Smoke check](smoke.md): `tdk up` checks a service through the URL it prints
-- [Agent hosts](agent-hosts.md): Dev Containers, Codespaces and WebContainers, and what `tdk doctor` reports for them
-- [AI agents in TDK](agents/ai-agents.md): hosting agents, persistent checkpoint volumes, session routing, and recipes
-- [TDK MCP setup](agent-tooling/flisk-mcp-setup.md): install TDK and connect Codex or Claude Code over local stdio
-- [TDK MCP quick guide](agent-tooling/flisk-mcp.md): the tools a connected client exposes, and how to target a project
+- [Security: network calls, secrets and supply chain](security.md): what Flisk sends, where secrets live, image tags and release checks
+- [Smoke check](smoke.md): `flisk up` checks a service through the URL it prints
+- [Agent hosts](agent-hosts.md): Dev Containers, Codespaces and WebContainers, and what `flisk doctor` reports for them
+- [AI agents in Flisk](agents/ai-agents.md): hosting agents, persistent checkpoint volumes, session routing, and recipes
+- [Flisk MCP setup](agent-tooling/flisk-mcp-setup.md): install Flisk and connect Codex or Claude Code over local stdio
+- [Flisk MCP quick guide](agent-tooling/flisk-mcp.md): the tools a connected client exposes, and how to target a project
 - [Bring-your-own resources](byo.md): wrap an existing service or image, one-shot jobs, `--restart`
 - [Frontend framework providers](frontend-framework-providers.md): add a Vite framework (React, Vue, Svelte, Preact, Lit, Solid, Qwik, plain TypeScript)
 - [MCP resources](mcp.md): `--type mcp` scaffolds a Model Context Protocol server
@@ -56,7 +56,7 @@
 
 ## Recipes and examples
 
-- [Recipes](recipes/): using TDK next to other tools. [moon](recipes/moon.md), [Rsbuild](recipes/rsbuild.md)
+- [Recipes](recipes/): using Flisk next to other tools. [moon](recipes/moon.md), [Rsbuild](recipes/rsbuild.md)
 - [Bring-your-own examples](../examples/byo/README.md): one folder per framework, each with its own README and a check command
 - [One-shot job examples](../examples/byo-jobs/README.md): database migrations (dbmate, Atlas, Ptah, Prisma, TypeORM, MikroORM, Drizzle) that run once and exit
 - [Worked example: a real shop](examples/shop-real.md)
@@ -64,7 +64,7 @@
 ## Reference
 
 - [Machine-readable CLI](reference/machine-readable-cli.md): JSON shapes, exit codes, an agent polling example
-- [Doctor contract](reference/doctor-contract.md): `tdk doctor --json` schema and migration notes
+- [Doctor contract](reference/doctor-contract.md): `flisk doctor --json` schema and migration notes
 
 ## Benchmarks
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Pure transform for AI "Write spec" buttons on issue bodies. This is the
 // only implementation; .github/workflows/ai-spec-buttons.yml checks the
@@ -56,7 +56,7 @@ export const SKIP_TEMPLATE_SIGNATURES = {
   ],
   "premium_license": [
     "### Which paid features do you need?",
-    "### What are you building with TDK?",
+    "### What are you building with Flisk?",
   ],
 };
 
