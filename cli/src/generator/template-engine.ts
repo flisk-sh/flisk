@@ -694,7 +694,7 @@ const REQUIRED_DOCKER_TEMPLATE_FILES = [
 
 // Walk up from this module's own location looking for a directory that has
 // both Tiltfile and engine/ next to it - true when cli/ and engine/ ship
-// together in the same repo (the public tdk-cli-core layout, where a plain
+// together in the same repo (the public flisk layout, where a plain
 // `git clone` + `bun run` needs zero extra config to find the engine).
 function findSelfContainedEngineRoot(): string | null {
   let dir = import.meta.dirname || process.cwd();
@@ -780,7 +780,7 @@ async function vendorTdkExtension(projectRoot: string): Promise<void> {
 
   // Source resolution order:
   //   1. $TDK_EXTENSION_SOURCE (explicit override)
-  //   2. Self-contained repo (engine/ ships next to cli/ - public tdk-cli-core)
+  //   2. Self-contained repo (engine/ ships next to cli/ - public flisk)
   //   3. Executable-adjacent checkout (bundled installs)
   //   4. Relative ../tdk-cli sibling (monorepo maintainer layout)
   const sources: string[] = [];

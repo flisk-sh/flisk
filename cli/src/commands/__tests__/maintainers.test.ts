@@ -36,7 +36,7 @@ describe("tdk maintainers check", () => {
   });
 
   it("does not count placeholder companies", () => {
-    const result = check(`${header}| A | a | Acme |\n| B | b | TBD |\n| C | c | tdk-landscape |\n`);
+    const result = check(`${header}| A | a | Acme |\n| B | b | TBD |\n| C | c | flisk-sh |\n`);
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain("1 maintainers");
   });

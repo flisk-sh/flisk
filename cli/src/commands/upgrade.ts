@@ -111,7 +111,7 @@ export function detectInstallation(): InstallInfo {
       return { method: "git", path: cliRoot };
     }
 
-    // Standalone prebuilt binary from tdk-cli-releases (installed to e.g. /usr/local/bin),
+    // Standalone prebuilt binary from flisk-sh/releases (installed to e.g. /usr/local/bin),
     // not a node_modules/.bun link and not sitting inside a git checkout.
     if (isStandaloneBinary(realPath)) {
       return { method: "binary", path: realPath };
@@ -382,12 +382,9 @@ export async function getLatestVersion(): Promise<string | null> {
   try {
     let result: string;
     if (isWindows()) {
-      const response = await fetch(
-        "https://registry.npmjs.org/@tdk-landscape%2ftdk-cli-core/latest",
-        {
-          signal: AbortSignal.timeout(10_000),
-        },
-      );
+      const response = await fetch("https://registry.npmjs.org/@flisk-sh%2fflisk/latest", {
+        signal: AbortSignal.timeout(10_000),
+      });
       if (!response.ok) throw new Error(`npm registry returned ${response.status}`);
       const latest = (await response.json()) as { version?: string };
       result = latest.version ?? "";

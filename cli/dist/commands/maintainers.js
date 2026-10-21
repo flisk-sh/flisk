@@ -6,7 +6,7 @@ import { Command } from "commander";
 export const MIN_MAINTAINERS = 3;
 export const MIN_COMPANIES = 2;
 const REQUIRED_COLUMNS = ["name", "github id", "company"];
-const PLACEHOLDER_COMPANIES = new Set(["", "tbd", "unknown", "tdk-landscape"]);
+const PLACEHOLDER_COMPANIES = new Set(["", "tbd", "unknown", "flisk-sh"]);
 function splitRow(line) {
     return line
         .trim()

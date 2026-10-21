@@ -369,12 +369,12 @@ describe("Windows upgrade installation routing", () => {
     expect(
       classifyRunningInstall(
         "C:\\Program Files\\nodejs\\node.exe",
-        "C:\\Users\\dev\\node_modules\\@tdk-landscape\\tdk-cli-core\\bin\\tdk.js",
+        "C:\\Users\\dev\\node_modules\\@flisk-sh\\flisk\\bin\\tdk.js",
         "win32",
       ),
     ).toEqual({
       method: "npm",
-      path: "C:\\Users\\dev\\node_modules\\@tdk-landscape\\tdk-cli-core\\bin\\tdk.js",
+      path: "C:\\Users\\dev\\node_modules\\@flisk-sh\\flisk\\bin\\tdk.js",
     });
   });
 

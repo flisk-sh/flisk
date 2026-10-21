@@ -80,7 +80,7 @@ export function detectInstallation() {
         if (existsSync(join(cliRoot, ".git"))) {
             return { method: "git", path: cliRoot };
         }
-        // Standalone prebuilt binary from tdk-cli-releases (installed to e.g. /usr/local/bin),
+        // Standalone prebuilt binary from flisk-sh/releases (installed to e.g. /usr/local/bin),
         // not a node_modules/.bun link and not sitting inside a git checkout.
         if (isStandaloneBinary(realPath)) {
             return { method: "binary", path: realPath };
@@ -329,7 +329,7 @@ export async function getLatestVersion() {
     try {
         let result;
         if (isWindows()) {
-            const response = await fetch("https://registry.npmjs.org/@tdk-landscape%2ftdk-cli-core/latest", {
+            const response = await fetch("https://registry.npmjs.org/@flisk-sh%2fflisk/latest", {
                 signal: AbortSignal.timeout(10_000),
             });
             if (!response.ok)
