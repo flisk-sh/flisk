@@ -5,7 +5,7 @@ import { Command } from "commander";
  * pinned version so a push to its main branch cannot change what `tdk import` does. Move the pin
  * when a new importer is published. `TDK_IMPORT_PACKAGE` overrides the package spec.
  */
-export declare const IMPORT_PACKAGE = "@tdk-landscape/tdk-import@0.2.1";
+export declare const IMPORT_PACKAGE = "flisk-import@0.2.2";
 /** Minimum TDK core release supporting buildContext required by tdk import (#634). */
 export declare const MIN_CORE_VERSION = "1.3.104";
 /** Recommended core version with automatic Tiltfile bootstrapping for imported stacks (#1018). */
@@ -40,7 +40,7 @@ export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv
     args: string[];
     shell: boolean;
 };
-/** Runs tdk-import with the caller's terminal and resolves to its exit code. */
+/** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export declare function runImport(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<number>;
 export declare function buildForwardedImportArgs(args: string[], options?: {
     yes?: boolean;

@@ -10,7 +10,7 @@ import { getPackageVersion } from "../utils/paths.js";
  * pinned version so a push to its main branch cannot change what `tdk import` does. Move the pin
  * when a new importer is published. `TDK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "@tdk-landscape/tdk-import@0.2.1";
+export const IMPORT_PACKAGE = "flisk-import@0.2.2";
 
 /** Minimum TDK core release supporting buildContext required by tdk import (#634). */
 export const MIN_CORE_VERSION = "1.3.104";
@@ -133,7 +133,7 @@ export function importInvocation(
   };
 }
 
-/** Runs tdk-import with the caller's terminal and resolves to its exit code. */
+/** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export function runImport(
   args: string[],
   spawnFn: SpawnFn = spawn,
@@ -188,8 +188,8 @@ export function buildForwardedImportArgs(
 }
 
 export const importCommand = addYesOption(new Command("import"))
-  .description("Import the services in a directory's root docker-compose.yml (runs tdk-import)")
-  .argument("[args...]", "Passed to tdk-import: [dir] --dry-run --yes --force")
+  .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
+  .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
   .option("-f, --force", "Overwrite an existing service.json", false)
   .allowUnknownOption()
   .helpOption(false)

@@ -164,7 +164,7 @@ const EXEMPT: Record<string, string> = {
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
   "down --yes":
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
-  "import --yes": "spawns npx @tdk-landscape/tdk-import over the network",
+  "import --yes": "spawns npx flisk-import over the network",
   "logs --json":
     "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
   "restart --json":

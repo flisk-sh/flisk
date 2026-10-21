@@ -41,7 +41,7 @@ For a file-by-file guide to service outputs, see [Generated service files](gener
 
 ## Importing an existing repo
 
-`tdk import` runs the published importer, [`@tdk-landscape/tdk-import`](https://www.npmjs.com/package/@tdk-landscape/tdk-import), at the exact version pinned in `cli/src/commands/import.ts` (`IMPORT_PACKAGE`). `TDK_IMPORT_PACKAGE` overrides it. When a new importer is published, move the pin in a CLI release.
+`tdk import` runs the published importer, [`flisk-import`](https://www.npmjs.com/package/flisk-import), at the exact version pinned in `cli/src/commands/import.ts` (`IMPORT_PACKAGE`). `TDK_IMPORT_PACKAGE` overrides it. When a new importer is published, move the pin in a CLI release.
 
 It reads one file, the root `docker-compose.yml`, and writes one bring-your-own `service.json` per Compose service, plus `.tdk/project.json` if the directory is not a TDK project. It does not read other Compose file names, override files, Dockerfiles, `package.json` or Procfiles, and it names what it did not translate. See the importer's [import.md](https://github.com/flisk-sh/flisk-import/blob/main/docs/import.md) for the mapping.
 
