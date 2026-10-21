@@ -190,7 +190,7 @@ graph TB
 ```
 Package name → Directory path (automatic)
 
-@tdk-landscape/eventing → platform/packages/eventing/src
+@flisk-sh/eventing → platform/packages/eventing/src
 @tdk/domain            → shared-ddd-layers/domain/src
 ```
 

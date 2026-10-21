@@ -57,10 +57,10 @@ describe("summarizeTiltBuildError: host port conflicts", () => {
 
 describe("summarizeTiltBuildError: private registry / ConnectionRefused", () => {
   it("formats single ConnectionRefused package error", () => {
-    const raw = "ConnectionRefused downloading package manifest @tdk-landscape/observability";
+    const raw = "ConnectionRefused downloading package manifest @flisk-sh/observability";
     const summary = summarizeTiltBuildError(raw);
     expect(summary).toContain(
-      "private registry ConnectionRefused for @tdk-landscape/observability",
+      "private registry ConnectionRefused for @flisk-sh/observability",
     );
     expect(summary).toContain("Verdaccio (:4873) is down or unreachable");
   });

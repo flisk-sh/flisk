@@ -311,7 +311,7 @@ export function checkPrivateNpmRegistry(exec = execSync, projectRoot = findProje
     return {
         name: "Private npm registry",
         didPass: false,
-        message: `Private npm registry (Verdaccio) is not reachable at ${registryUrl}. Docker ImageBuilds will fail with ConnectionRefused downloading package manifests for @tdk-landscape/* and project-scoped packages.`,
+        message: `Private npm registry (Verdaccio) is not reachable at ${registryUrl}. Docker ImageBuilds will fail with ConnectionRefused downloading package manifests for @flisk-sh/* and project-scoped packages.`,
         fix: "Start the registry with `bun run verdaccio:start` (or `docker compose -f docker-compose.verdaccio.yml up -d`), publish packages with `bun run publish:all` / `scripts/build/publish-to-verdaccio.sh`, then `tilt trigger` failed resources or re-run `tdk up`.",
     };
 }

@@ -745,15 +745,15 @@ describe("doctor ingress + tilt runtime checks", () => {
 
   it("summarizes ConnectionRefused package manifest errors from build logs", () => {
     const raw = [
-      "error: ConnectionRefused downloading package manifest @tdk-landscape/eventing",
-      "error: ConnectionRefused downloading package manifest @tdk-landscape/identity-js-sdk",
-      "error: ConnectionRefused downloading package manifest @tdk-landscape/observability",
+      "error: ConnectionRefused downloading package manifest @flisk-sh/eventing",
+      "error: ConnectionRefused downloading package manifest @flisk-sh/identity-js-sdk",
+      "error: ConnectionRefused downloading package manifest @flisk-sh/observability",
       'ImageBuild: process "/bin/sh -c bun install --production --cache-dir=/cache/bun" did not complete successfully: exit code: 1',
     ].join("\n");
 
     const summary = summarizeTiltBuildError(raw);
     expect(summary).toContain("ConnectionRefused");
-    expect(summary).toContain("@tdk-landscape/eventing");
+    expect(summary).toContain("@flisk-sh/eventing");
     expect(summary).toContain("Verdaccio");
   });
 

@@ -265,7 +265,7 @@ sequenceDiagram
     participant Docker as Docker Generator
     participant Service as Service Container
     
-    Dev->>File: bun add @tdk-landscape/eventing
+    Dev->>File: bun add @flisk-sh/eventing
     File->>Tilt: File change detected
     Tilt->>DepSync: Trigger sync
     DepSync->>DepSync: Extract internal deps
@@ -277,7 +277,7 @@ sequenceDiagram
     Docker->>Service: Rebuild container
     Service-->>Dev: Service restarted with new dependency
     
-    Note over DepSync,Docker: Convention over Configuration:<br/>@tdk-landscape/platform-x → platform/packages/platform-x/src
+    Note over DepSync,Docker: Convention over Configuration:<br/>@flisk-sh/platform-x → platform/packages/platform-x/src
 ```
 
 ---
