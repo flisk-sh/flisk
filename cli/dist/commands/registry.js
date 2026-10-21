@@ -17,6 +17,7 @@ import { restartCommand } from "./restart.js";
 import { runtimeCommand } from "./runtime.js";
 import { stackCommand } from "./stack.js";
 import { stacksCommand } from "./stacks.js";
+import { openCommand } from "./open.js";
 import { statusCommand } from "./status.js";
 import { uiCommand } from "./ui.js";
 import { upCommand } from "./up.js";
@@ -34,6 +35,7 @@ export function getRegisteredCommands() {
         logsCommand,
         ejectCommand,
         importCommand,
+        openCommand,
         statusCommand,
         stackCommand,
         resourceCommand,

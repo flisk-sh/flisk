@@ -12,7 +12,9 @@ export interface HealthProbe extends HealthTarget {
     error?: string;
 }
 export declare function getProjectName(): string;
-export declare function resolveSubdomainBases(ingressPort?: number): {
+/** The project name of a specific project root, for tools that work outside the current directory. */
+export declare function getProjectNameFor(root: string | null): string;
+export declare function resolveSubdomainBases(ingressPort?: number, projectRoot?: string | null): {
     appBase: string;
     apiBase: string;
 };

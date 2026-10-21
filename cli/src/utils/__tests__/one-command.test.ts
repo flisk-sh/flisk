@@ -32,7 +32,8 @@ describe("runStack", () => {
     child.stdout = new EventEmitter();
     const spawnFn = vi.fn(() => child) as never;
 
-    const promise = runStack("/bin/flisk", "/tmp/project", {}, spawnFn);
+    const seen: string[] = [];
+    const promise = runStack("/bin/flisk", "/tmp/project", {}, spawnFn, (url) => seen.push(url));
     child.stdout.emit(
       "data",
       "🌍 Frontend URLs:\n  - storefront: http://storefront.localhost:8080/\n",
@@ -47,5 +48,6 @@ describe("runStack", () => {
     );
     expect(result.code).toBe(0);
     expect(findFrontendUrl(result.output)).toBe("http://storefront.localhost:8080/");
+    expect(seen).toEqual(["http://storefront.localhost:8080/"]);
   });
 });

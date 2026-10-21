@@ -25,6 +25,10 @@ describe("PROJECT_TEMPLATES", () => {
     ]);
   });
 
+  it("points demo at the restaurant example", () => {
+    expect(PROJECT_TEMPLATES.demo.repo).toBe(PROJECT_TEMPLATES.restaurant.repo);
+  });
+
   it("points ecommerce at tdk-ecommerce-example", () => {
     expect(PROJECT_TEMPLATES.ecommerce.repo).toBe(
       "https://github.com/flisk-sh/tdk-ecommerce-example.git",

@@ -6,7 +6,10 @@ import { PROJECT_JSON } from "./constants.js";
 import { findProjectRoot } from "./paths.js";
 import { isApiServiceType } from "./resource-kind.js";
 export function getProjectName() {
-    const root = findProjectRoot();
+    return getProjectNameFor(findProjectRoot());
+}
+/** The project name of a specific project root, for tools that work outside the current directory. */
+export function getProjectNameFor(root) {
     if (root) {
         try {
             const content = readFileSync(join(root, ".tdk", PROJECT_JSON), "utf-8");
@@ -19,8 +22,8 @@ export function getProjectName() {
     }
     return "tdk-project";
 }
-export function resolveSubdomainBases(ingressPort) {
-    const projectName = getProjectName();
+export function resolveSubdomainBases(ingressPort, projectRoot) {
+    const projectName = getProjectNameFor(projectRoot ?? findProjectRoot());
     const raw = process.env.TDK_SERVICE_BASE_URL ??
         `http://${projectName}.localhost${ingressPort ? `:${ingressPort}` : ""}`;
     try {

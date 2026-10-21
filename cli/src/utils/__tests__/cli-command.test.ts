@@ -17,13 +17,12 @@ import {
   suggestedWorkspace,
 } from "../cli-command.js";
 
-/** A PATH that holds an executable `flisk`, so the command resolves the same way on every machine. */
-function pathWithFlisk(): string {
+/** A PATH that contains a `flisk` command, so the installed branch is deterministic. */
+function pathWithFlisk(): NodeJS.ProcessEnv {
   const dir = mkdtempSync(join(tmpdir(), "flisk-bin-"));
-  const bin = join(dir, "flisk");
-  writeFileSync(bin, "#!/bin/sh\n");
-  chmodSync(bin, 0o755);
-  return dir;
+  writeFileSync(join(dir, "flisk"), "#!/bin/sh\n");
+  chmodSync(join(dir, "flisk"), 0o755);
+  return { PATH: dir };
 }
 
 describe("cli-command", () => {
@@ -42,14 +41,8 @@ describe("cli-command", () => {
   });
 
   it("points at the command when it is installed", () => {
-    const env = { PATH: process.env.PATH ?? "" };
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
-    const step = readyNextStep(env, dir);
-    if (isCommandOnPath("flisk", env)) {
-      expect(step).toBe("Next: flisk project --yes");
-    } else {
-      expect(step).toContain("npm install -g @flisk-sh/flisk");
-    }
+    expect(readyNextStep(pathWithFlisk(), dir)).toBe("Next: flisk project --yes");
   });
 
   it("tells an ephemeral run how to install the command", () => {
@@ -65,7 +58,7 @@ describe("cli-command", () => {
   it("suggests a project folder instead of the current one when the folder has files", () => {
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
     writeFileSync(join(dir, "notes.txt"), "hi");
-    const step = readyNextStep({ PATH: pathWithFlisk() }, dir);
+    const step = readyNextStep(pathWithFlisk(), dir);
     expect(step).toContain("mkdir -p");
     expect(step).toContain("flisk project --yes");
     expect(step).toContain("flisk project example");
@@ -74,8 +67,7 @@ describe("cli-command", () => {
   it("lets a project start in an empty folder", () => {
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
     expect(isEmptyWorkspace(dir)).toBe(true);
-    const step = readyNextStep({ PATH: pathWithFlisk() }, dir);
-    expect(step).toBe("Next: flisk project --yes");
+    expect(readyNextStep(pathWithFlisk(), dir)).toBe("Next: flisk project --yes");
   });
 
   it("suggests a workspace under Documents when the machine has one", () => {

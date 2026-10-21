@@ -22,14 +22,16 @@ export function findFrontendUrl(output: string): string | undefined {
 export type StackRunResult = { code: number | null; output: string };
 
 /**
- * Runs `flisk up` in the project directory and returns its output. The output is streamed to
- * the terminal as it arrives, so the stack keeps its live progress.
+ * Runs `flisk up` in the project directory and streams its output to the terminal. The stack
+ * keeps running in the foreground, so the caller is told about the frontend URL as soon as it
+ * shows up instead of waiting for the process to exit.
  */
 export function runStack(
   binPath: string,
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
   spawnFn: typeof spawn = spawn,
+  onFrontendUrl?: (url: string) => void,
 ): Promise<StackRunResult> {
   return new Promise((resolve) => {
     const child = spawnFn(process.execPath, [binPath, "up"], {
@@ -38,10 +40,18 @@ export function runStack(
       stdio: ["inherit", "pipe", "inherit"],
     });
     let output = "";
+    let announced = false;
     child.stdout?.on("data", (chunk: Buffer | string) => {
       const text = String(chunk);
       output += text;
       process.stdout.write(text);
+      if (!announced) {
+        const url = findFrontendUrl(output);
+        if (url) {
+          announced = true;
+          onFrontendUrl?.(url);
+        }
+      }
     });
     child.on("error", (error) => resolve({ code: 1, output: `${output}\n${error.message}` }));
     child.on("close", (code) => resolve({ code, output }));

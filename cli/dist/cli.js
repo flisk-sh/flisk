@@ -4,6 +4,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { cwd } from "node:process";
+import chalk from "chalk";
 import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
@@ -26,7 +27,7 @@ if (process.argv.length === 2) {
 const templateArg = readOptionValue(process.argv, "--template") ?? (await bareTemplateArg(process.argv));
 const projectArg = readOptionValue(process.argv, "--project");
 if (templateArg) {
-    const { cloneProjectTemplate } = await import("./commands/project.js");
+    const { cloneProjectTemplate, templateTargetDir } = await import("./commands/project.js");
     const { assertMachineReadyOrExit, detectRuntimePrerequisites, formatRuntimeNextSteps } = await import("./utils/cold-preflight.js");
     const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
     await assertMachineReadyOrExit({ scope: "scaffold" });
@@ -36,18 +37,19 @@ if (templateArg) {
     if (install === "installed") {
         console.log("\n\u2714 flisk is installed globally, so `flisk` works from any folder.");
     }
-    const destination = resolve(cwd(), projectArg || templateArg);
+    const destination = resolve(cwd(), templateTargetDir(templateArg, projectArg));
     const binPath = process.argv[1];
     if (binPath && existsSync(destination)) {
-        const { runStack, findFrontendUrl } = await import("./utils/one-command.js");
-        const { openUrl } = await import("./utils/url-actions.js");
+        const { runStack } = await import("./utils/one-command.js");
+        const { openFirstFrontend } = await import("./commands/open.js");
         console.log(`\n\u{1F680} Starting the stack in ${destination}...\n`);
-        const result = await runStack(binPath, destination);
-        const url = findFrontendUrl(result.output);
-        if (url) {
-            console.log(`\n\u{1F310} Opening ${url}`);
-            await openUrl(url);
-        }
+        await runStack(binPath, destination, process.env, undefined, () => {
+            // The stack printed its URLs: open the first frontend that answers, the same way
+            // `flisk open` does.
+            void openFirstFrontend(destination).catch((error) => {
+                console.log(chalk.yellow(`\nCould not open a browser: ${error instanceof Error ? error.message : String(error)}`));
+            });
+        });
     }
     process.exit(0);
 }
