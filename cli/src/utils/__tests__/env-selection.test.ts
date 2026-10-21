@@ -32,8 +32,8 @@ const dirs: string[] = [];
 
 const COMPLETE_ENV = [
   "TILT_ENV=dev",
-  "DB_PASSWORD=0123456789abcdef0123456789abcdef",
-  "JWT_SECRET=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "DB_PASSWORD=local-db-password",
+  "JWT_SECRET=local-jwt-secret",
   "",
 ].join("\n");
 
@@ -262,8 +262,8 @@ describe("envFileWarning", () => {
       root,
       ".env.integration",
       COMPLETE_ENV.replace(
-        "DB_PASSWORD=0123456789abcdef0123456789abcdef",
-        "DB_PASSWORD=ffffffffffffffffffffffffffffffff",
+        "DB_PASSWORD=local-db-password",
+        "DB_PASSWORD=other-db-password",
       ),
     );
 
@@ -273,7 +273,7 @@ describe("envFileWarning", () => {
     );
 
     expect(warning).toMatch(/different DB_PASSWORD/);
-    expect(warning).not.toContain("ffffffff");
+    expect(warning).not.toContain("other-db-password");
   });
 
   it("says nothing when the password is the same or the project has no .env", () => {

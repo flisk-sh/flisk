@@ -653,8 +653,8 @@ describe("Tilt force startup", () => {
 describe("tdk up --env-file", () => {
   const COMPLETE_ENV = [
     "TILT_ENV=dev",
-    "DB_PASSWORD=0123456789abcdef0123456789abcdef",
-    "JWT_SECRET=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "DB_PASSWORD=local-db-password",
+    "JWT_SECRET=local-jwt-secret",
     "",
   ].join("\n");
 
@@ -802,7 +802,7 @@ describe("tdk up --env-file", () => {
 
     expect(process.env[PROJECT_ENV_FILE_VAR]).toBe(join(projectDir, ".env.integration"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".env.integration"));
-    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("abcdef0123456789"));
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("local-jwt-secret"));
     log.mockRestore();
   });
 
