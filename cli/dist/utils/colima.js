@@ -114,10 +114,13 @@ export function checkColima(deps = defaultDeps()) {
 export function planColimaRepair(status, dockerAnswers) {
     if (!status.isColima)
         return undefined;
+    // A Lima that is an x86_64 build on Apple Silicon, or a colima CLI that cannot see the VM because of it,
+    // needs a native limactl before anything else can start.
+    if (status.problem && /x86_64|rosetta|native arch|cannot see it/i.test(status.problem)) {
+        return "native-lima";
+    }
     if (!status.running)
         return "start";
-    if (status.problem?.includes("cannot see it"))
-        return "native-lima";
     if (!dockerAnswers)
         return "restart";
     return undefined;
@@ -125,15 +128,31 @@ export function planColimaRepair(status, dockerAnswers) {
 /** Runs a colima command with a native limactl first on PATH, when one is installed. */
 export function nativeLimaPath(env = process.env) {
     const home = env.HOME ?? "";
+    // Prefer the Apple Silicon Homebrew location first; an x86_64 limactl must never be treated as native.
     const candidates = [
+        "/opt/homebrew/bin",
         home ? `${home}/.local/bin` : "",
         home ? `${home}/bin` : "",
-        "/opt/homebrew/bin",
     ].filter(Boolean);
     for (const dir of candidates) {
         const candidate = join(dir, "limactl");
         try {
-            if (existsSync(candidate))
+            if (!existsSync(candidate))
+                continue;
+            // Verify the binary is actually a native (arm64/aarch64) build, not a Rosetta x86_64 one.
+            let archOutput = "";
+            try {
+                archOutput = execFileSync("file", ["-bL", candidate], {
+                    encoding: "utf-8",
+                    timeout: 5_000,
+                    stdio: ["ignore", "pipe", "ignore"],
+                });
+            }
+            catch {
+                // `file` unavailable: fall back to accepting the candidate.
+                return dir;
+            }
+            if (/arm64|aarch64/i.test(archOutput))
                 return dir;
         }
         catch {

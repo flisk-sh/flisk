@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile, execFileSync } from "node:child_process";
-import { realpathSync, statfsSync } from "node:fs";
+import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -187,6 +187,26 @@ export function createDockerFixDeps(run = runDocker) {
 export const dockerFixDeps = createDockerFixDeps();
 /** Starts or restarts Colima, with a native limactl first on PATH when one is installed. */
 async function runColima(action) {
+    if (action === "native-lima") {
+        let nativeDir = nativeLimaPath();
+        if (!nativeDir) {
+            // No native limactl on PATH: reinstall Lima through the native Homebrew, which pulls a native build on Apple Silicon.
+            const brewBin = existsSync("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
+            await execFilePromise(brewBin, ["reinstall", "lima"], {
+                encoding: "utf-8",
+                timeout: 300_000,
+            });
+            nativeDir = nativeLimaPath();
+            if (!nativeDir) {
+                throw new Error("brew reinstall lima did not provide a native limactl");
+            }
+        }
+        const env = nativeDir
+            ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
+            : process.env;
+        await execFilePromise("colima", ["start"], { encoding: "utf-8", timeout: 300_000, env });
+        return;
+    }
     const nativeDir = nativeLimaPath();
     const env = nativeDir
         ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
@@ -251,10 +271,10 @@ export async function planDoctorFixes(projectName, deps = dockerFixDeps, context
             id: "colima:native-lima",
             check: "Colima",
             scope: "host",
-            command: nativeDir ? `PATH="${nativeDir}:$PATH" colima status` : "brew reinstall lima",
-            status: nativeDir ? "skipped" : "planned",
+            command: nativeDir ? `PATH="${nativeDir}:$PATH" colima start` : "brew reinstall lima",
+            status: "planned",
             reason: nativeDir
-                ? `the colima CLI on this PATH cannot see the VM; a native limactl is installed in ${nativeDir} (add it to PATH)`
+                ? `the colima CLI on this PATH cannot see the VM; a native limactl is installed in ${nativeDir}`
                 : "the colima CLI on this PATH cannot see the VM; lima is installed as an x86_64 build (brew reinstall lima)",
         });
     }
@@ -373,11 +393,17 @@ export async function applyDoctorFixes(actions, options, deps = dockerFixDeps) {
                     results.push({ ...action, status: "applied", reason: `colima ${what} ran` });
                     continue;
                 }
-                results.push({
-                    ...action,
-                    status: "skipped",
-                    reason: "needs a native lima: see the command",
-                });
+                try {
+                    await deps.colima("native-lima");
+                    results.push({
+                        ...action,
+                        status: "applied",
+                        reason: "native lima repaired and colima started",
+                    });
+                }
+                catch (error) {
+                    results.push({ ...action, status: "failed", reason: firstLine(error) });
+                }
                 continue;
             }
             if (action.id.startsWith("stop-tilt:")) {

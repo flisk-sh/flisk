@@ -2,6 +2,32 @@
 
 Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/package/@flisk-sh/flisk?activeTab=versions) and the [binary releases](https://github.com/flisk-sh/releases/releases).
 
+## 1.3.195 (2026-10-21)
+
+- `flisk demo` and `flisk restaurant` now clone the demo template into a fixed directory (`~/.flisk/flisk-demo/`) instead of creating `tdk-restaurant-example-N` directories in the current workspace. Previous runs are cleaned up automatically. The `restaurant` template still creates a named directory in the current folder when used explicitly.
+
+## 1.3.194 (2026-10-21)
+
+- `flisk open` now opens the frontend of the project that was started, not the current working directory. The one-command flow (`npx @flisk-sh/flisk demo`) boots the cloned project and opens its frontend automatically.
+
+## 1.3.193 (2026-10-21)
+
+- New `flisk open` command: opens the first ready frontend in the browser. Works with `--json` output and integrates with the one-command flow.
+
+## 1.3.192 (2026-10-21)
+
+- Fixed the one-command flow (`npx @flisk-sh/flisk demo`): the cloned project now boots in place and the browser opens when the stack is up. The CLI copy was updated from "tdk" to "Flisk" throughout.
+
+## 1.3.191 (2026-10-21)
+
+- One command from scratch: `npx @flisk-sh/flisk demo` (or `restaurant`, `saas`, `erp`, etc.) clones a starter, installs the CLI globally, boots the stack, and opens the frontend.
+- CLI rebrand: all user-facing copy changed from "tdk" / "TDK" to "Flisk" / "flisk" (package scope, homepage, repository, command names, error messages, docs).
+- Internal: `cli/src/utils/one-command.ts` added to run the stack and detect the frontend URL.
+
+## 1.3.190 (2026-10-21)
+
+- Package metadata corrected: `repository`, `bugs`, and `homepage` in `package.json` now point at `flisk-sh/flisk` and `https://flisk.sh` (were still pointing at the decommissioned `tdk-landscape/tdk-cli-core` and `tdk-landscape.github.io`).
+
 ## 1.3.189 (2026-10-21)
 
 - `flisk resource` now reports a malformed `service.json` with the file path and the reason it could not be parsed, instead of a raw JSON error (#1685).
