@@ -623,7 +623,11 @@ describe("Colima repairs", () => {
 
   it("applies the start", async () => {
     const ran: string[] = [];
-    const deps = baseDeps({ colima: async (action) => ran.push(action) });
+    const deps = baseDeps({
+      colima: async (action) => {
+        ran.push(action);
+      },
+    });
     const results = await applyDoctorFixes(
       await planDoctorFixes("shop", deps),
       { dryRun: false, confirm: async () => true },
