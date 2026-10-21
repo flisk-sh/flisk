@@ -7,7 +7,7 @@ Public npm remains the recommended installation channel and the default registry
 Create or update `~/.npmrc` with the scoped registry mapping and an environment-variable token reference:
 
 ```ini
-@tdk-landscape:registry=https://npm.pkg.github.com
+@flisk-sh:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
 ```
 
@@ -21,7 +21,7 @@ tdk --version
 
 In CI, store the token as a secret and expose it as `GITHUB_PACKAGES_TOKEN` for the install step. Repository workflows may use `GITHUB_TOKEN` with `packages: read` when the package grants that repository access. Do not commit tokens or paste them into logs.
 
-The mapping above only redirects the `@tdk-landscape` scope. To return to the default public npm installation, remove that mapping and run:
+The mapping above only redirects the `@flisk-sh` scope. To return to the default public npm installation, remove that mapping and run:
 
 ```sh
 npm install -g @flisk-sh/flisk

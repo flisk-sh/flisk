@@ -76,7 +76,7 @@ jobs:
         with:
           node-version: 24.15.0
           registry-url: "https://npm.pkg.github.com"
-          scope: "@tdk-landscape"
+          scope: "@flisk-sh"
           package-manager-cache: false
 
       - name: Publish the existing version to GitHub Packages
@@ -99,7 +99,7 @@ jobs:
           NPMRC="$RUNNER_TEMP/consumer.npmrc"
           # npm must expand this environment reference when it reads the temporary config.
           # shellcheck disable=SC2016
-          printf '%s\n' '@tdk-landscape:registry=https://npm.pkg.github.com' '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' > "$NPMRC"
+          printf '%s\n' '@flisk-sh:registry=https://npm.pkg.github.com' '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' > "$NPMRC"
           NPM_CONFIG_USERCONFIG="$NPMRC" npm install --global --prefix "$PREFIX" "@flisk-sh/flisk@${VERSION}"
           INSTALLED_VERSION=$(PATH="$PREFIX/bin:$PATH" "$PREFIX/bin/tdk" --version)
           if [ "$INSTALLED_VERSION" != "$VERSION" ]; then

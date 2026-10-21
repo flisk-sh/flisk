@@ -371,8 +371,8 @@ jobs:
             echo "::warning::Released ${VERSION}, but could not enable auto-merge for the version bump PR ${branch}."
 
       # OpenSSF Scorecard's Signed-Releases check looks at the GitHub releases of THIS repository, while the binaries live in
-      # tdk-cli-releases. So this repository gets a release per version that carries the binaries' checksums and a keyless
-      # Sigstore signature of them (the signature is also attached to the binary release in tdk-cli-releases). It runs last and is allowed to fail: npm, the binary release and the version bump are already
+      # flisk-sh/releases. So this repository gets a release per version that carries the binaries' checksums and a keyless
+      # Sigstore signature of them (the signature is also attached to the binary release in flisk-sh/releases). It runs last and is allowed to fail: npm, the binary release and the version bump are already
       # done, and nothing here may ever block them.
       - name: Install cosign
         continue-on-error: true
@@ -391,7 +391,7 @@ jobs:
           cosign sign-blob --yes --bundle checksums.txt.sigstore.json checksums.txt
           # Next to the binaries users download, so they can verify them.
           GH_TOKEN="$RELEASE_TOKEN" gh release upload "v${VERSION}" --repo flisk-sh/releases --clobber \
-            checksums.txt.sigstore.json || echo "::warning::Could not attach the signature to the tdk-cli-releases release"
+            checksums.txt.sigstore.json || echo "::warning::Could not attach the signature to the flisk-sh/releases release"
           # And to a release in this repository, which is where Scorecard looks.
           if gh release view "v${VERSION}" >/dev/null 2>&1; then
             gh release upload "v${VERSION}" --clobber checksums.txt checksums.txt.sigstore.json
@@ -440,7 +440,7 @@ jobs:
         with:
           node-version: 24.15.0
           registry-url: "https://npm.pkg.github.com"
-          scope: "@tdk-landscape"
+          scope: "@flisk-sh"
           package-manager-cache: false
 
       # This job holds only package write access and never checks out or executes repository code.
