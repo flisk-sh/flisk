@@ -446,7 +446,7 @@ export async function checkDuplicateTdkInstalls(installs?: TdkInstall[]): Promis
     didPass: false,
     isWarning: true,
     message: `${found.length} flisk installs on PATH${versions.size > 1 ? " with different versions" : ""}: ${list}`,
-    fix: "Keep one: remove the others, or run flisk upgrade. The first on PATH is the one your shell runs; tools that launch /usr/local/bin/tdk directly may use another",
+    fix: "Keep one: remove the others, or run flisk upgrade. The first on PATH is the one your shell runs; tools that launch /usr/local/bin/flisk directly may use another",
   };
 }
 

@@ -141,7 +141,9 @@ export const resourcesCommand = new Command("resources")
             `\n${formatCount(withoutStackCount, "resource")} not assigned to any stack.`,
           ),
         );
-        showDetail('Run "flisk resources --no-stack" to see them, or "flisk stack" to assign them.');
+        showDetail(
+          'Run "flisk resources --no-stack" to see them, or "flisk stack" to assign them.',
+        );
       }
     };
 
