@@ -261,10 +261,7 @@ describe("envFileWarning", () => {
     writeEnv(
       root,
       ".env.integration",
-      COMPLETE_ENV.replace(
-        "DB_PASSWORD=local-db-password",
-        "DB_PASSWORD=other-db-password",
-      ),
+      COMPLETE_ENV.replace("DB_PASSWORD=local-db-password", "DB_PASSWORD=other-db-password"),
     );
 
     const warning = envFileWarning(
