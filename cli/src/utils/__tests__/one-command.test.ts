@@ -55,6 +55,7 @@ describe("runStackQuiet", () => {
     const child = new EventEmitter() as EventEmitter & {
       stdout: EventEmitter;
       stderr: EventEmitter;
+      unref: () => unknown;
     };
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
@@ -78,6 +79,7 @@ describe("runStackQuiet", () => {
     const child = new EventEmitter() as EventEmitter & {
       stdout: EventEmitter;
       stderr: EventEmitter;
+      unref: () => unknown;
     };
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
