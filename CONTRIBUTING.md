@@ -44,6 +44,8 @@ The focused [frontend provider guide](docs/frontend-framework-providers.md) has 
 
 ## Quick setup
 
+New here? The [contributor quick start](docs/contributing/quick-start.md) goes from clone to your first pull request in about five minutes.
+
 **Fastest way (recommended):** open the repository in a ready-to-use environment.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/flisk-sh/flisk?quickstart=1)
