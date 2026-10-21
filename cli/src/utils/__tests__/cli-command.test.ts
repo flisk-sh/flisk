@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -15,6 +15,15 @@ import {
   readyNextStep,
   suggestedWorkspace,
 } from "../cli-command.js";
+
+/** A PATH that carries the CLI command, so the "installed" branch runs on any machine. */
+function pathWithCommand(): string {
+  const dir = mkdtempSync(join(tmpdir(), "flisk-bin-"));
+  const bin = join(dir, process.platform === "win32" ? "flisk.cmd" : "flisk");
+  writeFileSync(bin, process.platform === "win32" ? "@echo off\r\n" : "#!/bin/sh\nexit 0\n");
+  chmodSync(bin, 0o755);
+  return dir;
+}
 
 describe("cli-command", () => {
   it("names the command and the package that installs it", () => {
@@ -53,7 +62,7 @@ describe("cli-command", () => {
   it("suggests a project folder instead of the current one when the folder has files", () => {
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
     writeFileSync(join(dir, "notes.txt"), "hi");
-    const step = readyNextStep({ PATH: process.env.PATH ?? "" }, dir);
+    const step = readyNextStep({ PATH: pathWithCommand() }, dir);
     expect(step).toContain("mkdir -p");
     expect(step).toContain("flisk project --yes");
     expect(step).toContain("flisk project example");
@@ -62,7 +71,7 @@ describe("cli-command", () => {
   it("lets a project start in an empty folder", () => {
     const dir = mkdtempSync(join(tmpdir(), "flisk-workspace-"));
     expect(isEmptyWorkspace(dir)).toBe(true);
-    const step = readyNextStep({ PATH: process.env.PATH ?? "" }, dir);
+    const step = readyNextStep({ PATH: pathWithCommand() }, dir);
     expect(step).toBe("Next: flisk project --yes");
   });
 
