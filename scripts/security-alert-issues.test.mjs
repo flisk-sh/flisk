@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+	finalLabelSet,
+	isManagedLabel,
 	MANAGED_LABEL,
 	bodyFor,
 	isAdvisory,
@@ -72,16 +74,18 @@ const SCANNER_ALERT = {
 };
 
 test("the marker identifies one alert and round-trips", () => {
-	const marker = markerFor("dependabot", 22);
-	assert.equal(marker, "<!-- flisk:security-alert:dependabot:22 -->");
-	assert.deepEqual(parseMarker(`noise\n${marker}\nmore`), { source: "dependabot", number: 22 });
+	const marker = markerFor("GHSA-698v-4r3x-3vcv|cli/pnpm-lock.yaml");
+	assert.equal(marker, "<!-- flisk:security-alert:GHSA-698v-4r3x-3vcv|cli/pnpm-lock.yaml -->");
+	assert.deepEqual(parseMarker(`noise\n${marker}\nmore`), {
+		key: "GHSA-698v-4r3x-3vcv|cli/pnpm-lock.yaml",
+	});
 	assert.equal(parseMarker("no marker here"), null);
 	assert.equal(parseMarker(undefined), null);
 });
 
 test("a body without the marker is never claimed", () => {
-	assert.equal(parseMarker("<!-- flisk:security-alert:dependabot -->"), null);
-	assert.equal(parseMarker("<!-- flisk:security-alert:dependabot:xx -->"), null);
+	assert.equal(parseMarker("<!-- flisk:security-alert: -->"), null);
+	assert.equal(parseMarker("<!-- flisk:security-alert:has spaces -->"), null);
 });
 
 test("severity is normalised, and an unknown severity is medium", () => {
@@ -106,7 +110,7 @@ test("the scanner message yields package, version and advisory ids", () => {
 
 test("a dependabot alert keeps its advisory detail", () => {
 	const finding = normalizeDependabotAlert(DEPENDABOT_ALERT);
-	assert.equal(finding.key, "dependabot:22");
+	assert.equal(finding.key, "GHSA-698v-4r3x-3vcv|cli/pnpm-lock.yaml");
 	assert.equal(finding.packageName, "vite");
 	assert.equal(finding.ecosystem, "npm");
 	assert.equal(finding.manifestPath, "cli/pnpm-lock.yaml");
@@ -120,7 +124,7 @@ test("a dependabot alert keeps its advisory detail", () => {
 
 test("a code-scanning alert is read from the rule and the message", () => {
 	const finding = normalizeCodeScanningAlert(SCANNER_ALERT);
-	assert.equal(finding.key, "code-scanning:456");
+	assert.equal(finding.key, "GHSA-587h-7wmj-h5pm|bun.lock");
 	assert.equal(finding.packageName, "vite");
 	assert.equal(finding.installedVersion, "8.3.1");
 	assert.equal(finding.manifestPath, "bun.lock");
@@ -222,7 +226,7 @@ test("the title names the package, the advisory and the manifest", () => {
 
 test("the body carries the advisory, the range, the fix and the marker", () => {
 	const body = bodyFor(normalizeDependabotAlert(DEPENDABOT_ALERT));
-	assert.ok(body.startsWith(markerFor("dependabot", 22)));
+	assert.ok(body.startsWith(markerFor("GHSA-698v-4r3x-3vcv|cli/pnpm-lock.yaml")));
 	assert.ok(body.includes("GHSA-698v-4r3x-3vcv"));
 	assert.ok(body.includes("CVE-2026-112943"));
 	assert.ok(body.includes("severity: medium") === false);
@@ -281,7 +285,7 @@ test("an existing issue is updated, not duplicated", () => {
 	const issue = {
 		number: 900,
 		state: "open",
-		body: `${markerFor("dependabot", 22)}\n\nan older body`,
+		body: `${markerFor("GHSA-698v-4r3x-3vcv|cli/pnpm-lock.yaml")}\n\nan older body`,
 		labels: ["security"],
 		html_url: "https://github.com/flisk-sh/flisk/issues/900",
 	};
@@ -296,7 +300,7 @@ test("an issue that carries the marker but no longer matches is still updated", 
 	const issue = {
 		number: 900,
 		state: "open",
-		body: markerFor("dependabot", 22),
+		body: markerFor(findings[0].key),
 		labels: ["security"],
 	};
 	const actions = planSync(findings, [issue]);
@@ -372,4 +376,81 @@ test("every label the script applies is planned for creation", () => {
 		assert.ok(planned.has(label), `not planned: ${label}`);
 	}
 	assert.match(planned.get("severity: medium").color, /^[0-9a-f]{6}$/);
+});
+
+test("the label set keeps the labels a person added and replaces the managed ones", () => {
+	const managed = new Set(["security", "severity: high"]);
+	const current = [
+		{ name: "claimed", id: 1 },
+		{ name: "security", id: 2 },
+		{ name: "severity: medium", id: 3 },
+	];
+	// The API takes names, so the objects the issue carries are read by name.
+	assert.deepEqual(finalLabelSet(current, ["security", "severity: high"], managed), [
+		"claimed",
+		"security",
+		"severity: high",
+	]);
+});
+
+test("the label set accepts plain names too", () => {
+	assert.deepEqual(finalLabelSet(["claimed"], ["security"], new Set(["security"])), [
+		"claimed",
+		"security",
+	]);
+});
+
+test("a label left over from an earlier run is replaced, not kept", () => {
+	// The severity changed since the last run: the old label goes, the new one comes.
+	const managed = new Set(["security"]);
+	const current = [{ name: "severity: medium" }, { name: "claimed" }];
+	assert.deepEqual(finalLabelSet(current, ["security", "severity: critical"], managed), [
+		"claimed",
+		"security",
+		"severity: critical",
+	]);
+	assert.equal(isManagedLabel("severity: medium", managed), true);
+	assert.equal(isManagedLabel("claimed", managed), false);
+});
+
+test("the same advisory in two sources is one issue", () => {
+	// Dependabot and the scanner both report the virtualenv advisory, in the same manifest.
+	const dependabot = normalizeDependabotAlert({
+		...DEPENDABOT_ALERT,
+		dependency: {
+			package: { name: "virtualenv", ecosystem: "pip" },
+			manifest_path: "scripts/requirements-pre-commit.txt",
+			scope: "development",
+		},
+		security_advisory: {
+			...DEPENDABOT_ALERT.security_advisory,
+			ghsa_id: "GHSA-v1rt-ua12-3456",
+			cve_id: "CVE-2026-113725",
+		},
+	});
+	const scanner = normalizeCodeScanningAlert({
+		number: 700,
+		rule: { id: "CVE-2026-113725", severity: "warning", description: "virtualenv" },
+		most_recent_instance: {
+			location: { path: "scripts/requirements-pre-commit.txt" },
+			message: {
+				text: "Package 'virtualenv@20.0.0' is vulnerable to 'CVE-2026-113725' (also known as 'GHSA-v1rt-ua12-3456').",
+			},
+		},
+	});
+	assert.equal(dependabot.key, scanner.key);
+	const actions = planSync([dependabot, scanner], []);
+	assert.equal(actions.length, 1);
+	assert.equal(actions[0].action, "create");
+});
+
+test("the same advisory in two manifests is two issues", () => {
+	const a = normalizeDependabotAlert(DEPENDABOT_ALERT);
+	const b = normalizeDependabotAlert({
+		...DEPENDABOT_ALERT,
+		number: 23,
+		dependency: { ...DEPENDABOT_ALERT.dependency, manifest_path: "scripts/requirements.txt" },
+	});
+	assert.notEqual(a.key, b.key);
+	assert.equal(planSync([a, b], []).length, 2);
 });

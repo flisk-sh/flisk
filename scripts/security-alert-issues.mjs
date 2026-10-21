@@ -76,16 +76,67 @@ const SCOPE_COLORS = {
 	development: "c2e0c6",
 };
 
-/** Marker for one alert. Stable across runs: the same alert always maps to the same issue. */
-export function markerFor(source, number) {
-	return `${MARKER_PREFIX}${source}:${number}${MARKER_SUFFIX}`;
+/**
+ * The key of a finding: the advisory and the manifest it applies to.
+ *
+ * The same advisory shows up in more than one source (Dependabot and the osv-scanner
+ * both report it), and a repository can hold the same advisory in more than one
+ * manifest. Keying on the advisory and the manifest gives one issue per thing to fix,
+ * whichever source reported it and however many scanners see it.
+ */
+export function findingKey(finding) {
+	const advisory = finding.ghsaId ?? finding.cveId ?? finding.packageName ?? "advisory";
+	const manifest = finding.manifestPath ?? "repository";
+	return `${advisory}|${manifest}`.replace(/[^A-Za-z0-9._|/-]+/g, "-");
 }
 
-/** The alert a body belongs to, or null when the body carries no marker. */
+/**
+ * Whether two findings are the same thing to fix: the same advisory in the same
+ * manifest. One source may know the GHSA and the other only the CVE, so either
+ * identifier is enough.
+ */
+export function sameAdvisory(a, b) {
+	if ((a.manifestPath ?? "repository") !== (b.manifestPath ?? "repository")) return false;
+	if (a.ghsaId && b.ghsaId && a.ghsaId === b.ghsaId) return true;
+	return Boolean(a.cveId && b.cveId && a.cveId === b.cveId);
+}
+
+/**
+ * The key of a group of findings that are the same thing to fix. The GHSA is used
+ * when the group has one, because every source reports it; the CVE is the fallback.
+ */
+export function groupKey(findings) {
+	const ghsa = findings.find((finding) => finding.ghsaId)?.ghsaId;
+	const cve = findings.find((finding) => finding.cveId)?.cveId;
+	const advisory = ghsa ?? cve ?? findings[0].packageName ?? "advisory";
+	const manifest = findings[0].manifestPath ?? "repository";
+	return `${advisory}|${manifest}`.replace(/[^A-Za-z0-9._|/-]+/g, "-");
+}
+
+/** The findings that are the same thing to fix, grouped. The first one leads each group. */
+export function groupFindings(findings) {
+	const groups = [];
+	for (const finding of findings) {
+		const group = groups.find((candidate) => sameAdvisory(candidate[0], finding));
+		if (group) group.push(finding);
+		else groups.push([finding]);
+	}
+	return groups;
+}
+
+/** Marker for one finding. Stable across runs: the same finding always maps to the same issue. */
+export function markerFor(key) {
+	return `${MARKER_PREFIX}${key}${MARKER_SUFFIX}`;
+}
+
+/** The finding a body belongs to, or null when the body carries no marker. */
 export function parseMarker(body) {
-	const match = /<!-- flisk:security-alert:([a-z-]+):(\d+) -->/.exec(body ?? "");
+	// The colon is allowed so a marker in the older `source:number` shape is still read:
+	// no finding carries such a key, so the sync closes that issue instead of leaving
+	// it open for ever.
+	const match = /<!-- flisk:security-alert:([A-Za-z0-9._:|/-]+) -->/.exec(body ?? "");
 	if (!match) return null;
-	return { source: match[1], number: Number(match[2]) };
+	return { key: match[1] };
 }
 
 /** GitHub severity, normalised. Unknown values are treated as medium. */
@@ -116,8 +167,7 @@ export function parseScannerMessage(message) {
 export function normalizeDependabotAlert(alert) {
 	const advisory = alert.security_advisory ?? {};
 	const vuln = (alert.security_vulnerabilities ?? [])[0] ?? {};
-	return {
-		key: `dependabot:${alert.number}`,
+	const finding = {
 		source: "dependabot",
 		alertNumber: alert.number,
 		alertUrl: alert.html_url,
@@ -143,6 +193,8 @@ export function normalizeDependabotAlert(alert) {
 		references: advisory.references ?? [],
 		publishedAt: advisory.published_at ?? null,
 	};
+	finding.key = findingKey(finding);
+	return finding;
 }
 
 /** A code-scanning alert. osv-scanner fills the rule, not `security_advisory`. */
@@ -150,8 +202,7 @@ export function normalizeCodeScanningAlert(alert) {
 	const instance = alert.most_recent_instance ?? {};
 	const parsed = parseScannerMessage(instance.message?.text ?? "");
 	const rule = alert.rule ?? {};
-	return {
-		key: `code-scanning:${alert.number}`,
+	const finding = {
 		source: "code-scanning",
 		alertNumber: alert.number,
 		alertUrl: alert.html_url,
@@ -173,6 +224,8 @@ export function normalizeCodeScanningAlert(alert) {
 		references: [],
 		publishedAt: null,
 	};
+	finding.key = findingKey(finding);
+	return finding;
 }
 
 /** A version arrives as a plain string from the global advisory API and as an object from the Dependabot API. */
@@ -255,6 +308,24 @@ export function labelsFor(finding) {
 	return [...labels].sort();
 }
 
+/**
+ * The label namespaces this script owns: a fixed set, plus every dynamic label
+ * (severity, source, package, ecosystem, scope, weakness).
+ *
+ * The namespaces are owned rather than the exact labels of the current finding, so a
+ * label left over from an earlier run — a `severity: medium` on an advisory that is
+ * high now — is replaced instead of kept next to the new one. Labels outside these
+ * namespaces belong to people.
+ */
+export const MANAGED_LABEL_PREFIXES = [
+	"severity: ",
+	"source: ",
+	"package: ",
+	"ecosystem: ",
+	"scope: ",
+	"cwe: ",
+];
+
 /** Every label this script can apply. Labels outside this set belong to people. */
 export function managedLabelSet(findings) {
 	const labels = new Set(Object.keys(LABEL_DEFS));
@@ -262,6 +333,12 @@ export function managedLabelSet(findings) {
 		for (const label of labelsFor(finding)) labels.add(label);
 	}
 	return labels;
+}
+
+/** Whether a label belongs to a namespace this script owns. */
+export function isManagedLabel(label, managed) {
+	if (managed.has(label)) return true;
+	return MANAGED_LABEL_PREFIXES.some((prefix) => label.startsWith(prefix));
 }
 
 /** The title of the issue for one finding. */
@@ -302,7 +379,7 @@ export function truncate(text, limit = MAX_DESCRIPTION) {
 
 /** The issue body. Every field the advisory gives us, so the issue stands on its own. */
 export function bodyFor(finding, findings = []) {
-	const lines = [markerFor(finding.source, finding.alertNumber), "", ledeFor(finding), ""];
+	const lines = [markerFor(finding.key), "", ledeFor(finding), ""];
 	lines.push("## Advisory", "");
 	if (finding.ghsaId) {
 		lines.push(`- GHSA: [${finding.ghsaId}](https://github.com/advisories/${finding.ghsaId})`);
@@ -420,15 +497,22 @@ export function isAdvisory(finding) {
  * `managed` are the issues carrying MANAGED_LABEL, `findings` the open alerts.
  */
 export function planSync(findings, managed) {
-	const open = new Map(findings.map((finding) => [finding.key, finding]));
+	// One finding per group: the same advisory in two sources is one thing to fix.
+	const open = new Map();
+	for (const group of groupFindings(findings)) {
+		open.set(groupKey(group), group[0]);
+	}
 	const byMarker = new Map();
 	for (const issue of managed) {
 		const parsed = parseMarker(issue.body ?? "");
-		if (parsed) byMarker.set(`${parsed.source}:${parsed.number}`, issue);
+		if (parsed) byMarker.set(parsed.key, issue);
 	}
 	const actions = [];
-	for (const finding of findings) {
-		const existing = byMarker.get(finding.key);
+	for (const group of groupFindings(findings)) {
+		// The first finding of the group leads it; the others are the same fix.
+		const finding = group[0];
+		const key = groupKey(group);
+		const existing = byMarker.get(key);
 		if (!existing) {
 			actions.push({ action: "create", finding, issue: null });
 			continue;
@@ -595,13 +679,26 @@ function writeIssue(repo, action, findings) {
 	// Replace this script's own labels and leave the rest alone, so a `claimed`
 	// label a contributor earned is never taken away.
 	const managed = managedLabelSet(findings);
-	const current = action.issue.labels ?? [];
-	const final = [...new Set([...current.filter((label) => !managed.has(label)), ...labels])];
+	const final = finalLabelSet(action.issue.labels, labels, managed);
 	gh(
 		["api", "--method", "PUT", `repos/${repo}/issues/${issueNumber}/labels`, "--input", "-"],
 		JSON.stringify({ labels: final }),
 	);
 	return { number: issueNumber, url: action.issue.html_url };
+}
+
+/**
+ * The label set an issue ends up with: the labels this script manages, replaced, and
+ * every other label the issue already carries.
+ *
+ * The API takes names, and an issue's own labels come back as objects, so they are
+ * read by name first. Sending an object where a name belongs is a 422.
+ */
+export function finalLabelSet(currentLabels, wanted, managed) {
+	const current = (currentLabels ?? [])
+		.map((label) => (typeof label === "string" ? label : label?.name))
+		.filter(Boolean);
+	return [...new Set([...current.filter((label) => !isManagedLabel(label, managed)), ...wanted])];
 }
 
 function closeIssue(repo, issue) {
@@ -660,21 +757,34 @@ function main(argv) {
 	const created = opts.dryRun ? [] : ensureLabels(repo, wanted);
 	if (created.length) console.log(`created labels: ${created.join(", ")}`);
 
+	let failed = 0;
 	for (const action of actions) {
 		const label = action.finding
 			? `${action.finding.key} ${action.finding.packageName ?? ""}`.trim()
 			: `issue #${action.issue.number}`;
 		console.log(`${action.action}: ${label}`);
 		if (opts.dryRun) continue;
-		if (action.action === "close") {
-			closeIssue(repo, action.issue);
-			continue;
+		// One issue that cannot be written must not stop the others: the next run
+		// picks it up again, and the warning says which one failed.
+		try {
+			if (action.action === "close") {
+				closeIssue(repo, action.issue);
+				continue;
+			}
+			writeIssue(repo, action, findings);
+		} catch (error) {
+			failed += 1;
+			const reason = (error.stderr ?? error.message).toString().trim().split("\n")[0];
+			console.log(`::warning::Could not write ${label}: ${reason}`);
 		}
-		writeIssue(repo, action, findings);
 	}
 	console.log(
 		`${findings.length} open alert(s), ${managed.length} managed issue(s), ${actions.length} action(s)`,
 	);
+	if (failed > 0) {
+		console.log(`::warning::${failed} of ${actions.length} action(s) failed.`);
+		return 1;
+	}
 	return 0;
 }
 
