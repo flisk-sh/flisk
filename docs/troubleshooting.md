@@ -132,7 +132,7 @@ Run `tdk config regenerate` to fix.
 - **Defined in:** [`template-engine.ts`](../cli/src/generator/template-engine.ts) and [`config.ts`](../cli/src/commands/config.ts).
 - **Checked:** reproduced, including the failing fix and the workaround.
 
-## tdk doctor fails
+## flisk doctor fails
 
 `tdk doctor` prints `✗` for a failure, `○` for a skipped check and `ℹ Fix:` under a failure. It exits 1 when any check fails. The JSON form is described in the [doctor contract](reference/doctor-contract.md). The scratch outputs below used `tdk doctor --no-ping`, which does not call running services.
 
