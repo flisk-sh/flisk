@@ -99,6 +99,21 @@ Use this when a new family of tests (for example `packaging` or `failure-recover
 4. Set `max-parallel` to a number the runner pool can handle (the resource-types group uses 4).
 5. Upload failure evidence from each leg with the same `if: failure()` step that `e2e-resource-types.yml` uses.
 
+## The group gates and the CI summary
+
+Three group gates report on every pull request: `e2e-journeys`, `e2e-examples` and `e2e-platforms`. They live in their own workflows, so the `📋 Summary` job of `ci.yml` cannot wait for them with `needs:`. It reads their check runs on the head commit instead, and fails when a gate is missing or did not pass. `📋 Summary` is a required check, so it is what holds a merge back.
+
+A gate only reports when its workflow is triggered, so the summary waits only for the gates that report for the event the CI workflow ran for:
+
+| CI event | Gates the summary waits for |
+|---|---|
+| `pull_request` | `e2e-journeys`, `e2e-examples`, `e2e-platforms` |
+| `merge_group` | `e2e-journeys`, `e2e-examples`, `e2e-platforms` |
+| `push` to main | `e2e-journeys` |
+| `workflow_dispatch` | none: dispatching `ci.yml` starts no gate workflow |
+
+The list lives in `scripts/e2e-gate-expectations.mjs`, the wait in `scripts/wait-for-e2e-gates.mjs`, and `scripts/e2e-gate-expectations.test.mjs` fails when a gate is waited for on an event its workflow cannot report for. Without that rule a push to main waits half an hour for `e2e-examples` and `e2e-platforms`, which never run there, and then fails. A gate that has not reported yet also fails early when its workflow never started for the commit, instead of waiting for the deadline.
+
 ## Rules for matrix legs
 
 - **Each leg is independent.** It boots its own stack, uses its own scratch project name, and cleans up in `e2e_cleanup`. Two legs must never share a port or a container name.

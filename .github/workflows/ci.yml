@@ -446,9 +446,6 @@ jobs:
           advanced-security: false
           annotations: true
 
-  # Aggregate gate. The e2e group gates live in their own workflows, so `needs:` cannot name them: this job reads their check runs
-  # on the head commit instead and fails when one is missing or failed. GitHub's check-runs endpoint includes skipped jobs, while
-  # the check-suites endpoint does not; query runs rather than suites. A skipped gate passes, as a skipped job does here.
   pr-summary-review:
     name: 🧐 PR summary review
     # Also runs on merge queue entries: the queue is where the required check must still mean something. The merge queue reads the
@@ -470,25 +467,31 @@ jobs:
         run: |
           node scripts/check-pr-review-readiness.mjs
 
+  # Aggregate gate. The e2e group gates live in their own workflows, so `needs:` cannot name them: this job reads their check runs
+  # on the head commit instead and fails when one is missing or failed. GitHub's check-runs endpoint includes skipped jobs, while
+  # the check-suites endpoint does not; query runs rather than suites. A skipped gate passes, as a skipped job does here.
   summary:
     name: 📋 Summary
     runs-on: ubuntu-26.04
-    # Waits for the e2e gates, which may run for tens of minutes (the scale gate most of all). The wait is bounded by the step below.
+    # Waits for the e2e gates, which run for tens of minutes on a pull request. The wait is bounded by the deadline in the
+    # script below.
     timeout-minutes: 35
     if: always()
     needs: [lint, spellcheck, typecheck, test, package, package-smoke, secret-scan, dependency-review, workflow-audit]
     permissions:
       contents: read
       checks: read # reads the e2e gates' check runs on the head commit
+      actions: read # reads the gate workflows' runs for the head commit
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      # Check-run names of the e2e group gates that report on pull requests. Every gate listed here reports on every pull request (a gate
-      # whose paths did not change passes at once), so a missing name fails the summary. e2e-scale and e2e-resource-types run on the
-      # merge queue only, so they are not waited for here.
-      E2E_GATES: e2e-journeys e2e-examples e2e-platforms
     steps:
+      # The gate list and the wait live in scripts/, so the workflow and the scripts cannot drift apart (#1816).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
       - name: Render summary
         env:
           NEEDS: ${{ toJSON(needs) }}
@@ -510,43 +513,9 @@ jobs:
             exit 1
           fi
 
-      # Polls the head commit's check runs until every gate has completed, or until the deadline. A gate that never reported
-      # by the deadline is missing and fails the job, as does one that completed without success or skipped.
+      # Waits for the gates that report for this event. Every gate waited for reports on every pull request (a gate whose paths
+      # did not change passes at once), so a missing name fails the summary. A push to main runs the journeys gate only, and a
+      # manual dispatch of ci.yml starts no gate workflow, so those runs wait for nothing instead of burning the deadline on a
+      # gate that can never report (#1816).
       - name: Check the e2e group gates
-        run: |
-          deadline=$((SECONDS + 1800))
-          read -r -a pending <<< "$E2E_GATES"
-          : > gate-results.tsv
-          while :; do
-            runs="$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs[] | [.name, .status, (.conclusion // ""), .started_at, .id] | @tsv')"
-            still=()
-            for gate in "${pending[@]}"; do
-              # A re-run reports the same name again. Select the latest attempt by its start time instead of relying on API order.
-              row="$(awk -F'\t' -v n="$gate" '$1 == n && $4 >= latest { latest = $4; r = $0 } END { print r }' <<< "$runs")"
-              if [ -z "$row" ]; then
-                if [ "$SECONDS" -ge "$deadline" ]; then printf '%s\tmissing\tmissing\n' "$gate" >> gate-results.tsv; continue; fi
-                still+=("$gate"); continue
-              fi
-              status="$(cut -f2 <<< "$row")"; conclusion="$(cut -f3 <<< "$row")"
-              if [ "$status" != "completed" ]; then
-                if [ "$SECONDS" -ge "$deadline" ]; then printf '%s\t%s\tnot completed\n' "$gate" "$status" >> gate-results.tsv; continue; fi
-                still+=("$gate"); continue
-              fi
-              printf '%s\tcompleted\t%s\n' "$gate" "$conclusion" >> gate-results.tsv
-            done
-            [ "${#still[@]}" -eq 0 ] && break
-            pending=("${still[@]}")
-            sleep 30
-          done
-          {
-            echo ""
-            echo "## E2E group gates"
-            echo ""
-            echo "| Gate | Result |"
-            echo "|---|---|"
-            awk -F'\t' '{ printf "| %s | %s (%s) |\n", $1, $3, $2 }' gate-results.tsv
-          } >> "$GITHUB_STEP_SUMMARY"
-          if awk -F'\t' '$2 != "completed" || ($3 != "success" && $3 != "skipped") { bad = 1 } END { exit !bad }' gate-results.tsv; then
-            echo "::error::An e2e group gate is missing, not completed, or failed. See the E2E group gates table."
-            exit 1
-          fi
+        run: node scripts/wait-for-e2e-gates.mjs --event "$GITHUB_EVENT_NAME" --sha "$HEAD_SHA" --repo "$REPO"
