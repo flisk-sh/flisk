@@ -62,6 +62,9 @@ Rules:
 - Values are never printed. The output names the file (`Using env file: .env.integration`), never a
   value, and the values of the selected file are masked in smoke-check output just like the ones in
   the project `.env`.
+- `--env-file` is the only way to select the file. `TDK_ENV_FILE` is the variable the CLI uses to
+  hand the file to the engine, and an inherited value is ignored, so a run without the option always
+  uses the project `.env`.
 
 On a Node.js-based installation (the npm package), Node.js reads `--env-file` as one of its own
 options before TDK starts: it checks that the file exists, relative to the current directory, and

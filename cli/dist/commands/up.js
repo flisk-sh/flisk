@@ -10,7 +10,7 @@ import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_M
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
-import { applyEnvFileSelection, assertEngineSupportsEnvFile, EnvFileError, envFileWarning, selectEnvFile, } from "../utils/env-selection.js";
+import { applyEnvFileSelection, assertEngineSupportsEnvFile, EnvFileError, envFileWarning, PROJECT_ENV_FILE_VAR, selectEnvFile, } from "../utils/env-selection.js";
 import { completeEnvFile } from "../utils/env-validator.js";
 import { errorFactories, getErrorMessage, handleTiltFailure, requireProjectRoot, runCommand, showError, showErrorAndExit, TdkError, withTiltCheck, } from "../utils/errors.js";
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
@@ -229,6 +229,11 @@ export const upCommand = new Command("up")
     // resolved and read before any prerequisite check, any write and any service starts.
     const envFileRoot = versionRoot;
     let envFileSelection;
+    if (options.envFile === undefined) {
+        // Without the option the project .env is the env file of the run, whatever the environment
+        // carries: an inherited TDK_ENV_FILE must not change the default.
+        delete process.env[PROJECT_ENV_FILE_VAR];
+    }
     if (options.envFile !== undefined) {
         try {
             envFileSelection = selectRunEnvFile(envFileRoot, options.envFile);

@@ -863,6 +863,8 @@ describe("tdk up --env-file", () => {
   });
 
   it("keeps the project .env as the env file of the run when no file is requested", async () => {
+    // An inherited variable must not change the default either.
+    vi.stubEnv(PROJECT_ENV_FILE_VAR, "/somewhere/else/.env");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
     try {

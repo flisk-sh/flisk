@@ -26,6 +26,7 @@ import {
   assertEngineSupportsEnvFile,
   EnvFileError,
   envFileWarning,
+  PROJECT_ENV_FILE_VAR,
   type SelectedEnvFile,
   selectEnvFile,
 } from "../utils/env-selection.js";
@@ -329,6 +330,11 @@ export const upCommand = new Command("up")
     // resolved and read before any prerequisite check, any write and any service starts.
     const envFileRoot = versionRoot;
     let envFileSelection: SelectedEnvFile | undefined;
+    if (options.envFile === undefined) {
+      // Without the option the project .env is the env file of the run, whatever the environment
+      // carries: an inherited TDK_ENV_FILE must not change the default.
+      delete process.env[PROJECT_ENV_FILE_VAR];
+    }
     if (options.envFile !== undefined) {
       try {
         envFileSelection = selectRunEnvFile(envFileRoot, options.envFile);
