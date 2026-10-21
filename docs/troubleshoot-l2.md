@@ -377,4 +377,4 @@ cannot execute binary file: Exec format error
 - [Troubleshoot L1 (base image)](troubleshoot-l1.md): Docker build failures in the foundational OS and Bun runtime layer.
 - [Troubleshooting overview](troubleshooting.md): General troubleshooting for Flisk CLI and Tilt diagnostics.
 - [Scope and non-goals](scope.md): Details on local-only golden images.
-- [Leaving Flisk](leaving-tdk.md): What `flisk eject` does and how dependencies are managed.
+- [Leaving Flisk](leaving-flisk.md): What `flisk eject` does and how dependencies are managed.

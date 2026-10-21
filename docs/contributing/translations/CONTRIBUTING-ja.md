@@ -90,7 +90,7 @@ issue を選んだら、`I'll take this`（または `I would like this one`、`
 
 ## 採用者リストにチームを追加する
 
-自分のリポジトリで Flisk を使っていますか？[ADOPTERS.md](../../../ADOPTERS.md) には2つの方法で掲載できます。[We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../../ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
+自分のリポジトリで Flisk を使っていますか？[ADOPTERS.md](../../../ADOPTERS.md) には2つの方法で掲載できます。[We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../../ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
 
 ## ガバナンス
 

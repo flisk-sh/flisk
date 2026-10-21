@@ -214,7 +214,7 @@ describe("runTdkCli", () => {
 describe("defaultUpDeps", () => {
   it("reads missing logs as empty and names a temp log", async () => {
     expect(defaultUpDeps.readLog(join(tmpdir(), `tdk-missing-${Date.now()}.log`))).toBe("");
-    expect(defaultUpDeps.logFile()).toContain("tdk-mcp-up-");
+    expect(defaultUpDeps.logFile()).toContain("flisk-mcp-up-");
     expect(defaultUpDeps.now()).toBeGreaterThan(0);
     await expect(defaultUpDeps.sleep(0)).resolves.toBeUndefined();
   });
@@ -222,7 +222,7 @@ describe("defaultUpDeps", () => {
   it("starts the CLI detached with the log file as stdio", () => {
     const child = { pid: 9, unref: vi.fn() };
     spawnMock.mockReturnValue(child);
-    const log = join(tmpdir(), `tdk-mcp-up-test-${Date.now()}.log`);
+    const log = join(tmpdir(), `flisk-mcp-up-test-${Date.now()}.log`);
     try {
       expect(defaultUpDeps.spawnUp(["up", "--json"], log, "/work")).toBe(child);
       expect(spawnMock).toHaveBeenCalledWith(

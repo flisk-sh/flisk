@@ -2,7 +2,7 @@
 
 An end-to-end (e2e) test runs the real `flisk` against a real stack: Docker, Tilt, Traefik and the generated files. Unit tests cannot catch a broken route, a container that never gets ready, or a JSON envelope that a real error turns into a stack trace. An e2e test can.
 
-This page explains when you need one, where it goes, how to write it, and how to prove it works. The [agent suite](../../tests/e2e/resource-types/agent/run.sh) is the worked example throughout. AI assistants can follow the same steps with the `tdk-e2e-author` skill (`.claude/skills/tdk-e2e-author/`).
+This page explains when you need one, where it goes, how to write it, and how to prove it works. The [agent suite](../../tests/e2e/resource-types/agent/run.sh) is the worked example throughout. AI assistants can follow the same steps with the `flisk-e2e-author` skill (`.claude/skills/flisk-e2e-author/`).
 
 ## Do I need one?
 

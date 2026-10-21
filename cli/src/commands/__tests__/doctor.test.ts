@@ -86,7 +86,7 @@ describe("doctor frontend Docker preflight", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-frontend-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-frontend-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(testDir, { recursive: true });
     process.chdir(testDir);
@@ -272,7 +272,7 @@ describe("doctor generated runtime asset preflight", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-runtime-assets-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-runtime-assets-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(testDir, ".tdk"), { recursive: true });
     writeFileSync(
@@ -375,7 +375,7 @@ describe("doctor TypeScript type dependency check", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-types-bun-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-types-bun-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(testDir, { recursive: true });
     process.chdir(testDir);
@@ -913,7 +913,7 @@ describe("doctor ingress + tilt runtime checks", () => {
   it("fails private registry check when Verdaccio is enabled but unreachable", () => {
     const projectRoot = join(
       tmpdir(),
-      `tdk-doctor-registry-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-registry-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
     writeFileSync(
@@ -947,7 +947,7 @@ describe("doctor ingress + tilt runtime checks", () => {
   it("passes private registry check when Verdaccio responds", () => {
     const projectRoot = join(
       tmpdir(),
-      `tdk-doctor-registry-ok-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-registry-ok-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
     writeFileSync(
@@ -982,7 +982,7 @@ describe("doctor private registry check without a Verdaccio license", () => {
   function projectWithVerdaccioEnabled(npmrc?: string): string {
     const projectRoot = join(
       tmpdir(),
-      `tdk-doctor-registry-unlicensed-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-registry-unlicensed-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
     writeFileSync(
@@ -1076,7 +1076,7 @@ describe("doctor resource discovery", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-discovery-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-discovery-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(testDir, ".tdk"), { recursive: true });
     writeFileSync(join(testDir, "Tiltfile"), "");
@@ -1126,7 +1126,7 @@ describe("doctor Flisk version pin", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-version-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-version-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(testDir, ".tdk"), { recursive: true });
     writeFileSync(join(testDir, "Tiltfile"), "");
@@ -1177,7 +1177,7 @@ describe("checkSharedStackRoutes", () => {
   let testDir: string;
 
   beforeEach(() => {
-    testDir = mkdtempSync(join(tmpdir(), "tdk-doctor-stack-routes-"));
+    testDir = mkdtempSync(join(tmpdir(), "flisk-doctor-stack-routes-"));
   });
 
   afterEach(() => {
@@ -1482,7 +1482,7 @@ describe("doctor --all, sections, and summary", () => {
   it("registers --all on doctorCommand and prints Machine, Project, and summary", async () => {
     expect(doctorCommand.options.some((opt) => opt.long === "--all")).toBe(true);
 
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-all-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-all-"));
     const originalCwd = process.cwd();
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1522,7 +1522,7 @@ describe("doctor --all, sections, and summary", () => {
   });
 
   it("prints Project section when running --all outside a project even with failing checks", async () => {
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-no-project-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-no-project-"));
     const originalCwd = process.cwd();
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1561,7 +1561,7 @@ describe("doctor --all, sections, and summary", () => {
   });
 
   it("preserves machine-readable JSON envelope when --all and --json are combined", async () => {
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-json-all-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-json-all-"));
     const originalCwd = process.cwd();
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1664,7 +1664,7 @@ describe("doctor --all, sections, and summary", () => {
   });
 
   it("does not print Machine or Project headings or summary without --all", async () => {
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-plain-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-plain-"));
     const originalCwd = process.cwd();
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});

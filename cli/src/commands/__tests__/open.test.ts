@@ -5,9 +5,10 @@ import { describe, expect, it } from "vitest";
 
 import { type FrontendTarget, isFrontendReady, pickReadyFrontend } from "../open.js";
 
+// Port 9 (discard) is closed on every machine, so nothing answers here.
 const targets: FrontendTarget[] = [
-  { name: "admin", url: "http://admin.localhost:8080/" },
-  { name: "storefront", url: "http://storefront.localhost:8080/" },
+  { name: "admin", url: "http://127.0.0.1:9/" },
+  { name: "storefront", url: "http://127.0.0.1:9/" },
 ];
 
 describe("isFrontendReady", () => {
@@ -21,8 +22,14 @@ describe("pickReadyFrontend", () => {
     expect(await pickReadyFrontend([], 0)).toBeUndefined();
   });
 
-  it("falls back to the first frontend when none answers yet", async () => {
+  it("returns nothing when no frontend answers within the wait", async () => {
     const picked = await pickReadyFrontend(targets, 0);
-    expect(picked?.name).toBe("admin");
+    expect(picked).toBeUndefined();
+  });
+
+  it("reports the wait while it polls", async () => {
+    const seen: number[] = [];
+    await pickReadyFrontend(targets, 10, (elapsed) => seen.push(elapsed));
+    expect(seen.length).toBeGreaterThan(0);
   });
 });

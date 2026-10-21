@@ -83,7 +83,7 @@ fi
 # flisk: doctor and status are read-only checks, so they are safe on a failed run.
 if command -v flisk >/dev/null 2>&1; then
   flisk doctor --json 2>&1 | tail -n 500 > "$work/doctor" || true
-  redact < "$work/doctor" > "$work/doctor.redacted" && commit "$work/doctor.redacted" logs/tdk-doctor.json
+  redact < "$work/doctor" > "$work/doctor.redacted" && commit "$work/doctor.redacted" logs/flisk-doctor.json
   flisk status --json 2>&1 | tail -n 500 > "$work/status" || true
   redact < "$work/status" > "$work/status.redacted" && commit "$work/status.redacted" logs/tdk-status.json
 fi

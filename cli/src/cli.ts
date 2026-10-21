@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { cwd } from "node:process";
 
@@ -40,30 +40,55 @@ if (templateArg) {
   const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
   await assertMachineReadyOrExit({ scope: "scaffold" });
   const runtimeNextSteps = formatRuntimeNextSteps(detectRuntimePrerequisites());
-  await cloneProjectTemplate(templateArg, projectArg, runtimeNextSteps);
+
+  // A second demo in the same folder gets its own directory instead of failing.
+  const { nextAvailableProjectDir } = await import("./utils/one-command.js");
+  const baseName = templateTargetDir(templateArg, projectArg);
+  const targetName = nextAvailableProjectDir(baseName, (candidate) => {
+    const path = resolve(cwd(), candidate);
+    return existsSync(path) && readdirSync(path).length > 0;
+  });
+  const destination = resolve(cwd(), targetName);
+  if (targetName !== baseName) {
+    console.log(chalk.gray(`The folder ${baseName} is taken, using ${targetName} instead.`));
+  }
+
+  await cloneProjectTemplate(templateArg, targetName, runtimeNextSteps);
 
   const install = ensureGlobalInstall();
   if (install === "installed") {
     console.log("\n\u2714 flisk is installed globally, so `flisk` works from any folder.");
   }
-
-  const destination = resolve(cwd(), templateTargetDir(templateArg, projectArg));
   const binPath = process.argv[1];
   if (binPath && existsSync(destination)) {
-    const { runStack } = await import("./utils/one-command.js");
+    const { runStackQuiet } = await import("./utils/one-command.js");
     const { openFirstFrontend } = await import("./commands/open.js");
-    console.log(`\n\u{1F680} Starting the stack in ${destination}...\n`);
-    await runStack(binPath, destination, process.env, undefined, () => {
-      // The stack printed its URLs: open the first frontend that answers, the same way
-      // `flisk open` does.
-      void openFirstFrontend(destination).catch((error: unknown) => {
-        console.log(
-          chalk.yellow(
-            `\nCould not open a browser: ${error instanceof Error ? error.message : String(error)}`,
-          ),
-        );
-      });
+    const { startSpinner } = await import("./utils/spinner.js");
+
+    const spinner = startSpinner("Starting the stack (the first build takes a minute)...");
+    const outcome = await runStackQuiet(binPath, destination);
+    if (!outcome.ok) {
+      spinner.fail("The stack did not come up.");
+      console.log(chalk.yellow(outcome.error ?? "The stack stopped before it was ready."));
+      console.log(chalk.gray("Run `flisk up` in that folder to see the full output."));
+      process.exit(1);
+    }
+    spinner.succeed("The stack is up.");
+
+    // The browser only opens when a frontend actually answers, the same way `flisk open` does.
+    const opened = await openFirstFrontend(destination).catch((error: unknown) => {
+      console.log(
+        chalk.yellow(
+          `Could not open a browser: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
+      return null;
     });
+    if (!opened) {
+      console.log(
+        chalk.gray(`The stack is running. Open it yourself: cd ${destination} && flisk open`),
+      );
+    }
   }
   process.exit(0);
 }

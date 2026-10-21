@@ -10,13 +10,13 @@ Questions a team lead usually asks before moving client projects onto a new tool
 
 ## Can we try it without changing the client's repository?
 
-**Partly answered; the Gap is a mode with no Flisk files in the repository.** In a repository that already had a `package.json`, `Tiltfile`, `.tiltignore`, `docker-compose.yml` and `Dockerfile`, `flisk project --yes` left them byte-for-byte unchanged, appended four lines to `.gitignore`, and added `.tdk/project.json`, `services/platform/database-management/docker-compose.yml` and `shared-platform-engineering/docker-templates/`. [Gradual adoption](gradual-adoption.md) has the full list, what to commit and how to take it out again; the [adoption guide](adopt-tdk.md) says to run `git status` and read what changed. There is still no documented mode that keeps all Flisk files outside the repository ([#504](https://github.com/flisk-sh/flisk/issues/504)).
+**Partly answered; the Gap is a mode with no Flisk files in the repository.** In a repository that already had a `package.json`, `Tiltfile`, `.tiltignore`, `docker-compose.yml` and `Dockerfile`, `flisk project --yes` left them byte-for-byte unchanged, appended four lines to `.gitignore`, and added `.tdk/project.json`, `services/platform/database-management/docker-compose.yml` and `shared-platform-engineering/docker-templates/`. [Gradual adoption](gradual-adoption.md) has the full list, what to commit and how to take it out again; the [adoption guide](adopt-flisk.md) says to run `git status` and read what changed. There is still no documented mode that keeps all Flisk files outside the repository ([#504](https://github.com/flisk-sh/flisk/issues/504)).
 
 ## What if the project stops being maintained?
 
 - There are two maintainers from two companies ([MAINTAINERS.md](../MAINTAINERS.md)); the project has no foundation or funding commitment. Governance is in [GOVERNANCE.md](../GOVERNANCE.md).
 - Core is MIT, so you can fork it.
-- **Answered in part:** [Leaving Flisk](leaving-tdk.md) says what `flisk eject` does (it only writes an `EJECTED.md` note), which generated files exist and what they need from Flisk, and what you lose. [Gradual adoption](gradual-adoption.md#taking-it-out-again) lists what to delete. There is still no command that produces plain Compose; moving to Compose or Helm is manual, and your `service.json` files are Flisk-specific.
+- **Answered in part:** [Leaving Flisk](leaving-flisk.md) says what `flisk eject` does (it only writes an `EJECTED.md` note), which generated files exist and what they need from Flisk, and what you lose. [Gradual adoption](gradual-adoption.md#taking-it-out-again) lists what to delete. There is still no command that produces plain Compose; moving to Compose or Helm is manual, and your `service.json` files are Flisk-specific.
 
 ## Licence: can we use it on client projects?
 
@@ -44,7 +44,7 @@ Flisk asks for ingress ports 80 and 443 first, so routed URLs carry no port. If 
 
 ## Onboarding a new developer, and showing it to the client
 
-The [adoption guide](adopt-tdk.md) is the one-page path: `flisk doctor`, `flisk up --dry-run`, `flisk up`. `flisk doctor` is designed to replace a setup wiki; that is a design goal, not a measured result. Messages it prints, and others you may meet, are in [Troubleshooting](troubleshooting.md).
+The [adoption guide](adopt-flisk.md) is the one-page path: `flisk doctor`, `flisk up --dry-run`, `flisk up`. `flisk doctor` is designed to replace a setup wiki; that is a design goal, not a measured result. Messages it prints, and others you may meet, are in [Troubleshooting](troubleshooting.md).
 
 ## CI
 

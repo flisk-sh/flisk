@@ -102,5 +102,5 @@ Only quote numbers you measured, with their conditions. Do not repeat the figure
 
 ## 6. Tell us
 
-- Run Flisk on your repositories? Use the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) form, or add a row to [ADOPTERS.md](../ADOPTERS.md).
+- Run Flisk on your repositories? Use the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) form, or add a row to [ADOPTERS.md](../ADOPTERS.md).
 - It did not fit or something broke? Search [Troubleshooting](troubleshooting.md) for the message, then [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose) and include the output of `flisk doctor`.

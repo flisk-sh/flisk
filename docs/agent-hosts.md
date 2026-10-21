@@ -28,7 +28,7 @@ The agent runs `flisk doctor`, then `flisk up --json` in the background, and pol
 { "mcpServers": { "flisk": { "command": "flisk", "args": ["mcp"] } } }
 ```
 
-Tools (each runs the matching `--json` command, so they behave exactly like the CLI): `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `restart_resource`, `list_agents`, `get_agent_sessions`. Arguments are validated before anything runs: names may contain letters, digits, `.`, `_` and `-` only. For the install path and per-client configuration, see the [Flisk MCP setup guide](agent-tooling/tdk-mcp-setup.md).
+Tools (each runs the matching `--json` command, so they behave exactly like the CLI): `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `restart_resource`, `list_agents`, `get_agent_sessions`. Arguments are validated before anything runs: names may contain letters, digits, `.`, `_` and `-` only. For the install path and per-client configuration, see the [Flisk MCP setup guide](agent-tooling/flisk-mcp-setup.md).
 
 - `up` takes `stack`, `only` (service names), `force` and `waitSeconds`. It starts Tilt detached and returns without waiting for the stack to be ready, since a build can outlast a tool call. It watches only for an early refusal (`UNKNOWN_SERVICE`, `TILT_ALREADY_RUNNING`, an unsupported host) and otherwise returns `started: true` with the process id and a log file. Poll `status` until `data.tilt.readiness.ready` is true.
 - `status` includes `data.tilt.readiness` (`ready`, `pending`, `failures`, `enabled`), which is `null` when no Tilt answers. The same field is on `flisk status --json`.

@@ -43,7 +43,7 @@ Each of these tools addresses distinct stages and philosophies of local developm
 ### Migration between Flisk and Docker Compose
 
 - **From Docker Compose to Flisk:** Existing containers can be migrated incrementally as bring-your-own resources using `flisk resource <name> --type byo --dockerfile <path>` or `flisk resource <name> --type byo --image <image>`. Port mappings and health checks transfer into `service.json`. Shared services like PostgreSQL or ingress proxies can be handed over to Flisk's built-in platform services. See [Gradual Adoption](gradual-adoption.md) and [Bring-your-own resources](byo.md).
-- **From Flisk to Docker Compose:** Flisk does not provide an automated command to export a project into a plain `compose.yaml` (see [Leaving Flisk](leaving-tdk.md)). To migrate away, developers write a top-level `compose.yaml` referencing existing service source directories and Dockerfiles, specify port mappings, define `depends_on` conditions, and configure shared networks manually.
+- **From Flisk to Docker Compose:** Flisk does not provide an automated command to export a project into a plain `compose.yaml` (see [Leaving Flisk](leaving-flisk.md)). To migrate away, developers write a top-level `compose.yaml` referencing existing service source directories and Dockerfiles, specify port mappings, define `depends_on` conditions, and configure shared networks manually.
 
 ## Flisk vs Plain Tilt
 
@@ -65,7 +65,7 @@ Each of these tools addresses distinct stages and philosophies of local developm
 ### Migration between Flisk and Plain Tilt
 
 - **From Plain Tilt to Flisk:** Developers translate custom `Tiltfile` resources into Flisk `service.json` files and remove custom Starlark scripts, allowing Flisk to generate `.tdk/.tdk-out/Tiltfile`.
-- **From Flisk to Plain Tilt:** Running `flisk eject` documents how to invoke Tilt directly against Flisk's generated Starlark output via `tilt up -f .tdk/.tdk-out/Tiltfile -- --focus=<stack>`. Alternatively, developers can copy the generated `Tiltfile` to the project root and maintain the Starlark configuration directly (see [Leaving Flisk](leaving-tdk.md)).
+- **From Flisk to Plain Tilt:** Running `flisk eject` documents how to invoke Tilt directly against Flisk's generated Starlark output via `tilt up -f .tdk/.tdk-out/Tiltfile -- --focus=<stack>`. Alternatively, developers can copy the generated `Tiltfile` to the project root and maintain the Starlark configuration directly (see [Leaving Flisk](leaving-flisk.md)).
 
 ## Flisk vs Skaffold
 
@@ -154,5 +154,5 @@ To make an honest assessment, there are architectural and organizational scenari
 - [Scope and Non-Goals: Local Dev vs Production](scope.md)
 - [Working Alongside Helm](with-helm.md)
 - [Bring-Your-Own Resources](byo.md)
-- [Leaving Flisk: What You Keep and What You Lose](leaving-tdk.md)
+- [Leaving Flisk: What You Keep and What You Lose](leaving-flisk.md)
 - [Public Claims Registry and Benchmark Evidence](claims.md)

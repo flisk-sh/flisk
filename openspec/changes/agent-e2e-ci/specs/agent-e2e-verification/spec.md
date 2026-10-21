@@ -71,7 +71,7 @@ The workflow SHALL spawn `flisk mcp`, and over JSON-RPC verify that `tools/list`
 - **THEN** a structured tool error is returned and a later call on the same server still succeeds
 
 ### Requirement: Skills and docs distribution checks
-The workflow SHALL verify that every directory in `.claude/skills` has a resolving symlink in `.agents/skills` and none dangles, that `scripts/sync-tdk-skills.sh` keeps `tdk-agent-ops` and deletes a skill removed upstream when run against a fixture source repo, and that links and anchors in `README.md`, `docs/**` and `AGENTS.md` resolve with no references to the removed root `llms.txt`, `llms-full.txt` or `docs/ai-agents.md`.
+The workflow SHALL verify that every directory in `.claude/skills` has a resolving symlink in `.agents/skills` and none dangles, that `scripts/sync-tdk-skills.sh` keeps `flisk-agent-ops` and deletes a skill removed upstream when run against a fixture source repo, and that links and anchors in `README.md`, `docs/**` and `AGENTS.md` resolve with no references to the removed root `llms.txt`, `llms-full.txt` or `docs/ai-agents.md`.
 
 #### Scenario: Dangling skill symlink
 - **WHEN** a link in `.agents/skills` points to a missing directory

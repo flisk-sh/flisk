@@ -133,7 +133,7 @@ jobs:
 
       - name: Install Flisk
         if: matrix.install
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           version: ${{ needs.plan.outputs.version }}
 

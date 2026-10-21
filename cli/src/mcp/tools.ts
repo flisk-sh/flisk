@@ -154,7 +154,7 @@ export const defaultUpDeps: UpDeps = {
   },
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   now: () => Date.now(),
-  logFile: () => join(tmpdir(), `tdk-mcp-up-${Date.now()}.log`),
+  logFile: () => join(tmpdir(), `flisk-mcp-up-${Date.now()}.log`),
 };
 
 export function buildUpArgs(args: Record<string, unknown>): string[] {

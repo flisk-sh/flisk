@@ -1,5 +1,5 @@
 ---
-name: tdk-doctor
+name: flisk-doctor
 description: Check or repair the local Flisk development environment and project configuration using `flisk doctor`. Use when setting up a Flisk project, before running `flisk up`, or when Docker, Tilt, Bun, ports, generated files or service manifests may be misconfigured.
 license: MIT
 compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.

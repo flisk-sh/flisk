@@ -168,7 +168,7 @@ The original plan gave each group its own pull request trigger. That makes every
 Retries turn flaky tests green and hide them. The CI report detects flakiness by finding a failure and a pass on the same commit, and a quarantine needs an issue link.
 
 ### Repo-local skills survive the sync
-`scripts/sync-tdk-skills.sh` currently deletes every directory in `.claude/skills` and every link in `.agents/skills`, then restores only the upstream ones. It will keep any skill listed in `.claude/skills/LOCAL` (one name per line) and re-create its `.agents/skills` link. `tdk-e2e-author` is the first entry. The D2 case of the agent suite extends to cover this. The alternative, putting the skill in the upstream `tdk-skills` repository, would make a contributor-only skill ship to every Flisk user.
+`scripts/sync-tdk-skills.sh` currently deletes every directory in `.claude/skills` and every link in `.agents/skills`, then restores only the upstream ones. It will keep any skill listed in `.claude/skills/LOCAL` (one name per line) and re-create its `.agents/skills` link. `flisk-e2e-author` is the first entry. The D2 case of the agent suite extends to cover this. The alternative, putting the skill in the upstream `tdk-skills` repository, would make a contributor-only skill ship to every Flisk user.
 
 ### Migration order
 1. (#1272 has merged.) Extract `tests/e2e/lib/` and move the agent suite, then prove it green on CI.

@@ -2,7 +2,7 @@ Tracking issue: [#1268](https://github.com/flisk-sh/flisk/issues/1268)
 
 ## Why
 
-The agent surface from #1256 / #1263 / #1266 is merged (`agent` resource type, `flisk agent sessions`, `flisk restart`, MCP tools `list_agents`, `get_agent_sessions`, `restart_resource`, the `tdk-agent-ops` skill). Unit and spawn-level tests cover error paths and JSON envelopes, but no CI job runs an agent through `flisk up`. A release needs end-to-end evidence on a real stack, and a regression such as the `session` nesting or the 10s timeout would currently ship unnoticed.
+The agent surface from #1256 / #1263 / #1266 is merged (`agent` resource type, `flisk agent sessions`, `flisk restart`, MCP tools `list_agents`, `get_agent_sessions`, `restart_resource`, the `flisk-agent-ops` skill). Unit and spawn-level tests cover error paths and JSON envelopes, but no CI job runs an agent through `flisk up`. A release needs end-to-end evidence on a real stack, and a regression such as the `session` nesting or the 10s timeout would currently ship unnoticed.
 
 One known gap is also unresolved: the scaffolded runtime answers `GET /session` with 400 when `x-session-id` is missing, so `flisk agent sessions bot` without `--session-id` fails with `AGENT_REQUEST_FAILED`.
 

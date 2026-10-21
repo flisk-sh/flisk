@@ -2,7 +2,7 @@
 
 Teams that run `flisk up` on their own repositories. There are two ways to be listed:
 
-- **Fill in the form.** Open the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) issue form. A maintainer turns it into a row for you, so you do not have to edit a Markdown table.
+- **Fill in the form.** Open the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue form. A maintainer turns it into a row for you, so you do not have to edit a Markdown table.
 - **Open a pull request.** Add one row to the table at the bottom of this file.
 
 Each row needs the organization, a link to their repository or a public write-up, and the Flisk version. The 100-service `/health` fixture (`tdk-erp-system`, `benchmarks/results`) is a benchmark, not an adopter, and must not be listed here.

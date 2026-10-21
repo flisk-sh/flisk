@@ -37,7 +37,7 @@ describe("doctor environment contract", () => {
 
   it("requires Bun 1.2+ when a project has generated JavaScript services", async () => {
     expect(MIN_BUN_VERSION).toEqual([1, 2, 0]);
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-bun-floor-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-bun-floor-"));
     const originalCwd = process.cwd();
     try {
       mkdirSync(join(root, ".tdk"), { recursive: true });
@@ -64,7 +64,7 @@ describe("doctor environment contract", () => {
   });
 
   it("skips the Bun requirement when the project has no generated JavaScript services", async () => {
-    const root = mkdtempSync(join(tmpdir(), "tdk-doctor-no-bun-"));
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-no-bun-"));
     const originalCwd = process.cwd();
     try {
       mkdirSync(join(root, ".tdk"), { recursive: true });

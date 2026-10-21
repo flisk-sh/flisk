@@ -2,7 +2,7 @@
 
 When the Flisk MCP is connected to Codex, ask for an operation in plain language, for example: **“Run Flisk doctor and summarize anything blocking startup.”** The connector exposes tools for host checks, project services, stack lifecycle, and recent logs.
 
-This guide assumes the server is already connected. To install Flisk and point a client at `flisk mcp`, see the [Flisk MCP setup guide](tdk-mcp-setup.md).
+This guide assumes the server is already connected. To install Flisk and point a client at `flisk mcp`, see the [Flisk MCP setup guide](flisk-mcp-setup.md).
 
 ## Start with Doctor
 

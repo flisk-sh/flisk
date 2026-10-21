@@ -90,7 +90,7 @@ bun run typecheck && bun run lint && bun run test   # 약 1분; 무엇이든 바
 
 ## 도입 팀 목록에 팀 추가하기
 
-여러분의 저장소에서 Flisk를 사용하고 있나요? 두 가지 방법으로 [ADOPTERS.md](../../../ADOPTERS.md)에 등록할 수 있습니다. [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) 이슈 양식을 열거나, pull request로 표에 행을 추가하세요. [What counts](../../../ADOPTERS.md#what-counts)에서 무엇을 링크해야 하는지, 무엇이 해당하지 않는지 설명합니다.
+여러분의 저장소에서 Flisk를 사용하고 있나요? 두 가지 방법으로 [ADOPTERS.md](../../../ADOPTERS.md)에 등록할 수 있습니다. [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) 이슈 양식을 열거나, pull request로 표에 행을 추가하세요. [What counts](../../../ADOPTERS.md#what-counts)에서 무엇을 링크해야 하는지, 무엇이 해당하지 않는지 설명합니다.
 
 ## 거버넌스
 

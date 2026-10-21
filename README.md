@@ -196,7 +196,7 @@ Teams that run `flisk up` on their own code (listed with their consent in [ADOPT
 - [MakeOffer](https://www.linkedin.com/company/makeofferio), Flisk 1.3.180
 - [Red Moon Digital](https://redmoon.digital/), Flisk 1.3.81
 
-Using Flisk too? [Tell us](https://github.com/flisk-sh/flisk/issues/new?template=we-use-tdk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
+Using Flisk too? [Tell us](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
 
 If Flisk saves you time, a ⭐ on [this repo](https://github.com/flisk-sh/flisk) helps other developers find it.
 
@@ -328,7 +328,7 @@ Runnable examples show Flisk on real stacks. Start with the smallest one:
 
 ## Use Flisk with your AI agent
 
-The repository ships agent skills for common Flisk work, including `tdk-doctor` (environment checks) and `tdk-troubleshoot` (fixing `flisk` and Tilt errors), under [`.agents/skills`](.agents/skills). Agents working in this repo also follow [AGENTS.md](AGENTS.md). Use these skills to let your agent check your setup and explain failures instead of guessing at Docker or Tilt configuration.
+The repository ships agent skills for common Flisk work, including `flisk-doctor` (environment checks) and `flisk-troubleshoot` (fixing `flisk` and Tilt errors), under [`.agents/skills`](.agents/skills). Agents working in this repo also follow [AGENTS.md](AGENTS.md). Use these skills to let your agent check your setup and explain failures instead of guessing at Docker or Tilt configuration.
 
 ## Installation
 
@@ -358,7 +358,7 @@ Set `TDK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug 
 - [CLI command cheat sheet](cli/README.md#cheat-sheet)
 - [Mega cheat sheet: every command and flag](docs/cheat-sheet.md)
 - [Documentation index](docs/README.md)
-- [Pilot Flisk on a real repository](docs/adopt-tdk.md)
+- [Pilot Flisk on a real repository](docs/adopt-flisk.md)
 - [Running AI agents in Flisk](docs/agents/ai-agents.md)
 - [FAQ for agencies and multi-client teams](docs/faq-teams.md)
 - [Working alongside Helm](docs/with-helm.md)

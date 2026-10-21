@@ -150,7 +150,7 @@ flisk import ./legacy --yes
 | `--yes` | Write without prompting |
 | `--force` | Overwrite an existing `service.json` |
 
-See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-tdk.md).
+See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-flisk.md).
 
 ### `flisk eject`
 
@@ -161,7 +161,7 @@ Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the 
 | `--dry-run` | List the generated files and what would be written |
 | `--yes` | Skip the confirmation prompt |
 
-See [leaving Flisk](leaving-tdk.md).
+See [leaving Flisk](leaving-flisk.md).
 
 ## 📦 Resources
 

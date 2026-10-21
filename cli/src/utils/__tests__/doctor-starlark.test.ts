@@ -17,7 +17,7 @@ describe("Starlark doctor helpers", () => {
   let projectRoot: string;
 
   beforeEach(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-doctor-starlark-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-doctor-starlark-"));
   });
 
   afterEach(() => {
@@ -112,7 +112,7 @@ describe("checkStarlarkLoadExports", () => {
 
   beforeEach(() => {
     originalCwd = process.cwd();
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-doctor-check-starlark-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-doctor-check-starlark-"));
     process.chdir(projectRoot);
   });
 

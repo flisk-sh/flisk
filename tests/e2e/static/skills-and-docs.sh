@@ -26,8 +26,8 @@ D1() {
     [ -e "$link" ] || { echo "dangling symlink: $link -> $(readlink "$link")"; bad=1; }
   done
   [ "$bad" -eq 0 ] || die "skill symlinks are inconsistent"
-  [ -d .claude/skills/tdk-agent-ops ] || die "tdk-agent-ops skill is missing"
-  [ -d .claude/skills/tdk-e2e-author ] || die "tdk-e2e-author skill is missing"
+  [ -d .claude/skills/flisk-agent-ops ] || die "flisk-agent-ops skill is missing"
+  [ -d .claude/skills/flisk-e2e-author ] || die "flisk-e2e-author skill is missing"
 }
 
 D2() {
@@ -54,7 +54,7 @@ D2() {
     [ -e "$tmp/repo/.agents/skills/$name/SKILL.md" ] || die "the .agents/skills/$name link no longer resolves"
     echo "kept repo-local skill: $name"; kept=$((kept + 1))
   done <"$REPO_ROOT/.claude/skills/LOCAL"
-  for name in tdk-agent-ops tdk-e2e-author; do
+  for name in flisk-agent-ops flisk-e2e-author; do
     grep -qx "$name" "$REPO_ROOT/.claude/skills/LOCAL" || die "$name is not listed in .claude/skills/LOCAL"
   done
   [ ! -e "$tmp/repo/.claude/skills/removed-upstream" ] || die "a skill removed upstream survived in .claude/skills"

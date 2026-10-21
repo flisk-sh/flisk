@@ -45,7 +45,7 @@
 ## 4b. Every CI job
 
 - [ ] 4b.1 Write `.github/ci-inventory.json` for all 36 workflows and their 62 jobs (tier, `required`, trigger reason, owner) and a check that fails on missing or stale entries, duplicate check names, a required set that differs from branch protection, and rule violations; generate `docs/ci.md` from it (inventory and check merged in #1304, with a snapshot of the required checks and a daily drift job; `docs/ci.md` generation still to do)
-- [ ] 4b.2 Add composite actions `setup-bun` (cache keyed on `bun.lock`), `setup-tilt`, `free-postgres-port` and `install-tdk`; replace the 14 inline Tilt blocks and 7 port 5432 blocks (`setup-bun`, `setup-tilt` and `free-postgres-port` are in #1305; `install-tdk` and the WSL2 Tilt block remain)
+- [ ] 4b.2 Add composite actions `setup-bun` (cache keyed on `bun.lock`), `setup-tilt`, `free-postgres-port` and `install-flisk`; replace the 14 inline Tilt blocks and 7 port 5432 blocks (`setup-bun`, `setup-tilt` and `free-postgres-port` are in #1305; `install-flisk` and the WSL2 Tilt block remain)
 - [ ] 4b.3 Set `timeout-minutes` on every job from measured p90; add concurrency groups to `dco.yml`, `oss-score-gate.yml` and `windows-smoke.yml` (concurrency groups for the five pull request workflows are in #1307; every job already has `timeout-minutes` except reusable-workflow callers)
 - [ ] 4b.4 Replace `docs-only.yml` and every per-workflow detection job with one `changes` job in `ci.yml`; make `summary` the single aggregate gate, still reporting `example-e2e` and `windows-smoke`
 - [ ] 4b.5 Pack the CLI once per pull request run and have package smoke and e2e legs install the artifact
@@ -62,7 +62,7 @@
 
 - [ ] 5.1 Write `docs/contributing/05-write-e2e.md`: when an e2e is required, choosing the group, suite anatomy, shared helpers, running a case, CI triggers, deliberate break and evidence, with the agent suite as the worked example
 - [ ] 5.2 Link it from `CONTRIBUTING.md` (Tests) and `docs/contributing/README.md`. Add an "E2E" line to each recipe in `docs/contributing/02-feature-recipes.md`
-- [ ] 5.3 Write `.claude/skills/tdk-e2e-author/SKILL.md` and link it from `.agents/skills/`
+- [ ] 5.3 Write `.claude/skills/flisk-e2e-author/SKILL.md` and link it from `.agents/skills/`
 - [ ] 5.4 Make `scripts/sync-tdk-skills.sh` keep skills listed in `.claude/skills/LOCAL`, and extend the D2 fixture test to cover it
 - [ ] 5.5 Run the docs link check over the new pages
 

@@ -222,4 +222,4 @@ If nothing is returned, the L1 golden image has not been built or was deleted.
 
 - [Troubleshooting overview](troubleshooting.md): General troubleshooting for Flisk and Tilt messages.
 - [Scope and non-goals](scope.md): Details on local-only golden images and what differs from production.
-- [Leaving Flisk](leaving-tdk.md): How golden layers are structured and why they are not published.
+- [Leaving Flisk](leaving-flisk.md): How golden layers are structured and why they are not published.

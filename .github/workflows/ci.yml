@@ -375,7 +375,7 @@ jobs:
           path: ${{ runner.temp }}/cli-tarball
 
       - name: Install globally
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           tarball: ${{ runner.temp }}/cli-tarball/flisk-*.tgz
 

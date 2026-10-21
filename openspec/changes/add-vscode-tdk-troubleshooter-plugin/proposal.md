@@ -15,7 +15,7 @@ Flisk CLI already provides project, stack, resource, health, and Tilt orchestrat
 ### New Capabilities
 
 - `vscode-tdk-orchestration`: VS Code extension behavior for detecting Flisk projects and orchestrating project, stack, and resource actions through the Flisk CLI.
-- `vscode-tdk-troubleshooting`: Diagnostic and remediation behavior for identifying common local development failures and presenting safe recovery actions.
+- `vscode-flisk-troubleshooting`: Diagnostic and remediation behavior for identifying common local development failures and presenting safe recovery actions.
 - `vscode-tdk-notifications`: Notification policy behavior for quiet background monitoring, actionable alerts, deduplication, and user-controlled notification preferences.
 
 ### Modified Capabilities
