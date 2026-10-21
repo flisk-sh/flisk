@@ -207,7 +207,7 @@ There are two ways to get started. Both end with `tdk up <stack>`.
 | | Guided scaffolder | Core CLI (manual) |
 | --- | --- | --- |
 | Best for | A first run: pick your services and get a ready project | Full control, or adding TDK to an existing folder |
-| Package | [`@tdk-landscape/create-microservices`](https://github.com/flisk-sh/create-microservices#readme) | [`@flisk-sh/flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) (this repo) |
+| Package | [`create-microservices`](https://github.com/flisk-sh/create-microservices#readme) | [`@flisk-sh/flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) (this repo) |
 
 ### Option A: guided scaffolder (recommended for beginners)
 
@@ -222,13 +222,13 @@ Run these commands from the directory where you want the new project folder to b
 
 ```bash
 npm install -g @flisk-sh/flisk
-npm init @tdk-landscape/microservices my-project
+npm init create-microservices my-project
 cd my-project
 tdk up main
 ```
 
 - `npm install -g @flisk-sh/flisk` installs the `tdk` command. Skip it if `tdk --version` already works.
-- `npm init @tdk-landscape/microservices my-project` asks how many services to create, then each service's name and type (`backend`, `frontend`, `worker`, or `mcp`).
+- `npm init create-microservices my-project` asks how many services to create, then each service's name and type (`backend`, `frontend`, `worker`, or `mcp`).
 - `tdk up main` starts the stack. `main` is the default stack name; if you pass `--stack <name>` to the scaffolder, use that name instead. The scaffolder prints the exact `tdk up` command when it finishes.
 
 The scaffolder creates the project configuration and a skeleton for each service you selected, using TDK CLI Core. It does not start any containers; `tdk up` does that.
@@ -236,13 +236,13 @@ The scaffolder creates the project configuration and a skeleton for each service
 To skip the prompts and get a default `api` (backend) and `web` (frontend):
 
 ```bash
-npm init @tdk-landscape/microservices my-project -- --yes
+npm init create-microservices my-project -- --yes
 ```
 
-For service types, all options, and non-interactive usage, see the [`@tdk-landscape/create-microservices` README](https://github.com/flisk-sh/create-microservices#readme).
+For service types, all options, and non-interactive usage, see the [`create-microservices` README](https://github.com/flisk-sh/create-microservices#readme).
 
 > [!NOTE]
-> Two similarly named packages exist. [`create-flisk`](https://github.com/flisk-sh/create-flisk) is a landing-page app and does not scaffold projects. [`@tdk-landscape/create-microservices`](https://github.com/flisk-sh/create-microservices#readme) is the project scaffolder used above.
+> Two similarly named packages exist. [`create-flisk`](https://github.com/flisk-sh/create-flisk) is a landing-page app and does not scaffold projects. [`create-microservices`](https://github.com/flisk-sh/create-microservices#readme) is the project scaffolder used above.
 
 ### Option B: core CLI (manual)
 

@@ -17,14 +17,14 @@
 // template-engine.ts - Verdaccio and Sablier's real gate is the file
 // overlay above (their public files are disabled stubs, not gated code).
 //
-// The worker (tdk-extension-dist) is the real access-control boundary: it
+// The worker (flisk-extension-dist) is the real access-control boundary: it
 // checks the key against BUNDLES_REPO/keys/*.json - existence, activation/
 // expiry dates, granted resources, and a per-key project limit - before
 // serving anything. This client just asks and, if granted, unpacks the
 // result over the vendored stub files so the generator pipeline picks up
 // the real implementations transparently. See
-// tdk-extension-dist/src/index.ts for the server-side enforcement and
-// tdk-extension-dist/src/project-limit.ts for the project-limit logic.
+// flisk-extension-dist/src/index.ts for the server-side enforcement and
+// flisk-extension-dist/src/project-limit.ts for the project-limit logic.
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
