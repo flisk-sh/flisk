@@ -339,9 +339,7 @@ export async function planDoctorFixes(
       id: "colima:native-lima",
       check: "Colima",
       scope: "host",
-      command: nativeDir
-        ? `PATH="${nativeDir}:$PATH" colima start`
-        : "brew reinstall lima",
+      command: nativeDir ? `PATH="${nativeDir}:$PATH" colima start` : "brew reinstall lima",
       status: "planned",
       reason: nativeDir
         ? `the colima CLI on this PATH cannot see the VM; a native limactl is installed in ${nativeDir}`
@@ -471,7 +469,11 @@ export async function applyDoctorFixes(
         }
         try {
           await deps.colima("native-lima");
-          results.push({ ...action, status: "applied", reason: "native lima repaired and colima started" });
+          results.push({
+            ...action,
+            status: "applied",
+            reason: "native lima repaired and colima started",
+          });
         } catch (error) {
           results.push({ ...action, status: "failed", reason: firstLine(error) });
         }
