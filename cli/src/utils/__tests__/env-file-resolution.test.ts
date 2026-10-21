@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 /** Runs a Tiltfile body in a scratch project and returns the value it wrote to `out.json`. */
-function evaluate(file: string, body: string, env: Record<string, string> = {}): unknown {
+function runStarlark(file: string, body: string, env: Record<string, string> = {}): unknown {
   const result = evaluateStarlark(file, {
     args: `${body}\nlocal('cat > out.json', quiet = True, stdin = encode_json(RESULT))\n`,
     env: { TDK_ENV_FILE: "", ...env },
@@ -41,7 +41,7 @@ describe.skipIf(!hasTilt)("the env file of a run", () => {
     const selected = join(dir, ".env.integration");
     writeFileSync(selected, "TDK_T_SELECTED=fromselected\n");
     try {
-      const result = evaluate(
+      const result = runStarlark(
         envUtils,
         `load(${JSON.stringify(envUtils)}, "load_dotenv", "project_env_file")
 load_dotenv("/project")
@@ -62,7 +62,7 @@ RESULT = {
   });
 
   it("is the project .env when no file is selected", () => {
-    const result = evaluate(
+    const result = runStarlark(
       envUtils,
       `load(${JSON.stringify(envUtils)}, "project_env_file")
 RESULT = {
@@ -112,7 +112,7 @@ describe("the selected env file is read by the engine", () => {
     mkdirSync(project, { recursive: true });
     writeFileSync(join(project, ".env"), "TDK_T_SELECTED=fromproject\n");
 
-    const result = evaluate(
+    const result = runStarlark(
       envUtils,
       `load(${JSON.stringify(envUtils)}, "load_dotenv")
 load_dotenv(${JSON.stringify(project)})
