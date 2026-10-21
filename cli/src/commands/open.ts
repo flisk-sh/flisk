@@ -127,7 +127,11 @@ export async function openFirstFrontend(projectRootOverride?: string): Promise<s
         console.log(chalk.gray(`  ${colima.problem ?? "The Colima VM is not running"}`));
         console.log(chalk.gray(`  Fix: ${colima.fix ?? "colima start"}`));
       } else {
-        console.log(chalk.gray("  Restart the Docker runtime (Docker Desktop or Colima), then run `flisk open` again."));
+        console.log(
+          chalk.gray(
+            "  Restart the Docker runtime (Docker Desktop or Colima), then run `flisk open` again.",
+          ),
+        );
       }
     } else {
       console.log(chalk.yellow("The stack is not serving the frontend yet."));
