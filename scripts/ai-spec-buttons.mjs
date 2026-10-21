@@ -31,7 +31,7 @@ export const PROMPTS = {
 // the issues workflow checks out the default branch, and a branch raw URL
 // 404s after merge. Shared with scripts/ai-review-buttons.mjs.
 export const BADGE_BASE =
-  "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges";
+  "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges";
 export const BADGE_URLS = {
   grok: `${BADGE_BASE}/grok.svg`,
   claude: `${BADGE_BASE}/claude.svg`,

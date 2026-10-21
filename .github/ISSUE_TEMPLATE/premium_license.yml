@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Issues are public. Don't post email addresses, keys or anything private here: we'll reply in this issue and arrange delivery of the key privately.
-        You can also use the [request form on the website](https://tdk-landscape.github.io/tdk-website/#waitlist).
+        You can also use the [request form on the website](https://flisk.sh/#waitlist).
   - type: checkboxes
     id: features
     attributes:

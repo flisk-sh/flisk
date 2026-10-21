@@ -41,7 +41,7 @@ jobs:
           const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
           const metadata = Array.isArray(parsed) ? parsed[0] : parsed;
           const version = process.argv[3];
-          const expectedRepository = 'git+https://github.com/tdk-landscape/tdk-cli-core.git';
+          const expectedRepository = 'git+https://github.com/flisk-sh/tdk-cli-core.git';
           if (!metadata || metadata.name !== '@tdk-landscape/tdk-cli-core' || metadata.version !== version) {
             throw new Error(`Unexpected npm package identity: ${metadata?.name}@${metadata?.version}`);
           }

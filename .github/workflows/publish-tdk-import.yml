@@ -1,6 +1,6 @@
 name: 🚢 Publish tdk-import
 
-# tdk-import lives in tdk-landscape/tdk-import but is published with this repo's NPM_TOKEN,
+# tdk-import lives in flisk-sh/tdk-import but is published with this repo's NPM_TOKEN,
 # the only place the secret is set. Run manually with a tag of that repo (for example v0.1.0).
 # Leave "dry_run" on first to check what would be published.
 #
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: tdk-landscape/tdk-import
+          repository: flisk-sh/tdk-import
           ref: ${{ inputs.ref }}
           persist-credentials: false
 

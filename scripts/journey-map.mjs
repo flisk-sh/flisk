@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 
-const repo = process.argv[2] ?? "tdk-landscape/tdk-cli-core";
+const repo = process.argv[2] ?? "flisk-sh/tdk-cli-core";
 const outFile = (name) => new URL(`../docs/journey/${name}`, import.meta.url);
 
 // Listed in the order the dotted route visits them (a snake, four per row, the flag takes the first slot).

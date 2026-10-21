@@ -11,7 +11,7 @@ import {
   transformBody,
 } from "./ai-review-buttons.mjs";
 
-const url = "https://github.com/tdk-landscape/tdk-cli-core/pull/123";
+const url = "https://github.com/flisk-sh/tdk-cli-core/pull/123";
 
 describe("buildPrompt", () => {
   it("is one line with the PR URL only", () => {
@@ -69,7 +69,7 @@ describe("buildGeneratedSection", () => {
     assert.ok(!section.includes("# Review this PR in&nbsp;"));
     assert.ok(!section.includes("AI review**"));
     assert.ok(!section.includes("Nothing is posted back"));
-    assert.ok(section.includes("If this helps, please ⭐ [star tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core)</sub>"));
+    assert.ok(section.includes("If this helps, please ⭐ [star tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core)</sub>"));
   });
 });
 
@@ -81,7 +81,7 @@ describe("transformBody", () => {
     assert.ok(r.body.includes("# Review this PR in\n[![Grok]("));
     assert.ok(r.body.startsWith("Author"));
     assert.ok(r.body.includes(encodeURIComponent(buildPrompt(url))));
-    assert.ok(r.body.includes("please ⭐ [star tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core)"));
+    assert.ok(r.body.includes("please ⭐ [star tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core)"));
   });
 
   it("regenerates an existing section when it lacks the star footer", () => {
@@ -89,7 +89,7 @@ describe("transformBody", () => {
     const r = transformBody(`Author\n\n${current}`, url);
     assert.equal(r.action, "patch");
     assert.ok(r.body.startsWith("Author"));
-    assert.ok(r.body.includes("please ⭐ [star tdk-cli-core](https://github.com/tdk-landscape/tdk-cli-core)"));
+    assert.ok(r.body.includes("please ⭐ [star tdk-cli-core](https://github.com/flisk-sh/tdk-cli-core)"));
   });
 
   it("skips when the tail already matches", () => {
@@ -101,7 +101,7 @@ describe("transformBody", () => {
 
   it("regenerates when the PR URL changes", () => {
     const r1 = transformBody("Author\n", url);
-    const other = "https://github.com/tdk-landscape/tdk-cli-core/pull/999";
+    const other = "https://github.com/flisk-sh/tdk-cli-core/pull/999";
     const r2 = transformBody(r1.body, other);
     assert.equal(r2.action, "patch");
     assert.ok(r2.body.startsWith("Author"));

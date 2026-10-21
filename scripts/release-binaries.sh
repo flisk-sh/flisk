@@ -5,7 +5,7 @@
 set -euo pipefail
 
 readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readonly RELEASE_REPOSITORY="tdk-landscape/tdk-cli-releases"
+readonly RELEASE_REPOSITORY="flisk-sh/tdk-cli-releases"
 readonly VERSION="$(node -p "require('${ROOT_DIR}/cli/package.json').version")"
 readonly RELEASE_TAG="v${VERSION}"
 readonly RELEASE_DIR="${ROOT_DIR}/release-dist-${RELEASE_TAG#v}"
@@ -233,9 +233,9 @@ EOF
         echo "SOURCE_COMMIT or GITHUB_SHA is required to generate release notes" >&2
         exit 1
       fi
-      source_commit_date="$(gh api "repos/tdk-landscape/tdk-cli-core/commits/${source_commit}" --jq '.commit.committer.date')"
+      source_commit_date="$(gh api "repos/flisk-sh/tdk-cli-core/commits/${source_commit}" --jq '.commit.committer.date')"
       since="${previous_published_at}"
-      gh api --paginate "repos/tdk-landscape/tdk-cli-core/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100" \
+      gh api --paginate "repos/flisk-sh/tdk-cli-core/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100" \
         --jq ".[] | select(.merged_at != null and .merged_at >= \"${since}\" and .merged_at <= \"${source_commit_date}\") | [.number, .title, .user.login, .html_url, .merged_at] | @tsv" \
         > "${generated_notes_file}"
       if [[ -s "${generated_notes_file}" ]]; then
@@ -251,7 +251,7 @@ EOF
       fi
       since_url="${since//:/%3A}"
       source_commit_date_url="${source_commit_date//:/%3A}"
-      printf '\n[Full Changelog](https://github.com/tdk-landscape/tdk-cli-core/commits/%s?since=%s&until=%s)\n' \
+      printf '\n[Full Changelog](https://github.com/flisk-sh/tdk-cli-core/commits/%s?since=%s&until=%s)\n' \
         "${source_commit}" "${since_url}" "${source_commit_date_url}" >> "${release_notes_file}"
     fi
   fi

@@ -244,7 +244,9 @@ describe("publishing the schema from main", () => {
 
   it("reports whether the live copy matches main, so a missing token is not a silent success", () => {
     expect(publishWorkflow).toContain("Report whether the published schema matches main");
-    expect(publishWorkflow).toContain("https://tdk-landscape.github.io/schema.service.json");
+    expect(publishWorkflow).toContain(
+      "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json",
+    );
     expect(publishWorkflow).toContain("GITHUB_STEP_SUMMARY");
   });
 });

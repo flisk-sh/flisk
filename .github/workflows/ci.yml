@@ -328,7 +328,7 @@ jobs:
           bun install --frozen-lockfile
           npm run build
 
-      # cli/dist is committed so `npm install -g github:tdk-landscape/tdk-cli-core`
+      # cli/dist is committed so `npm install -g github:flisk-sh/tdk-cli-core`
       # works without a build step. Fail if a source change was committed
       # without rebuilding it.
       # Locally: `npm run check:dist` in cli/ does both steps.

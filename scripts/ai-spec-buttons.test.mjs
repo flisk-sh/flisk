@@ -30,7 +30,7 @@ function linkHosts(text) {
   });
 }
 
-const url = "https://github.com/tdk-landscape/tdk-cli-core/issues/123";
+const url = "https://github.com/flisk-sh/tdk-cli-core/issues/123";
 
 const featureBody = [
   "### Is this a local-development or cluster-deployment request?",
@@ -180,9 +180,9 @@ describe("resolveKind", () => {
 describe("buildButtonsHtml", () => {
   it("uses shared circle SVGs on main, tool-name alt text, one-line query", () => {
     const html = buildButtonsHtml("openspec", url);
-    assert.equal(BADGE_URLS.grok, "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges/grok.svg");
-    assert.equal(BADGE_URLS.claude, "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges/claude.svg");
-    assert.equal(BADGE_URLS.codex, "https://github.com/tdk-landscape/tdk-cli-core/raw/main/.github/badges/codex.svg");
+    assert.equal(BADGE_URLS.grok, "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges/grok.svg");
+    assert.equal(BADGE_URLS.claude, "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges/claude.svg");
+    assert.equal(BADGE_URLS.codex, "https://github.com/flisk-sh/tdk-cli-core/raw/main/.github/badges/codex.svg");
     assert.ok(html.includes("[![Grok]("));
     assert.ok(html.includes("[![Claude]("));
     assert.ok(html.includes("[![Codex]("));

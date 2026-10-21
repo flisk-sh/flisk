@@ -1,5 +1,5 @@
 # Full 100-service boot (carried over from erp-scale-e2e.yml at the #1302 cutover, so the weekly full boot is not lost).
-# Boots the public 100-service fixture bench (tdk-landscape/tdk-erp-system), a
+# Boots the public 100-service fixture bench (flisk-sh/tdk-erp-system), a
 # set of generated health-check services rather than a real ERP product, on a
 # clean GitHub-hosted runner with the published CLI and waits for every backend
 # to answer /health through Traefik. It backs the README's "100 services on a
@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: tdk-landscape/tdk-erp-system
+          repository: flisk-sh/tdk-erp-system
           path: erp
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
