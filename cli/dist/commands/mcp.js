@@ -8,7 +8,10 @@ import { getPackageVersion } from "../utils/paths.js";
 export const mcpCommand = new Command("mcp")
     .description("Run a Model Context Protocol server over stdio for coding agents")
     .action(async () => {
-    const server = createMcpServer(createTdkTools(), { name: "flisk", version: getPackageVersion() });
+    const server = createMcpServer(createTdkTools(), {
+        name: "flisk",
+        version: getPackageVersion(),
+    });
     // Stdout is the protocol channel. Nothing else may write to it; diagnostics go to stderr.
     const lines = createInterface({ input: process.stdin });
     const pending = new Set();

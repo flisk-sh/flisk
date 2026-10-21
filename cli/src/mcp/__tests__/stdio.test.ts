@@ -54,7 +54,9 @@ describe("flisk mcp over stdio", () => {
       spawned.once("exit", (code, signal) => {
         clearTimeout(timeout);
         lines.close();
-        reject(new Error(`flisk mcp exited before initialize: ${code ?? signal}; stderr: ${stderr}`));
+        reject(
+          new Error(`flisk mcp exited before initialize: ${code ?? signal}; stderr: ${stderr}`),
+        );
       });
       lines.on("line", (line) => {
         // stdout carries only JSON-RPC messages; anything else is a protocol violation worth naming.

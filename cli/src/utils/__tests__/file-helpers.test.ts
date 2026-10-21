@@ -221,7 +221,9 @@ describe("file helpers", () => {
       expect(added).toEqual([".tdk/.tdk-out/", ".tdk/.project-id", ".tdk/smoke/", "node_modules/"]);
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
-      expect(content.startsWith("dist\n.env\n\n# Flisk (generated files and secrets)\n")).toBe(true);
+      expect(content.startsWith("dist\n.env\n\n# Flisk (generated files and secrets)\n")).toBe(
+        true,
+      );
     });
 
     it("returns empty array and does not modify file if all entries exist", () => {

@@ -99,7 +99,10 @@ export function toToolResult(run: TdkRun): McpToolResult {
     return {
       data: {
         errors: [
-          { code: "NO_JSON", message: run.stderr.trim() || `flisk exited with code ${run.exitCode}` },
+          {
+            code: "NO_JSON",
+            message: run.stderr.trim() || `flisk exited with code ${run.exitCode}`,
+          },
         ],
       },
       isError: true,

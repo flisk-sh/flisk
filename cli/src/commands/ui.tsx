@@ -148,7 +148,10 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({ error, onRetry }) => {
       <Box marginY={1} />
       <Text color={theme.muted}>Troubleshooting:</Text>
       <Text color={theme.muted}> 1. Check that every service.json is valid JSON</Text>
-      <Text color={theme.muted}> 2. Run flisk from your project (the folder with the Tiltfile)</Text>
+      <Text color={theme.muted}>
+        {" "}
+        2. Run flisk from your project (the folder with the Tiltfile)
+      </Text>
       <Text color={theme.muted}> 3. Try: flisk status --verbose</Text>
       <Box marginY={1} />
       <Text color={theme.accent}>Press [r] to retry or [q] to quit</Text>
