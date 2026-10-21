@@ -512,9 +512,10 @@ export function formatSmokeFailure(result: SmokeResult): string {
 export function safeSmokeDeps(
   projectRoot: string,
   warn?: (message: string) => void,
+  options: { envFiles?: readonly string[] } = {},
 ): Pick<SmokeDeps, "redact" | "warn"> {
   return {
-    redact: createEnvRedactor(projectRoot),
+    redact: createEnvRedactor(projectRoot, options.envFiles ?? []),
     ...(warn ? { warn } : {}),
   };
 }

@@ -389,9 +389,9 @@ export function formatSmokeFailure(result) {
  * The dependencies that keep smoke text safe: the project's own secret values are masked before anything is shown or stored.
  * Both `tdk up` and `tdk doctor` use them, so neither prints a body that holds a secret.
  */
-export function safeSmokeDeps(projectRoot, warn) {
+export function safeSmokeDeps(projectRoot, warn, options = {}) {
     return {
-        redact: createEnvRedactor(projectRoot),
+        redact: createEnvRedactor(projectRoot, options.envFiles ?? []),
         ...(warn ? { warn } : {}),
     };
 }

@@ -79,6 +79,7 @@ tdk up --dry-run               # 🔍 Preview services and URLs without starting
 tdk up --quiet                 # 🤫 Suppress non-essential output (-q)
 tdk up --verbose               # 📝 Verbose output (shows runtime assets, Tilt logs) (-v)
 tdk up --force                 # ⚡ Kill existing Tilt process before starting (-f)
+tdk up --env-file .env.integration  # 🔀 Use another project env file for this run
 
 tdk down                       # ⏹️ Stop all services and Tilt
 tdk down --force               # ⚙️ Accepted for script compatibility; has no effect (-f)
@@ -199,6 +200,7 @@ The frontend provider owns root `index.html` and starter source. After TDK gener
 | `tdk up` | 🚀 Start all services | `tdk up` |
 | `tdk up <stack>` | 🚀 Start a stack | `tdk up api` |
 | `tdk up --dry-run` | 👀 Preview the services and URLs without Docker, Tilt, or file changes | `tdk up api --dry-run` |
+| `tdk up --env-file <path>` | 🔀 Use another project env file for the run instead of `.env` (inside the project) | `tdk up --env-file .env.integration` |
 | `tdk down` | ⏹️ Stop all services | `tdk down` |
 | `tdk status` | 📊 Show resource status | `tdk status` |
 | `tdk logs` | 📜 Print a bounded snapshot of recent logs from the running stack (`--json`) | `tdk logs` |

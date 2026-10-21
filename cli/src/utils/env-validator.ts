@@ -67,6 +67,15 @@ const REQUIRED_ENV_VARS: EnvVariable[] = [
 const generateDbPassword = (): string => randomBytes(16).toString("hex");
 const generateJwtSecret = (): string => randomBytes(32).toString("hex");
 
+/**
+ * The keys `completeEnvFile` keeps complete in the project `.env`. An env file that replaces the
+ * project `.env` for a run (`tdk up --env-file`) carries the same keys, so it is read from here
+ * instead of from a second list.
+ */
+export const COMPLETED_ENV_VARS: string[] = REQUIRED_ENV_VARS.filter((v) => v.complete).map(
+  (v) => v.name,
+);
+
 function generatedValue(name: string, password: string): string {
   if (name === "DB_PASSWORD") return password;
   if (name === "JWT_SECRET") return generateJwtSecret();

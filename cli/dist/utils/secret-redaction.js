@@ -21,8 +21,15 @@ export const MIN_REDACTED_VALUE_LENGTH = 8;
  * Values of the project's own .env file, longest first so a value that contains another is masked whole. Throws when the
  * file exists but cannot be read: continuing without the values would print secrets unmasked.
  */
-export function envSecretValues(projectRoot) {
-    const envPath = join(projectRoot, ".env");
+export function envSecretValues(projectRoot, extraEnvPaths = []) {
+    const values = [
+        ...secretValuesOf(join(projectRoot, ".env")),
+        ...extraEnvPaths.flatMap((path) => secretValuesOf(path)),
+    ];
+    return [...new Set(values)].sort((a, b) => b.length - a.length);
+}
+/** The values of one env file, long enough to be worth masking. Throws when the file cannot be read. */
+function secretValuesOf(envPath) {
     if (!existsSync(envPath))
         return [];
     let content;
@@ -32,8 +39,7 @@ export function envSecretValues(projectRoot) {
     catch (error) {
         throw new EnvUnreadableError(envPath, error instanceof Error ? error.message : String(error));
     }
-    const values = [...parseEnv(content).values()].filter((value) => value.length >= MIN_REDACTED_VALUE_LENGTH);
-    return [...new Set(values)].sort((a, b) => b.length - a.length);
+    return [...parseEnv(content).values()].filter((value) => value.length >= MIN_REDACTED_VALUE_LENGTH);
 }
 export function redactSecrets(text, secrets) {
     let result = text;
@@ -58,11 +64,14 @@ export function redactValue(value, secrets) {
  * A redactor for text that may hold the project's own secrets. When the project's .env exists but cannot be read, the values
  * are unknown, so the redactor throws instead of guessing: the caller then shows and stores nothing rather than raw text. The
  * original error is kept, so a caller can still tell an unreadable .env from another failure.
+ *
+ * `extraEnvPaths` are the other env files of the run (the file `tdk up --env-file` selected): their values are secrets as
+ * much as the ones in the project .env.
  */
-export function createEnvRedactor(projectRoot) {
+export function createEnvRedactor(projectRoot, extraEnvPaths = []) {
     let secrets;
     try {
-        secrets = envSecretValues(projectRoot);
+        secrets = envSecretValues(projectRoot, extraEnvPaths);
     }
     catch (error) {
         return () => {

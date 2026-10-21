@@ -9,6 +9,7 @@
 
 load('./utils_env.star',
     'load_dotenv',
+    'project_env_file',
     'should_enable',
 )
 load('./utils_debug.star',
@@ -374,6 +375,7 @@ Utils = struct(
 
     # Environment
     load_dotenv = load_dotenv,
+    project_env_file = project_env_file,
     should_enable = should_enable,
 
     # Debug utilities

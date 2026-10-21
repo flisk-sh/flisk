@@ -8,6 +8,10 @@
 _DOTENV_NAME_FIRST = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_'
 _DOTENV_NAME_REST = _DOTENV_NAME_FIRST + '0123456789'
 
+# The environment variable `tdk up --env-file <path>` sets. The CLI resolves the path and
+# exports it, so the engine reads one file for the whole run.
+PROJECT_ENV_FILE_VAR = 'TDK_ENV_FILE'
+
 
 def _is_dotenv_name(name):
     if not name or name[0] not in _DOTENV_NAME_FIRST:
@@ -56,8 +60,24 @@ def _dotenv_value(raw):
     return result
 
 
+def project_env_file(project_root=''):
+    """The project env file of this run.
+
+    `tdk up --env-file <path>` exports TDK_ENV_FILE, and the run then reads that file instead of the
+    project `.env` - for the Tilt environment and for the Compose interpolation alike. Without the
+    variable the project `.env` is used, which is what every run did before the option existed.
+
+    The path is used as it is: the CLI resolved it to an absolute path inside the project, so the
+    wake gateway (which mounts the project read-only) can read the same file.
+    """
+    selected = os.environ.get(PROJECT_ENV_FILE_VAR, '')
+    if selected:
+        return selected
+    return (project_root + '/.env') if project_root else '.env'
+
+
 def load_dotenv(project_root=''):
-    """Load the project .env file into os.environ.
+    """Load the project env file of this run into os.environ.
 
     The Tiltfile lives in `.tdk/.tdk-out/`, so a bare `.env` lookup misses the
     project-root file. Prefer an explicit project_root, then TDK_PROJECT_ROOT.
@@ -68,7 +88,7 @@ def load_dotenv(project_root=''):
     """
     if not project_root:
         project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    env_path = (project_root + '/.env') if project_root else '.env'
+    env_path = project_env_file(project_root)
     content = str(read_file(env_path, default=''))
     if not content:
         return

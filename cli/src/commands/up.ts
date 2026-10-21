@@ -21,14 +21,24 @@ import {
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
+import {
+  applyEnvFileSelection,
+  assertEngineSupportsEnvFile,
+  EnvFileError,
+  envFileWarning,
+  type SelectedEnvFile,
+  selectEnvFile,
+} from "../utils/env-selection.js";
 import { completeEnvFile } from "../utils/env-validator.js";
 import {
   errorFactories,
+  getErrorMessage,
   handleTiltFailure,
   requireProjectRoot,
   runCommand,
   showError,
   showErrorAndExit,
+  TdkError,
   withTiltCheck,
 } from "../utils/errors.js";
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
@@ -39,7 +49,7 @@ import {
   writeSavedHostPortPlan,
 } from "../utils/host-port-config.js";
 import { formatHostPortPlan } from "../utils/host-port-plan.js";
-import { createJsonEmitter } from "../utils/json-output.js";
+import { createJsonEmitter, type JsonError } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
@@ -236,6 +246,41 @@ function waitForTiltUi(port: number, timeoutMs = 30_000): Promise<boolean> {
   });
 }
 
+/**
+ * The env file of the run. `tdk up --env-file <path>` replaces the project `.env` for the run, so the
+ * file is resolved, read and checked before anything is written or started. Without the option the
+ * project `.env` stays the env file of the run, exactly as before.
+ *
+ * @throws TdkError when the file cannot be used; the run stops before it starts
+ */
+export function selectRunEnvFile(
+  projectRoot: string | null,
+  requested: string | undefined,
+): SelectedEnvFile | undefined {
+  if (requested === undefined) return undefined;
+  if (!projectRoot) {
+    throw errorFactories.notInProject();
+  }
+  const selection = selectEnvFile(projectRoot, requested);
+  // A project created before this option vendored an engine that ignores the selection, so the run
+  // would silently use the project .env instead.
+  assertEngineSupportsEnvFile(projectRoot);
+  return selection;
+}
+
+/** The machine-readable failure of a refused `--env-file`, and the exit code it stops the run with. */
+function envFileFailure(error: unknown): { failure: JsonError; exitCode: number } {
+  const suggestions = error instanceof TdkError ? error.suggestions : [];
+  return {
+    failure: {
+      code: error instanceof EnvFileError ? error.code : "ENV_FILE_INVALID",
+      message: getErrorMessage(error),
+      ...(suggestions.length > 0 ? { suggestions } : {}),
+    },
+    exitCode: error instanceof TdkError ? error.exitCode : 2,
+  };
+}
+
 export const upCommand = new Command("up")
   .description("Start all services (optionally filtered by stack)")
   .alias("deploy")
@@ -253,6 +298,10 @@ export const upCommand = new Command("up")
   .option(
     "--only <services...>",
     "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks",
+  )
+  .option(
+    "--env-file <path>",
+    "Use this project env file for the run instead of .env (for example: --env-file .env.integration)",
   )
   .option(
     "--json",
@@ -275,6 +324,31 @@ export const upCommand = new Command("up")
         ignoreVersion: options.ignoreVersion,
         onFail: (message) => emit?.({ ok: false }, [{ code: "TDK_VERSION_TOO_OLD", message }]),
       });
+    }
+    // The env file of the run. `--env-file` replaces the project .env for this run, so the file is
+    // resolved and read before any prerequisite check, any write and any service starts.
+    const envFileRoot = versionRoot;
+    let envFileSelection: SelectedEnvFile | undefined;
+    if (options.envFile !== undefined) {
+      try {
+        envFileSelection = selectRunEnvFile(envFileRoot, options.envFile);
+      } catch (error) {
+        const { failure, exitCode } = envFileFailure(error);
+        emit?.({ ok: false }, [failure]);
+        showErrorAndExit(failure.message, exitCode, failure.suggestions);
+      }
+      if (envFileSelection && envFileRoot) {
+        applyEnvFileSelection(envFileSelection);
+        if (!options.quiet) {
+          console.log(
+            chalk.gray(
+              `Using env file: ${envFileSelection.relativePath} (the project .env is not read in this run)`,
+            ),
+          );
+        }
+        const warning = envFileWarning(envFileRoot, envFileSelection);
+        if (warning) console.log(chalk.yellow(warning));
+      }
     }
     const hostRefusal = options.dryRun ? null : await hostUpRefusal();
     if (hostRefusal) {
@@ -371,7 +445,8 @@ export const upCommand = new Command("up")
       if (!options.dryRun) {
         // An older project's .env predates keys such as JWT_SECRET, which Compose now requires. Add what is missing (never
         // changing an existing value) before anything starts. Only inside a real project, so a stray run never writes a .env.
-        if (foundRoot) {
+        // A selected env file replaces the project .env for this run: the run does not read it, so it is not completed either.
+        if (foundRoot && !envFileSelection) {
           const addedEnvKeys = completeEnvFile(projectRoot);
           if (addedEnvKeys.length > 0 && !options.quiet) {
             console.log(
@@ -697,7 +772,10 @@ export const upCommand = new Command("up")
           if (ignoreWarning) console.warn(chalk.yellow(ignoreWarning));
           const results = await runSmokePlans(smokePlans, {
             recordDir: join(projectRoot, ".tdk", "smoke"),
-            ...safeSmokeDeps(projectRoot, (message) => console.warn(chalk.yellow(message))),
+            ...safeSmokeDeps(projectRoot, (message) => console.warn(chalk.yellow(message)), {
+              // The selected env file holds secrets as much as the project .env.
+              envFiles: envFileSelection ? [envFileSelection.path] : [],
+            }),
           });
           for (const smokeResult of results) {
             if (smokeResult.ok) {

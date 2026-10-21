@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import type { DiscoveredResource } from "../types/index.js";
+import { type SelectedEnvFile } from "../utils/env-selection.js";
 export declare function formatUpSuccess(port: number, appUrls?: string[]): string[];
 export declare function nativeWindowsUpRefusal(platform: string, allowNativeWindows?: string): string | null;
 /** Why `tdk up` cannot work on this host, or null when it may proceed. Docker reachability is only probed in container hosts. */
@@ -34,4 +35,12 @@ export declare function enforceVersionFloor(projectRoot: string, options: {
  * running (`tdk down` stops it), so waiting for its exit would hang the command.
  */
 export declare function waitForTiltUnlessStartupFailed<T>(tiltRun: Promise<T>, startupFailure: Promise<void>, exit?: (code: number) => never): Promise<T>;
+/**
+ * The env file of the run. `tdk up --env-file <path>` replaces the project `.env` for the run, so the
+ * file is resolved, read and checked before anything is written or started. Without the option the
+ * project `.env` stays the env file of the run, exactly as before.
+ *
+ * @throws TdkError when the file cannot be used; the run stops before it starts
+ */
+export declare function selectRunEnvFile(projectRoot: string | null, requested: string | undefined): SelectedEnvFile | undefined;
 export declare const upCommand: Command;
