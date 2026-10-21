@@ -3,7 +3,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { CLI_COMMAND, CLI_PACKAGE, LEGACY_PACKAGE, isCommandOnPath, readyNextStep } from "../cli-command.js";
+import {
+  CLI_COMMAND,
+  CLI_PACKAGE,
+  isCommandOnPath,
+  LEGACY_PACKAGE,
+  readyNextStep,
+} from "../cli-command.js";
 
 describe("cli-command", () => {
   it("names the command and the package that installs it", () => {

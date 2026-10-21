@@ -13,5 +13,5 @@ The importer is published, but its refusal and Procfile behavior must match what
 
 ## Impact
 
-- Affected: `tdk-import` source and README, `docs/operator-runbook.md`, and `cli/src/commands/__tests__/up.test.ts`.
+- Affected: `flisk-import` source and README, `docs/operator-runbook.md`, and `cli/src/commands/__tests__/up.test.ts`.
 - Out of scope: new language support, adopters, Windows `tdk up`, and premium features.

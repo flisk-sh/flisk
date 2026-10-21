@@ -71,7 +71,7 @@ local_resource('init-networks', cmd=Utils.fix_docker_networks(), labels=['infra'
 load('./engine/topologies/tilt/common/utils.star', 'Utils')
 
 Utils.get_internal_deps("services/product/user/user-management-backend")
-Utils.resolve_lib_path("@tdk-landscape/eventing")
+Utils.resolve_lib_path("@flisk-sh/eventing")
 Utils.write_file_if_changed("path/to/file.txt", "content")
 Utils.fix_docker_networks()
 Utils.detect_circular_deps(["path1", "path2"])
@@ -247,7 +247,7 @@ tilt up -- --focus=user --include-monitoring
 ### Automatic Dependency Sync
 
 ```bash
-bun add @tdk-landscape/eventing  # In any service
+bun add @flisk-sh/eventing  # In any service
 # → Tilt watches package.json
 # → TSConfig/Vite auto-regenerate
 # → Service rebuilds

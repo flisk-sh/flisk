@@ -461,7 +461,7 @@ tdk eject --help
 tdk import --help
 ```
 
-To bring an existing Compose repo in, `tdk import` runs [tdk-import](https://github.com/flisk-sh/flisk-import) on the root `docker-compose.yml` (it needs `npx`). Flags `--dry-run`, `--yes` and `--force` go straight to it.
+To bring an existing Compose repo in, `tdk import` runs [flisk-import](https://github.com/flisk-sh/flisk-import) on the root `docker-compose.yml` (it needs `npx`). Flags `--dry-run`, `--yes` and `--force` go straight to it.
 
 ---
 

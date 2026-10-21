@@ -17,8 +17,8 @@ set -euo pipefail
 
 # Pinned to a commit of flisk-sh/flisk-sh.github.io and verified
 # against the SHA-256 of that exact install.sh before it is executed.
-readonly OFFICIAL_INSTALLER="https://raw.githubusercontent.com/flisk-sh/flisk-sh.github.io/71ed55f1aca54f0a4c2fd45236c59228803725b4/install.sh"
-readonly OFFICIAL_INSTALLER_SHA256="add9c92c79947116d2845ecdecc2e0643e84b5aae31e6dd807dee0fe67f11fb0"
+readonly OFFICIAL_INSTALLER="https://raw.githubusercontent.com/flisk-sh/flisk-sh.github.io/ed5478b2e868252c7146e484c5fd4e6211ec3a55/install.sh"
+readonly OFFICIAL_INSTALLER_SHA256="c44d35f099306369a32fa5569b78d637035df04377bd43ff425efbc55078b836"
 
 echo "Using the official TDK installer: ${OFFICIAL_INSTALLER}" >&2
 installer_tmp="$(mktemp)"

@@ -35,7 +35,7 @@ Aliases: `byo`, `bring-your-own`
 - `--port` accepts an unused integer from 4000 through 5999
 - By default, TDK writes an Nginx Dockerfile and health endpoint that listen on the assigned
   service port
-- Set `"buildContext"` in `service.json` (a path relative to the resource directory) to build from a source tree elsewhere in the repo, as `tdk-import` does for an existing Dockerfile. `dockerfile` is then relative to that context. Without it the context is the resource directory
+- Set `"buildContext"` in `service.json` (a path relative to the resource directory) to build from a source tree elsewhere in the repo, as `flisk-import` does for an existing Dockerfile. `dockerfile` is then relative to that context. Without it the context is the resource directory
 - Pass `--dockerfile <path>` to select a custom Dockerfile, or `--image <image>` to use an
   existing image without creating a Dockerfile
 

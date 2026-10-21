@@ -27,7 +27,7 @@ function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
 }
 
 describe("tdk import", () => {
-  it("forwards every argument, including flags, to tdk-import", () => {
+  it("forwards every argument, including flags, to flisk-import", () => {
     const inv = importInvocation([".", "--dry-run", "--force"], {}, "linux");
     expect(inv).toEqual({
       command: "npx",
@@ -37,7 +37,7 @@ describe("tdk import", () => {
   });
 
   it("runs the importer from npm at an exact version, not from a git branch", () => {
-    expect(IMPORT_PACKAGE).toMatch(/^@tdk-landscape\/tdk-import@\d+\.\d+\.\d+$/);
+    expect(IMPORT_PACKAGE).toMatch(/^flisk-import@\d+\.\d+\.\d+$/);
   });
 
   it("advertises only flags the importer has", () => {
@@ -48,9 +48,9 @@ describe("tdk import", () => {
   });
 
   it("honours TDK_IMPORT_PACKAGE and uses npx.cmd on Windows", () => {
-    const inv = importInvocation(["."], { TDK_IMPORT_PACKAGE: "tdk-import@1" }, "win32");
+    const inv = importInvocation(["."], { TDK_IMPORT_PACKAGE: "flisk-import@1" }, "win32");
     expect(inv.command).toBe("npx.cmd");
-    expect(inv.args).toEqual(["--yes", "tdk-import@1", "."]);
+    expect(inv.args).toEqual(["--yes", "flisk-import@1", "."]);
     expect(inv.shell).toBe(true);
   });
 
@@ -68,7 +68,7 @@ describe("tdk import", () => {
     err.mockRestore();
   });
 
-  it("is registered as `import` and leaves --help to tdk-import", () => {
+  it("is registered as `import` and leaves --help to flisk-import", () => {
     expect(importCommand.name()).toBe("import");
     expect(importCommand.helpCommand).toBeDefined();
     expect(importCommand.options.find((o) => o.long === "--help")).toBeUndefined();

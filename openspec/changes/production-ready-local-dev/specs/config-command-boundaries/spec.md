@@ -33,11 +33,11 @@
 - **THEN** migrate names the file and the version, exits 1, and leaves that file byte-identical
 
 ### Requirement: Import does not regenerate or migrate
-`tdk import` SHALL run the `tdk-import` package and pass through its arguments and exit code. It SHALL NOT run `tdk config regenerate` or `tdk config migrate`. A failed import SHALL NOT be reported as generated-config drift.
+`tdk import` SHALL run the `flisk-import` package and pass through its arguments and exit code. It SHALL NOT run `tdk config regenerate` or `tdk config migrate`. A failed import SHALL NOT be reported as generated-config drift.
 
 #### Scenario: Import dry-run
 - **WHEN** the user runs `tdk import --dry-run`
-- **THEN** the command delegates to `tdk-import` and does not run regenerate or migrate
+- **THEN** the command delegates to `flisk-import` and does not run regenerate or migrate
 
 #### Scenario: Import cannot start
 - **WHEN** `npx` cannot run the importer
