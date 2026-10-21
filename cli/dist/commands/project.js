@@ -78,6 +78,14 @@ function getDefaultCoreServices() {
         .filter((f) => f.enabled_by_default && f.category === "core")
         .map((f) => f.name);
 }
+/** The directory a template lands in: the requested path, or the template's repository name. */
+export function templateTargetDir(templateName, targetDir) {
+    if (targetDir)
+        return targetDir;
+    const template = PROJECT_TEMPLATES[templateName];
+    const fromRepo = template?.repo.split("/").pop() ?? templateName;
+    return fromRepo.replace(/\.git$/, "");
+}
 export async function cloneProjectTemplate(templateName, targetDir, runtimeNextSteps) {
     const template = PROJECT_TEMPLATES[templateName];
     if (!template) {
@@ -89,7 +97,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         console.log(chalk.gray("\nOr run `flisk project` with no template for a blank project."));
         process.exit(1);
     }
-    const dirName = targetDir || (template.repo.split("/").pop() ?? templateName).replace(/\.git$/, "");
+    const dirName = templateTargetDir(templateName, targetDir);
     if (!isPathSafe(dirName)) {
         errorFactories.invalidPath(dirName).exit();
     }

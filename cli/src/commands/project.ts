@@ -109,6 +109,14 @@ function getDefaultCoreServices(): string[] {
     .map((f) => f.name);
 }
 
+/** The directory a template lands in: the requested path, or the template's repository name. */
+export function templateTargetDir(templateName: string, targetDir?: string): string {
+  if (targetDir) return targetDir;
+  const template = PROJECT_TEMPLATES[templateName];
+  const fromRepo = template?.repo.split("/").pop() ?? templateName;
+  return fromRepo.replace(/\.git$/, "");
+}
+
 export async function cloneProjectTemplate(
   templateName: string,
   targetDir: string | undefined,
@@ -126,8 +134,7 @@ export async function cloneProjectTemplate(
     process.exit(1);
   }
 
-  const dirName =
-    targetDir || (template.repo.split("/").pop() ?? templateName).replace(/\.git$/, "");
+  const dirName = templateTargetDir(templateName, targetDir);
 
   if (!isPathSafe(dirName)) {
     errorFactories.invalidPath(dirName).exit();
