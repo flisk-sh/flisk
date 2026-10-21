@@ -114,8 +114,10 @@ if (templateArg) {
     let watching = true;
     void (async () => {
       while (watching) {
-        const { running } = await classifyTiltPorts(candidates, destination, async (port) =>
-          (await readStackProgress(port)) !== undefined,
+        const { running } = await classifyTiltPorts(
+          candidates,
+          destination,
+          async (port) => (await readStackProgress(port)) !== undefined,
         );
         for (const port of running) {
           const progress = await readStackProgress(port);
