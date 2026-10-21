@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { cwd } from "node:process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
@@ -101,7 +101,9 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
     if (!isPathSafe(dirName)) {
         errorFactories.invalidPath(dirName).exit();
     }
-    const destination = resolve(cwd(), dirName);
+    // If targetDir is an absolute path, use it directly as the destination
+    // Otherwise resolve it relative to cwd()
+    const destination = isAbsolute(dirName) ? dirName : resolve(cwd(), dirName);
     if (existsSync(destination) && readdirSync(destination).length > 0) {
         errorFactories.directoryExists(destination).exit();
     }

@@ -29,6 +29,10 @@ describe("PROJECT_TEMPLATES", () => {
     expect(PROJECT_TEMPLATES.demo.repo).toBe(PROJECT_TEMPLATES.restaurant.repo);
   });
 
+  it("demo template has fixedDir for consistent demo location", () => {
+    expect(PROJECT_TEMPLATES.demo.fixedDir).toBe("flisk-demo");
+  });
+
   it("points ecommerce at tdk-ecommerce-example", () => {
     expect(PROJECT_TEMPLATES.ecommerce.repo).toBe(
       "https://github.com/flisk-sh/tdk-ecommerce-example.git",

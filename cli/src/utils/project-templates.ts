@@ -4,6 +4,7 @@ export interface ProjectTemplate {
   repo: string;
   description: string;
   bundledPath?: string;
+  fixedDir?: string;
 }
 
 /** Public starter repositories plus the bundled default product example. */
@@ -11,6 +12,7 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
   demo: {
     repo: "https://github.com/flisk-sh/tdk-restaurant-example.git",
     description: "The demo stack: restaurant ops with reservations, kitchen and floor control",
+    fixedDir: "flisk-demo",
   },
   restaurant: {
     repo: "https://github.com/flisk-sh/tdk-restaurant-example.git",
