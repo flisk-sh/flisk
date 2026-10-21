@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile, execFileSync } from "node:child_process";
-import { realpathSync, statfsSync } from "node:fs";
+import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -190,12 +190,16 @@ async function runColima(action) {
     if (action === "native-lima") {
         let nativeDir = nativeLimaPath();
         if (!nativeDir) {
-            // No native limactl on PATH: reinstall Lima through Homebrew, which pulls a native build on Apple Silicon.
-            await execFilePromise("brew", ["reinstall", "lima"], {
+            // No native limactl on PATH: reinstall Lima through the native Homebrew, which pulls a native build on Apple Silicon.
+            const brewBin = existsSync("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
+            await execFilePromise(brewBin, ["reinstall", "lima"], {
                 encoding: "utf-8",
                 timeout: 300_000,
             });
             nativeDir = nativeLimaPath();
+            if (!nativeDir) {
+                throw new Error("brew reinstall lima did not provide a native limactl");
+            }
         }
         const env = nativeDir
             ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }

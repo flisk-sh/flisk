@@ -251,9 +251,7 @@ async function runColima(action: "start" | "restart" | "native-lima"): Promise<v
     let nativeDir = nativeLimaPath();
     if (!nativeDir) {
       // No native limactl on PATH: reinstall Lima through the native Homebrew, which pulls a native build on Apple Silicon.
-      const brewBin = existsSync("/opt/homebrew/bin/brew")
-        ? "/opt/homebrew/bin/brew"
-        : "brew";
+      const brewBin = existsSync("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
       await execFilePromise(brewBin, ["reinstall", "lima"], {
         encoding: "utf-8",
         timeout: 300_000,
