@@ -30,6 +30,52 @@ export type StackOutcome = {
   raw: string;
 };
 
+export type SetupOutcome = {
+  /** True when the project was initialized. */
+  ok: boolean;
+  /** The last line the setup printed, kept for the failure message. */
+  error?: string;
+};
+
+/**
+ * Initializes a cloned project.
+ *
+ * A starter repository holds services and a Tiltfile, but no project configuration, and
+ * `flisk up` refuses to run without one. So the one-command flow initializes the folder it
+ * just cloned before it starts the stack.
+ */
+export function initializeProject(
+  binPath: string,
+  cwd: string,
+  env: NodeJS.ProcessEnv = process.env,
+  spawnFn: typeof spawn = spawn,
+): Promise<SetupOutcome> {
+  return new Promise((resolve) => {
+    const child = spawnFn(process.execPath, [binPath, "project", "--yes"], {
+      cwd,
+      env,
+      stdio: ["inherit", "inherit", "pipe"],
+    });
+    let errors = "";
+    child.stderr?.on("data", (chunk: Buffer | string) => {
+      errors += String(chunk);
+    });
+    child.on("error", (error) => resolve({ ok: false, error: error.message }));
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ ok: true });
+        return;
+      }
+      const last = errors
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .pop();
+      resolve({ ok: false, error: last ?? `the project setup failed (code ${code})` });
+    });
+  });
+}
+
 interface MachineEnvelope {
   data?: { ok?: boolean } | null;
   errors?: { code?: string; message?: string }[];

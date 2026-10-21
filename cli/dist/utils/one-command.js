@@ -20,6 +20,39 @@ export function findFrontendUrl(output) {
     }
     return undefined;
 }
+/**
+ * Initializes a cloned project.
+ *
+ * A starter repository holds services and a Tiltfile, but no project configuration, and
+ * `flisk up` refuses to run without one. So the one-command flow initializes the folder it
+ * just cloned before it starts the stack.
+ */
+export function initializeProject(binPath, cwd, env = process.env, spawnFn = spawn) {
+    return new Promise((resolve) => {
+        const child = spawnFn(process.execPath, [binPath, "project", "--yes"], {
+            cwd,
+            env,
+            stdio: ["inherit", "inherit", "pipe"],
+        });
+        let errors = "";
+        child.stderr?.on("data", (chunk) => {
+            errors += String(chunk);
+        });
+        child.on("error", (error) => resolve({ ok: false, error: error.message }));
+        child.on("close", (code) => {
+            if (code === 0) {
+                resolve({ ok: true });
+                return;
+            }
+            const last = errors
+                .split("\n")
+                .map((line) => line.trim())
+                .filter(Boolean)
+                .pop();
+            resolve({ ok: false, error: last ?? `the project setup failed (code ${code})` });
+        });
+    });
+}
 /** Reads the `{schemaVersion, data, errors}` envelope `flisk up --json` prints when it is done. */
 export function parseStackEnvelope(output) {
     for (const line of output.split("\n")) {

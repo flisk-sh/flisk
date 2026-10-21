@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   findFrontendUrl,
   findServiceDirs,
+  initializeProject,
   nextAvailableProjectDir,
   parseStackEnvelope,
   runStackQuiet,
@@ -99,6 +100,47 @@ describe("runStackQuiet", () => {
     const result = await promise;
     expect(result.ok).toBe(false);
     expect(result.error).toBe("Docker is not running");
+  });
+});
+
+describe("initializeProject", () => {
+  it("sets up the cloned project so the stack can start", async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      stdout: EventEmitter;
+      stderr: EventEmitter;
+    };
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    const spawnFn = vi.fn(() => child) as never;
+
+    const promise = initializeProject("/bin/flisk", "/tmp/project", {}, spawnFn);
+    child.emit("close", 0);
+
+    const result = await promise;
+    expect(spawnFn).toHaveBeenCalledWith(
+      process.execPath,
+      ["/bin/flisk", "project", "--yes"],
+      expect.objectContaining({ cwd: "/tmp/project" }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("reports the last error line when the setup fails", async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      stdout: EventEmitter;
+      stderr: EventEmitter;
+    };
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    const spawnFn = vi.fn(() => child) as never;
+
+    const promise = initializeProject("/bin/flisk", "/tmp/project", {}, spawnFn);
+    child.stderr.emit("data", "Could not write .tdk/project.json\n");
+    child.emit("close", 1);
+
+    const result = await promise;
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("Could not write .tdk/project.json");
   });
 });
 

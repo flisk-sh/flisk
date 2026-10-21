@@ -50,7 +50,7 @@ if (templateArg) {
     }
     const binPath = process.argv[1];
     if (binPath && existsSync(destination)) {
-        const { runStackQuiet } = await import("./utils/one-command.js");
+        const { initializeProject, installServiceDependencies, runStackQuiet } = await import("./utils/one-command.js");
         const { openFirstFrontend } = await import("./commands/open.js");
         const { startSpinner } = await import("./utils/spinner.js");
         // A stack for this project may already be running (the same example in another folder
@@ -63,9 +63,18 @@ if (templateArg) {
             await openFirstFrontend(destination);
             process.exit(0);
         }
+        // A cloned starter has no project configuration yet, and `flisk up` refuses to run
+        // without one, so the project is set up before the stack starts.
+        const setupSpinner = startSpinner("Setting up the project...");
+        const setup = await initializeProject(binPath, destination);
+        if (!setup.ok) {
+            setupSpinner.fail("The project setup failed.");
+            console.log(chalk.yellow(setup.error ?? "flisk project --yes did not finish."));
+            process.exit(1);
+        }
+        setupSpinner.succeed("The project is ready.");
         // A fresh clone has no host dependencies, and the stack typechecks the services on the
         // host, so install them before the stack starts.
-        const { installServiceDependencies } = await import("./utils/one-command.js");
         const installSpinner = startSpinner("Installing the service dependencies...");
         const installs = await installServiceDependencies(destination);
         const failed = installs.filter((entry) => !entry.ok);
