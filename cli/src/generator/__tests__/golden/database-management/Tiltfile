@@ -42,7 +42,7 @@ Fix it with one of:
      (set $TDK_EXTENSION_SOURCE to a tdk-cli checkout if it was not auto-detected)
   2) Point at any tdk-cli checkout:
        export TDK_EXTENSION_PATH=/path/to/tdk-cli
-  3) Follow the sandbox guide: https://tdk-landscape.github.io/tdk-website/sandbox/
+  3) Follow the sandbox guide: https://flisk.sh/sandbox/
 """)
 
 v1alpha1.extension_repo(name='tdk-cli-local', url='file://' + _local_tdk_path)

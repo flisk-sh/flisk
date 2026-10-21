@@ -47,7 +47,7 @@ describe("tdk --help", () => {
       expect(output).toContain("--verbose");
       expect(output).toContain("Quick start:");
       expect(output).toContain("Examples:");
-      expect(output).toContain("https://github.com/tdk-landscape/tdk-cli-core");
+      expect(output).toContain("https://github.com/flisk-sh/tdk-cli-core");
     } finally {
       logSpy.mockRestore();
     }

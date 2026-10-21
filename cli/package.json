@@ -10,13 +10,13 @@
     "local-dev",
     "microservices"
   ],
-  "homepage": "https://github.com/tdk-landscape/tdk-cli-core#readme",
+  "homepage": "https://github.com/flisk-sh/tdk-cli-core#readme",
   "bugs": {
-    "url": "https://github.com/tdk-landscape/tdk-cli-core/issues"
+    "url": "https://github.com/flisk-sh/tdk-cli-core/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tdk-landscape/tdk-cli-core.git",
+    "url": "git+https://github.com/flisk-sh/tdk-cli-core.git",
     "directory": "cli"
   },
   "license": "MIT",

@@ -44,10 +44,12 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // --type backend --stack shop` with no --language. Any drift here changes historical output.
 // The service.json hash was re-captured on purpose, twice, so a fresh scaffold writes the keys the engine reads and trips no warning:
 // the unread `healthCheck` became `healthCheckPath` (#402), and the deprecated `dependencies` became `dependsOn`.
+// It was re-captured a third time on 2026-10-21 for the GitHub organisation rename (tdk-landscape -> flisk-sh): the only byte that
+// changed in the scaffolded service.json is the `$schema` URL, which now points at the renamed Pages repository.
 const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "d5d856331ea4307ac42e36886407298a9fc63b1600b4ed18870940a6ec72a063",
   "package.json": "398877b088717f97af437af3d2233a7863af6ef442a62ba0fafcf29830d29ee1",
-  "service.json": "bc6598c626865ea3350e5204bbdb14aefd0eb0c36e64b6db6b8c6fe01ae76e6f",
+  "service.json": "a5ea565ec70c2d5d28d8b82728e434817f88d19009a7d490c6ea6be27c970f5b",
   "src/index.ts": "f50139530382e929db7128be7cb55f3bbc5f2fae03264979d675d3be4d0f4ef3",
   "tests/orders-api.test.ts": "a4946ac3123eb4bee78d7b84304cad8b7c36d4268688e3c878da2aaa11ef98ab",
   "tsconfig.json": "c0503e8c2d9e7cb0b77a1e0eaea674f4ee03f3182ff9f5429b9bb7ba0fabee41",

@@ -162,7 +162,7 @@ export function detectAllInstallations(): InstallInfo[] {
   return [...unique.values()];
 }
 
-const BINARY_RELEASE_REPO = "tdk-landscape/tdk-cli-releases";
+const BINARY_RELEASE_REPO = "flisk-sh/tdk-cli-releases";
 
 const ENGINE_ASSET_NAME = "tdk-cli-engine.tar.gz";
 const CHECKSUMS_ASSET_NAME = "checksums.txt";
@@ -451,8 +451,8 @@ export async function upgradeViaNpm(): Promise<boolean> {
       console.log(
         chalk.cyan(
           isWindows()
-            ? "   irm https://tdk-landscape.github.io/install.ps1 | iex"
-            : "   curl -fsSL https://tdk-landscape.github.io/install.sh | sh",
+            ? "   irm https://flisk-sh.github.io/tdk-landscape.github.io/install.ps1 | iex"
+            : "   curl -fsSL https://flisk-sh.github.io/tdk-landscape.github.io/install.sh | sh",
         ),
       );
     }
@@ -892,7 +892,11 @@ export function createUpgradeCommand(): Command {
         } else if (installInfo.method === "binary" && binaryRelease && installInfo.path) {
           const engineDir = join(dirname(installInfo.path), "tdk-cli");
           if (isWindows()) {
-            console.log(chalk.cyan("   irm https://tdk-landscape.github.io/install.ps1 | iex"));
+            console.log(
+              chalk.cyan(
+                "   irm https://flisk-sh.github.io/tdk-landscape.github.io/install.ps1 | iex",
+              ),
+            );
           } else {
             console.log(
               chalk.cyan(`   curl -fsSL -o ${installInfo.path} ${binaryRelease.downloadUrl}`),

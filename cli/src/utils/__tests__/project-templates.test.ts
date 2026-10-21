@@ -26,7 +26,7 @@ describe("PROJECT_TEMPLATES", () => {
 
   it("points ecommerce at tdk-ecommerce-example", () => {
     expect(PROJECT_TEMPLATES.ecommerce.repo).toBe(
-      "https://github.com/tdk-landscape/tdk-ecommerce-example.git",
+      "https://github.com/flisk-sh/tdk-ecommerce-example.git",
     );
   });
 
@@ -58,7 +58,7 @@ describe("PROJECT_TEMPLATES", () => {
 
   it("gives every template a github repo and a description", () => {
     for (const [name, t] of Object.entries(PROJECT_TEMPLATES)) {
-      expect(t.repo, name).toMatch(/^https:\/\/github\.com\/tdk-landscape\/[\w-]+\.git$/);
+      expect(t.repo, name).toMatch(/^https:\/\/github\.com\/flisk-sh\/[\w-]+\.git$/);
       expect(t.description, name).not.toBe("");
     }
   });

@@ -175,8 +175,6 @@ export function showHelp(): void {
   );
   console.log(chalk.gray(`  ${"═".repeat(50)}`));
   console.log(chalk.gray(`  For more help: ${chalk.cyan("tdk help [command]")}`));
-  console.log(
-    chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/tdk-landscape/tdk-cli-core")}`),
-  );
+  console.log(chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/flisk-sh/tdk-cli-core")}`));
   console.log();
 }

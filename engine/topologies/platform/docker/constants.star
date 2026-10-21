@@ -40,7 +40,7 @@ API_LOCAL_DOMAIN = API_SUBDOMAIN_PREFIX + "." + LOCAL_DOMAIN
 EMAIL_DOMAIN = PROJECT_NAME_HYPHEN + ".local"
 
 # Published resource-config JSON Schema, same for every project (not project-specific like EMAIL_DOMAIN)
-RESOURCE_SCHEMA_URL = "https://tdk-landscape.github.io/schema.service.json"
+RESOURCE_SCHEMA_URL = "https://flisk-sh.github.io/tdk-landscape.github.io/schema.service.json"
 
 # NPM scope constant
 NPM_SCOPE = "@" + PROJECT_NAME_HYPHEN + "/"
