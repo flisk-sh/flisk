@@ -38,7 +38,7 @@ tdk --version
 tdk mcp --help
 ```
 
-Both installation paths install the same CLI, and `tdk mcp` comes with it. There is no MCP package to add: no `@tdk-landscape/tdk-mcp`, no `npx @tdk-landscape/tdk-mcp`, and no MCP SDK to install. Docker and Tilt are needed to start a stack, but not to connect the client or to run `doctor`.
+Both installation paths install the same CLI, and `tdk mcp` comes with it. There is no MCP package to add: no `@flisk-sh/tdk-mcp`, no `npx @flisk-sh/tdk-mcp`, and no MCP SDK to install. Docker and Tilt are needed to start a stack, but not to connect the client or to run `doctor`.
 
 ## 2. Point a client at `tdk mcp`
 

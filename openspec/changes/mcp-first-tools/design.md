@@ -8,7 +8,7 @@
 - Explain that installing `@flisk-sh/flisk` (or the TDK binary) also installs `tdk mcp`.
 - Show how to configure Codex and Claude Code to launch the server locally over stdio.
 - Document all six currently available tools and demonstrate `doctor` followed by `up` as the first workflow.
-- Link the setup guide from `tdk-website`'s existing `llms.txt`.
+- Link the setup guide from `flisk-sh/website`'s existing `llms.txt`.
 
 **Non-Goals:**
 - Change the MCP protocol, transport, available tools, or tool behavior.
@@ -26,8 +26,8 @@
 
 - MCP configuration formats vary by client and version. Show verified examples and link to the client's current documentation for UI-specific setup.
 - A detached `up` result means startup has begun, not that the stack is ready. Explain how the existing `status` tool reports readiness.
-- `tdk-website` is a separate repository. Include its `llms.txt` update in the issue's coordinated work.
+- `flisk-sh/website` is a separate repository. Include its `llms.txt` update in the issue's coordinated work.
 
 ## Migration Plan
 
-Update the canonical guide, verify the client config examples, then add the guide link to `tdk-website/llms.txt`. No runtime migration or rollback is needed.
+Update the canonical guide, verify the client config examples, then add the guide link to `flisk-sh/website/llms.txt`. No runtime migration or rollback is needed.

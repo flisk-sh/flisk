@@ -1,6 +1,6 @@
 # TDK scale and cold-boot measurements
 
-> **Live report:** [flisk-sh.github.io/tdk-cli-core](https://flisk-sh.github.io/tdk-cli-core/) shows the latest `tdk up` warm and cold start measurements, per-service build times and the history. Published results are indexed in [`benchmarks/results/README.md`](../../benchmarks/results/README.md).
+> **Live report:** [flisk-sh.github.io/flisk](https://flisk-sh.github.io/flisk/) shows the latest `tdk up` warm and cold start measurements, per-service build times and the history. Published results are indexed in [`benchmarks/results/README.md`](../../benchmarks/results/README.md).
 
 These figures are implementation measurements, not the reason to use TDK. They describe generated `/health` fixtures rather than representative application workloads.
 

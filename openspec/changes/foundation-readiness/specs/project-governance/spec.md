@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Record who maintains tdk-cli-core, how maintainers are added, and which external users count as adopters.
+Record who maintains flisk, how maintainers are added, and which external users count as adopters.
 
 ## ADDED Requirements
 
@@ -17,7 +17,7 @@ The repo SHALL contain MAINTAINERS.md with a table whose columns are Name, GitHu
 
 #### Scenario: Rejected placeholder
 
-- **WHEN** a row uses Company "TBD" or "tdk-landscape"
+- **WHEN** a row uses Company "TBD" or "flisk-sh"
 - **THEN** review rejects the row
 
 ### Requirement: Maintainer lifecycle

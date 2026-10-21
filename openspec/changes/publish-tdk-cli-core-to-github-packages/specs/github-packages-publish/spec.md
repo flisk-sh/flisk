@@ -26,7 +26,7 @@ The repository release workflow SHALL authenticate GitHub Packages publication u
 Maintained package installation documentation SHALL describe the scoped GitHub Packages registry mapping and authentication required to install the CLI from that registry.
 
 #### Scenario: Consumer installs from GitHub Packages
-- **WHEN** a consumer configures `@tdk-landscape` to use `https://npm.pkg.github.com` and provides a valid read token
+- **WHEN** a consumer configures `@flisk-sh` to use `https://npm.pkg.github.com` and provides a valid read token
 - **THEN** the consumer can install `@flisk-sh/flisk` from GitHub Packages and run `tdk --version`
 
 ### Requirement: Preserve npm as the default distribution

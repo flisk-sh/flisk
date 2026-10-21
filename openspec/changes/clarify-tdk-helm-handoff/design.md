@@ -59,7 +59,7 @@ Required implementation stops at handwritten Helm values. Do not add a command s
 Alternative: implementing P2 with docs delays the primary comprehension fix and introduces unresolved production semantics.
 
 ### 6. Coordinate external surfaces explicitly
-Core tasks modify only the core worktree. Website tasks require an isolated branch/worktree in `tdk-website`; locate its contributor instructions before edits. Add a Helm/With Kubernetes navigation item next to Quickstart, a Helm/app-template comparison column, and synchronized config/hero copy. Update GitHub About during authorized implementation with repository access; if access is missing, record the exact pending text and owner, rather than marking that task complete. Root `AGENTS.md`/contributor guidance prohibits default Kubernetes generators and asks generator changes to state local-only or export-only intent. Issue forms ask local-dev versus cluster-deploy scope and provide Helm pointers; maintainers decide closure.
+Core tasks modify only the core worktree. Website tasks require an isolated branch/worktree in `flisk-sh/website`; locate its contributor instructions before edits. Add a Helm/With Kubernetes navigation item next to Quickstart, a Helm/app-template comparison column, and synchronized config/hero copy. Update GitHub About during authorized implementation with repository access; if access is missing, record the exact pending text and owner, rather than marking that task complete. Root `AGENTS.md`/contributor guidance prohibits default Kubernetes generators and asks generator changes to state local-only or export-only intent. Issue forms ask local-dev versus cluster-deploy scope and provide Helm pointers; maintainers decide closure.
 
 ## Risks / Trade-offs
 

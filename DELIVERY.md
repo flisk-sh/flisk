@@ -1,7 +1,7 @@
 # Delivery: TDK positioning and Helm handoff
 
 Core worktree: `spec/clarify-tdk-helm-handoff` (`tdk-cli-helm-handoff-wt`).
-Website worktree: `docs/helm-handoff` (`tdk-website-helm-handoff-wt`).
+Website worktree: `docs/helm-handoff` in `flisk-sh/website`.
 
 ## Shipped in the worktrees
 

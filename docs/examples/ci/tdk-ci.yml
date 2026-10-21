@@ -1,7 +1,7 @@
 # Copy to .github/workflows/tdk-ci.yml in your own repository.
 # Two jobs: `verify` checks the committed TDK files without starting any
 # container; `boot` runs a real `tdk up` and waits for every service's /health.
-# Adapted from tdk-cli-core's e2e-examples.yml and e2e-journeys.yml.
+# Adapted from flisk's e2e-examples.yml and e2e-journeys.yml.
 name: tdk
 
 on:

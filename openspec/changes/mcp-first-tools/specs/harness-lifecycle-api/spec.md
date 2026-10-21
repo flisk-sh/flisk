@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: MCP server shares the implementation
-`tdk mcp` SHALL expose the `doctor`, `up`, `down`, `status`, `logs`, and `resource_list` tools backed by the same functions as the CLI. The `up` tool SHALL start Tilt detached and return once started; callers poll the `status` tool for readiness, so a blocked call cannot time out. The tool SHALL refuse when `canUp` is false. The MCP setup documentation SHALL explain that `tdk mcp` is included with the CLI installation, show how local stdio clients launch it from a project directory, describe all available tools, and be discoverable from `tdk-website`'s existing `llms.txt`.
+`tdk mcp` SHALL expose the `doctor`, `up`, `down`, `status`, `logs`, and `resource_list` tools backed by the same functions as the CLI. The `up` tool SHALL start Tilt detached and return once started; callers poll the `status` tool for readiness, so a blocked call cannot time out. The tool SHALL refuse when `canUp` is false. The MCP setup documentation SHALL explain that `tdk mcp` is included with the CLI installation, show how local stdio clients launch it from a project directory, describe all available tools, and be discoverable from `flisk-sh/website`'s existing `llms.txt`.
 
 #### Scenario: MCP up on an unsupported host
 - **WHEN** the `up` tool is called in a WebContainer
@@ -12,7 +12,7 @@
 - **THEN** they can configure a local stdio MCP client to launch `tdk mcp` from their project directory without installing a separate MCP package
 
 #### Scenario: Website llms index points to MCP setup
-- **WHEN** an agent reads `tdk-website`'s `llms.txt`
+- **WHEN** an agent reads `flisk-sh/website`'s `llms.txt`
 - **THEN** it can follow a link to the canonical MCP setup guide
 
 #### Scenario: Getting-started workflow uses doctor and up

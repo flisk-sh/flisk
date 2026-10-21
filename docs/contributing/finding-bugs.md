@@ -17,7 +17,7 @@ tdk resource billing-api --type backend --stack shop --yes
 tdk resource storefront --type frontend --stack shop --yes
 ```
 
-To test the code on `main` instead of a released version, run the CLI from your clone: `bun /path/to/tdk-cli-core/cli/src/cli.ts <command>`. Put that in a small `tdk` script on your `PATH` so the commands below work unchanged.
+To test the code on `main` instead of a released version, run the CLI from your clone: `bun /path/to/flisk/cli/src/cli.ts <command>`. Put that in a small `tdk` script on your `PATH` so the commands below work unchanged.
 
 Most checks below need only Bun. Checks marked **(Docker)** need Docker and Tilt running.
 

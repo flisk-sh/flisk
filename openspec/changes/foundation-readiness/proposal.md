@@ -2,7 +2,7 @@
 
 ## Why
 
-CNCF sandbox is the only realistic foundation door, and the current repo fails the checks that close an application before a TOC vote: no MAINTAINERS file with employer affiliations, no documented maintainer lifecycle, and premium behavior that downloads code only with TDK_LICENSE_KEY. tdk-cli-core is a local Docker/Tilt generator, not an orchestrator. This change records that scope and adds the in-repo evidence. It does not add employers, and it does not file a CNCF application.
+CNCF sandbox is the only realistic foundation door, and the current repo fails the checks that close an application before a TOC vote: no MAINTAINERS file with employer affiliations, no documented maintainer lifecycle, and premium behavior that downloads code only with TDK_LICENSE_KEY. flisk is a local Docker/Tilt generator, not an orchestrator. This change records that scope and adds the in-repo evidence. It does not add employers, and it does not file a CNCF application.
 
 ## What Changes
 

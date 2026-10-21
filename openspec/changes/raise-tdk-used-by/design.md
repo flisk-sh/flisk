@@ -73,7 +73,7 @@ The `flisk-sh` organization repository listing and each candidate's default-bran
 | `tdk-ecommerce-example` | Root `package.json` + `bun.lock`; 2 nested service manifests | README documents `tdk project`, `tdk up`, and a CLI minimum version | Uses TDK; root package currently has no CLI dependency |
 | `tdk-erp-system` | Root `package.json`, no root lockfile; 107 service manifests | README documents `tdk up`; labeled 100-service fixture | Fixture uses TDK; root package currently has no CLI dependency |
 | `tdk-cli-starter` | Root `package.json`; no root lockfile found | `tdk:dry-run` and `tdk:up` npm scripts invoke `tdk` | Already declares `@flisk-sh/flisk` at `1.3.185`; audit version policy and lockfile in its own repo |
-| `create-tdk-stack` | Root `package.json` + `package-lock.json` | README presents a Vite landing page and links to TDK; no CLI command found | Showcase site, not a package consumer based on inspected setup |
+| `create-flisk` | Root `package.json` + `package-lock.json` | README presents a Vite landing page and links to TDK; no CLI command found | Showcase site, not a package consumer based on inspected setup |
 | `tdk-agent-stack` | No root Node manifest or lockfile; 2 service manifests | README lists TDK CLI prerequisite and documents `tdk project` / `tdk up` | Uses TDK through operator setup; no project package declaration today |
 | `tdk-auth-queue-email-example` | Root `package.json` + `bun.lock`; 4 nested service manifests | README documents TDK CLI setup, `tdk project`, and `tdk up` | Uses TDK; root package currently has no CLI dependency |
 | `tdk-thor-storefront` | Root `package.json` + `bun.lock`; 2 nested service manifests | README requires TDK CLI 1.3.75+ and documents `tdk up` | Uses TDK; root package currently has no CLI dependency |
@@ -85,9 +85,9 @@ Secondary repositories were also checked for direct package declarations and doc
 
 - `tdk-skills` documents agent procedures that invoke `tdk` commands, but has no root package manifest; it is a skills catalog, not a CLI package consumer.
 - `awesome-tdk-framework` is a curated links repository with no root package manifest; mentions of the CLI are references.
-- `tdk-website` and `flisk.sh` have no root package manifest; the latter documents global installation but does not declare a project dependency.
+- `flisk-sh/website` and `flisk.sh` have no root package manifest; the latter documents global installation but does not declare a project dependency.
 - `tdk-demo-animation` is walkthrough assets with no root package manifest.
-- `tdk-cli-releases` provides release artifacts and global-install instructions, with no root package manifest.
+- `flisk-sh/releases` provides release artifacts and global-install instructions, with no root package manifest.
 - `tdk-service-definitions` has a root manifest/lockfile for AJV validation and 84 service definitions; its README says imported seed data has not been runtime-tested. It does not declare the CLI package.
 - `tdk-import` is its own npm package and documents `tdk import` as a core CLI command; its manifest does not depend on `@flisk-sh/flisk`.
 - `tdk-app` uses the installed `tdk` CLI and documents a global package install path for its own app, but does not declare `@flisk-sh/flisk` in its manifest.

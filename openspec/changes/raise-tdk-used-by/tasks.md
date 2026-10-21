@@ -13,7 +13,7 @@ The repositories below are audit candidates, not yet-confirmed consumers. The su
 | `tdk-ecommerce-example` | https://github.com/flisk-sh/tdk-ecommerce-example | Vue + Hono storefront example | `devDependency` if genuine use is confirmed |
 | `tdk-erp-system` | https://github.com/flisk-sh/tdk-erp-system | 100-service scale fixture | `devDependency` if genuine use is confirmed |
 | `tdk-cli-starter` | https://github.com/flisk-sh/tdk-cli-starter | Cloud-dev starter / template | `devDependency` if genuine use is confirmed |
-| `create-tdk-stack` | https://github.com/flisk-sh/create-flisk | Landing page / create-app style starter | `devDependency` if genuine use is confirmed |
+| `create-flisk` | https://github.com/flisk-sh/create-flisk | Landing page / create-app style starter | `devDependency` if genuine use is confirmed |
 | `tdk-agent-stack` | https://github.com/flisk-sh/tdk-agent-stack | AI agent + MCP + Postgres + NATS template | `devDependency` if genuine use is confirmed |
 | `tdk-auth-queue-email-example` | https://github.com/flisk-sh/tdk-auth-queue-email-example | OIDC + NATS + Mailpit example | `devDependency` if genuine use is confirmed |
 | `tdk-thor-storefront` | https://github.com/flisk-sh/tdk-thor-storefront | Thor Commerce storefront landscape | `devDependency` if genuine use is confirmed |
@@ -25,9 +25,9 @@ Secondary audit-only candidates, generally expected not to need a package declar
 
 - `tdk-skills` — agent skills catalog
 - `awesome-tdk-framework` — curated links
-- `tdk-website` / `flisk.sh` — docs and install site
+- `flisk-sh/website` / `flisk.sh` — docs and install site
 - `tdk-demo-animation` — walkthrough assets
-- `tdk-cli-releases` — binary releases only
+- `flisk-sh/releases` — binary releases only
 - `tdk-service-definitions` — `service.json` registry
 - `tdk-import` / `tdk-app` — related tools; audit if they invoke the CLI as a package
 

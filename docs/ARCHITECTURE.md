@@ -11,7 +11,7 @@ This document explains how TDK's subsystems fit together, traces the data flow o
 The codebase is organized into three distinct subsystems as defined in [CONTRIBUTING.md](../CONTRIBUTING.md):
 
 ```
-tdk-cli-core/
+flisk/
 ├── cli/           # TypeScript CLI (user interaction, validation, config generation)
 ├── engine/        # Starlark runtime framework executed by Tilt (orchestration, containers, syncs)
 └── discovery/     # Starlark discovery framework (manifest scanning, DAG construction)

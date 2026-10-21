@@ -18,4 +18,4 @@ The CLI can already produce a Windows AMD64 executable, but compile-time checks 
 
 ## Impact
 
-Affects the binary release script and workflow in `flisk`, `install.ps1` in `flisk.sh`, and Windows download documentation in `tdk-cli-releases`, `tdk-website`, and `awesome-tdk-framework`. Publishing still targets `tdk-cli-releases`; source remains in `flisk`.
+Affects the binary release script and workflow in `flisk`, `install.ps1` in `flisk.sh`, and Windows download documentation in `flisk-sh/releases`, `flisk-sh/website`, and `awesome-tdk-framework`. Publishing still targets `flisk-sh/releases`; source remains in `flisk`.

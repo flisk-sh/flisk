@@ -28,7 +28,7 @@
 
 ## 5. Coordinate website and repository guidance
 
-- [x] 5.1 Create an isolated companion implementation branch/worktree in `flisk-sh/website` (branch `docs/helm-handoff` at `../tdk-website-helm-handoff-wt`), confirm no repository-specific AGENTS/CONTRIBUTING instructions are present, and record its branch with this change; PR delivery is not part of this local apply.
+- [x] 5.1 Create an isolated companion implementation branch/worktree in `flisk-sh/website` (branch `docs/helm-handoff` at `../website-helm-handoff-wt`), confirm no repository-specific AGENTS/CONTRIBUTING instructions are present, and record its branch with this change; PR delivery is not part of this local apply.
 - [x] 5.2 Update website hero to the canonical sentence plus “No cluster on the machine. Helm stays for prod.”; remove generated file counts as value claims.
 - [x] 5.3 Lead website configuration docs with annotated valid service JSON, authoritative schema/editor links for both manifests, and verification commands before generator details.
 - [x] 5.4 Add Helm/With Kubernetes next to Quickstart in navigation and a Helm/app-template comparison column identifying local generation/run versus Kubernetes rendering; link synchronized Helm guidance.

@@ -11,8 +11,8 @@
 
 ## 3. Public documentation
 
-- [ ] 3.1 Update `tdk-cli-releases/README.md` with the Windows EXE in the asset list, five-binary ZIP wording, and manual installation layout.
-- [ ] 3.2 Update the installer site and `tdk-website` quick start to describe the Windows installer accurately while retaining caveats until release evidence is complete.
+- [ ] 3.1 Update `flisk-sh/releases/README.md` with the Windows EXE in the asset list, five-binary ZIP wording, and manual installation layout.
+- [ ] 3.2 Update the installer site and `flisk-sh/website` quick start to describe the Windows installer accurately while retaining caveats until release evidence is complete.
 - [ ] 3.3 Add the Windows AMD64 asset reference to `awesome-tdk-framework` without modifying example repositories.
 - [ ] 3.4 After verified publication, remove pending-asset caveats and record the Windows 11 manual acceptance result; otherwise leave the caveats in place.
 

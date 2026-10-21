@@ -1,6 +1,6 @@
 # Governance
 
-tdk-cli-core is a local Docker/Tilt project generator. It is not an orchestrator. This document records how the project is run today.
+flisk is a local Docker/Tilt project generator. It is not an orchestrator. This document records how the project is run today.
 
 ## Decisions
 

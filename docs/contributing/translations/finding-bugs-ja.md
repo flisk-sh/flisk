@@ -17,7 +17,7 @@ tdk resource billing-api --type backend --stack shop --yes
 tdk resource storefront --type frontend --stack shop --yes
 ```
 
-リリース済みバージョンではなく `main` のコードを試すには、クローンしたリポジトリから CLI を実行します: `bun /path/to/tdk-cli-core/cli/src/cli.ts <command>`。このコマンドを小さな `tdk` スクリプトにして `PATH` に追加すれば、以下のコマンドをそのまま使えます。
+リリース済みバージョンではなく `main` のコードを試すには、クローンしたリポジトリから CLI を実行します: `bun /path/to/flisk/cli/src/cli.ts <command>`。このコマンドを小さな `tdk` スクリプトにして `PATH` に追加すれば、以下のコマンドをそのまま使えます。
 
 ほとんどのチェックに必要なのは Bun だけです。**(Docker)** と付いたチェックには Docker と Tilt の起動が必要です。
 

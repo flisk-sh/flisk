@@ -6,7 +6,7 @@
 
 ## 2. Website discovery
 
-- [x] 2.1 Add a descriptive link to the canonical MCP setup guide in `tdk-website`'s existing `llms.txt`
+- [x] 2.1 Add a descriptive link to the canonical MCP setup guide in `flisk-sh/website`'s existing `llms.txt`
 - [x] 2.2 Check that the canonical setup guide URL resolves
 
 ## 3. Review

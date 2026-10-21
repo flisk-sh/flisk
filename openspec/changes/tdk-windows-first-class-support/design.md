@@ -43,5 +43,5 @@ TDK currently targets Linux and macOS, with Unix assumptions in platform detecti
 
 ## Open Questions
 
-- Which exact working directories/repository checkouts are available for the separate `tdk-cli-releases`, `flisk.sh`, and TDK website documentation changes when implementation begins?
+- Which exact working directories/repository checkouts are available for the separate `flisk-sh/releases`, `flisk.sh`, and TDK website documentation changes when implementation begins?
 - Should `tdk doctor --fix-windows-dns` be added in v1, or should v1 provide the required exact elevated hosts-file instructions only? The minimum specified behavior is detection plus instructions, so implementation can ship that without an elevated mutation command.

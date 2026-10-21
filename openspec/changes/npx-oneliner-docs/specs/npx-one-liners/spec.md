@@ -8,7 +8,7 @@ Public markdown SHALL write npx commands as `npx -y @flisk-sh/flisk <tdk-args>`.
 - **THEN** it reads `npx -y @flisk-sh/flisk resource orders-api --type backend --stack shop --yes`
 
 #### Scenario: Forbidden forms are absent
-- **WHEN** public markdown is searched for `tdk-cli-core tdk ` or an npx command ending in ` -y`
+- **WHEN** public markdown is searched for `flisk tdk ` or an npx command ending in ` -y`
 - **THEN** no first-run command matches
 
 ### Requirement: Host requirements are stated per command

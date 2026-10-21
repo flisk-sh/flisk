@@ -9,6 +9,6 @@ Measured results committed to the repository. Each file or folder is one publish
 | [`container-scale-*.json`](.) | 5 to 100 `/health` services on the ERP fixture bench | [scale measurements](../../docs/benchmarks/scale-bench.md) |
 | [`cli-startup-*.json`](.) | `tdk` command start-up time at 10, 100 and 500 services | [scripts README](../../scripts/benchmark/README.md#cli-startup-and-discovery-benchmark) |
 
-**Live report:** every change to `main` that affects start-up produces a fresh report on GitHub Pages, with tabs for warm and cold starts, per-service build times, the history and the environment: <https://flisk-sh.github.io/tdk-cli-core/>. It runs on GitHub-hosted runners, so its numbers are not comparable with the macOS results above.
+**Live report:** every change to `main` that affects start-up produces a fresh report on GitHub Pages, with tabs for warm and cold starts, per-service build times, the history and the environment: <https://flisk-sh.github.io/flisk/>. It runs on GitHub-hosted runners, so its numbers are not comparable with the macOS results above.
 
 To reproduce a result, see [`scripts/benchmark/README.md`](../../scripts/benchmark/README.md).
