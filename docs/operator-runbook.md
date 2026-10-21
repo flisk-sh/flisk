@@ -59,6 +59,23 @@ Put the environment values the services need in the project `.env`; values in th
 > [!WARNING]
 > The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/flisk-sh/flisk/issues/1657), [#1658](https://github.com/flisk-sh/flisk/issues/1658), [#1659](https://github.com/flisk-sh/flisk/issues/1659).
 
+### How the npm publish authenticates
+
+The release workflow publishes with **npm trusted publishing (OIDC)**, so there is no long-lived npm token in the repository and no browser approval per release. The publish job already holds `id-token: write`, and it installs npm 12.2.0 because trusted publishing needs npm ≥ 11.5.1.
+
+The trusted publisher is configured once, on npm:
+
+```bash
+npm trust github @flisk-sh/flisk \
+  --file release-binaries.yml \
+  --repo flisk-sh/flisk \
+  --allow-publish
+```
+
+`npm trust list @flisk-sh/flisk` shows it, and `npm trust revoke @flisk-sh/flisk --id <id>` removes it. The same thing can be done in the npm UI: open the package, **Settings → Trusted Publisher → GitHub Actions**, then fill in organization `flisk-sh`, repository `flisk`, workflow filename `release-binaries.yml`, and allow `npm publish`.
+
+If the repository also has an `NPM_TOKEN` secret, the workflow uses it and skips OIDC; that is the fallback for forks that have no trusted publisher configured. `NODE_AUTH_TOKEN` is only exported when the secret exists, because an empty one makes npm attempt token auth and fail with `EOTP` instead of falling back to OIDC.
+
 ### Lessons from release 1.3.187 (2026-10-20)
 
 - The first release-candidate run passed 28 component jobs but failed two frontend jobs because Docker Compose did not respond within the suite's 10-second readiness check. A retry on the same commit passed all 31 jobs. When multiple independent runners fail at the same infrastructure readiness check, inspect their uploaded diagnostics and retry the candidate once; do not bypass the candidate gate.

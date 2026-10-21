@@ -309,9 +309,12 @@ jobs:
             }
 
       # The root package owns the public flisk bin entry and compiled CLI.
+      # Authentication: npm trusted publishing (OIDC) is the default, so no long-lived token
+      # lives in the repository. NPM_TOKEN stays supported as a fallback for a fork that has no
+      # trusted publisher configured.
       - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ needs.build.outputs.version }}
           TARBALL: ${{ steps.package.outputs.tarball }}
         run: |
@@ -319,6 +322,12 @@ jobs:
           if [ "$PKG_VERSION" != "$VERSION" ]; then
             echo "::error::Expected package version $VERSION, got $PKG_VERSION"
             exit 1
+          fi
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "Publishing with the NPM_TOKEN secret."
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+          else
+            echo "No NPM_TOKEN secret: publishing with npm trusted publishing (OIDC)."
           fi
           if npm view "@flisk-sh/flisk@${PKG_VERSION}" version >/dev/null 2>&1; then
             echo "@flisk-sh/flisk@${PKG_VERSION} is already published, skipping."
