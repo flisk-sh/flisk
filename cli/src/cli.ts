@@ -57,7 +57,11 @@ if (templateArg) {
       // The stack printed its URLs: open the first frontend that answers, the same way
       // `flisk open` does.
       void openFirstFrontend(destination).catch((error: unknown) => {
-        console.log(chalk.yellow(`\nCould not open a browser: ${error instanceof Error ? error.message : String(error)}`));
+        console.log(
+          chalk.yellow(
+            `\nCould not open a browser: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
       });
     });
   }

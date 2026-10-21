@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
-import { discoverResourcesWithProblems } from "../utils/services.js";
 import { showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { resolveServicePath, resolveSubdomainBases } from "../utils/service-urls.js";
+import { discoverResourcesWithProblems } from "../utils/services.js";
 import { readProjectName } from "../utils/shared-infra.js";
 import { openUrl } from "../utils/url-actions.js";
 /** The frontends of the current project, with the URL each one is published under. */
