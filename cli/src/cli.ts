@@ -13,6 +13,7 @@ import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
+import { bareTemplateArg } from "./utils/project-templates.js";
 
 const program = createProgram();
 
@@ -30,14 +31,12 @@ if (process.argv.length === 2) {
 
 // One command from scratch: flisk <template> | flisk --template <name> --project <dir>
 // It clones a starter, installs the CLI globally, boots the stack and opens the frontend.
-const templateArg =
-  readOptionValue(process.argv, "--template") ?? (await bareTemplateArg(process.argv));
+const templateArg = readOptionValue(process.argv, "--template") ?? bareTemplateArg(process.argv);
 const projectArg = readOptionValue(process.argv, "--project");
 if (templateArg) {
   const { cloneProjectTemplate, templateTargetDir } = await import("./commands/project.js");
   const { assertMachineReadyOrExit, detectRuntimePrerequisites, formatRuntimeNextSteps } =
     await import("./utils/cold-preflight.js");
-  const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
   await assertMachineReadyOrExit({ scope: "scaffold" });
   const runtimeNextSteps = formatRuntimeNextSteps(detectRuntimePrerequisites());
 
@@ -155,16 +154,6 @@ function readOptionValue(args: string[], name: string): string | undefined {
     const arg = args[index];
     if (arg.startsWith(prefix)) return arg.slice(prefix.length);
     if (arg === name) return args[index + 1];
-  }
-  return undefined;
-}
-
-/** A bare template name (`flisk restaurant`) is the short form of `--template restaurant`. */
-async function bareTemplateArg(args: string[]): Promise<string | undefined> {
-  const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
-  for (const arg of args.slice(2)) {
-    if (arg.startsWith("-")) continue;
-    if (arg in PROJECT_TEMPLATES) return arg;
   }
   return undefined;
 }

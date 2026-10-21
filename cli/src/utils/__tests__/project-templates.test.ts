@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { PROJECT_TEMPLATES } from "../project-templates.js";
+import { bareTemplateArg, PROJECT_TEMPLATES } from "../project-templates.js";
 
 const exampleRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -66,5 +66,27 @@ describe("PROJECT_TEMPLATES", () => {
       expect(t.repo, name).toMatch(/^https:\/\/github\.com\/flisk-sh\/[\w-]+\.git$/);
       expect(t.description, name).not.toBe("");
     }
+  });
+});
+
+describe("bareTemplateArg", () => {
+  it("reads the one-command form", () => {
+    expect(bareTemplateArg(["node", "flisk", "demo"])).toBe("demo");
+    expect(bareTemplateArg(["node", "flisk", "restaurant", "--project=my-stack"])).toBe(
+      "restaurant",
+    );
+  });
+
+  it("leaves a command that takes a template of its own alone", () => {
+    // `flisk project demo` clones a starter and configures it; it is not the one-command flow.
+    expect(bareTemplateArg(["node", "flisk", "project", "demo"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk", "project", "example", "--path", "x"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk", "up", "demo"])).toBeUndefined();
+  });
+
+  it("reads nothing from a flag or an unknown name", () => {
+    expect(bareTemplateArg(["node", "flisk", "--template", "demo"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk", "not-a-template"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk"])).toBeUndefined();
   });
 });

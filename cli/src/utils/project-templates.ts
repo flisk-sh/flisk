@@ -43,3 +43,17 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
     description: "AI agent stack: Bun agent + MCP tool server + Postgres + NATS",
   },
 };
+
+/**
+ * The template of the one-command flow (`flisk demo`), read from the raw arguments.
+ *
+ * Only the first argument can name a template. A command that takes a template of its
+ * own — `flisk project demo` clones a starter and configures it, `flisk up demo` is not a
+ * command at all — is that command, not the one-command flow. Looking further down the
+ * arguments hijacked every command that mentioned a template name anywhere.
+ */
+export function bareTemplateArg(args: string[]): string | undefined {
+  const first = args[2];
+  if (!first || first.startsWith("-")) return undefined;
+  return first in PROJECT_TEMPLATES ? first : undefined;
+}
