@@ -3,15 +3,17 @@
 import { describe, expect, it } from "vitest";
 import { DATABASE_MANAGEMENT_FEATURE } from "../constants.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "../project-config-defaults.js";
-import { PROJECT_FEATURES, getEnabledProjectFeatures } from "../project-features.js";
-import { STACK_FEATURES, isStackFeatureEnabledInStacks } from "../stack-features.js";
+import { getEnabledProjectFeatures, PROJECT_FEATURES } from "../project-features.js";
+import { isStackFeatureEnabledInStacks, STACK_FEATURES } from "../stack-features.js";
 
 describe("STACK_FEATURES", () => {
   it("describes the database-management feature", () => {
     const feature = STACK_FEATURES[DATABASE_MANAGEMENT_FEATURE];
     expect(feature.name).toBe(DATABASE_MANAGEMENT_FEATURE);
     expect(feature.description).toContain("PostgreSQL");
-    expect(feature.generatedFiles).toContain("services/platform/database-management/docker-compose.yml");
+    expect(feature.generatedFiles).toContain(
+      "services/platform/database-management/docker-compose.yml",
+    );
   });
 });
 
@@ -34,7 +36,10 @@ describe("isStackFeatureEnabledInStacks", () => {
   it("is true when an alpha or beta phase enables the feature", () => {
     for (const phase of ["alpha", "beta"] as const) {
       expect(
-        isStackFeatureEnabledInStacks({ [phase]: { enabledStacks: [DATABASE_MANAGEMENT_FEATURE] } }, DATABASE_MANAGEMENT_FEATURE),
+        isStackFeatureEnabledInStacks(
+          { [phase]: { enabledStacks: [DATABASE_MANAGEMENT_FEATURE] } },
+          DATABASE_MANAGEMENT_FEATURE,
+        ),
       ).toBe(true);
     }
   });
@@ -51,7 +56,10 @@ describe("isStackFeatureEnabledInStacks", () => {
   it("is false when no phase mentions the feature", () => {
     expect(isStackFeatureEnabledInStacks({}, DATABASE_MANAGEMENT_FEATURE)).toBe(false);
     expect(
-      isStackFeatureEnabledInStacks({ pre_alpha: { enabledStacks: [] } }, DATABASE_MANAGEMENT_FEATURE),
+      isStackFeatureEnabledInStacks(
+        { pre_alpha: { enabledStacks: [] } },
+        DATABASE_MANAGEMENT_FEATURE,
+      ),
     ).toBe(false);
   });
 });
