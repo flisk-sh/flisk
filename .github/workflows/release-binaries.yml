@@ -461,15 +461,95 @@ jobs:
           PACKAGE_DIR: package
         run: | # zizmor: ignore[use-trusted-publishing] GitHub Packages does not support npm trusted publishing; authenticate with the repository GITHUB_TOKEN
           TARBALL=$(find "$PACKAGE_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
-          if [ ! -f "$TARBALL" ]; then
+          if [ -z "$TARBALL" ] || [ ! -f "$TARBALL" ]; then
             echo "::error::Expected package tarball was not downloaded"
             exit 1
           fi
+          # npm reads a relative "dir/file.tgz" as a GitHub shorthand and tries to clone it, so the
+          # tarball path has to be absolute.
+          TARBALL="$PWD/$TARBALL"
           if npm view "@flisk-sh/flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
             echo "@flisk-sh/flisk@${VERSION} is already published to GitHub Packages, skipping."
           else
             npm publish "$TARBALL" --registry=https://npm.pkg.github.com
           fi
+
+  # The same release is published a second time under the unscoped name. A package has exactly one name
+  # in its package.json, so the unscoped publication is the same archive with the name rewritten in the
+  # packed manifest. GitHub Packages is not involved: it serves scoped names only.
+  publish-unscoped-npm:
+    name: Publish npm package under the unscoped name
+    needs: [build, publish]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      id-token: write # npm trusted publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          path: package
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      # Trusted publishing needs an npm CLI that speaks OIDC.
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@12.2.0 # zizmor: ignore[adhoc-packages] npm CLI is pinned for trusted publishing
+
+      - name: Build the unscoped archive
+        id: unscoped
+        env:
+          PACKAGE_DIR: package
+        run: |
+          set -euo pipefail
+          TARBALL=$(find "$PACKAGE_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
+          if [ -z "$TARBALL" ] || [ ! -f "$TARBALL" ]; then
+            echo "::error::Expected package tarball was not downloaded"
+            exit 1
+          fi
+          WORK_DIR="$RUNNER_TEMP/unscoped-package"
+          mkdir -p "$WORK_DIR"
+          tar -xzf "$TARBALL" -C "$WORK_DIR"
+          node --input-type=module - "$WORK_DIR/package/package.json" <<'NODE'
+          import fs from 'node:fs';
+          const manifestPath = process.argv[2];
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          if (manifest.name !== '@flisk-sh/flisk') {
+            throw new Error(`Unexpected package name: ${manifest.name}`);
+          }
+          // Only the name changes: the bin entries, the version and the contents stay the ones the
+          // scoped package was published with.
+          manifest.name = 'flisk';
+          fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
+          # --ignore-scripts: the archive already carries the built CLI, and the prepack script is not
+          # part of the published files.
+          UNSCOPED_TARBALL="$(cd "$WORK_DIR/package" && npm pack --ignore-scripts --pack-destination "$WORK_DIR" --silent)"
+          if [ ! -f "$WORK_DIR/$UNSCOPED_TARBALL" ]; then
+            echo "::error::npm pack did not produce the unscoped archive."
+            exit 1
+          fi
+          echo "tarball=$WORK_DIR/$UNSCOPED_TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the unscoped package to npm
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          TARBALL: ${{ steps.unscoped.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          if npm view "flisk@${VERSION}" version >/dev/null 2>&1; then
+            echo "flisk@${VERSION} is already published, skipping."
+            exit 0
+          fi
+          # No NODE_AUTH_TOKEN: npm exchanges this workflow's OIDC identity for a short-lived publish
+          # token, and attaches a provenance attestation for the public package.
+          npm publish "$TARBALL" --access public --provenance
 
   # The version bump lands on main as a squash commit after publish, so the tag for this release can only point at it
   # once that commit exists. The sign step above leaves the GitHub release as a draft; this job tags the merged bump

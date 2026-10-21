@@ -445,6 +445,14 @@
 		},
 		{
 			"workflow": "release-binaries.yml",
+			"job": "publish-unscoped-npm",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes the already-built release tarball to npm under the unscoped name",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
 			"job": "windows-binary",
 			"tier": "e2e",
 			"required": false,

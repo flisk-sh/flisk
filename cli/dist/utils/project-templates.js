@@ -3,6 +3,7 @@ export const PROJECT_TEMPLATES = {
     demo: {
         repo: "https://github.com/flisk-sh/tdk-restaurant-example.git",
         description: "The demo stack: restaurant ops with reservations, kitchen and floor control",
+        fixedDir: "flisk-demo",
     },
     restaurant: {
         repo: "https://github.com/flisk-sh/tdk-restaurant-example.git",
