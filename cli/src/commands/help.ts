@@ -59,6 +59,7 @@ const COMMAND_GROUPS = [
       { name: "down", desc: "Stop all tilt resources", alias: "" },
       { name: "restart", desc: "Restart a running resource in the stack", alias: "<resource>" },
       { name: "status", desc: "Show status of services and stacks", alias: "" },
+      { name: "open", desc: "Open the first ready frontend in your browser", alias: "" },
       { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },
     ],
   },

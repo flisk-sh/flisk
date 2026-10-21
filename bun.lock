@@ -19,7 +19,7 @@
     },
     "cli": {
       "name": "tdk-cli-internal",
-      "version": "1.3.192",
+      "version": "1.3.193",
       "bin": {
         "tdk": "bin/tdk.js",
         "tdk-cli": "bin/tdk.js",

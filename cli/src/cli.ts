@@ -49,11 +49,12 @@ if (templateArg) {
   const binPath = process.argv[1];
   if (binPath && existsSync(destination)) {
     const { runStack } = await import("./utils/one-command.js");
-    const { openUrl } = await import("./utils/url-actions.js");
+    const { openFirstFrontend } = await import("./commands/open.js");
     console.log(`\n\u{1F680} Starting the stack in ${destination}...\n`);
-    await runStack(binPath, destination, process.env, undefined, (url) => {
-      void openUrl(url);
-      console.log(`\n\u{1F310} Opening ${url}`);
+    await runStack(binPath, destination, process.env, undefined, () => {
+      // The stack printed its URLs: open the first frontend that answers, the same way
+      // `flisk open` does.
+      void openFirstFrontend(destination);
     });
   }
   process.exit(0);
