@@ -43,7 +43,9 @@ load("../compose/unsafe_value.star", "reject_unsafe_value")
 def get_frontend_traefik_labels(res_name, domain, base_path, port, traefik_host=None, manifest=None):
     """Generate Traefik labels for frontend services."""
     reject_unsafe_value(res_name, 'res_name')
+    reject_unsafe_value(domain, 'domain')
     reject_unsafe_value(base_path, 'base_path')
+    reject_unsafe_value(port, 'port')
     reject_unsafe_value(traefik_host, 'traefik_host')
     
     # Priority based on path length ensures more specific paths win over broader ones
@@ -121,6 +123,7 @@ def get_backend_traefik_labels(
     reject_unsafe_value(traefik_path, 'traefik_path')
     reject_unsafe_value(traefik_resource_name, 'traefik_resource_name')
     reject_unsafe_value(health_path, 'health_path')
+    reject_unsafe_value(internal_port, 'internal_port')
     if manifest:
         reject_unsafe_value(manifest.get('stack'), 'stack')
         traefik_cfg = manifest.get('traefik') or {}

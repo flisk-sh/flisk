@@ -72,6 +72,7 @@ describe.skipIf(!hasTilt)(
       ["image", `{'appType': 'bring-your-own', 'image': 'app${BAD}'}`],
       ["dockerfile", `{'appType': 'bring-your-own', 'dockerfile': 'Dockerfile${BAD}'}`],
       ["buildContext", `{'appType': 'bring-your-own', 'buildContext': 'src${BAD}'}`],
+      ["agent.durability", `{'agent': {'durability': 'files${BAD}'}}`],
     ])("backend entry: refuses a line break in %s", (field, extra) => {
       const result = runTiltfile(entryFor(extra));
       expect(result.status).not.toBe(0);
@@ -115,6 +116,44 @@ get_backend_traefik_labels('orders-api', 'a.local', '/api', 'orders-api', 4000, 
 `);
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain("MANIFEST ERROR: 'traefik.host'");
+    });
+
+    it.each([
+      [
+        "resource_entry_name",
+        `'orders-api${BAD}', 'a.local', '/api', 'orders-api', 4000, '/health'`,
+      ],
+      ["traefik_host", `'orders-api', 'a.local${BAD}', '/api', 'orders-api', 4000, '/health'`],
+      [
+        "traefik_resource_name",
+        `'orders-api', 'a.local', '/api', 'orders-api${BAD}', 4000, '/health'`,
+      ],
+      ["internal_port", `'orders-api', 'a.local', '/api', 'orders-api', '4000${BAD}', '/health'`],
+      ["health_path", `'orders-api', 'a.local', '/api', 'orders-api', 4000, '/health${BAD}'`],
+    ])("backend traefik labels: refuse a line break in %s when called directly", (field, args) => {
+      const result = runTiltfile(`
+load(${traefikStar}, 'get_backend_traefik_labels')
+get_backend_traefik_labels(${args}, {'stack': 'shop'})
+`);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(`MANIFEST ERROR: '${field}'`);
+      expect(result.stderr).not.toContain("privileged: true");
+    });
+
+    it.each([
+      ["res_name", `'shop-frontend${BAD}', 'shop', '/web', 3000, 'a.local'`],
+      ["domain", `'shop-frontend', 'shop${BAD}', '/web', 3000, 'a.local'`],
+      ["base_path", `'shop-frontend', 'shop', '/web${BAD}', 3000, 'a.local'`],
+      ["port", `'shop-frontend', 'shop', '/web', '3000${BAD}', 'a.local'`],
+      ["traefik_host", `'shop-frontend', 'shop', '/web', 3000, 'a.local${BAD}'`],
+    ])("frontend traefik labels: refuse a line break in %s when called directly", (field, args) => {
+      const result = runTiltfile(`
+load(${traefikStar}, 'get_frontend_traefik_labels')
+get_frontend_traefik_labels(${args})
+`);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(`MANIFEST ERROR: '${field}'`);
+      expect(result.stderr).not.toContain("privileged: true");
     });
   },
 );
