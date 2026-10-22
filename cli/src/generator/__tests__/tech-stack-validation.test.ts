@@ -113,16 +113,18 @@ describe.skipIf(!hasTilt)("generated tech stack validation messages", { timeout:
 
   it("performs case-insensitive validation for platform standards", () => {
     // Uppercase or mixed-case matching should pass with zero errors and zero warnings
-    const errors = validate('{"runtime": "BUN", "bundler": "Bun"}', true, "errors");
+    // Platform standards: runtime="bun", bundler="vite"
+    const errors = validate('{"runtime": "BUN", "bundler": "Vite"}', true, "errors");
     expect(errors).toBe("");
 
-    const warnings = validate('{"runtime": "BUN", "bundler": "Bun"}', false, "warnings");
+    const warnings = validate('{"runtime": "BUN", "bundler": "Vite"}', false, "warnings");
     expect(warnings).toBe("");
   });
 
   it("accumulates multiple validation errors when multiple choices are unsupported", () => {
+    // Platform standards: runtime="bun", bundler="vite", orm="prisma"
     const combinedErrors = validate(
-      '{"runtime": "deno", "bundler": "rollup", "orm": "prisma"}',
+      '{"runtime": "deno", "bundler": "rollup", "orm": "typeorm"}',
       true,
       "errors",
     );
@@ -130,7 +132,7 @@ describe.skipIf(!hasTilt)("generated tech stack validation messages", { timeout:
     expect(splitErrors).toHaveLength(3);
     expect(combinedErrors).toContain("runtime: 'deno'");
     expect(combinedErrors).toContain("bundler: 'rollup'");
-    expect(combinedErrors).toContain("orm: 'prisma'");
+    expect(combinedErrors).toContain("orm: 'typeorm'");
   });
 
   it("returns zero errors and zero warnings for an empty config dictionary", () => {
@@ -140,12 +142,14 @@ describe.skipIf(!hasTilt)("generated tech stack validation messages", { timeout:
 
   it("formats override warnings for multiple fields sharing the same override reason", () => {
     const overrides = validate(
-      '{"runtime": "deno", "orm": "prisma", "_override_reason": "migration in progress"}',
+      '{"runtime": "deno", "bundler": "rollup", "_override_reason": "migration in progress"}',
       true,
       "warnings",
     );
     expect(overrides).toContain("Override active: runtime='deno' (Reason: migration in progress)");
-    expect(overrides).toContain("Override active: orm='prisma' (Reason: migration in progress)");
+    expect(overrides).toContain(
+      "Override active: bundler='rollup' (Reason: migration in progress)",
+    );
   });
 
   it("formats optional-check warnings for non-standard testing tools", () => {
