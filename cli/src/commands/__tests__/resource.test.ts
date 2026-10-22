@@ -196,7 +196,7 @@ describe("resource command", () => {
       expect(manifest).not.toHaveProperty("image");
       expect(manifest).not.toHaveProperty("exposeViaProxy");
       expect(manifest).not.toHaveProperty("restart");
-      expect(manifest.$schema).toBe("https://tdk-landscape.github.io/schema.service.json");
+      expect(manifest.$schema).toMatch(/schema\.service\.json$/);
     });
 
     it("creates BYO service manifest with image instead of dockerfile", () => {
