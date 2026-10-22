@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 import { createServer } from "node:net";
 import { describe, expect, it } from "vitest";
-import { createHostPortPlan, formatHostPortPlan, isPrivilegedBindFree } from "../host-port-plan.js";
+import {
+  createHostPortPlan,
+  formatHostPortPlan,
+  type HostPortPlanOptions,
+  isPrivilegedBindFree,
+} from "../host-port-plan.js";
 import { resolveSubdomainBases } from "../service-urls.js";
 
 describe("createHostPortPlan", () => {
@@ -123,5 +128,62 @@ describe("isPrivilegedBindFree", () => {
   it("never treats other bind errors as free", () => {
     expect(isPrivilegedBindFree("EADDRINUSE", "darwin")).toBe(false);
     expect(isPrivilegedBindFree(undefined, "darwin")).toBe(false);
+  });
+});
+
+describe("concurrent projects", () => {
+  function createHost(occupied: number[] = []) {
+    const taken = new Set(occupied);
+    return async (ranges?: HostPortPlanOptions["ranges"]) => {
+      const plan = await createHostPortPlan({
+        env: {},
+        isAvailable: async (port) => !taken.has(port),
+        ranges,
+      });
+      taken.add(plan.ingressHttp);
+      taken.add(plan.ingressHttps);
+      taken.add(plan.postgres);
+      return plan;
+    };
+  }
+
+  it("gives each of the first 4 projects distinct ports", async () => {
+    const start = createHost();
+    const plans = [await start(), await start(), await start(), await start()];
+    expect(plans.map((p) => [p.ingressHttp, p.ingressHttps, p.postgres])).toEqual([
+      [80, 443, 15432],
+      [8080, 8443, 15433],
+      [8081, 8444, 15434],
+      [8082, 8445, 15435],
+    ]);
+  });
+
+  it("fails the 102nd project on Postgres when ports 80 and 443 are free", async () => {
+    // 80 and 443 add one candidate to the HTTP and HTTPS ranges, so Postgres runs out first.
+    const start = createHost();
+    for (let i = 0; i < 101; i++) await start();
+    await expect(start()).rejects.toThrow(
+      "No available host port in 15432-15532 for postgres. Set TDK_POSTGRES_PORT",
+    );
+  });
+
+  it("fails the third project with two-port ranges", async () => {
+    const ranges = {
+      ingressHttp: { start: 8080, end: 8081 },
+      ingressHttps: { start: 8443, end: 8444 },
+      postgres: { start: 15432, end: 15433 },
+    };
+    const start = createHost([80, 443]); // something else already owns 80/443
+    await start(ranges);
+    await start(ranges);
+    await expect(start(ranges)).rejects.toThrow(
+      "No available host port in 8080-8081 for ingressHttp",
+    );
+  });
+
+  it("fails the 102nd project on ingressHttp when ports 80 and 443 cannot be used", async () => {
+    const start = createHost([80, 443]);
+    for (let i = 0; i < 101; i++) await start();
+    await expect(start()).rejects.toThrow("No available host port in 8080-8180 for ingressHttp");
   });
 });
