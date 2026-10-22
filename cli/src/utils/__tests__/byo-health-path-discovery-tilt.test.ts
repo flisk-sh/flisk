@@ -158,22 +158,22 @@ describe.skipIf(!hasTilt)("Tilt discovery of healthCheckPath", { timeout: 60_000
     expect(result.healthCheckPath).toBe('"/ping"');
   });
 
-  it("omits healthCheckPath for a worker service", () => {
+  it("leaves the default /health on worker manifests while BYO strips it", () => {
     const result = discoverHealthCheckPath({
       ...base,
       appType: "worker",
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.healthCheckPath).toBe("None");
+    expect(result.healthCheckPath).toBe('"/health"');
   });
 
-  it("omits healthCheckPath for a migrator service", () => {
+  it("leaves the default /health on migrator manifests while BYO strips it", () => {
     const result = discoverHealthCheckPath({
       ...base,
       appType: "migrator",
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.healthCheckPath).toBe("None");
+    expect(result.healthCheckPath).toBe('"/health"');
   });
 
   it("aligns Traefik healthCheck with healthCheckPath for backends and BYO", () => {
