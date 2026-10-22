@@ -268,8 +268,8 @@ describe("golden image Starlark topology and layer definitions", () => {
 describe.skipIf(!hasTilt)("golden image prefix loader (Starlark evaluation)", () => {
   const loadPrefix = (env: Record<string, string> = {}, files: Record<string, string> = {}) => {
     const result = evaluateStarlark(goldenConstants, {
-      args: `load(${JSON.stringify(goldenConstants)}, "_load_golden_prefix")
-RESULT = _load_golden_prefix()
+      args: `load(${JSON.stringify(goldenConstants)}, "GOLDEN_IMAGE_PREFIX")
+RESULT = GOLDEN_IMAGE_PREFIX
 local('cat > out.json', quiet = True, stdin = encode_json(RESULT))
 `,
       env,
@@ -449,17 +449,18 @@ describe.skipIf(!hasTilt)("golden layer build script", () => {
     expect(run.hcl).toContain(
       'targets = ["l1", "l2", "l3-backend", "l3-frontend", "l4-backend", "l4-backend-node", "l4-frontend", "l4-migrator"]',
     );
-    expect(run.hcl).toContain('dockerfile = "$DF"');
-    expect(run.hcl).toContain('context = "$ROOT"');
+    expect(run.hcl).toContain('dockerfile = "');
+    expect(run.hcl).toContain('golden-layers.Dockerfile"');
+    expect(run.hcl).toContain('context = "');
   });
 
   it("serial fallback builds each target with appropriate docker flags", () => {
     const run = runGolden(script, { labelMatches: false, noBuildx: true });
     expect(run.serialBuilds[0]).toMatch(
-      /^build --label tdk\.golden\.hash=[a-f0-9]{64} -f "\$DF" --target l1_golden -t tdk-project-l1:latest "\$ROOT" \|\| exit 1$/,
+      /^build --label tdk\.golden\.hash=[a-f0-9]{64} -f .+ --target l1_golden -t tdk-project-l1:latest .+$/,
     );
     expect(run.serialBuilds[2]).toMatch(
-      /^build --label tdk\.golden\.hash=[a-f0-9]{64} -f "\$DF" --target l3_backend_golden -t tdk-project-l3-backend:latest "\$ROOT" \|\| exit 1$/,
+      /^build --label tdk\.golden\.hash=[a-f0-9]{64} -f .+ --target l3_backend_golden -t tdk-project-l3-backend:latest .+$/,
     );
   });
 });

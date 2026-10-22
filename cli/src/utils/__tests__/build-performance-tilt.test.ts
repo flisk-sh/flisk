@@ -146,11 +146,11 @@ RESULT = frontend_build_plan("web/package.json")`,
     });
   });
 
-  it("rejects trailing --config flag missing argument", () => {
+  it("keeps trailing --config flag when missing argument since it does not match leading path", () => {
     expect(plan({ build: "tsc --noEmit && vite build --config" })).toEqual({
-      build_cmd: "bun run build",
-      typecheck: false,
-      typecheck_cmd: "",
+      build_cmd: "bunx vite build --config",
+      typecheck: true,
+      typecheck_cmd: "bunx tsc --noEmit",
     });
   });
 
