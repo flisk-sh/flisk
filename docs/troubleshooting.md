@@ -305,6 +305,17 @@ $ TDK_HTTP_PORT=18777 flisk doctor --no-ping
 - **Defined in:** [`host-port-plan.ts`](../cli/src/utils/host-port-plan.ts).
 - **Checked:** reproduced with a stand-in listener.
 
+### `No available host port in ... for ...`
+
+```text
+No available host port in 15432-15532 for postgres. Set TDK_POSTGRES_PORT to a free port and retry.
+```
+
+- **Cause:** every candidate port for that service is taken, usually because many projects are running. HTTP, HTTPS and Postgres each have a range of 101 ports (8080-8180, 8443-8543 and 15432-15532) and each running project takes one port from each, so at most 101 projects fit with the defaults, fewer if other programs hold ports in those ranges. HTTP and HTTPS try 80 and 443 first where the OS allows it. The message names the first service whose candidates run out. That is `postgres` when 80 and 443 are both usable, `ingressHttp` when 80 is not (it is taken, or on Linux and WSL2 a non-root user cannot check it), and `ingressHttps` when only 443 is not.
+- **Fix:** stop projects you no longer need with `flisk down`, or set the variable the message names for this project: `TDK_HTTP_PORT` for `ingressHttp`, `TDK_HTTPS_PORT` for `ingressHttps`, `TDK_POSTGRES_PORT` for `postgres`. The ranges cannot be changed. An override is used as-is: if that port is taken, Flisk reports it instead of picking another.
+- **Defined in:** [`host-port-plan.ts`](../cli/src/utils/host-port-plan.ts).
+- **Checked:** read from source, and the planner (not `flisk up`) was exercised with a stubbed port probe in `host-port-plan.test.ts`; not reproduced with real concurrent projects.
+
 ### `Port 10350 is already in use` / `Auto-switching to port ...`
 
 ```text
