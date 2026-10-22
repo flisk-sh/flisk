@@ -266,14 +266,22 @@ describe("golden image Starlark topology and layer definitions", () => {
 });
 
 describe.skipIf(!hasTilt)("golden image prefix loader (Starlark evaluation)", () => {
-  const loadPrefix = (env: Record<string, string> = {}, files: Record<string, string> = {}) => {
+  const loadPrefix = (projectName?: string) => {
+    const project = mkdtempSync(join(tmpdir(), "tdk-golden-prefix-"));
+    dirs.push(project);
+    if (projectName !== undefined) {
+      mkdirSync(join(project, ".tdk"), { recursive: true });
+      writeFileSync(
+        join(project, ".tdk", "project.json"),
+        JSON.stringify(projectName ? { project: { name: projectName } } : {}),
+      );
+    }
     const result = evaluateStarlark(goldenConstants, {
       args: `load(${JSON.stringify(goldenConstants)}, "GOLDEN_IMAGE_PREFIX")
 RESULT = GOLDEN_IMAGE_PREFIX
 local('cat > out.json', quiet = True, stdin = encode_json(RESULT))
 `,
-      env,
-      files,
+      env: { TDK_PROJECT_ROOT: project },
     });
     if (result.status !== 0) throw new Error(`tilt failed: ${result.stderr || result.stdout}`);
     return JSON.parse(readFileSync(join(result.dir, "out.json"), "utf-8")) as string;
@@ -283,26 +291,24 @@ local('cat > out.json', quiet = True, stdin = encode_json(RESULT))
     expect(loadPrefix()).toBe("tdk-project");
   });
 
-  it("reads project name from .tdk/project.json at project root", () => {
-    expect(
-      loadPrefix(
-        {},
-        { ".tdk/project.json": JSON.stringify({ project: { name: "custom-suite" } }) },
-      ),
-    ).toBe("custom-suite");
+  it("reads project name from .tdk/project.json when TDK_PROJECT_ROOT points to project", () => {
+    expect(loadPrefix("custom-suite")).toBe("custom-suite");
   });
 
   it("falls back to 'tdk-project' when .tdk/project.json has no project name", () => {
-    expect(loadPrefix({}, { ".tdk/project.json": JSON.stringify({}) })).toBe("tdk-project");
+    expect(loadPrefix("")).toBe("tdk-project");
   });
 
-  it("reads project name using TDK_PROJECT_ROOT env var prefix", () => {
-    expect(
-      loadPrefix(
-        { TDK_PROJECT_ROOT: "sub/app" },
-        { "sub/app/.tdk/project.json": JSON.stringify({ project: { name: "monorepo-child" } }) },
-      ),
-    ).toBe("monorepo-child");
+  it("returns default 'tdk-project' when TDK_PROJECT_ROOT is empty or unset", () => {
+    const result = evaluateStarlark(goldenConstants, {
+      args: `load(${JSON.stringify(goldenConstants)}, "GOLDEN_IMAGE_PREFIX")
+RESULT = GOLDEN_IMAGE_PREFIX
+local('cat > out.json', quiet = True, stdin = encode_json(RESULT))
+`,
+      env: { TDK_PROJECT_ROOT: "" },
+    });
+    if (result.status !== 0) throw new Error(`tilt failed: ${result.stderr || result.stdout}`);
+    expect(JSON.parse(readFileSync(join(result.dir, "out.json"), "utf-8"))).toBe("tdk-project");
   });
 });
 
