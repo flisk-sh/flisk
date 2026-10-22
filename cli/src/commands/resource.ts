@@ -328,7 +328,9 @@ export function createPackageJson(
       // image's `bun run build` fails with TS2688. ^20 matches the services that build.
       "@types/node": "^20.0.0",
       typescript: "^7.0.2",
-      vitest: "^5.0.0",
+      // The same version the CLI tests itself with (cli/package.json devDependencies.vitest).
+      // Dependabot pins it exactly to keep CVE-2026-112950 fixed, and the scaffold follows.
+      vitest: "5.0.5",
       "@biomejs/biome": "^2.5.13",
 
       // vitest 5 peers on vite ^6.4.0 || ^7 || ^8; vite 5 makes `vitest run` fail at startup with
