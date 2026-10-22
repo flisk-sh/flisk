@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   createHostPortPlan,
   formatHostPortPlan,
+  type HostPortPlan,
   type HostPortPlanOptions,
   isPrivilegedBindFree,
 } from "../host-port-plan.js";
@@ -132,9 +133,11 @@ describe("isPrivilegedBindFree", () => {
 });
 
 describe("concurrent projects", () => {
-  function createHost(occupied: number[] = []) {
+  function createHost(
+    occupied: number[] = [],
+  ): (ranges?: HostPortPlanOptions["ranges"]) => Promise<HostPortPlan> {
     const taken = new Set(occupied);
-    return async (ranges?: HostPortPlanOptions["ranges"]) => {
+    return async (ranges?: HostPortPlanOptions["ranges"]): Promise<HostPortPlan> => {
       const plan = await createHostPortPlan({
         env: {},
         isAvailable: async (port) => !taken.has(port),
