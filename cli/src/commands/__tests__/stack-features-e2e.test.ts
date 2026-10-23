@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -7,7 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// These spawn `tdk project` per test; the 5s default times out when the whole suite runs in parallel.
+// These spawn `flisk project` per test; the 5s default times out when the whole suite runs in parallel.
 vi.setConfig({ testTimeout: 60_000 });
 
 const __filename = fileURLToPath(import.meta.url);

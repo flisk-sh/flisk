@@ -1,4 +1,11 @@
+import type { Command } from "commander";
 import type { ValidationResult } from "../types/index.js";
+export declare const YES_OPTION_FLAGS = "-y, --yes";
+export declare const YES_OPTION_DESCRIPTION = "Skip prompts and confirmations; use defaults";
+/**
+ * Registers the standard `-y, --yes` flag on a Commander command with shared help text.
+ */
+export declare function addYesOption<T extends Command>(command: T, description?: string): T;
 export declare function confirmAction(message: string, defaultValue?: boolean): Promise<boolean>;
 export declare function assertValid(validation: ValidationResult, exitCode?: number): asserts validation is {
     valid: true;

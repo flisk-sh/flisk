@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { renderToString } from "ink";
 import { createElement, Fragment } from "react";
@@ -40,7 +40,7 @@ describe("plain terminal theme", () => {
       ),
     );
 
-    expect(output).toContain(">>> TDK NEON EDITION <<<");
+    expect(output).toContain(">>> Flisk NEON EDITION <<<");
     expect(output).toContain("OVERVIEW");
     expect(output).toContain("[D] Dockerfile");
     expect(output).not.toContain(String.fromCodePoint(0x1f433));
@@ -66,7 +66,7 @@ describe("plain terminal theme", () => {
       { columns: 80 },
     );
 
-    expect(output).toContain(">>> TDK NEON EDITION v1.0.0 <<<");
+    expect(output).toContain(">>> Flisk NEON EDITION v1.0.0 <<<");
     expect(output).toMatch(/-{10,}/);
     expect(output).not.toContain(String.fromCharCode(0x2500));
     expect(output).not.toContain(String.fromCharCode(27));

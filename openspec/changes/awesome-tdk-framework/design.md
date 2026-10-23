@@ -1,20 +1,20 @@
 ## Context
 
-The TDK ecosystem already has an organization profile and multiple public repositories, but useful material is distributed across project READMEs, documentation, gists, articles, examples, and third-party tools. The catalog is a public GitHub repository with two tracked files: a root `README.md` for discovery and a root `CONTRIBUTING.md` for detailed contribution guidance. It does not need source code, data files, generated indexes, assets, or automation.
+The Flisk ecosystem already has an organization profile and multiple public repositories, but useful material is distributed across project READMEs, documentation, gists, articles, examples, and third-party tools. The catalog is a public GitHub repository with two tracked files: a root `README.md` for discovery and a root `CONTRIBUTING.md` for detailed contribution guidance. It does not need source code, data files, generated indexes, assets, or automation.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Make the catalog a comprehensive, skimmable map of the TDK framework and its surrounding landscape.
+- Make the catalog a comprehensive, skimmable map of the Flisk framework and its surrounding landscape.
 - Give each resource a concise description and identify official, community, and archived status where relevant.
 - Provide stable anchors, consistent Markdown formatting, and a clear path for suggesting additions.
 - Keep the repository focused on the root `README.md` catalog and root `CONTRIBUTING.md` guide.
-- Reuse links from the existing TDK organization profile and repositories, verifying each destination as the catalog is assembled.
+- Reuse links from the existing Flisk organization profile and repositories, verifying each destination as the catalog is assembled.
 
 **Non-Goals:**
 - Building a website, link-checking service, registry API, or automated synchronization system.
 - Copying the contents of linked projects or maintaining their documentation.
-- Listing every project indiscriminately; the catalog is curated and TDK-relevant.
+- Listing every project indiscriminately; the catalog is curated and Flisk-relevant.
 - Adding source code, data files, assets, CI, or automation. Repository visibility and license policy are managed through GitHub settings where applicable.
 
 ## Decisions
@@ -41,13 +41,13 @@ The TDK ecosystem already has an organization profile and multiple public reposi
 
 ## Migration Plan
 
-1. Assemble and verify the initial link inventory from the existing organization profile, TDK repositories, docs, public gists, and other known ecosystem resources.
-2. Create the public `tdk-landscape/awesome-tdk-framework` repository with root `README.md` and `CONTRIBUTING.md`; publish the curated taxonomy and link the README to the guide.
-3. Add a prominent catalog link to the existing TDK organization profile README and check the link in the rendered profile.
+1. Assemble and verify the initial link inventory from the existing organization profile, Flisk repositories, docs, public gists, and other known ecosystem resources.
+2. Create the public `flisk-sh/awesome-tdk-framework` repository with root `README.md` and `CONTRIBUTING.md`; publish the curated taxonomy and link the README to the guide.
+3. Add a prominent catalog link to the existing Flisk organization profile README and check the link in the rendered profile.
 4. Confirm the final tracked file list is exactly `README.md` and `CONTRIBUTING.md`, and confirm both render from the public repository.
 
 Rollback is limited to reverting the profile link or removing/renaming the new repository if publication is premature; no software runtime migration is involved.
 
 ## Open Questions
 
-- None blocking. Use the organization namespace `tdk-landscape` based on the existing public profile and repositories. The repository's public visibility and repository-level license/feature settings should be chosen during repository creation.
+- None blocking. Use the organization namespace `flisk-sh` based on the existing public profile and repositories. The repository's public visibility and repository-level license/feature settings should be chosen during repository creation.

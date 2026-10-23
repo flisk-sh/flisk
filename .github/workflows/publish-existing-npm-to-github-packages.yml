@@ -1,0 +1,109 @@
+name: Publish existing npm version to GitHub Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing public npm version to publish to GitHub Packages
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish and verify existing npm artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Validate version and locate public npm tarball
+        id: npm-package
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Version must be a valid numeric semantic version"
+            exit 1
+          fi
+          METADATA="$RUNNER_TEMP/npm-package.json"
+          npm view "@flisk-sh/flisk@${VERSION}" name version repository.url dist.integrity --json --registry=https://registry.npmjs.org > "$METADATA"
+          node - "$METADATA" "$VERSION" <<'NODE'
+          const fs = require('fs');
+          const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const metadata = Array.isArray(parsed) ? parsed[0] : parsed;
+          const version = process.argv[3];
+          const expectedRepository = 'git+https://github.com/flisk-sh/flisk.git';
+          if (!metadata || metadata.name !== '@flisk-sh/flisk' || metadata.version !== version) {
+            throw new Error(`Unexpected npm package identity: ${metadata?.name}@${metadata?.version}`);
+          }
+          if (metadata['repository.url'] !== expectedRepository) {
+            throw new Error(`Unexpected package repository: ${metadata['repository.url']}`);
+          }
+          const integrity = metadata['dist.integrity'];
+          if (typeof integrity !== 'string' || !/^sha512-[A-Za-z0-9+/]+=*$/.test(integrity)) {
+            throw new Error(`Unexpected npm tarball integrity: ${integrity}`);
+          }
+          const encodedVersion = encodeURIComponent(version);
+          const tarballUrl = `https://registry.npmjs.org/@flisk-sh/flisk/-/flisk-${encodedVersion}.tgz`;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tarball_url=${tarballUrl}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tarball_integrity=${integrity}\n`);
+          NODE
+
+      - name: Download the exact public npm tarball
+        env:
+          TARBALL_URL: ${{ steps.npm-package.outputs.tarball_url }}
+          TARBALL_INTEGRITY: ${{ steps.npm-package.outputs.tarball_integrity }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/package"
+          TARBALL="$RUNNER_TEMP/package/package.tgz"
+          curl --fail --location --silent --show-error "$TARBALL_URL" --output "$TARBALL"
+          ACTUAL_INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$TARBALL" | openssl base64 -A)"
+          if [ "$ACTUAL_INTEGRITY" != "$TARBALL_INTEGRITY" ]; then
+            echo "::error::Downloaded npm tarball integrity does not match npm metadata"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@flisk-sh"
+          package-manager-cache: false
+
+      - name: Publish the existing version to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: | # zizmor: ignore[use-trusted-publishing] GitHub Packages does not support npm trusted publishing; authenticate with the repository GITHUB_TOKEN
+          if npm view "@flisk-sh/flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "@flisk-sh/flisk@${VERSION} is already published to GitHub Packages, skipping."
+          else
+            npm publish "$RUNNER_TEMP/package/package.tgz" --registry=https://npm.pkg.github.com
+          fi
+
+      - name: Verify authenticated GitHub Packages installation
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: | # zizmor: ignore[adhoc-packages] Verifies the published CLI can be installed from GitHub Packages in a fresh isolated prefix
+          PREFIX="$RUNNER_TEMP/tdk-install"
+          NPMRC="$RUNNER_TEMP/consumer.npmrc"
+          # npm must expand this environment reference when it reads the temporary config.
+          # shellcheck disable=SC2016
+          printf '%s\n' '@flisk-sh:registry=https://npm.pkg.github.com' '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' > "$NPMRC"
+          NPM_CONFIG_USERCONFIG="$NPMRC" npm install --global --prefix "$PREFIX" "@flisk-sh/flisk@${VERSION}"
+          INSTALLED_VERSION=$(PATH="$PREFIX/bin:$PATH" "$PREFIX/bin/tdk" --version)
+          if [ "$INSTALLED_VERSION" != "$VERSION" ]; then
+            echo "::error::Expected flisk --version $VERSION, got $INSTALLED_VERSION"
+            exit 1
+          fi
+          echo "Installed and verified flisk $INSTALLED_VERSION from GitHub Packages."

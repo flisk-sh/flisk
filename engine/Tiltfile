@@ -5,7 +5,7 @@
 # It exports core orchestration, resource builders, and topology management.
 #
 # Usage:
-#   v1alpha1.extension_repo(name='tdk-engine', url='https://github.com/tdk-landscape/tdk-engine')
+#   v1alpha1.extension_repo(name='tdk-engine', url='https://github.com/flisk-sh/flisk')
 #   load('ext://tdk-engine', 'Utils', 'Manifest', 'Config', ...)
 # =============================================================================
 

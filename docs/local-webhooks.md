@@ -1,8 +1,8 @@
 # Testing webhooks locally when the real provider is unavailable
 
-Payment, email and identity providers call your service, and sooner or later you need to reproduce a delivery that went wrong without a provider account, a tunnel or the provider's cooperation. This page is a **proposed recipe**, not a TDK feature: TDK has no webhook replay command, and nothing here was run against a real provider. It came out of [discussion #373](https://github.com/orgs/tdk-landscape/discussions/373), where [@ECD5A](https://github.com/ECD5A) described the approach. Stripe is used below only as an example of documented provider behaviour; signature formats and retry rules are provider-specific, so check your provider's documentation.
+Payment, email and identity providers call your service, and sooner or later you need to reproduce a delivery that went wrong without a provider account, a tunnel or the provider's cooperation. This page is a **proposed recipe**, not a Flisk feature: Flisk has no webhook replay command, and nothing here was run against a real provider. It came out of [discussion #373](https://github.com/orgs/flisk-sh/discussions/373), where [@ECD5A](https://github.com/ECD5A) described the approach. Stripe is used below only as an example of documented provider behaviour; signature formats and retry rules are provider-specific, so check your provider's documentation.
 
-TDK's part is small: `tdk up` gives you the backend, the database and the route to send requests to (see [Smoke check](smoke.md) for the URL it prints). The rest is a script you keep in your repository.
+Flisk's part is small: `flisk up` gives you the backend, the database and the route to send requests to (see [Smoke check](smoke.md) for the URL it prints). The rest is a script you keep in your repository.
 
 ## The default reproducer
 
@@ -83,11 +83,11 @@ Put these behind a single script so a new teammate can reproduce a failure witho
 - the delivery schedule
 - the expected final state
 
-Start with a plain script in your repository. A thin `tdk` wrapper might help later, but your project should still own the fixtures, the reset and seed hook, and the assertions. Reset state explicitly, and only on a disposable local test instance.
+Start with a plain script in your repository. A thin `flisk` wrapper might help later, but your project should still own the fixtures, the reset and seed hook, and the assertions. Reset state explicitly, and only on a disposable local test instance.
 
 ## Harness choices
 
-From [@ECD5A's follow-up](https://github.com/orgs/tdk-landscape/discussions/373#discussioncomment-18819440) in the discussion:
+From [@ECD5A's follow-up](https://github.com/orgs/flisk-sh/discussions/373#discussioncomment-18819440) in the discussion:
 
 - **Fixtures as raw bytes.** Keep sanitized payloads on disk as bytes, with scenario metadata in a separate file. Read the bytes, sign those exact bytes and send the same buffer. For a generated variant, render it once, then sign and send that result; do not serialize it again in the HTTP client. A retry keeps the event body and ID, with a new delivery signature if your provider does that.
 - **The clock.** Inject `now()` at the handler or verifier boundary, with real time as the default. If the provider's SDK owns the time check, use its clock option if it has one; otherwise make fresh and expired signed timestamps against the real clock. Do not freeze the whole process or switch off timestamp validation.
@@ -95,5 +95,5 @@ From [@ECD5A's follow-up](https://github.com/orgs/tdk-landscape/discussions/373#
 
 ## Not covered
 
-- No TDK command does any of this yet. If you want one, say so in the discussion.
-- The recipe has not been tried against a specific provider, and the snippet is not a TDK-tested test harness.
+- No Flisk command does any of this yet. If you want one, say so in the discussion.
+- The recipe has not been tried against a specific provider, and the snippet is not a Flisk-tested test harness.

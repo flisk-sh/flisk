@@ -2,26 +2,26 @@
 
 ## Why
 
-Coding agents increasingly run inside Dev Containers, Codespaces, or remote workspaces (VS Code Agent Host, Cursor, Coder, T3 Code) rather than on the developer's machine shell. `tdk doctor` already reports a versioned JSON readiness report and `tdk status --json` a versioned status report, and `tdk-skills` already guides agents. What is missing:
+Coding agents increasingly run inside Dev Containers, Codespaces, or remote workspaces (VS Code Agent Host, Cursor, Coder, T3 Code) rather than on the developer's machine shell. `flisk doctor` already reports a versioned JSON readiness report and `flisk status --json` a versioned status report, and `tdk-skills` already guides agents. What is missing:
 
 - `doctor` does not recognize Dev Containers, Codespaces, or WebContainers. Inside them it gives a generic "install Docker Desktop" message, or tries to start Tilt where no Docker daemon exists.
-- `tdk up` and `tdk down` have no machine-readable output and `up` cannot start a subset of services.
+- `flisk up` and `flisk down` have no machine-readable output and `up` cannot start a subset of services.
 - There is no `logs` command, so agents scrape the Tilt UI.
-- There is no published `.devcontainer` that puts `tdk` on PATH with a reachable Docker engine.
+- There is no published `.devcontainer` that puts `flisk` on PATH with a reachable Docker engine.
 
 ## What changes
 
-- Extend `doctor` host detection to Dev Container, Codespaces, and WebContainer (WSL2 detection already exists) and fail closed when `tdk up` cannot work.
+- Extend `doctor` host detection to Dev Container, Codespaces, and WebContainer (WSL2 detection already exists) and fail closed when `flisk up` cannot work.
 - Add `--json` to `up`, `down`, and a new `logs` command; add `--only` to `up`; ensure `status --json` exposes host ports and URLs.
-- Add `tdk mcp`, an MCP server wrapping the same implementations.
+- Add `flisk mcp`, an MCP server wrapping the same implementations.
 - Ship a reference `.devcontainer` (Docker-outside-of-Docker) and docs.
-- Document WebContainers as unsupported for `tdk up`.
+- Document WebContainers as unsupported for `flisk up`.
 - Do not add a WebContainer runtime, a Tilt-in-browser port, or an IDE plugin.
 
 ## Capabilities
 
 - `agent-host-detection`: recognize the host kind and the valid Docker path.
-- `devcontainer-feature`: reference Dev Container with `tdk` on PATH.
+- `devcontainer-feature`: reference Dev Container with `flisk` on PATH.
 - `harness-lifecycle-api`: JSON lifecycle commands and an MCP server sharing one implementation.
 
 ## Impact

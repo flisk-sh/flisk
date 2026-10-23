@@ -1,11 +1,16 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeResource } from "../../test-support/index.js";
+import { createTempProject, makeResource } from "../../test-support/index.js";
 import {
   appendHealthPath,
+  buildAdvertisedTargets,
   buildHealthTargets,
+  getProjectName,
+  getProjectNameFor,
   pingHealthTarget,
+  pingHealthTargets,
   resolveServicePath,
   resolveSubdomainBases,
 } from "../service-urls.js";
@@ -17,6 +22,44 @@ describe("appendHealthPath", () => {
 
   it("collapses trailing slashes", () => {
     expect(appendHealthPath("/menu///")).toBe("/menu/health");
+  });
+});
+
+describe("getProjectNameFor", () => {
+  it("reads the project name from .tdk/project.json", () => {
+    const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
+    expect(getProjectNameFor(root)).toBe("demo-shop");
+  });
+
+  it("falls back when the project file has no project name", () => {
+    const root = createTempProject({ projectJson: { project: {} } });
+    expect(getProjectNameFor(root)).toBe("tdk-project");
+  });
+
+  it("falls back when the project file is not valid JSON", () => {
+    const root = createTempProject({ projectJson: "{not json" });
+    expect(getProjectNameFor(root)).toBe("tdk-project");
+  });
+
+  it("falls back when there is no project root", () => {
+    expect(getProjectNameFor(null)).toBe("tdk-project");
+  });
+});
+
+describe("getProjectName", () => {
+  const originalCwd = process.cwd();
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+  });
+
+  it("uses the project that contains the current directory", () => {
+    const root = createTempProject({
+      projectJson: { project: { name: "demo-shop" } },
+      files: { "apps/web/package.json": "{}" },
+    });
+    process.chdir(join(root, "apps", "web"));
+    expect(getProjectName()).toBe("demo-shop");
   });
 });
 
@@ -68,6 +111,65 @@ describe("resolveSubdomainBases", () => {
     expect(resolveSubdomainBases(8081)).toEqual({
       appBase: "http://app.demo.localhost:9000",
       apiBase: "http://api.demo.localhost:9000",
+    });
+  });
+
+  it("uses the project name when no base URL is configured", () => {
+    delete process.env.TDK_SERVICE_BASE_URL;
+    const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
+    expect(resolveSubdomainBases(undefined, root)).toEqual({
+      appBase: "http://app.demo-shop.localhost",
+      apiBase: "http://api.demo-shop.localhost",
+    });
+  });
+
+  it("adds the ingress port to the project default base URL", () => {
+    delete process.env.TDK_SERVICE_BASE_URL;
+    const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
+    expect(resolveSubdomainBases(8081, root)).toEqual({
+      appBase: "http://app.demo-shop.localhost:8081",
+      apiBase: "http://api.demo-shop.localhost:8081",
+    });
+  });
+
+  it("accepts a base URL without a scheme", () => {
+    process.env.TDK_SERVICE_BASE_URL = "demo.localhost";
+    expect(resolveSubdomainBases()).toEqual({
+      appBase: "http://app.demo.localhost",
+      apiBase: "http://api.demo.localhost",
+    });
+  });
+
+  it("drops the https default port", () => {
+    process.env.TDK_SERVICE_BASE_URL = "https://demo.localhost";
+    expect(resolveSubdomainBases(443)).toEqual({
+      appBase: "https://app.demo.localhost",
+      apiBase: "https://api.demo.localhost",
+    });
+  });
+
+  it("keeps plain localhost without a port", () => {
+    process.env.TDK_SERVICE_BASE_URL = "http://localhost";
+    expect(resolveSubdomainBases()).toEqual({
+      appBase: "http://localhost",
+      apiBase: "http://localhost",
+    });
+  });
+
+  it("keeps an IP address as the host for both bases", () => {
+    process.env.TDK_SERVICE_BASE_URL = "http://127.0.0.1:8080";
+    expect(resolveSubdomainBases()).toEqual({
+      appBase: "http://127.0.0.1:8080",
+      apiBase: "http://127.0.0.1:8080",
+    });
+  });
+
+  it("falls back to the project defaults when the base URL is malformed", () => {
+    process.env.TDK_SERVICE_BASE_URL = "http://bad host";
+    const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
+    expect(resolveSubdomainBases(undefined, root)).toEqual({
+      appBase: "http://app.demo-shop.localhost",
+      apiBase: "http://api.demo-shop.localhost",
     });
   });
 });
@@ -134,6 +236,38 @@ describe("buildHealthTargets", () => {
   });
 });
 
+describe("buildAdvertisedTargets", () => {
+  const original = process.env.TDK_SERVICE_BASE_URL;
+
+  beforeEach(() => {
+    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost";
+  });
+
+  afterEach(() => {
+    if (original === undefined) {
+      delete process.env.TDK_SERVICE_BASE_URL;
+    } else {
+      process.env.TDK_SERVICE_BASE_URL = original;
+    }
+  });
+
+  it("advertises the route without the /health suffix", () => {
+    const targets = buildAdvertisedTargets([
+      makeResource("floor-app", "frontend", { basePath: "/floor" }),
+      makeResource("menu-api", "backend"),
+    ]);
+
+    expect(targets).toEqual([
+      { name: "floor-app", appType: "frontend", url: "http://app.demo.localhost/floor" },
+      { name: "menu-api", appType: "backend", url: "http://api.demo.localhost/api/menu" },
+    ]);
+  });
+
+  it("has no targets when nothing is routable", () => {
+    expect(buildAdvertisedTargets([makeResource("kitchen-worker", "worker")])).toEqual([]);
+  });
+});
+
 describe("pingHealthTarget", () => {
   const target = { name: "menu-api", appType: "backend" as const, url: "http://api/health" };
 
@@ -183,5 +317,54 @@ describe("pingHealthTarget", () => {
       ok: false,
       error: "no response within 100ms",
     });
+  });
+
+  it("stringifies a thrown value that is not an Error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw "socket hang up";
+      }),
+    );
+    await expect(pingHealthTarget(target, 100)).resolves.toMatchObject({
+      ok: false,
+      error: "socket hang up",
+    });
+  });
+});
+
+describe("pingHealthTargets", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("probes every target and keeps the input order", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (url: string) => new Response("{}", { status: url.includes("/api/") ? 200 : 404 }),
+      ),
+    );
+
+    const probes = await pingHealthTargets(
+      [
+        { name: "menu-api", appType: "backend", url: "http://api.demo.localhost/api/menu/health" },
+        {
+          name: "floor-app",
+          appType: "frontend",
+          url: "http://app.demo.localhost/floor-app/health",
+        },
+      ],
+      100,
+    );
+
+    expect(probes.map((probe) => [probe.name, probe.status])).toEqual([
+      ["menu-api", 200],
+      ["floor-app", 404],
+    ]);
+  });
+
+  it("returns no probes for no targets", async () => {
+    await expect(pingHealthTargets([], 100)).resolves.toEqual([]);
   });
 });

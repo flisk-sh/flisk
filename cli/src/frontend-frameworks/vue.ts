@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { FrontendFrameworkProvider } from "./types.js";
 
@@ -45,7 +45,7 @@ createApp(App).mount('#app');
       {
         filename: "src/App.vue",
         content: `<script setup lang="ts">
-const message = 'Frontend resource created with TDK';
+const message = 'Frontend resource created with Flisk';
 </script>
 
 <template>

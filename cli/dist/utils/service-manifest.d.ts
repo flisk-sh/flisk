@@ -1,5 +1,5 @@
 export declare const SERVICE_MANIFEST_SCHEMA_VERSION = 1;
-export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://tdk-landscape.github.io/schema.service.json";
+export declare const SERVICE_MANIFEST_SCHEMA_URL = "https://flisk.sh/schema.service.json";
 /**
  * Errors for generated-output fields whose values could change the generated YAML. The value itself is not echoed, because it may
  * contain the newline that makes it dangerous.

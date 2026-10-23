@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# Legacy installer URL for the TDK CLI.
+# Legacy installer URL for the Flisk CLI.
 #
-# The official installer is https://tdk-landscape.github.io/install.sh. It
-# installs the prebuilt `tdk` binary plus its bundled engine, verified
+# The official installer is https://flisk.sh/install.sh. It
+# installs the prebuilt `flisk` binary plus its bundled engine, verified
 # against the release checksums, with no Node or Bun required. This script
 # used to clone this repo and `bun link` it instead; it now hands off to the
 # official installer so old
-#   curl -fsSL https://raw.githubusercontent.com/tdk-landscape/tdk-cli-core/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/flisk-sh/flisk/main/install.sh | bash
 # commands keep working and every install method gets the same result.
 #
-# To work on TDK itself, clone the repo instead (see CONTRIBUTING.md).
+# To work on Flisk itself, clone the repo instead (see CONTRIBUTING.md).
 
 set -euo pipefail
 
-# Pinned to a commit of tdk-landscape/tdk-landscape.github.io and verified
+# Pinned to a commit of flisk-sh/flisk-sh.github.io and verified
 # against the SHA-256 of that exact install.sh before it is executed.
-readonly OFFICIAL_INSTALLER="https://raw.githubusercontent.com/tdk-landscape/tdk-landscape.github.io/71ed55f1aca54f0a4c2fd45236c59228803725b4/install.sh"
-readonly OFFICIAL_INSTALLER_SHA256="add9c92c79947116d2845ecdecc2e0643e84b5aae31e6dd807dee0fe67f11fb0"
+readonly OFFICIAL_INSTALLER="https://raw.githubusercontent.com/flisk-sh/flisk-sh.github.io/ed5478b2e868252c7146e484c5fd4e6211ec3a55/install.sh"
+readonly OFFICIAL_INSTALLER_SHA256="c44d35f099306369a32fa5569b78d637035df04377bd43ff425efbc55078b836"
 
-echo "Using the official TDK installer: ${OFFICIAL_INSTALLER}" >&2
+echo "Using the official Flisk installer: ${OFFICIAL_INSTALLER}" >&2
 installer_tmp="$(mktemp)"
 trap 'rm -f "$installer_tmp"' EXIT
 curl -fsSL "$OFFICIAL_INSTALLER" -o "$installer_tmp"

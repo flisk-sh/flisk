@@ -1,10 +1,10 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import pkg from "../../package.json" with { type: "json" };
 
 const TDK_BANNER = `
-  ${chalk.bold.cyan("tdk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("TDK CLI — start services on your machine.")}
+  ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Flisk CLI — start services on your machine.")}
 `;
 
 const COMMAND_GROUPS = [
@@ -59,6 +59,7 @@ const COMMAND_GROUPS = [
       { name: "down", desc: "Stop all tilt resources", alias: "" },
       { name: "restart", desc: "Restart a running resource in the stack", alias: "<resource>" },
       { name: "status", desc: "Show status of services and stacks", alias: "" },
+      { name: "open", desc: "Open the first ready frontend in your browser", alias: "" },
       { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },
     ],
   },
@@ -122,12 +123,12 @@ export function showHelp(): void {
 
   console.log(
     chalk.gray(
-      "\n  Local development inner loop; TDK does not replace Helm for cluster deployments.\n",
+      "\n  Local development inner loop; Flisk does not replace Helm for cluster deployments.\n",
     ),
   );
   console.log(chalk.bold.white("  Project → Phase → Stack → Resource\n"));
 
-  console.log(chalk.gray("  Usage: tdk [command] [options]\n"));
+  console.log(chalk.gray("  Usage: flisk [command] [options]\n"));
 
   console.log(chalk.bold.yellow("  Global Options:"));
   console.log(
@@ -151,32 +152,30 @@ export function showHelp(): void {
   console.log(chalk.gray(`  ${"─".repeat(50)}`));
   console.log(
     chalk.white(`
-  ${chalk.cyan("1.")} Initialize project:        ${chalk.green("tdk project")}
-  ${chalk.cyan("2.")} Create a resource:         ${chalk.green("tdk resource my-api --type backend")}
-  ${chalk.cyan("3.")} Assign to stack:           ${chalk.green("tdk stack my-stack")}
-  ${chalk.cyan("4.")} Start development:         ${chalk.green("tdk up my-stack")}
+  ${chalk.cyan("1.")} Initialize project:        ${chalk.green("flisk project")}
+  ${chalk.cyan("2.")} Create a resource:         ${chalk.green("flisk resource my-api --type backend")}
+  ${chalk.cyan("3.")} Assign to stack:           ${chalk.green("flisk stack my-stack")}
+  ${chalk.cyan("4.")} Start development:         ${chalk.green("flisk up my-stack")}
   `),
   );
   console.log(chalk.bold.yellow("  Examples:"));
   console.log(chalk.gray(`  ${"─".repeat(50)}`));
   console.log(
     chalk.white(`
-  ${chalk.cyan("$")} tdk project                       # Create master configs
-  ${chalk.cyan("$")} tdk resource api --type backend   # Create a backend service
-  ${chalk.cyan("$")} tdk resource app --type frontend  # Create a frontend app
-  ${chalk.cyan("$")} tdk resource bot --type agent     # Create an AI agent (sessions survive tdk down)
-  ${chalk.cyan("$")} tdk stacks --services             # List stacks with their resources
-  ${chalk.cyan("$")} tdk up my-stack                   # Start a stack
-  ${chalk.cyan("$")} tdk networks                      # Show Traefik-routed URLs
-  ${chalk.cyan("$")} tdk doctor                        # Check your environment
-  ${chalk.cyan("$")} tdk upgrade                       # Self-update
-  ${chalk.cyan("$")} tdk upgrade --all                 # Update all TDK installs on PATH
+  ${chalk.cyan("$")} flisk project                       # Create master configs
+  ${chalk.cyan("$")} flisk resource api --type backend   # Create a backend service
+  ${chalk.cyan("$")} flisk resource app --type frontend  # Create a frontend app
+  ${chalk.cyan("$")} flisk resource bot --type agent     # Create an AI agent (sessions survive flisk down)
+  ${chalk.cyan("$")} flisk stacks --services             # List stacks with their resources
+  ${chalk.cyan("$")} flisk up my-stack                   # Start a stack
+  ${chalk.cyan("$")} flisk networks                      # Show Traefik-routed URLs
+  ${chalk.cyan("$")} flisk doctor                        # Check your environment
+  ${chalk.cyan("$")} flisk upgrade                       # Self-update
+  ${chalk.cyan("$")} flisk upgrade --all                 # Update all Flisk installs on PATH
   `),
   );
   console.log(chalk.gray(`  ${"═".repeat(50)}`));
-  console.log(chalk.gray(`  For more help: ${chalk.cyan("tdk help [command]")}`));
-  console.log(
-    chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/tdk-landscape/tdk-cli-core")}`),
-  );
+  console.log(chalk.gray(`  For more help: ${chalk.cyan("flisk help [command]")}`));
+  console.log(chalk.gray(`  GitHub: ${chalk.cyan("https://github.com/flisk-sh/flisk")}`));
   console.log();
 }

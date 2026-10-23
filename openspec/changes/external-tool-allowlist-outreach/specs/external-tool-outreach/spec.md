@@ -2,16 +2,16 @@
 
 ## Purpose
 
-Define how TDK asks public projects to evaluate TDK CLI for a tool catalog, recommended-tools list, or published allowlist, without claiming endorsement or contacting private policy systems.
+Define how Flisk asks public projects to evaluate Flisk CLI for a tool catalog, recommended-tools list, or published allowlist, without claiming endorsement or contacting private policy systems.
 
 ## ADDED Requirements
 
 ### Requirement: Outreach states evaluation, not endorsement
 
-The outreach packet SHALL ask the target project to evaluate TDK CLI. It MUST NOT say that TDK CLI is already verified, approved, recommended, or allowlisted by that project or by any company that has not published that status.
+The outreach packet SHALL ask the target project to evaluate Flisk CLI. It MUST NOT say that Flisk CLI is already verified, approved, recommended, or allowlisted by that project or by any company that has not published that status.
 
 #### Scenario: Draft claims a status the target has not granted
-- **WHEN** a draft issue says TDK CLI is a verified or recommended tool of the target project
+- **WHEN** a draft issue says Flisk CLI is a verified or recommended tool of the target project
 - **THEN** review rejects the draft until the claim is removed or replaced with a link to the target's own published statement
 
 #### Scenario: Target later publishes acceptance
@@ -32,22 +32,22 @@ An issue SHALL be opened only in a public repository that already documents exte
 
 ### Requirement: Affiliation is disclosed
 
-Every issue and pull request SHALL state that the author maintains TDK CLI, link the canonical repo `tdk-landscape/tdk-cli-core`, and name the license (MIT for core).
+Every issue and pull request SHALL state that the author maintains Flisk CLI, link the canonical repo `flisk-sh/flisk`, and name the license (MIT for core).
 
 #### Scenario: Issue opened without disclosure
-- **WHEN** a draft does not identify the author as a TDK maintainer
+- **WHEN** a draft does not identify the author as a Flisk maintainer
 - **THEN** the draft is not sent
 
 ### Requirement: Packet contains only checkable facts
 
-The outreach packet SHALL include install options, checksum verification, runtime dependencies (Docker, Tilt), supported platforms, and the boundary that TDK CLI is local development orchestration rather than a production deploy tool. It MUST NOT claim a security audit, SOC2 report, or "no network calls" unless a documented command demonstrates that claim.
+The outreach packet SHALL include install options, checksum verification, runtime dependencies (Docker, Tilt), supported platforms, and the boundary that Flisk CLI is local development orchestration rather than a production deploy tool. It MUST NOT claim a security audit, SOC2 report, or "no network calls" unless a documented command demonstrates that claim.
 
 #### Scenario: Reviewer asks how to verify the binary
 - **WHEN** the packet is rendered
-- **THEN** it links the release assets and `checksums.txt` in `tdk-landscape/tdk-cli-releases` and the install script that checks those checksums
+- **THEN** it links the release assets and `checksums.txt` in `flisk-sh/releases` and the install script that checks those checksums
 
 #### Scenario: Unsupported security claim
-- **WHEN** a draft says TDK CLI is certified or audited and no public report is linked
+- **WHEN** a draft says Flisk CLI is certified or audited and no public report is linked
 - **THEN** review removes the claim
 
 ### Requirement: One request per target, rate-limited

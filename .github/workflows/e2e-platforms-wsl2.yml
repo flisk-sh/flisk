@@ -1,0 +1,79 @@
+# The WSL2 suite on a Windows runner (#107, #1765). It runs the cases of tests/e2e/platforms/wsl2 in the
+# wsl-bash shell of setup-wsl's Ubuntu 24.04 distro, one step per case. WS6 runs the one-command demo flow
+# and confirms that every service the demo started answers and that `flisk down` stops the stack.
+#
+# Dispatched by hand only: the setup needs a Windows runner and takes a while, and the old WSL2 smoke job was
+# flaky on setup-wsl's `wsl --update` and on the Ubuntu and Docker mirrors (#716, #717), so it does not run on
+# every pull request. The evidence the suite writes is the artifact an acceptance run links to.
+name: 🐧 Platforms WSL2 E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip-demo:
+        description: "Skip WS6, the one-command demo flow (it builds the images, so it takes the longest)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-platforms-wsl2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wsl2:
+    name: e2e-platforms-wsl2
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: Vampire/setup-wsl@4c48163d9f981914dd8caa0fc335fe19cca5bff4 # v7.2.0
+        id: wsl
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: 2
+          use-cache: false
+          additional-packages: ca-certificates curl git xz-utils unzip jq
+
+      # Each step runs one case of tests/e2e/platforms/wsl2/run.sh (suite.json, run.sh) in the distro. WS1 copies the
+      # checkout to /root/tdk-ci, and the later cases build and smoke-test that copy.
+      - name: Record and require a real WSL2 kernel
+        shell: wsl-bash {0}
+        run: tests/e2e/platforms/wsl2/run.sh WS1
+
+      - name: Install Docker Engine and Linux development tools
+        shell: wsl-bash {0}
+        run: tests/e2e/platforms/wsl2/run.sh WS2
+
+      - name: Build and install the candidate CLI
+        shell: wsl-bash {0}
+        run: tests/e2e/platforms/wsl2/run.sh WS3
+
+      - name: Run the existing WSL2 routed write smoke
+        shell: wsl-bash {0}
+        run: tests/e2e/platforms/wsl2/run.sh WS4
+
+      # The demo flow: it clones the starter, installs the dependencies, builds the images and boots the stack,
+      # then the script checks that every routed service answers and that `flisk down` stops it again.
+      - name: Run the one-command demo flow and confirm the stack it started
+        if: ${{ !inputs.skip-demo }}
+        shell: wsl-bash {0}
+        run: tests/e2e/platforms/wsl2/run.sh WS6
+
+      - name: Collect diagnostics
+        if: always() && steps.wsl.outcome == 'success'
+        shell: wsl-bash {0}
+        run: tests/e2e/platforms/wsl2/run.sh WS5
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: wsl2-evidence-${{ github.run_id }}
+          path: wsl2-evidence/
+          if-no-files-found: warn
+          retention-days: 14

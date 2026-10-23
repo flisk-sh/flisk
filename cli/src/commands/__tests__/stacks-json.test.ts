@@ -1,9 +1,9 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { createTempProject, parseEnvelope, runTdk } from "../../test-support/index.js";
 
-describe("tdk resources and stacks --json", () => {
+describe("flisk resources and stacks --json", () => {
   function createProject(includeResources = true): string {
     return createTempProject(
       includeResources

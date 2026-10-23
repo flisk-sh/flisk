@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureExit, type ExitCapture, parseEnvelope } from "../../test-support/index.js";
@@ -9,6 +9,11 @@ import {
   getDoctorExitCode,
 } from "../../utils/doctor-report.js";
 import { getHostPortPlan } from "../../utils/host-port-config.js";
+import {
+  checkWindowsDockerMode,
+  checkWindowsHostConfiguration,
+  checkWindowsRuntimeTools,
+} from "../../utils/windows-doctor.js";
 import { doctorCommand, NATIVE_WINDOWS_DOCTOR_MESSAGE } from "../doctor.js";
 
 vi.mock("../../utils/doctor-report.js", async (importOriginal) => {
@@ -26,6 +31,29 @@ vi.mock("../../utils/host-port-config.js", async (importOriginal) => {
     getHostPortPlan: vi.fn(actual.getHostPortPlan),
   };
 });
+
+vi.mock("../../utils/windows-doctor.js", () => ({
+  checkWindowsRuntimeTools: vi.fn(() => ({
+    name: "Windows Runtime Tools",
+    didPass: true,
+    message:
+      "Docker (C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe) and Tilt found on PATH",
+  })),
+  checkWindowsDockerMode: vi.fn(() => ({
+    name: "Docker container mode",
+    didPass: false,
+    message:
+      "Docker Desktop is using Windows containers. Switch to Linux containers. Flisk stacks are Linux images.",
+    fix: "Switch Docker Desktop to Linux containers. Flisk does not run Windows containers.",
+  })),
+  checkWindowsHostConfiguration: vi.fn(async () => ({
+    name: "Windows ports and DNS",
+    didPass: false,
+    message:
+      "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.\nAdd these lines to C:\\Windows\\System32\\drivers\\etc\\hosts (Administrator Notepad):\n127.0.0.1 tdk.localhost\n127.0.0.1 example.tdk.localhost\ngit core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.\nDocker Desktop Settings → Resources → File sharing must include this project directory.",
+    fix: "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.",
+  })),
+}));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -88,7 +116,7 @@ describe("doctor JSON command", () => {
     expect(log).not.toHaveBeenCalled();
   });
 
-  it("reports native Windows as a blocking finding with the existing guidance", async () => {
+  it("reports native Windows as a blocking finding with Windows diagnostics in data.checks", async () => {
     const platform = Object.getOwnPropertyDescriptor(process, "platform");
     if (!platform) throw new Error("Missing process.platform descriptor");
     const { log, exit } = captureOutput();
@@ -97,16 +125,29 @@ describe("doctor JSON command", () => {
       await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
       expect(exit).toHaveBeenCalledWith(1);
       expect(log).toHaveBeenCalledTimes(1);
+      expect(checkWindowsRuntimeTools).toHaveBeenCalledOnce();
+      expect(checkWindowsDockerMode).toHaveBeenCalledOnce();
+      expect(checkWindowsHostConfiguration).toHaveBeenCalledOnce();
 
       const rawStdout = String(log.mock.calls[0]?.[0]);
-      expect(rawStdout).not.toContain("TDK Doctor");
+      expect(rawStdout).not.toContain("Flisk Doctor");
       expect(rawStdout).not.toContain("Checking environment...");
       expect(rawStdout).not.toMatch(/[🔍✓✗○⚠]/u);
 
       const report = parseEnvelope(rawStdout);
       expect(report.data.ready).toBe(false);
+      expect(report.data.checks[0].name).toBe("Native Windows support");
       expect(report.data.checks[0].message).toBe(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(report.data.checks[0].fix).toContain("WSL2 Ubuntu");
+      expect(report.data.checks.map((check: CheckResult) => check.name)).toEqual([
+        "Native Windows support",
+        "Windows Runtime Tools",
+        "Docker container mode",
+        "Windows ports and DNS",
+      ]);
+      expect(report.data.checks[2].message).toContain("Windows containers");
+      expect(report.data.checks[3].message).toContain("tdk.localhost");
+      expect(report.data.checks[3].message).toContain("core.autocrlf");
       expect(report.data.host).toMatchObject({ kind: "native-windows", canUp: false });
       expect(report.errors).toEqual([]);
     } finally {
@@ -173,7 +214,7 @@ describe("doctor JSON command", () => {
       expect(jsonRun.log).toHaveBeenCalledTimes(1);
 
       const rawStdout = String(jsonRun.log.mock.calls[0]?.[0]);
-      expect(rawStdout).not.toContain("TDK Doctor");
+      expect(rawStdout).not.toContain("Flisk Doctor");
       expect(rawStdout).not.toContain("Checking environment...");
       expect(rawStdout).not.toMatch(/[🔍✓✗○⚠]/u);
 
@@ -196,7 +237,7 @@ describe("doctor JSON command", () => {
       );
       expect(textRun.exit).toHaveBeenCalledWith(1);
       const textLines = textRun.log.mock.calls.map((call: unknown[]) => String(call[0])).join("\n");
-      expect(textLines).toContain("TDK Doctor");
+      expect(textLines).toContain("Flisk Doctor");
       expect(textLines).toContain("Checking environment...");
     } finally {
       Object.defineProperty(process, "platform", platform);
@@ -228,7 +269,7 @@ describe("doctor JSON command", () => {
       expect(jsonRun.log).toHaveBeenCalledTimes(1);
 
       const rawStdout = String(jsonRun.log.mock.calls[0]?.[0]);
-      expect(rawStdout).not.toContain("TDK Doctor");
+      expect(rawStdout).not.toContain("Flisk Doctor");
       expect(rawStdout).not.toContain("Checking environment...");
       const report = parseEnvelope(rawStdout);
       expect(report.data.ready).toBe(true);

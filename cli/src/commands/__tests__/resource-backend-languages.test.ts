@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -20,7 +20,7 @@ import { BACKEND_LANGUAGES, DEFAULT_BACKEND_LANGUAGE } from "../../backend-langu
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
 
-function tdk(args: string[], cwd: string, input = "y\n") {
+function flisk(args: string[], cwd: string, input = "y\n") {
   return spawnSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
@@ -40,14 +40,21 @@ function listFiles(root: string, dir = root): string[] {
 
 const sha = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex");
 
-// Captured from the CLI on main before the provider extraction: `tdk resource orders-api
+// Captured from the CLI on main before the provider extraction: `flisk resource orders-api
 // --type backend --stack shop` with no --language. Any drift here changes historical output.
 // The service.json hash was re-captured on purpose, twice, so a fresh scaffold writes the keys the engine reads and trips no warning:
 // the unread `healthCheck` became `healthCheckPath` (#402), and the deprecated `dependencies` became `dependsOn`.
+// It was re-captured a third time on 2026-10-21 for the GitHub organisation rename: the only byte that
+// changed in the scaffolded service.json is the `$schema` URL, which now points at
+// https://flisk.sh/schema.service.json.
+// It was re-captured a fifth time on 2026-10-21 for the Flisk rebrand: the generated Dockerfile header now names
+// the CLI as Flisk, and that header is the only byte that differs.
+// It was re-captured a sixth time on 2026-10-22 for the vitest version: the scaffold now writes the same vitest
+// the CLI tests itself with (`5.0.5`), so the `vitest` line of the scaffolded package.json is the only byte that differs.
 const BUN_BASELINE: Record<string, string> = {
-  Dockerfile: "d5d856331ea4307ac42e36886407298a9fc63b1600b4ed18870940a6ec72a063",
-  "package.json": "398877b088717f97af437af3d2233a7863af6ef442a62ba0fafcf29830d29ee1",
-  "service.json": "bc6598c626865ea3350e5204bbdb14aefd0eb0c36e64b6db6b8c6fe01ae76e6f",
+  Dockerfile: "068f15a55176c3960bae240a370244f1976879f126fddb01920c3eca3af5dd89",
+  "package.json": "2ee050e7c1cb741d02b26b05261c15631602d25ddf261a2c305ffdbde5b184e5",
+  "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "f50139530382e929db7128be7cb55f3bbc5f2fae03264979d675d3be4d0f4ef3",
   "tests/orders-api.test.ts": "a4946ac3123eb4bee78d7b84304cad8b7c36d4268688e3c878da2aaa11ef98ab",
   "tsconfig.json": "c0503e8c2d9e7cb0b77a1e0eaea674f4ee03f3182ff9f5429b9bb7ba0fabee41",
@@ -77,7 +84,7 @@ describe("backend language registry", () => {
   });
 });
 
-describe("tdk resource --language", () => {
+describe("flisk resource --language", () => {
   let projectRoot = "";
 
   beforeAll(() => {
@@ -97,7 +104,7 @@ describe("tdk resource --language", () => {
     JSON.parse(readFileSync(join(dir(name), "service.json"), "utf-8"));
 
   it("keeps the historical Bun output when --language is omitted", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "orders-api", "--type", "backend", "--stack", "shop"],
       projectRoot,
     );
@@ -112,7 +119,7 @@ describe("tdk resource --language", () => {
   });
 
   it("scaffolds Python with FastAPI, a pytest smoke test, and no Dockerfile of its own", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "py-api", "--type", "backend", "--language", "python", "--stack", "shop"],
       projectRoot,
     );
@@ -143,7 +150,7 @@ describe("tdk resource --language", () => {
   });
 
   it("scaffolds Go with net/http, a go test smoke test, and no Dockerfile of its own", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "go-api", "--type", "backend", "--language", "go", "--stack", "shop"],
       projectRoot,
     );
@@ -176,7 +183,7 @@ describe("tdk resource --language", () => {
   }, 15000);
 
   it("scaffolds Rust with axum, a cargo test smoke test, and no Dockerfile of its own", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "rust-api", "--type", "backend", "--language", "rust", "--stack", "shop"],
       projectRoot,
     );
@@ -207,7 +214,7 @@ describe("tdk resource --language", () => {
   }, 15000);
 
   it("scaffolds Node with node:http, node:test, and no Dockerfile of its own", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "node-api", "--type", "backend", "--language", "node", "--stack", "shop"],
       projectRoot,
     );
@@ -258,7 +265,7 @@ describe("tdk resource --language", () => {
   }, 15000);
 
   it("rejects a framework for Go like it does for Python", () => {
-    const result = tdk(
+    const result = flisk(
       [
         "resource",
         "go-fw",
@@ -279,7 +286,7 @@ describe("tdk resource --language", () => {
   }, 15000);
 
   it("persists an explicit bun selection", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "bun-api", "--type", "backend", "--language", "bun", "--stack", "shop"],
       projectRoot,
     );
@@ -293,7 +300,7 @@ describe("tdk resource --language", () => {
   });
 
   it("rejects an unknown language before creating the directory", () => {
-    const result = tdk(
+    const result = flisk(
       ["resource", "ruby-api", "--type", "backend", "--language", "ruby", "--stack", "shop"],
       projectRoot,
     );
@@ -307,7 +314,7 @@ describe("tdk resource --language", () => {
     "rejects --language on a %s resource",
     (type) => {
       const name = `lang-${type}`;
-      const result = tdk(
+      const result = flisk(
         ["resource", name, "--type", type, "--language", "python", "--stack", "shop"],
         projectRoot,
       );

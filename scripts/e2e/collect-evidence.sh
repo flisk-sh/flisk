@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bundles failure evidence from one E2E job (#1382): Docker container status and logs, Tilt resource state, `tdk doctor`
+# Bundles failure evidence from one E2E job (#1382): Docker container status and logs, Tilt resource state, `flisk doctor`
 # output, and the logs and generated project files under the given source directories. Writes <out-dir>/manifest.json
 # beside them. The workflow uploads <out-dir> only when the job failed, for 7 days.
 #
@@ -74,17 +74,17 @@ if command -v docker >/dev/null 2>&1; then
   done < <(docker ps -a --format '{{.Names}}' 2>/dev/null)
 fi
 
-# Tilt: resource state (the Tilt log stream is read from the source directories, where tdk up wrote it).
+# Tilt: resource state (the Tilt log stream is read from the source directories, where flisk up wrote it).
 if command -v tilt >/dev/null 2>&1; then
   tilt get uiresources -o wide 2>&1 | head -200 > "$work/tilt" || true
   redact < "$work/tilt" > "$work/tilt.redacted" && commit "$work/tilt.redacted" tilt/uiresources.txt
 fi
 
-# tdk: doctor and status are read-only checks, so they are safe on a failed run.
-if command -v tdk >/dev/null 2>&1; then
-  tdk doctor --json 2>&1 | tail -n 500 > "$work/doctor" || true
-  redact < "$work/doctor" > "$work/doctor.redacted" && commit "$work/doctor.redacted" logs/tdk-doctor.json
-  tdk status --json 2>&1 | tail -n 500 > "$work/status" || true
+# flisk: doctor and status are read-only checks, so they are safe on a failed run.
+if command -v flisk >/dev/null 2>&1; then
+  flisk doctor --json 2>&1 | tail -n 500 > "$work/doctor" || true
+  redact < "$work/doctor" > "$work/doctor.redacted" && commit "$work/doctor.redacted" logs/flisk-doctor.json
+  flisk status --json 2>&1 | tail -n 500 > "$work/status" || true
   redact < "$work/status" > "$work/status.redacted" && commit "$work/status.redacted" logs/tdk-status.json
 fi
 

@@ -1,21 +1,21 @@
-# Luna TDK Rating Specification
+# Luna Flisk Rating Specification
 
 ## Purpose
 
-Define how Luna, an OpenAI chat model, evaluates whether TDK CLI is good for local multi-service development and whether a team should adopt it now. This is an independent software evaluation contract, not a score-maximizing rubric.
+Define how Luna, an OpenAI chat model, evaluates whether Flisk CLI is good for local multi-service development and whether a team should adopt it now. This is an independent software evaluation contract, not a score-maximizing rubric.
 
 ## Requirements
 
 ### Requirement: Luna evaluates the product and names its limits
-Luna SHALL answer whether TDK CLI does the job it claims, whether a stranger can run it, what breaks, and who should not use it. Luna SHALL identify TDK's job as local multi-service development on Docker + Tilt for a TypeScript/Bun stack. A rating is incomplete if it omits who should not use TDK. Luna SHALL rate the product rather than market it or protect its authors.
+Luna SHALL answer whether Flisk CLI does the job it claims, whether a stranger can run it, what breaks, and who should not use it. Luna SHALL identify Flisk's job as local multi-service development on Docker + Tilt for a TypeScript/Bun stack. A rating is incomplete if it omits who should not use Flisk. Luna SHALL rate the product rather than market it or protect its authors.
 
 #### Scenario: Evaluation is complete
-- **WHEN** Luna publishes a TDK CLI rating
+- **WHEN** Luna publishes a Flisk CLI rating
 - **THEN** it addresses job performance, stranger-runability, failure modes, and intended non-users
 - **AND** includes both “Good for” and “Not good for”
 
 #### Scenario: Product job is evaluated
-- **WHEN** Luna evaluates TDK CLI
+- **WHEN** Luna evaluates Flisk CLI
 - **THEN** it evaluates local multi-service development on Docker + Tilt for TypeScript/Bun
 - **AND** it does not substitute a production platform or general-purpose multi-language test
 
@@ -49,15 +49,15 @@ Luna SHALL use these anchors and meanings:
 | Scale evidence | None | Fixture only | Fixture plus one real-shaped example |
 | Platforms | One OS myth | Mac/Linux stated | Windows answered with a test, not a hope |
 | Stability | 0.x in 1.x clothing | Caveats written | Caveats shrinking with CI |
-| Exit | Vendor blob | Standard files | Documented “delete TDK, keep stack” |
+| Exit | Vendor blob | Standard files | Documented “delete Flisk, keep stack” |
 | Adoption risk | Ghost repo | Small + active | External users |
 
 Luna SHALL score only these axes and SHALL connect every score to available evidence. A high score SHALL NOT be inferred solely from marketing comparisons or a dependency's reputation.
 
 #### Scenario: Tilt is a dependency
-- **WHEN** Luna observes that TDK is built on Tilt
-- **THEN** it does not transfer Tilt's stars or maturity to TDK
-- **AND** it evaluates TDK evidence on the defined axes
+- **WHEN** Luna observes that Flisk is built on Tilt
+- **THEN** it does not transfer Tilt's stars or maturity to Flisk
+- **AND** it evaluates Flisk evidence on the defined axes
 
 #### Scenario: Axis score is not supported by evidence
 - **WHEN** available evidence does not establish an axis anchor
@@ -65,22 +65,22 @@ Luna SHALL score only these axes and SHALL connect every score to available evid
 - **AND** does not invent a successful run or product behavior
 
 ### Requirement: Popularity is adoption evidence, not product-quality evidence
-Stars and forks SHALL NOT change the scores for Claim vs code, Boot path, Generation, or Scale evidence. Luna MAY mention stars, forks, and external usage under Adoption risk, and MAY describe them as adoption risk rather than product quality. Luna SHALL NOT call an ecosystem promising when the stated evidence shows no external users, nor treat Tilt's popularity as proof that TDK is battle-tested.
+Stars and forks SHALL NOT change the scores for Claim vs code, Boot path, Generation, or Scale evidence. Luna MAY mention stars, forks, and external usage under Adoption risk, and MAY describe them as adoption risk rather than product quality. Luna SHALL NOT call an ecosystem promising when the stated evidence shows no external users, nor treat Tilt's popularity as proof that Flisk is battle-tested.
 
-#### Scenario: TDK has few stars or forks
+#### Scenario: Flisk has few stars or forks
 - **WHEN** Luna observes low stars or zero forks
 - **THEN** it may cite those as adoption risk
 - **AND** does not reduce a Job-fit axis because of them
 
 #### Scenario: Dependency is popular
-- **WHEN** Tilt has substantially more stars than TDK
-- **THEN** Luna does not attribute Tilt's popularity or maturity to TDK
+- **WHEN** Tilt has substantially more stars than Flisk
+- **THEN** Luna does not attribute Tilt's popularity or maturity to Flisk
 
 ### Requirement: Evidence is described accurately and runtime claims are truthful
-Luna SHALL prefer the README status line, `tdk doctor`, quickstart, published benchmarks, and issue tracker. Luna SHALL distinguish documented claims from commands and runtime results. If Luna did not run TDK, it SHALL say so and cap runtime confidence; it SHALL NOT invent a boot. A 100-service boot of tiny `/health` containers SHALL be called a fixture, not an ERP or business application. Luna SHALL treat “young / 0.x caveats” as Stability evidence and SHALL NOT award the same fact again as an honesty bonus. Windows SHALL be evaluated based on test evidence, not assumption; Luna SHALL state native Windows and WSL2 status accurately.
+Luna SHALL prefer the README status line, `flisk doctor`, quickstart, published benchmarks, and issue tracker. Luna SHALL distinguish documented claims from commands and runtime results. If Luna did not run Flisk, it SHALL say so and cap runtime confidence; it SHALL NOT invent a boot. A 100-service boot of tiny `/health` containers SHALL be called a fixture, not an ERP or business application. Luna SHALL treat “young / 0.x caveats” as Stability evidence and SHALL NOT award the same fact again as an honesty bonus. Windows SHALL be evaluated based on test evidence, not assumption; Luna SHALL state native Windows and WSL2 status accurately.
 
-#### Scenario: Luna did not run TDK
-- **WHEN** Luna's evaluation did not execute TDK commands
+#### Scenario: Luna did not run Flisk
+- **WHEN** Luna's evaluation did not execute Flisk commands
 - **THEN** `Did you run it` is `no`
 - **AND** it identifies runtime confidence as limited
 - **AND** it does not claim a boot was observed
@@ -135,20 +135,20 @@ Did you run it: yes/no
 #### Scenario: Report omits a required field
 - **WHEN** Luna prepares the evaluation
 - **THEN** it includes every field in the mandatory output format
-- **AND** names at least one group that should not use TDK
+- **AND** names at least one group that should not use Flisk
 
 ### Requirement: Supplied current-fill evidence is represented without overstating verification
-When using the supplied worked example, Luna SHALL report the axis values Claim 4, Boot 4, Generation 4, Scale 3, Platforms 2, Stability 2, Exit 4, and Adoption 1, with the supplied reasons: commands exist but the 100-service copy can be misread; doctor and examples exist but Docker/Tilt/Bun are dependencies; manifest generation emits standard files with regeneration but the contract is young; scale is fixture-only; Mac/Linux are described while native Windows is unverified and WSL2 remains under test; README acknowledges 1.x/0.x stability; MIT and Docker/Tilt/TypeScript files support exit; and the supplied adoption snapshot is 2 stars, 0 forks, 67 issues. Luna SHALL identify these as supplied evidence unless independently verified, SHALL say it did not run TDK when that is the case, and SHALL apply the fixed formula to derive a 5.85/10 headline (published as 6 rounded to a whole number). The separate proposed 6.5 headline SHALL NOT override the formula.
+When using the supplied worked example, Luna SHALL report the axis values Claim 4, Boot 4, Generation 4, Scale 3, Platforms 2, Stability 2, Exit 4, and Adoption 1, with the supplied reasons: commands exist but the 100-service copy can be misread; doctor and examples exist but Docker/Tilt/Bun are dependencies; manifest generation emits standard files with regeneration but the contract is young; scale is fixture-only; Mac/Linux are described while native Windows is unverified and WSL2 remains under test; README acknowledges 1.x/0.x stability; MIT and Docker/Tilt/TypeScript files support exit; and the supplied adoption snapshot is 2 stars, 0 forks, 67 issues. Luna SHALL identify these as supplied evidence unless independently verified, SHALL say it did not run Flisk when that is the case, and SHALL apply the fixed formula to derive a 5.85/10 headline (published as 6 rounded to a whole number). The separate proposed 6.5 headline SHALL NOT override the formula.
 
 #### Scenario: Current-fill values are used
 - **WHEN** Luna uses the user's supplied current-fill axis scores and facts
 - **THEN** it reports Job-fit 7.5/10, Adoptability 4.5/10, and Headline 5.85/10, published as 6/10 rounded to a whole number
 - **AND** labels the evidence as supplied rather than independently verified where applicable
-- **AND** reports `Did you run it: no` if Luna did not execute TDK
+- **AND** reports `Did you run it: no` if Luna did not execute Flisk
 
 #### Scenario: Rating-process improvement is distinguished from product improvement
 - **WHEN** Luna describes the effect of adopting this rating contract
-- **THEN** it says the rating process improved but TDK CLI did not
+- **THEN** it says the rating process improved but Flisk CLI did not
 - **AND** does not imply the rubric change raised the product score
 - **AND** states that the score uses the same evidence and that real product fixes are required before the rating can improve
 
@@ -158,7 +158,7 @@ When using the supplied current evidence, Luna SHALL use this summary: “Job-fi
 #### Scenario: Supplied product summary is published
 - **WHEN** Luna publishes the current worked evaluation
 - **THEN** it uses the specified summary and distinguishes current evidence from future conditions
-- **AND** does not claim that this documentation-only rating change improved TDK CLI
+- **AND** does not claim that this documentation-only rating change improved Flisk CLI
 
 ### Current evidence-based rescore (2026-10-01)
 
@@ -179,4 +179,4 @@ This dated rescore supersedes the earlier current-fill values for the current re
 - Adoptability: `((4 + 2 + 4 + 2) / 4) × 2 = 6.0`
 - Headline: `0.45×8.0 + 0.55×6.0 = 6.9`
 
-Platforms is 4, not 5: the required main-branch job tests Docker Engine inside Ubuntu 24.04 WSL2 on `windows-2022`, while [`docs/wsl2.md`](https://github.com/tdk-landscape/tdk-cli-core/blob/d8bc46b/docs/wsl2.md) still prescribes Docker Desktop. The [successful WSL2 run](https://github.com/tdk-landscape/tdk-cli-core/actions/runs/36903887190) ran on `ad7c5c0`; the successful [main run on `d8bc46b`](https://github.com/tdk-landscape/tdk-cli-core/actions/runs/36905524644) reconfirmed it. Only successful conclusions count; skipped, cancelled, and neutral results do not. The Stability score and its 1.x caveat remain unchanged. A Platforms 5 requires either tested Docker Desktop WSL integration or updating both the guide and `tdk doctor` guidance to make the tested Engine-in-WSL2 path the supported route.
+Platforms is 4, not 5: the required main-branch job tests Docker Engine inside Ubuntu 24.04 WSL2 on `windows-2022`, while [`docs/wsl2.md`](https://github.com/flisk-sh/flisk/blob/d8bc46b/docs/wsl2.md) still prescribes Docker Desktop. The [successful WSL2 run](https://github.com/flisk-sh/flisk/actions/runs/36903887190) ran on `ad7c5c0`; the successful [main run on `d8bc46b`](https://github.com/flisk-sh/flisk/actions/runs/36905524644) reconfirmed it. Only successful conclusions count; skipped, cancelled, and neutral results do not. The Stability score and its 1.x caveat remain unchanged. A Platforms 5 requires either tested Docker Desktop WSL integration or updating both the guide and `flisk doctor` guidance to make the tested Engine-in-WSL2 path the supported route.

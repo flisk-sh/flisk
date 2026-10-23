@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🔧 TILT SDK - CORE UTILITIES MODULE
@@ -9,6 +9,7 @@
 
 load('./utils_env.star',
     'load_dotenv',
+    'project_env_file',
     'should_enable',
 )
 load('./utils_debug.star',
@@ -313,7 +314,7 @@ def write_file_if_changed(file_path, content):
         file_path = project_root + '/' + clean_file_path
 
     if not _is_allowed_generated_path(file_path, project_root):
-        fail("TDK refused to write outside its generated-file allowlist: " + file_path)
+        fail("Flisk refused to write outside its generated-file allowlist: " + file_path)
 
     expected = str(content).rstrip()
     existing_blob = read_file(file_path, default='')
@@ -326,7 +327,7 @@ def write_file_if_changed(file_path, content):
         _write_generated_file(file_path, expected)
         debug_log("WRITE: Completed {}".format(file_path))
 
-    # Keep a generated-content snapshot beside the service outputs. `tdk config verify`
+    # Keep a generated-content snapshot beside the service outputs. `flisk config verify`
     # compares these snapshots with the files and the source manifest, detecting both
     # hand edits and stale generated output without needing to run Tilt from CI.
     normalized = file_path.replace('\\', '/')
@@ -374,6 +375,7 @@ Utils = struct(
 
     # Environment
     load_dotenv = load_dotenv,
+    project_env_file = project_env_file,
     should_enable = should_enable,
 
     # Debug utilities

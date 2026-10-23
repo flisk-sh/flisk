@@ -24,6 +24,8 @@ export declare function checkExpectedResources(jsonText: string, expected: strin
     missing: string[];
     disabled: string[];
 };
+/** Resources that report on the stack without gating it. */
+export declare function isAdvisoryResource(name: string): boolean;
 /**
  * One look at `tilt get uiresources -o json`. `settled` means polling can stop: everything is ready, or the rest has
  * finished with a failure (an errored resource, or an expected service Tilt has disabled).

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
-// Behaviour of the Starlark planners that `tdk up` runs at Tiltfile load: the frontend build plan and the
+// Behaviour of the Starlark planners that `flisk up` runs at Tiltfile load: the frontend build plan and the
 // Tilt build concurrency. They run under Tilt's own Starlark interpreter, so these tests spawn Tilt.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const framePlan = join(
@@ -112,6 +112,18 @@ RESULT = compute_max_parallel_builds(${cpus}, ${memoryBytes})`,
     expect(max(4, 16 * GIB)).toBe(3); // 2 CPUs left, clamped up to the minimum
     expect(max(32, 64 * GIB)).toBe(8); // plenty of room, clamped down to the maximum
     expect(max(12, 8 * GIB)).toBe(5); // memory is the limit
+  });
+
+  it("falls back to the minimum when the engine reports no CPUs or memory", () => {
+    expect(max(0, 0)).toBe(3);
+    expect(max(1, 64 * GIB)).toBe(3); // fewer CPUs than the reserve
+    expect(max(32, GIB)).toBe(3); // less than one build's memory
+  });
+
+  it("rounds memory down to whole builds at the boundary", () => {
+    expect(max(32, 6 * GIB)).toBe(4); // exactly four 1.5 GiB builds
+    expect(max(32, 6 * GIB - 1)).toBe(3); // one byte short of four
+    expect(max(10, 64 * GIB)).toBe(8); // CPUs give exactly the maximum
   });
 });
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📋 MANIFEST MODULE - FIELD MAPPER
@@ -190,7 +190,7 @@ def map_manifest(manifest, target_format='internal'):
 def _to_yaml_format(internal_manifest):
     """Convert internal format to YAML hierarchical format."""
     return {
-        'apiVersion': 'tilt.TDK Landscape.io/v1',
+        'apiVersion': 'tilt.Flisk Landscape.io/v1',
         'kind': 'ResourceManifest',
         'metadata': {
             'name': internal_manifest.get('appName', ''),

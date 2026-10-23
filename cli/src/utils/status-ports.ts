@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { DiscoveredResource } from "../types/index.js";
 import { STANDARD_PORTS } from "./constants.js";
@@ -11,7 +11,7 @@ export interface ServicePorts {
   url: string | null;
   /** The port the process listens on inside its container. */
   containerPort: number | null;
-  /** A direct host mapping. TDK publishes services only through the ingress, so this is null today. */
+  /** A direct host mapping. Flisk publishes services only through the ingress, so this is null today. */
   hostPort: number | null;
   /** Loopback address for a resource with no route but a known port, such as a bring-your-own app. Null otherwise. */
   directUrl: string | null;
@@ -49,7 +49,7 @@ export function buildStackPorts(plan: HostPortPlan | null, tiltPort?: number): S
       { name: "ingress-https", hostPort: plan.ingressHttps, purpose: "Traefik HTTPS ingress" },
     );
   }
-  // `tdk up` may move Tilt off 10350 and records that only in its own process, so this is the default or TILT_PORT.
+  // `flisk up` may move Tilt off 10350 and records that only in its own process, so this is the default or TILT_PORT.
   const validTiltPort = tiltPort !== undefined && Number.isInteger(tiltPort) && tiltPort > 0;
   ports.push({
     name: "tilt-ui",

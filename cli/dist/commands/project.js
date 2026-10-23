@@ -1,14 +1,16 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { cwd } from "node:process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
 import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
+import { addYesOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { completeEnvFile, ensureEnvFile, validateEnvFile } from "../utils/env-validator.js";
 import { errorFactories, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-helpers.js";
@@ -23,12 +25,12 @@ import { isPathSafe } from "../utils/validation.js";
  * Stack names discovered from service.json files already in the repo (e.g. a
  * cloned starter template). Tilt's discovery groups app resources by this
  * same `stack` field, so a stack must appear here to ever be enabled by
- * `should_enable()` - without it, `tdk up` would launch infra only and no
+ * `should_enable()` - without it, `flisk up` would launch infra only and no
  * app services would come up, however many the repo actually has.
  */
-function discoverExistingServiceStacks(projectRoot) {
+function discoverExistingServiceStacks(projectRoot, resources) {
     try {
-        return discoverStackNames(projectRoot);
+        return discoverStackNames(projectRoot, resources);
     }
     catch {
         return [];
@@ -54,15 +56,15 @@ function syncDiscoveredStacksToPreAlpha(projectConfig, discoveredStacks) {
 }
 /**
  * Adds stacks that have service.json files but aren't in any phase to
- * pre_alpha, so a resource scaffolded after `tdk project` is picked up by
- * `tdk up` without re-running `tdk project`. Returns the stacks it enabled.
+ * pre_alpha, so a resource scaffolded after `flisk project` is picked up by
+ * `flisk up` without re-running `flisk project`. Returns the stacks it enabled.
  */
-export function enableDiscoveredStacks(projectRoot) {
+export function enableDiscoveredStacks(projectRoot, resources) {
     const projectJsonPath = join(projectRoot, ".tdk", PROJECT_JSON);
     if (!existsSync(projectJsonPath))
         return [];
     const projectConfig = readProjectConfig(projectRoot);
-    const enabled = syncDiscoveredStacksToPreAlpha(projectConfig, discoverExistingServiceStacks(projectRoot));
+    const enabled = syncDiscoveredStacksToPreAlpha(projectConfig, discoverExistingServiceStacks(projectRoot, resources));
     if (enabled.length > 0) {
         writeJsonFile(projectJsonPath, projectConfig);
     }
@@ -76,7 +78,23 @@ function getDefaultCoreServices() {
         .filter((f) => f.enabled_by_default && f.category === "core")
         .map((f) => f.name);
 }
-async function cloneProjectTemplate(templateName, targetDir) {
+/** The directory a template lands in: the requested path, or the template's repository name. */
+export function templateTargetDir(templateName, targetDir) {
+    if (targetDir)
+        return targetDir;
+    const template = PROJECT_TEMPLATES[templateName];
+    const fromRepo = template?.repo.split("/").pop() ?? templateName;
+    return fromRepo.replace(/\.git$/, "");
+}
+/** The last non-empty line of a child process error, for a one-line failure message. */
+function lastLine(text) {
+    const lines = text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    return lines.pop() ?? "unknown error";
+}
+export async function cloneProjectTemplate(templateName, targetDir, runtimeNextSteps, options = {}) {
     const template = PROJECT_TEMPLATES[templateName];
     if (!template) {
         console.log(chalk.red(`\n❌ Unknown template: "${templateName}"`));
@@ -84,21 +102,25 @@ async function cloneProjectTemplate(templateName, targetDir) {
         for (const [name, info] of Object.entries(PROJECT_TEMPLATES)) {
             console.log(`  ${chalk.cyan(name)} ${chalk.gray(`- ${info.description}`)}`);
         }
-        console.log(chalk.gray("\nOr run `tdk project` with no template for a blank project."));
+        console.log(chalk.gray("\nOr run `flisk project` with no template for a blank project."));
         process.exit(1);
     }
-    const dirName = targetDir || (template.repo.split("/").pop() ?? templateName).replace(/\.git$/, "");
+    const dirName = templateTargetDir(templateName, targetDir);
     if (!isPathSafe(dirName)) {
         errorFactories.invalidPath(dirName).exit();
     }
-    const destination = resolve(cwd(), dirName);
+    // If targetDir is an absolute path, use it directly as the destination
+    // Otherwise resolve it relative to cwd()
+    const destination = isAbsolute(dirName) ? dirName : resolve(cwd(), dirName);
     if (existsSync(destination) && readdirSync(destination).length > 0) {
         errorFactories.directoryExists(destination).exit();
     }
-    showCommandHeader(`Cloning template: ${templateName}`);
-    showDetail(`${template.description}\n`, 0);
-    showDetail(`Source: ${template.bundledPath ? "bundled TDK example" : template.repo}`, 0);
-    showDetail(`Destination: ${destination}\n`, 0);
+    if (!options.quiet) {
+        showCommandHeader(`Cloning template: ${templateName}`);
+        showDetail(`${template.description}\n`, 0);
+        showDetail(`Source: ${template.bundledPath ? "bundled Flisk example" : template.repo}`, 0);
+        showDetail(`Destination: ${destination}\n`, 0);
+    }
     try {
         if (template.bundledPath) {
             const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
@@ -117,19 +139,36 @@ async function cloneProjectTemplate(templateName, targetDir) {
             }
         }
         else {
-            execFileSync("git", ["clone", template.repo, destination], { stdio: "inherit" });
+            // Piped, not inherited: a raw git progress dump is noise for the caller and, in the
+            // one-command flow, it interleaves with the frame that is already on screen.
+            execFileSync("git", ["clone", template.repo, destination], {
+                stdio: ["ignore", "pipe", "pipe"],
+                encoding: "utf-8",
+            });
         }
     }
-    catch {
-        showErrorAndExit(template.bundledPath
-            ? "Bundled example copy failed. Reinstall the TDK CLI package and try again."
-            : "git clone failed. Check you have git installed and network access.");
+    catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        const message = template.bundledPath
+            ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
+            : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
+        // A caller that paints its own surface (the one-command flow) needs to report the
+        // failure itself instead of having the process die mid-paint.
+        if (options.quiet)
+            throw new Error(message);
+        showErrorAndExit(message);
     }
+    clearDiscoveryCache();
+    if (options.quiet)
+        return;
     console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${dirName}/`));
     showDetail("\nNext steps:", 0);
     showDetail(`1. cd ${dirName}`);
-    showDetail("2. tdk doctor   # check Docker/Tilt are ready");
-    showDetail("3. tdk up       # start the stack");
+    showDetail("2. flisk doctor   # check Docker/Tilt are ready");
+    showDetail("3. flisk up       # start the stack");
+    showDetail("\nRuntime readiness:", 0);
+    for (const line of runtimeNextSteps)
+        showDetail(line, 0);
 }
 const DEFAULT_PROJECT_JSON = {
     version: "1.0",
@@ -167,34 +206,40 @@ const DEFAULT_PROJECT_JSON = {
         verdaccio: false,
     },
     discovery: {
-        // Generic PSR layout (services/<stack>/<resource>/service.json) - every TDK example
+        // Generic PSR layout (services/<stack>/<resource>/service.json) - every Flisk example
         // repo (restaurant, saas-starter, user-management, ...) uses its own stack names here,
         // not the literal "product"/"platform" folders from the internal platform monorepo.
         paths: ["services/*/*"],
     },
     overrides: {},
 };
-export const projectCommand = new Command("project")
+export const projectCommand = addYesOption(new Command("project"))
     .description("Initialize or validate project-level master configuration")
     .argument("[template]", `Clone a starter example instead of a blank project (${Object.keys(PROJECT_TEMPLATES).join(", ")})`)
     .option("--path <dir>", "Directory to clone the template into (default: the template's repo name)")
     .option("--check", "Check if master configs exist and are in sync")
     .option("--force", "Overwrite existing configuration (dangerous)")
-    .option("--yes", "Non-interactive mode (use defaults)")
     .option("--config-file <path>", "Load project config from existing JSON file")
+    .option("-q, --quiet", "Only print what fails; used by `flisk demo`", false)
     .action(async (template, options) => {
-    const { assertMachineReadyOrExit } = await import("../utils/cold-preflight.js");
-    await assertMachineReadyOrExit();
+    const { assertMachineReadyOrExit, detectRuntimePrerequisites, formatRuntimeNextSteps } = await import("../utils/cold-preflight.js");
+    // Project setup only writes files: it must not need a running Docker daemon
+    // or an installed Tilt. The runtime is checked on `flisk up`.
+    await assertMachineReadyOrExit({ scope: "scaffold" });
+    const runtimeNextSteps = formatRuntimeNextSteps(detectRuntimePrerequisites());
+    const quiet = Boolean(options.quiet);
     if (template) {
-        await runCommand(async () => cloneProjectTemplate(template, options.path));
+        await runCommand(async () => cloneProjectTemplate(template, options.path, runtimeNextSteps, { quiet }));
         return;
     }
     await runCommand(async () => {
         let projectRoot = findProjectRoot();
         if (!projectRoot) {
             projectRoot = cwd();
-            showStep("🚀 Initializing new TDK project...\n");
-            showDetail(`Location: ${projectRoot}\n`, 0);
+            if (!quiet) {
+                showStep("🚀 Initializing new Flisk project...\n");
+                showDetail(`Location: ${projectRoot}\n`, 0);
+            }
         }
         const tdkDir = join(projectRoot, ".tdk");
         const projectJsonPath = join(tdkDir, PROJECT_JSON);
@@ -217,19 +262,23 @@ export const projectCommand = new Command("project")
                         showDetail(`.tdk/.tdk-out/${f} (not found)`, 3);
                     }
                 }
-                showDetail("Run `tdk project` to create them.");
+                showDetail("Run `flisk project` to create them.");
                 process.exit(1);
             }
         }
-        showCommandHeader("Project Configuration");
-        showDetail(`Project root: ${projectRoot}\n`, 0);
+        if (!quiet) {
+            showCommandHeader("Project Configuration");
+            showDetail(`Project root: ${projectRoot}\n`, 0);
+        }
         if (!existsSync(tdkDir)) {
             ensureDirectory(tdkDir);
-            showSuccess("Created: .tdk/ directory");
+            if (!quiet)
+                showSuccess("Created: .tdk/ directory");
         }
         const projectJsonExists = existsSync(projectJsonPath);
         if (projectJsonExists && !options.force) {
-            showSuccess(".tdk/project.json exists");
+            if (!quiet)
+                showSuccess(".tdk/project.json exists");
             const rawProjectConfig = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
             const projectConfig = readProjectConfig(projectRoot);
             const discoveredStacks = discoverExistingServiceStacks(projectRoot);
@@ -238,32 +287,39 @@ export const projectCommand = new Command("project")
             if (shouldRewriteProjectConfig) {
                 writeJsonFile(projectJsonPath, projectConfig);
             }
-            if (autoEnabledStacks.length > 0) {
+            if (autoEnabledStacks.length > 0 && !quiet) {
                 showDetail(`Auto-enabled discovered service stacks: ${autoEnabledStacks.join(", ")}`, 0);
             }
-            showStep("\n📋 Regenerating master configuration files...\n");
-            await generateMasterConfigs(projectRoot);
+            if (!quiet)
+                showStep("\n📋 Regenerating master configuration files...\n");
+            await generateMasterConfigs(projectRoot, { quiet });
             if (ensureEnvFile(projectRoot)) {
-                showSuccess("Created: .env (the defaults work as-is)");
+                if (!quiet)
+                    showSuccess("Created: .env (the defaults work as-is)");
             }
             else {
                 const added = completeEnvFile(projectRoot);
-                if (added.length > 0) {
+                if (added.length > 0 && !quiet) {
                     showSuccess(`Updated: .env (added ${added.join(", ")}; existing values unchanged)`);
                 }
             }
             const ignored = ensureGitignore(projectRoot);
-            if (ignored.length > 0) {
+            if (ignored.length > 0 && !quiet) {
                 showSuccess(`Added to .gitignore: ${ignored.join(", ")}`);
             }
-            console.log(chalk.green("\n✅ Project configuration regenerated!"));
-            showDetail("\nGenerated in .tdk/.tdk-out/:", 0);
-            for (const file of MASTER_CONFIG_FILES) {
-                showDetail(`- ${file}`);
+            if (!quiet) {
+                console.log(chalk.green("\n✅ Project configuration regenerated!"));
+                showDetail("\nGenerated in .tdk/.tdk-out/:", 0);
+                for (const file of MASTER_CONFIG_FILES) {
+                    showDetail(`- ${file}`);
+                }
+                showDetail("\nRuntime readiness:", 0);
+                for (const line of runtimeNextSteps)
+                    showDetail(line, 0);
             }
             return;
         }
-        if (projectJsonExists && options.force) {
+        if (projectJsonExists && options.force && !options.yes) {
             console.log(chalk.red("\n⚠️  WARNING: --force will overwrite .tdk/project.json!"));
             const confirm = await promptConfirm({
                 message: "This will reset your project configuration. Continue?",
@@ -283,12 +339,14 @@ export const projectCommand = new Command("project")
             }
             const configContent = readFileSync(configFilePath, "utf-8");
             projectConfig = JSON.parse(configContent);
-            showSuccess(`Loaded config from: ${configFilePath}`);
+            if (!quiet)
+                showSuccess(`Loaded config from: ${configFilePath}`);
         }
         else if (options.yes) {
             projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
             projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
-            console.log(chalk.gray("Using default configuration (non-interactive mode)"));
+            if (!quiet)
+                console.log(chalk.gray("Using default configuration (non-interactive mode)"));
         }
         else {
             showStep("📝 Project Setup Wizard\n");
@@ -351,7 +409,7 @@ export const projectCommand = new Command("project")
                 })),
             });
             showStep("\n📂 Service discovery");
-            showDetail("What: folder patterns TDK scans for a service.json in each match.");
+            showDetail("What: folder patterns Flisk scans for a service.json in each match.");
             showDetail("Where: type one or more globs, comma-separated.");
             showDetail("How: saved as discovery.paths in .tdk/project.json - editable later.");
             showDetail(`Example: ${DEFAULT_PROJECT_JSON.discovery.paths.join(", ")}\n`);
@@ -380,27 +438,34 @@ export const projectCommand = new Command("project")
                     : DEFAULT_PROJECT_JSON.discovery.paths;
         }
         const autoEnabledStacks = syncDiscoveredStacksToPreAlpha(projectConfig, discoveredStacks);
-        if (autoEnabledStacks.length > 0) {
+        if (autoEnabledStacks.length > 0 && !quiet) {
             showDetail(`Auto-enabled discovered service stacks: ${autoEnabledStacks.join(", ")}`, 0);
         }
-        showStep("\n📋 Creating project configuration...\n");
+        if (!quiet)
+            showStep("\n📋 Creating project configuration...\n");
         writeJsonFile(projectJsonPath, projectConfig);
-        showSuccess("Created: .tdk/project.json");
-        showDetail(`→ Project: ${projectConfig.project.name}`);
-        showStep("\n📋 Generating master configuration files...\n");
-        await generateMasterConfigs(projectRoot);
-        showStep("\n🔧 Setting up environment variables...\n");
+        if (!quiet) {
+            showSuccess("Created: .tdk/project.json");
+            showDetail(`→ Project: ${projectConfig.project.name}`);
+            showStep("\n📋 Generating master configuration files...\n");
+        }
+        await generateMasterConfigs(projectRoot, { quiet });
+        if (!quiet)
+            showStep("\n🔧 Setting up environment variables...\n");
         const envCreated = ensureEnvFile(projectRoot);
         if (envCreated) {
-            showSuccess("Created: .env (the defaults work as-is)");
+            if (!quiet)
+                showSuccess("Created: .env (the defaults work as-is)");
         }
         else {
             // An .env from an older CLI lacks keys a newer one expects; add them without changing anything already there.
             const added = completeEnvFile(projectRoot);
             if (added.length > 0) {
-                showSuccess(`Updated: .env (added ${added.join(", ")}; existing values unchanged)`);
+                if (!quiet) {
+                    showSuccess(`Updated: .env (added ${added.join(", ")}; existing values unchanged)`);
+                }
             }
-            else {
+            else if (!quiet) {
                 showSuccess("Found: .env (environment already configured)");
             }
         }
@@ -410,24 +475,29 @@ export const projectCommand = new Command("project")
             for (const missing of envValidation.missing) {
                 showDetail(`- ${missing}`, 1);
             }
-            showDetail("→ Edit .env and fill in these values before running `tdk up`", 1);
+            showDetail("→ Edit .env and fill in these values before running `flisk up`", 1);
         }
         const ignored = ensureGitignore(projectRoot);
-        if (ignored.length > 0) {
+        if (ignored.length > 0 && !quiet) {
             showSuccess(`Added to .gitignore: ${ignored.join(", ")}`);
         }
-        console.log(chalk.green("\n✅ Project configuration complete!"));
-        showDetail("\nGenerated files in .tdk/.tdk-out/:", 0);
-        for (const file of MASTER_CONFIG_FILES) {
-            showDetail(`- ${file}`);
+        if (!quiet) {
+            console.log(chalk.green("\n✅ Project configuration complete!"));
+            showDetail("\nGenerated files in .tdk/.tdk-out/:", 0);
+            for (const file of MASTER_CONFIG_FILES) {
+                showDetail(`- ${file}`);
+            }
+            showDetail("\nEnvironment configuration:", 0);
+            showDetail("- .env (contains all required variables)");
+            showDetail("\nSource file:", 0);
+            showDetail("- .tdk/project.json (edit this to change project structure)");
+            showDetail("\nNext steps:", 0);
+            showDetail("1. flisk resource api --type backend --stack app   # scaffold a service");
+            showDetail("2. flisk up app                                     # start it");
+            showDetail("\nRuntime readiness:", 0);
+            for (const line of runtimeNextSteps)
+                showDetail(line, 0);
+            showDetail("\nAfter editing .tdk/project.json, run `flisk config regenerate`.", 0);
         }
-        showDetail("\nEnvironment configuration:", 0);
-        showDetail("- .env (contains all required variables)");
-        showDetail("\nSource file:", 0);
-        showDetail("- .tdk/project.json (edit this to change project structure)");
-        showDetail("\nNext steps:", 0);
-        showDetail("1. tdk resource api --type backend --stack app   # scaffold a service");
-        showDetail("2. tdk up app                                     # start it");
-        showDetail("\nAfter editing .tdk/project.json, run `tdk config regenerate`.", 0);
     });
 });

@@ -114,7 +114,7 @@ export const UI_KEYMAP = uiKeymap;
 function getUiKeymapEntry(id) {
     const entry = UI_KEYMAP.find((shortcut) => shortcut.id === id);
     if (!entry) {
-        throw new Error(`Unknown TDK UI shortcut: ${id}`);
+        throw new Error(`Unknown Flisk UI shortcut: ${id}`);
     }
     return entry;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import { spawnSync } from "node:child_process";
@@ -255,7 +255,8 @@ describe("config regenerate --dry-run", () => {
     const result = await runCommandInProcess(configCommand, ["regenerate", "--dry-run"], root);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Error:");
+    expect(result.stderr).toContain("❌");
+    expect(result.stderr).toMatch(/.*(JSON|token|property)/i);
   });
 });
 
@@ -290,8 +291,8 @@ describe("config verify", () => {
     expect(result.status).toBe(1);
     expect(result.stdout).toContain("Configuration issues found:");
     expect(result.stdout).toContain("Missing file: .tdk/.tdk-out/spec.master");
-    expect(result.stdout).toContain("Run `tdk config regenerate` to fix generated files.");
-    expect(result.stdout).not.toContain("tdk config migrate");
+    expect(result.stdout).toContain("Run `flisk config regenerate` to fix generated files.");
+    expect(result.stdout).not.toContain("flisk config migrate");
   });
 
   it("reports in sync and exits 0 after regenerate", async () => {
@@ -314,8 +315,8 @@ describe("config verify", () => {
     const result = await runCommandInProcess(configCommand, ["verify"], root);
 
     expect(result.status).toBe(1);
-    expect(result.stdout).toContain("Run `tdk config migrate` to fix schemaVersion.");
-    expect(result.stdout).not.toContain("tdk config regenerate");
+    expect(result.stdout).toContain("Run `flisk config migrate` to fix schemaVersion.");
+    expect(result.stdout).not.toContain("flisk config regenerate");
   });
 
   it("names the dependsOn target when it is not a known service or stack", async () => {
@@ -330,10 +331,11 @@ describe("config verify", () => {
     const result = await runCommandInProcess(configCommand, ["verify"], root);
 
     expect(result.status).toBe(1);
-    expect(result.stdout).toContain('dependsOn "ghost" on');
-    expect(result.stdout).toContain(
+    expect(result.stderr).toContain('dependsOn "ghost" on');
+    expect(result.stderr).toContain(
       "shared platform Postgres names are postgres and database-management",
     );
+    expect(result.stdout).not.toContain('dependsOn "ghost" on');
   });
 
   it("prints a single JSON envelope with valid true when in sync", async () => {
@@ -420,8 +422,8 @@ describe("config migrate", () => {
     const result = await runCommandInProcess(configCommand, ["migrate"], root);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/broken\/api\/service\.json: /);
-    expect(result.stderr).toContain("list/api/service.json: expected a JSON object");
+    expect(result.stderr).toMatch(/broken[\\/]api[\\/]service\.json: /);
+    expect(result.stderr).toMatch(/list[\\/]api[\\/]service\.json: expected a JSON object/);
     expect(fs.readFileSync(serviceFile(root, "broken/api"), "utf-8")).toBe("{invalid\n");
     expect(fs.readFileSync(serviceFile(root, "list/api"), "utf-8")).toBe("[1, 2]\n");
   });
@@ -436,7 +438,7 @@ describe("config migrate", () => {
     const result = await runCommandInProcess(configCommand, ["migrate"], root);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("shop/api");
+    expect(result.stderr).toMatch(/shop[\\/]api/);
     expect(fs.readFileSync(serviceFile(root, "shop/api"))).toEqual(before);
   });
 });

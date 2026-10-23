@@ -1,7 +1,7 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import chalk from "chalk";
 export function writeFilesWithProgress(basePath, tasks, onProgress) {
     for (const [i, task] of tasks.entries()) {
@@ -52,7 +52,7 @@ const GITIGNORE_ENTRIES = [
     "node_modules/",
 ];
 /**
- * Appends the TDK entries missing from the project's .gitignore (creating it
+ * Appends the Flisk entries missing from the project's .gitignore (creating it
  * if needed), so the first `git add .` doesn't commit .env or generated
  * output. Returns the entries it added.
  */
@@ -65,8 +65,40 @@ export function ensureGitignore(projectRoot) {
         return [];
     const prefix = existing && !existing.endsWith("\n") ? "\n" : "";
     const header = existing
-        ? "\n# TDK (generated files and secrets)\n"
-        : "# TDK (generated files and secrets)\n";
+        ? "\n# Flisk (generated files and secrets)\n"
+        : "# Flisk (generated files and secrets)\n";
     appendFileSync(gitignorePath, `${prefix}${header}${missing.join("\n")}\n`);
     return missing;
+}
+/**
+ * True when the path sits inside a git working tree: a `.git` directory in a clone, a `.git` file in a linked worktree.
+ * Only then is an ignore entry worth writing.
+ */
+export function isInsideGitWorkTree(startPath) {
+    let dir = resolve(startPath);
+    for (;;) {
+        if (existsSync(resolve(dir, ".git")))
+            return true;
+        const parent = dirname(dir);
+        if (parent === dir)
+            return false;
+        dir = parent;
+    }
+}
+/**
+ * Makes sure the smoke records cannot be committed by accident: the project .gitignore must ignore `.tdk/smoke/` before
+ * `flisk up` writes a record. Only meaningful inside a git working tree, so nothing is written outside one. Returns the
+ * warning to show when the entry could not be ensured, and undefined when it is.
+ */
+export function ensureSmokeRecordsIgnored(projectRoot) {
+    if (!isInsideGitWorkTree(projectRoot))
+        return undefined;
+    try {
+        ensureGitignore(projectRoot);
+        return undefined;
+    }
+    catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        return `Could not add .tdk/smoke/ to ${resolve(projectRoot, ".gitignore")}: ${reason}. Git may track the smoke response records.`;
+    }
 }

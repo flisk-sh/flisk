@@ -1,7 +1,8 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Helpers shared by CLI tests. This folder is excluded from the build and the npm package.
 
+export { runCompletionCommand } from "./completion.js";
 export { captureExit, type ExitCapture, makeResource } from "./doubles.js";
 export { type Envelope, parseEnvelope } from "./parse-envelope.js";
 export { type InProcessRun, runCommandInProcess } from "./run-in-process.js";

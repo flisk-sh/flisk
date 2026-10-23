@@ -1,4 +1,4 @@
-name: 🔄 Sync shared TDK skills
+name: 🔄 Sync shared Flisk skills
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: tdk-landscape/tdk-skills
+          repository: flisk-sh/tdk-skills
           path: .tmp-tdk-skills
           persist-credentials: false
       - name: Sync plugin metadata and skills
@@ -36,7 +36,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .claude-plugin .claude/skills .agents/skills
-          git commit -m "Sync shared TDK skills"
+          git commit -m "Sync shared Flisk skills"
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main
         env:
           GITHUB_TOKEN: ${{ github.token }}

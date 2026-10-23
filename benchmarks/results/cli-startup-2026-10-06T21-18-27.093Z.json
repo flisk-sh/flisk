@@ -26,25 +26,25 @@
     "timeoutMs": 60000,
     "skipStatus": false,
     "commands": [
-      "tdk version",
-      "tdk --help",
-      "tdk resources",
-      "tdk stacks",
-      "tdk status"
+      "flisk version",
+      "flisk --help",
+      "flisk resources",
+      "flisk stacks",
+      "flisk status"
     ]
   },
   "notes": [
     "Each sample starts a fresh Node process and measures wall time through command exit; fixture generation and cleanup are outside the timed interval.",
     "Service manifests contain only schemaVersion, appName, appType, and stack; this measures count-based discovery, not rich validation or generated runtime files.",
-    "Child processes inherit host environment except TMP, TEMP, TMPDIR, and NO_COLOR; user TDK config and PATH are not isolated.",
-    "Tilt was not on PATH for this Windows sample. tdk status includes the read-only Tilt probe and is not discovery-only; it may wait up to the 10-second timeout.",
-    "The 100-service tdk stacks median is a non-monotonic outlier and should be treated as measurement noise, not a scaling result.",
+    "Child processes inherit host environment except TMP, TEMP, TMPDIR, and NO_COLOR; user Flisk config and PATH are not isolated.",
+    "Tilt was not on PATH for this Windows sample. flisk status includes the read-only Tilt probe and is not discovery-only; it may wait up to the 10-second timeout.",
+    "The 100-service flisk stacks median is a non-monotonic outlier and should be treated as measurement noise, not a scaling result.",
     "No containers or Tilt services are started. Compare only like-for-like hardware, operating system, and Node runtime; this is not a CI performance gate."
   ],
   "results": [
     {
       "services": 10,
-      "command": "tdk version",
+      "command": "flisk version",
       "runs": 10,
       "warmupSamplesMs": [
         471.942
@@ -67,7 +67,7 @@
     },
     {
       "services": 10,
-      "command": "tdk --help",
+      "command": "flisk --help",
       "runs": 10,
       "warmupSamplesMs": [
         484.337
@@ -90,7 +90,7 @@
     },
     {
       "services": 10,
-      "command": "tdk resources",
+      "command": "flisk resources",
       "runs": 10,
       "warmupSamplesMs": [
         518.686
@@ -113,7 +113,7 @@
     },
     {
       "services": 10,
-      "command": "tdk stacks",
+      "command": "flisk stacks",
       "runs": 10,
       "warmupSamplesMs": [
         517.32
@@ -136,7 +136,7 @@
     },
     {
       "services": 10,
-      "command": "tdk status",
+      "command": "flisk status",
       "runs": 10,
       "warmupSamplesMs": [
         10507.641
@@ -159,7 +159,7 @@
     },
     {
       "services": 100,
-      "command": "tdk version",
+      "command": "flisk version",
       "runs": 10,
       "warmupSamplesMs": [
         500.96
@@ -182,7 +182,7 @@
     },
     {
       "services": 100,
-      "command": "tdk --help",
+      "command": "flisk --help",
       "runs": 10,
       "warmupSamplesMs": [
         513.459
@@ -205,7 +205,7 @@
     },
     {
       "services": 100,
-      "command": "tdk resources",
+      "command": "flisk resources",
       "runs": 10,
       "warmupSamplesMs": [
         495.372
@@ -228,7 +228,7 @@
     },
     {
       "services": 100,
-      "command": "tdk stacks",
+      "command": "flisk stacks",
       "runs": 10,
       "warmupSamplesMs": [
         568.42
@@ -251,7 +251,7 @@
     },
     {
       "services": 100,
-      "command": "tdk status",
+      "command": "flisk status",
       "runs": 10,
       "warmupSamplesMs": [
         10504.125
@@ -274,7 +274,7 @@
     },
     {
       "services": 500,
-      "command": "tdk version",
+      "command": "flisk version",
       "runs": 10,
       "warmupSamplesMs": [
         484.575
@@ -297,7 +297,7 @@
     },
     {
       "services": 500,
-      "command": "tdk --help",
+      "command": "flisk --help",
       "runs": 10,
       "warmupSamplesMs": [
         476.219
@@ -320,7 +320,7 @@
     },
     {
       "services": 500,
-      "command": "tdk resources",
+      "command": "flisk resources",
       "runs": 10,
       "warmupSamplesMs": [
         641.233
@@ -343,7 +343,7 @@
     },
     {
       "services": 500,
-      "command": "tdk stacks",
+      "command": "flisk stacks",
       "runs": 10,
       "warmupSamplesMs": [
         699.592
@@ -366,7 +366,7 @@
     },
     {
       "services": 500,
-      "command": "tdk status",
+      "command": "flisk status",
       "runs": 10,
       "warmupSamplesMs": [
         10546.866

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Shared helpers for the live-stack e2e suites under tests/e2e/<group>/<suite>/. A suite's run.sh names itself, sources this
 # file, defines one function per case (listed in its suite.json) and hands its arguments to e2e_main:
@@ -59,15 +59,15 @@ poll_until() {
   done
 }
 
-# run_in <dir> <name> <tdk args...>: run tdk in <dir>, echo the command and its raw output (the evidence a CI log shows), keep
+# run_in <dir> <name> <flisk args...>: run flisk in <dir>, echo the command and its raw output (the evidence a CI log shows), keep
 # stdout in $OUT/<name>.out and stderr in $OUT/<name>.err. Sets RC to the exit code and ELAPSED_MS to the wall time. It never
 # aborts the script itself, so the case decides what exit code it expects.
 run_in() {
   local dir="$1" name="$2"; shift 2
   local start; start="$(now_ms)"
-  if [ "$dir" = "$DIR" ]; then printf '$ tdk %s\n' "$*"; else printf '$ (cd %s && tdk %s)\n' "$dir" "$*"; fi
+  if [ "$dir" = "$DIR" ]; then printf '$ flisk %s\n' "$*"; else printf '$ (cd %s && flisk %s)\n' "$dir" "$*"; fi
   set +e
-  (cd "$dir" && tdk "$@") >"$OUT/$name.out" 2>"$OUT/$name.err"
+  (cd "$dir" && flisk "$@") >"$OUT/$name.out" 2>"$OUT/$name.err"
   RC=$?
   set -e
   ELAPSED_MS=$(( $(now_ms) - start ))
@@ -75,22 +75,22 @@ run_in() {
   [ -s "$OUT/$name.err" ] && { echo "[stderr]"; cat "$OUT/$name.err"; }
   echo "[exit $RC, ${ELAPSED_MS}ms]"
 }
-run() { run_in "$DIR" "$@"; } # <name> <tdk args...> in the scratch project
+run() { run_in "$DIR" "$@"; } # <name> <flisk args...> in the scratch project
 
 # ------------------------------------------------------------------------------------------------------------- stack and status
 
-status_json() { (cd "$DIR" && tdk status --json 2>/dev/null); }
+status_json() { (cd "$DIR" && flisk status --json 2>/dev/null); }
 resource_field() { status_json | jq -r --arg n "$1" --arg f "$2" '.data.resources[] | select(.name==$n) | .[$f]'; } # <resource> <field>
 resource_port() { resource_field "$1" port; }
 resource_url() { resource_field "$1" url; }
 
-start_stack() { # <stack>: `tdk up` in the background, appending to $DIR/up.log
-  (cd "$DIR" && nohup tdk up "$1" >>"$DIR/up.log" 2>&1 &)
+start_stack() { # <stack>: `flisk up` in the background, appending to $DIR/up.log
+  (cd "$DIR" && nohup flisk up "$1" >>"$DIR/up.log" 2>&1 &)
 }
-# wait_status_url <resource>: bounded wait until `tdk status --json` lists the resource with a Traefik url.
+# wait_status_url <resource>: bounded wait until `flisk status --json` lists the resource with a Traefik url.
 wait_status_url() {
-  poll_until "tdk status lists $1 with a Traefik url" "$READY_TIMEOUT" \
-    bash -c "cd '$DIR' && tdk status --json | jq -e --arg n '$1' '.data.resources[] | select(.name==\$n) | .url'"
+  poll_until "flisk status lists $1 with a Traefik url" "$READY_TIMEOUT" \
+    bash -c "cd '$DIR' && flisk status --json | jq -e --arg n '$1' '.data.resources[] | select(.name==\$n) | .url'"
 }
 
 # Containers are named <project>-<stack>-<resource>-<n>.
@@ -149,12 +149,12 @@ stop_stub() { unset TDK_SERVICE_BASE_URL; kill "$STUB_PID" 2>/dev/null || true; 
 
 # ------------------------------------------------------------------------------------------------------------- MCP
 
-# mcp_session <name> <calls json> [cwd]: run one `tdk mcp` stdio session (initialize, tools/list, then each call) through
+# mcp_session <name> <calls json> [cwd]: run one `flisk mcp` stdio session (initialize, tools/list, then each call) through
 # mcp-client.mjs and keep the transcript in $OUT/<name>.out. Prints a one-line summary.
 mcp_session() {
   local name="$1" calls="$2" cwd="${3:-$DIR}"
   echo "$calls" >"$OUT/$name.calls.json"
-  printf '$ (cd %s && node mcp-client.mjs)  # speaks JSON-RPC to `tdk mcp`; calls: %s\n' "$cwd" "$calls"
+  printf '$ (cd %s && node mcp-client.mjs)  # speaks JSON-RPC to `flisk mcp`; calls: %s\n' "$cwd" "$calls"
   node "$E2E_LIB/mcp-client.mjs" --cwd "$cwd" "$OUT/$name.calls.json" >"$OUT/$name.out" || die "MCP client failed"
   jq -c '{protocol: .initialize.protocolVersion, tools: [.tools[].name], isError: [.calls[].result.isError]}' "$OUT/$name.out"
 }
@@ -167,8 +167,8 @@ e2e_diagnostics() {
   mkdir -p "$ARTIFACTS"
   [ -d "$DIR" ] && (
     cd "$DIR"
-    tdk status --json >"$ARTIFACTS/tdk-status.json" 2>&1 || true
-    tdk logs --json >"$ARTIFACTS/tdk-logs.json" 2>&1 || true
+    flisk status --json >"$ARTIFACTS/tdk-status.json" 2>&1 || true
+    flisk logs --json >"$ARTIFACTS/tdk-logs.json" 2>&1 || true
     cp up.log "$ARTIFACTS/up.log" 2>/dev/null || true
   )
   docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' >"$ARTIFACTS/docker-ps.txt" 2>&1 || true
@@ -186,7 +186,7 @@ e2e_diagnostics() {
 
 # Remove everything the scratch project created: the stack, its containers, volumes and networks, and the directory.
 e2e_cleanup() {
-  [ -d "$DIR" ] && (cd "$DIR" && tdk down >/dev/null 2>&1 || true)
+  [ -d "$DIR" ] && (cd "$DIR" && flisk down >/dev/null 2>&1 || true)
   docker rm -f $(docker ps -aq --filter "name=^${PROJECT}-" 2>/dev/null) >/dev/null 2>&1 || true
   docker volume ls -q | grep -E "^${PROJECT}-" | xargs docker volume rm >/dev/null 2>&1 || true
   docker network ls --format '{{.Name}}' | grep -E "^${PROJECT}_" | xargs docker network rm >/dev/null 2>&1 || true

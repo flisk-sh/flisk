@@ -14,12 +14,12 @@ Gönderdiğiniz incelemeden sorumlu olan AI değil, sizsiniz.
 
 İncelemeden önce bunları okuyun. Toplam yaklaşık bir saat sürer ve bunu yalnızca bir kez yaparsınız. Bunlar olmadan yapay zekânın yorumlarının doğru olup olmadığını anlayamazsınız.
 
-**TDK nedir**
+**Flisk nedir**
 
-- [ ] [README](../../../README.md): TDK'nın ne yaptığı ve insanların hangi komutları kullandığı.
+- [ ] [README](../../../README.md): Flisk'nın ne yaptığı ve insanların hangi komutları kullandığı.
 - [ ] [Proje genel bakışı](../../project-overview.md): Project → Stack → Resource modeli.
-- [ ] [Kapsam](../../scope.md): TDK'nın ne için olduğu ve ne için olmadığı.
-- [ ] [Üretilen dosyalar](../../generated-files.md): TDK'nın yazdığı dosyalar. Üretilen dosyaları asla elle düzenlemeyin; onları üreten girdiyi değiştirin.
+- [ ] [Kapsam](../../scope.md): Flisk'nın ne için olduğu ve ne için olmadığı.
+- [ ] [Üretilen dosyalar](../../generated-files.md): Flisk'nın yazdığı dosyalar. Üretilen dosyaları asla elle düzenlemeyin; onları üreten girdiyi değiştirin.
 
 **Nasıl çalışıyoruz**
 
@@ -65,7 +65,7 @@ Biri bir PR'ı açtığında, yeniden açtığında veya düzenlediğinde [AI in
 Her düğme basit bir bağlantıdır. yapay zekânın sitesini yeni bir sekmede açar ve bu mesaj zaten yazılmış olarak gelir.
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/tdk-landscape/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/flisk/pull/123.
 ```
 
 | Düğme | Açılan site |
@@ -138,7 +138,7 @@ Question: what happens when `--port` is 0? The help text does not say.
 PR'ı kontrol ettiğinizde ve birleştirmek için uygun olduğunu düşündüğünüzde **Approve** seçin. Onaylayıp yine de küçük yorumlar bırakabilirsiniz. Bunları yazarın birleştirmeyi engellemediğini bilmesi için açıkça isteğe bağlı olarak işaretleyin.
 
 ```markdown
-Looks good. I ran `bun run test` on this branch and tried `tdk up --dry-run` in the restaurant example: the new URLs show up as described.
+Looks good. I ran `bun run test` on this branch and tried `flisk up --dry-run` in the restaurant example: the new URLs show up as described.
 
 Optional (nit): `parsePort` could use a test for an empty string. Fine to do in a follow-up.
 ```

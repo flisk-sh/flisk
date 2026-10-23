@@ -1,7 +1,7 @@
 ## Context
 
 ### CLI Duplication
-`beauty-crm/cli/` and `tdk-cli/cli/` both contain the `@tdk-landscape/tdk-cli-core` package. The `beauty-crm/cli/package.json` declares `"repository.directory": "cli"` pointing to `tdk-landscape/tdk-cli`, confirming it was originally published from the tdk-cli monorepo workspace. Over time, `tdk-cli/cli/` has evolved (12 src files, generator support, DRY assessment) while `beauty-crm/cli/` has lagged behind (9 src files). Any developer fixing the CLI must choose which copy to edit — and usually picks the wrong one.
+`beauty-crm/cli/` and `tdk-cli/cli/` both contain the `@flisk-sh/flisk` package. The `beauty-crm/cli/package.json` declares `"repository.directory": "cli"` pointing to `flisk-sh/flisk`, confirming it was originally published from the tdk-cli monorepo workspace. Over time, `tdk-cli/cli/` has evolved (12 src files, generator support, DRY assessment) while `beauty-crm/cli/` has lagged behind (9 src files). Any developer fixing the CLI must choose which copy to edit — and usually picks the wrong one.
 
 ### AI Config Sprawl
 The beauty-crm monorepo has accumulated configs for every AI coding assistant that gained popularity:

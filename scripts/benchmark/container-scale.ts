@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * Container scale benchmark / release gate.
  *
- * Starts N real ERP service containers (images built by `tdk up` in the ERP
+ * Starts N real ERP service containers (images built by `flisk up` in the ERP
  * project) for each tier, measures time-to-healthy, crashes, memory, CPU and
  * Docker responsiveness, tears them down, and gates on the north star:
  * 100 services on a 16 GB machine.
@@ -459,7 +459,7 @@ function main(): void {
   if (opts.mode === "synthetic") shOk(`docker start ${project}_postgres`);
   const services = discoverServices(opts.project);
   if (services.length === 0) {
-    console.error(`No built ERP images found for ${opts.project}. Run \`tdk up\` there once to build them.`);
+    console.error(`No built ERP images found for ${opts.project}. Run \`flisk up\` there once to build them.`);
     process.exit(2);
   }
   const baselineContainers = shOk("docker ps -q").split("\n").filter(Boolean).length;
@@ -511,7 +511,7 @@ function main(): void {
         [`all ${gate.tier} healthy within ${opts.timeoutSeconds}s`, gate.allHealthySeconds !== null],
         ["no crashes / OOM kills", gate.crashed === 0],
         [`memory ${gate.totalMemMiB} MiB <= ${perServiceBudgetMiB * gate.tier} MiB budget`, gate.totalMemMiB <= perServiceBudgetMiB * gate.tier],
-        [`docker ps ${gate.dockerPsMs} ms < 10000 ms (tdk doctor timeout)`, gate.dockerPsMs < 10_000],
+        [`docker ps ${gate.dockerPsMs} ms < 10000 ms (flisk doctor timeout)`, gate.dockerPsMs < 10_000],
       ]
     : [];
   if (gate && "routed" in gate) {

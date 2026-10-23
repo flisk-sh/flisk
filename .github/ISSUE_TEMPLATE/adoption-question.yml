@@ -1,4 +1,4 @@
-name: Thinking about using TDK? Ask us
+name: Thinking about using Flisk? Ask us
 description: Questions before you adopt, in any state. No question is too small.
 title: "adopt: "
 labels: ["question", "growth"]
@@ -6,9 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for looking at TDK! This form is for questions like "would this fit our setup?", "what would it take to migrate?" or "what does it not do?". You do not need to have tried it yet.
+        Thanks for looking at Flisk! This form is for questions like "would this fit our setup?", "what would it take to migrate?" or "what does it not do?". You do not need to have tried it yet.
 
-        **We aim to reply within one working day.** Honest answers are part of the deal, including "TDK is not the right tool for this". Issues are public, so please don't post secrets or client details.
+        **We aim to reply within one working day.** Honest answers are part of the deal, including "Flisk is not the right tool for this". Issues are public, so please don't post secrets or client details.
   - type: textarea
     id: question
     attributes:

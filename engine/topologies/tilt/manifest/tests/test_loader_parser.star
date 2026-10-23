@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📋 MANIFEST MODULE - INTEGRATION TESTS (Phase 2)
@@ -322,7 +322,7 @@ def _test_generated_string_fields():
         'appName': 'api',
         'stack': 'shop-1',
         'healthCheckPath': '/api/v1/health',
-        'databaseName': 'TDK_shop',
+        'databaseName': 'Flisk_shop',
         'image': 'ghcr.io/acme/app:1.0',
         'traefik': {'host': 'shop.backend.my-project.local', 'pathPrefix': '/api/v1/shop', 'healthCheck': '/health'},
         'nats': {'queueGroup': 'shop_backend_svc'},
@@ -336,7 +336,7 @@ def _test_generated_string_fields():
         {'traefik': {'pathPrefix': '/api/v1/x\n    network_mode: host'}},
         {'traefik': {'pathPrefix': '/api', 'healthCheck': '/h\n    volumes: []'}},
         {'traefik': {'pathPrefix': '/api'}, 'nats': {'queueGroup': 'g: true'}},
-        {'traefik': {'pathPrefix': '/api'}, 'databaseName': 'TDK_x\n  privileged: true'},
+        {'traefik': {'pathPrefix': '/api'}, 'databaseName': 'Flisk_x\n  privileged: true'},
         {'traefik': {'pathPrefix': '/api'}, 'stack': 'shop # comment'},
         {'traefik': {'pathPrefix': '/api'}, 'image': 'app\n    privileged: true'},
         {'traefik': {'pathPrefix': '/api'}, 'healthCheckPath': 'health'},

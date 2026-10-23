@@ -1,5 +1,5 @@
 # Full 100-service boot (carried over from erp-scale-e2e.yml at the #1302 cutover, so the weekly full boot is not lost).
-# Boots the public 100-service fixture bench (tdk-landscape/tdk-erp-system), a
+# Boots the public 100-service fixture bench (flisk-sh/tdk-erp-system), a
 # set of generated health-check services rather than a real ERP product, on a
 # clean GitHub-hosted runner with the published CLI and waits for every backend
 # to answer /health through Traefik. It backs the README's "100 services on a
@@ -8,7 +8,7 @@
 # Manual and weekly only: a full boot builds ~107 images and takes a long time.
 # Use scope "one-stack" for a quick check (about 16 services).
 #
-# The cases live in tests/e2e/scale/erp (suite.json, run.sh): E1 project and doctor, E2 tdk up and the /health wait, E3 the report.
+# The cases live in tests/e2e/scale/erp (suite.json, run.sh): E1 project and doctor, E2 flisk up and the /health wait, E3 the report.
 name: 🏭 ERP fixture scale E2E (full, weekly)
 
 on:
@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: tdk-landscape/tdk-erp-system
+          repository: flisk-sh/tdk-erp-system
           path: erp
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -67,8 +67,8 @@ jobs:
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
-      - name: Install TDK from npm
-        uses: ./.github/actions/install-tdk # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install Flisk from npm
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           version: ${{ inputs.version || 'latest' }}
 
@@ -79,7 +79,7 @@ jobs:
           df -h / | tail -1
           docker version --format 'docker {{.Server.Version}}'
 
-      # The three ERP cases (tests/e2e/scale/erp): the project and tdk doctor, tdk up and the wait for every /health, and the report.
+      # The three ERP cases (tests/e2e/scale/erp): the project and flisk doctor, flisk up and the wait for every /health, and the report.
       # One step, so the cases share the project and the timings.
       - name: Run the ERP cases (E1-E3)
         env:
@@ -103,6 +103,6 @@ jobs:
         if: failure() || cancelled()
         run: tests/e2e/scale/erp/run.sh diagnostics
 
-      - name: tdk down
+      - name: flisk down
         if: always()
         run: tests/e2e/scale/erp/run.sh cleanup

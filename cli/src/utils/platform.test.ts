@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import {
@@ -31,6 +31,6 @@ describe("platform mappings", () => {
   });
 
   it("uses the native executable name for the current operating system", () => {
-    expect(executableName()).toBe(process.platform === "win32" ? "tdk.exe" : "tdk");
+    expect(executableName()).toBe(process.platform === "win32" ? "tdk.exe" : "flisk");
   });
 });

@@ -1,8 +1,13 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { parseTiltResourceFailures } from "../doctor-runtime.js";
-import { buildStartupReport, formatStartupReport, isStartupStalled } from "../startup-report.js";
+import {
+  buildStartupReport,
+  formatStartupReport,
+  isStartupStalled,
+  transitiveDependencies,
+} from "../startup-report.js";
 
 function item(name: string, update: string, runtime: string, extra: object = {}) {
   return { metadata: { name }, status: { updateStatus: update, runtimeStatus: runtime, ...extra } };
@@ -29,7 +34,7 @@ describe("buildStartupReport", () => {
     expect(report.failed).toEqual([
       { name: "postgres", message: "host port 5432 is already allocated" },
     ]);
-    // frontend runs, but reaches postgres through api, so it is not ready either (as `tdk status` says).
+    // frontend runs, but reaches postgres through api, so it is not ready either (as `flisk status` says).
     expect(report.blocked).toEqual([
       { name: "api", because: ["postgres"] },
       { name: "frontend", because: ["postgres"] },
@@ -146,6 +151,37 @@ describe("buildStartupReport", () => {
     expect(report.blocked.length + report.starting.length).toBe(parsed.pendingCount);
     expect(report.failed.length).toBe(parsed.failures.length);
   });
+
+  it("reports nothing when Tilt returned no items", () => {
+    expect(buildStartupReport("{}", {})).toEqual({ failed: [], blocked: [], starting: [] });
+  });
+
+  it("blames a failure for a service that reaches it through a dependency cycle", () => {
+    const report = buildStartupReport(
+      json(item("postgres", "error", "none"), item("api", "pending", "pending")),
+      { api: ["postgres"], postgres: ["api"] },
+    );
+    expect(report.failed).toEqual([{ name: "postgres", message: "error/none" }]);
+    expect(report.blocked).toEqual([{ name: "api", because: ["postgres"] }]);
+    expect(report.starting).toEqual([]);
+  });
+});
+
+describe("transitiveDependencies", () => {
+  it("visits a dependency shared by two services once", () => {
+    const closure = transitiveDependencies("web", {
+      web: ["api", "worker"],
+      api: ["postgres"],
+      worker: ["postgres"],
+    });
+    expect([...closure].sort()).toEqual(["api", "postgres", "worker"]);
+  });
+
+  it("returns every node of a dependency cycle without recursing forever", () => {
+    const closure = transitiveDependencies("api", { api: ["postgres"], postgres: ["api"] });
+    expect(closure.has("postgres")).toBe(true);
+    expect(closure.has("api")).toBe(true);
+  });
 });
 
 describe("formatStartupReport", () => {
@@ -160,9 +196,9 @@ describe("formatStartupReport", () => {
     );
     expect(lines).toEqual([
       "✗ postgres failed: host port 5432 is already allocated",
-      "  Fix: stop the process using port 5432 (find it with: lsof -nP -iTCP:5432 -sTCP:LISTEN), or set TDK_POSTGRES_PORT to a free port and run tdk up",
+      "  Fix: stop the process using port 5432 (find it with: lsof -nP -iTCP:5432 -sTCP:LISTEN), or set TDK_POSTGRES_PORT to a free port and run flisk up",
       "✗ api is not ready because postgres failed",
-      "The environment is not ready: postgres failed, so 1 dependent service is not ready. Tilt is still running; inspect it or run: tdk down",
+      "The environment is not ready: postgres failed, so 1 dependent service is not ready. Tilt is still running; inspect it or run: flisk down",
     ]);
   });
 
@@ -182,7 +218,7 @@ describe("formatStartupReport", () => {
       false,
     );
     expect(lines.at(-1)).toBe(
-      "The environment is not ready: postgres failed, so 3 dependent services are not ready. Tilt is still running; inspect it or run: tdk down",
+      "The environment is not ready: postgres failed, so 3 dependent services are not ready. Tilt is still running; inspect it or run: flisk down",
     );
   });
 
@@ -192,7 +228,7 @@ describe("formatStartupReport", () => {
       false,
     );
     expect(lines.at(-1)).toBe(
-      "The environment is not ready. Tilt is still running; inspect it or run: tdk down",
+      "The environment is not ready. Tilt is still running; inspect it or run: flisk down",
     );
   });
 

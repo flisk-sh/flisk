@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { BRING_YOUR_OWN_TYPE, DATABASE_MANAGEMENT_FEATURE } from "../constants.js";
@@ -18,5 +18,14 @@ describe("constant-keyed feature registries", () => {
 
   it("keeps the bring-your-own constant equal to its resource type id", () => {
     expect(BRING_YOUR_OWN_TYPE).toBe("bring-your-own");
+  });
+
+  it.each([
+    ["PROJECT_FEATURES", PROJECT_FEATURES],
+    ["STACK_FEATURES", STACK_FEATURES],
+  ])("keys every %s entry by its own name", (_label, registry) => {
+    for (const [key, feature] of Object.entries(registry)) {
+      expect(feature?.name).toBe(key);
+    }
   });
 });

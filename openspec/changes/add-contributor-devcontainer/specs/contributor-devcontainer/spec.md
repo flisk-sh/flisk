@@ -8,7 +8,7 @@ The repository SHALL contain a `.devcontainer/devcontainer.json` that provides N
 - **THEN** the container starts with Node.js 22 and Bun on PATH, project dependencies are installed, and `bun run typecheck && bun run lint && bun run test` at the repository root (or the equivalent scripts defined by the package) exit zero
 
 ### Requirement: Default configuration stays light
-The default Dev Container configuration SHALL NOT require Docker-in-Docker or Tilt. Full-stack experimentation (`tdk up`) SHALL be optional and clearly documented as a separate step or configuration.
+The default Dev Container configuration SHALL NOT require Docker-in-Docker or Tilt. Full-stack experimentation (`flisk up`) SHALL be optional and clearly documented as a separate step or configuration.
 
 #### Scenario: CLI-only change
 - **WHEN** a contributor works on a change under `cli/` that does not exercise stack generation

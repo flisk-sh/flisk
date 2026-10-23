@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiscoveredResource, ResourceMetadata, StackMetadata } from "../../types/index.js";

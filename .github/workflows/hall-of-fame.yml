@@ -19,17 +19,18 @@ jobs:
   update:
     name: Rebuild the contributor table
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       issues: write
       pull-requests: read
+      contents: write
     steps:
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const { owner, repo } = context.repo;
-            const MARK = '<!-- tdk:hall-of-fame -->';
+            const MARK = '<!-- flisk:hall-of-fame -->';
             const MAINTAINERS = ['kburym', 'odykyi'];
             const TITLE = 'Hall of fame: community contributors';
 
@@ -38,15 +39,34 @@ jobs:
               return m ? { name: `${m[1]} ${m[2]}`, value: m[2] === 'dan' ? 100 + Number(m[1]) : 100 - Number(m[1]) } : null;
             };
 
+            // The search query below is heavy, and GitHub sometimes answers it with a
+            // 5xx (a 502 from the GraphQL gateway is the common one) or a 429. That is
+            // transient, so retry it instead of failing the run. github-script itself
+            // runs with retries: 0, so without this the first 502 loses the table.
+            const retry = async (what, fn) => {
+              for (let attempt = 1; ; attempt++) {
+                try {
+                  return await fn();
+                } catch (e) {
+                  const status = e.status ?? e.response?.status ?? 0;
+                  const transient = status === 429 || status >= 500;
+                  if (!transient || attempt >= 4) throw e;
+                  const wait = attempt * attempt * 5000;
+                  core.warning(`${what} failed with ${status}; retrying in ${wait / 1000}s (attempt ${attempt + 1}/4).`);
+                  await new Promise((r) => setTimeout(r, wait));
+                }
+              }
+            };
+
             const people = new Map();
             let after = null;
             for (;;) {
-              const res = await github.graphql(
+              const res = await retry('hall-of-fame search', () => github.graphql(
                 `query($q:String!,$after:String){search(query:$q,type:ISSUE,first:100,after:$after){
                    pageInfo{hasNextPage endCursor}
                    nodes{... on PullRequest{number author{login __typename} authorAssociation
                      closingIssuesReferences(first:10){nodes{number labels(first:30){nodes{name}}}}}}}}`,
-                { q: `repo:${owner}/${repo} is:pr is:merged`, after });
+                { q: `repo:${owner}/${repo} is:pr is:merged`, after }));
               for (const pr of res.search.nodes) {
                 if (!pr.author || pr.author.__typename !== 'User') continue;
                 // The Actions token often reports maintainers as CONTRIBUTOR, so list them by name too.
@@ -69,25 +89,78 @@ jobs:
 
             const rows = [...people.entries()].sort((a, b) =>
               b[1].prs - a[1].prs || (b[1].best?.value ?? -1) - (a[1].best?.value ?? -1) || a[0].localeCompare(b[0]));
+            const base = `https://github.com/${owner}/${repo}`;
+            // shields.io splits badge segments on `-` and does not allow escaping
+            // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
+            // Replace `-` with `_` in the badge subject only; the link text keeps
+            // the real login.
+            const badgeLogin = (login) => login.replace(/-/g, '_');
+            const badgeUrl = (login, prs) =>
+              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + badgeLogin(login) + ' \u2022 ' + prs + ' merged PRs')}-06b6d4?style=for-the-badge&labelColor=07080f`;
+            const copySnippet = (login, prs) =>
+              `[![FLISK HALL OF FAME @${login} • ${prs} merged PRs](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
             const body = [
               MARK,
               'Everyone outside the maintainer team who has had a PR merged. Updated automatically on every merge.',
               '',
               'Ranks come from the `rank:` label of the issues your PRs fixed. The easiest is 8 kyu, then 7 down to 1 kyu, then 1 dan, which is the hardest. Pick a harder issue to rank up.',
               '',
-              '| Contributor | Merged PRs | Issues fixed | Highest rank |',
-              '| --- | ---: | ---: | --- |',
-              ...rows.map(([login, p]) => `| @${login} | ${p.prs} | ${p.issues} | ${p.best ? p.best.name : '-'} |`),
+              '| Contributor | Badge | Merged PRs | Issues fixed | Highest rank |',
+              '| --- | --- | ---: | ---: | --- |',
+              ...rows.map(([login, p]) =>
+                `| @${login} | [![FLISK HALL OF FAME](${badgeUrl(login, p.prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity) | ${p.prs} | ${p.issues} | ${p.best ? p.best.name : '-'} |`),
+              '',
+              '<details>',
+              '<summary>Copy your badge</summary>',
+              '',
+              'Paste one of these into your portfolio or README. Each badge links back to the open Hall of Fame issue.',
+              '',
+              ...rows.map(([login, p]) => '`- ' + copySnippet(login, p.prs) + '`'),
+              '',
+              '</details>',
               '',
               `Last updated for the ${rows.length} contributors above. Want to be on this list? Start with a [good first issue](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).`,
             ].join('\n');
 
             // Not search: its index lags, and two runs in a row would each create the issue.
-            const open = await github.paginate(github.rest.issues.listForRepo,
+            const listTracked = () => github.paginate(github.rest.issues.listForRepo,
               { owner, repo, state: 'open', labels: 'community', per_page: 100 });
+            const open = await retry('list community issues', listTracked);
             const found = open.find((i) => !i.pull_request && i.body && i.body.includes(MARK));
             if (found) {
-              if (found.body !== body) await github.rest.issues.update({ owner, repo, issue_number: found.number, body });
+              // Setting the same body twice is harmless, so a retry cannot duplicate anything.
+              if (found.body !== body) {
+                await retry('update the hall-of-fame issue', () =>
+                  github.rest.issues.update({ owner, repo, issue_number: found.number, body }));
+              }
             } else {
-              await github.rest.issues.create({ owner, repo, title: TITLE, body, labels: ['community'] });
+              await retry('create the hall-of-fame issue', async () => {
+                // A failed create can still have landed, so look again before retrying:
+                // the concurrency group keeps runs apart, but not our own retries.
+                const again = (await listTracked()).find((i) => !i.pull_request && i.body && i.body.includes(MARK));
+                if (again) {
+                  await github.rest.issues.update({ owner, repo, issue_number: again.number, body });
+                  return;
+                }
+                await github.rest.issues.create({ owner, repo, title: TITLE, body, labels: ['community'] });
+              });
+            }
+
+            // Refresh the aggregate GLOBAL badge in README.md so the contributor count stays live.
+            try {
+              const readme = await retry('get README', () =>
+                github.rest.repos.getContents({ owner, repo, path: 'README.md' }));
+              const readmeText = Buffer.from(readme.data.content, 'base64').toString();
+              const next = readmeText.replace(/%23contributors/g, `%23${rows.length}`);
+              if (next !== readmeText) {
+                await retry('update README badge', () =>
+                  github.rest.repos.putContents({
+                    owner, repo, path: 'README.md',
+                    message: 'ci: refresh FLISK HALL OF FAME GLOBAL badge count [skip ci]',
+                    content: Buffer.from(next).toString('base64'),
+                    sha: readme.data.sha,
+                  }));
+              }
+            } catch (e) {
+              core.warning(`Could not refresh the README badge: ${e.message}`);
             }

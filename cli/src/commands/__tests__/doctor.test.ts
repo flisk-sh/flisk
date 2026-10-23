@@ -1,10 +1,12 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { STANDARD_PORTS } from "../../utils/constants.js";
+import { captureExit } from "../../test-support/index.js";
+import type { CheckResult } from "../../types/index.js";
+import { CONTAINER_RUNTIME_CHECK, STANDARD_PORTS } from "../../utils/constants.js";
 import {
   checkHostPorts,
   checkIngressPorts,
@@ -20,6 +22,11 @@ import {
 } from "../../utils/doctor-runtime.js";
 import { checkSharedStackRoutes } from "../../utils/doctor-wiring.js";
 import {
+  checkWindowsDockerMode,
+  checkWindowsHostConfiguration,
+  checkWindowsRuntimeTools,
+} from "../../utils/windows-doctor.js";
+import {
   checkDockerCompose,
   checkDockerVersions,
   checkFrontendDockerPreflight,
@@ -29,21 +36,50 @@ import {
   checkTdkVersion,
   checkTypeScriptTypeDependencies,
   DOCTOR_FIXES,
+  doctorCommand,
+  formatDoctorSummary,
   getDoctorOutcomeMessage,
+  NATIVE_WINDOWS_DOCTOR_MESSAGE,
+  renderDoctorOutput,
+  requiresContainerRuntime,
+  runChecks,
   WSL2_DOCTOR_MESSAGE,
 } from "../doctor.js";
+
+vi.mock("../../utils/windows-doctor.js", () => ({
+  checkWindowsRuntimeTools: vi.fn(() => ({
+    name: "Windows Runtime Tools",
+    didPass: true,
+    message:
+      "Docker (docker.exe) and Tilt found on PATH; Bun was not found (generated services need Bun)",
+  })),
+  checkWindowsDockerMode: vi.fn(() => ({
+    name: "Docker container mode",
+    didPass: false,
+    message:
+      "Docker Desktop is using Windows containers. Switch to Linux containers. Flisk stacks are Linux images.",
+    fix: "Switch Docker Desktop to Linux containers. Flisk does not run Windows containers.",
+  })),
+  checkWindowsHostConfiguration: vi.fn(async () => ({
+    name: "Windows ports and DNS",
+    didPass: false,
+    message:
+      "⚠️ Windows reserved port 80 for Hyper-V/WSL. Fix: disable the conflicting Windows feature or change Flisk ports in project config.\nWindows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.\ngit core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.\nDocker Desktop Settings → Resources → File sharing must include this project directory.",
+    fix: "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.",
+  })),
+}));
 
 describe("doctor exact guidance", () => {
   it("keeps prerequisite fixes as the specified copy-paste text", () => {
     expect(DOCTOR_FIXES).toEqual({
       dockerMissing: "See https://docs.docker.com/get-docker/",
-      dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: tdk doctor",
+      dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor",
       tiltMissing:
         "curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash",
       bunMissing: "curl -fsSL https://bun.sh/install | bash",
-      port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: tdk doctor",
-      port5432: "Stop local Postgres or change the host port. Then: tdk doctor",
-      notProject: "tdk project --yes",
+      port80: "Stop the process bound to port 80, or stop local nginx/caddy. Then: flisk doctor",
+      port5432: "Stop local Postgres or change the host port. Then: flisk doctor",
+      notProject: "flisk project --yes",
     });
     expect(WSL2_DOCTOR_MESSAGE).toBe(
       "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md",
@@ -51,10 +87,10 @@ describe("doctor exact guidance", () => {
   });
 
   it("prints exact project-aware final outcomes", () => {
-    expect(getDoctorOutcomeMessage(false, true)).toBe("Doctor passed. Next: tdk project example");
-    expect(getDoctorOutcomeMessage(true, true)).toBe("Doctor passed. Next: tdk up");
+    expect(getDoctorOutcomeMessage(false, true)).toBe("Doctor passed. Next: flisk project example");
+    expect(getDoctorOutcomeMessage(true, true)).toBe("Doctor passed. Next: flisk up");
     expect(getDoctorOutcomeMessage(true, false)).toBe(
-      "Doctor failed. Fix the items above, then run: tdk doctor",
+      "Doctor failed. Fix the items above, then run: flisk doctor",
     );
   });
 
@@ -79,7 +115,7 @@ describe("doctor frontend Docker preflight", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-frontend-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-frontend-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(testDir, { recursive: true });
     process.chdir(testDir);
@@ -265,7 +301,7 @@ describe("doctor generated runtime asset preflight", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-runtime-assets-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-runtime-assets-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(testDir, ".tdk"), { recursive: true });
     writeFileSync(
@@ -320,7 +356,7 @@ describe("doctor generated runtime asset preflight", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("package.json");
     expect(result.message).toContain("install-deps.sh");
-    expect(result.fix).toContain("tdk project");
+    expect(result.fix).toContain("flisk project");
   });
 
   it("passes when generated Docker runtime assets are present", () => {
@@ -368,7 +404,7 @@ describe("doctor TypeScript type dependency check", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-types-bun-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-types-bun-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(testDir, { recursive: true });
     process.chdir(testDir);
@@ -631,7 +667,7 @@ describe("doctor ingress + tilt runtime checks", () => {
     expect(result.fix).toMatch(/docker ps --filter publish=80|Free the conflicting/);
   });
 
-  it("points to the URL printed by tdk up when Tilt resources fail", () => {
+  it("points to the URL printed by flisk up when Tilt resources fail", () => {
     const payload = {
       items: [
         {
@@ -660,7 +696,7 @@ describe("doctor ingress + tilt runtime checks", () => {
       }) as never);
 
       expect(result.didPass).toBe(false);
-      expect(result.fix).toContain("Open the Tilt UI URL printed by tdk up");
+      expect(result.fix).toContain("Open the Tilt UI URL printed by flisk up");
       expect(result.fix).toContain(`default port ${STANDARD_PORTS.tiltUi} when TILT_PORT is unset`);
       expect(result.fix).not.toContain("localhost:10350");
     } finally {
@@ -738,15 +774,15 @@ describe("doctor ingress + tilt runtime checks", () => {
 
   it("summarizes ConnectionRefused package manifest errors from build logs", () => {
     const raw = [
-      "error: ConnectionRefused downloading package manifest @tdk-landscape/eventing",
-      "error: ConnectionRefused downloading package manifest @tdk-landscape/identity-js-sdk",
-      "error: ConnectionRefused downloading package manifest @tdk-landscape/observability",
+      "error: ConnectionRefused downloading package manifest @flisk-sh/eventing",
+      "error: ConnectionRefused downloading package manifest @flisk-sh/identity-js-sdk",
+      "error: ConnectionRefused downloading package manifest @flisk-sh/observability",
       'ImageBuild: process "/bin/sh -c bun install --production --cache-dir=/cache/bun" did not complete successfully: exit code: 1',
     ].join("\n");
 
     const summary = summarizeTiltBuildError(raw);
     expect(summary).toContain("ConnectionRefused");
-    expect(summary).toContain("@tdk-landscape/eventing");
+    expect(summary).toContain("@flisk-sh/eventing");
     expect(summary).toContain("Verdaccio");
   });
 
@@ -906,7 +942,7 @@ describe("doctor ingress + tilt runtime checks", () => {
   it("fails private registry check when Verdaccio is enabled but unreachable", () => {
     const projectRoot = join(
       tmpdir(),
-      `tdk-doctor-registry-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-registry-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
     writeFileSync(
@@ -940,7 +976,7 @@ describe("doctor ingress + tilt runtime checks", () => {
   it("passes private registry check when Verdaccio responds", () => {
     const projectRoot = join(
       tmpdir(),
-      `tdk-doctor-registry-ok-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-registry-ok-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
     writeFileSync(
@@ -975,7 +1011,7 @@ describe("doctor private registry check without a Verdaccio license", () => {
   function projectWithVerdaccioEnabled(npmrc?: string): string {
     const projectRoot = join(
       tmpdir(),
-      `tdk-doctor-registry-unlicensed-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-registry-unlicensed-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
     writeFileSync(
@@ -994,7 +1030,7 @@ describe("doctor private registry check without a Verdaccio license", () => {
     throw new Error("Failed to connect to localhost port 4873");
   }) as unknown as typeof import("node:child_process").execSync;
 
-  it("skips when the config enables Verdaccio but TDK will not start it", () => {
+  it("skips when the config enables Verdaccio but Flisk will not start it", () => {
     const projectRoot = projectWithVerdaccioEnabled();
     const result = checkPrivateNpmRegistry(
       unreachable,
@@ -1069,7 +1105,7 @@ describe("doctor resource discovery", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-discovery-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-discovery-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(testDir, ".tdk"), { recursive: true });
     writeFileSync(join(testDir, "Tiltfile"), "");
@@ -1111,7 +1147,7 @@ describe("doctor resource discovery", () => {
   });
 });
 
-describe("doctor TDK version pin", () => {
+describe("doctor Flisk version pin", () => {
   let testDir: string;
   let originalCwd: string;
 
@@ -1119,7 +1155,7 @@ describe("doctor TDK version pin", () => {
     originalCwd = process.cwd();
     testDir = join(
       tmpdir(),
-      `tdk-doctor-version-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      `flisk-doctor-version-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
     mkdirSync(join(testDir, ".tdk"), { recursive: true });
     writeFileSync(join(testDir, "Tiltfile"), "");
@@ -1154,7 +1190,7 @@ describe("doctor TDK version pin", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("1.3.79");
     expect(result.message).toContain("1.3.80");
-    expect(result.fix).toBe("Run: tdk upgrade");
+    expect(result.fix).toBe("Run: flisk upgrade");
   });
 
   it("fails on a value that is not MAJOR.MINOR.PATCH", () => {
@@ -1170,7 +1206,7 @@ describe("checkSharedStackRoutes", () => {
   let testDir: string;
 
   beforeEach(() => {
-    testDir = mkdtempSync(join(tmpdir(), "tdk-doctor-stack-routes-"));
+    testDir = mkdtempSync(join(tmpdir(), "flisk-doctor-stack-routes-"));
   });
 
   afterEach(() => {
@@ -1281,5 +1317,489 @@ describe("doctor Docker Compose check", () => {
 
     expect(result.didPass).toBe(false);
     expect(result.message).toBe("Docker Compose plugin not found");
+  });
+});
+
+describe("doctor --all, sections, and summary", () => {
+  afterEach(() => {
+    doctorCommand.setOptionValue("all", false);
+    doctorCommand.setOptionValue("json", false);
+    doctorCommand.setOptionValue("ping", true);
+  });
+
+  it("stops at the first failing check when all is false or omitted", async () => {
+    const executed: string[] = [];
+    const checks = [
+      () => {
+        executed.push("first");
+        return { name: "First", didPass: true, message: "First passed" };
+      },
+      () => {
+        executed.push("second");
+        return { name: "Second", didPass: false, message: "Second failed", fix: "Fix second" };
+      },
+      () => {
+        executed.push("third");
+        return { name: "Third", didPass: false, message: "Third failed", fix: "Fix third" };
+      },
+    ];
+
+    const results = await runChecks(checks, { all: false });
+
+    expect(executed).toEqual(["first", "second"]);
+    expect(results).toHaveLength(2);
+    expect(results[1]?.name).toBe("Second");
+  });
+
+  it("continues past warnings and skipped checks when all is false", async () => {
+    const executed: string[] = [];
+    const checks = [
+      () => {
+        executed.push("warn");
+        return { name: "Warn", didPass: false, isWarning: true, message: "Minor warning" };
+      },
+      () => {
+        executed.push("skip");
+        return { name: "Skip", didPass: true, isSkipped: true, message: "Skipped" };
+      },
+      () => {
+        executed.push("pass");
+        return { name: "Pass", didPass: true, message: "Passed" };
+      },
+    ];
+
+    const results = await runChecks(checks);
+
+    expect(executed).toEqual(["warn", "skip", "pass"]);
+    expect(results).toHaveLength(3);
+  });
+
+  it("runs every check when all is true, even after earlier failures", async () => {
+    const executed: string[] = [];
+    const checks = [
+      () => {
+        executed.push("ports");
+        return { name: "Host Ports", didPass: false, message: "Port 80 busy" };
+      },
+      () => {
+        executed.push("env");
+        return { name: "Environment Variables", didPass: false, message: ".env missing" };
+      },
+      () => {
+        executed.push("configs");
+        return { name: "Master Configs", didPass: true, message: "Configs ready" };
+      },
+    ];
+
+    const results = await runChecks(checks, { all: true });
+
+    expect(executed).toEqual(["ports", "env", "configs"]);
+    expect(results.map((r) => r.name)).toEqual([
+      "Host Ports",
+      "Environment Variables",
+      "Master Configs",
+    ]);
+  });
+
+  it("skips container-dependent checks under --all when Container Runtime failed", async () => {
+    let dependentCalled = false;
+    let rawContainerCalled = false;
+    let rawComposeCalled = false;
+
+    const rawContainerImpl = vi.fn(() => {
+      rawContainerCalled = true;
+      return { name: "Container Resource Health", didPass: true, message: "OK" };
+    });
+    const wrappedContainerCheck = requiresContainerRuntime(
+      "Container Resource Health",
+      rawContainerImpl,
+    );
+
+    const rawComposeCheck = Object.assign(
+      function checkDockerCompose() {
+        rawComposeCalled = true;
+        return { name: "Docker Compose", didPass: true, message: "OK" };
+      },
+      {
+        requiresContainerRuntime: true,
+        checkName: "Docker Compose",
+      },
+    );
+
+    const checks = [
+      () => ({
+        name: CONTAINER_RUNTIME_CHECK,
+        didPass: false,
+        message: "Docker is not running",
+      }),
+      requiresContainerRuntime("Crash-looping containers", () => {
+        dependentCalled = true;
+        return { name: "Crash-looping containers", didPass: true, message: "Healthy" };
+      }),
+      wrappedContainerCheck,
+      rawComposeCheck,
+      () => ({
+        name: "Environment Variables",
+        didPass: false,
+        message: "Missing .env",
+      }),
+    ];
+
+    const results = await runChecks(checks, { all: true });
+
+    expect(dependentCalled).toBe(false);
+    expect(rawContainerCalled).toBe(false);
+    expect(rawContainerImpl).not.toHaveBeenCalled();
+    expect(rawComposeCalled).toBe(false);
+    expect(results).toHaveLength(5);
+    expect(results[1]).toMatchObject({
+      name: "Crash-looping containers",
+      didPass: true,
+      isSkipped: true,
+    });
+    expect(results[2]).toMatchObject({
+      name: "Container Resource Health",
+      didPass: true,
+      isSkipped: true,
+    });
+    expect(results[3]).toMatchObject({
+      name: "Docker Compose",
+      didPass: true,
+      isSkipped: true,
+    });
+    expect(results[4]).toMatchObject({
+      name: "Environment Variables",
+      didPass: false,
+    });
+  });
+
+  it("formats the one-line summary with passed, warned, failed, and skipped counts", () => {
+    const summary = formatDoctorSummary([
+      { name: "Docker", didPass: true, message: "OK" },
+      { name: "WSL", didPass: false, isWarning: true, message: "Warning" },
+      { name: "Env", didPass: false, message: "Missing .env" },
+      { name: "Bun", didPass: true, isSkipped: true, message: "Skipped" },
+      { name: "Smoke", didPass: true, isSkipped: true, message: "Skipped" },
+    ]);
+
+    expect(summary).toBe("1 passed, 1 warned, 1 failed, 2 skipped");
+  });
+
+  it("formats summary correctly for a warning-only run", () => {
+    const summary = formatDoctorSummary([
+      { name: "WSL", didPass: false, isWarning: true, message: "Warning" },
+    ]);
+
+    expect(summary).toBe("0 passed, 1 warned, 0 failed, 0 skipped");
+  });
+
+  it("treats unexpected check failures as failed in the summary instead of skipped", () => {
+    const summary = formatDoctorSummary([
+      { name: "Docker", didPass: true, message: "OK" },
+      {
+        name: "CrashCheck",
+        didPass: false,
+        isSkipped: false,
+        message: "Check failed with an internal error",
+      },
+      { name: "SkippedCheck", didPass: true, isSkipped: true, message: "Skipped" },
+    ]);
+
+    expect(summary).toBe("1 passed, 1 failed, 1 skipped");
+  });
+
+  it("registers --all on doctorCommand and prints Machine, Project, and summary", async () => {
+    expect(doctorCommand.options.some((opt) => opt.long === "--all")).toBe(true);
+
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-all-"));
+    const originalCwd = process.cwd();
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      mkdirSync(join(root, ".tdk"), { recursive: true });
+      writeFileSync(
+        join(root, ".tdk", "project.json"),
+        JSON.stringify({ project: { name: "doctor-all-test" } }),
+      );
+      process.chdir(root);
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      try {
+        await doctorCommand.parseAsync(["--all", "--no-ping"], { from: "user" });
+      } catch {
+        // Expected when process.exit is called on failing checks
+      }
+
+      const lines = log.mock.calls.map((call) => String(call[0]));
+      expect(lines.some((line) => line.includes("Machine"))).toBe(true);
+      expect(lines.some((line) => line.includes("Project"))).toBe(true);
+      expect(
+        lines.some((line) => /^\d+ passed(?:, \d+ warned)?, \d+ failed, \d+ skipped$/.test(line)),
+      ).toBe(true);
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      process.chdir(originalCwd);
+      if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      exit.mockRestore();
+      log.mockRestore();
+      error.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("prints Project section when running --all outside a project even with failing checks", async () => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-no-project-"));
+    const originalCwd = process.cwd();
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      process.chdir(root);
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      try {
+        await doctorCommand.parseAsync(["--all", "--no-ping"], { from: "user" });
+      } catch {
+        // Expected when process.exit is called
+      }
+
+      const lines = log.mock.calls.map((call) => String(call[0]));
+      expect(lines.some((line) => line.includes("Machine"))).toBe(true);
+      expect(lines.some((line) => line.includes("Project"))).toBe(true);
+      expect(
+        lines.some((line) =>
+          line.includes("Not in a Flisk project, so project checks were skipped"),
+        ),
+      ).toBe(true);
+      expect(
+        lines.some((line) => /^\d+ passed(?:, \d+ warned)?, \d+ failed, \d+ skipped$/.test(line)),
+      ).toBe(true);
+    } finally {
+      process.chdir(originalCwd);
+      if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      exit.mockRestore();
+      log.mockRestore();
+      error.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves machine-readable JSON envelope when --all and --json are combined", async () => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-json-all-"));
+    const originalCwd = process.cwd();
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      mkdirSync(join(root, ".tdk"), { recursive: true });
+      writeFileSync(
+        join(root, ".tdk", "project.json"),
+        JSON.stringify({ project: { name: "doctor-json-all" } }),
+      );
+      process.chdir(root);
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      try {
+        await doctorCommand.parseAsync(["--all", "--json", "--no-ping"], { from: "user" });
+      } catch {
+        // Expected when process.exit is called on failing checks
+      }
+
+      const jsonCall = log.mock.calls.find((call) => {
+        try {
+          const parsed = JSON.parse(String(call[0]));
+          return (
+            parsed &&
+            typeof parsed.schemaVersion === "number" &&
+            parsed.data &&
+            Array.isArray(parsed.data.checks)
+          );
+        } catch {
+          return false;
+        }
+      });
+
+      expect(jsonCall).toBeDefined();
+      const parsed = JSON.parse(String(jsonCall?.[0]));
+      expect(parsed.schemaVersion).toBe(1);
+      expect(parsed.data.checks.length).toBeGreaterThan(0);
+      expect(typeof parsed.data.ready).toBe("boolean");
+      expect(typeof parsed.data.inProject).toBe("boolean");
+      expect(Array.isArray(parsed.errors)).toBe(true);
+
+      const nonJsonCalls = log.mock.calls
+        .map((call) => String(call[0]))
+        .filter((str) => !str.startsWith("{"));
+      expect(nonJsonCalls.some((str) => str.includes("Machine"))).toBe(false);
+      expect(nonJsonCalls.some((str) => str.includes("Project"))).toBe(false);
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      process.chdir(originalCwd);
+      if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      exit.mockRestore();
+      log.mockRestore();
+      error.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("renders Project heading under --all when in a project even if project checks are empty", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const machineResults: CheckResult[] = [{ name: "Host Ports", didPass: true, message: "OK" }];
+      const projectResults: CheckResult[] = [];
+
+      renderDoctorOutput(machineResults, projectResults, true, { all: true });
+
+      const lines = log.mock.calls.map((call) => String(call[0]));
+      expect(lines.some((line) => line.includes("Machine"))).toBe(true);
+      expect(lines.some((line) => line.includes("Project"))).toBe(true);
+      expect(lines.some((line) => line.includes("Not in a Flisk project"))).toBe(false);
+      expect(lines.some((line) => line.includes("1 passed, 0 failed, 0 skipped"))).toBe(true);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("renders Project heading and skipped message under --all when not in a project", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const machineResults: CheckResult[] = [
+        { name: "Host Ports", didPass: false, message: "Port busy" },
+      ];
+      const projectResults: CheckResult[] = [];
+
+      renderDoctorOutput(machineResults, projectResults, false, { all: true });
+
+      const lines = log.mock.calls.map((call) => String(call[0]));
+      expect(lines.some((line) => line.includes("Machine"))).toBe(true);
+      expect(lines.some((line) => line.includes("Project"))).toBe(true);
+      expect(
+        lines.some((line) =>
+          line.includes("Not in a Flisk project, so project checks were skipped"),
+        ),
+      ).toBe(true);
+      expect(lines.some((line) => line.includes("0 passed, 1 failed, 0 skipped"))).toBe(true);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("does not print Machine or Project headings or summary without --all", async () => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-doctor-plain-"));
+    const originalCwd = process.cwd();
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      mkdirSync(join(root, ".tdk"), { recursive: true });
+      writeFileSync(
+        join(root, ".tdk", "project.json"),
+        JSON.stringify({ project: { name: "doctor-plain-test" } }),
+      );
+      process.chdir(root);
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      try {
+        await doctorCommand.parseAsync(["--no-ping"], { from: "user" });
+      } catch {
+        // Expected when process.exit is called on failing checks
+      }
+
+      const lines = log.mock.calls.map((call) => String(call[0]));
+      expect(lines.some((line) => line === "Machine")).toBe(false);
+      expect(lines.some((line) => line === "\nProject" || line === "Project")).toBe(false);
+      expect(lines.some((line) => /^\d+ passed, \d+ failed, \d+ skipped$/.test(line))).toBe(false);
+      expect(checkWindowsRuntimeTools).not.toHaveBeenCalled();
+      expect(checkWindowsDockerMode).not.toHaveBeenCalled();
+      expect(checkWindowsHostConfiguration).not.toHaveBeenCalled();
+    } finally {
+      process.chdir(originalCwd);
+      if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      exit.mockRestore();
+      log.mockRestore();
+      error.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("doctor native Windows diagnostics", () => {
+  afterEach(() => {
+    doctorCommand.setOptionValue("json", false);
+    doctorCommand.setOptionValue("ping", true);
+    vi.mocked(checkWindowsRuntimeTools).mockClear();
+    vi.mocked(checkWindowsDockerMode).mockClear();
+    vi.mocked(checkWindowsHostConfiguration).mockClear();
+  });
+
+  it("prints Windows diagnostics next to the native Windows refusal and exits 1", async () => {
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
+      await expect(doctorCommand.parseAsync([], { from: "user" })).rejects.toThrow(/exit/);
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(error).toHaveBeenCalledWith(NATIVE_WINDOWS_DOCTOR_MESSAGE);
+      expect(checkWindowsRuntimeTools).toHaveBeenCalledOnce();
+      expect(checkWindowsDockerMode).toHaveBeenCalledOnce();
+      expect(checkWindowsHostConfiguration).toHaveBeenCalledOnce();
+
+      const text = log.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(text).toContain(NATIVE_WINDOWS_DOCTOR_MESSAGE);
+      expect(text).toContain("Windows containers");
+      expect(text).toContain("tdk.localhost");
+      expect(text).toContain("core.autocrlf");
+      expect(text).toContain("Hyper-V");
+    } finally {
+      if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      exit.mockRestore();
+      log.mockRestore();
+      error.mockRestore();
+    }
+  });
+
+  it("includes Windows diagnostic findings in --json data.checks while staying unready", async () => {
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
+      await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow(/exit/);
+      expect(exit).toHaveBeenCalledWith(1);
+
+      const raw = String(log.mock.calls.find((call) => String(call[0]).startsWith("{"))?.[0]);
+      const report = JSON.parse(raw);
+      expect(report.data.ready).toBe(false);
+      expect(report.data.checks.map((check: CheckResult) => check.name)).toEqual([
+        "Native Windows support",
+        "Windows Runtime Tools",
+        "Docker container mode",
+        "Windows ports and DNS",
+      ]);
+      expect(report.data.checks[0].message).toBe(NATIVE_WINDOWS_DOCTOR_MESSAGE);
+      expect(report.data.checks[2].didPass).toBe(false);
+      expect(report.data.checks[3].message).toContain("core.autocrlf");
+      expect(report.data.host).toMatchObject({ kind: "native-windows", canUp: false });
+    } finally {
+      if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
+      exit.mockRestore();
+      log.mockRestore();
+      error.mockRestore();
+    }
   });
 });

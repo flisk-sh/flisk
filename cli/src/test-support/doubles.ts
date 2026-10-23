@@ -1,7 +1,8 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { expect, type MockInstance, vi } from "vitest";
 import type { DiscoveredResource } from "../types/index.js";
+import { ProcessExitError } from "../utils/errors.js";
 
 /**
  * Builds an in-memory `DiscoveredResource` for pure tests. Nothing is written to disk; the paths are fake.
@@ -21,7 +22,7 @@ export function makeResource(
 }
 
 export interface ExitCapture {
-  /** The spy on `process.exit`. It throws `process.exit`, so the code under test stops where the exit happens. */
+  /** The spy on `process.exit`. It throws `ProcessExitError`, so the code under test stops where the exit happens. */
   exit: MockInstance;
   /** Asserts that the exit was called with `code` exactly once. */
   expectExit(code: number): void;
@@ -32,8 +33,8 @@ export interface ExitCapture {
  * `rejects.toThrow("process.exit")`. Restore it with `vi.restoreAllMocks()` in `afterEach`.
  */
 export function captureExit(): ExitCapture {
-  const exit = vi.spyOn(process, "exit").mockImplementation((() => {
-    throw new Error("process.exit");
+  const exit = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+    throw new ProcessExitError(code ?? 0);
   }) as never);
   return {
     exit,

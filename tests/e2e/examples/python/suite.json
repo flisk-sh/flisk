@@ -1,7 +1,7 @@
 {
   "group": "examples",
   "suite": "python",
-  "description": "The Python backend example (examples/one-backend-python, the Python provider's runnable example) through a real tdk up (moved from the retired python-example-e2e workflow, #1299): pack and install the candidate CLI, configure the example, boot it and require routed /health through Traefik, then run the pytest smoke test inside the generated image's test stage. The example axis value one-backend-python.",
+  "description": "The Python backend example (examples/one-backend-python, the Python provider's runnable example) through a real flisk up (moved from the retired python-example-e2e workflow, #1299): pack and install the candidate CLI, configure the example, boot it and require routed /health through Traefik, then run the pytest smoke test inside the generated image's test stage. The example axis value one-backend-python.",
   "paths": [
     "cli/src/backend-languages/**",
     "cli/src/commands/resource.ts",

@@ -1,8 +1,7 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
-import { captureExit } from "../../test-support/index.js";
-import { completionCommand } from "../completion.js";
+import { captureExit, runCompletionCommand } from "../../test-support/index.js";
 
 interface CompletionOutput {
   stdout: string;
@@ -15,7 +14,7 @@ async function runCompletion(args: string[]): Promise<CompletionOutput> {
   const { exit } = captureExit();
 
   try {
-    await completionCommand.parseAsync(["node", "tdk", ...args], { from: "node" });
+    await runCompletionCommand(args);
     return {
       stdout: log.mock.calls.map(([value]) => String(value)).join("\n"),
       stderr: error.mock.calls.map(([value]) => String(value)).join("\n"),
@@ -27,11 +26,11 @@ async function runCompletion(args: string[]): Promise<CompletionOutput> {
   }
 }
 
-describe("tdk completion shell selection", () => {
+describe("flisk completion shell selection", () => {
   it("accepts the shell as a positional argument", async () => {
     const { stdout } = await runCompletion(["zsh"]);
 
-    expect(stdout).toContain("#compdef tdk");
+    expect(stdout).toContain("#compdef flisk");
   });
 
   it("detects the current shell when none is supplied", async () => {
@@ -41,7 +40,7 @@ describe("tdk completion shell selection", () => {
     try {
       const { stdout, stderr } = await runCompletion([]);
 
-      expect(stdout).toContain("#compdef tdk");
+      expect(stdout).toContain("#compdef flisk");
       expect(stderr).toContain("Using zsh completion");
     } finally {
       if (previousShell === undefined) {
@@ -59,7 +58,7 @@ describe("tdk completion shell selection", () => {
     try {
       const { stdout, stderr } = await runCompletion([]);
 
-      expect(stdout).toContain("# TDK CLI Bash Completion");
+      expect(stdout).toContain("# Flisk CLI Bash Completion");
       expect(stderr).toContain("Using bash completion");
     } finally {
       if (previousShell === undefined) {

@@ -1,13 +1,13 @@
-# TDK product example
+# Flisk product example
 
 A small working landscape with a Hono API, PostgreSQL, a NATS worker, a Vite UI, and Traefik routes.
 
 This is a local demo, not a Helm chart.
 
 ```sh
-tdk doctor
-tdk project --yes
-tdk up
+flisk doctor
+flisk project --yes
+flisk up
 ```
 
 Open `http://app.tdk-example.localhost/orders-app/` and create an order, or use the routed API:
@@ -19,5 +19,5 @@ curl -fsS -X POST http://api.tdk-example.localhost/api/orders \
 
 The API stores each order in PostgreSQL and publishes its id to NATS. The worker consumes the
 event, reads the stored row, and marks it observed. Poll `GET /api/orders/<id>` through the API
-route until `workerSeenAt` is set. `tdk config verify` checks generated output. Stop the landscape
-with `tdk down`.
+route until `workerSeenAt` is set. `flisk config verify` checks generated output. Stop the landscape
+with `flisk down`.

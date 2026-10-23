@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 
@@ -7,7 +7,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source_repo="${TDK_SKILLS_REPO:-$(cd "$repo_root/.." && pwd)/tdk-skills}"
 
 if [[ ! -f "$source_repo/.claude-plugin/marketplace.json" ]]; then
-  echo "Missing TDK skills source repo: $source_repo" >&2
+  echo "Missing Flisk skills source repo: $source_repo" >&2
   exit 1
 fi
 

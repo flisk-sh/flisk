@@ -1,12 +1,12 @@
 #!/usr/bin/env starlark
 # -*- coding: utf-8 -*-
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🔧 TILT SERVICE DEFAULTS MASTER CONFIG
 # =============================================================================
 # 
-# Defines standard configurations for all services in the TDK Landscape platform.
+# Defines standard configurations for all services in the Flisk Landscape platform.
 # This provides consistent port allocation, health checks, and build settings.
 #
 # See: docs/TILT_MASTER_CONFIGS.md

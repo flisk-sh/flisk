@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { deriveServiceStates } from "../service-runtime-state.js";
@@ -112,5 +112,52 @@ describe("deriveServiceStates", () => {
     );
     expect(Object.keys(states)).toEqual(["api"]);
     expect(states.api).toEqual({ status: "ready" });
+  });
+
+  it("returns no states for a Tilt response with no items", () => {
+    expect(deriveServiceStates(JSON.stringify({}), deps)).toEqual({});
+  });
+
+  it("treats an item with no status as ready", () => {
+    const states = deriveServiceStates(json({ metadata: { name: "api" } }), deps);
+    expect(states).toEqual({ api: { status: "ready" } });
+  });
+
+  it("treats a deferred item with no status as ready", () => {
+    const states = deriveServiceStates(json({ metadata: { name: "idle" } }), {}, new Set(["idle"]));
+    expect(states).toEqual({ idle: { status: "ready" } });
+  });
+
+  it("blocks a running deferred service once a dependency has failed", () => {
+    const states = deriveServiceStates(
+      json(item("postgres", "error", "none"), item("idle", "ok", "ok")),
+      { idle: ["postgres"] },
+      new Set(["idle"]),
+    );
+    expect(states.idle).toEqual({
+      status: "error",
+      reason: "postgres failed",
+      blockedBy: ["postgres"],
+    });
+  });
+
+  it("lists every failed dependency once, in a stable order", () => {
+    const states = deriveServiceStates(
+      json(
+        item("redis", "error", "none"),
+        item("postgres", "error", "none"),
+        item("api", "ok", "ok"),
+      ),
+      { api: ["redis", "postgres"] },
+    );
+    expect(states.api).toEqual({
+      status: "error",
+      reason: "postgres, redis failed",
+      blockedBy: ["postgres", "redis"],
+    });
+  });
+
+  it("rejects malformed Tilt output instead of reporting services as ready", () => {
+    expect(() => deriveServiceStates("{not json", deps)).toThrow(SyntaxError);
   });
 });

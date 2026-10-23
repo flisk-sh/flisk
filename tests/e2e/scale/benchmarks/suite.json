@@ -1,7 +1,7 @@
 {
   "group": "scale",
   "suite": "benchmarks",
-  "description": "The tdk up warm and cold start benchmark on the restaurant example (moved from benchmarks.yml, #1301): generate the project, time the cold and warm starts, and build the report from the results. Nightly on the latest main, after each release, and manual. Manual runs measure but do not publish: the workflow's publish job runs only for the scheduled and release runs.",
+  "description": "The flisk up warm and cold start benchmark on the restaurant example (moved from benchmarks.yml, #1301): generate the project, time the cold and warm starts, and build the report from the results. Nightly on the latest main, after each release, and manual. Manual runs measure but do not publish: the workflow's publish job runs only for the scheduled and release runs.",
   "paths": [
     "cli/**",
     "engine/**",

@@ -22,7 +22,7 @@ jobs:
   # Pull requests only. Push, schedule and dispatch runs leave the outputs empty, and every scanner's `if` treats that as "run".
   changes:
     name: 🔎 Detect Scanner Changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2 # every job finishes in under 20s; fail fast if one hangs
     if: github.event_name == 'pull_request'
     permissions:
@@ -87,7 +87,7 @@ jobs:
     # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
     # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.deps != 'false' || needs.changes.outputs.infra != 'false') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -104,7 +104,7 @@ jobs:
           ignore-unfixed: true
           format: sarif
           output: trivy.sarif
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      - uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         if: always() && hashFiles('trivy.sarif') != ''
         with:
           sarif_file: trivy.sarif
@@ -116,7 +116,7 @@ jobs:
     # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
     # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.deps != 'false') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -125,7 +125,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+      - uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
         continue-on-error: true # report-only: exits non-zero when it finds vulnerabilities
         with:
           scan-args: |-
@@ -133,7 +133,7 @@ jobs:
             --format=sarif
             --output=osv.sarif
             ./
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      - uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         if: always() && hashFiles('osv.sarif') != ''
         with:
           sarif_file: osv.sarif
@@ -145,7 +145,7 @@ jobs:
     # `changes` is skipped on push and schedule, so `!cancelled()` keeps the job from inheriting that skip. On a pull
     # request, anything but 'false' runs the scanner, so a failed change detection fails closed.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'pull_request' || needs.changes.outputs.code != 'false') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -160,7 +160,7 @@ jobs:
           pipx run semgrep==1.180.0 scan \
             --config p/default --config p/typescript --config p/dockerfile --config p/github-actions \
             --metrics=off --sarif --output semgrep.sarif || true
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      - uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif

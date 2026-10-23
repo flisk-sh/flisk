@@ -1,17 +1,18 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
+import { addYesOption } from "../utils/command-helpers.js";
 import { getPackageVersion } from "../utils/paths.js";
 
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
- * pinned version so a push to its main branch cannot change what `tdk import` does. Move the pin
+ * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `TDK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "@tdk-landscape/tdk-import@0.2.1";
+export const IMPORT_PACKAGE = "flisk-import@0.2.2";
 
-/** Minimum TDK core release supporting buildContext required by tdk import (#634). */
+/** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export const MIN_CORE_VERSION = "1.3.104";
 
 /** Recommended core version with automatic Tiltfile bootstrapping for imported stacks (#1018). */
@@ -98,7 +99,7 @@ export function isVersionAtLeast(current: string, minimum: string): boolean {
 }
 
 /**
- * Checks whether the running TDK CLI meets the minimum version required to adopt Compose repos.
+ * Checks whether the running Flisk CLI meets the minimum version required to adopt Compose repos.
  * If the installed core is older than the buildContext release (1.3.104), exit before writing
  * and print the upgrade command.
  */
@@ -113,7 +114,7 @@ export function checkCoreVersion(
   if (!isVersionAtLeast(currentVersion, MIN_CORE_VERSION)) {
     return {
       ok: false,
-      message: `tdk import: installed TDK core (${currentVersion}) is older than the required ${MIN_CORE_VERSION} (buildContext release). Upgrade with: tdk upgrade`,
+      message: `flisk import: installed Flisk core (${currentVersion}) is older than the required ${MIN_CORE_VERSION} (buildContext release). Upgrade with: flisk upgrade`,
     };
   }
   return { ok: true };
@@ -132,7 +133,7 @@ export function importInvocation(
   };
 }
 
-/** Runs tdk-import with the caller's terminal and resolves to its exit code. */
+/** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export function runImport(
   args: string[],
   spawnFn: SpawnFn = spawn,
@@ -151,7 +152,7 @@ export function runImport(
     });
     child.on("error", (err) => {
       console.error(
-        `tdk import: could not run npx (${err.message}). Install Node.js/npm and retry.`,
+        `flisk import: could not run npx (${err.message}). Install Node.js/npm and retry.`,
       );
       resolve(127);
     });
@@ -159,11 +160,40 @@ export function runImport(
   });
 }
 
-export const importCommand = new Command("import")
-  .description("Import the services in a directory's root docker-compose.yml (runs tdk-import)")
-  .argument("[args...]", "Passed to tdk-import: [dir] --dry-run --yes --force")
+export function buildForwardedImportArgs(
+  args: string[],
+  options: { yes?: boolean; force?: boolean } = {},
+): string[] {
+  let yes = Boolean(options.yes);
+  let force = Boolean(options.force);
+
+  const filtered: string[] = [];
+  for (const arg of args) {
+    if (arg === "--yes" || arg === "-y") {
+      yes = true;
+    } else if (arg === "--force" || arg === "-f") {
+      force = true;
+    } else {
+      filtered.push(arg);
+    }
+  }
+
+  if (yes) {
+    filtered.push("--yes");
+  }
+  if (force) {
+    filtered.push("--force");
+  }
+  return filtered;
+}
+
+export const importCommand = addYesOption(new Command("import"))
+  .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
+  .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
+  .option("-f, --force", "Overwrite an existing service.json", false)
   .allowUnknownOption()
   .helpOption(false)
-  .action(async (args: string[]) => {
-    process.exitCode = await runImport(args);
+  .action(async (args: string[], options: { yes?: boolean; force?: boolean }) => {
+    const forwardedArgs = buildForwardedImportArgs(args, options);
+    process.exitCode = await runImport(forwardedArgs);
   });

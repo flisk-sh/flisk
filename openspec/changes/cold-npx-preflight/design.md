@@ -2,7 +2,7 @@
 
 The package declares Node.js `>=22.12.0`, while its executable currently loads the compiled CLI without enforcing that engine requirement. A bare invocation prints help and exits successfully. Doctor already owns checks for Docker, versions, Tilt, Bun, host ports, and project wiring, so preflight should compose those existing checks rather than duplicate them or replace the detailed doctor report.
 
-The first-run path must be useful without a TDK project directory. Machine readiness is therefore evaluated independently from project wiring, while NATS and Prisma checks are only included when a detected project enables/requires them. Bun/Prisma/NATS are outputs or features of generated project configuration and must not be described as universal cold-npx prerequisites.
+The first-run path must be useful without a Flisk project directory. Machine readiness is therefore evaluated independently from project wiring, while NATS and Prisma checks are only included when a detected project enables/requires them. Bun/Prisma/NATS are outputs or features of generated project configuration and must not be described as universal cold-npx prerequisites.
 
 ## Goals / Non-Goals
 
@@ -50,4 +50,4 @@ No data migration is required. Existing users retain current command semantics e
 ## Open Questions
 
 - Confirm actual exported doctor check function names and project detection while implementing; use the repository's real APIs.
-- Resolve whether the existing successful doctor output should replace or augment the requested `Environment ready for TDK` copy, preserving existing success wording where appropriate.
+- Resolve whether the existing successful doctor output should replace or augment the requested `Environment ready for Flisk` copy, preserving existing success wording where appropriate.

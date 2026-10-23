@@ -8,11 +8,11 @@ State which code is MIT and in foundation scope, and which code is downloaded on
 
 ### Requirement: MIT core stays key-free
 
-`tdk up`, scaffold, Traefik, Postgres, and Tilt live update SHALL run without TDK_LICENSE_KEY. README.md SHALL keep the sentence that the core CLI is MIT and needs no key.
+`flisk up`, scaffold, Traefik, Postgres, and Tilt live update SHALL run without TDK_LICENSE_KEY. README.md SHALL keep the sentence that the core CLI is MIT and needs no key.
 
 #### Scenario: Up without a key
 
-- **WHEN** TDK_LICENSE_KEY is unset and the user runs tdk up on a project with no premium feature enabled
+- **WHEN** TDK_LICENSE_KEY is unset and the user runs flisk up on a project with no premium feature enabled
 - **THEN** startup does not prompt for a key and does not download an implementation
 
 ### Requirement: Key-downloaded code is outside donation scope

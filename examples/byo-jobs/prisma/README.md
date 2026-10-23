@@ -1,11 +1,11 @@
 # prisma
 
-**Stack:** [Prisma](https://www.prisma.io) 6, `prisma migrate deploy` applying `prisma/migrations` to TDK's Postgres, then exit.
+**Stack:** [Prisma](https://www.prisma.io) 6, `prisma migrate deploy` applying `prisma/migrations` to Flisk's Postgres, then exit.
 
 **Notes:**
-- TDK's `DATABASE_URL` already ends in `?schema=public`, which is Prisma's own syntax, so it is used as is. No stripping,
+- Flisk's `DATABASE_URL` already ends in `?schema=public`, which is Prisma's own syntax, so it is used as is. No stripping,
   and no `sslmode` change was needed.
-- The database did not exist in the verified run (TDK does not create one for a bring-your-own job) and
+- The database did not exist in the verified run (Flisk does not create one for a bring-your-own job) and
   `migrate deploy` still succeeded, so Prisma created it. Other tools may not; see the [atlas](../atlas/README.md) example.
 - Prisma is pinned to major 6. Prisma 7 moved the datasource URL into `prisma.config.ts`, which this example does not use.
 - Alpine needs `openssl` for Prisma's engines.
@@ -15,17 +15,17 @@
 
 ## Check it
 
-Needs Docker, Tilt and a built CLI. Runs a real `tdk up`, expects the container to exit `0` with `0` restarts, and expects
+Needs Docker, Tilt and a built CLI. Runs a real `flisk up`, expects the container to exit `0` with `0` restarts, and expects
 the `Order` table to exist:
 
 ```bash
 tests/e2e/resource-types/bring-your-own/verify-byo-job.sh prisma
 ```
 
-## Register it in a TDK project
+## Register it in a Flisk project
 
 ```bash
-tdk resource migrate --type bring-your-own --stack shop --dockerfile ./Dockerfile --restart no --register-existing --yes
+flisk resource migrate --type bring-your-own --stack shop --dockerfile ./Dockerfile --restart no --register-existing --yes
 ```
 
-Use a resource name that is unique across TDK projects sharing one Docker daemon.
+Use a resource name that is unique across Flisk projects sharing one Docker daemon.

@@ -1,11 +1,12 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { execFile } from "node:child_process";
-import { realpathSync, statfsSync } from "node:fs";
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { CheckResult } from "../types/index.js";
+import { type ColimaStatus, checkColima, nativeLimaPath, planColimaRepair } from "./colima.js";
 import { DISK_WARN_GIB } from "./doctor-host.js";
 import {
   findProjectTiltUpPids,
@@ -19,18 +20,18 @@ import { findAllOnPath } from "./which.js";
 const execFilePromise = promisify(execFile);
 const DOCKER_TIMEOUT_MS = 15_000;
 
-/** The networks `tdk doctor` creates to test capacity; an interrupted run leaves one behind. */
+/** The networks `flisk doctor` creates to test capacity; an interrupted run leaves one behind. */
 const PROBE_NETWORK = /^tdk_doctor_probe_(\d+)$/;
 
 export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
 
-/** One repair `tdk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
+/** One repair `flisk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
 export interface DoctorAction {
   id: string;
   check: string;
   /**
    * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
-   * TDK project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
+   * Flisk project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
    * (Docker build cache, dangling images), only planned while free disk space is low.
    */
   scope: "project" | "probe" | "machine" | "host";
@@ -59,6 +60,12 @@ export interface DoctorFixDeps {
   /** What `docker builder prune` and `docker image prune` (dangling only) would reclaim. */
   reclaimable(): Promise<{ buildCache: string | null; danglingImages: number }>;
   prune(kind: "builder" | "images"): Promise<void>;
+  /** Starts, restarts, or repairs (native lima) the Colima VM, with a native limactl first on PATH when there is one. */
+  colima(action: "start" | "restart" | "native-lima"): Promise<void>;
+  /** The state of the Colima VM behind Docker. */
+  colimaStatus(): ColimaStatus;
+  /** Whether the Docker daemon answers right now. */
+  dockerAnswers(): boolean;
 }
 
 type DockerRunner = (args: string[]) => Promise<string>;
@@ -71,6 +78,20 @@ const runDocker: DockerRunner = async (args) => {
   });
   return stdout;
 };
+
+/** Whether the Docker daemon answers right now. */
+function dockerAnswers(): boolean {
+  try {
+    execFileSync("docker", ["info", "--format", "{{.ServerVersion}}"], {
+      encoding: "utf-8",
+      timeout: 15_000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function firstLine(error: unknown): string {
   const stderr = String((error as { stderr?: Buffer | string }).stderr ?? error).trim();
@@ -131,12 +152,15 @@ async function tiltProcessStatus(pid: number): Promise<"healthy" | "stale" | "un
 
 export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDeps {
   return {
+    colima: runColima,
+    colimaStatus: () => checkColima(),
+    dockerAnswers,
     async listNetworks() {
       const names = (await run(["network", "ls", "--format", "{{.Name}}"]))
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean);
-      // One inspect per network: another process (a doctor probe, `tdk down`) can remove one mid-listing, and a
+      // One inspect per network: another process (a doctor probe, `flisk down`) can remove one mid-listing, and a
       // batched inspect would then fail for all of them.
       const inspected = await Promise.all(
         names.map(async (name): Promise<DockerNetwork | null> => {
@@ -221,16 +245,45 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
 
 export const dockerFixDeps = createDockerFixDeps();
 
+/** Starts or restarts Colima, with a native limactl first on PATH when one is installed. */
+async function runColima(action: "start" | "restart" | "native-lima"): Promise<void> {
+  if (action === "native-lima") {
+    let nativeDir = nativeLimaPath();
+    if (!nativeDir) {
+      // No native limactl on PATH: reinstall Lima through the native Homebrew, which pulls a native build on Apple Silicon.
+      const brewBin = existsSync("/opt/homebrew/bin/brew") ? "/opt/homebrew/bin/brew" : "brew";
+      await execFilePromise(brewBin, ["reinstall", "lima"], {
+        encoding: "utf-8",
+        timeout: 300_000,
+      });
+      nativeDir = nativeLimaPath();
+      if (!nativeDir) {
+        throw new Error("brew reinstall lima did not provide a native limactl");
+      }
+    }
+    const env = nativeDir
+      ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
+      : process.env;
+    await execFilePromise("colima", ["start"], { encoding: "utf-8", timeout: 300_000, env });
+    return;
+  }
+  const nativeDir = nativeLimaPath();
+  const env = nativeDir
+    ? { ...process.env, PATH: `${nativeDir}:${process.env.PATH ?? ""}` }
+    : process.env;
+  await execFilePromise("colima", [action], { encoding: "utf-8", timeout: 300_000, env });
+}
+
 export interface PlanContext {
   /** `tilt up` processes for this project (see `projectTiltPids`). */
   tiltPids?: number[];
-  /** `--scope=machine`: also plan unused networks of other TDK projects. */
+  /** `--scope=machine`: also plan unused networks of other Flisk projects. */
   machine?: boolean;
 }
 
 /**
  * What `--fix` would do: stop this project's stale Tilt; remove unused networks that are a leftover doctor probe or
- * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other TDK projects' unused
+ * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other Flisk projects' unused
  * networks are planned only with `context.machine`, each naming its owner.
  */
 export async function planDoctorFixes(
@@ -259,8 +312,44 @@ export async function planDoctorFixes(
   }
   const projectBusy =
     liveTilt.length > 0
-      ? `Tilt is running for this project (pid ${liveTilt.join(", ")}); run tdk down first`
+      ? `Tilt is running for this project (pid ${liveTilt.join(", ")}); run flisk down first`
       : undefined;
+
+  // The Docker runtime itself: a Colima VM that is not running, one whose daemon does not
+  // answer, or a colima CLI that cannot see the VM. All three look like "Docker is broken".
+  const colima = deps.colimaStatus();
+  const repair = planColimaRepair(colima, deps.dockerAnswers());
+  if (repair === "start") {
+    actions.push({
+      id: "colima:start",
+      check: "Colima",
+      scope: "host",
+      command: "colima start",
+      status: "planned",
+      reason: colima.problem ?? "the Colima VM is not running",
+    });
+  } else if (repair === "restart") {
+    actions.push({
+      id: "colima:restart",
+      check: "Colima",
+      scope: "host",
+      command: "colima restart",
+      status: "planned",
+      reason: "the Colima VM is running but its Docker daemon does not answer",
+    });
+  } else if (repair === "native-lima") {
+    const nativeDir = nativeLimaPath();
+    actions.push({
+      id: "colima:native-lima",
+      check: "Colima",
+      scope: "host",
+      command: nativeDir ? `PATH="${nativeDir}:$PATH" colima start` : "brew reinstall lima",
+      status: "planned",
+      reason: nativeDir
+        ? `the colima CLI on this PATH cannot see the VM; a native limactl is installed in ${nativeDir}`
+        : "the colima CLI on this PATH cannot see the VM; lima is installed as an x86_64 build (brew reinstall lima)",
+    });
+  }
 
   const networks = await deps.listNetworks();
   const freeGib = deps.freeDiskGib();
@@ -375,6 +464,25 @@ export async function applyDoctorFixes(
         results.push({ ...action, status: "applied", reason: "pruned" });
         continue;
       }
+      if (action.id.startsWith("colima:")) {
+        const what = action.id.slice("colima:".length);
+        if (what === "start" || what === "restart") {
+          await deps.colima(what);
+          results.push({ ...action, status: "applied", reason: `colima ${what} ran` });
+          continue;
+        }
+        try {
+          await deps.colima("native-lima");
+          results.push({
+            ...action,
+            status: "applied",
+            reason: "native lima repaired and colima started",
+          });
+        } catch (error) {
+          results.push({ ...action, status: "failed", reason: firstLine(error) });
+        }
+        continue;
+      }
       if (action.id.startsWith("stop-tilt:")) {
         deps.stopProcess(Number(action.id.slice("stop-tilt:".length)));
         results.push({ ...action, status: "applied", reason: "stopped" });
@@ -412,9 +520,9 @@ async function readTdkVersion(path: string): Promise<string | null> {
   }
 }
 
-/** Every distinct `tdk` on PATH (symlinks to one binary count once), in PATH order. */
+/** Every distinct `flisk` on PATH (symlinks to one binary count once), in PATH order. */
 export async function findTdkInstalls(
-  paths: string[] = findAllOnPath("tdk"),
+  paths: string[] = findAllOnPath("flisk"),
   readVersion: (path: string) => Promise<string | null> = readTdkVersion,
 ): Promise<TdkInstall[]> {
   const seen = new Set<string>();
@@ -433,20 +541,20 @@ export async function findTdkInstalls(
   return installs;
 }
 
-/** Two `tdk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
+/** Two `flisk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
 export async function checkDuplicateTdkInstalls(installs?: TdkInstall[]): Promise<CheckResult> {
   const found = installs ?? (await findTdkInstalls());
   if (found.length <= 1) {
-    return { name: "TDK installs", didPass: true, message: "One tdk install on PATH" };
+    return { name: "Flisk installs", didPass: true, message: "One flisk install on PATH" };
   }
   const list = found.map((i) => `${i.path} (${i.version ?? "version unknown"})`).join(", ");
   const versions = new Set(found.map((i) => i.version));
   return {
-    name: "TDK installs",
+    name: "Flisk installs",
     didPass: false,
     isWarning: true,
-    message: `${found.length} tdk installs on PATH${versions.size > 1 ? " with different versions" : ""}: ${list}`,
-    fix: "Keep one: remove the others, or run tdk upgrade. The first on PATH is the one your shell runs; tools that launch /usr/local/bin/tdk directly may use another",
+    message: `${found.length} flisk installs on PATH${versions.size > 1 ? " with different versions" : ""}: ${list}`,
+    fix: "Keep one: remove the others, or run flisk upgrade. The first on PATH is the one your shell runs; tools that launch /usr/local/bin/flisk directly may use another",
   };
 }
 

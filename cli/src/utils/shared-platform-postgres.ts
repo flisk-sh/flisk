@@ -1,8 +1,9 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { DiscoveredResource } from "../types/index.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "./project-config-defaults.js";
 import { discoverResourcesFromRoot } from "./services.js";
@@ -11,12 +12,12 @@ import { discoverResourcesFromRoot } from "./services.js";
  * Shared platform Postgres start predicate.
  *
  * Both names mean the one shared platform Postgres Tilt resource `postgres`.
- * The engine start path is selection-bounded (tdk up --only); verify/doctor
- * evaluate the project resource set they already inspect (no tdk up filter).
+ * The engine start path is selection-bounded (flisk up --only); verify/doctor
+ * evaluate the project resource set they already inspect (no flisk up filter).
  * Both surfaces use this same predicate shape over their own resource set.
  *
  * Feature state is read from project.json **and** the generated Tiltfile /
- * spec.master when present, because a stock `tdk up` focus pass expands
+ * spec.master when present, because a stock `flisk up` focus pass expands
  * CORE_INFRA → database-management even when project.json omits it.
  *
  * Spec: openspec/changes/dependson-starts-platform-postgres
@@ -45,7 +46,7 @@ export interface SharedPlatformPostgresEvaluation {
   featureOnFromSpecMaster: boolean;
   /**
    * True when default focus/CORE_INFRA expansion would enable database-management
-   * on a typical `tdk up` even if project.json says off (INFRA_STACK_MAP).
+   * on a typical `flisk up` even if project.json says off (INFRA_STACK_MAP).
    */
   focusWouldEnableDatabaseManagement: boolean;
   /** Resource names whose dependsOn lists postgres or database-management. */
@@ -167,11 +168,11 @@ export function databaseManagementEnabled(projectRoot: string): boolean {
 }
 
 /** Known names for unknown-dependsOn detection: discovered services/stacks + project stacks/infra. */
-function knownDependsonNames(projectRoot: string): Set<string> {
+function knownDependsonNames(projectRoot: string, resources: DiscoveredResource[]): Set<string> {
   const known = new Set<string>();
   for (const name of POSTGRES_DEPENDENCY_NAMES) known.add(name);
 
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     known.add(resource.name);
     if (resource.stack) known.add(resource.stack);
   }
@@ -201,7 +202,7 @@ function knownDependsonNames(projectRoot: string): Set<string> {
  * Evaluate whether shared platform Postgres will start for this project.
  *
  * willStart = featureOn OR any inspected project resource depends on either name.
- * Resource set is project scope (discoverResourcesFromRoot), NOT tdk up --only.
+ * Resource set is project scope (discoverResourcesFromRoot), NOT flisk up --only.
  *
  * Also reports focusWouldEnableDatabaseManagement so doctor/verify can warn that
  * default focus expands CORE_INFRA → database-management even when project.json
@@ -209,6 +210,7 @@ function knownDependsonNames(projectRoot: string): Set<string> {
  */
 export function evaluateSharedPlatformPostgres(
   projectRoot: string,
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): SharedPlatformPostgresEvaluation {
   const featureOnFromProjectJson = projectJsonFeatureOn(projectRoot);
   const fromTilt = tiltfileAlwaysEnabledInfra(projectRoot);
@@ -219,12 +221,12 @@ export function evaluateSharedPlatformPostgres(
   const focusWouldEnableDatabaseManagement =
     !featureOnFromProjectJson && generatedDefaultFocusEnablesDatabaseManagement(projectRoot);
 
-  const known = knownDependsonNames(projectRoot);
+  const known = knownDependsonNames(projectRoot, resources);
 
   const dependsOnUsers: string[] = [];
   const unknownDependsOnNames: Array<{ resource: string; name: string }> = [];
 
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     const deps = resource.config?.dependsOn ?? [];
     let usesSharedPostgres = false;
     for (const dep of deps) {
@@ -266,10 +268,10 @@ export function sharedPlatformPostgresMessage(
   evaluation: SharedPlatformPostgresEvaluation,
 ): string {
   const projectScopeNote =
-    " (project resource set; tdk up may select a subset and not start Postgres)";
+    " (project resource set; flisk up may select a subset and not start Postgres)";
   if (!evaluation.willStart) {
     const focusNote = evaluation.focusWouldEnableDatabaseManagement
-      ? " Note: default focus/CORE_INFRA expansion would enable database-management on a typical tdk up even when project.json lists it off."
+      ? " Note: default focus/CORE_INFRA expansion would enable database-management on a typical flisk up even when project.json lists it off."
       : "";
     return `Shared platform Postgres will not start for this project.json/generated Tiltfile state (no database-management feature, no selected dependsOn).${focusNote}`;
   }

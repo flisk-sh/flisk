@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🐳 TILT SDK - BUNIGNORE GENERATORS (Option 2: Reduce node_modules size)

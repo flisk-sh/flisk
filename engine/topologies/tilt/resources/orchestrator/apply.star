@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🎯 TILT SDK - ORCHESTRATOR APPLY
@@ -27,13 +27,13 @@ def apply_app_service(resource_config, ctx):
     # resource_config here is a STACK-level grouping from discovery_orchestrator.star
     # (its own 'name'/'appName' is the stack, e.g. "auth") - the actual
     # individual services live nested in resource_config['resources'], each
-    # with its own 'name' (e.g. "auth-api-backend"). tdk stack/tdk project -
+    # with its own 'name' (e.g. "auth-api-backend"). flisk stack/flisk project -
     # the CLI's own standard scaffolding - populates spec.master's
     # PRE_ALPHA_RESOURCES etc. keyed by individual SERVICE name, not stack
     # name. Checking should_enable() only at the stack level silently drops
     # every service whose stack name isn't itself individually enabled, even
     # when the service is - which is the common case for any project using
-    # the CLI's normal `tdk resource` + `tdk stack` workflow. Fall back to
+    # the CLI's normal `flisk resource` + `flisk stack` workflow. Fall back to
     # checking each nested service name before giving up on this group.
     stack_enabled = should_enable(resource_name)
     service_enabled = False

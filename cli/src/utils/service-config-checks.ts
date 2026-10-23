@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { relative } from "node:path";
 import chalk from "chalk";
@@ -55,8 +55,11 @@ function findDependencyCycles(resources: DiscoveredResource[]): string[][] {
 }
 
 /** A dependsOn that is not a list of service names cannot be followed, so say so instead of failing later. */
-export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.cwd()): CheckResult {
-  const problems = discoverResourcesFromRoot(projectRoot).flatMap((resource) =>
+export function checkDependsOnShape(
+  projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+): CheckResult {
+  const problems = resources.flatMap((resource) =>
     declaredDependsOn(resource) === null
       ? [
           `${filePath(projectRoot, resource)} dependsOn ${JSON.stringify(resource.config?.dependsOn)}: expected an array of service names`,
@@ -81,8 +84,8 @@ export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.c
 /** Services that wait on each other can never both start. A dependsOn name that is not a service is left to the unknown-name check. */
 export function checkCircularDependencies(
   projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
-  const resources = discoverResourcesFromRoot(projectRoot);
   const byName = new Map(resources.map((r) => [r.name, r]));
   const cycles = findDependencyCycles(resources);
 
@@ -106,9 +109,12 @@ export function checkCircularDependencies(
   };
 }
 
-/** A port outside 1-65535 can never be bound, and `tdk up` would otherwise find out only when Docker fails. */
-export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd()): CheckResult {
-  const problems = discoverResourcesFromRoot(projectRoot).flatMap((resource) => {
+/** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
+export function checkServicePorts(
+  projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+): CheckResult {
+  const problems = resources.flatMap((resource) => {
     const port: unknown = resource.config?.port;
     if (port === undefined) return [];
     if (typeof port === "number" && Number.isInteger(port) && port >= 1 && port <= 65535) return [];
@@ -130,22 +136,23 @@ export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd
 
 /**
  * A service.json with no schemaVersion is how every project began, so this is a warning: it keeps working, and only
- * `tdk config migrate` writes the field. A version this tdk does not know is reported the same way, with a different fix.
+ * `flisk config migrate` writes the field. A version this flisk does not know is reported the same way, with a different fix.
  */
 export function checkSchemaVersions(
   projectRoot = findProjectRoot() ?? process.cwd(),
   strict = false,
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
   const missing: string[] = [];
   const unsupported: string[] = [];
-  for (const resource of discoverResourcesFromRoot(projectRoot)) {
+  for (const resource of resources) {
     const version: unknown = resource.config?.schemaVersion;
     if (version === SERVICE_MANIFEST_SCHEMA_VERSION) continue;
     const file = filePath(projectRoot, resource);
     if (version === undefined) missing.push(`${file} schemaVersion: missing`);
     else
       unsupported.push(
-        `${file} schemaVersion ${JSON.stringify(version)}: this tdk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`,
+        `${file} schemaVersion ${JSON.stringify(version)}: this flisk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`,
       );
   }
 
@@ -157,9 +164,9 @@ export function checkSchemaVersions(
     };
   }
   const fixes = [
-    ...(missing.length > 0 ? ["Run `tdk config migrate` to add the missing schemaVersion"] : []),
+    ...(missing.length > 0 ? ["Run `flisk config migrate` to add the missing schemaVersion"] : []),
     ...(unsupported.length > 0
-      ? ["A version this tdk does not support cannot be migrated: upgrade tdk"]
+      ? ["A version this flisk does not support cannot be migrated: upgrade flisk"]
       : []),
   ];
   return {
@@ -172,8 +179,8 @@ export function checkSchemaVersions(
 }
 
 /** Prints the schemaVersion warning once. It never stops anything: the project keeps working as it is. */
-export function warnSchemaVersions(projectRoot: string): void {
-  const check = checkSchemaVersions(projectRoot);
+export function warnSchemaVersions(projectRoot: string, resources?: DiscoveredResource[]): void {
+  const check = checkSchemaVersions(projectRoot, false, resources);
   if (check.didPass) return;
   console.warn(chalk.yellow(`⚠ ${check.message}`));
   if (check.fix) console.warn(chalk.gray(`  ${check.fix}`));
@@ -185,14 +192,15 @@ export function warnSchemaVersions(projectRoot: string): void {
  */
 export function enforceServiceConfigGate(
   projectRoot: string,
-  options: { onInvalid?: (message: string) => void } = {},
+  options: { onInvalid?: (message: string) => void; resources?: DiscoveredResource[] } = {},
   exit: (code: number) => never = process.exit,
 ): void {
+  const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
   const failed = [
-    checkDuplicateResourceNames(projectRoot),
-    checkDependsOnShape(projectRoot),
-    checkCircularDependencies(projectRoot),
-    checkServicePorts(projectRoot),
+    checkDuplicateResourceNames(projectRoot, resources),
+    checkDependsOnShape(projectRoot, resources),
+    checkCircularDependencies(projectRoot, resources),
+    checkServicePorts(projectRoot, resources),
   ].filter((check) => !check.didPass);
   if (failed.length === 0) return;
 

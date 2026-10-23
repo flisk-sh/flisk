@@ -1,7 +1,8 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { Command } from "commander";
 import { vi } from "vitest";
+import { ProcessExitError } from "../utils/errors.js";
 import { captureExit } from "./doubles.js";
 
 export interface InProcessRun {
@@ -46,7 +47,7 @@ export async function runCommandInProcess(
   let status: number | undefined;
   try {
     await command.parseAsync([...args], { from: "user" }).catch((error: unknown) => {
-      if (!(error instanceof Error && error.message === "process.exit")) throw error;
+      if (!(error instanceof ProcessExitError)) throw error;
     });
   } finally {
     // Read the exit code before the restore: mockRestore clears the spy's recorded calls.

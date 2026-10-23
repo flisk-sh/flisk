@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Weekly CI cost and health report (#1289, tracker #1279). For each job: run count, p50 and p90 duration, failure,
 // cancellation and skip rates, and flaky cases (a failure and a pass of the same job on the same commit). It also reports
@@ -199,7 +199,7 @@ function gh(args) {
 }
 
 function repoName() {
-	return process.env.GITHUB_REPOSITORY ?? "tdk-landscape/tdk-cli-core";
+	return process.env.GITHUB_REPOSITORY ?? "flisk-sh/flisk";
 }
 
 function fetchRuns(days) {

@@ -1,9 +1,9 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { formatUiKeyHint, formatUiKeyNames, TABS, UI_KEYMAP } from "../ui-keymap.js";
 
-describe("tdk ui keymap", () => {
+describe("flisk ui keymap", () => {
   it("has labeled entries with unique ids and keys", () => {
     const ids = UI_KEYMAP.map((shortcut) => shortcut.id);
     const keys = UI_KEYMAP.flatMap((shortcut) => shortcut.keys);

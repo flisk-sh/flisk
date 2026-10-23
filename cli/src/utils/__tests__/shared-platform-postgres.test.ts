@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,6 +9,7 @@ import {
   evaluateSharedPlatformPostgres,
   isSharedPlatformPostgresDependency,
   POSTGRES_DEPENDENCY_NAMES,
+  sharedPlatformPostgresMessage,
 } from "../shared-platform-postgres.js";
 
 let root: string;
@@ -213,8 +214,8 @@ describe("evaluateSharedPlatformPostgres", () => {
     expect(evaluation.reason).toBe("dependsOn");
   });
 
-  it("finds dependsOn postgres via project-scoped discovery (not tdk up --only)", () => {
-    // Resource lives under a stack a hypothetical `tdk up --only other` would not select.
+  it("finds dependsOn postgres via project-scoped discovery (not flisk up --only)", () => {
+    // Resource lives under a stack a hypothetical `flisk up --only other` would not select.
     resource("other", "billing-api", {
       appType: "backend",
       port: 4100,
@@ -236,5 +237,102 @@ describe("evaluateSharedPlatformPostgres", () => {
     expect(evaluation.unknownDependsOnNames).toEqual([]);
     expect(evaluation.willStart).toBe(true);
     expect(evaluation.dependsOnUsers).toEqual(["orders-api"]);
+  });
+});
+
+describe("sharedPlatformPostgresMessage", () => {
+  it("formats will-not-start message without focus warning when false", () => {
+    const evaluation = {
+      featureOn: false,
+      featureOnFromProjectJson: false,
+      featureOnFromTiltfile: false,
+      featureOnFromSpecMaster: false,
+      focusWouldEnableDatabaseManagement: false,
+      dependsOnUsers: [],
+      willStart: false,
+      reason: "none" as const,
+      unknownDependsOnNames: [],
+    };
+
+    const msg = sharedPlatformPostgresMessage(evaluation);
+    expect(msg).toBe(
+      "Shared platform Postgres will not start for this project.json/generated Tiltfile state (no database-management feature, no selected dependsOn).",
+    );
+  });
+
+  it("appends focus warning note when willStart is false but focus would enable it", () => {
+    const evaluation = {
+      featureOn: false,
+      featureOnFromProjectJson: false,
+      featureOnFromTiltfile: false,
+      featureOnFromSpecMaster: false,
+      focusWouldEnableDatabaseManagement: true,
+      dependsOnUsers: [],
+      willStart: false,
+      reason: "none" as const,
+      unknownDependsOnNames: [],
+    };
+
+    const msg = sharedPlatformPostgresMessage(evaluation);
+    expect(msg).toContain(
+      "Note: default focus/CORE_INFRA expansion would enable database-management on a typical flisk up even when project.json lists it off.",
+    );
+  });
+
+  it("formats will-start message for project.json feature enablement", () => {
+    const evaluation = {
+      featureOn: true,
+      featureOnFromProjectJson: true,
+      featureOnFromTiltfile: false,
+      featureOnFromSpecMaster: false,
+      focusWouldEnableDatabaseManagement: false,
+      dependsOnUsers: [],
+      willStart: true,
+      reason: "feature" as const,
+      unknownDependsOnNames: [],
+    };
+
+    const msg = sharedPlatformPostgresMessage(evaluation);
+    expect(msg).toBe(
+      "Shared platform Postgres will start because the database-management feature is enabled (project resource set; flisk up may select a subset and not start Postgres)",
+    );
+  });
+
+  it("formats will-start message when feature is enabled via Tiltfile", () => {
+    const evaluation = {
+      featureOn: true,
+      featureOnFromProjectJson: false,
+      featureOnFromTiltfile: true,
+      featureOnFromSpecMaster: false,
+      focusWouldEnableDatabaseManagement: false,
+      dependsOnUsers: [],
+      willStart: true,
+      reason: "feature" as const,
+      unknownDependsOnNames: [],
+    };
+
+    const msg = sharedPlatformPostgresMessage(evaluation);
+    expect(msg).toContain(
+      "the database-management feature is enabled (generated Tiltfile/spec.master)",
+    );
+  });
+
+  it("formats will-start message when started via dependsOn", () => {
+    const evaluation = {
+      featureOn: false,
+      featureOnFromProjectJson: false,
+      featureOnFromTiltfile: false,
+      featureOnFromSpecMaster: false,
+      focusWouldEnableDatabaseManagement: false,
+      dependsOnUsers: ["orders-api", "billing-api"],
+      willStart: true,
+      reason: "dependsOn" as const,
+      unknownDependsOnNames: [],
+    };
+
+    const msg = sharedPlatformPostgresMessage(evaluation);
+    expect(msg).toBe(
+      "Shared platform Postgres will start because resource(s) orders-api, billing-api depend on postgres/database-management (project resource set; flisk up may select a subset and not start Postgres)",
+    );
   });
 });

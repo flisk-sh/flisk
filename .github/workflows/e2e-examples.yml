@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     if: github.event_name == 'pull_request'
     permissions:
@@ -35,7 +35,7 @@ jobs:
 
   e2e-examples:
     name: e2e-examples
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docs
     # Skip on docs-only pull requests; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.docs.result != 'failure' && needs.docs.outputs.docs_only != 'true' }}
@@ -58,10 +58,10 @@ jobs:
           ports: "80 443 5432"
 
       # The four default-example cases (tests/e2e/examples/default), run in order.
-      - name: Build and pack the candidate TDK package
+      - name: Build and pack the candidate Flisk package
         run: tests/e2e/examples/default/run.sh D1
 
-      - name: Pack and install the candidate TDK package
+      - name: Pack and install the candidate Flisk package
         run: tests/e2e/examples/default/run.sh D2 # zizmor: ignore[adhoc-packages] installs our own freshly packed tarball
 
       - name: Clone and configure the bundled example
@@ -91,5 +91,5 @@ jobs:
         run: |
           if [ -d tdk-example ]; then
             cd tdk-example
-            tdk down || true
+            flisk down || true
           fi

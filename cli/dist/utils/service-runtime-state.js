@@ -2,7 +2,7 @@ import { buildStartupReport, transitiveDependencies } from "./startup-report.js"
 import { effectiveRuntimeStatus, isTiltResourcePending } from "./tilt-resource-state.js";
 import { onlyEnabledResources } from "./up-readiness.js";
 /**
- * The one answer to "is this service ready?" for `tdk status` and `tdk ui`, from Tilt's resources and the `dependsOn`
+ * The one answer to "is this service ready?" for `flisk status` and `flisk ui`, from Tilt's resources and the `dependsOn`
  * in service.json. A service whose own process is up is still not ready while something it depends on has failed or
  * is still starting. Services Tilt does not list are absent: the caller shows them as unknown.
  */

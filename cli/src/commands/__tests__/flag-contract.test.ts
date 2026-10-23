@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -11,6 +11,7 @@ import {
   runCommandInProcess,
   runTdk,
 } from "../../test-support/index.js";
+import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
 import { configCommand } from "../config.js";
 import { downCommand } from "../down.js";
 import { ejectCommand } from "../eject.js";
@@ -161,6 +162,9 @@ const EXEMPT: Record<string, string> = {
     "with --fix, removes unused Docker networks on the host's Docker daemon; a test run would act on that daemon",
   "down --json":
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "down --yes":
+    "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "import --yes": "spawns npx flisk-import over the network",
   "logs --json":
     "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
   "restart --json":
@@ -261,7 +265,7 @@ const IN_PROCESS_TARGETS: Record<string, { command: Command; args: string[] }> =
 
 describe("flag contract: --json", () => {
   it.each(JSON_MATRIX)(
-    "tdk $command --json prints one envelope in a project",
+    "flisk $command --json prints one envelope in a project",
     async ({ command, project }) => {
       // In-project rows run the command object in-process: the envelope is printed by the command itself, so the
       // child process adds no coverage here. Outside-project rows stay spawns, because they exercise the top-level handler.
@@ -276,7 +280,7 @@ describe("flag contract: --json", () => {
   );
 
   it.each(JSON_MATRIX)(
-    "tdk $command --json outside a project fails with a null-data envelope",
+    "flisk $command --json outside a project fails with a null-data envelope",
     ({ command }) => {
       const result = runTdk([...command, "--json"], { cwd: createTempDir() });
       expect(result.status).toBe(1);
@@ -353,7 +357,7 @@ const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
 
 describe("flag contract: --dry-run", () => {
   it.each(DRY_RUN_MATRIX)(
-    "tdk $site prints its plan and writes nothing",
+    "flisk $site prints its plan and writes nothing",
     async ({ command, project, expect: line }) => {
       const root = createTempProject(project);
       const before = snapshotTree(root);
@@ -370,7 +374,7 @@ describe("flag contract: --dry-run", () => {
 
 describe("flag contract: --yes", () => {
   it.each(YES_MATRIX)(
-    "tdk $site runs without a prompt when stdin is closed",
+    "flisk $site runs without a prompt when stdin is closed",
     ({ command, project }) => {
       const root = createTempProject(project);
       const result = runTdk([...command, "--yes"], { cwd: root, input: "", timeout: 60_000 });
@@ -378,4 +382,94 @@ describe("flag contract: --yes", () => {
       expect(`${result.stdout}${result.stderr}`).not.toMatch(/\(y\/n\)|\[y\/N\]/i);
     },
   );
+});
+
+function collectCommands(
+  command: Command,
+  prefix: string[] = [],
+): Array<{ name: string; command: Command }> {
+  const pathParts = [...prefix, command.name()].filter(Boolean);
+  const items: Array<{ name: string; command: Command }> = [{ name: pathParts.join(" "), command }];
+  for (const sub of command.commands) {
+    items.push(...collectCommands(sub, pathParts));
+  }
+  return items;
+}
+
+describe("flag contract: -y/--yes and --force convention", () => {
+  it("every command that defines --yes also defines -y", async () => {
+    const allCommands = (await loadAllCommands()).flatMap((cmd) => collectCommands(cmd));
+    const missingShort = allCommands.flatMap(({ name, command }) =>
+      command.options
+        .filter((option) => option.long === "--yes" && option.short !== "-y")
+        .map(() => name),
+    );
+    expect(missingShort).toEqual([]);
+  });
+
+  it("uses the shared YES_OPTION_DESCRIPTION across standard --yes commands", async () => {
+    const allCommands = new Map(
+      (await loadAllCommands())
+        .flatMap((cmd) => collectCommands(cmd))
+        .map(({ name, command }) => [name, command] as const),
+    );
+    for (const commandName of [
+      "project",
+      "resource",
+      "stack",
+      "eject",
+      "import",
+      "upgrade",
+      "down",
+    ]) {
+      const command = allCommands.get(commandName);
+      expect(command, `expected command "${commandName}" to exist`).toBeDefined();
+      const yesOption = command?.options.find((option) => option.long === "--yes");
+      expect(yesOption?.short, `expected "${commandName}" to have -y`).toBe("-y");
+      expect(yesOption?.description, `expected "${commandName}" to use shared description`).toBe(
+        YES_OPTION_DESCRIPTION,
+      );
+    }
+  });
+
+  it("never defines --force with a 'skip confirmation' description", async () => {
+    const allCommands = (await loadAllCommands()).flatMap((cmd) => collectCommands(cmd));
+    const badForce = allCommands.flatMap(({ name, command }) =>
+      command.options
+        .filter(
+          (option) =>
+            option.long === "--force" &&
+            /(skip|bypass|suppress|without).*(confirm|prompt)/i.test(option.description),
+        )
+        .map((option) => `${name}: ${option.description}`),
+    );
+    expect(badForce).toEqual([]);
+  });
+
+  it("uses consistent descriptions for --json options", async () => {
+    const allCommands = (await loadAllCommands()).flatMap((cmd) => collectCommands(cmd));
+    const jsonOptions = allCommands.flatMap(({ name, command }) =>
+      command.options
+        .filter((option) => option.long === "--json")
+        .map((option) => ({ name, description: option.description })),
+    );
+    expect(jsonOptions.length).toBeGreaterThan(0);
+    for (const { description } of jsonOptions) {
+      const lower = description.toLowerCase();
+      expect(lower.includes("json") || lower.includes("machine-readable")).toBe(true);
+    }
+  });
+});
+
+describe("flag contract: unknown flag handling", () => {
+  it("rejects unknown flags with error and non-zero exit code", () => {
+    const dir = createTempDir("tdk-unknown-flag-");
+    try {
+      const res = runTdk(["status", "--nonexistent-flag-test"], { cwd: dir });
+      expect(res.status).toBe(1);
+      expect(res.stderr).toContain("error: unknown option");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

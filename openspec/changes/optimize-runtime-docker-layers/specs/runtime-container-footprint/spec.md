@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Keeps the per-container CPU, memory and image-size cost of generated TDK runtimes small enough that a large landscape (100+ resources) can run on a 16 GB developer machine without starving the container runtime.
+Keeps the per-container CPU, memory and image-size cost of generated Flisk runtimes small enough that a large landscape (100+ resources) can run on a 16 GB developer machine without starving the container runtime.
 
 ## ADDED Requirements
 
@@ -44,7 +44,7 @@ Container healthchecks generated for services and golden images SHALL default to
 
 #### Scenario: Configured interval is honoured
 
-- **WHEN** `tdk up` runs with `TDK_HEALTHCHECK_INTERVAL_SECONDS` set (e.g. `15`)
+- **WHEN** `flisk up` runs with `TDK_HEALTHCHECK_INTERVAL_SECONDS` set (e.g. `15`)
 - **THEN** the generated compose files and golden images use that interval
 
 #### Scenario: One-shot migrator images carry no healthcheck
@@ -70,10 +70,10 @@ A golden runtime image SHALL contain only tooling that every service of that run
 
 ### Requirement: Idle Backend Footprint Budget
 
-A backend generated from the default TDK backend template SHALL, when idle (running and healthy, with no incoming requests), stay within 64 MiB container memory and average under 2% of one CPU core over 60 seconds, as reported by `docker stats`.
+A backend generated from the default Flisk backend template SHALL, when idle (running and healthy, with no incoming requests), stay within 64 MiB container memory and average under 2% of one CPU core over 60 seconds, as reported by `docker stats`.
 
 #### Scenario: Measuring an idle template backend
 
-- **WHEN** a backend generated with `tdk resource <name> --type backend` has been running and healthy for 60 seconds with no incoming requests
+- **WHEN** a backend generated with `flisk resource <name> --type backend` has been running and healthy for 60 seconds with no incoming requests
 - **THEN** its container memory usage is at most 64 MiB
 - **AND** its average CPU usage over the following 60 seconds is below 2% of one core

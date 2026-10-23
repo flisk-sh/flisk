@@ -12,21 +12,23 @@ export interface HealthProbe extends HealthTarget {
     error?: string;
 }
 export declare function getProjectName(): string;
-export declare function resolveSubdomainBases(ingressPort?: number): {
+/** The project name of a specific project root, for tools that work outside the current directory. */
+export declare function getProjectNameFor(root: string | null): string;
+export declare function resolveSubdomainBases(ingressPort?: number, projectRoot?: string | null): {
     appBase: string;
     apiBase: string;
 };
 export declare function appendHealthPath(path: string): string;
-/** The route `tdk up` advertises for a service, without the /health suffix. */
+/** The route `flisk up` advertises for a service, without the /health suffix. */
 export declare function resolveServicePath(resource: DiscoveredResource): string;
 /**
- * Health URLs for every routable service, matching what `tdk up` prints.
+ * Health URLs for every routable service, matching what `flisk up` prints.
  * Workers, libraries, SDKs and migrators have no Traefik route, so they are
  * skipped rather than reported as unreachable.
  */
 export declare function buildHealthTargets(resources: DiscoveredResource[], ingressPort?: number): HealthTarget[];
 /**
- * The URL `tdk up` and `tdk networks` advertise for each routable service, with no suffix. A service can answer /health while
+ * The URL `flisk up` and `flisk networks` advertise for each routable service, with no suffix. A service can answer /health while
  * this URL is a 404 (nothing handles the bare path), which is the dead link users click.
  */
 export declare function buildAdvertisedTargets(resources: DiscoveredResource[], ingressPort?: number): HealthTarget[];

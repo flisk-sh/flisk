@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "backend",
-  "description": "A backend resource in each language on a live stack: scaffold with tdk resource --language, tdk up, a routed health check through Traefik, tdk restart, and one error envelope when Tilt is unreachable (3.5, #1290; #1294). The matrix runs one leg per language.",
+  "description": "A backend resource in each language on a live stack: scaffold with flisk resource --language, flisk up, a routed health check through Traefik, flisk restart, and one error envelope when Tilt is unreachable (3.5, #1290; #1294). The matrix runs one leg per language.",
   "paths": [
     "cli/src/backend-languages/**",
     "cli/src/backend-frameworks/**",

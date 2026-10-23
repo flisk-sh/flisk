@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 
@@ -30,7 +30,7 @@ cleanup() {
 trap cleanup EXIT
 
 if ! command -v "$CLI" >/dev/null 2>&1; then
-  echo "tdk CLI not found: $CLI" >&2
+  echo "flisk CLI not found: $CLI" >&2
   exit 1
 fi
 if ! command -v ajv >/dev/null 2>&1; then
@@ -95,7 +95,7 @@ while :; do
   now=$(date +%s)
   (( now <= deadline )) || break
   candidates=()
-  # Prefer URLs TDK itself reports for the legacy service.
+  # Prefer URLs Flisk itself reports for the legacy service.
   remaining=$((deadline - $(date +%s)))
   if (( remaining > 0 )); then
     networks_output=$(timeout "$remaining" "$CLI" networks --raw 2>/dev/null || true)
@@ -135,7 +135,7 @@ while :; do
   done
 
   if ! kill -0 "$up_pid" 2>/dev/null; then
-    wait "$up_pid" || { echo "tdk up shop exited before health became ready"; tail -100 up.log; exit 1; }
+    wait "$up_pid" || { echo "flisk up shop exited before health became ready"; tail -100 up.log; exit 1; }
   fi
   now=$(date +%s)
   elapsed=$(( now - started_at ))

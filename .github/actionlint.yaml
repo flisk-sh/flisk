@@ -1,0 +1,14 @@
+# Runner labels that GitHub adds before the bundled actionlint knows them. Remove an entry once the pinned actionlint lists it.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
+
+# Path-specific ignores. Each one is a gap in the pinned actionlint, not a problem with
+# the workflow, and each says which actionlint version should make the entry unnecessary.
+paths:
+  .github/workflows/security-alert-issues.yml:
+    ignore:
+      # The vulnerability-alerts permission scope exists (GitHub's workflow syntax lists
+      # it) but the pinned actionlint does not know it yet. It is what reads the
+      # Dependabot alerts; security-events only covers the code scanning ones.
+      - 'unknown permission scope "vulnerability-alerts"'

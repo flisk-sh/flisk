@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * A Tilt resource that is not built and running yet: still waiting (`pending`, `none`) or building right now

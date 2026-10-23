@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,7 +28,7 @@ describe("project assets and Verdaccio E2E", () => {
     }
   });
 
-  it("does not require Verdaccio for `tdk doctor`'s environment check", () => {
+  it("does not require Verdaccio for `flisk doctor`'s environment check", () => {
     projectRoot = copyProject(baseRoot);
     writeFileSync(
       join(projectRoot, ".env"),
@@ -169,7 +169,7 @@ describe("project assets and Verdaccio E2E", () => {
     const backendService = JSON.parse(
       readFileSync(join(projectRoot, "services", "alpha", "api", "service.json"), "utf-8"),
     );
-    // No prisma by default: `tdk resource` creates no prisma/schema.prisma or dependency, so
+    // No prisma by default: `flisk resource` creates no prisma/schema.prisma or dependency, so
     // enabling it made the generated Dockerfile fail on `COPY .../prisma` for every new backend.
     expect(backendService.featuresEnabled).toEqual([]);
 

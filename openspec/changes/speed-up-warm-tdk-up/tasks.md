@@ -1,7 +1,7 @@
 ## 1. Baseline
 
-- [x] 1.1 Add a small script (or `tdk` debug command) that prints per-resource build durations from Tilt's `uiresources` build history for a running project. (`scripts/benchmark/tilt-build-durations.mjs`)
-- [x] 1.2 Record a baseline on `tdk-restaurant-example`: one cold-cache and three warm `tdk up` runs, with machine, Docker CPU/memory and TDK version. Post it on #1023. (posted: cold 63 s, warm 10 to 18 s)
+- [x] 1.1 Add a small script (or `flisk` debug command) that prints per-resource build durations from Tilt's `uiresources` build history for a running project. (`scripts/benchmark/tilt-build-durations.mjs`)
+- [x] 1.2 Record a baseline on `tdk-restaurant-example`: one cold-cache and three warm `flisk up` runs, with machine, Docker CPU/memory and Flisk version. Post it on #1023. (posted: cold 63 s, warm 10 to 18 s)
 
 ## 2. Golden images: skip when unchanged, bake when not
 

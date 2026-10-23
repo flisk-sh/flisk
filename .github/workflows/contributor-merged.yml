@@ -32,7 +32,7 @@ jobs:
       github.event.pull_request.user.type == 'User' &&
       !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) &&
       !contains(fromJSON('["kburym","odykyi"]'), github.event.pull_request.user.login))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -58,9 +58,18 @@ jobs:
               core.info(`Skipping #${pr.number}: not a merged community PR.`);
               return;
             }
-            const MARK_PR = '<!-- tdk:contributor-merged -->';
-            const MARK_ISSUE = `<!-- tdk:issue-fixed:${pr.number} -->`;
+            const MARK_PR = '<!-- flisk:contributor-merged -->';
+            const MARK_ISSUE = `<!-- flisk:issue-fixed:${pr.number} -->`;
             const base = `https://github.com/${owner}/${repo}`;
+            // shields.io splits badge segments on `-` and does not allow escaping
+            // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
+            // Replace `-` with `_` in the badge subject only; the link text keeps
+            // the real login.
+            const badgeLogin = (login) => login.replace(/-/g, '_');
+            const badgeUrl = (login, prs) =>
+              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + badgeLogin(login) + ' \u2022 ' + prs + ' merged PRs')}-06b6d4?style=for-the-badge&labelColor=07080f`;
+            const copySnippet = (login, prs) =>
+              `[![FLISK HALL OF FAME @${login} • ${prs} merged PRs](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
 
             const hasMark = async (number, mark) => {
               const comments = await github.paginate(github.rest.issues.listComments,
@@ -142,21 +151,31 @@ jobs:
             if (fixed) lines.push('', `This fixes ${fixed}. It will ship in the next release and appear in the [CHANGELOG](${base}/blob/main/CHANGELOG.md).`);
             const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
             const MILESTONES = {
-              1: 'This is your first merged PR here. Welcome to TDK! 💜',
+              1: 'This is your first merged PR here. Welcome to Flisk! 💜',
               2: 'Your 2nd merged PR. Coming back for a second one means a lot. 💜',
               3: 'Your 3rd merged PR. You now know this codebase well enough that we will point you at medium-difficulty issues. 🌱',
               5: 'Your 5th merged PR. That makes you a regular contributor, and we are glad to have you. 🌟',
-              10: 'Your 10th merged PR! Double digits. You have shaped a real part of TDK, and we would love your view on direction too: open an issue or RFC any time. 🚀',
+              10: 'Your 10th merged PR! Double digits. You have shaped a real part of Flisk, and we would love your view on direction too: open an issue or RFC any time. 🚀',
               15: 'Your 15th merged PR. At this point you are practically a maintainer. Would you like to help review other contributors\' PRs? Just say so. 🙌',
-              20: 'Your 20th merged PR. Remarkable consistency, thank you for sticking with TDK. 🏔️',
-              30: 'Your 30th merged PR. TDK is measurably better because of you. 💎',
+              20: 'Your 20th merged PR. Remarkable consistency, thank you for sticking with Flisk. 🏔️',
+              30: 'Your 30th merged PR. Flisk is measurably better because of you. 💎',
               50: 'Your 50th merged PR! This is a rare milestone. We would like to invite you to become a maintainer: a maintainer will reach out. 👑',
               80: 'Your 80th merged PR. Few projects are lucky enough to have a contributor like you. Thank you. 🏆',
-              100: 'Your 100th merged PR! 🎉🎉🎉 An extraordinary contribution to TDK. Thank you, truly. 💯',
+              100: 'Your 100th merged PR! 🎉🎉🎉 An extraordinary contribution to Flisk. Thank you, truly. 💯',
             };
             lines.push('', MILESTONES[mergedCount]
               || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`);
             if (rankLine) lines.push('', rankLine);
+            // Your personal FLISK HALL OF FAME badge, ready to copy into your portfolio or README.
+            lines.push('', '<details>');
+            lines.push('', '<summary>Your FLISK HALL OF FAME badge</summary>');
+            lines.push('', '');
+            lines.push('', 'Paste this into your portfolio or README. It links back to the open Hall of Fame issue.');
+            lines.push('', '');
+            lines.push('', '`- ' + copySnippet(author, mergedCount) + '`');
+            lines.push('', '');
+            lines.push('', '</details>');
+            lines.push('', '');
             // Link the open hall-of-fame issue so a new contributor can find their place on it.
             try {
               const hall = (await retry(() => github.rest.search.issuesAndPullRequests({
@@ -175,7 +194,7 @@ jobs:
             const starred = await retry(() => github.paginate(github.rest.activity.listReposStarredByUser,
               { username: author, per_page: 100 })).catch(() => null);
             if (starred && !starred.some((r) => r.full_name === `${owner}/${repo}`)) {
-              lines.push('', `If TDK helps you, a ⭐ star on [${owner}/${repo}](${base}) helps other people find it. Thank you!`);
+              lines.push('', `If Flisk helps you, a ⭐ star on [${owner}/${repo}](${base}) helps other people find it. Thank you!`);
             }
             lines.push('', 'If you hit anything unclear while working on this, tell us in a comment. That is how the contributor guide gets better.');
 
@@ -190,7 +209,7 @@ jobs:
                 MARK_ISSUE,
                 `Fixed by #${pr.number} from @${author}, merged into \`${pr.base.ref}\` as ${pr.merge_commit_sha.slice(0, 7)}. This closes the issue. The fix ships in the next release and appears in the [CHANGELOG](${base}/blob/main/CHANGELOG.md).`,
                 '',
-                `Thank you @${author}! 💜 If you want to keep up with TDK:`,
+                `Thank you @${author}! 💜 If you want to keep up with Flisk:`,
                 `- 🔔 [Watch ${owner}/${repo}](${base}) to hear about the next release.`,
                 `- 📣 Share this issue or the fix with someone who hits the same problem.`,
                 `- 🏢 Follow the [${owner}](https://github.com/${owner}) org to see what ships next.`,

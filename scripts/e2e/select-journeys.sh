@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Chooses the journey suites (tests/e2e/journeys/*/suite.json) that run for this event, and writes the job matrix and the CLI
 # version to test to $GITHUB_OUTPUT (#1298). A suite runs when its `triggers` has this event's trigger, and on a pull request
@@ -20,19 +20,20 @@ case "$event" in
       *) trigger="none" ;;
     esac ;;
   workflow_run) trigger="release" ;;
+  push) trigger="main" ;;
   workflow_dispatch) trigger="manual" ;;
   *) trigger="none" ;;
 esac
 
 case "$event" in
   workflow_run) version="$(node -p "require('./package.json').version")" ;;
-  pull_request | merge_group) version=local ;;
+  pull_request | merge_group | push) version=local ;;
   workflow_dispatch) version="${VERSION_INPUT:-local}" ;;
   *) version=latest ;;
 esac
 
 changed=""
-if [ "$event" = pull_request ] || [ "$event" = merge_group ]; then
+if [ "$event" = pull_request ] || [ "$event" = merge_group ] || [ "$event" = push ]; then
   changed="$(git diff --name-only "${BASE_SHA:?BASE_SHA is required}" HEAD)"
 fi
 
@@ -41,7 +42,7 @@ names=()
 for file in tests/e2e/journeys/*/suite.json; do
   [ -f "$file" ] || continue
   jq -e --arg t "$trigger" '.triggers | index($t) != null' "$file" >/dev/null || continue
-  if [ "$event" = pull_request ] || [ "$event" = merge_group ]; then
+  if [ "$event" = pull_request ] || [ "$event" = merge_group ] || [ "$event" = push ]; then
     hit=no
     while IFS= read -r pattern; do
       glob="${pattern//\*\*/*}" # a `**` glob matches across directories in bash's pattern match

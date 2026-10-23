@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Helm companion guide establishes ownership
-`docs/with-helm.md` SHALL be titled “TDK + Helm (they are not alternatives)” and SHALL diagram the machine path from `service.json` through `tdk up` to Docker + Tilt + Traefik `*.localhost`, alongside the cluster path from the same image through Helm / Flux / Argo to Deployment + Service + Ingress. It SHALL distinguish TDK scaffolding, local Dockerfile layering, Tilt, local proxy/Postgres, and stack subsets from cluster replicas, probes, ingress class, PVCs, node selectors, IRSA, and HPA. It SHALL explicitly preserve existing bjw-s app-template, official, and homegrown charts and Kustomize workflows.
+`docs/with-helm.md` SHALL be titled “Flisk + Helm (they are not alternatives)” and SHALL diagram the machine path from `service.json` through `flisk up` to Docker + Tilt + Traefik `*.localhost`, alongside the cluster path from the same image through Helm / Flux / Argo to Deployment + Service + Ingress. It SHALL distinguish Flisk scaffolding, local Dockerfile layering, Tilt, local proxy/Postgres, and stack subsets from cluster replicas, probes, ingress class, PVCs, node selectors, IRSA, and HPA. It SHALL explicitly preserve existing bjw-s app-template, official, and homegrown charts and Kustomize workflows.
 
 #### Scenario: Helm user locates production ownership
 - **WHEN** a user reads the companion guide
@@ -22,21 +22,21 @@ The guide and `examples/one-backend-helm/` SHALL include a minimal handwritten a
 - **THEN** the values validate and render with the documented backend image and port without claiming a complete production deployment
 
 ### Requirement: Website exposes Helm alongside onboarding
-Website navigation SHALL expose Helm or With Kubernetes next to Quickstart. Website comparisons and `docs/compare-honest.md` SHALL explicitly contrast TDK local generation/run behavior with Helm/app-template Kubernetes rendering, with Helm discussed before Garden/Skaffold in the core comparison page. Website SHALL link the canonical companion guide or an equivalent synchronized page.
+Website navigation SHALL expose Helm or With Kubernetes next to Quickstart. Website comparisons and `docs/compare-honest.md` SHALL explicitly contrast Flisk local generation/run behavior with Helm/app-template Kubernetes rendering, with Helm discussed before Garden/Skaffold in the core comparison page. Website SHALL link the canonical companion guide or an equivalent synchronized page.
 
 #### Scenario: Website reader seeks Helm guidance
 - **WHEN** a reader visits navigation or comparisons
 - **THEN** they can directly reach Helm guidance and identify which tool runs the local stack and which renders cluster resources
 
 ### Requirement: Documentation-only handoff does not promise export
-This change SHALL ship the handwritten values handoff before any export feature. Published docs SHALL explain continuing to write Helm values by hand and SHALL NOT present `tdk export helm` as available. A future exporter SHALL require its own implementation proposal and validation.
+This change SHALL ship the handwritten values handoff before any export feature. Published docs SHALL explain continuing to write Helm values by hand and SHALL NOT present `flisk export helm` as available. A future exporter SHALL require its own implementation proposal and validation.
 
 #### Scenario: Reader chooses the handoff path
 - **WHEN** a reader reaches the guide's decision section
 - **THEN** they find a supported documentation path for handwritten values without a command stub or unavailable-command instruction
 
 ### Requirement: Timed reviewer exercise confirms comprehension
-Acceptance SHALL include a recorded exercise with a Helm-using reader: the purpose SHALL be clear after a 60-second README scan, and after no more than ten minutes reading only README and the companion guide the reader SHALL correctly answer what `tdk up` starts and where, what TDK does not replace, where `service.json` stops and `values.yaml` starts, and whether bjw-s app-template can remain in production. The final answer SHALL be yes.
+Acceptance SHALL include a recorded exercise with a Helm-using reader: the purpose SHALL be clear after a 60-second README scan, and after no more than ten minutes reading only README and the companion guide the reader SHALL correctly answer what `flisk up` starts and where, what Flisk does not replace, where `service.json` stops and `values.yaml` starts, and whether bjw-s app-template can remain in production. The final answer SHALL be yes.
 
 #### Scenario: Helm reviewer completes the exercise
 - **WHEN** the reviewer reads the two documents within the stated time budget

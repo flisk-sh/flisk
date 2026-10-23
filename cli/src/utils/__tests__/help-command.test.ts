@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { Command } from "commander";
 import { describe, expect, it } from "vitest";
@@ -21,5 +21,18 @@ describe("unknownHelpTarget", () => {
     expect(unknownHelpTarget(["help", "--help"], commands)).toBeUndefined();
     expect(unknownHelpTarget(["bogus"], commands)).toBeUndefined();
     expect(unknownHelpTarget([], commands)).toBeUndefined();
+  });
+
+  it("checks every command, not just the first", () => {
+    expect(unknownHelpTarget(["help", "status"], commands)).toBeUndefined();
+  });
+
+  it("treats every name as unknown when there are no commands", () => {
+    expect(unknownHelpTarget(["help", "up"], [])).toBe("up");
+  });
+
+  it("only looks at the word right after `help`", () => {
+    expect(unknownHelpTarget(["help", "up", "bogus"], commands)).toBeUndefined();
+    expect(unknownHelpTarget(["up", "help", "bogus"], commands)).toBeUndefined();
   });
 });

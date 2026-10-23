@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { relative } from "node:path";
 import chalk from "chalk";
@@ -50,8 +50,8 @@ function findDependencyCycles(resources) {
     return [...cycles.values()];
 }
 /** A dependsOn that is not a list of service names cannot be followed, so say so instead of failing later. */
-export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.cwd()) {
-    const problems = discoverResourcesFromRoot(projectRoot).flatMap((resource) => declaredDependsOn(resource) === null
+export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const problems = resources.flatMap((resource) => declaredDependsOn(resource) === null
         ? [
             `${filePath(projectRoot, resource)} dependsOn ${JSON.stringify(resource.config?.dependsOn)}: expected an array of service names`,
         ]
@@ -71,8 +71,7 @@ export function checkDependsOnShape(projectRoot = findProjectRoot() ?? process.c
     };
 }
 /** Services that wait on each other can never both start. A dependsOn name that is not a service is left to the unknown-name check. */
-export function checkCircularDependencies(projectRoot = findProjectRoot() ?? process.cwd()) {
-    const resources = discoverResourcesFromRoot(projectRoot);
+export function checkCircularDependencies(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
     const byName = new Map(resources.map((r) => [r.name, r]));
     const cycles = findDependencyCycles(resources);
     if (cycles.length === 0) {
@@ -94,9 +93,9 @@ export function checkCircularDependencies(projectRoot = findProjectRoot() ?? pro
         fix: 'Remove one "dependsOn" entry in each cycle so the services no longer wait on each other, or move what they share into a third service',
     };
 }
-/** A port outside 1-65535 can never be bound, and `tdk up` would otherwise find out only when Docker fails. */
-export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd()) {
-    const problems = discoverResourcesFromRoot(projectRoot).flatMap((resource) => {
+/** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
+export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const problems = resources.flatMap((resource) => {
         const port = resource.config?.port;
         if (port === undefined)
             return [];
@@ -118,12 +117,12 @@ export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd
 }
 /**
  * A service.json with no schemaVersion is how every project began, so this is a warning: it keeps working, and only
- * `tdk config migrate` writes the field. A version this tdk does not know is reported the same way, with a different fix.
+ * `flisk config migrate` writes the field. A version this flisk does not know is reported the same way, with a different fix.
  */
-export function checkSchemaVersions(projectRoot = findProjectRoot() ?? process.cwd(), strict = false) {
+export function checkSchemaVersions(projectRoot = findProjectRoot() ?? process.cwd(), strict = false, resources = discoverResourcesFromRoot(projectRoot)) {
     const missing = [];
     const unsupported = [];
-    for (const resource of discoverResourcesFromRoot(projectRoot)) {
+    for (const resource of resources) {
         const version = resource.config?.schemaVersion;
         if (version === SERVICE_MANIFEST_SCHEMA_VERSION)
             continue;
@@ -131,7 +130,7 @@ export function checkSchemaVersions(projectRoot = findProjectRoot() ?? process.c
         if (version === undefined)
             missing.push(`${file} schemaVersion: missing`);
         else
-            unsupported.push(`${file} schemaVersion ${JSON.stringify(version)}: this tdk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`);
+            unsupported.push(`${file} schemaVersion ${JSON.stringify(version)}: this flisk supports ${SERVICE_MANIFEST_SCHEMA_VERSION}`);
     }
     if (missing.length === 0 && unsupported.length === 0) {
         return {
@@ -141,9 +140,9 @@ export function checkSchemaVersions(projectRoot = findProjectRoot() ?? process.c
         };
     }
     const fixes = [
-        ...(missing.length > 0 ? ["Run `tdk config migrate` to add the missing schemaVersion"] : []),
+        ...(missing.length > 0 ? ["Run `flisk config migrate` to add the missing schemaVersion"] : []),
         ...(unsupported.length > 0
-            ? ["A version this tdk does not support cannot be migrated: upgrade tdk"]
+            ? ["A version this flisk does not support cannot be migrated: upgrade flisk"]
             : []),
     ];
     return {
@@ -155,8 +154,8 @@ export function checkSchemaVersions(projectRoot = findProjectRoot() ?? process.c
     };
 }
 /** Prints the schemaVersion warning once. It never stops anything: the project keeps working as it is. */
-export function warnSchemaVersions(projectRoot) {
-    const check = checkSchemaVersions(projectRoot);
+export function warnSchemaVersions(projectRoot, resources) {
+    const check = checkSchemaVersions(projectRoot, false, resources);
     if (check.didPass)
         return;
     console.warn(chalk.yellow(`⚠ ${check.message}`));
@@ -168,11 +167,12 @@ export function warnSchemaVersions(projectRoot) {
  * dependsOn and invalid ports exit with 1 and say which file, which field, and how to fix it.
  */
 export function enforceServiceConfigGate(projectRoot, options = {}, exit = process.exit) {
+    const resources = options.resources ?? discoverResourcesFromRoot(projectRoot);
     const failed = [
-        checkDuplicateResourceNames(projectRoot),
-        checkDependsOnShape(projectRoot),
-        checkCircularDependencies(projectRoot),
-        checkServicePorts(projectRoot),
+        checkDuplicateResourceNames(projectRoot, resources),
+        checkDependsOnShape(projectRoot, resources),
+        checkCircularDependencies(projectRoot, resources),
+        checkServicePorts(projectRoot, resources),
     ].filter((check) => !check.didPass);
     if (failed.length === 0)
         return;

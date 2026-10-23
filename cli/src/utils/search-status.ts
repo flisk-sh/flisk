@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 export interface SearchStatus {
   /** Muted suffix shown after the query, e.g. `2 of 5` or `0 matches`. */
@@ -7,7 +7,7 @@ export interface SearchStatus {
   emptyMessage?: string;
 }
 
-/** Describes a `/` search result for the `tdk ui` header; null when there is no query. */
+/** Describes a `/` search result for the `flisk ui` header; null when there is no query. */
 export function describeSearch(query: string, matches: number, total: number): SearchStatus | null {
   if (!query) return null;
   if (matches === 0) {

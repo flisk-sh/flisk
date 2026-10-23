@@ -5,7 +5,7 @@ The existing `.github/workflows/wsl2-smoke.yml` SHALL run `scripts/wsl2-smoke.sh
 
 #### Scenario: WSL2 landscape job passes
 - **WHEN** the required WSL2 job completes on the default branch
-- **THEN** its log shows doctor, `tdk up`, and a successful health check against the routed URL
+- **THEN** its log shows doctor, `flisk up`, and a successful health check against the routed URL
 - **AND** `docs/wsl2.md` links to the workflow history and identifies Docker Engine inside WSL2 as the tested backend
 - **AND** the link does not claim that Docker Desktop integration was tested
 
@@ -31,10 +31,10 @@ The existing `.github/workflows/wsl2-smoke.yml` SHALL run `scripts/wsl2-smoke.sh
 - **THEN** the WSL2 workflow still runs because the push trigger has no path filter
 
 ### Requirement: Native Windows CI verifies inspection and refusal behavior
-A native Windows AMD64 job in the existing `.github/workflows/windows-smoke.yml` SHALL run `tdk --version`, `tdk doctor`, and `tdk up --dry-run`. It SHALL then run `tdk up shop` and verify that the command exits non-zero, prints guidance to use WSL2 Ubuntu, and does not start containers.
+A native Windows AMD64 job in the existing `.github/workflows/windows-smoke.yml` SHALL run `flisk --version`, `flisk doctor`, and `flisk up --dry-run`. It SHALL then run `flisk up shop` and verify that the command exits non-zero, prints guidance to use WSL2 Ubuntu, and does not start containers.
 
 #### Scenario: Native Windows landscape startup is refused
-- **WHEN** the native Windows CI job runs `tdk up shop`
+- **WHEN** the native Windows CI job runs `flisk up shop`
 - **THEN** the command exits non-zero, directs the user to WSL2 Ubuntu, and starts no containers
 
 ### Requirement: Platform rescore is gated on main-branch evidence

@@ -2,7 +2,7 @@
 # Boots the two real example apps (tdk-saas-starter, tdk-restaurant-example)
 # on a clean GitHub-hosted runner with the published CLI, then requires their
 # actual routes to answer, not only /health: JSON from the business endpoints
-# and an HTML page from each frontend. It backs the claim that TDK runs a real
+# and an HTML page from each frontend. It backs the claim that Flisk runs a real
 # app, not just generated health-check stubs.
 #
 # Manual and daily (04:00 UTC). Separate from the ERP scale test on purpose: different
@@ -75,7 +75,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: tdk-landscape/${{ matrix.repo }}
+          repository: flisk-sh/${{ matrix.repo }}
           path: example
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -87,24 +87,24 @@ jobs:
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       # ubuntu-latest ships a Postgres service on 5432, which collides with the
-      # one TDK generates (see e2e-journeys.yml for the whole story).
+      # one Flisk generates (see e2e-journeys.yml for the whole story).
       - name: Free port 5432 (runner's preinstalled Postgres)
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       # The four real-apps cases (tests/e2e/examples/real-apps): install the published CLI, set up and doctor the project, install
-      # the frontend dependencies, then tdk up and require the real routes. This leg's routes come from the matrix.
-      - name: Install TDK from npm
+      # the frontend dependencies, then flisk up and require the real routes. This leg's routes come from the matrix.
+      - name: Install Flisk from npm
         env:
           TDK_VERSION: ${{ inputs.version || 'latest' }}
         run: tests/e2e/examples/real-apps/run.sh A1 # zizmor: ignore[adhoc-packages] the point is to test what users install
 
-      - name: Set up the project and check it with tdk doctor
+      - name: Set up the project and check it with flisk doctor
         run: tests/e2e/examples/real-apps/run.sh A2
 
       - name: Install frontend dependencies for the host typecheck
         run: tests/e2e/examples/real-apps/run.sh A3
 
-      - name: tdk up, then prove the real routes answer
+      - name: flisk up, then prove the real routes answer
         env:
           API_CHECKS: ${{ matrix.api_checks }}
           WEB_CHECKS: ${{ matrix.web_checks }}
@@ -122,7 +122,7 @@ jobs:
         if: failure() || cancelled()
         working-directory: example
         run: |
-          echo "::group::tdk up log (last 200 lines)"
+          echo "::group::flisk up log (last 200 lines)"
           tail -200 up.log 2>/dev/null || true
           echo "::endgroup::"
           echo "::group::containers that are not healthy"
@@ -132,7 +132,7 @@ jobs:
           tilt get uiresources -o json 2>/dev/null | jq -r '.items[] | select(.status.updateStatus == "error") | "\(.metadata.name): \((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' | head -40 || true
           echo "::endgroup::"
 
-      - name: tdk down
+      - name: flisk down
         if: always()
         working-directory: example
-        run: tdk down || true
+        run: flisk down || true

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -6,7 +6,10 @@ import { PROJECT_JSON } from "./constants.js";
 import { findProjectRoot } from "./paths.js";
 import { isApiServiceType } from "./resource-kind.js";
 export function getProjectName() {
-    const root = findProjectRoot();
+    return getProjectNameFor(findProjectRoot());
+}
+/** The project name of a specific project root, for tools that work outside the current directory. */
+export function getProjectNameFor(root) {
     if (root) {
         try {
             const content = readFileSync(join(root, ".tdk", PROJECT_JSON), "utf-8");
@@ -19,8 +22,8 @@ export function getProjectName() {
     }
     return "tdk-project";
 }
-export function resolveSubdomainBases(ingressPort) {
-    const projectName = getProjectName();
+export function resolveSubdomainBases(ingressPort, projectRoot) {
+    const projectName = getProjectNameFor(projectRoot ?? findProjectRoot());
     const raw = process.env.TDK_SERVICE_BASE_URL ??
         `http://${projectName}.localhost${ingressPort ? `:${ingressPort}` : ""}`;
     try {
@@ -53,7 +56,7 @@ export function resolveSubdomainBases(ingressPort) {
 export function appendHealthPath(path) {
     return `${path.replace(/\/+$/, "")}/health`;
 }
-/** The route `tdk up` advertises for a service, without the /health suffix. */
+/** The route `flisk up` advertises for a service, without the /health suffix. */
 export function resolveServicePath(resource) {
     if (isApiServiceType(resource.config?.appType)) {
         const servicePathName = resource.name.replace(/-api$/, "");
@@ -62,7 +65,7 @@ export function resolveServicePath(resource) {
     return resource.config?.basePath ?? `/${resource.name}`;
 }
 /**
- * Health URLs for every routable service, matching what `tdk up` prints.
+ * Health URLs for every routable service, matching what `flisk up` prints.
  * Workers, libraries, SDKs and migrators have no Traefik route, so they are
  * skipped rather than reported as unreachable.
  */
@@ -70,7 +73,7 @@ export function buildHealthTargets(resources, ingressPort) {
     return routableTargets(resources, ingressPort, (path) => appendHealthPath(path));
 }
 /**
- * The URL `tdk up` and `tdk networks` advertise for each routable service, with no suffix. A service can answer /health while
+ * The URL `flisk up` and `flisk networks` advertise for each routable service, with no suffix. A service can answer /health while
  * this URL is a 404 (nothing handles the bare path), which is the dead link users click.
  */
 export function buildAdvertisedTargets(resources, ingressPort) {

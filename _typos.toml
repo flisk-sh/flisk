@@ -24,3 +24,5 @@ unparseable = "unparseable"
 mirrord = "mirrord"
 # Intentional invalid dependency spelling in negative OpenSpec examples.
 postgress = "postgress"
+# Name of the CA bundle package the BYO examples pin.
+certifi = "certifi"

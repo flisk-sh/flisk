@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🌐 - API PATH CONSTANTS (Dynamic)
@@ -121,7 +121,7 @@ def get_frontend_base_path(manifest, res_name=None):
 
     Defaults to the service name: it is unique per service (a stack with two
     frontends would otherwise collide on one route) and it matches the URL
-    `tdk up` prints, so what the CLI advertises is what Traefik serves.
+    `flisk up` prints, so what the CLI advertises is what Traefik serves.
     """
     base_path = manifest.get('basePath') if manifest else None
     if not base_path:

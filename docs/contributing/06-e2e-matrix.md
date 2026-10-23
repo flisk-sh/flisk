@@ -1,6 +1,6 @@
 # 6. Run e2e suites in a matrix
 
-Live-stack tests run as a GitHub Actions matrix. Each suite is one leg, and each leg boots its own stack. Legs run in parallel, so a new suite adds a leg without making the others wait. This page explains how the matrix is built, how to add a suite to it, and how to add a new group of suites in the same way. It is the model for every e2e item in the [test-quality initiative](https://github.com/tdk-landscape/tdk-cli-core/issues/1388).
+Live-stack tests run as a GitHub Actions matrix. Each suite is one leg, and each leg boots its own stack. Legs run in parallel, so a new suite adds a leg without making the others wait. This page explains how the matrix is built, how to add a suite to it, and how to add a new group of suites in the same way. It is the model for every e2e item in the [test-quality initiative](https://github.com/flisk-sh/flisk/issues/1388).
 
 The worked example is the `resource-types` group, which runs from [`e2e-resource-types.yml`](../../.github/workflows/e2e-resource-types.yml). Read [write an e2e test](05-write-e2e.md) first for how a suite's `run.sh` is written.
 
@@ -13,6 +13,8 @@ tests/e2e/lib/suite-matrix.mjs         reads every suite.json in a group and pri
 ```
 
 Nothing in the workflow lists suites by name. Adding a folder with a `suite.json` adds a leg, once its `triggers` include the event.
+
+The `platforms` group is the exception: its workflows name their cases step by step, because a platform suite checks a host environment rather than a stack. [`platforms/windows-hardware`](../../tests/e2e/platforms/windows-hardware/) runs on `windows-latest` as a reference and on a self-hosted Windows 11 machine when a maintainer dispatches the workflow; it is the one suite that needs a machine of its own. [`platforms/wsl2`](../../tests/e2e/platforms/wsl2/) runs its cases in an Ubuntu 24.04 distro under WSL2 on a Windows runner, dispatched by hand; its `WS6` case runs the one-command demo flow and confirms that every service the demo started answers.
 
 ## The plan job, then the matrix
 
@@ -98,6 +100,21 @@ Use this when a new family of tests (for example `packaging` or `failure-recover
 3. Add a `gate` job that always runs and fails when the plan or any leg failed. This is the one check to make required in branch protection, so a skipped matrix cannot pass unnoticed.
 4. Set `max-parallel` to a number the runner pool can handle (the resource-types group uses 4).
 5. Upload failure evidence from each leg with the same `if: failure()` step that `e2e-resource-types.yml` uses.
+
+## The group gates and the CI summary
+
+Three group gates report on every pull request: `e2e-journeys`, `e2e-examples` and `e2e-platforms`. They live in their own workflows, so the `📋 Summary` job of `ci.yml` cannot wait for them with `needs:`. It reads their check runs on the head commit instead, and fails when a gate is missing or did not pass. `📋 Summary` is a required check, so it is what holds a merge back.
+
+A gate only reports when its workflow is triggered, so the summary waits only for the gates that report for the event the CI workflow ran for:
+
+| CI event | Gates the summary waits for |
+|---|---|
+| `pull_request` | `e2e-journeys`, `e2e-examples`, `e2e-platforms` |
+| `merge_group` | `e2e-journeys`, `e2e-examples`, `e2e-platforms` |
+| `push` to main | `e2e-journeys` |
+| `workflow_dispatch` | none: dispatching `ci.yml` starts no gate workflow |
+
+The list lives in `scripts/e2e-gate-expectations.mjs`, the wait in `scripts/wait-for-e2e-gates.mjs`, and `scripts/e2e-gate-expectations.test.mjs` fails when a gate is waited for on an event its workflow cannot report for. Without that rule a push to main waits half an hour for `e2e-examples` and `e2e-platforms`, which never run there, and then fails. A gate that has not reported yet also fails early when its workflow never started for the commit, instead of waiting for the deadline.
 
 ## Rules for matrix legs
 

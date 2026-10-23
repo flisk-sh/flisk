@@ -1,10 +1,15 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { checkHealthRoutes, resolveHealthPaths } from "../doctor-runtime.js";
+import type { DiscoveredResource } from "../../types/index.js";
+import {
+  checkHealthRoutes,
+  findMissingHealthRoutes,
+  resolveHealthPaths,
+} from "../doctor-runtime.js";
 
 describe("checkHealthRoutes", () => {
   let root: string;
@@ -171,5 +176,94 @@ describe("resolveHealthPaths", () => {
       container: "/health",
       traefik: "/ready",
     });
+  });
+});
+
+describe("findMissingHealthRoutes", () => {
+  let tempDir: string;
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "tdk-missing-health-"));
+  });
+  afterEach(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("skips resources without a src directory", () => {
+    const res: DiscoveredResource = {
+      name: "no-src",
+      path: tempDir,
+      configPath: join(tempDir, "service.json"),
+      config: { appName: "no-src", appType: "backend" },
+    };
+    expect(findMissingHealthRoutes([res])).toEqual([]);
+  });
+
+  it("skips resources when src directory has no source files", () => {
+    const src = join(tempDir, "src");
+    mkdirSync(src, { recursive: true });
+    const res: DiscoveredResource = {
+      name: "empty-src",
+      path: tempDir,
+      configPath: join(tempDir, "service.json"),
+      config: { appName: "empty-src", appType: "backend" },
+    };
+    expect(findMissingHealthRoutes([res])).toEqual([]);
+  });
+
+  it("skips non-API resource types like workers or libraries", () => {
+    const src = join(tempDir, "src");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, "index.ts"), "console.log('worker');");
+    const worker: DiscoveredResource = {
+      name: "job-worker",
+      path: tempDir,
+      configPath: join(tempDir, "service.json"),
+      config: { appName: "job-worker", appType: "worker" },
+    };
+    expect(findMissingHealthRoutes([worker])).toEqual([]);
+  });
+
+  it("detects missing route for container and traefik when neither matches", () => {
+    const src = join(tempDir, "src");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, "index.ts"), "app.get('/api/users', () => {});");
+    const res: DiscoveredResource = {
+      name: "api",
+      path: tempDir,
+      configPath: join(tempDir, "service.json"),
+      config: { appName: "api", appType: "backend", healthCheckPath: "/custom-health" },
+    };
+    const missing = findMissingHealthRoutes([res]);
+    expect(missing).toEqual([
+      {
+        name: "api",
+        healthPath: "/custom-health",
+        usedBy: "container and Traefik healthchecks",
+      },
+    ]);
+  });
+
+  it("detects when container healthcheck matches but traefik healthcheck is missing", () => {
+    const src = join(tempDir, "src");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, "index.ts"), 'app.get("/health", handler);');
+    const res: DiscoveredResource = {
+      name: "api",
+      path: tempDir,
+      configPath: join(tempDir, "service.json"),
+      config: {
+        appName: "api",
+        appType: "backend",
+        traefik: { healthCheck: "/traefik-ready" },
+      },
+    };
+    const missing = findMissingHealthRoutes([res]);
+    expect(missing).toEqual([
+      {
+        name: "api",
+        healthPath: "/traefik-ready",
+        usedBy: "Traefik healthcheck",
+      },
+    ]);
   });
 });

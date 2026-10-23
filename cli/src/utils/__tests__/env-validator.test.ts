@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -43,10 +43,8 @@ describe("generated project .env", () => {
     const password = envValue(content, "DB_PASSWORD");
     expect(password).toMatch(/^[0-9a-f]{32}$/);
     const url = envValue(content, "DATABASE_URL");
-    if (url !== undefined && url !== "") {
-      expect(url).toContain(`:${password}@`);
-      expect(url).not.toContain(":postgres@");
-    }
+    expect(url).toBe(`postgresql://postgres:${password}@postgres:5432/app_dev`);
+    expect(url).not.toContain(":postgres@");
   });
 });
 
@@ -92,6 +90,26 @@ describe("parseEnv Compose-compatible parsing", () => {
       ["N", ""],
       ["VALUE", "foo"],
     ]);
+  });
+
+  it("skips malformed assignments without dropping valid neighbours", () => {
+    const content = [
+      "NO_EQUALS",
+      "=orphan",
+      "1BAD=1",
+      "BAD-NAME=2",
+      "GOOD=kept",
+      "ALSO_GOOD = spaced",
+    ].join("\n");
+
+    expect([...envValidator.parseEnv(content)]).toEqual([
+      ["GOOD", "kept"],
+      ["ALSO_GOOD", "spaced"],
+    ]);
+  });
+
+  it("returns an unterminated quoted value verbatim", () => {
+    expect(envValidator.parseEnv('VALUE="unterminated').get("VALUE")).toBe('"unterminated');
   });
 
   it("decodes the specified double-quoted escapes", () => {
@@ -147,6 +165,21 @@ describe("validateEnvFile parsing", () => {
     expect(envValidator.validateEnvFile(root).warnings.join("\n")).toMatch(
       /DATABASE_URL.*DB_PASSWORD/,
     );
+  });
+
+  it("does not warn when DATABASE_URL references a variable", () => {
+    writeEnv(
+      "TILT_ENV=dev\nDB_PASSWORD=abc123\nJWT_SECRET=y\nDATABASE_URL=postgresql://postgres:$" +
+        "{DB_PASSWORD}@postgres:5432/app_dev\n",
+    );
+    expect(envValidator.validateEnvFile(root).warnings).toEqual([]);
+  });
+
+  it("does not warn when DATABASE_URL carries no password", () => {
+    writeEnv(
+      "TILT_ENV=dev\nDB_PASSWORD=abc123\nJWT_SECRET=y\nDATABASE_URL=postgresql://postgres@postgres:5432/app_dev\n",
+    );
+    expect(envValidator.validateEnvFile(root).warnings).toEqual([]);
   });
 });
 
@@ -232,6 +265,28 @@ describe("completing an existing .env", () => {
     expect(completed).toEqual(["DB_PASSWORD"]);
     expect(password).toMatch(/^[0-9a-f]{32}$/);
     expect(content).toBe(original.replace("DB_PASSWORD=", `DB_PASSWORD=${password}`));
+  });
+
+  it("adds a separator when the existing file has no trailing newline", () => {
+    writeEnv("TILT_ENV=dev\nDB_PASSWORD=keep-this-password");
+    const added = envValidator.completeEnvFile(root);
+    const content = readEnv();
+
+    expect(added).toEqual(["JWT_SECRET"]);
+    expect(
+      content.startsWith("TILT_ENV=dev\nDB_PASSWORD=keep-this-password\n\n# Added by Flisk"),
+    ).toBe(true);
+  });
+
+  it("appends directly after a file ending in a bare carriage return", () => {
+    writeEnv("TILT_ENV=dev\nDB_PASSWORD=keep-this-password\r");
+    const added = envValidator.completeEnvFile(root);
+    const content = readEnv();
+
+    expect(added).toEqual(["JWT_SECRET"]);
+    expect(
+      content.startsWith("TILT_ENV=dev\nDB_PASSWORD=keep-this-password\r\n# Added by Flisk"),
+    ).toBe(true);
   });
 
   it("does not change non-empty generated keys", () => {

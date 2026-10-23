@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Configuration documentation starts with manifests
-Website configuration documentation SHALL show an annotated, syntactically valid `service.json` before generator details, link its authoritative schema, and explain required fields using the real runtime contract. JSON annotations SHALL be external explanatory text rather than invalid JSON comments. Documentation SHALL distinguish `tdk config verify` (checking generated project files against `.tdk/project.json`) from `tdk doctor` (local environment readiness and service checks), and SHALL NOT claim either validates production Helm values or that `config verify` lints `service.json`.
+Website configuration documentation SHALL show an annotated, syntactically valid `service.json` before generator details, link its authoritative schema, and explain required fields using the real runtime contract. JSON annotations SHALL be external explanatory text rather than invalid JSON comments. Documentation SHALL distinguish `flisk config verify` (checking generated project files against `.tdk/project.json`) from `flisk doctor` (local environment readiness and service checks), and SHALL NOT claim either validates production Helm values or that `config verify` lints `service.json`.
 
 #### Scenario: User reads configuration documentation
 - **WHEN** a user opens the configuration page
@@ -15,7 +15,7 @@ Documentation SHALL provide verified schema/editor associations for `service.jso
 - **THEN** the editor resolves the matching schema and the manifest continues to pass existing CLI validation
 
 ### Requirement: One backend is a runnable standalone introduction
-`examples/one-backend/` SHALL provide a single authored service manifest and the minimal source/project setup needed to run one backend, with verified setup commands, prerequisites, `tdk up <stack>`, its actual `*.localhost` URL, a successful curl/health request, and cleanup instructions. It SHALL avoid requiring a Kubernetes cluster and SHALL retain existing landscape examples. The companion Helm example SHALL reference the same application's image identity.
+`examples/one-backend/` SHALL provide a single authored service manifest and the minimal source/project setup needed to run one backend, with verified setup commands, prerequisites, `flisk up <stack>`, its actual `*.localhost` URL, a successful curl/health request, and cleanup instructions. It SHALL avoid requiring a Kubernetes cluster and SHALL retain existing landscape examples. The companion Helm example SHALL reference the same application's image identity.
 
 #### Scenario: User boots the minimal example
 - **WHEN** a user follows the example on a supported host with documented prerequisites

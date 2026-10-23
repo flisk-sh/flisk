@@ -54,22 +54,35 @@ export declare function generateDatabaseManagementCompose(projectConfig: Project
 /** The project has no .tdk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
 export declare class ProjectConfigNotFoundError extends Error {
 }
+/**
+ * Reads, parses, and normalizes `.tdk/project.json` from the given project root.
+ *
+ * The file is read directly instead of being existence-checked first: `fs.existsSync` swallows
+ * filesystem errors and reports an inaccessible config as missing, which hides the real reason.
+ * Only a missing file (`ENOENT`) means "not found"; every other read failure keeps its reason.
+ *
+ * @param projectRoot - Root directory of the Flisk project.
+ * @returns The validated and normalized {@link ProjectConfig}.
+ */
 export declare function readProjectConfig(projectRoot: string): ProjectConfig;
 export interface GenerateMasterConfigsOptions {
     /**
-     * Overwrite a root .tiltignore that carries TDK's generated header but was edited by hand.
-     * Set by `tdk config regenerate`, the explicit "discard hand edits" command. A root
+     * Overwrite a root .tiltignore that carries Flisk's generated header but was edited by hand.
+     * Set by `flisk config regenerate`, the explicit "discard hand edits" command. A root
      * .tiltignore without the header belongs to the team and is never overwritten.
      */
     discardHandEdits?: boolean;
-    /** Suppress progress lines on stdout, for callers that print machine output (`tdk up --json`). */
+    /** Suppress progress lines on stdout, for callers that print machine output (`flisk up --json`). */
     quiet?: boolean;
 }
 export declare function generateMasterConfigs(projectRoot: string, options?: GenerateMasterConfigsOptions): Promise<void>;
 export declare function isTestFile(filePath: string): boolean;
 export declare function findCliAssetRoot(): string | null;
 export declare function ensureProjectRuntimeAssets(projectRoot: string): string[];
-export declare function verifyMasterConfigs(projectRoot: string): {
+export declare function verifyMasterConfigs(projectRoot: string, options?: {
+    manifestPaths?: string[];
+    skipManifestValidation?: boolean;
+}): {
     valid: boolean;
     errors: string[];
     warnings: string[];
@@ -77,7 +90,7 @@ export declare function verifyMasterConfigs(projectRoot: string): {
         file: string;
         diff: string;
     }>;
-    /** Generated service files (project-relative) whose content differs from their TDK snapshot, i.e. edited by hand. */
+    /** Generated service files (project-relative) whose content differs from their Flisk snapshot, i.e. edited by hand. */
     handEdited: string[];
 };
 export {};

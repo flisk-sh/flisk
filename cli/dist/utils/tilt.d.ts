@@ -16,5 +16,6 @@ export declare function buildTiltUpArgs(serviceNames: string[], options?: {
 }): string[];
 export declare function buildTiltDownArgs(options?: {
     force?: boolean;
+    yes?: boolean;
     focusTargets?: string[];
 }): string[];

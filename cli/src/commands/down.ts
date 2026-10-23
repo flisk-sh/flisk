@@ -1,9 +1,9 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
-import { handleDryRun } from "../utils/command-helpers.js";
+import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import {
   pruneProjectNetworks,
   stopProjectTiltUp,
@@ -47,10 +47,10 @@ function pruneNetworksOrWarn(json: boolean): ReturnType<typeof pruneProjectNetwo
   }
 }
 
-export const downCommand = new Command("down")
+export const downCommand = addYesOption(new Command("down"))
   .description("Stop all tilt resources")
   .option("-v, --verbose", "Enable verbose output", false)
-  .option("-f, --force", "Accepted for script compatibility; has no effect", false)
+  .option("-f, --force", "Deprecated alias for --yes; accepted for script compatibility", false)
   .option(
     "--prune-networks",
     "Also remove this project's Docker networks (only those no container is attached to)",
@@ -64,7 +64,17 @@ export const downCommand = new Command("down")
       if (options.json) writeMachineError(projectRootError);
       projectRootError.exit();
     }
-    const emit = options.json ? createJsonEmitter("DOWN_FAILED", "tdk down") : undefined;
+
+    if (options.force) {
+      options.yes = true;
+      if (!options.json) {
+        console.warn(
+          chalk.yellow("Note: --force (-f) on flisk down is deprecated; use --yes (-y) instead."),
+        );
+      }
+    }
+
+    const emit = options.json ? createJsonEmitter("DOWN_FAILED", "flisk down") : undefined;
     await withTiltCheck(async () => {
       if (emit && options.dryRun) {
         emit({ ok: true, dryRun: true });
@@ -75,7 +85,6 @@ export const downCommand = new Command("down")
       }
 
       const tiltArgs = buildTiltDownArgs({
-        force: options.force,
         focusTargets: allStackNames(),
       });
 

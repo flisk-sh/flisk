@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# The prisma feature on a live stack (#1487, tracker #1279). Prisma is the only ORM the CLI supports: `tdk resource --feature prisma`
+# The prisma feature on a live stack (#1487, tracker #1279). Prisma is the only ORM the CLI supports: `flisk resource --feature prisma`
 # writes prisma/schema.prisma and prisma.config.ts, adds DATABASE_URL, and registers a <name>-migrator service that runs
 # `prisma migrate deploy` before the API starts. One leg; the suite is not split by language.
 #
@@ -10,7 +10,7 @@
 #
 # The scaffolded API keeps the template's /health and gets a /health/db route that queries Postgres through DATABASE_URL, so
 # P4 proves the API reaches the database and not only that the container is up.
-# Needs: tdk on PATH, Docker, Tilt, Node 22+, jq, curl.
+# Needs: flisk on PATH, Docker, Tilt, Node 22+, jq, curl.
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -66,8 +66,8 @@ P1() { # scaffold a backend with the prisma feature and give it a /health/db rou
   write_api_index "$res/src/index.ts"
 }
 
-P2() { # tdk up, the API is routed and listed as a backend in tdk status
-  log "P2 tdk up; $API is routed and listed as a backend"
+P2() { # flisk up, the API is routed and listed as a backend in flisk status
+  log "P2 flisk up; $API is routed and listed as a backend"
   : >"$DIR/up.log"
   start_stack "$STACK"
   wait_status_url "$API"
@@ -76,7 +76,7 @@ P2() { # tdk up, the API is routed and listed as a backend in tdk status
 
 P3() { # DATABASE_URL is in the API container's environment
   log "P3 DATABASE_URL is set in the $API container"
-  # P2 proves tdk status lists the API, not that Tilt has started its container yet, so wait for the running container first.
+  # P2 proves flisk status lists the API, not that Tilt has started its container yet, so wait for the running container first.
   poll_until "a running $API container" "$READY_TIMEOUT" api_running
   local c; c="$(api_container)"
   docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$c" >"$OUT/api-env.txt"

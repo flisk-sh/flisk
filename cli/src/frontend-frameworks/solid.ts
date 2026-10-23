@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { FrontendFrameworkProvider } from "./types.js";
 
@@ -51,7 +51,7 @@ render(() => <App />, document.getElementById('app')!);
   return (
     <div style={{ padding: '2rem', 'font-family': 'system-ui' }}>
       <h1>${name}</h1>
-      <p>Frontend resource created with TDK</p>
+      <p>Frontend resource created with Flisk</p>
     </div>
   );
 }

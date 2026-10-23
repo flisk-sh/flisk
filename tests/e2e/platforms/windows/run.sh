@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # The native Windows CLI on windows-latest (moved from the retired windows-smoke workflow, #1300). The workflow checks out the
 # repository, sets up Node and installs dependencies; each case here is one step of its old job, with the same logic:
 #   W1 typecheck the CLI, build it and run its help
 #   W2 the Windows platform unit tests
-#   W3 native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing (native-refusal.ps1)
+#   W3 native Windows refuses doctor, up --dry-run and up shop with WSL2 guidance and starts nothing
+#   W4 native Windows refuses the one-command demo before it clones, installs or boots anything
 #
 #   tests/e2e/platforms/windows/run.sh all      every case in order
 #   tests/e2e/platforms/windows/run.sh W2 W3    single cases
@@ -36,6 +37,12 @@ W3() { # native Windows refuses the CLI with WSL2 guidance and starts nothing
   log "W3 native Windows CLI contract"
   cd "$REPO_ROOT/cli"
   pwsh -NoProfile -File "$(windows_path "$SUITE_DIR/native-refusal.ps1")"
+}
+
+W4() { # native Windows refuses the one-command demo before it clones or installs anything
+  log "W4 native Windows demo contract"
+  cd "$REPO_ROOT/cli"
+  pwsh -NoProfile -File "$(windows_path "$SUITE_DIR/demo-refusal.ps1")"
 }
 
 e2e_main "$@"

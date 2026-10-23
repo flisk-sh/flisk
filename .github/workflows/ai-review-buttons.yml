@@ -12,7 +12,7 @@ name: 🤖 AI review buttons
 
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers] never checks out or runs PR code; only writes the PR body
-    types: [opened, reopened, edited]
+    types: [opened, reopened]
   workflow_dispatch:
 
 permissions: {}
@@ -27,7 +27,7 @@ jobs:
   append:
     name: Append AI review buttons
     if: github.event_name == 'pull_request_target'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     # No same-repo if. Forks are covered because this event runs the workflow
     # from the base branch. Do not checkout the PR head and do not run PR code.
@@ -94,7 +94,7 @@ jobs:
   backfill:
     name: Backfill open PRs
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 100 open PRs at a few seconds each; stay under a hard cap.
     timeout-minutes: 15
     # Same rules as append: checkout main only, never a PR head, only write the body.

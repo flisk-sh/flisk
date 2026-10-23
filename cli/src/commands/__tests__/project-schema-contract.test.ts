@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,7 +13,7 @@ const schema = JSON.parse(
 const validateProject = new Ajv({ allErrors: false, strict: false }).compile(schema);
 
 // The project schema is only an editor hint: the CLI stays the runtime source of truth. This keeps the hint in step with the
-// file `tdk project` really writes, the same way service-schema-contract.test.ts does for service.json.
+// file `flisk project` really writes, the same way service-schema-contract.test.ts does for service.json.
 describe("project-schema.json", () => {
   let projectRoot = "";
   let defaults: Record<string, unknown> = {};
@@ -33,7 +33,7 @@ describe("project-schema.json", () => {
     return { valid, errors: validateProject.errors ?? [] };
   };
 
-  it("accepts the default .tdk/project.json that tdk project writes", () => {
+  it("accepts the default .tdk/project.json that flisk project writes", () => {
     const { valid, errors } = validate(defaults);
     expect(errors).toEqual([]);
     expect(valid).toBe(true);

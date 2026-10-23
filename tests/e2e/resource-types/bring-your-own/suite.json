@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "bring-your-own",
-  "description": "A bring-your-own app, job, pair or Python service in each byoVariant on its own check: example (the container alone), tdk (through tdk up and Traefik with TDK's Postgres), job (a one-shot through tdk up), pair (a dependency and an app through tdk up), python-dry-run (the resource contract and up --dry-run, no Docker) and python-boot (the Python fixture boots and answers its health route). The matrix runs one leg per variant (#1297).",
+  "description": "A bring-your-own app, job, pair or Python service in each byoVariant on its own check: example (the container alone), flisk (through flisk up and Traefik with Flisk's Postgres), job (a one-shot through flisk up), pair (a dependency and an app through flisk up), python-dry-run (the resource contract and up --dry-run, no Docker) and python-boot (the Python fixture boots and answers its health route). The matrix runs one leg per variant (#1297).",
   "paths": [
     "docs/byo.md",
     "cli/src/commands/resource.ts",
@@ -30,7 +30,7 @@
       "args": "echo /health"
     },
     {
-      "id": "tdk",
+      "id": "flisk",
       "case": "BY2",
       "args": "full-stack-fastapi-template /api/v1/utils/health-check/"
     },

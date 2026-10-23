@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { ResourceType } from "../types/index.js";
 
@@ -37,7 +37,7 @@ export const TECH_STACK_FILE = "TILT_TECH_STACK.star";
 
 export const RESOURCE_DEFAULTS_FILE = "TILT_RESOURCE_DEFAULTS.star";
 
-// TDK project manifest file name. The canonical project config lives at
+// Flisk project manifest file name. The canonical project config lives at
 // `<project-root>/.tdk/project.json` — discovery, doctor, generator, config
 // edits, and stack-features all read/write it. Referenced by value across
 // these modules, so a typo in one copy would compile and silently stop
@@ -112,7 +112,7 @@ export const STANDARD_PORTS = {
   traefik: 8080,
 } as const;
 
-export const QUICKSTART_DOCS_URL = "https://tdk-landscape.github.io/tdk-website/docs/quickstart/";
+export const QUICKSTART_DOCS_URL = "https://flisk.sh/docs/quickstart/";
 
 export const BASE_DOMAIN_DEFAULT = "tdk-project.localhost";
 export const APP_SUBDOMAIN_PREFIX = "app";

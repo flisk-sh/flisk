@@ -16,6 +16,7 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "declarationMap": false,
+    "stripInternal": true,
     "sourceMap": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,

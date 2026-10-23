@@ -1,25 +1,64 @@
 # Changelog
 
-Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/package/@tdk-landscape/tdk-cli-core?activeTab=versions) and the [binary releases](https://github.com/tdk-landscape/tdk-cli-releases/releases).
+Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/package/@flisk-sh/flisk?activeTab=versions) and the [binary releases](https://github.com/flisk-sh/releases/releases).
+
+## 1.3.195 (2026-10-21)
+
+- `flisk demo` and `flisk restaurant` now clone the demo template into a fixed directory (`~/.flisk/flisk-demo/`) instead of creating `tdk-restaurant-example-N` directories in the current workspace. Previous runs are cleaned up automatically. The `restaurant` template still creates a named directory in the current folder when used explicitly.
+
+## 1.3.194 (2026-10-21)
+
+- `flisk open` now opens the frontend of the project that was started, not the current working directory. The one-command flow (`npx @flisk-sh/flisk demo`) boots the cloned project and opens its frontend automatically.
+
+## 1.3.193 (2026-10-21)
+
+- New `flisk open` command: opens the first ready frontend in the browser. Works with `--json` output and integrates with the one-command flow.
+
+## 1.3.192 (2026-10-21)
+
+- Fixed the one-command flow (`npx @flisk-sh/flisk demo`): the cloned project now boots in place and the browser opens when the stack is up. The CLI copy was updated from "tdk" to "Flisk" throughout.
+
+## 1.3.191 (2026-10-21)
+
+- One command from scratch: `npx @flisk-sh/flisk demo` (or `restaurant`, `saas`, `erp`, etc.) clones a starter, installs the CLI globally, boots the stack, and opens the frontend.
+- CLI rebrand: all user-facing copy changed from "tdk" / "TDK" to "Flisk" / "flisk" (package scope, homepage, repository, command names, error messages, docs).
+- Internal: `cli/src/utils/one-command.ts` added to run the stack and detect the frontend URL.
+
+## 1.3.190 (2026-10-21)
+
+- Package metadata corrected: `repository`, `bugs`, and `homepage` in `package.json` now point at `flisk-sh/flisk` and `https://flisk.sh` (were still pointing at the decommissioned `tdk-landscape/tdk-cli-core` and `tdk-landscape.github.io`).
+
+## 1.3.189 (2026-10-21)
+
+- `flisk resource` now reports a malformed `service.json` with the file path and the reason it could not be parsed, instead of a raw JSON error (#1685).
+- A malformed or unreadable `.tdk/project.json` now names the file and the reason, instead of failing with a bare parse error (#1681).
+- Error output from the CLI goes through one formatter now, so `TdkError`, `runCommand` and the commands that printed their own red text all read the same way (#1620).
+- New: a workflow opens an issue for every open dependency advisory, with the advisory detail and the labels a contributor needs to find and claim it (#1783, #1784).
+
+## 1.3.188 (2026-10-20)
+
+- Security: the BYO examples install `certifi` 2026.10.19 now (was 2026.7.22). The older bundle shipped the `emSign ECC Root CA - G3` root, and the eight eMudhra intermediate CAs that chain to it had their private keys compromised and were revoked, so anyone holding one of those keys could mint a certificate for any hostname. Advisory GHSA-6q48-6c7w-9gw2 (#1779).
+- Security: `vite` moves to 8.3.3. The `launch-editor` it bundles had three Windows command-injection advisories: CVE-2026-112942, CVE-2026-112943 and CVE-2026-112944. Both advisories are tracked on the [security page](https://github.com/tdk-landscape/tdk-cli-core/security) (#1780).
+- `cli/pnpm-lock.yaml` is regenerated. It had drifted from `cli/package.json`, so `pnpm install --frozen-lockfile` failed there; it tracks the manifest again now (#1780).
 
 ## 1.3.151 (2026-10-12)
 
-- The Prisma migrator image builds again. It used to `COPY` `migrate.sh` and `prisma-runtime-relink.sh` from `shared-platform-engineering/docker-templates/`, which no package ships, so `tdk up` failed with `…/migrate.sh: not found`. Both are now written inline into the Dockerfile. The relink step is reconstructed and not yet verified against a real migrator build (#1094).
+- The Prisma migrator image builds again. It used to `COPY` `migrate.sh` and `prisma-runtime-relink.sh` from `shared-platform-engineering/docker-templates/`, which no package ships, so `flisk up` failed with `…/migrate.sh: not found`. Both are now written inline into the Dockerfile. The relink step is reconstructed and not yet verified against a real migrator build (#1094).
 - Generated Dockerfiles start with `# syntax=docker/dockerfile:1`, so the heredocs in them build on CI's Docker builder (#1092).
 
 ## 1.3.131 (2026-10-12)
 
-- `healthCheckPath` is optional for `appType: "bring-your-own"` in `service.json`, so a service that is not HTTP (Postgres, Redis, MinIO, an SMTP relay) no longer needs a made-up `"/"` to validate. Without it TDK sends no HTTP probe to the service and gives its Traefik route no health check; the container counts as healthy once Docker reports it running. `port` stays required, and a set `healthCheckPath` behaves as before. Fixes #1086.
-- `tdk up` now publishes Traefik on host port 80 (and 443) when they are free, so routed URLs read `http://app.<project>.localhost/<app>` instead of `...localhost:8080/<app>`. It always wanted 80 but only ever tried 8080-8180. On macOS the free-port check treated the kernel's refusal of a non-root bind below 1024 as "busy", although Docker Desktop publishes those ports itself; that also made `TDK_HTTP_PORT=80` fail with "already in use". A project whose saved plan is on 8080 moves to 80 on its next `tdk up` once 80 is free. On Linux and WSL2 a non-root user cannot check port 80, so the 8080-8180 range is kept there. Printed URLs no longer end in `:80`.
-- TDK MCP tools now accept an absolute `projectPath` so a projectless MCP client can run doctor, inspect services and logs, and manage the intended project without depending on the server launch directory.
-- Shared platform stacks (postgres, traefik, proxy, messaging, infisical, monitoring, cdc, elk) now run in Compose projects named `<project>-<stack>` (for example `tdk-erp-system-database-management`) instead of the directory-named `database-management`, `tdk-out` and so on. Two TDK projects on one Docker daemon no longer share them.
+- `healthCheckPath` is optional for `appType: "bring-your-own"` in `service.json`, so a service that is not HTTP (Postgres, Redis, MinIO, an SMTP relay) no longer needs a made-up `"/"` to validate. Without it Flisk sends no HTTP probe to the service and gives its Traefik route no health check; the container counts as healthy once Docker reports it running. `port` stays required, and a set `healthCheckPath` behaves as before. Fixes #1086.
+- `flisk up` now publishes Traefik on host port 80 (and 443) when they are free, so routed URLs read `http://app.<project>.localhost/<app>` instead of `...localhost:8080/<app>`. It always wanted 80 but only ever tried 8080-8180. On macOS the free-port check treated the kernel's refusal of a non-root bind below 1024 as "busy", although Docker Desktop publishes those ports itself; that also made `TDK_HTTP_PORT=80` fail with "already in use". A project whose saved plan is on 8080 moves to 80 on its next `flisk up` once 80 is free. On Linux and WSL2 a non-root user cannot check port 80, so the 8080-8180 range is kept there. Printed URLs no longer end in `:80`.
+- Flisk MCP tools now accept an absolute `projectPath` so a projectless MCP client can run doctor, inspect services and logs, and manage the intended project without depending on the server launch directory.
+- Shared platform stacks (postgres, traefik, proxy, messaging, infisical, monitoring, cdc, elk) now run in Compose projects named `<project>-<stack>` (for example `tdk-erp-system-database-management`) instead of the directory-named `database-management`, `tdk-out` and so on. Two Flisk projects on one Docker daemon no longer share them.
 
-- Two TDK projects that each have a stack with the same name (for example `people`) no longer share Docker names. Compose projects are now `<project>-<stack>-autogenerated`, containers `<project>-<stack>-autogenerated-<service>-1` and images `<project>_<stack>_<service>:dev` (migrators `<project>_<stack>-db-migrator:dev`). Before, the second project's `tdk up` removed the first project's containers as orphans and overwrote its image. Containers from before this change keep the old names and are not removed by the new engine: stop them once, see [docs/layout.md](docs/layout.md).
+- Two Flisk projects that each have a stack with the same name (for example `people`) no longer share Docker names. Compose projects are now `<project>-<stack>-autogenerated`, containers `<project>-<stack>-autogenerated-<service>-1` and images `<project>_<stack>_<service>:dev` (migrators `<project>_<stack>-db-migrator:dev`). Before, the second project's `flisk up` removed the first project's containers as orphans and overwrote its image. Containers from before this change keep the old names and are not removed by the new engine: stop them once, see [docs/layout.md](docs/layout.md).
 
 ## 1.3.130 (2026-10-08)
 
 - Releases now come with a signed checksum list: `checksums.txt.sigstore.json` (keyless Sigstore signature from the release workflow) is attached next to the binaries in [tdk-cli-releases](https://github.com/tdk-landscape/tdk-cli-releases/releases) and to a release with the same tag here. How to verify is in [docs/security.md](docs/security.md#releases). The binaries themselves are not signed individually (#869, #840).
-- `tdk resource` for a Python backend now writes `pytest==9.0.3` in the generated `pyproject.toml` (was 8.3.4, affected by GHSA-6w46-j5rx-g56g) (#867).
+- `flisk resource` for a Python backend now writes `pytest==9.0.3` in the generated `pyproject.toml` (was 8.3.4, affected by GHSA-6w46-j5rx-g56g) (#867).
 - Examples: bumped past open Dependabot alerts: puma 7.2.1 (Sinatra), NestJS 11.1.18, drizzle-orm 0.45.2 and pytest 9.0.3 (#867).
 - Supply chain: every checked-in Dockerfile base image is pinned to a digest (#865).
 - Tests: a property-based fuzz test for the `service.json` line-break guard runs on every pull request (#866).
@@ -38,28 +77,28 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.127 (2026-10-08)
 
-- Security hardening flagged by Socket (#826). The npm package no longer includes `ext/ide-components/code_executor/server.py`, a browser terminal that ran client-supplied commands through a shell. `tdk` and the Tilt engine never started it. The other IDE components are unchanged. `tdk doctor` now single-quotes the registry URL and container name it passes to `curl` and `docker logs`, so a value such as `$(...)` can no longer run a command.
+- Security hardening flagged by Socket (#826). The npm package no longer includes `ext/ide-components/code_executor/server.py`, a browser terminal that ran client-supplied commands through a shell. `flisk` and the Tilt engine never started it. The other IDE components are unchanged. `flisk doctor` now single-quotes the registry URL and container name it passes to `curl` and `docker logs`, so a value such as `$(...)` can no longer run a command.
 
 ## 1.3.126 (2026-10-08)
 
-- Security: fixes [GHSA-phgf-pww4-7jxc](https://github.com/tdk-landscape/tdk-cli-core/security/advisories/GHSA-phgf-pww4-7jxc) (all earlier versions). A line break in a `service.json` value was written into the generated Docker Compose file and could add keys such as `privileged: true` to a service when you ran `tdk up` or `tilt up` on a repository you did not write. `tdk` and the Tilt engine now refuse any `service.json` string key or value that contains a line break (including U+0085, U+2028 and U+2029) or another control character, and `healthCheckPath`, `traefik.host`, `traefik.pathPrefix`, `traefik.healthCheck`, `nats.queueGroup`, `databaseName`, `stack` and `image` must also match a pattern. `smoke` is exempt. `tdk up` and `tdk config regenerate` stop with an error that names the field and does not print the value, and `tilt up` stops the same way. Upgrade, and check `service.json` files from repositories you did not write.
-- `tdk up`, `tdk status` and `tdk ui` now treat a container as ready only once its Docker health check passes. Tilt reports a running container as ready even while its health check is starting or failing, so a Postgres that never accepted connections counted as up and its dependents looked ready. A health check that is still starting now counts as starting (`waiting for postgres` on dependents), and a failing one makes `tdk up` stop with `✗ postgres failed: container is running, but its health check is failing`, the services it blocks, and how many dependents are not ready. Containers without a health check (BYO images) are unchanged. Part of #683.
+- Security: fixes [GHSA-phgf-pww4-7jxc](https://github.com/tdk-landscape/tdk-cli-core/security/advisories/GHSA-phgf-pww4-7jxc) (all earlier versions). A line break in a `service.json` value was written into the generated Docker Compose file and could add keys such as `privileged: true` to a service when you ran `flisk up` or `tilt up` on a repository you did not write. `flisk` and the Tilt engine now refuse any `service.json` string key or value that contains a line break (including U+0085, U+2028 and U+2029) or another control character, and `healthCheckPath`, `traefik.host`, `traefik.pathPrefix`, `traefik.healthCheck`, `nats.queueGroup`, `databaseName`, `stack` and `image` must also match a pattern. `smoke` is exempt. `flisk up` and `flisk config regenerate` stop with an error that names the field and does not print the value, and `tilt up` stops the same way. Upgrade, and check `service.json` files from repositories you did not write.
+- `flisk up`, `flisk status` and `flisk ui` now treat a container as ready only once its Docker health check passes. Tilt reports a running container as ready even while its health check is starting or failing, so a Postgres that never accepted connections counted as up and its dependents looked ready. A health check that is still starting now counts as starting (`waiting for postgres` on dependents), and a failing one makes `flisk up` stop with `✗ postgres failed: container is running, but its health check is failing`, the services it blocks, and how many dependents are not ready. Containers without a health check (BYO images) are unchanged. Part of #683.
 
 ## 1.3.125 (2026-10-08)
 
-- `tdk upgrade` no longer falls back to installing from the repository's moving GitHub default branch when the npm or Bun registry install fails. It reports the original install error, exits non-zero and prints the published-package command (`npm install -g @tdk-landscape/tdk-cli-core@latest` or `bun install -g @tdk-landscape/tdk-cli-core@latest`). npm `EACCES`/`EPERM` failures also point at npm's global-prefix docs and the official installer. Fixes #702.
-- `tdk networks` now lists routable frontend, backend and MCP services that omit `basePath`, using the same default route the generator uses. `--json`, `--raw` and stack filtering are unchanged, and the advice that `basePath` is required is gone. Fixes #719.
-- `tdk down`, `tdk eject` and `tdk logs` report a missing or invalid project root with the shared error and suggestions, before any Docker or Tilt check. `down --json` and `logs --json` return it in one schema-versioned envelope. Fixes #722.
+- `flisk upgrade` no longer falls back to installing from the repository's moving GitHub default branch when the npm or Bun registry install fails. It reports the original install error, exits non-zero and prints the published-package command (`npm install -g @tdk-landscape/tdk-cli-core@latest` or `bun install -g @tdk-landscape/tdk-cli-core@latest`). npm `EACCES`/`EPERM` failures also point at npm's global-prefix docs and the official installer. Fixes #702.
+- `flisk networks` now lists routable frontend, backend and MCP services that omit `basePath`, using the same default route the generator uses. `--json`, `--raw` and stack filtering are unchanged, and the advice that `basePath` is required is gone. Fixes #719.
+- `flisk down`, `flisk eject` and `flisk logs` report a missing or invalid project root with the shared error and suggestions, before any Docker or Tilt check. `down --json` and `logs --json` return it in one schema-versioned envelope. Fixes #722.
 - Registering an SDK resource whose path has no `service.json` now stops before scaffolding with the path and the next step (add a `service.json` with `"appType": "sdk"`, then rerun), instead of a raw `Object.entries` exception. Fixes #714.
 - Repairing an empty generated value in an existing `.env` now rewrites the file atomically and keeps its mode; a failed write leaves the old file intact. Other lines and comments are unchanged. Fixes #724.
 - The engine's remaining Starlark `DEBUG` lines are now printed only with `TDK_DEBUG=1` (`TILT_DEBUG` still works). Fixes #701.
-- Internal: `tdk ui` key bindings come from one typed keymap shared by the help panel, footer and tab bar (#448); the scaffold templates moved to `cli/src/generator/resource-templates.ts` (#699) and doctor's Starlark load checks to `cli/src/utils/doctor-starlark.ts` (#698). No behaviour change.
-- Docs: `docs/ui.md` lists every `tdk ui` key binding (#697); new contributor guides for finding bugs (`docs/contributing/finding-bugs.md`) and for reviewing PRs with the AI buttons (`docs/contributing/04-review-a-pr.md`); a new README intro on why TDK generates the local infrastructure (#738).
+- Internal: `flisk ui` key bindings come from one typed keymap shared by the help panel, footer and tab bar (#448); the scaffold templates moved to `cli/src/generator/resource-templates.ts` (#699) and doctor's Starlark load checks to `cli/src/utils/doctor-starlark.ts` (#698). No behaviour change.
+- Docs: `docs/ui.md` lists every `flisk ui` key binding (#697); new contributor guides for finding bugs (`docs/contributing/finding-bugs.md`) and for reviewing PRs with the AI buttons (`docs/contributing/04-review-a-pr.md`); a new README intro on why Flisk generates the local infrastructure (#738).
 
 ## 1.3.124 (2026-10-07)
 
-- A `service.json` with a `schemaVersion` this tdk does not know now stops `tdk up` (dry run included) before anything starts and names the file; a missing `schemaVersion` still only warns. `tdk up` requires Bun only when the project has services that need it, the same rule `tdk doctor` uses (#731).
-- Discovered resources now carry their `port` and `type`, so `tdk resources --ports`/`--verbose` and `tdk status --json` show real values, and new services no longer all get port 4000 (#736).
+- A `service.json` with a `schemaVersion` this flisk does not know now stops `flisk up` (dry run included) before anything starts and names the file; a missing `schemaVersion` still only warns. `flisk up` requires Bun only when the project has services that need it, the same rule `flisk doctor` uses (#731).
+- Discovered resources now carry their `port` and `type`, so `flisk resources --ports`/`--verbose` and `flisk status --json` show real values, and new services no longer all get port 4000 (#736).
 - `.env` files are parsed like Compose does: inline comments after whitespace, BOM and CRLF, matching quotes and the documented escapes; `N= # c` stays empty. Fixes #725 (#737).
 - CI: `wsl2-smoke` runs only when started by hand (#716, #717, #730).
 
@@ -69,17 +108,17 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.122 (2026-10-07)
 
-- `tdk stack` can assign named resources in scripts with `--resources` (space- or comma-separated) and skip confirmation with `--yes`. Unknown names list valid resources, and non-TTY assignments without explicit resource names fail with a command hint. Invalid JSON encountered while writing now names the affected `service.json`.
+- `flisk stack` can assign named resources in scripts with `--resources` (space- or comma-separated) and skip confirmation with `--yes`. Unknown names list valid resources, and non-TTY assignments without explicit resource names fail with a command hint. Invalid JSON encountered while writing now names the affected `service.json`.
 - Security (GHSA-3hj3-f39v-j2x5): the standalone Traefik (80/443) and Postgres ports bind to loopback instead of `0.0.0.0`, so others on the network can no longer reach them, and the Traefik API/dashboard (`--api.insecure`) is off (#720).
-- `tdk logs`, `tdk doctor --json` and error messages replace values from the project's `.env` (8 characters or longer) with `[REDACTED]` (#703).
-- `tdk up` and `tdk doctor` say when `schemaVersion` is missing or unsupported (#687), and refuse circular `dependsOn` and invalid ports before anything starts (#681).
-- `tdk up` names the next step when another process holds a port (#711) and checks Bun against the same minimum version as `tdk doctor` (#688).
+- `flisk logs`, `flisk doctor --json` and error messages replace values from the project's `.env` (8 characters or longer) with `[REDACTED]` (#703).
+- `flisk up` and `flisk doctor` say when `schemaVersion` is missing or unsupported (#687), and refuse circular `dependsOn` and invalid ports before anything starts (#681).
+- `flisk up` names the next step when another process holds a port (#711) and checks Bun against the same minimum version as `flisk doctor` (#688).
 - Two backends in one stack no longer share the stack-scoped Traefik routers, so each gets its own route (#732).
-- `tdk doctor` no longer reports a port another process listens on as free (#691) and links the Tilt UI URL that is actually running (#712).
-- `tdk logs` tells you to run `tdk up` when Tilt is not reachable (#693).
+- `flisk doctor` no longer reports a port another process listens on as free (#691) and links the Tilt UI URL that is actually running (#712).
+- `flisk logs` tells you to run `flisk up` when Tilt is not reachable (#693).
 - Tech-stack validation messages are fully formatted (#690).
-- `tdk --help` and the cheat sheet list `logs`, `eject`, `import` and `mcp` (#727).
-- `tdk ui` gains a Tilt events timeline (#655).
+- `flisk --help` and the cheat sheet list `logs`, `eject`, `import` and `mcp` (#727).
+- `flisk ui` gains a Tilt events timeline (#655).
 - Engine: the no-op port replacement pass in `compose.star` is removed (#477).
 - Tests: the generated Tilt and Compose files are locked with golden copies (#689); the engine tests declare their Python packages (#729).
 - Docs: command cheat sheet (#692), `up`/`down`/`status` flags (#660), one product description (#694), quick-start URL fixes (#704, #726), issue-claiming and quick setup with a Starlark recipe (#728).
@@ -87,13 +126,13 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.121 (2026-10-07)
 
-- `tdk status` shows readiness per service and marks a service blocked by a failed dependency (#678); `tdk ui` shows the same readiness and names the failed dependency (#679).
-- `tdk up` names the service that failed and what it blocks, and prints `TDK is up.` only once everything is ready (#669). A Tilt resource that is still building is no longer counted as ready (#677).
-- `tdk up` names the host port it wanted, the one it chose and how to force one (#667). A second `tdk up` no longer starts another Tilt on a new port: it prints `Environment is already running` and exits 0, and `--force` replaces the running one (#663).
+- `flisk status` shows readiness per service and marks a service blocked by a failed dependency (#678); `flisk ui` shows the same readiness and names the failed dependency (#679).
+- `flisk up` names the service that failed and what it blocks, and prints `Flisk is up.` only once everything is ready (#669). A Tilt resource that is still building is no longer counted as ready (#677).
+- `flisk up` names the host port it wanted, the one it chose and how to force one (#667). A second `flisk up` no longer starts another Tilt on a new port: it prints `Environment is already running` and exits 0, and `--force` replaces the running one (#663).
 - Misspelled stack and resource names get a "did you mean" suggestion (#618).
-- Generated files are written atomically (#668), and their headers say to run `tdk config regenerate` (#680).
-- `tdk ui`: a stack with no known service status shows as unknown, not error (#671).
-- Docs: `tdk doctor --no-ping` and `--ping-timeout` (#659), the MCP agent guide (#675), Codex MCP setup (#674, #676), project history notes (#670, #672); OpenSpec for stabilizing local-dev commands (#662). #665 (drift gate spec) was reverted by #666 after it left conflict markers on `main`.
+- Generated files are written atomically (#668), and their headers say to run `flisk config regenerate` (#680).
+- `flisk ui`: a stack with no known service status shows as unknown, not error (#671).
+- Docs: `flisk doctor --no-ping` and `--ping-timeout` (#659), the MCP agent guide (#675), Codex MCP setup (#674, #676), project history notes (#670, #672); OpenSpec for stabilizing local-dev commands (#662). #665 (drift gate spec) was reverted by #666 after it left conflict markers on `main`.
 
 ## 1.3.120 (2026-10-07)
 
@@ -106,8 +145,8 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 ## 1.3.118 (2026-10-06)
 
 - A resource that `dependsOn` the shared platform Postgres now starts it (#643, #646).
-- `tdk resource --feature prisma` on a backend also creates a `<api>-migrator` resource that runs `prisma migrate deploy`, and the API depends on it (#649), and `tdk doctor` fails inconsistent Prisma 7 setups (#647, #648).
-- `tdk ui` shows the CLI version and the discovered resources (#638), pages through long lists with the keyboard (#645), and hides the unfinished Events tab (#622).
+- `flisk resource --feature prisma` on a backend also creates a `<api>-migrator` resource that runs `prisma migrate deploy`, and the API depends on it (#649), and `flisk doctor` fails inconsistent Prisma 7 setups (#647, #648).
+- `flisk ui` shows the CLI version and the discovered resources (#638), pages through long lists with the keyboard (#645), and hides the unfinished Events tab (#622).
 - Docs: `TILT_TECH_STACK` version scope (#625); OpenSpec for a NestJS bring-your-own example (#636).
 - CI: conflict-resolution buttons on PRs, spec badges kept on one line (#651).
 
@@ -118,7 +157,7 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.116 (2026-10-06)
 
-- `tdk ui` adapts its layout to the terminal size (#635) and the resource table columns are clearer (#637).
+- `flisk ui` adapts its layout to the terminal size (#635) and the resource table columns are clearer (#637).
 - CI: "Write spec" buttons on issue bodies (#632).
 
 ## 1.3.115 (2026-10-05)
@@ -127,7 +166,7 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.114 (2026-10-05)
 
-- `tdk status` pointed to a `tdk list-stacks` command that does not exist; it now points to `tdk stacks`. `--json` adds the resource count, each stack's resources and the unassigned ones. Fixes #79 (#621).
+- `flisk status` pointed to a `flisk list-stacks` command that does not exist; it now points to `flisk stacks`. `--json` adds the resource count, each stack's resources and the unassigned ones. Fixes #79 (#621).
 
 ## 1.3.113 (2026-10-05)
 
@@ -135,65 +174,65 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.112 (2026-10-05)
 
-- `tdk eject` no longer claims files it does not create or prints a command that cannot work. It still writes only `EJECTED.md` (no file is copied, moved or generated; the Tiltfile and engine stay in git-ignored `.tdk/.tdk-out/`, and the per-service Compose files, golden-layer Dockerfile and Traefik file only exist after Tilt has run). `EJECTED.md` no longer lists them under "Keep" and says the Tiltfile still reads `.tdk/project.json` and the `service.json` files. `Next: tilt up` (which finds no Tiltfile at the project root) is replaced by `tilt up -f .tdk/.tdk-out/Tiltfile -- --focus=<stack>`, the form `tdk up` runs. A project that already has an `EJECTED.md` keeps its old text (the file is never overwritten) and is now told so. `--dry-run` headings read `Generated files, left where they are (git-ignored):` and `Files written:`. A command that exports plain Compose files and Dockerfiles does not exist. Fixes #610. (#611)
+- `flisk eject` no longer claims files it does not create or prints a command that cannot work. It still writes only `EJECTED.md` (no file is copied, moved or generated; the Tiltfile and engine stay in git-ignored `.tdk/.tdk-out/`, and the per-service Compose files, golden-layer Dockerfile and Traefik file only exist after Tilt has run). `EJECTED.md` no longer lists them under "Keep" and says the Tiltfile still reads `.tdk/project.json` and the `service.json` files. `Next: tilt up` (which finds no Tiltfile at the project root) is replaced by `tilt up -f .tdk/.tdk-out/Tiltfile -- --focus=<stack>`, the form `flisk up` runs. A project that already has an `EJECTED.md` keeps its old text (the file is never overwritten) and is now told so. `--dry-run` headings read `Generated files, left where they are (git-ignored):` and `Files written:`. A command that exports plain Compose files and Dockerfiles does not exist. Fixes #610. (#611)
 
 ## 1.3.111 (2026-10-05)
 
-- `tdk config regenerate` now restores a root `.tiltignore` that TDK wrote (it carries the `SYSTEM-GENERATED BY TDK CLI` header) and that was edited by hand, and prints `Restored: .tiltignore → project root (hand edits discarded)`. Before, it only copied the file when none existed, so `tdk config verify` kept failing with `Out of sync: .tiltignore (run 'tdk config regenerate')` after the advice was followed. A root `.tiltignore` without the header is still never overwritten, and plain `tdk project --yes` still does not overwrite an existing one. Docs: `docs/adopt-tdk.md` now quotes the current `tdk doctor` unknown-field wording. (#615)
-- `tdk doctor` now checks the project's own resource configs for duplicates. Two resources with the same `appName` fail (`Duplicate resource names`, naming both `service.json` paths): the name becomes the Compose service and Traefik router, so they collide, and before nothing reported it. Two backend, mcp or routed bring-your-own resources on the same `port` give a warning, not a failure (`Duplicate resource ports`): service ports are not published on the host and each service has its own container, so the pair can run, but it is usually a copied `service.json`. Frontends, workers, libraries and a missing `port` are ignored. Fixes #76. (#609)
-- `tdk doctor` no longer fails with `N resources without a package.json` for a bring-your-own resource. A bring-your-own resource (`--image`, `--dockerfile` or `buildContext`) is a plain container: its image is pulled or built from its own Dockerfile, never from the generated Dockerfile that copies a `package.json`, so the check was a false positive that made `tdk doctor` (and CI recipes that gate on it) exit non-zero right after wrapping an existing service. Backend, frontend, worker, migrator, mcp, library and sdk resources without a `package.json` still fail; Python, Go and Rust backends were already exempt. The other doctor checks were run on a project with only bring-your-own resources and report nothing. Fixes #599. (#600)
-- A scaffolded frontend now says why `bun run build` / `bun run dev` cannot run on the host before `tdk up`: the `.autogenerated/vite.config.*.autogenerated.ts` files its scripts point at are written by the engine (Tilt) when `tdk up` loads the resource, and neither `tdk resource` nor `tdk config regenerate` creates them. Before, `vite` stopped with an esbuild `Could not resolve` stack trace. New `predev`/`prebuild` scripts print what is missing and how to get it; once the file exists (and inside the engine image build) they pass silently. Existing frontends need the two scripts added by hand. Backend, worker and mcp scaffolds are unchanged. Fixes #592. (#594)
-- `tdk up` now honours `minTdkVersion` from `.tdk/project.json`, like `tdk doctor`. On an older CLI (or a malformed value) it exits 1 before the Docker checks and before Tilt starts, with `tdk X is older than the Y this project requires (minTdkVersion)` and `Run: tdk upgrade`; `--dry-run` reports it the same way. New `tdk up --ignore-version` skips the check with a warning. A project without `minTdkVersion` behaves as before. The check lives in `cli/src/utils/tdk-version.ts`, shared with doctor. (#595)
+- `flisk config regenerate` now restores a root `.tiltignore` that Flisk wrote (it carries the `SYSTEM-GENERATED BY Flisk CLI` header) and that was edited by hand, and prints `Restored: .tiltignore → project root (hand edits discarded)`. Before, it only copied the file when none existed, so `flisk config verify` kept failing with `Out of sync: .tiltignore (run 'flisk config regenerate')` after the advice was followed. A root `.tiltignore` without the header is still never overwritten, and plain `flisk project --yes` still does not overwrite an existing one. Docs: `docs/adopt-flisk.md` now quotes the current `flisk doctor` unknown-field wording. (#615)
+- `flisk doctor` now checks the project's own resource configs for duplicates. Two resources with the same `appName` fail (`Duplicate resource names`, naming both `service.json` paths): the name becomes the Compose service and Traefik router, so they collide, and before nothing reported it. Two backend, mcp or routed bring-your-own resources on the same `port` give a warning, not a failure (`Duplicate resource ports`): service ports are not published on the host and each service has its own container, so the pair can run, but it is usually a copied `service.json`. Frontends, workers, libraries and a missing `port` are ignored. Fixes #76. (#609)
+- `flisk doctor` no longer fails with `N resources without a package.json` for a bring-your-own resource. A bring-your-own resource (`--image`, `--dockerfile` or `buildContext`) is a plain container: its image is pulled or built from its own Dockerfile, never from the generated Dockerfile that copies a `package.json`, so the check was a false positive that made `flisk doctor` (and CI recipes that gate on it) exit non-zero right after wrapping an existing service. Backend, frontend, worker, migrator, mcp, library and sdk resources without a `package.json` still fail; Python, Go and Rust backends were already exempt. The other doctor checks were run on a project with only bring-your-own resources and report nothing. Fixes #599. (#600)
+- A scaffolded frontend now says why `bun run build` / `bun run dev` cannot run on the host before `flisk up`: the `.autogenerated/vite.config.*.autogenerated.ts` files its scripts point at are written by the engine (Tilt) when `flisk up` loads the resource, and neither `flisk resource` nor `flisk config regenerate` creates them. Before, `vite` stopped with an esbuild `Could not resolve` stack trace. New `predev`/`prebuild` scripts print what is missing and how to get it; once the file exists (and inside the engine image build) they pass silently. Existing frontends need the two scripts added by hand. Backend, worker and mcp scaffolds are unchanged. Fixes #592. (#594)
+- `flisk up` now honours `minTdkVersion` from `.tdk/project.json`, like `flisk doctor`. On an older CLI (or a malformed value) it exits 1 before the Docker checks and before Tilt starts, with `flisk X is older than the Y this project requires (minTdkVersion)` and `Run: flisk upgrade`; `--dry-run` reports it the same way. New `flisk up --ignore-version` skips the check with a warning. A project without `minTdkVersion` behaves as before. The check lives in `cli/src/utils/tdk-version.ts`, shared with doctor. (#595)
 - `init-networks` now fails with Docker's own message when a network that does not exist cannot be created. It ran `docker network create X 2>/dev/null && echo ... || true`, so a failure such as `all predefined address pools have been fully subnetted` was reported as `Docker networks initialized` and Postgres and Traefik then failed with `network ... declared as external, but could not be found`. An already existing network (including one another process creates between the check and the create) is still not an error, and a network with incorrect compose labels is still removed first when unused. Fixes #587. (#589)
 - A freshly scaffolded worker now type-checks: its `src/index.ts` typed `Job.payload` as `Record<string, JsonValue>`, but `JsonValue` is a type internal to the CLI that the generated project neither defines nor imports, so `bun run build` failed with `TS2304: Cannot find name 'JsonValue'`. The payload is now `Record<string, unknown>`. Existing workers need the same one-word edit. Fixes #588. (#590)
 - A freshly scaffolded backend, worker or mcp service now builds on the host: its `tsconfig.json` sets `"types": ["node"]`, matching the generated Docker tsconfig. Before, `bun run build` failed with `TS2591: Cannot find name 'process'` because TypeScript 7 no longer auto-includes `@types/*`. Frontend scaffolds are unchanged. Existing services need `"types": ["node"]` added by hand. Closes #581. (#586)
-- The `Dockerfile` that `tdk resource` writes next to `service.json` now follows the service: `PORT`, `EXPOSE` and the health check use the `port` (and `healthCheckPath`) from `service.json` instead of a fixed 3000, the health probe no longer needs `curl` (not in `oven/bun`), `bun.lock` is optional in the `COPY` (a TDK workspace keeps it at the project root, so the old file stopped at `"/bun.lock": not found`), and a header comment says `tdk up` does not build this file (it builds `.autogenerated/Dockerfile.app.autogenerated`). A worker, which declares no health path, gets no HEALTHCHECK. Fixes #579. (#580)
-- `tdk down` now removes what `tdk up <stack>` started. It ran `tilt down` without `--focus`, so the Tiltfile fell back to its default phase and did not register the stack's own compose project: the generated service container (`shop-autogenerated-orders-api-1`) kept running and only Traefik and Postgres were removed. It now passes every stack to the Tiltfile, and it stops the project's own `tilt up` process first (it kept running, and a live Tilt re-creates removed containers). Only a `tilt up` started with this project's Tiltfile is stopped. New `tdk down --prune-networks` also removes the project's Docker networks (`<project>_backend`, `_database`, `_traefik-public`, ...) that no container is attached to; without the flag they are kept, as before. `tdk doctor`'s "all predefined address pools are in use" fix now names it. (#585)
-- `tdk resources --type <type>` filters the list (#616).
-- `tdk resource --yes` no longer prompts for a stack: a new project uses `main`, a single existing stack is reused, and several stacks require `--stack` (#591).
-- `tdk upgrade` of a binary install left `tdk` non-executable (mode 0644); it now sets 0755, and a failed check prints `chmod +x <path>` (#596).
+- The `Dockerfile` that `flisk resource` writes next to `service.json` now follows the service: `PORT`, `EXPOSE` and the health check use the `port` (and `healthCheckPath`) from `service.json` instead of a fixed 3000, the health probe no longer needs `curl` (not in `oven/bun`), `bun.lock` is optional in the `COPY` (a Flisk workspace keeps it at the project root, so the old file stopped at `"/bun.lock": not found`), and a header comment says `flisk up` does not build this file (it builds `.autogenerated/Dockerfile.app.autogenerated`). A worker, which declares no health path, gets no HEALTHCHECK. Fixes #579. (#580)
+- `flisk down` now removes what `flisk up <stack>` started. It ran `tilt down` without `--focus`, so the Tiltfile fell back to its default phase and did not register the stack's own compose project: the generated service container (`shop-autogenerated-orders-api-1`) kept running and only Traefik and Postgres were removed. It now passes every stack to the Tiltfile, and it stops the project's own `tilt up` process first (it kept running, and a live Tilt re-creates removed containers). Only a `tilt up` started with this project's Tiltfile is stopped. New `flisk down --prune-networks` also removes the project's Docker networks (`<project>_backend`, `_database`, `_traefik-public`, ...) that no container is attached to; without the flag they are kept, as before. `flisk doctor`'s "all predefined address pools are in use" fix now names it. (#585)
+- `flisk resources --type <type>` filters the list (#616).
+- `flisk resource --yes` no longer prompts for a stack: a new project uses `main`, a single existing stack is reused, and several stacks require `--stack` (#591).
+- `flisk upgrade` of a binary install left `flisk` non-executable (mode 0644); it now sets 0755, and a failed check prints `chmod +x <path>` (#596).
 - Shell completion accepts the shell as a positional argument (#578).
-- Docs: troubleshooting page for tdk and Tilt messages (#612), a GitHub Actions recipe for `tdk config verify` and `tdk up` (#608), how to leave TDK (#607), scope and non-goals for team leads (#577), services spread over several repos (#582), the database is per stack (#584), adoption-docs accuracy sweep (#597).
+- Docs: troubleshooting page for flisk and Tilt messages (#612), a GitHub Actions recipe for `flisk config verify` and `flisk up` (#608), how to leave Flisk (#607), scope and non-goals for team leads (#577), services spread over several repos (#582), the database is per stack (#584), adoption-docs accuracy sweep (#597).
 - CI: "Shipped in vX" comments on fixed issues after each release (#606), issue claiming (#605), contributor thanks and welcome messages (#598, #613), hall-of-fame issue with kyu/dan ranks (#601, #604).
 
 ## 1.3.110 (2026-10-05)
 
-- `tdk config verify` no longer fails on a root `.tiltignore` the repository already had. `tdk project` never overwrote it, but verify compared it with the generated one and reported `Out of sync: .tiltignore`; it now warns `not generated by TDK, left as is`. A `.tiltignore` carrying TDK's generated header that was edited is still reported. Refs #568. (#574)
-- A repo can pin the oldest CLI it works with: add `"minTdkVersion": "1.3.80"` to `.tdk/project.json`, and `tdk doctor` fails with `Run: tdk upgrade` on an older `tdk` (a value that is not `MAJOR.MINOR.PATCH` also fails). It is a floor, not an exact pin. Documented in `docs/upgrading.md`. Refs #564. (#572)
-- `tdk ui` search shows the match count and a no-matches message (#562).
+- `flisk config verify` no longer fails on a root `.tiltignore` the repository already had. `flisk project` never overwrote it, but verify compared it with the generated one and reported `Out of sync: .tiltignore`; it now warns `not generated by Flisk, left as is`. A `.tiltignore` carrying Flisk's generated header that was edited is still reported. Refs #568. (#574)
+- A repo can pin the oldest CLI it works with: add `"minTdkVersion": "1.3.80"` to `.tdk/project.json`, and `flisk doctor` fails with `Run: flisk upgrade` on an older `flisk` (a value that is not `MAJOR.MINOR.PATCH` also fails). It is a floor, not an exact pin. Documented in `docs/upgrading.md`. Refs #564. (#572)
+- `flisk ui` search shows the match count and a no-matches message (#562).
 - Docs: `SUPPORT.md` for team leads (#575), local Postgres data, reset, seed and snapshot (#573), network calls, secrets and images (#571).
 
 ## 1.3.109 (2026-10-05)
 
-- `tdk ui` replaces the fake 100% loading bar with a spinner (#561).
+- `flisk ui` replaces the fake 100% loading bar with a spinner (#561).
 - The local loop can be handed over: drift gate, runbook and adopters list (#548).
 - Docs: `tdk-import` 0.1.1 pinned and its release alignment (#558, #559, #560); README install-size badge fixed (#557).
 
 ## 1.3.108 (2026-10-05)
 
-- `tdk resources` and `tdk networks` exit non-zero with the stack-not-found error when `--stack` names a stack that does not exist. Fixes #439 (#551).
-- Docs: `--version` and `--verbose` flags clarified (#555). Tests for `tdk down` projects and stacks (#554).
+- `flisk resources` and `flisk networks` exit non-zero with the stack-not-found error when `--stack` names a stack that does not exist. Fixes #439 (#551).
+- Docs: `--version` and `--verbose` flags clarified (#555). Tests for `flisk down` projects and stacks (#554).
 
 ## 1.3.107 (2026-10-05)
 
 - `TILT_PORT` is validated before start-up (#550).
 - Shell completions cover every registered command (#556).
-- `tdk ui`: a new status message cancels the previous message's clear timer, so overlapping messages no longer disappear early. Fixes #454 (#553).
+- `flisk ui`: a new status message cancels the previous message's clear timer, so overlapping messages no longer disappear early. Fixes #454 (#553).
 
 ## 1.3.106 (2026-10-04)
 
-- `tdk doctor` warns when a backend or worker applies database migrations from its own start-up (a `start`/`dev` script, a Dockerfile `CMD`/`ENTRYPOINT`, a shell entrypoint or its source: Prisma, Drizzle, Knex, TypeORM, MikroORM, Sequelize, dbmate, Atlas, Alembic). It is a warning, not a failure: such services work, but migrations belong in a `migrator` resource that runs once before the services that depend on it. `migrator` and bring-your-own resources are not checked. (#546)
-- New `tdk mcp`: a stdio MCP server that exposes the `--json` commands to agents (#549).
-- New `tdk logs`: a bounded log snapshot, with `--json` (#542).
-- `tdk stacks --json` and `tdk projects --json` (#541, #544).
-- `tdk up --only` (spike), and readiness no longer waits on Tilt resources that are disabled (#545).
+- `flisk doctor` warns when a backend or worker applies database migrations from its own start-up (a `start`/`dev` script, a Dockerfile `CMD`/`ENTRYPOINT`, a shell entrypoint or its source: Prisma, Drizzle, Knex, TypeORM, MikroORM, Sequelize, dbmate, Atlas, Alembic). It is a warning, not a failure: such services work, but migrations belong in a `migrator` resource that runs once before the services that depend on it. `migrator` and bring-your-own resources are not checked. (#546)
+- New `flisk mcp`: a stdio MCP server that exposes the `--json` commands to agents (#549).
+- New `flisk logs`: a bounded log snapshot, with `--json` (#542).
+- `flisk stacks --json` and `flisk projects --json` (#541, #544).
+- `flisk up --only` (spike), and readiness no longer waits on Tilt resources that are disabled (#545).
 - CI: `wsl2-smoke` runs less often on pull requests (#543).
 
 ## 1.3.105 (2026-10-04)
 
-- `tdk status --json` reports each service's URL, container port and host port, plus stack ports (#539).
-- TDK detects Dev Container, Codespaces and WebContainer hosts; `tdk up --json` and `tdk down --json` (#534).
-- `tdk ui` suggests existing commands in its empty state (#536).
+- `flisk status --json` reports each service's URL, container port and host port, plus stack ports (#539).
+- Flisk detects Dev Container, Codespaces and WebContainer hosts; `flisk up --json` and `flisk down --json` (#534).
+- `flisk ui` suggests existing commands in its empty state (#536).
 - OpenSpec: agent-host runtime contract (#528).
 
 ## 1.3.104 (2026-10-04)
@@ -203,7 +242,7 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.103 (2026-10-04)
 
-- `tdk import` delegates to the separate `tdk-import` tool (#511, #520, #521).
+- `flisk import` delegates to the separate `tdk-import` tool (#511, #520, #521).
 - Docs: npm version and size badges (#523).
 
 ## 1.3.102 (2026-10-04)
@@ -213,12 +252,12 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.101 (2026-10-04)
 
-- Go services can opt in to a live development loop with `"dev": { "liveReload": true }` in `service.json`: edits are copied into the running container and recompiled without an image rebuild, while `go.mod`, `go.sum` and the generated Dockerfile still rebuild the image. The watcher compiles into a staging binary while the old build keeps serving and swaps only on success, so a compile error shows in the Tilt log and the last good build keeps answering (Air, tried first, stopped the app before compiling and left it down for the whole compile; in 2 of 6 edits a Traefik health check then returned 503 for 10 s). Measured on one loaded Mac: median edit-to-ready 1.63 s for the scaffold. The default Go image (`golang:1.23`) now sets `GOTOOLCHAIN=auto`, so a `go.mod` that needs a newer Go, such as Gin 1.12 (`go 1.25`), downloads that toolchain instead of stopping with `requires go >= 1.25`. Offline or air-gapped builds of a go.mod newer than 1.23 still fail, but now at the toolchain download rather than at the version check. `scripts/e2e/go-dev-loop.sh` checks all of this through a real `tdk up`. Refs #369. (#495)
-- Docs: adoption guide for team leads (#499), FAQ for agencies (#503), friendlier issue templates (#502), "Who uses TDK" and `ADOPTERS.md` (#496, #498), governance docs and maintainers check (#488).
+- Go services can opt in to a live development loop with `"dev": { "liveReload": true }` in `service.json`: edits are copied into the running container and recompiled without an image rebuild, while `go.mod`, `go.sum` and the generated Dockerfile still rebuild the image. The watcher compiles into a staging binary while the old build keeps serving and swaps only on success, so a compile error shows in the Tilt log and the last good build keeps answering (Air, tried first, stopped the app before compiling and left it down for the whole compile; in 2 of 6 edits a Traefik health check then returned 503 for 10 s). Measured on one loaded Mac: median edit-to-ready 1.63 s for the scaffold. The default Go image (`golang:1.23`) now sets `GOTOOLCHAIN=auto`, so a `go.mod` that needs a newer Go, such as Gin 1.12 (`go 1.25`), downloads that toolchain instead of stopping with `requires go >= 1.25`. Offline or air-gapped builds of a go.mod newer than 1.23 still fail, but now at the toolchain download rather than at the version check. `scripts/e2e/go-dev-loop.sh` checks all of this through a real `flisk up`. Refs #369. (#495)
+- Docs: adoption guide for team leads (#499), FAQ for agencies (#503), friendlier issue templates (#502), "Who uses Flisk" and `ADOPTERS.md` (#496, #498), governance docs and maintainers check (#488).
 
 ## 1.3.100 (2026-10-04)
 
-- `tdk ui`: Esc at the top level shows a quit hint instead of exiting (#482).
+- `flisk ui`: Esc at the top level shows a quit hint instead of exiting (#482).
 
 ## 1.3.99 (2026-10-04)
 
@@ -232,13 +271,13 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.97 (2026-10-03)
 
-- `tdk up` keeps each smoke step's status and response body under `.tdk/smoke/<service>/<step>/` (`latest.json` and `body.txt`, body capped at 64 KiB), plus `last-success.json` and `last-success-body.txt` that a later failure never overwrites, so a regression can be diffed against the last good response. The failure line ends with the record path, and `tdk project` gitignores `.tdk/smoke/`. A new `smoke-e2e` workflow runs `scripts/verify-smoke.sh` and uploads the records. Before its first step a smoke check now waits for the service's health path (`healthCheckPath`, default `/health` for backends) with GETs until it answers something other than a connection error, 404 or 5xx, so a write is no longer the first request to hit a service that is still building; write retry rules are unchanged. (#480)
+- `flisk up` keeps each smoke step's status and response body under `.tdk/smoke/<service>/<step>/` (`latest.json` and `body.txt`, body capped at 64 KiB), plus `last-success.json` and `last-success-body.txt` that a later failure never overwrites, so a regression can be diffed against the last good response. The failure line ends with the record path, and `flisk project` gitignores `.tdk/smoke/`. A new `smoke-e2e` workflow runs `scripts/verify-smoke.sh` and uploads the records. Before its first step a smoke check now waits for the service's health path (`healthCheckPath`, default `/health` for backends) with GETs until it answers something other than a connection error, 404 or 5xx, so a write is no longer the first request to hit a service that is still building; write retry rules are unchanged. (#480)
 - Each `service.json` warning is printed once per command (#479).
 - Stack names are validated, and name errors show the invalid value (#478).
-- `tdk status` checks for a project before printing (#470).
-- `tdk resource` rejects an unknown `--type` instead of prompting (#472).
-- `tdk help <unknown>` reports an unknown command and exits 1 (#473).
-- `tdk ui`: the dead `a` shortcut is gone from the help panel and footer (#475).
+- `flisk status` checks for a project before printing (#470).
+- `flisk resource` rejects an unknown `--type` instead of prompting (#472).
+- `flisk help <unknown>` reports an unknown command and exits 1 (#473).
+- `flisk ui`: the dead `a` shortcut is gone from the help panel and footer (#475).
 - Frontend framework inventory, picker and meta-framework handoff (#467).
 - Bring-your-own examples: Tornado, Polka, Sanic, Falcon, Starlette, Hapi (#430, #431, #432, #446, #457, #468).
 - Docs: contributor journey map with islands and kyu/dan ranks (#466, #471, #474).
@@ -250,8 +289,8 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 ## 1.3.95 (2026-10-03)
 
 - New frontend provider: TanStack Router (#234, #420).
-- Bring-your-own examples: Slim (PHP), Actix Web (Rust), Hanami (Ruby) (#422, #424, #426); SvelteKit verified through `tdk up` (#428).
-- Tests for `tdk status` output and options (#14, #427).
+- Bring-your-own examples: Slim (PHP), Actix Web (Rust), Hanami (Ruby) (#422, #424, #426); SvelteKit verified through `flisk up` (#428).
+- Tests for `flisk status` output and options (#14, #427).
 - Release notes no longer repeat changelog text from earlier releases (#418, #419).
 
 ## 1.3.94 (2026-10-03)
@@ -266,13 +305,13 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 ## 1.3.92 (2026-10-02)
 
 - New `mcp` resource type for Model Context Protocol servers (#388), treated as an API service by `up`, `networks` and `doctor` (#391), verified with the official MCP SDK client (#406).
-- `tdk up` runs a `smoke` block that checks each service's public URL after start-up (#413, #414).
+- `flisk up` runs a `smoke` block that checks each service's public URL after start-up (#413, #414).
 - Env: secrets are injected, the shared JWT default is gone, `AUTH_MODE=None` works and params are quoted (#390). The engine parses `.env` in Starlark instead of shelling out to `cat` (#400) and builds one identity URL and auth config for the env file and Compose (#399).
 - Scaffolds write `dependsOn` (not the deprecated `dependencies`) (#409) and `healthCheckPath`, the key the engine reads (#408).
-- `tdk doctor` warns that `dependencies` and `envVars` are deprecated instead of calling them unknown (#401).
-- Turso (libSQL) runs locally as a TDK resource (#386).
+- `flisk doctor` warns that `dependencies` and `envVars` are deprecated instead of calling them unknown (#401).
+- Turso (libSQL) runs locally as a Flisk resource (#386).
 - Bring-your-own examples: create-hono, Elysia, Micronaut, Sinatra, Echo, chi, Strapi, dbmate job (#363, #365, #367, #379, #381, #384, #403, #404).
-- All 8 frontend frameworks are verified through `tdk up` (#412). CI's Test job gets a 10-minute hang guard (#407).
+- All 8 frontend frameworks are verified through `flisk up` (#412). CI's Test job gets a 10-minute hang guard (#407).
 
 ## 1.3.91 (2026-10-02)
 
@@ -301,8 +340,8 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.87 (2026-10-01)
 
-- Add an opt-in Python backend: `tdk resource <name> --type backend --language python` scaffolds a FastAPI service (`pyproject.toml`, `src/main.py`, a pytest smoke test) and TDK generates its Docker image (`python:3.12-slim`, with `test` and `production` stages). The choice is saved as `language` in `service.json` only when you pass the flag; omitting it keeps the existing Bun + Hono output byte for byte. Unknown ids and `--language` on non-backend types fail before any file is written. A runnable example is in `examples/one-backend-python`, and the provider contract is in `docs/backend-language-providers.md`. Node.js is not included. (#227)
-- `tdk doctor` no longer reports "resource without a package.json" for a Python backend, and a Python service missing `pyproject.toml` or `src/main.py` now fails early with the missing file named.
+- Add an opt-in Python backend: `flisk resource <name> --type backend --language python` scaffolds a FastAPI service (`pyproject.toml`, `src/main.py`, a pytest smoke test) and Flisk generates its Docker image (`python:3.12-slim`, with `test` and `production` stages). The choice is saved as `language` in `service.json` only when you pass the flag; omitting it keeps the existing Bun + Hono output byte for byte. Unknown ids and `--language` on non-backend types fail before any file is written. A runnable example is in `examples/one-backend-python`, and the provider contract is in `docs/backend-language-providers.md`. Node.js is not included. (#227)
+- `flisk doctor` no longer reports "resource without a package.json" for a Python backend, and a Python service missing `pyproject.toml` or `src/main.py` now fails early with the missing file named.
 - Live reload now works: Tilt `live_update` sync paths were relative to the project root while Tilt resolves them against `.tdk/.tdk-out`, so they never matched and every source edit rebuilt the image ("Found file(s) not matching any sync"). An edit under `src/` is now copied into the running container without a rebuild, for Bun and Python services. Dependency file changes (`package.json`, `pyproject.toml`) still rebuild the image. (#228, #230)
 - The service schema (`https://tdk-landscape.github.io/schema.service.json`) gains the `language` field (`bun`, `python`).
 - Fix the routed health URL in the `one-backend` example README.
@@ -336,19 +375,19 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.80 (2026-09-30)
 
-- Add `tdk doctor --json` with schema-versioned readiness, checks, and structured errors; diagnostics remain on stderr.
+- Add `flisk doctor --json` with schema-versioned readiness, checks, and structured errors; diagnostics remain on stderr.
 - Stabilize doctor exits: 0 ready, 1 blocking findings, 2 invalid arguments/internal check failures. Invalid `--ping-timeout` now exits 2 instead of 1 and rejects fractional/unit-suffixed values.
-- Add versioned `--json` envelopes to `tdk status`, `tdk resources`, and `tdk networks`; existing `networks --json` array consumers can migrate with `--json-legacy` through CLI 1.4.x. The compatibility flag is scheduled for removal in 1.5.0.
-- Add `tdk config verify --json` with drift summaries and unified diffs for missing or stale master outputs; verification remains read-only, and structured command/internal failures use exits 1/2.
+- Add versioned `--json` envelopes to `flisk status`, `flisk resources`, and `flisk networks`; existing `networks --json` array consumers can migrate with `--json-legacy` through CLI 1.4.x. The compatibility flag is scheduled for removal in 1.5.0.
+- Add `flisk config verify --json` with drift summaries and unified diffs for missing or stale master outputs; verification remains read-only, and structured command/internal failures use exits 1/2.
 
 
 ## 1.3.77 (2026-09-30)
 
-- `tdk up` no longer leaves `nats` (and any other service in `services/platform/messaging/docker-compose.yml`, e.g. a local mail catcher) disabled in Tilt. The pre-alpha default always goes through a focus-filter path that only re-enabled `init-networks`/`postgres`/`traefik`/`golden-layers-build`, so a resource with the `nats` feature retried its broker connection forever until you ran `tilt enable nats` by hand. Fixes #155.
+- `flisk up` no longer leaves `nats` (and any other service in `services/platform/messaging/docker-compose.yml`, e.g. a local mail catcher) disabled in Tilt. The pre-alpha default always goes through a focus-filter path that only re-enabled `init-networks`/`postgres`/`traefik`/`golden-layers-build`, so a resource with the `nats` feature retried its broker connection forever until you ran `tilt enable nats` by hand. Fixes #155.
 
-- `tdk doctor` now catches wiring mistakes that used to surface minutes into `tdk up`: a resource with no `package.json` (the image build stops at "COPY ... not found"), a `params` URL such as `http://auth-emulator:4000` whose port is not the one the target listens on (its `service.json` `port`), a frontend calling a backend through `localhost:<port>` (TDK publishes no backend ports on localhost; use the Traefik route), the `nats` feature without `services/platform/messaging/docker-compose.yml` (TDK does not generate it, so no NATS server starts), two Tilt processes running for one project, and Docker having no address pool left for the networks a project needs. Found while building [tdk-ecommerce-example](https://github.com/tdk-landscape/tdk-ecommerce-example) and a queue/auth example.
+- `flisk doctor` now catches wiring mistakes that used to surface minutes into `flisk up`: a resource with no `package.json` (the image build stops at "COPY ... not found"), a `params` URL such as `http://auth-emulator:4000` whose port is not the one the target listens on (its `service.json` `port`), a frontend calling a backend through `localhost:<port>` (Flisk publishes no backend ports on localhost; use the Traefik route), the `nats` feature without `services/platform/messaging/docker-compose.yml` (Flisk does not generate it, so no NATS server starts), two Tilt processes running for one project, and Docker having no address pool left for the networks a project needs. Found while building [tdk-ecommerce-example](https://github.com/tdk-landscape/tdk-ecommerce-example) and a queue/auth example.
 
-- `tdk project ecommerce` clones [tdk-ecommerce-example](https://github.com/tdk-landscape/tdk-ecommerce-example), a Vue 3 storefront and Hono catalog API. Before, only restaurant, saas, erp, user-management and example were accepted.
+- `flisk project ecommerce` clones [tdk-ecommerce-example](https://github.com/tdk-landscape/tdk-ecommerce-example), a Vue 3 storefront and Hono catalog API. Before, only restaurant, saas, erp, user-management and example were accepted.
 
 ## 1.3.73 (2026-09-28)
 
@@ -356,71 +395,71 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.72 (2026-09-28)
 
-- `tdk doctor` no longer fails with "Verdaccio is not reachable" when the project config enables Verdaccio but no Premium license grants it. TDK does not start Verdaccio in that case, so the check could never pass; it is now skipped with a note. A registry your own `.npmrc` points at (`:4873`) is still checked. Found by the ERP CI workflow.
+- `flisk doctor` no longer fails with "Verdaccio is not reachable" when the project config enables Verdaccio but no Premium license grants it. Flisk does not start Verdaccio in that case, so the check could never pass; it is now skipped with a note. A registry your own `.npmrc` points at (`:4873`) is still checked. Found by the ERP CI workflow.
 
 ## 1.3.71 (2026-09-28)
 
-- `tdk project` in a freshly cloned repo (one that already has `.tdk/project.json`) now creates the missing `.env` with working defaults. Before, it regenerated the configs but left no `.env`, and `tdk doctor` then failed with "set VERDACCIO_URL_DOCKER=<value>". Doctor now says to run `tdk project` when there is no `.env` at all. Found by the ERP CI workflow.
+- `flisk project` in a freshly cloned repo (one that already has `.tdk/project.json`) now creates the missing `.env` with working defaults. Before, it regenerated the configs but left no `.env`, and `flisk doctor` then failed with "set VERDACCIO_URL_DOCKER=<value>". Doctor now says to run `flisk project` when there is no `.env` at all. Found by the ERP CI workflow.
 
 ## 1.3.70 (2026-09-28)
 
-- **Fix for 1.3.69:** `tdk doctor` no longer reports "Environment not ready" for the ERP example. The new check for missing `@types/*` packages flagged its 7 frontends, but they build with `vite build`, which never type-checks, so `types: ["node"]` cannot fail their build. It now only flags a service whose `build` script runs `tsc` (following `bun|npm|pnpm|yarn run` hops). Found by the new ERP CI workflow on its first run.
+- **Fix for 1.3.69:** `flisk doctor` no longer reports "Environment not ready" for the ERP example. The new check for missing `@types/*` packages flagged its 7 frontends, but they build with `vite build`, which never type-checks, so `types: ["node"]` cannot fail their build. It now only flags a service whose `build` script runs `tsc` (following `bun|npm|pnpm|yarn run` hops). Found by the new ERP CI workflow on its first run.
 
 - New CI workflow that boots the public 100-service ERP example on a clean GitHub-hosted runner with the published CLI and waits for every backend to answer `/health` through Traefik, then writes the time to healthy and the resource use to the job summary. Manual (`full` or `one-stack`) and weekly.
 
 ## 1.3.69 (2026-09-28)
 
-- `tdk resource --type backend` adds `@types/node` to the new service. The Docker build uses a tsconfig with `"types": ["node"]`, so without it the image failed at `bun run build` with `TS2688: Cannot find type definition file for 'node'`. This was the next blocker on a clean machine, after the base-image race and the default Prisma feature.
-- `tdk doctor` now checks **every** entry in the Docker tsconfig's `types` list against the service's dependencies. It only looked at `"bun"`, so a missing `@types/node` passed. It names the service, the entry and the package to add, and handles subpath (`vitest/globals`) and scoped entries.
+- `flisk resource --type backend` adds `@types/node` to the new service. The Docker build uses a tsconfig with `"types": ["node"]`, so without it the image failed at `bun run build` with `TS2688: Cannot find type definition file for 'node'`. This was the next blocker on a clean machine, after the base-image race and the default Prisma feature.
+- `flisk doctor` now checks **every** entry in the Docker tsconfig's `types` list against the service's dependencies. It only looked at `"bun"`, so a missing `@types/node` passed. It names the service, the entry and the package to add, and handles subpath (`vitest/globals`) and scoped entries.
 
 ## 1.3.67 (2026-09-28)
 
-- The clean-machine quickstart run (`tdk project`, `tdk resource`, `tdk up`, wait for `/health`) now starts by itself after every successful release and tests exactly the version just published. It also still runs nightly and on demand.
-- **`tdk resource --type backend` now produces a service whose image builds.** It set `featuresEnabled: ["prisma"]` by default but never created `prisma/schema.prisma` or the `prisma` dependency, so the generated Dockerfile failed on `COPY services/<stack>/<name>/prisma` and no scaffolded service could start. Prisma is now opt-in, like in the ERP and restaurant examples that boot, and `docs/FEATURES.md` says what it needs. Found by the clean-machine quickstart run, one step after the base-image race.
+- The clean-machine quickstart run (`flisk project`, `flisk resource`, `flisk up`, wait for `/health`) now starts by itself after every successful release and tests exactly the version just published. It also still runs nightly and on demand.
+- **`flisk resource --type backend` now produces a service whose image builds.** It set `featuresEnabled: ["prisma"]` by default but never created `prisma/schema.prisma` or the `prisma` dependency, so the generated Dockerfile failed on `COPY services/<stack>/<name>/prisma` and no scaffolded service could start. Prisma is now opt-in, like in the ERP and restaurant examples that boot, and `docs/FEATURES.md` says what it needs. Found by the clean-machine quickstart run, one step after the base-image race.
 
 ## 1.3.66 (2026-09-28)
 
-- **`tdk up` on a machine with no base images no longer leaves every service stuck on a 404.** The generated Tiltfile dropped the golden-layers resource name, so app and migrator resources never waited for `golden-layers-build`. Their image builds started at once, failed with "pull access denied" because the base images did not exist yet, and Tilt never retried. Machines that had built the layers before (any second run) were unaffected, which hid it. Found by the clean-machine quickstart run.
-- `tdk doctor` now names a missing golden base image for any project name (`shop-l4-backend`, ...). The hint was hard-coded to the `tdk-project-` prefix, so a real project got the raw BuildKit error.
+- **`flisk up` on a machine with no base images no longer leaves every service stuck on a 404.** The generated Tiltfile dropped the golden-layers resource name, so app and migrator resources never waited for `golden-layers-build`. Their image builds started at once, failed with "pull access denied" because the base images did not exist yet, and Tilt never retried. Machines that had built the layers before (any second run) were unaffected, which hid it. Found by the clean-machine quickstart run.
+- `flisk doctor` now names a missing golden base image for any project name (`shop-l4-backend`, ...). The hint was hard-coded to the `tdk-project-` prefix, so a real project got the raw BuildKit error.
 
 ## 1.3.64 (2026-09-28)
 
 - `traefik.healthCheck` in service.json (the path Traefik's load balancer probes, documented in the schema) is now honored. It was read by discovery but never used, so Traefik always probed `healthCheckPath`. It defaults to `healthCheckPath`, so manifests that only set that generate the same output as before.
-- `tdk doctor` checks that every backend defines the health routes it is probed on (`healthCheckPath` for the container, `traefik.healthCheck` for Traefik, both defaulting to `/health`) somewhere in `src/`. A backend without them never turns healthy, so Traefik returns 404, which used to surface only after a slow image build.
+- `flisk doctor` checks that every backend defines the health routes it is probed on (`healthCheckPath` for the container, `traefik.healthCheck` for Traefik, both defaulting to `/health`) somewhere in `src/`. A backend without them never turns healthy, so Traefik returns 404, which used to surface only after a slow image build.
 
 ## 1.3.62 (2026-09-28)
 
-- `tdk doctor` no longer skips the service health check when Traefik answers with an error. A 404 (no route yet) or 502/503/504 (route found, container not answering) is reported as a failure that names the service and URL, instead of being read as "Traefik never bound :80". It is skipped only when every probe fails to connect.
+- `flisk doctor` no longer skips the service health check when Traefik answers with an error. A 404 (no route yet) or 502/503/504 (route found, container not answering) is reported as a failure that names the service and URL, instead of being read as "Traefik never bound :80". It is skipped only when every probe fails to connect.
 
 ## 1.3.61 (2026-09-28)
 
-- `tdk doctor` and `tdk up` no longer report free host ports (80, 443, 5432) as "taken" on Linux. The port check bound `0.0.0.0` and `127.0.0.1` at the same time, and on Linux the second bind collided with our own first probe. It now probes them one after the other, which still catches a loopback-only Postgres on macOS. Found by the nightly clean-machine quickstart run.
+- `flisk doctor` and `flisk up` no longer report free host ports (80, 443, 5432) as "taken" on Linux. The port check bound `0.0.0.0` and `127.0.0.1` at the same time, and on Linux the second bind collided with our own first probe. It now probes them one after the other, which still catches a loopback-only Postgres on macOS. Found by the nightly clean-machine quickstart run.
 
 ## 1.3.60 (2026-09-27)
 
-- Backends and workers scaffolded by `tdk resource` get a `start` script, and `@types/bun` is pinned instead of `latest`. Before, `tdk doctor` failed on every new service. Found by the clean-machine quickstart run.
+- Backends and workers scaffolded by `flisk resource` get a `start` script, and `@types/bun` is pinned instead of `latest`. Before, `flisk doctor` failed on every new service. Found by the clean-machine quickstart run.
 
 ## 1.3.59 (2026-09-27)
 
-- `tdk doctor` no longer fails every fresh project with "Generated Dockerfiles reference missing project runtime assets: prisma-runtime-relink.sh, migrate.sh". Those two scripts were never shipped or used by generated Dockerfiles; doctor now checks the scripts TDK ships plus whatever generated Dockerfiles actually copy. Found by the new clean-machine quickstart run.
+- `flisk doctor` no longer fails every fresh project with "Generated Dockerfiles reference missing project runtime assets: prisma-runtime-relink.sh, migrate.sh". Those two scripts were never shipped or used by generated Dockerfiles; doctor now checks the scripts Flisk ships plus whatever generated Dockerfiles actually copy. Found by the new clean-machine quickstart run.
 
 ## 1.3.58 (2026-09-27)
 
-- Dropped the `ink-select-input` dependency in favor of a small built-in list in `tdk ui` (same keys: arrows or j/k, 1-9, Enter). Removes 4 packages: ink-select-input, figures, to-rotated and is-unicode-supported.
+- Dropped the `ink-select-input` dependency in favor of a small built-in list in `flisk ui` (same keys: arrows or j/k, 1-9, Enter). Removes 4 packages: ink-select-input, figures, to-rotated and is-unicode-supported.
 
 ## 1.3.57 (2026-09-27)
 
-- Binary installs (`tdk-landscape.github.io/install.sh`) ship the Docker helper scripts generated Dockerfiles run. Before, `tdk project` warned "TDK runtime assets not found" and image builds could fail. The release script now smoke-tests the built binary.
+- Binary installs (`tdk-landscape.github.io/install.sh`) ship the Docker helper scripts generated Dockerfiles run. Before, `flisk project` warned "Flisk runtime assets not found" and image builds could fail. The release script now smoke-tests the built binary.
 
 ## 1.3.56 (2026-09-27)
 
-- `tdk project` adds `.env`, `.tdk/.tdk-out/`, `.tdk/.project-id` and `node_modules/` to `.gitignore`. `.env` holds a generated database password and was easy to commit by accident.
-- `tdk doctor` checks that host ports 80, 443 and 5432 are free and names what holds them (usually a local Postgres). `tdk up` prints the same warning before starting Tilt.
-- `tdk project` no longer tells you to edit `.env` first: the defaults work, and the Verdaccio variables are marked as belonging to the paid registry.
+- `flisk project` adds `.env`, `.tdk/.tdk-out/`, `.tdk/.project-id` and `node_modules/` to `.gitignore`. `.env` holds a generated database password and was easy to commit by accident.
+- `flisk doctor` checks that host ports 80, 443 and 5432 are free and names what holds them (usually a local Postgres). `flisk up` prints the same warning before starting Tilt.
+- `flisk project` no longer tells you to edit `.env` first: the defaults work, and the Verdaccio variables are marked as belonging to the paid registry.
 ## 1.3.55 (2026-09-27)
 
-- Dropped the `ora` dependency (only `tdk upgrade` used it) in favor of a small built-in spinner: 50 installed packages instead of 61, and no more duplicate versions of cli-cursor, restore-cursor, onetime and signal-exit.
-- `tdk doctor` outside a project checks only Docker, Compose and Tilt, and reports "This machine is ready for TDK". Before, running it right after installing (as the installer suggests) failed with "Master configs missing … Environment not ready".
+- Dropped the `ora` dependency (only `flisk upgrade` used it) in favor of a small built-in spinner: 50 installed packages instead of 61, and no more duplicate versions of cli-cursor, restore-cursor, onetime and signal-exit.
+- `flisk doctor` outside a project checks only Docker, Compose and Tilt, and reports "This machine is ready for Flisk". Before, running it right after installing (as the installer suggests) failed with "Master configs missing … Environment not ready".
 
 ## 1.3.54 (2026-09-27)
 
@@ -433,10 +472,10 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.52 (2026-09-27)
 
-- `tdk up` works in a fresh project. The Tiltfile no longer aborts when a stack listed in `project.json` has no directory yet, and stacks created after `tdk project` are added to the `pre_alpha` phase so they actually start.
-- Prompts fail with an error and exit 1 when there's no input to read (CI, `< /dev/null`). Before, `tdk resource` printed its summary, exited 0 and created nothing.
-- `tdk help`: one-line header with the version, instead of a misaligned ASCII box and doubled icons.
-- One installer: `install.sh` in this repo hands off to `https://tdk-landscape.github.io/install.sh`, which verifies release checksums. `tdk upgrade` verifies checksums too.
+- `flisk up` works in a fresh project. The Tiltfile no longer aborts when a stack listed in `project.json` has no directory yet, and stacks created after `flisk project` are added to the `pre_alpha` phase so they actually start.
+- Prompts fail with an error and exit 1 when there's no input to read (CI, `< /dev/null`). Before, `flisk resource` printed its summary, exited 0 and created nothing.
+- `flisk help`: one-line header with the version, instead of a misaligned ASCII box and doubled icons.
+- One installer: `install.sh` in this repo hands off to `https://tdk-landscape.github.io/install.sh`, which verifies release checksums. `flisk upgrade` verifies checksums too.
 
 ## 1.3.51 (2026-09-27)
 
@@ -446,13 +485,13 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.50 (2026-09-27)
 
-- Fixed the npm package: 1.3.49 shipped without the compiled CLI and its runtime dependencies, so `tdk` failed to start after `npm install -g`.
+- Fixed the npm package: 1.3.49 shipped without the compiled CLI and its runtime dependencies, so `flisk` failed to start after `npm install -g`.
 - Requires Node.js 22.12+.
-- `tdk up <stack>` starts only that stack instead of every stack.
+- `flisk up <stack>` starts only that stack instead of every stack.
 
 ## 1.3.39 (2026-09-23)
 
-- `tdk doctor` and `tdk up` time out after 10 s when the Docker daemon is unresponsive, instead of hanging.
+- `flisk doctor` and `flisk up` time out after 10 s when the Docker daemon is unresponsive, instead of hanging.
 
 ## 1.3.37 (2026-09-22)
 
@@ -464,7 +503,7 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.35 (2026-09-22)
 
-- `tdk doctor` checks that each service's `package.json` has the scripts the generated containers run.
+- `flisk doctor` checks that each service's `package.json` has the scripts the generated containers run.
 
 ## 1.3.34 (2026-09-22)
 
@@ -472,7 +511,7 @@ Notable changes to the `tdk` CLI. Versions match [npm](https://www.npmjs.com/pac
 
 ## 1.3.33 (2026-09-22)
 
-- Core infrastructure (Traefik, Postgres) is always on. Fixed `tdk upgrade` self-repair.
+- Core infrastructure (Traefik, Postgres) is always on. Fixed `flisk upgrade` self-repair.
 
 ## Earlier
 

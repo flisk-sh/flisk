@@ -1,6 +1,6 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -13,6 +13,7 @@ import {
   SMOKE_RECORD_BODY_MAX_BYTES,
   type SmokeConfig,
   type SmokePlan,
+  safeSmokeDeps,
   validateSmoke,
 } from "../smoke.js";
 
@@ -95,7 +96,7 @@ describe("validateSmoke", () => {
 });
 
 describe("buildSmokePlans", () => {
-  it("builds one plan per routable resource that declares smoke, from the URL tdk up prints", () => {
+  it("builds one plan per routable resource that declares smoke, from the URL flisk up prints", () => {
     const plans = buildSmokePlans(
       [
         makeResource("orders-api", "backend", { smoke: SMOKE }),
@@ -462,6 +463,212 @@ describe("smoke records", () => {
     const result = await runSmokePlan(PLAN, { fetch, ...clock() });
     expect(result.ok).toBe(true);
     expect(result.recordPath).toBeUndefined();
+  });
+});
+
+describe("smoke redaction", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  const tmp = () => {
+    const d = mkdtempSync(join(tmpdir(), "smoke-redact-"));
+    dirs.push(d);
+    return d;
+  };
+  const base = PLAN.baseUrl;
+  const stepDir = (dir: string, step: string) => join(dir, "orders-api", step);
+  const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
+  const SECRET = "supersecrettoken";
+
+  it("masks a known secret in the stored body and the last-success copy", async () => {
+    const recordDir = tmp();
+    const { fetch } = fakeFetch({
+      [`POST ${base}/records`]: [{ status: 201, body: `{"token":"${SECRET}"}` }],
+    });
+    const plan: SmokePlan = {
+      ...PLAN,
+      smoke: {
+        via: "proxy",
+        steps: [{ name: "create", method: "POST", path: "/records", expect: 201 }],
+      },
+    };
+    await runSmokePlan(plan, {
+      fetch,
+      recordDir,
+      redact: (text) => text.split(SECRET).join("[REDACTED]"),
+      ...clock(),
+    });
+    const dir = stepDir(recordDir, "create");
+    expect(readFileSync(join(dir, "body.txt"), "utf8")).toBe('{"token":"[REDACTED]"}');
+    expect(readFileSync(join(dir, "last-success-body.txt"), "utf8")).toBe('{"token":"[REDACTED]"}');
+    expect(readFileSync(join(dir, "body.txt"), "utf8")).not.toContain(SECRET);
+  });
+
+  it("masks a known secret in the printed snippet", async () => {
+    const { fetch } = fakeFetch({
+      [`POST ${base}/records`]: [{ status: 500, body: `token ${SECRET} rejected` }],
+    });
+    const result = await runSmokePlan(PLAN, {
+      fetch,
+      redact: (text) => text.split(SECRET).join("[REDACTED]"),
+      ...clock(),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.failure).toContain("[REDACTED]");
+    expect(result.failure).not.toContain(SECRET);
+  });
+
+  it("masks a known secret in the recorded URL", async () => {
+    const recordDir = tmp();
+    const plan: SmokePlan = {
+      ...PLAN,
+      smoke: {
+        via: "proxy",
+        steps: [{ name: "read", path: `/records/${SECRET}`, expect: 200 }],
+      },
+    };
+    const { fetch } = fakeFetch({
+      [`GET ${base}/records/${SECRET}`]: [{ status: 200, body: "ok" }],
+    });
+    await runSmokePlan(plan, {
+      fetch,
+      recordDir,
+      redact: (text) => text.split(SECRET).join("[REDACTED]"),
+      ...clock(),
+    });
+    const record = json(join(stepDir(recordDir, "read"), "latest.json"));
+    expect(record.url).toBe(`${base}/records/[REDACTED]`);
+    expect(JSON.stringify(record)).not.toContain(SECRET);
+  });
+
+  it("keeps the raw body for the assertion and the saved value", async () => {
+    const recordDir = tmp();
+    const { fetch, calls } = fakeFetch({
+      [`POST ${base}/records`]: [{ status: 201, body: `{"id":"a1","token":"${SECRET}"}` }],
+      [`GET ${base}/records/a1`]: [{ status: 200, body: `smoke ${SECRET}` }],
+    });
+    const result = await runSmokePlan(PLAN, {
+      fetch,
+      recordDir,
+      redact: (text) => text.split(SECRET).join("[REDACTED]"),
+      ...clock(),
+    });
+    expect(result.ok).toBe(true);
+    expect(calls[1]?.url).toBe(`${base}/records/a1`);
+    expect(readFileSync(join(stepDir(recordDir, "read-back"), "body.txt"), "utf8")).toBe(
+      "smoke [REDACTED]",
+    );
+  });
+
+  it("records the byte length of the masked body", async () => {
+    const recordDir = tmp();
+    const plan: SmokePlan = {
+      ...PLAN,
+      smoke: { via: "proxy", steps: [{ name: "one", path: "/one" }] },
+    };
+    const { fetch } = fakeFetch({
+      [`GET ${base}/one`]: [{ status: 200, body: `a${SECRET}b` }],
+    });
+    await runSmokePlan(plan, {
+      fetch,
+      recordDir,
+      redact: (text) => text.split(SECRET).join("[REDACTED]"),
+      ...clock(),
+    });
+    const dir = stepDir(recordDir, "one");
+    const body = readFileSync(join(dir, "body.txt"), "utf8");
+    expect(json(join(dir, "latest.json")).bodyBytes).toBe(Buffer.byteLength(body, "utf8"));
+  });
+
+  it("neither stores nor prints the body when the text cannot be masked, and keeps the result", async () => {
+    const recordDir = tmp();
+    const warnings: string[] = [];
+    const { fetch } = fakeFetch({
+      [`POST ${base}/records`]: [{ status: 201, body: `{"token":"${SECRET}"}` }],
+    });
+    const plan: SmokePlan = {
+      ...PLAN,
+      smoke: {
+        via: "proxy",
+        steps: [{ name: "create", method: "POST", path: "/records", expect: 201 }],
+      },
+    };
+    const result = await runSmokePlan(plan, {
+      fetch,
+      recordDir,
+      redact: () => {
+        throw new Error("the project's .env could not be read");
+      },
+      warn: (message) => warnings.push(message),
+      ...clock(),
+    });
+    expect(result.ok).toBe(true);
+    expect(warnings.join("\n")).toMatch(/neither shown nor stored/);
+    const dir = stepDir(recordDir, "create");
+    expect(existsSync(join(dir, "body.txt"))).toBe(false);
+    expect(json(join(dir, "latest.json"))).toMatchObject({
+      service: "orders-api",
+      step: "create",
+      method: "POST",
+      status: 201,
+    });
+    expect(readFileSync(join(dir, "latest.json"), "utf8")).not.toContain(SECRET);
+  });
+
+  it("does not print the raw snippet when the text cannot be masked", async () => {
+    const warnings: string[] = [];
+    const { fetch } = fakeFetch({
+      [`POST ${base}/records`]: [{ status: 500, body: `token ${SECRET} rejected` }],
+    });
+    const result = await runSmokePlan(PLAN, {
+      fetch,
+      redact: () => {
+        throw new Error("the project's .env could not be read");
+      },
+      warn: (message) => warnings.push(message),
+      ...clock(),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.failure).not.toContain(SECRET);
+    expect(warnings.length).toBeGreaterThan(0);
+  });
+});
+
+describe("safeSmokeDeps", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  const projectWithEnv = (content: string | undefined) => {
+    const d = mkdtempSync(join(tmpdir(), "smoke-safe-"));
+    dirs.push(d);
+    if (content !== undefined) writeFileSync(join(d, ".env"), content);
+    return d;
+  };
+
+  it("masks the project's own secret values", () => {
+    const deps = safeSmokeDeps(projectWithEnv("TOKEN=supersecrettoken\n"));
+    expect(deps.redact?.("bearer supersecrettoken")).toBe("bearer [REDACTED]");
+  });
+
+  it("throws when the .env exists but cannot be read, so no raw text is shown or stored", () => {
+    // As root the mode bits do not block the read, and on Windows chmod does not either.
+    if (process.platform === "win32" || process.getuid?.() === 0) return;
+    const dir = projectWithEnv("TOKEN=supersecrettoken\n");
+    chmodSync(join(dir, ".env"), 0o000);
+    try {
+      expect(() => safeSmokeDeps(dir).redact?.("bearer supersecrettoken")).toThrow();
+    } finally {
+      chmodSync(join(dir, ".env"), 0o600);
+    }
+  });
+
+  it("passes the warning hook through", () => {
+    const warnings: string[] = [];
+    const deps = safeSmokeDeps(projectWithEnv(undefined), (message) => warnings.push(message));
+    deps.warn?.("something");
+    expect(warnings).toEqual(["something"]);
   });
 });
 

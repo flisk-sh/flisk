@@ -4,7 +4,7 @@
     "cli": {
       "entry": ["src/cli.ts"],
       "project": ["src/**/*.ts", "src/**/*.tsx"],
-      "ignoreBinaries": ["vi", "colima", "podman", "killall", "file", "tdk", "tilt"]
+      "ignoreBinaries": ["vi", "colima", "podman", "killall", "file", "flisk", "tilt"]
     }
   }
 }

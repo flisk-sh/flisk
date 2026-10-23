@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // The official MCP TypeScript SDK client: connect over streamable HTTP, list the tools, call echo. Prints one JSON line.
 //   node client.mjs <mcp url>

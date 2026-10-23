@@ -1,22 +1,21 @@
 name: 📦 Packed CLI lifecycle smoke
 
 on:
-  pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: package-lifecycle-smoke-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
-    if: github.event_name == 'pull_request'
     permissions:
       contents: read
       pull-requests: read
@@ -33,7 +32,7 @@ jobs:
 
   lifecycle-smoke:
     name: 📦 Packed CLI lifecycle smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     needs: docs
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
@@ -62,7 +61,7 @@ jobs:
           cp cli/package.json scripts/package-lifecycle-smoke.sh scripts/install-global.mjs "$RUNNER_TEMP/lifecycle/"
 
       # A clean Node 22 image: no Tilt, no Docker project, no global tdk.
-      # Tilt and Docker are not installed, so `tdk up` is not exercised here.
+      # Tilt and Docker are not installed, so `flisk up` is not exercised here.
       - name: Install, upgrade, uninstall the packed CLI in a clean container
         run: |
           docker run --rm \

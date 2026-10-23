@@ -1,5 +1,5 @@
 #!/usr/bin/env starlark
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Tilt Master Spec File
 # SYSTEM PATHS SPECIFICATION - No Hidden Magic
@@ -343,7 +343,7 @@ SPEC = struct(
     SHARED_DIR = PROJECT_ROOT + "/shared",
     
     # Topology paths - ALL EXPLICIT
-    # NOTE: These paths are relative to TDK CLI installation root (engine/ directory)
+    # NOTE: These paths are relative to Flisk CLI installation root (engine/ directory)
     TOPOLOGIES = struct(
         BASE = PROJECT_ROOT + "/engine/topologies",
         PLATFORM = PROJECT_ROOT + "/engine/topologies/platform",

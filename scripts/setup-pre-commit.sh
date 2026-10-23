@@ -1,11 +1,11 @@
 #!/bin/bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# Setup script for TDK CLI development environment
+# Setup script for Flisk CLI development environment
 
 set -e
 
-echo "🚀 Setting up TDK CLI development environment..."
+echo "🚀 Setting up Flisk CLI development environment..."
 
 # Check if pre-commit is installed
 if ! command -v pre-commit &> /dev/null; then

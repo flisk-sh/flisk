@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 📦 TILT SDK - NPM/BUN CONFIG PROVIDER
@@ -62,14 +62,14 @@ def generate_npmrc(resource_path, registry_url, is_docker, write_fn, verdaccio_e
         content = """{header}
 registry=https://registry.npmjs.org/
 @{npm_scope}:registry={registry_url}/
-@tdk-landscape:registry={registry_url}/
+@flisk-sh:registry={registry_url}/
 @identity:registry={registry_url}/""".format(header=header, registry_url=registry_url, npm_scope=_NPM_SCOPE)
     else:
         # Verdaccio not enabled (no license key) — all scopes use public npm
         content = """{header}
 registry=https://registry.npmjs.org/
 @{npm_scope}:registry=https://registry.npmjs.org/
-@tdk-landscape:registry=https://registry.npmjs.org/
+@flisk-sh:registry=https://registry.npmjs.org/
 @identity:registry=https://registry.npmjs.org/""".format(header=header, npm_scope=_NPM_SCOPE)
     
     filename = generated_filename
@@ -104,7 +104,7 @@ registry = "https://registry.npmjs.org"
 
 [install.scopes]
 "@{npm_scope}" = {{ url = "{registry_url}/" }}
-"@tdk-landscape" = {{ url = "{registry_url}/" }}
+"@flisk-sh" = {{ url = "{registry_url}/" }}
 "@identity" = {{ url = "{registry_url}/" }}
 
 """.format(header=header, registry_url=registry_url, npm_scope=_NPM_SCOPE)

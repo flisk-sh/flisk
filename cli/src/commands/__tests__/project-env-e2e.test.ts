@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,7 +28,7 @@ describe("project .env and secrets E2E", () => {
     }
   });
 
-  it("recreates a missing .env when `tdk project` runs in an already-initialised repo", () => {
+  it("recreates a missing .env when `flisk project` runs in an already-initialised repo", () => {
     projectRoot = copyProject(baseRoot);
     const envPath = join(projectRoot, ".env");
     expect(existsSync(envPath)).toBe(true);
@@ -66,7 +66,7 @@ describe("project .env and secrets E2E", () => {
     }
   }, 30000);
 
-  it("completes an older .env on `tdk project` without rotating any existing value", () => {
+  it("completes an older .env on `flisk project` without rotating any existing value", () => {
     projectRoot = copyProject(baseRoot);
 
     // What a previous CLI wrote: no JWT_SECRET, and Verdaccio required.
@@ -89,7 +89,7 @@ describe("project .env and secrets E2E", () => {
     expect(readFileSync(envPath, "utf-8")).toBe(env);
   }, 30000);
 
-  it("reports a DATABASE_URL password that differs from DB_PASSWORD in `tdk doctor`", () => {
+  it("reports a DATABASE_URL password that differs from DB_PASSWORD in `flisk doctor`", () => {
     projectRoot = copyProject(baseRoot);
     writeFileSync(
       join(projectRoot, ".env"),

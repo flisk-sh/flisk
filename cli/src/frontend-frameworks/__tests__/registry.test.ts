@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -60,7 +60,7 @@ describe("frontend framework resolution", () => {
       expect(e).toBeInstanceOf(TdkError);
       const err = e as TdkError;
       expect(err.message).toContain("react, vue");
-      expect(JSON.stringify(err)).toContain("tdk resource web --type bring-your-own");
+      expect(JSON.stringify(err)).toContain("flisk resource web --type bring-your-own");
     }
   });
 

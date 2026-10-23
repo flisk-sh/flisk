@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Draws two SVG maps from the issue labels: one island per "island: ..." label, one dot per quest (issue).
 //   docs/journey/map.svg           every quest, the contributor journey
@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 
-const repo = process.argv[2] ?? "tdk-landscape/tdk-cli-core";
+const repo = process.argv[2] ?? "flisk-sh/flisk";
 const outFile = (name) => new URL(`../docs/journey/${name}`, import.meta.url);
 
 // Listed in the order the dotted route visits them (a snake, four per row, the flag takes the first slot).
@@ -193,12 +193,12 @@ const byIsland = (list) =>
   draw({
     file: "map.svg",
     theme: THEMES.journey,
-    title: "🗺️ The TDK Journey",
+    title: "🗺️ The Flisk Journey",
     subtitle: `Filled dot = merged, hollow dot = open · ${done}/${total} quests done`,
     islands,
     ladderTitle: `Your rank ladder (Codewars style)${unranked(issues, false)}`,
     ladderCounts: countRanks(issues, false),
-    aria: `TDK contributor journey map: ${done} of ${total} quests done across ${islands.length} islands`,
+    aria: `Flisk contributor journey map: ${done} of ${total} quests done across ${islands.length} islands`,
     footer: "Refreshed daily from the issue labels",
   });
   console.log(`wrote docs/journey/map.svg (${done}/${total} quests done)`);
@@ -223,12 +223,12 @@ const byIsland = (list) =>
   draw({
     file: "hacktoberfest.svg",
     theme: THEMES.hacktoberfest,
-    title: `🎃 TDK Hacktoberfest ${now.getUTCFullYear()}`,
+    title: `🎃 Flisk Hacktoberfest ${now.getUTCFullYear()}`,
     subtitle: `${total - done} open quests · ${done} merged · ${clock}`,
     islands,
     ladderTitle: `Open quests by rank, start on the left${unranked(fest, true)}`,
     ladderCounts: countRanks(fest, true),
-    aria: `TDK Hacktoberfest map: ${total - done} open quests across ${islands.length} islands, ${clock}`,
+    aria: `Flisk Hacktoberfest map: ${total - done} open quests across ${islands.length} islands, ${clock}`,
     footer: "Filled dot = merged, hollow dot = open · refreshed daily · label: hacktoberfest",
   });
   console.log(`wrote docs/journey/hacktoberfest.svg (${done}/${total} quests done, ${clock})`);

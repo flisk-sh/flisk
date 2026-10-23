@@ -1,7 +1,11 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { evaluateTiltReadiness, waitForTiltResourcesReady } from "../up-readiness.js";
+import {
+  evaluateTiltReadiness,
+  isAdvisoryResource,
+  waitForTiltResourcesReady,
+} from "../up-readiness.js";
 
 const item = (name: string, updateStatus: string, runtimeStatus: string) => ({
   metadata: { name },
@@ -201,5 +205,12 @@ describe("a resource that is building right now", () => {
       ready: true,
       pending: 0,
     });
+  });
+});
+
+describe("isAdvisoryResource", () => {
+  it("treats the host typecheck resources as advisory", () => {
+    expect(isAdvisoryResource("floor-app-typecheck")).toBe(true);
+    expect(isAdvisoryResource("floor-app")).toBe(false);
   });
 });

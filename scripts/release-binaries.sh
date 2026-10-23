@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 
 set -euo pipefail
 
-readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readonly RELEASE_REPOSITORY="tdk-landscape/tdk-cli-releases"
-readonly VERSION="$(node -p "require('${ROOT_DIR}/cli/package.json').version")"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly ROOT_DIR
+readonly RELEASE_REPOSITORY="flisk-sh/releases"
+VERSION="$(node -p "require('${ROOT_DIR}/cli/package.json').version")"
+readonly VERSION
 readonly RELEASE_TAG="v${VERSION}"
 readonly RELEASE_DIR="${ROOT_DIR}/release-dist-${RELEASE_TAG#v}"
 readonly PUBLISH="${1:-}"
@@ -45,7 +47,7 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
   # find engine/ the way a source checkout can. template-engine.ts checks
   # exeDir/tdk-cli as a candidate - bundle the free engine (and the Handlebars
   # templates loadTemplate() reads at module init) there so a standalone binary
-  # works the same as `tdk-cli-core` cloned from source.
+  # works the same as `flisk` cloned from source.
   mkdir -p "${RELEASE_DIR}/tdk-cli"
   cp "${ROOT_DIR}/Tiltfile" "${RELEASE_DIR}/tdk-cli/Tiltfile"
   cp -R "${ROOT_DIR}/engine" "${RELEASE_DIR}/tdk-cli/engine"
@@ -54,13 +56,13 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
   cp -R "${ROOT_DIR}/ext" "${RELEASE_DIR}/tdk-cli/ext"
   mkdir -p "${RELEASE_DIR}/tdk-cli/cli"
   cp -R "${ROOT_DIR}/cli/templates" "${RELEASE_DIR}/tdk-cli/cli/templates"
-  # `tdk project` copies these into every project; generated Dockerfiles run them.
+  # `flisk project` copies these into every project; generated Dockerfiles run them.
   mkdir -p "${RELEASE_DIR}/tdk-cli/shared-platform-engineering"
   cp -R "${ROOT_DIR}/shared-platform-engineering/docker-templates" \
     "${RELEASE_DIR}/tdk-cli/shared-platform-engineering/docker-templates"
 
   # Smoke-test the binary for this machine the way users install it (binary with
-  # tdk-cli/ next to it): `tdk project` must find the engine and runtime assets.
+  # tdk-cli/ next to it): `flisk project` must find the engine and runtime assets.
   host_binary="tdk-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
   if [ -x "${RELEASE_DIR}/${host_binary}" ]; then
     smoke_dir="$(mktemp -d)"
@@ -84,7 +86,7 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
     # find it via the stable /releases/latest/download/ URL, unlike the zip
     # below whose name embeds the tag and changes every release.
     tar -czf tdk-cli-engine.tar.gz tdk-cli
-    # install.sh and `tdk upgrade` verify the binary and the engine tarball
+    # install.sh and `flisk upgrade` verify the binary and the engine tarball
     # against this file before installing them.
     shasum -a 256 tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
       tdk-windows-amd64.exe \
@@ -195,9 +197,9 @@ else
   generated_notes_file="$(mktemp)"
   trap 'rm -f "${release_notes_file}" "${generated_notes_file}"' EXIT
   cat > "${release_notes_file}" <<EOF
-## TDK CLI ${RELEASE_TAG#v}
+## Flisk CLI ${RELEASE_TAG#v}
 
-TDK CLI ${RELEASE_TAG#v} includes the changes listed below. The release assets contain verified Linux, macOS, and Windows AMD64 binaries plus the bundled runtime engine.
+Flisk CLI ${RELEASE_TAG#v} includes the changes listed below. The release assets contain verified Linux, macOS, and Windows AMD64 binaries plus the bundled runtime engine.
 EOF
 
   # Releases are hosted separately from source, so their tags cannot drive
@@ -226,21 +228,21 @@ EOF
 
   previous_release="$(gh release list --repo "${RELEASE_REPOSITORY}" --limit 1 --json tagName,publishedAt --jq '.[0] | [.tagName, .publishedAt] | @tsv')"
   if [[ -n "${previous_release}" ]]; then
-    IFS=$'\t' read -r previous_tag previous_published_at <<<"${previous_release}"
+    IFS=$'\t' read -r _ previous_published_at <<<"${previous_release}"
     if [[ -n "${previous_published_at}" ]]; then
       source_commit="${SOURCE_COMMIT:-${GITHUB_SHA:-}}"
       if [[ -z "${source_commit}" ]]; then
         echo "SOURCE_COMMIT or GITHUB_SHA is required to generate release notes" >&2
         exit 1
       fi
-      source_commit_date="$(gh api "repos/tdk-landscape/tdk-cli-core/commits/${source_commit}" --jq '.commit.committer.date')"
+      source_commit_date="$(gh api "repos/flisk-sh/flisk/commits/${source_commit}" --jq '.commit.committer.date')"
       since="${previous_published_at}"
-      gh api --paginate "repos/tdk-landscape/tdk-cli-core/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100" \
+      gh api --paginate "repos/flisk-sh/flisk/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100" \
         --jq ".[] | select(.merged_at != null and .merged_at >= \"${since}\" and .merged_at <= \"${source_commit_date}\") | [.number, .title, .user.login, .html_url, .merged_at] | @tsv" \
         > "${generated_notes_file}"
       if [[ -s "${generated_notes_file}" ]]; then
         printf '\n## Pull requests\n\n' >> "${release_notes_file}"
-        while IFS=$'\t' read -r number title author url merged_at; do
+        while IFS=$'\t' read -r number title author url _; do
           printf -- '- %s: [#%s](%s) (@%s)\n' "${title}" "${number}" "${url}" "${author}" >> "${release_notes_file}"
         done < "${generated_notes_file}"
 
@@ -251,14 +253,14 @@ EOF
       fi
       since_url="${since//:/%3A}"
       source_commit_date_url="${source_commit_date//:/%3A}"
-      printf '\n[Full Changelog](https://github.com/tdk-landscape/tdk-cli-core/commits/%s?since=%s&until=%s)\n' \
+      printf '\n[Full Changelog](https://github.com/flisk-sh/flisk/commits/%s?since=%s&until=%s)\n' \
         "${source_commit}" "${since_url}" "${source_commit_date_url}" >> "${release_notes_file}"
     fi
   fi
 
   gh release create "${RELEASE_TAG}" \
     --repo "${RELEASE_REPOSITORY}" \
-    --title "TDK CLI ${RELEASE_TAG#v}" \
+    --title "Flisk CLI ${RELEASE_TAG#v}" \
     --notes-file "${release_notes_file}" \
     --draft \
     "${ASSETS[@]}"

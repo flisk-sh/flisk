@@ -1,7 +1,7 @@
 {
   "group": "examples",
   "suite": "default",
-  "description": "The bundled product example (tdk project example, tdk-example) on a clean runner (moved from the retired example-e2e workflow, #1299): build and pack the candidate CLI, install it globally, configure the example, boot it with tdk up and prove the routed worker write path (an order written through Traefik is seen by the NATS worker). The example axis value tdk-example. The required check context is e2e-examples (the default leg of the examples gate).",
+  "description": "The bundled product example (flisk project example, tdk-example) on a clean runner (moved from the retired example-e2e workflow, #1299): build and pack the candidate CLI, install it globally, configure the example, boot it with flisk up and prove the routed worker write path (an order written through Traefik is seen by the NATS worker). The example axis value tdk-example. The required check context is e2e-examples (the default leg of the examples gate).",
   "paths": [
     "cli/**",
     "engine/**",

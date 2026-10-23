@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# Stages the free TDK Tilt extension (Tiltfile, engine/, discovery/, specs/,
+# Stages the free Flisk Tilt extension (Tiltfile, engine/, discovery/, specs/,
 # ext/) into cli/ before `npm publish`.
 #
 # npm's `files` field can only package files inside the package directory
@@ -16,14 +16,15 @@
 # a commit).
 set -euo pipefail
 
-readonly ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly ROOT_DIR
 readonly CLI_DIR="${ROOT_DIR}/cli"
 readonly DIRS=(engine discovery specs ext)
 
 if [[ "${1:-}" == "--clean" ]]; then
   rm -f "${CLI_DIR}/Tiltfile"
   for d in "${DIRS[@]}"; do
-    rm -rf "${CLI_DIR}/${d}"
+    rm -rf "${CLI_DIR:?}/${d}"
   done
   echo "Cleaned staged engine files from cli/"
   exit 0
@@ -31,7 +32,7 @@ fi
 
 cp "${ROOT_DIR}/Tiltfile" "${CLI_DIR}/Tiltfile"
 for d in "${DIRS[@]}"; do
-  rm -rf "${CLI_DIR}/${d}"
+  rm -rf "${CLI_DIR:?}/${d}"
   cp -R "${ROOT_DIR}/${d}" "${CLI_DIR}/${d}"
 done
 

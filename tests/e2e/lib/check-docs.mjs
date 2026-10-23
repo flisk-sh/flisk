@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Case D3 of the agent suite: relative links and anchors in README.md, AGENTS.md and docs/** resolve; nothing refers to the
 // removed root llms.txt / llms-full.txt or docs/ai-agents.md; the docs/agents/llms*.txt files link only to things that exist.

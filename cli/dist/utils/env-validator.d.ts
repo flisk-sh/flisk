@@ -7,7 +7,13 @@ export interface EnvVariable {
     /** Written by `completeEnvFile` when a project's .env lacks it (a generated value, or the default). */
     complete?: boolean;
 }
-/** Parses the Compose-compatible subset used by TDK for project environment files. */
+/**
+ * The keys `completeEnvFile` keeps complete in the project `.env`. An env file that replaces the
+ * project `.env` for a run (`flisk up --env-file`) carries the same keys, so it is read from here
+ * instead of from a second list.
+ */
+export declare const COMPLETED_ENV_VARS: string[];
+/** Parses the Compose-compatible subset used by Flisk for project environment files. */
 export declare function parseEnv(content: string): Map<string, string>;
 export declare function generateEnvFile(): string;
 export declare function validateEnvFile(projectRoot: string): {

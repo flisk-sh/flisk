@@ -1,8 +1,8 @@
 #!/bin/bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 
-# TDK Landscape Mac M1 Resource Monitor
+# Flisk Landscape Mac M1 Resource Monitor
 # Monitors Docker container resource usage and provides optimization recommendations
 
 set -e
@@ -14,7 +14,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🍎 TDK Landscape Mac M1 Resource Monitor${NC}"
+echo -e "${BLUE}🍎 Flisk Landscape Mac M1 Resource Monitor${NC}"
 echo "=================================================="
 
 # Check if Docker is running
@@ -33,19 +33,19 @@ echo -e "${BLUE}💻 System Memory:${NC} $SYSTEM_MEMORY"
 
 echo ""
 
-# Check running TDK Landscape containers
+# Check running Flisk Landscape containers
 PROJECT_CONTAINERS=$(docker ps --format "{{.Names}}" | grep -E "(postgres|redis|nats|kafka|traefik|clickhouse|elasticsearch|verdaccio|infisical)" | sort)
 
 if [ -z "$PROJECT_CONTAINERS" ]; then
-    echo -e "${YELLOW}⚠️  No TDK Landscape containers are currently running${NC}"
+    echo -e "${YELLOW}⚠️  No Flisk Landscape containers are currently running${NC}"
     echo "Run 'tilt up' to start services"
     exit 0
 fi
 
-echo -e "${GREEN}📊 Running TDK Landscape Containers:${NC}"
+echo -e "${GREEN}📊 Running Flisk Landscape Containers:${NC}"
 echo "=================================================="
 
-# Get detailed stats for TDK Landscape containers
+# Get detailed stats for Flisk Landscape containers
 TOTAL_MEMORY_MB=0
 HIGH_CPU_COUNT=0
 HIGH_MEMORY_COUNT=0
@@ -82,7 +82,7 @@ while IFS= read -r container; do
         TOTAL_MEMORY_MB=$(echo "$TOTAL_MEMORY_MB + $MEMORY_MB" | bc -l 2>/dev/null || echo "$TOTAL_MEMORY_MB")
         
         # Format container name for display
-        CONTAINER_DISPLAY=$(echo "$container" | sed 's/TDK_//' | cut -c1-20)
+        CONTAINER_DISPLAY=$(echo "$container" | sed 's/Flisk_//' | cut -c1-20)
         
         printf "%-20s\t%s%%\t%s\t%s\n" "$CONTAINER_DISPLAY" "$CPU_PERCENT" "$MEMORY_USAGE" "$STATUS"
     fi

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -31,6 +31,9 @@ describe("smoke over real HTTP", () => {
         // Not ready for the first two probes, like a route Traefik has not registered yet.
         return healthCalls++ < 2 ? send(404, "404 page not found") : send(200, '{"status":"ok"}');
       }
+      if (url === "/api/svc/never-ready") {
+        return send(503, "Service Unavailable");
+      }
       if (req.method === "POST" && url === "/api/svc/records") {
         writes++;
         records.set("a1", "smoke");
@@ -39,6 +42,9 @@ describe("smoke over real HTTP", () => {
       const match = url.match(/^\/api\/svc\/records\/(\w+)$/);
       if (req.method === "GET" && match?.[1] && records.has(match[1])) {
         return send(200, '{"id":"a1","name":"smoke"}');
+      }
+      if (url === "/api/svc/error") {
+        return send(500, '{"error":"internal server error"}');
       }
       send(404, "404 page not found");
     });
@@ -71,6 +77,7 @@ describe("smoke over real HTTP", () => {
       ],
     },
   });
+
   // A fake clock that sleep() advances, so waiting out `timeoutSeconds` costs no real time.
   const deps = () => {
     let t = 0;
@@ -111,5 +118,67 @@ describe("smoke over real HTTP", () => {
     // The first run created once; the failed run created once more. Neither repeated a write.
     expect(writes).toBe(2);
     expect(healthCalls).toBeGreaterThanOrEqual(3);
+  });
+
+  it("times out when an endpoint never returns expected status within budget", async () => {
+    const neverReadyPlan: SmokePlan = {
+      name: "svc",
+      baseUrl,
+      readyPath: "/never-ready",
+      smoke: {
+        via: "proxy",
+        timeoutSeconds: 2,
+        steps: [{ name: "check-ready", path: "/never-ready", expect: 200 }],
+      },
+    };
+
+    const result = await runSmokePlan(neverReadyPlan, deps());
+    expect(result.ok).toBe(false);
+    expect(result.failure).toContain("returned 503, expected 200");
+  });
+
+  it("fails when expected body substring is missing", async () => {
+    const mismatchPlan: SmokePlan = {
+      name: "svc",
+      baseUrl,
+      smoke: {
+        via: "proxy",
+        timeoutSeconds: 2,
+        steps: [
+          {
+            name: "check-health",
+            path: "/health",
+            expect: 200,
+            bodyContains: "nonexistent-token",
+          },
+        ],
+      },
+    };
+
+    const result = await runSmokePlan(mismatchPlan, deps());
+    expect(result.ok).toBe(false);
+    expect(result.failure).toContain('body does not contain "nonexistent-token"');
+  });
+
+  it("fails when server returns 500 error", async () => {
+    const errorPlan: SmokePlan = {
+      name: "svc",
+      baseUrl,
+      smoke: {
+        via: "proxy",
+        timeoutSeconds: 2,
+        steps: [
+          {
+            name: "call-error",
+            path: "/error",
+            expect: 200,
+          },
+        ],
+      },
+    };
+
+    const result = await runSmokePlan(errorPlan, deps());
+    expect(result.ok).toBe(false);
+    expect(result.failure).toContain("returned 500, expected 200");
   });
 });

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 load("../engine/topologies/tilt/manifest/parser.star", "extract_stack_from_path")
 load("../engine/topologies/tilt/manifest/loader.star", "ManifestLoader")
@@ -279,7 +279,7 @@ def _scan_resources():
 
     for manifest_path in manifest_paths:
         # manifest_path may be absolute (legacy find) or project-relative.
-        # Always rewrite to a path relative to the TDK project root first.
+        # Always rewrite to a path relative to the Flisk project root first.
         manifest_path = _to_project_relative_path(manifest_path, project_root)
         
         # Parse manifest using proper loader (handles JSON and YAML)

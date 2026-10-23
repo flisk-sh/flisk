@@ -1,0 +1,92 @@
+# The published Windows binary on a real Windows host (#1765). The hosted job runs the same suite on windows-latest, so the
+# suite stays honest and the published release keeps a canary; the hardware job runs it on a self-hosted Windows 11 AMD64
+# machine, which is the acceptance run the design asks for (openspec/changes/tdk-windows-first-class-support, task 7.3).
+#
+# The hardware job never runs on a pull request: a self-hosted runner would execute untrusted pull-request code. It runs
+# when a maintainer dispatches this workflow by hand on a machine that has a runner registered with the labels
+# "self-hosted", "windows" and "x64". The hosted job runs on every pull request that touches the paths below.
+name: 🪟 Platforms hardware E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "The release to test (latest or an exact tag such as v1.3.204)"
+        type: string
+        default: "latest"
+  pull_request:
+    paths:
+      - "cli/src/cli.ts"
+      - "cli/src/utils/platform.ts"
+      - "cli/src/utils/which.ts"
+      - "cli/src/utils/windows-doctor.ts"
+      - "cli/src/commands/up.ts"
+      - "cli/src/commands/doctor.ts"
+      - "cli/src/commands/runtime.ts"
+      - "tests/e2e/lib/**"
+      - "tests/e2e/platforms/windows-hardware/**"
+      - ".github/workflows/e2e-platforms-hardware.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-platforms-hardware-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # The reference run: the same suite, on the hosted Windows runner. It proves the suite works and keeps a canary on the
+  # published release. It is not the acceptance run: a hosted runner is not a developer's Windows 11 machine.
+  hosted:
+    name: e2e-platforms-hardware-hosted
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Run the Windows hardware suite against the published release
+        shell: bash
+        run: tests/e2e/platforms/windows-hardware/run.sh all
+
+      - name: Upload the findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows-hardware-findings-hosted-${{ github.run_id }}
+          path: ${{ runner.temp }}/tdk-e2e/windows-hardware/artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+  # The acceptance run: a real Windows 11 AMD64 machine. It needs a runner registered with the labels "self-hosted",
+  # "windows" and "x64", and it writes the same findings report.
+  hardware:
+    name: e2e-platforms-hardware-machine
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 60
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # The script runs under Windows PowerShell 5.1 and under PowerShell 7; the machine needs no Git Bash for this.
+      - name: Run the Windows hardware suite on this machine
+        shell: powershell
+        env:
+          FLISK_WINDOWS_RELEASE: ${{ github.event.inputs.release || 'latest' }}
+          FLISK_WINDOWS_WORK_DIR: ${{ runner.temp }}\flisk-windows-hardware
+          FLISK_HARDWARE_REPORT: ${{ github.workspace }}\artifacts\windows-hardware-findings.md
+        run: tests/e2e/platforms/windows-hardware/windows-hardware.ps1 -Case all
+
+      - name: Upload the findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows-hardware-findings-machine-${{ github.run_id }}
+          path: ${{ github.workspace }}/artifacts
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { TdkError } from "./errors.js";
 
@@ -16,11 +16,35 @@ export interface MachineEnvelope<T> {
   errors: MachineError[];
 }
 
+/** JSON envelope shape emitted by CLI `--json` commands (`schemaVersion`, `data`, `errors`). */
+export type MachineOutputEnvelope = MachineEnvelope<unknown>;
+
 export function createMachineEnvelope<T>(
   data: T | null,
   errors: MachineError[] = [],
 ): MachineEnvelope<T> {
   return { schemaVersion: SCHEMA_VERSION, data, errors };
+}
+
+function isMachineError(value: unknown): value is MachineError {
+  if (typeof value !== "object" || value === null) return false;
+  const error = value as Record<string, unknown>;
+  if (typeof error.code !== "string" || typeof error.message !== "string") return false;
+  if (error.suggestions !== undefined) {
+    if (!Array.isArray(error.suggestions)) return false;
+    if (!error.suggestions.every((item) => typeof item === "string")) return false;
+  }
+  return true;
+}
+
+/** Narrows unknown JSON to the machine-output envelope used by CLI `--json` commands. */
+export function isMachineOutputEnvelope(value: unknown): value is MachineOutputEnvelope {
+  if (typeof value !== "object" || value === null) return false;
+  const envelope = value as Record<string, unknown>;
+  if (envelope.schemaVersion !== SCHEMA_VERSION) return false;
+  if (!("data" in envelope)) return false;
+  if (!Array.isArray(envelope.errors)) return false;
+  return envelope.errors.every(isMachineError);
 }
 
 export function toMachineError(error: unknown): { error: MachineError; exitCode: number } {

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -6,10 +6,11 @@ import { join } from "node:path";
 import type { DiscoveredResource } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { isApiServiceType } from "./resource-kind.js";
+import { createEnvRedactor } from "./secret-redaction.js";
 import { resolveServicePath, resolveSubdomainBases } from "./service-urls.js";
 
 /**
- * A post-start check a service declares in service.json. It runs through the URL `tdk up` prints (Traefik), not inside the
+ * A post-start check a service declares in service.json. It runs through the URL `flisk up` prints (Traefik), not inside the
  * container, so it catches what `healthCheckPath` cannot: a route Traefik never registered, a shared router, a database the
  * service is not actually using.
  */
@@ -57,6 +58,13 @@ export interface SmokeDeps {
   /** Directory the per-step records go under (`<dir>/<service>/<step-slug>/`). No directory, no records. */
   recordDir?: string;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Masks the secret values the project knows about. Throwing means the text could not be masked safely, and the runner then
+   * neither shows nor stores it.
+   */
+  redact?: (text: string) => string;
+  /** Reports a problem that does not change the smoke result, such as a body that could not be stored safely. */
+  warn?: (message: string) => void;
 }
 
 export const DEFAULT_SMOKE_TIMEOUT_SECONDS = 60;
@@ -170,11 +178,11 @@ export function buildSmokePlans(
   return plans;
 }
 
-/** Caps each read-only smoke check so a doctor run cannot wait the full `tdk up` budget per service. */
+/** Caps each read-only smoke check so a doctor run cannot wait the full `flisk up` budget per service. */
 const DOCTOR_SMOKE_TIMEOUT_SECONDS = 10;
 
 /**
- * The GET-only part of each smoke block, for `tdk doctor`. Doctor must never write to a service, and a step whose path reads
+ * The GET-only part of each smoke block, for `flisk doctor`. Doctor must never write to a service, and a step whose path reads
  * a value saved by an earlier write (`{{name}}`) cannot run on its own, so both are dropped. A service with no such steps is left out.
  * `bodyContains` is also cleared: it asserts on data that earlier writes created, so doctor would fail a healthy route whose data was removed.
  * The status check stays, which is what shows a route exists.
@@ -261,7 +269,8 @@ interface StepRecord {
   service: string;
   step: string;
   method: string;
-  url: string;
+  /** Withheld when the URL could not be masked safely. */
+  url?: string;
   expectedStatus: number;
   status: number | null;
   error?: string;
@@ -325,7 +334,7 @@ export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promi
   let deadline = now() + budgetMs;
   const saved: Record<string, string> = {};
 
-  // A manifest with errors is still loaded, so a malformed block must fail the check, not throw out of `tdk up`.
+  // A manifest with errors is still loaded, so a malformed block must fail the check, not throw out of `flisk up`.
   const invalid = validateSmoke(plan.smoke);
   if (invalid.length > 0) {
     return {
@@ -335,7 +344,7 @@ export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promi
     };
   }
 
-  // `tdk up` starts the check once Tilt's UI is up, while images may still be building. Traefik then resets or 404s early requests.
+  // `flisk up` starts the check once Tilt's UI is up, while images may still be building. Traefik then resets or 404s early requests.
   // A write must not be repeated after a reset (it may have reached the service), so wait for readiness with GETs instead.
   // If the service never answers, fall through: the first step then fails with its own record.
   if (plan.readyPath) {
@@ -401,11 +410,34 @@ export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promi
       await sleep(RETRY_DELAY_MS);
     }
 
-    const where = `${plan.name}: ${label}: ${method} ${url}`;
+    // The URL, the response body and the error can all hold a secret the project knows about. Mask them once, here, so the
+    // printed snippet, the stored body and the record cannot drift apart. The raw text still decides the assertions and the
+    // saved values: masking is for what is shown and stored, not for what is checked or sent.
+    let maskFailed = false;
+    const mask = (text: string): string | undefined => {
+      if (maskFailed) return undefined;
+      if (!deps.redact) return text;
+      try {
+        return deps.redact(text);
+      } catch (error) {
+        maskFailed = true;
+        const reason = error instanceof Error ? error.message : String(error);
+        deps.warn?.(
+          `${plan.name}: ${label}: the response text was neither shown nor stored: ${reason}`,
+        );
+        return undefined;
+      }
+    };
+    const safeUrl = mask(url);
+    const safeText = status === undefined ? undefined : mask(text);
+    const safeError = error === undefined ? undefined : mask(error);
+    const recordError = error === undefined ? undefined : (errorCode ?? safeError);
+
+    const where = `${plan.name}: ${label}: ${method} ${safeUrl ?? "(url withheld)"}`;
     // Every step that ran leaves a record. A step is "passed" for last-success only if status and bodyContains both match.
     let recordPath: string | undefined;
     if (deps.recordDir) {
-      const capped = status === undefined ? undefined : capBody(text);
+      const capped = safeText === undefined ? undefined : capBody(safeText);
       const passed =
         error === undefined &&
         status === expected &&
@@ -417,10 +449,10 @@ export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promi
           service: plan.name,
           step: label,
           method,
-          url,
+          ...(safeUrl === undefined ? {} : { url: safeUrl }),
           expectedStatus: expected,
           status: status ?? null,
-          ...(error === undefined ? {} : { error: errorCode ?? error }),
+          ...(recordError === undefined ? {} : { error: recordError }),
           truncated: capped?.truncated ?? false,
           bodyBytes: capped?.bytes ?? 0,
         },
@@ -434,15 +466,16 @@ export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promi
       failure,
       recordPath,
     });
-    if (error !== undefined) return fail(`${where} never answered (${error})`);
+    if (error !== undefined)
+      return fail(`${where} never answered (${safeError ?? "the error was withheld"})`);
     if (status !== expected) {
       return fail(
-        `${where} returned ${status}, expected ${expected}${text ? `: ${snippet(text)}` : ""}`,
+        `${where} returned ${status}, expected ${expected}${safeText ? `: ${snippet(safeText)}` : ""}`,
       );
     }
     if (step.bodyContains !== undefined && !text.includes(step.bodyContains)) {
       return fail(
-        `${where} returned ${status} but the body does not contain "${step.bodyContains}": ${snippet(text)}`,
+        `${where} returned ${status} but the body does not contain "${step.bodyContains}"${safeText ? `: ${snippet(safeText)}` : ""}`,
       );
     }
     if (step.save) {
@@ -450,12 +483,16 @@ export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promi
       try {
         parsed = JSON.parse(text);
       } catch {
-        return fail(`${where} returned a body that is not JSON, cannot save: ${snippet(text)}`);
+        return fail(
+          `${where} returned a body that is not JSON, cannot save${safeText ? `: ${snippet(safeText)}` : ""}`,
+        );
       }
       for (const [key, path] of Object.entries(step.save)) {
         const value = readPath(parsed, path);
         if (value === undefined || value === null || typeof value === "object") {
-          return fail(`${where} response has no ${path} to save as {{${key}}}: ${snippet(text)}`);
+          return fail(
+            `${where} response has no ${path} to save as {{${key}}}${safeText ? `: ${snippet(safeText)}` : ""}`,
+          );
         }
         saved[key] = String(value);
       }
@@ -466,6 +503,21 @@ export async function runSmokePlan(plan: SmokePlan, deps: SmokeDeps = {}): Promi
 
 export function formatSmokeFailure(result: SmokeResult): string {
   return `Smoke check failed: ${result.failure}${result.recordPath ? ` (record: ${result.recordPath})` : ""}`;
+}
+
+/**
+ * The dependencies that keep smoke text safe: the project's own secret values are masked before anything is shown or stored.
+ * Both `flisk up` and `flisk doctor` use them, so neither prints a body that holds a secret.
+ */
+export function safeSmokeDeps(
+  projectRoot: string,
+  warn?: (message: string) => void,
+  options: { envFiles?: readonly string[] } = {},
+): Pick<SmokeDeps, "redact" | "warn"> {
+  return {
+    redact: createEnvRedactor(projectRoot, options.envFiles ?? []),
+    ...(warn ? { warn } : {}),
+  };
 }
 
 /** Runs every plan side by side; each plan keeps its own timeout. */

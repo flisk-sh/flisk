@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# The tdk up warm and cold start benchmark on the restaurant example (moved from .github/workflows/benchmarks.yml, #1301). Each
+# The flisk up warm and cold start benchmark on the restaurant example (moved from .github/workflows/benchmarks.yml, #1301). Each
 # case is one step of the old measure job: B1 generates the project from this commit's extension, B2 runs the cold and warm
 # starts with scripts/benchmark/tdk-up-warm-start.sh, B3 builds the HTML report and its summary. The job builds the CLI from
 # this commit and installs Tilt first (the workflow's steps), and the publish job stays in the workflow: this suite measures,
 # and the workflow decides what is published (scheduled and release runs only).
 #
 #   tests/e2e/scale/benchmarks/run.sh B1 B2 B3       the measurement, as in CI (COLD_RUNS and WARM_RUNS default to 1)
-#   tests/e2e/scale/benchmarks/run.sh cleanup        tdk down in the restaurant project
+#   tests/e2e/scale/benchmarks/run.sh cleanup        flisk down in the restaurant project
 set -euo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,10 +25,10 @@ RESOURCES=()
 B1() { # generate the restaurant project from this commit's extension
   log "B1 generate the restaurant project"
   cd "$DIR"
-  tdk project --yes
+  flisk project --yes
 }
 
-B2() { # cold and warm starts of tdk up, each until eight services answer
+B2() { # cold and warm starts of flisk up, each until eight services answer
   log "B2 cold and warm starts"
   local COLD_RUNS="${COLD_RUNS:-1}" WARM_RUNS="${WARM_RUNS:-1}"
   "$REPO_ROOT/scripts/benchmark/tdk-up-warm-start.sh" \
@@ -42,7 +42,7 @@ B2() { # cold and warm starts of tdk up, each until eight services answer
 B3() { # the report: the Pages site's HTML and the raw results, plus the job summary
   log "B3 build the report"
   local COMMIT="${COMMIT:-$(git -C "$REPO_ROOT" rev-parse HEAD)}"
-  local RUN_URL="${RUN_URL:-${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-tdk-landscape/tdk-cli-core}/actions/runs/${GITHUB_RUN_ID:-0}}"
+  local RUN_URL="${RUN_URL:-${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-flisk-sh/flisk}/actions/runs/${GITHUB_RUN_ID:-0}}"
   local summary="${GITHUB_STEP_SUMMARY:-$OUT/step-summary.md}"
   node "$REPO_ROOT/scripts/benchmark/build-report.mjs" \
     --run "$BENCH_OUT" \
@@ -60,6 +60,6 @@ B3() { # the report: the Pages site's HTML and the raw results, plus the job sum
 }
 
 # The workflow's "Stop the project" step: the stack goes, the checkout stays.
-e2e_cleanup() { (cd "$DIR" && tdk down || true); }
+e2e_cleanup() { (cd "$DIR" && flisk down || true); }
 
 e2e_main "$@"

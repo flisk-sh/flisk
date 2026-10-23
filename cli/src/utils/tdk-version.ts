@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -6,7 +6,7 @@ import { PROJECT_JSON } from "./constants.js";
 
 /**
  * A repo can pin the oldest CLI it works with: `"minTdkVersion": "1.3.80"` in .tdk/project.json.
- * Shared by `tdk doctor` and `tdk up` so both say the same thing.
+ * Shared by `flisk doctor` and `flisk up` so both say the same thing.
  */
 export type TdkVersionFloor =
   | { status: "none" }
@@ -59,8 +59,8 @@ export function evaluateTdkVersionFloor(
     return {
       status: "too-old",
       required: requiredText,
-      message: `tdk ${currentVersion} is older than the ${requiredText} this project requires (minTdkVersion)`,
-      fix: "Run: tdk upgrade",
+      message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (minTdkVersion)`,
+      fix: "Run: flisk upgrade",
     };
   }
   return { status: "ok", required: requiredText };

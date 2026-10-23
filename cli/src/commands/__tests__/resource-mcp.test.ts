@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -17,7 +17,7 @@ import {
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
 
-function tdk(args: string[], cwd: string, input = "y\n") {
+function flisk(args: string[], cwd: string, input = "y\n") {
   return spawnSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
@@ -56,7 +56,7 @@ describe("the mcp resource type", () => {
     expect(schema.properties.appType.enum).toContain("mcp");
 
     // Every backend code path in the engine keys off appType == 'backend', so an mcp manifest is normalised once, where
-    // service.json is loaded. This pins that, because nothing else would notice it going missing until `tdk up`.
+    // service.json is loaded. This pins that, because nothing else would notice it going missing until `flisk up`.
     const loader = readFileSync(
       join(repoRoot, "engine", "topologies", "tilt", "manifest", "loader.star"),
       "utf-8",
@@ -73,11 +73,11 @@ describe("the mcp resource type", () => {
   });
 });
 
-describe("tdk resource --type mcp", () => {
+describe("flisk resource --type mcp", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-mcp-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-mcp-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
       env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
@@ -93,7 +93,7 @@ describe("tdk resource --type mcp", () => {
     JSON.parse(readFileSync(join(dir(name), file), "utf-8"));
 
   it("scaffolds a Model Context Protocol server on the shared Bun image", () => {
-    const result = tdk(["resource", "docs-mcp", "--type", "mcp", "--stack", "shop"], projectRoot);
+    const result = flisk(["resource", "docs-mcp", "--type", "mcp", "--stack", "shop"], projectRoot);
     expect(result.status, result.stderr).toBe(0);
 
     const service = json("docs-mcp", "service.json");
@@ -136,7 +136,7 @@ describe("tdk resource --type mcp", () => {
   }, 30000);
 
   it("rejects --framework and --language, which have no meaning for an mcp resource", () => {
-    const framework = tdk(
+    const framework = flisk(
       ["resource", "bad-fw", "--type", "mcp", "--framework", "express", "--stack", "shop"],
       projectRoot,
     );
@@ -146,7 +146,7 @@ describe("tdk resource --type mcp", () => {
     );
     expect(existsSync(dir("bad-fw"))).toBe(false);
 
-    const language = tdk(
+    const language = flisk(
       ["resource", "bad-lang", "--type", "mcp", "--language", "python", "--stack", "shop"],
       projectRoot,
     );

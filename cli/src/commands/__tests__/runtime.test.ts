@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -33,7 +33,7 @@ const EXPECTED_ASSET_PATHS = [
 
 const JSON_KEYS = ["assetRoot", "missing", "ok", "templateErrors"];
 
-/** Builds a directory that has every path `tdk runtime --check-assets` requires. */
+/** Builds a directory that has every path `flisk runtime --check-assets` requires. */
 function createCompleteAssetRoot(root: string): void {
   writeFileSync(join(root, "Tiltfile"), "");
   for (const directory of EXPECTED_ASSET_PATHS.filter((path) => path !== "Tiltfile")) {
@@ -41,7 +41,7 @@ function createCompleteAssetRoot(root: string): void {
   }
 }
 
-/** Runs `tdk runtime <args>` and returns everything it printed to stdout and stderr. */
+/** Runs `flisk runtime <args>` and returns everything it printed to stdout and stderr. */
 async function runRuntime(args: string[]): Promise<{ stdout: string; stderr: string }> {
   const stdout: string[] = [];
   const stderr: string[] = [];
@@ -60,7 +60,7 @@ async function runRuntime(args: string[]): Promise<{ stdout: string; stderr: str
   return { stdout: stdout.join("\n"), stderr: stderr.join("\n") };
 }
 
-describe("tdk runtime", () => {
+describe("flisk runtime", () => {
   let tempDir: string;
 
   beforeEach(() => {

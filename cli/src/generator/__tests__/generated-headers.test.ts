@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,11 +36,11 @@ describe("generated file headers", () => {
   it.each(Object.keys(files))("%s says it is generated and how to regenerate it", (name) => {
     const head = (files[name] ?? "").split("\n").slice(0, 16).join("\n");
     expect(head).toContain("SYSTEM-GENERATED");
-    expect(head).toContain("tdk config regenerate");
+    expect(head).toContain("flisk config regenerate");
   });
 
-  it.each(Object.keys(files))("%s never tells people to run `tdk project`", (name) => {
-    expect(files[name]).not.toContain("tdk project");
+  it.each(Object.keys(files))("%s never tells people to run `flisk project`", (name) => {
+    expect(files[name]).not.toContain("flisk project");
   });
 
   it("leaves no empty `Generated:` label in .tiltignore", () => {

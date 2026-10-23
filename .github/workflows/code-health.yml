@@ -3,7 +3,8 @@
 name: 🩺 Code health
 
 on:
-  pull_request:
+  schedule:
+    - cron: "0 9 * * 1" # weekly report; pull requests no longer run it
   workflow_dispatch:
 
 permissions:

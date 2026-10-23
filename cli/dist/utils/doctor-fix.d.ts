@@ -1,12 +1,13 @@
 import type { CheckResult } from "../types/index.js";
+import { type ColimaStatus } from "./colima.js";
 export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
-/** One repair `tdk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
+/** One repair `flisk doctor --fix` plans or performs. Part of the `--json` report (`data.actions`). */
 export interface DoctorAction {
     id: string;
     check: string;
     /**
      * `project`: owned by the current project. `probe`: a doctor probe, owned by no project. `machine`: another
-     * TDK project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
+     * Flisk project's resource, only ever planned with `--scope=machine`. `host`: a cache shared by every project
      * (Docker build cache, dangling images), only planned while free disk space is low.
      */
     scope: "project" | "probe" | "machine" | "host";
@@ -36,6 +37,12 @@ export interface DoctorFixDeps {
         danglingImages: number;
     }>;
     prune(kind: "builder" | "images"): Promise<void>;
+    /** Starts, restarts, or repairs (native lima) the Colima VM, with a native limactl first on PATH when there is one. */
+    colima(action: "start" | "restart" | "native-lima"): Promise<void>;
+    /** The state of the Colima VM behind Docker. */
+    colimaStatus(): ColimaStatus;
+    /** Whether the Docker daemon answers right now. */
+    dockerAnswers(): boolean;
 }
 type DockerRunner = (args: string[]) => Promise<string>;
 /** `ps -o etime=` ("[[dd-]hh:]mm:ss") in seconds. */
@@ -50,12 +57,12 @@ export declare const dockerFixDeps: DoctorFixDeps;
 export interface PlanContext {
     /** `tilt up` processes for this project (see `projectTiltPids`). */
     tiltPids?: number[];
-    /** `--scope=machine`: also plan unused networks of other TDK projects. */
+    /** `--scope=machine`: also plan unused networks of other Flisk projects. */
     machine?: boolean;
 }
 /**
  * What `--fix` would do: stop this project's stale Tilt; remove unused networks that are a leftover doctor probe or
- * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other TDK projects' unused
+ * this project's own (the exact names the engine creates, skipped while its Tilt runs). Other Flisk projects' unused
  * networks are planned only with `context.machine`, each naming its owner.
  */
 export declare function planDoctorFixes(projectName: string | undefined, deps?: DoctorFixDeps, context?: PlanContext): Promise<DoctorAction[]>;
@@ -72,9 +79,9 @@ export interface TdkInstall {
     path: string;
     version: string | null;
 }
-/** Every distinct `tdk` on PATH (symlinks to one binary count once), in PATH order. */
+/** Every distinct `flisk` on PATH (symlinks to one binary count once), in PATH order. */
 export declare function findTdkInstalls(paths?: string[], readVersion?: (path: string) => Promise<string | null>): Promise<TdkInstall[]>;
-/** Two `tdk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
+/** Two `flisk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
 export declare function checkDuplicateTdkInstalls(installs?: TdkInstall[]): Promise<CheckResult>;
 /**
  * PIDs of `tilt up` processes for this project. The process list shows the Tiltfile path as it was typed at launch,

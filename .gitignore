@@ -2,6 +2,10 @@
 node_modules/
 *.log
 
+# npm is not the package manager here (bun.lock is); a stray package-lock.json
+# would pin another platform's optional binaries and break the Windows E2E job.
+package-lock.json
+
 # Build output
 cli/dist/
 cli/dist-bundle/

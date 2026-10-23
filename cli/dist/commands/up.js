@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync } from "node:fs";
 import { connect } from "node:net";
@@ -10,13 +10,16 @@ import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_M
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
+import { applyEnvFileSelection, assertEngineSupportsEnvFile, EnvFileError, envFileWarning, PROJECT_ENV_FILE_VAR, selectEnvFile, } from "../utils/env-selection.js";
 import { completeEnvFile } from "../utils/env-validator.js";
-import { errorFactories, handleTiltFailure, requireProjectRoot, runCommand, showErrorAndExit, withTiltCheck, } from "../utils/errors.js";
+import { errorFactories, getErrorMessage, handleTiltFailure, requireProjectRoot, runCommand, showError, showErrorAndExit, TdkError, withTiltCheck, } from "../utils/errors.js";
+import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
 import { formatCount } from "../utils/formatting.js";
 import { exportHostPortPlan, getHostPortPlan, writeSavedHostPortPlan, } from "../utils/host-port-config.js";
 import { formatHostPortPlan } from "../utils/host-port-plan.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { toMachineError } from "../utils/machine-output.js";
+import { nativeWindowsStackRefusal } from "../utils/native-windows.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
@@ -24,8 +27,8 @@ import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions } from "../utils/service-config-checks.js";
 import { appendHealthPath, resolveSubdomainBases } from "../utils/service-urls.js";
-import { discoverResources, discoverResourcesStrict, discoverStacks, stackExists, } from "../utils/services.js";
-import { buildSmokePlans, formatSmokeFailure, runSmokePlans } from "../utils/smoke.js";
+import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
+import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, formatStartupReport, isStartupStalled, } from "../utils/startup-report.js";
 import { evaluateTdkVersionFloor } from "../utils/tdk-version.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
@@ -37,21 +40,23 @@ import { tiltGetUiResources, waitForTiltResourcesReady } from "../utils/up-readi
 import { enableDiscoveredStacks } from "./project.js";
 export function formatUpSuccess(port, appUrls = []) {
     return [
-        "TDK is up.",
+        "Flisk is up.",
         `Tilt UI: http://localhost:${port}`,
         "App URLs:",
         ...(appUrls.length > 0
             ? appUrls.slice(0, 5).map((url) => `  ${url}`)
-            : ["  run: tdk networks"]),
-        "Stop: tdk down",
+            : ["  run: flisk networks"]),
+        "Stop: flisk down",
     ];
 }
-export function nativeWindowsUpRefusal(platform, allowNativeWindows) {
-    if (platform !== "win32" || allowNativeWindows === "1")
-        return null;
-    return "Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.";
-}
-/** Why `tdk up` cannot work on this host, or null when it may proceed. Docker reachability is only probed in container hosts. */
+/**
+ * The native Windows boundary for a command that starts a stack.
+ *
+ * It lives here because `flisk up` is where the boundary has always been enforced; the
+ * one-command demo flow refuses with the same message before it clones or installs anything.
+ */
+export const nativeWindowsUpRefusal = nativeWindowsStackRefusal;
+/** Why `flisk up` cannot work on this host, or null when it may proceed. Docker reachability is only probed in container hosts. */
 export async function hostUpRefusal(host = detectHost(), dockerReachable = defaultDockerReachable) {
     if (host.kind === "webcontainer")
         return WEBCONTAINER_UP_MESSAGE;
@@ -65,16 +70,21 @@ async function defaultDockerReachable() {
         execFile("docker", ["ps"], { timeout: 10_000 }, (error) => resolve(!error));
     });
 }
-/** Exit status for `tdk up` when generated files no longer match service.json / project.json. */
+/** Exit status for `flisk up` when generated files no longer match service.json / project.json. */
 export const DRIFT_EXIT_CODE = 2;
 /**
- * Generated service files edited by hand. Only these block `tdk up`: when service.json itself changed, `tdk up` regenerates
+ * Generated service files edited by hand. Only these block `flisk up`: when service.json itself changed, `flisk up` regenerates
  * the outputs, so stale outputs are the normal edit-then-up loop and not drift.
  */
-export function driftReport(projectRoot) {
+export function driftReport(projectRoot, resources) {
     let handEdited;
     try {
-        ({ handEdited } = verifyMasterConfigs(projectRoot));
+        ({ handEdited } = verifyMasterConfigs(projectRoot, resources
+            ? {
+                manifestPaths: resources.map((r) => r.configPath),
+                skipManifestValidation: true,
+            }
+            : undefined));
     }
     catch (error) {
         // A project with no .tdk/project.json has no snapshots to compare. Anything else (a corrupt config) must not skip the gate.
@@ -87,7 +97,7 @@ export function driftReport(projectRoot) {
     return [
         "Generated files were edited by hand and no longer match service.json:",
         ...handEdited.map((file) => `  ${file}`),
-        "Run `tdk config regenerate` to discard the edits, or bypass with `tdk up --ignore-drift`.",
+        "Run `flisk config regenerate` to discard the edits, or bypass with `flisk up --ignore-drift`.",
     ];
 }
 /**
@@ -99,17 +109,16 @@ export function enforceDriftGate(projectRoot, options, exit = process.exit) {
         console.warn(chalk.yellow("Warning: --ignore-drift set; generated files were not checked."));
         return;
     }
-    const drift = driftReport(projectRoot);
+    const drift = driftReport(projectRoot, options.resources);
     if (!drift)
         return;
     options.onDrift?.(drift.join("\n"));
-    for (const line of drift)
-        console.error(chalk.red(line));
+    showError(drift.join("\n"));
     exit(DRIFT_EXIT_CODE);
 }
 /**
  * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minTdkVersion` in
- * .tdk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `tdk doctor`.
+ * .tdk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
  * `ignoreVersion` skips the check and says so. No minTdkVersion means no check.
  */
 export function enforceVersionFloor(projectRoot, options, currentVersion = getPackageVersion(), exit = process.exit) {
@@ -121,14 +130,13 @@ export function enforceVersionFloor(projectRoot, options, currentVersion = getPa
     if (floor.status === "none" || floor.status === "ok")
         return;
     options.onFail?.(`${floor.message}\n${floor.fix}`);
-    console.error(chalk.red(floor.message));
-    console.error(chalk.red(floor.fix));
+    showError(`${floor.message}\n${floor.fix}`);
     exit(1);
 }
 const STARTUP_FAILED = Symbol("startup-failed");
 /**
  * Waits for Tilt to exit, unless startup has already failed. A readiness failure reports and exits 1 at once: Tilt keeps
- * running (`tdk down` stops it), so waiting for its exit would hang the command.
+ * running (`flisk down` stops it), so waiting for its exit would hang the command.
  */
 export async function waitForTiltUnlessStartupFailed(tiltRun, startupFailure, exit = process.exit) {
     const outcome = await Promise.race([tiltRun, startupFailure.then(() => STARTUP_FAILED)]);
@@ -158,6 +166,37 @@ function waitForTiltUi(port, timeoutMs = 30_000) {
         attempt();
     });
 }
+/**
+ * The env file of the run. `flisk up --env-file <path>` replaces the project `.env` for the run, so the
+ * file is resolved, read and checked before anything is written or started. Without the option the
+ * project `.env` stays the env file of the run, exactly as before.
+ *
+ * @throws TdkError when the file cannot be used; the run stops before it starts
+ */
+export function selectRunEnvFile(projectRoot, requested) {
+    if (requested === undefined)
+        return undefined;
+    if (!projectRoot) {
+        throw errorFactories.notInProject();
+    }
+    const selection = selectEnvFile(projectRoot, requested);
+    // A project created before this option vendored an engine that ignores the selection, so the run
+    // would silently use the project .env instead.
+    assertEngineSupportsEnvFile(projectRoot);
+    return selection;
+}
+/** The machine-readable failure of a refused `--env-file`, and the exit code it stops the run with. */
+function envFileFailure(error) {
+    const suggestions = error instanceof TdkError ? error.suggestions : [];
+    return {
+        failure: {
+            code: error instanceof EnvFileError ? error.code : "ENV_FILE_INVALID",
+            message: getErrorMessage(error),
+            ...(suggestions.length > 0 ? { suggestions } : {}),
+        },
+        exitCode: error instanceof TdkError ? error.exitCode : 2,
+    };
+}
 export const upCommand = new Command("up")
     .description("Start all services (optionally filtered by stack)")
     .alias("deploy")
@@ -167,11 +206,12 @@ export const upCommand = new Command("up")
     .option("--dry-run", "Show what would be started without starting", false)
     .option("-f, --force", "Kill existing Tilt process before starting", false)
     .option("--ignore-drift", "Start even if generated files differ from service.json", false)
-    .option("--ignore-version", "Start even if this tdk is older than minTdkVersion in .tdk/project.json", false)
+    .option("--ignore-version", "Start even if this flisk is older than minTdkVersion in .tdk/project.json", false)
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
+    .option("--env-file <path>", "Use this project env file for the run instead of .env (for example: --env-file .env.integration)")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .action(async (stackName, options) => {
-    const emit = options.json ? createJsonEmitter("UP_FAILED", "tdk up") : undefined;
+    const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
     if (options.json)
         options.quiet = true;
     const portSetting = parseTiltPort(process.env.TILT_PORT);
@@ -188,6 +228,35 @@ export const upCommand = new Command("up")
             onFail: (message) => emit?.({ ok: false }, [{ code: "TDK_VERSION_TOO_OLD", message }]),
         });
     }
+    // The env file of the run. `--env-file` replaces the project .env for this run, so the file is
+    // resolved and read before any prerequisite check, any write and any service starts.
+    const envFileRoot = versionRoot;
+    let envFileSelection;
+    if (options.envFile === undefined) {
+        // Without the option the project .env is the env file of the run, whatever the environment
+        // carries: an inherited TDK_ENV_FILE must not change the default.
+        delete process.env[PROJECT_ENV_FILE_VAR];
+    }
+    if (options.envFile !== undefined) {
+        try {
+            envFileSelection = selectRunEnvFile(envFileRoot, options.envFile);
+        }
+        catch (error) {
+            const { failure, exitCode } = envFileFailure(error);
+            emit?.({ ok: false }, [failure]);
+            showErrorAndExit(failure.message, exitCode, failure.suggestions);
+        }
+        if (envFileSelection && envFileRoot) {
+            applyEnvFileSelection(envFileSelection);
+            if (!options.quiet) {
+                console.log(chalk.gray(`Using env file: ${envFileSelection.relativePath} (the project .env is not read in this run)`));
+            }
+            const warning = envFileWarning(envFileRoot, envFileSelection);
+            // stderr, not stdout: in --json mode stdout carries the JSON envelope only.
+            if (warning)
+                console.warn(chalk.yellow(warning));
+        }
+    }
     const hostRefusal = options.dryRun ? null : await hostUpRefusal();
     if (hostRefusal) {
         emit?.({ ok: false }, [{ code: "HOST_UNSUPPORTED", message: hostRefusal }]);
@@ -198,10 +267,21 @@ export const upCommand = new Command("up")
         showErrorAndExit(platformRefusal);
     // An unknown schemaVersion is refused before the machine check, so --json can name the file even when Bun is missing.
     const schemaRoot = findProjectRoot();
+    let initialDiscovery;
     if (schemaRoot) {
-        enforceSchemaVersionGate(schemaRoot, {
-            onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
-        });
+        try {
+            initialDiscovery = discoverResourcesWithProblems(schemaRoot);
+            warnAboutSkippedFiles(initialDiscovery.problems);
+        }
+        catch {
+            // A root that cannot be read is reported by the checks that run next.
+        }
+        if (initialDiscovery) {
+            enforceSchemaVersionGate(schemaRoot, {
+                resources: initialDiscovery.resources,
+                onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+            });
+        }
     }
     if (!options.dryRun) {
         const { assertMachineReadyOrExit } = await import("../utils/cold-preflight.js");
@@ -210,7 +290,7 @@ export const upCommand = new Command("up")
     const action = async () => {
         const foundRoot = options.dryRun ? requireProjectRoot() : findProjectRoot();
         const projectRoot = foundRoot ?? process.cwd();
-        const discoveredResources = discoverResourcesStrict();
+        const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined);
         let discoveredStacks;
         let discoveredStackNames = [];
         if (!options.only || stackName) {
@@ -219,13 +299,13 @@ export const upCommand = new Command("up")
         }
         // Reject a bad request before anything below can write to the project (.env, runtime assets, .tdk/project.json).
         if (options.only) {
-            if (stackName && !stackExists(stackName)) {
+            if (stackName && !stackExists(stackName, discoveredResources)) {
                 const error = errorFactories.stackNotFound(stackName, discoveredStackNames);
                 emit?.({ ok: false }, [toMachineError(error).error]);
                 error.exit();
             }
             const candidates = stackName
-                ? discoveredResources.filter((resource) => resource.stack === stackName)
+                ? getResourcesForStack(stackName, discoveredResources)
                 : discoveredResources;
             const unknown = findUnknownServices(options.only, candidates);
             if (unknown.length > 0) {
@@ -245,31 +325,35 @@ export const upCommand = new Command("up")
         if (foundRoot) {
             enforceDriftGate(foundRoot, {
                 ignoreDrift: options.ignoreDrift,
+                resources: discoveredResources,
                 onDrift: (message) => emit?.({ ok: false }, [{ code: "DRIFT_DETECTED", message }]),
             });
         }
         // Duplicate names, circular dependsOn and invalid ports are refused before anything starts, dry run included.
         if (foundRoot) {
             enforceServiceConfigGate(foundRoot, {
+                resources: discoveredResources,
                 onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SERVICE_CONFIG", message }]),
             });
         }
         // A project without schemaVersion keeps working; say how to add it, but only where a person is reading.
-        if (foundRoot && !emit && !options.quiet)
-            warnSchemaVersions(foundRoot);
+        if (foundRoot && !emit && !options.quiet) {
+            warnSchemaVersions(foundRoot, discoveredResources);
+        }
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,
         });
         if (!options.dryRun) {
             // An older project's .env predates keys such as JWT_SECRET, which Compose now requires. Add what is missing (never
             // changing an existing value) before anything starts. Only inside a real project, so a stray run never writes a .env.
-            if (foundRoot) {
+            // A selected env file replaces the project .env for this run: the run does not read it, so it is not completed either.
+            if (foundRoot && !envFileSelection) {
                 const addedEnvKeys = completeEnvFile(projectRoot);
                 if (addedEnvKeys.length > 0 && !options.quiet) {
                     console.log(chalk.gray(`Added ${addedEnvKeys.join(", ")} to .env (generated; existing values unchanged)`));
                 }
             }
-            // A project made by `tdk import` has .tdk/project.json but no generated files yet. Generate them rather than letting
+            // A project made by `flisk import` has .tdk/project.json but no generated files yet. Generate them rather than letting
             // Tilt fail on a missing Tiltfile.
             if (foundRoot && !existsSync(join(projectRoot, ".tdk", ".tdk-out", "Tiltfile"))) {
                 if (!options.quiet) {
@@ -281,7 +365,7 @@ export const upCommand = new Command("up")
             if (copiedAssets.length > 0 && options.verbose && !options.quiet) {
                 console.log(chalk.gray(`Refreshed runtime assets: ${copiedAssets.join(", ")}`));
             }
-            const newlyEnabledStacks = enableDiscoveredStacks(projectRoot);
+            const newlyEnabledStacks = enableDiscoveredStacks(projectRoot, discoveredResources);
             if (newlyEnabledStacks.length > 0 && !options.quiet) {
                 console.log(chalk.gray(`Added ${newlyEnabledStacks.join(", ")} to the pre_alpha phase in .tdk/project.json`));
             }
@@ -290,7 +374,7 @@ export const upCommand = new Command("up")
         let stackDescription;
         let focusServiceNames = [];
         if (stackName) {
-            servicesToStart = discoveredResources.filter((resource) => resource.stack === stackName);
+            servicesToStart = getResourcesForStack(stackName, discoveredResources);
             if (servicesToStart.length === 0) {
                 const error = errorFactories.stackNotFound(stackName, discoveredStackNames);
                 emit?.({ ok: false }, [toMachineError(error).error]);
@@ -307,7 +391,7 @@ export const upCommand = new Command("up")
         let dependencyNames = [];
         if (options.only) {
             // Dependencies come from the whole project, not just the named stack: dependsOn may cross stacks.
-            const selection = resolveOnlySelection(options.only, discoverResources());
+            const selection = resolveOnlySelection(options.only, discoveredResources);
             servicesToStart = selection.selected;
             dependencyNames = selection.dependencies;
             focusServiceNames = servicesToStart.map((s) => s.name);
@@ -383,7 +467,7 @@ export const upCommand = new Command("up")
         const { running, foreign } = await classifyTiltPorts(candidatePorts, projectRoot, async (candidate) => (await tiltGetUiResources(candidate)) !== null);
         if (foreign.length > 0 && configuredTiltPort !== undefined) {
             const other = foreign[0];
-            const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run tdk down in that project.`;
+            const message = `TILT_PORT=${other?.port} is used by another project's Tilt (${other?.root}). Choose a free port, or run flisk down in that project.`;
             emit?.({ ok: false }, [{ code: "TILT_PORT_IN_USE", message }]);
             showErrorAndExit(message);
         }
@@ -400,6 +484,14 @@ export const upCommand = new Command("up")
             only: Boolean(options.only),
         });
         if (decision.action === "already-running") {
+            // The env file of the run belongs to the Tilt process this run starts. A stack that is
+            // already running keeps the env file it started with, so the selection would be ignored
+            // silently - say so instead of reporting a run that never happened.
+            if (envFileSelection) {
+                const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --env-file applies to a new run only: run \`flisk down\` first, or pass --force to replace the running stack.`;
+                emit?.({ ok: false }, [{ code: "ENV_FILE_ALREADY_RUNNING", message }]);
+                showErrorAndExit(message);
+            }
             const message = `Environment is already running on port ${decision.ports.join(", ")}.`;
             emit?.({
                 ok: true,
@@ -411,7 +503,7 @@ export const upCommand = new Command("up")
             return;
         }
         if (decision.action === "only-blocked") {
-            const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --only cannot change a running stack's services: run \`tdk down\` first, or pass --force to replace it.`;
+            const message = `A Tilt is already running on port ${decision.ports.join(", ")}. --only cannot change a running stack's services: run \`flisk down\` first, or pass --force to replace it.`;
             emit?.({ ok: false }, [{ code: "TILT_ALREADY_RUNNING", message }]);
             showErrorAndExit(message);
         }
@@ -446,7 +538,7 @@ export const upCommand = new Command("up")
             inheritStdio: !options.quiet, // Suppress tilt output in quiet mode
         });
         // Services that declare `smoke` are checked through the public URL once Tilt is up. A miss stops Tilt (containers stay for
-        // inspection; `tdk down` removes them) and fails the command.
+        // inspection; `flisk down` removes them) and fails the command.
         const smokePlans = buildSmokePlans(servicesToStart, hostPortPlan.ingressHttp);
         let smokeFailed = false;
         let printedSuccess = false;
@@ -462,7 +554,7 @@ export const upCommand = new Command("up")
             let startedServices = serviceNames;
             let startedDependencies = dependencyNames;
             if (uiReady && emit) {
-                const deferred = getDeferredResourceNames();
+                const deferred = getDeferredResourceNames(discoveredResources);
                 const readiness = await waitForTiltResourcesReady(port, {
                     deferred,
                     // Only what the caller named must be enabled. Dependencies are the Tiltfile's call (it skips some on purpose).
@@ -475,7 +567,7 @@ export const upCommand = new Command("up")
                     if (options.only) {
                         // Report what Tilt actually enabled, not the service.json closure, which can differ from the Tiltfile's expansion.
                         const enabled = new Set(readiness.enabled);
-                        const allNames = discoverResources().map((r) => r.name);
+                        const allNames = discoveredResources.map((r) => r.name);
                         startedServices = allNames.filter((name) => enabled.has(name));
                         startedDependencies = startedServices.filter((name) => !options.only.includes(name));
                     }
@@ -486,7 +578,7 @@ export const upCommand = new Command("up")
                     emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures: readiness.failures }, [
                         {
                             code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
-                            message: `${readiness.timedOut ? "Timed out waiting for resources" : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: tdk down`,
+                            message: `${readiness.timedOut ? "Timed out waiting for resources" : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
                         },
                     ]);
                 }
@@ -494,8 +586,8 @@ export const upCommand = new Command("up")
             // The UI port opening only means Tilt started. Say "up" once every resource is built and running, and otherwise name
             // what failed and what it blocks.
             if (uiReady && !emit) {
-                const deferred = getDeferredResourceNames();
-                const dependsOn = Object.fromEntries(discoverResources().map((r) => [r.name, r.config?.dependsOn ?? []]));
+                const deferred = getDeferredResourceNames(discoveredResources);
+                const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, r.config?.dependsOn ?? []]));
                 const readiness = await waitForTiltResourcesReady(port, {
                     deferred,
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
@@ -513,8 +605,9 @@ export const upCommand = new Command("up")
                             blocked: [],
                             starting: [],
                         };
-                    for (const line of formatStartupReport(report, readiness.timedOut)) {
-                        console.error(chalk.red(line));
+                    const reportLines = formatStartupReport(report, readiness.timedOut);
+                    if (reportLines.length > 0) {
+                        showError(reportLines.join("\n"));
                     }
                 }
             }
@@ -527,8 +620,17 @@ export const upCommand = new Command("up")
                 if (!options.quiet) {
                     console.log(chalk.gray(`Smoke check: ${smokePlans.map((p) => p.name).join(", ")}`));
                 }
+                // The records hold response bodies, so they must not be committable. Warn before writing them when the ignore
+                // entry could not be added.
+                const ignoreWarning = ensureSmokeRecordsIgnored(projectRoot);
+                if (ignoreWarning)
+                    console.warn(chalk.yellow(ignoreWarning));
                 const results = await runSmokePlans(smokePlans, {
                     recordDir: join(projectRoot, ".tdk", "smoke"),
+                    ...safeSmokeDeps(projectRoot, (message) => console.warn(chalk.yellow(message)), {
+                        // The selected env file holds secrets as much as the project .env.
+                        envFiles: envFileSelection ? [envFileSelection.path] : [],
+                    }),
                 });
                 for (const smokeResult of results) {
                     if (smokeResult.ok) {
@@ -537,7 +639,7 @@ export const upCommand = new Command("up")
                     }
                     else {
                         smokeFailed = true;
-                        console.error(chalk.red(formatSmokeFailure(smokeResult)));
+                        showError(formatSmokeFailure(smokeResult));
                     }
                 }
                 if (smokeFailed) {

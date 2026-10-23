@@ -42,7 +42,7 @@ Resolution matches the frontend `framework` behavior while preserving the backen
 
 1. An explicit `--language <id>` selects a registered provider. Matching is case-insensitive (`Node` selects `node`).
 2. An omitted `--language` selects Bun, as it has always done.
-3. A legacy `service.json` with no `language` field remains valid and means Bun. Discovery and `tdk up` do not rewrite it only to insert the field.
+3. A legacy `service.json` with no `language` field remains valid and means Bun. Discovery and `flisk up` do not rewrite it only to insert the field.
 4. An unknown id fails before any resource files are written, with an actionable message listing the supported ids.
 
 New resources may persist the resolved language. That metadata records the selected provider; it is not a migration and does not make Bun the default.
@@ -68,7 +68,7 @@ Every provider uses the shared service metadata and orchestration contract, incl
 - port allocation in 4000–4999
 - existing Traefik route and hostname conventions
 - health-gated boot order
-- stack-slice selection such as `tdk up <stack>`
+- stack-slice selection such as `flisk up <stack>`
 - database provisioning for the stack database used in `DATABASE_URL`; the provisioner succeeds only after the database exists and is connectable
 
 The backend runtime waits for its declared infrastructure dependencies. A database-enabled service must depend on the matching stack provisioner as well as PostgreSQL. The example E2E exercises this with the `shop` stack: it verifies the expected database exists, then checks routed `/health` and the order write/read path. A provisioner update status alone is insufficient evidence of readiness.
@@ -79,7 +79,7 @@ This differs from the frontend provider guide intentionally: backend runtime ima
 
 ### Python example lives beside `one-backend`, not inside the default example
 
-`examples/one-backend-python/` mirrors `examples/one-backend/`: one authored `service.json` with `"language": "python"`, the provider's FastAPI files, and a README. Adding a Python service to `examples/tdk-example` would put a second language in the required eight-minute default-example gate and change what `tdk project example` produces, so the default example stays Bun-only. A drift test compares the example with `tdk resource --type backend --language python` output so the example cannot rot. A path-filtered CI job boots the example, checks routed `/health`, and runs the pytest smoke test inside the built image, so the runner needs no host Python toolchain.
+`examples/one-backend-python/` mirrors `examples/one-backend/`: one authored `service.json` with `"language": "python"`, the provider's FastAPI files, and a README. Adding a Python service to `examples/tdk-example` would put a second language in the required eight-minute default-example gate and change what `flisk project example` produces, so the default example stays Bun-only. A drift test compares the example with `flisk resource --type backend --language python` output so the example cannot rot. A path-filtered CI job boots the example, checks routed `/health`, and runs the pytest smoke test inside the built image, so the runner needs no host Python toolchain.
 
 ### CLI runtime stays language-neutral
 
@@ -109,4 +109,4 @@ Rollback is a revert. Existing generated services need no migration.
 
 ## Open Questions
 
-None. Python worker and migrator support are out of scope. Existing source files are not recreated by `tdk config regenerate`.
+None. Python worker and migrator support are out of scope. Existing source files are not recreated by `flisk config regenerate`.

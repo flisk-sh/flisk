@@ -1,6 +1,6 @@
 name: 🚢 Publish tdk-import
 
-# tdk-import lives in tdk-landscape/tdk-import but is published with this repo's NPM_TOKEN,
+# tdk-import lives in flisk-sh/flisk-import but is published with this repo's NPM_TOKEN,
 # the only place the secret is set. Run manually with a tag of that repo (for example v0.1.0).
 # Leave "dry_run" on first to check what would be published.
 #
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: tdk-landscape/tdk-import
+          repository: flisk-sh/flisk-import
           ref: ${{ inputs.ref }}
           persist-credentials: false
 
@@ -103,11 +103,11 @@ jobs:
     timeout-minutes: 10
     steps:
       # Pinned: this job holds the token. Everything it runs comes from these two actions and npm.
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: tdk-import-tarball
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.15.0
           registry-url: "https://registry.npmjs.org"

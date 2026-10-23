@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync } from "node:fs";
 
@@ -19,13 +19,13 @@ export interface HostProbeInputs {
 
 export interface HostInfo {
   kind: HostKind;
-  /** False when `tdk up` cannot work on this host regardless of Docker state. */
+  /** False when `flisk up` cannot work on this host regardless of Docker state. */
   canUp: boolean;
 }
 
 export const WEBCONTAINER_DOCS = "docs/agent-hosts.md";
 
-export const WEBCONTAINER_UP_MESSAGE = `WebContainers cannot run TDK: there is no Docker daemon or Tilt. Run \`tdk up\` on a machine with Docker. See ${WEBCONTAINER_DOCS}.`;
+export const WEBCONTAINER_UP_MESSAGE = `WebContainers cannot run Flisk: there is no Docker daemon or Tilt. Run \`flisk up\` on a machine with Docker. See ${WEBCONTAINER_DOCS}.`;
 
 export const DEVCONTAINER_DOCKER_FIX = `Docker is not reachable from this Dev Container. Mount the host Docker socket (-v /var/run/docker.sock:/var/run/docker.sock) or add the docker-outside-of-docker feature to devcontainer.json, then retry. Docker-in-docker is not supported. See ${WEBCONTAINER_DOCS}.`;
 

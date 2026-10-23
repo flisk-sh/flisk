@@ -34,11 +34,16 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node scripts/check-ci-inventory.mjs
 	node --test scripts/check-ci-inventory.test.mjs
 	node --test scripts/check-test-helper-allowlist.test.mjs
+	node --test scripts/pilot-scorecard.test.mjs
+	node --test scripts/autoresearch/layer-eval.test.mjs
+	node --test scripts/e2e-gate-expectations.test.mjs
+	node --test scripts/wait-for-e2e-gates.test.mjs
 	node tests/e2e/lib/check-axes.mjs
 	node --test tests/e2e/lib/__tests__/suite-matrix.test.mjs
 	node --test tests/e2e/lib/__tests__/registry-axes.test.mjs
 	node --test tests/e2e/lib/__tests__/check-axes.test.mjs
 	node --test scripts/red-job-tracker.test.mjs
+	node --test scripts/security-alert-issues.test.mjs
 	node --test scripts/ci-report.test.mjs
 	node --test scripts/test-summary.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'

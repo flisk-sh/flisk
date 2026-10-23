@@ -1,7 +1,7 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { MIN_BUN_VERSION, versionMeetsMinimum } from "../commands/doctor.js";
-/** The Bun floor `tdk doctor` enforces, so `tdk up` cannot drift from it. */
+/** The Bun floor `flisk doctor` enforces, so `flisk up` cannot drift from it. */
 export function bunMeetsFloor(version) {
     return versionMeetsMinimum(version, MIN_BUN_VERSION);
 }

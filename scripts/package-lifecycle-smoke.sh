@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Lifecycle smoke test for the packed CLI tarball (#1384): install the previous
-# published version, upgrade to the packed tarball, check `tdk --version` against
-# cli/package.json, run the reinstalled `tdk --help`, uninstall, and confirm `tdk` is gone.
+# published version, upgrade to the packed tarball, check `flisk --version` against
+# cli/package.json, run the reinstalled `flisk --help`, uninstall, and confirm `flisk` is gone.
 #
 # Meant for a clean machine or container with Node 22 and no Tilt or Docker
 # project (see .github/workflows/package-lifecycle-smoke.yml). Everything lands
@@ -12,8 +12,9 @@
 #   usage: bash scripts/package-lifecycle-smoke.sh <tarball> <cli/package.json>
 set -euo pipefail
 
-readonly PACKAGE="@tdk-landscape/tdk-cli-core"
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly PACKAGE="@flisk-sh/flisk"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 
 if [ "$#" -ne 2 ]; then
   echo "usage: bash scripts/package-lifecycle-smoke.sh <tarball> <cli/package.json>" >&2
@@ -53,17 +54,17 @@ step() {
   echo "== $*"
 }
 
-# Reads `tdk --version` from the PATH and fails unless it prints exactly $1.
+# Reads `flisk --version` from the PATH and fails unless it prints exactly $1.
 check_installed_version() {
   local want="$1"
   local got
   hash -r
-  got="$(tdk --version)"
+  got="$(flisk --version)"
   if [ "$got" != "$want" ]; then
-    echo "installed tdk reports '$got', expected '$want'" >&2
+    echo "installed flisk reports '$got', expected '$want'" >&2
     exit 1
   fi
-  echo "tdk --version: $got"
+  echo "flisk --version: $got"
 }
 
 # The newest stable version published before $expected. Upgrading from it
@@ -98,24 +99,24 @@ node "$SCRIPT_DIR/install-global.mjs" "$tarball"
 check_installed_version "$expected"
 
 step "Run the reinstalled CLI"
-# `tdk project` and `tdk up` stop at the machine checks (Docker, Compose, Tilt,
+# `flisk project` and `flisk up` stop at the machine checks (Docker, Compose, Tilt,
 # Bun) in this container, so only the command surface is exercised here. The
-# fresh `tdk up` check after reinstall needs a runner with Docker and Tilt.
-tdk --help >/dev/null
-echo "tdk --help ok; tdk project and tdk up were not run (no Docker, Tilt or Bun)"
+# fresh `flisk up` check after reinstall needs a runner with Docker and Tilt.
+flisk --help >/dev/null
+echo "flisk --help ok; flisk project and flisk up were not run (no Docker, Tilt or Bun)"
 
 step "Uninstall"
 npm uninstall --global "$PACKAGE"
 hash -r
-if command -v tdk >/dev/null 2>&1; then
-  echo "tdk is still on PATH after uninstall: $(command -v tdk)" >&2
+if command -v flisk >/dev/null 2>&1; then
+  echo "flisk is still on PATH after uninstall: $(command -v flisk)" >&2
   exit 1
 fi
 if [ -e "$work_dir/prefix/bin/tdk" ]; then
   echo "$work_dir/prefix/bin/tdk still exists after uninstall" >&2
   exit 1
 fi
-echo "tdk is gone"
+echo "flisk is gone"
 
 echo
 echo "✅ Packed CLI lifecycle smoke passed (install, version, upgrade, uninstall)"

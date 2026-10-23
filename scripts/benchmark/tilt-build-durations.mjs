@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 // Prints how long each Tilt resource took in its latest build, from the running project's Tilt
-// (`tilt get uiresources -o json`). Use it to time a `tdk up` by resource: start the project, wait
+// (`tilt get uiresources -o json`). Use it to time a `flisk up` by resource: start the project, wait
 // for it to settle, then run this script against the project's Tilt port.
 //
 // Usage: node scripts/benchmark/tilt-build-durations.mjs [--port 10350] [--json]

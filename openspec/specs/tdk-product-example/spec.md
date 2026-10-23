@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Default example demonstrates a representative product stack
-The default `tdk project example` output SHALL include one Hono API, Postgres, one worker on NATS or an already-supported queue, one Vite frontend, and Traefik routes for the UI and API. A UI or curl write path SHALL create a row that the worker can observe.
+The default `flisk project example` output SHALL include one Hono API, Postgres, one worker on NATS or an already-supported queue, one Vite frontend, and Traefik routes for the UI and API. A UI or curl write path SHALL create a row that the worker can observe.
 
 #### Scenario: Example write path reaches the worker
 - **WHEN** a user writes through the UI or curl endpoint routed by Traefik

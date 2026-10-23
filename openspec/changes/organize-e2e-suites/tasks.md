@@ -19,9 +19,9 @@
 - [x] 3.1 Add the coverage unit test (valid resource types vs `tests/e2e/resource-types/*` and `allowlist.json` with issue links) [covered by tests/e2e/axes.json and check-axes.mjs (#1306): every appType from VALID_RESOURCE_TYPES is a leg or an allowlist entry with an issue]
 - [ ] 3.2 Move `scripts/verify-mcp.sh` into `resource-types/mcp` and run it in CI (the `resource-types/mcp` suite replaces `scripts/verify-mcp.sh`, which is removed, in this PR; its first live run is the proof)
 - [ ] 3.3 Move `scripts/verify-frontend-frameworks.sh` into `resource-types/frontend` (one matrix leg per framework group) (the `resource-types/frontend` suite replaces `scripts/verify-frontend-frameworks.sh`, which is removed, in this PR: one leg per framework; its first live run is the proof)
-- [ ] 3.4 Move `tests/e2e/byo-python*.test.sh` and `scripts/verify-byo-{example,job,pair,tdk}.sh` into `resource-types/bring-your-own`
-- [x] 3.5 Add a `resource-types/backend` suite from the backend parts of quickstart (scaffold, routed health, restart, error envelope) (the `resource-types/backend` suite (B1 scaffold, B2 tdk up and status, B3 routed health) is in this PR; the live legs are the proof)
-- [ ] 3.6 Add `resource-types/worker` (processes a job) and `resource-types/migrator` (migration completes before the API, per the migrator rule) (partial, both suites passed live on run 39040922743: `resource-types/worker` scaffolds, starts, shows in status, and its container runs and logs its start line (W3); `resource-types/migrator` registers a service.json with appType migrator, because `tdk resource --type migrator` is not accepted, and shows in tdk status; both run nightly and on release only; still open: a worker that processes a job (the scaffold is a stub), and the migrator ordering check through tdk up, which is blocked: docs/data.md says the order between migrator, seed and API is not guaranteed and the explicit dependsOn on Postgres is still open as #531, so a test would assert behaviour TDK does not provide)
+- [ ] 3.4 Move `tests/e2e/byo-python*.test.sh` and `scripts/verify-byo-{example,job,pair,flisk}.sh` into `resource-types/bring-your-own`
+- [x] 3.5 Add a `resource-types/backend` suite from the backend parts of quickstart (scaffold, routed health, restart, error envelope) (the `resource-types/backend` suite (B1 scaffold, B2 flisk up and status, B3 routed health) is in this PR; the live legs are the proof)
+- [ ] 3.6 Add `resource-types/worker` (processes a job) and `resource-types/migrator` (migration completes before the API, per the migrator rule) (partial, both suites passed live on run 39040922743: `resource-types/worker` scaffolds, starts, shows in status, and its container runs and logs its start line (W3); `resource-types/migrator` registers a service.json with appType migrator, because `flisk resource --type migrator` is not accepted, and shows in flisk status; both run nightly and on release only; still open: a worker that processes a job (the scaffold is a stub), and the migrator ordering check through flisk up, which is blocked: docs/data.md says the order between migrator, seed and API is not guaranteed and the explicit dependsOn on Postgres is still open as #531, so a test would assert behaviour Flisk does not provide)
 - [x] 3.7 Add `resource-types/library` and `resource-types/sdk` (consumed build), or allowlist them with tracking issues (took the allowlist route: library and sdk are allowlisted in tests/e2e/axes.json against #1295, which tracks their suites; no suite exists yet)
 
 ## 3b. Matrix axes (appType, language, framework, and the rest)
@@ -45,7 +45,7 @@
 ## 4b. Every CI job
 
 - [ ] 4b.1 Write `.github/ci-inventory.json` for all 36 workflows and their 62 jobs (tier, `required`, trigger reason, owner) and a check that fails on missing or stale entries, duplicate check names, a required set that differs from branch protection, and rule violations; generate `docs/ci.md` from it (inventory and check merged in #1304, with a snapshot of the required checks and a daily drift job; `docs/ci.md` generation still to do)
-- [ ] 4b.2 Add composite actions `setup-bun` (cache keyed on `bun.lock`), `setup-tilt`, `free-postgres-port` and `install-tdk`; replace the 14 inline Tilt blocks and 7 port 5432 blocks (`setup-bun`, `setup-tilt` and `free-postgres-port` are in #1305; `install-tdk` and the WSL2 Tilt block remain)
+- [ ] 4b.2 Add composite actions `setup-bun` (cache keyed on `bun.lock`), `setup-tilt`, `free-postgres-port` and `install-flisk`; replace the 14 inline Tilt blocks and 7 port 5432 blocks (`setup-bun`, `setup-tilt` and `free-postgres-port` are in #1305; `install-flisk` and the WSL2 Tilt block remain)
 - [ ] 4b.3 Set `timeout-minutes` on every job from measured p90; add concurrency groups to `dco.yml`, `oss-score-gate.yml` and `windows-smoke.yml` (concurrency groups for the five pull request workflows are in #1307; every job already has `timeout-minutes` except reusable-workflow callers)
 - [ ] 4b.4 Replace `docs-only.yml` and every per-workflow detection job with one `changes` job in `ci.yml`; make `summary` the single aggregate gate, still reporting `example-e2e` and `windows-smoke`
 - [ ] 4b.5 Pack the CLI once per pull request run and have package smoke and e2e legs install the artifact
@@ -62,7 +62,7 @@
 
 - [ ] 5.1 Write `docs/contributing/05-write-e2e.md`: when an e2e is required, choosing the group, suite anatomy, shared helpers, running a case, CI triggers, deliberate break and evidence, with the agent suite as the worked example
 - [ ] 5.2 Link it from `CONTRIBUTING.md` (Tests) and `docs/contributing/README.md`. Add an "E2E" line to each recipe in `docs/contributing/02-feature-recipes.md`
-- [ ] 5.3 Write `.claude/skills/tdk-e2e-author/SKILL.md` and link it from `.agents/skills/`
+- [ ] 5.3 Write `.claude/skills/flisk-e2e-author/SKILL.md` and link it from `.agents/skills/`
 - [ ] 5.4 Make `scripts/sync-tdk-skills.sh` keep skills listed in `.claude/skills/LOCAL`, and extend the D2 fixture test to cover it
 - [ ] 5.5 Run the docs link check over the new pages
 

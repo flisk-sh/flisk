@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="720" height="220" viewBox="0 0 720 220" role="img">
-  <title>@tdk-landscape/tdk-cli-core npm downloads 2026-08-30 to 2026-09-28</title>
+  <title>@flisk-sh/flisk npm downloads 2026-09-19 to 2026-10-18</title>
   <rect width="720" height="220" fill="#0b0b0f"/>
-  <text x="44" y="18" fill="#e4e4e7" font-family="ui-sans-serif,system-ui" font-size="13">@tdk-landscape/tdk-cli-core · 8,113 npm downloads · 2026-08-30 → 2026-09-28</text>
+  <text x="44" y="18" fill="#e4e4e7" font-family="ui-sans-serif,system-ui" font-size="13">@flisk-sh/flisk · 39,851 npm downloads · 2026-09-19 → 2026-10-18</text>
   <line x1="44" x2="704" y1="184.0" y2="184.0" stroke="#27272a"/>
   <text x="38" y="188.0" fill="#71717a" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">0</text>
   <line x1="44" x2="704" y1="106.0" y2="106.0" stroke="#27272a"/>
-  <text x="38" y="110.0" fill="#71717a" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">1437</text>
+  <text x="38" y="110.0" fill="#71717a" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">3076</text>
   <line x1="44" x2="704" y1="28.0" y2="28.0" stroke="#27272a"/>
-  <text x="38" y="32.0" fill="#71717a" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">2874</text>
-  <polyline fill="none" stroke="#7c4dff" stroke-width="2" points="44.0,184.0 66.8,184.0 89.5,184.0 112.3,184.0 135.0,184.0 157.8,184.0 180.6,184.0 203.3,184.0 226.1,184.0 248.8,184.0 271.6,184.0 294.3,184.0 317.1,184.0 339.9,184.0 362.6,184.0 385.4,184.0 408.1,184.0 430.9,184.0 453.7,184.0 476.4,184.0 499.2,184.0 521.9,184.0 544.7,154.1 567.4,129.0 590.2,165.2 613.0,164.9 635.7,136.1 658.5,172.2 681.2,82.1 704.0,28.0"/>
-  <text x="44.0" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">08-30</text>
-  <text x="157.8" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-04</text>
-  <text x="271.6" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-09</text>
-  <text x="385.4" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-14</text>
-  <text x="499.2" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-19</text>
-  <text x="613.0" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-24</text>
-  <text x="704.0" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-28</text>
+  <text x="38" y="32.0" fill="#71717a" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">6152</text>
+  <polyline fill="none" stroke="#7c4dff" stroke-width="2" points="44.0,184.0 66.8,184.0 89.5,170.1 112.3,158.3 135.0,175.2 157.8,175.1 180.6,161.6 203.3,178.5 226.1,136.4 248.8,111.1 271.6,175.0 294.3,165.0 317.1,151.9 339.9,158.3 362.6,156.8 385.4,145.7 408.1,145.5 430.9,184.0 453.7,158.6 476.4,122.8 499.2,154.2 521.9,171.6 544.7,142.0 567.4,141.4 590.2,184.0 613.0,184.0 635.7,184.0 658.5,28.0 681.2,47.2 704.0,75.0"/>
+  <text x="44.0" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-19</text>
+  <text x="157.8" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-24</text>
+  <text x="271.6" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">09-29</text>
+  <text x="385.4" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">10-04</text>
+  <text x="499.2" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">10-09</text>
+  <text x="613.0" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">10-14</text>
+  <text x="704.0" y="210" fill="#71717a" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">10-18</text>
 </svg>

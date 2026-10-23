@@ -34,7 +34,15 @@ function Invoke-NativeWindowsRefusal {
   return $text
 }
 
-$null = Invoke-NativeWindowsRefusal -Label 'tdk doctor' -CliArgs @('doctor')
+$doctorText = Invoke-NativeWindowsRefusal -Label 'tdk doctor' -CliArgs @('doctor')
+# Hosted Windows runners have no Docker daemon, so the Docker OS check is
+# skipped there; the daemon failure line is the container diagnostic we get.
+if ($doctorText -notmatch '(?i)Docker container mode|Windows containers|Linux containers|Docker OS|Docker is not running') {
+  throw 'tdk doctor did not report Docker container mode diagnostics on native Windows.'
+}
+if ($doctorText -notmatch '(?i)tdk\.localhost|Windows ports and DNS|core\.autocrlf|File sharing') {
+  throw 'tdk doctor did not report Windows ports/DNS or autocrlf diagnostics on native Windows.'
+}
 $null = Invoke-NativeWindowsRefusal -Label 'tdk up --dry-run' -CliArgs @('up', '--dry-run')
 
 $beforeRuntimeProcesses = @(

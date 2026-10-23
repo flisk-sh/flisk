@@ -1,6 +1,6 @@
 import type { DiscoveredResource } from "../types/index.js";
 /**
- * A post-start check a service declares in service.json. It runs through the URL `tdk up` prints (Traefik), not inside the
+ * A post-start check a service declares in service.json. It runs through the URL `flisk up` prints (Traefik), not inside the
  * container, so it catches what `healthCheckPath` cannot: a route Traefik never registered, a shared router, a database the
  * service is not actually using.
  */
@@ -49,6 +49,13 @@ export interface SmokeDeps {
     /** Directory the per-step records go under (`<dir>/<service>/<step-slug>/`). No directory, no records. */
     recordDir?: string;
     sleep?: (ms: number) => Promise<void>;
+    /**
+     * Masks the secret values the project knows about. Throwing means the text could not be masked safely, and the runner then
+     * neither shows nor stores it.
+     */
+    redact?: (text: string) => string;
+    /** Reports a problem that does not change the smoke result, such as a body that could not be stored safely. */
+    warn?: (message: string) => void;
 }
 export declare const DEFAULT_SMOKE_TIMEOUT_SECONDS = 60;
 /** Largest response body kept in a smoke record. */
@@ -57,7 +64,7 @@ export declare function validateSmoke(smoke: unknown): string[];
 /** One plan per routable service that declares `smoke`. Workers and BYO with exposeViaProxy false have no public route. */
 export declare function buildSmokePlans(resources: DiscoveredResource[], ingressPort?: number): SmokePlan[];
 /**
- * The GET-only part of each smoke block, for `tdk doctor`. Doctor must never write to a service, and a step whose path reads
+ * The GET-only part of each smoke block, for `flisk doctor`. Doctor must never write to a service, and a step whose path reads
  * a value saved by an earlier write (`{{name}}`) cannot run on its own, so both are dropped. A service with no such steps is left out.
  * `bodyContains` is also cleared: it asserts on data that earlier writes created, so doctor would fail a healthy route whose data was removed.
  * The status check stays, which is what shows a route exists.
@@ -68,5 +75,12 @@ export declare function readOnlySmokePlans(plans: SmokePlan[], options?: {
 /** Runs the steps in order. A not-ready answer (connection error, 404, 502-504) is retried until the timeout; a real wrong answer fails at once. */
 export declare function runSmokePlan(plan: SmokePlan, deps?: SmokeDeps): Promise<SmokeResult>;
 export declare function formatSmokeFailure(result: SmokeResult): string;
+/**
+ * The dependencies that keep smoke text safe: the project's own secret values are masked before anything is shown or stored.
+ * Both `flisk up` and `flisk doctor` use them, so neither prints a body that holds a secret.
+ */
+export declare function safeSmokeDeps(projectRoot: string, warn?: (message: string) => void, options?: {
+    envFiles?: readonly string[];
+}): Pick<SmokeDeps, "redact" | "warn">;
 /** Runs every plan side by side; each plan keeps its own timeout. */
 export declare function runSmokePlans(plans: SmokePlan[], deps?: SmokeDeps): Promise<SmokeResult[]>;

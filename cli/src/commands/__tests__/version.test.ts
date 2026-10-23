@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
 import { Command } from "commander";
@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getPackageVersion } from "../../utils/paths.js";
 import { versionCommand } from "../version.js";
 
-/** Runs `tdk <args>` on a fresh program and returns what the command printed. */
+/** Runs `flisk <args>` on a fresh program and returns what the command printed. */
 async function runCli(args: string[]): Promise<string> {
   const printed: string[] = [];
   vi.spyOn(console, "log").mockImplementation((...parts: unknown[]) => {
@@ -21,7 +21,7 @@ async function runCli(args: string[]): Promise<string> {
   return printed.join("\n");
 }
 
-describe("tdk version", () => {
+describe("flisk version", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

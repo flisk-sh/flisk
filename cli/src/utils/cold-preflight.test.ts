@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import {
@@ -21,7 +21,7 @@ function result(items: PreflightItem[], inProject = false): PreflightResult {
       items.length === 0
         ? ""
         : machineFailed
-          ? "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `tdk project`. Fix the machine checks below."
+          ? "Cold start blocked. Bun/Prisma/NATS are not the first failure.\nThey are generated after `flisk project`. Fix the machine checks below."
           : "Machine is ready. Project wiring is not.",
     footer: "",
   };

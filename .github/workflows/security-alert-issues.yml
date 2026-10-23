@@ -1,0 +1,59 @@
+# Turns published dependency advisories into contributor-ready issues.
+#
+# Dependabot alerts and osv-scanner code-scanning alerts are the two sources. Each open
+# alert becomes one issue that carries the advisory detail and a set of labels, so a
+# contributor can pick it up without reading the advisory first. The issue closes itself
+# again when the alert is fixed.
+#
+# The run right after a security scan reacts to a new finding; the nightly schedule is
+# the reliable path and also covers the Dependabot alerts, which arrive without a scan.
+# The script is the single implementation, so a contributor can run it locally.
+name: 🛡️ Security alert issues
+
+on:
+  # A scan that finished on main or on the schedule may have found something new.
+  workflow_run: # zizmor: ignore[dangerous-triggers] the job checks out the default branch, never the scanned run's code or artifacts, and reads the API by number
+    workflows: ["🛡️ Security Scans"]
+    types: [completed]
+  schedule:
+    - cron: "47 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One sync at a time: two runs would both create the same issue.
+concurrency:
+  group: security-alert-issues
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync security alert issues
+    # A scan that failed or ran on a pull request says nothing about the state of main.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Code scanning alerts need security-events: read, Dependabot alerts need
+    # vulnerability-alerts: read. They are two separate permissions.
+    permissions:
+      contents: read
+      issues: write
+      security-events: read
+      vulnerability-alerts: read
+    steps:
+      # Check out the default branch so the run uses the same scripts/security-alert-issues.mjs
+      # contributors test locally. persist-credentials: false keeps the job from leaving a
+      # write-capable git credential on disk; the script talks to the API with GH_TOKEN.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Open or update the issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/security-alert-issues.mjs

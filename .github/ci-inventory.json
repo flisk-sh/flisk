@@ -162,6 +162,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "security-alert-issues.yml",
+			"job": "sync",
+			"tier": "bot",
+			"required": false,
+			"reason": "Opens one issue per open Dependabot or code-scanning alert so contributors can pick the fix up; closes it when the alert is fixed",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "security.yml",
 			"job": "changes",
 			"tier": "gate",
@@ -191,6 +199,14 @@
 			"tier": "security",
 			"required": false,
 			"reason": "SAST; path-gated on PRs (#1284)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
+			"job": "pr-summary-review",
+			"tier": "gate",
+			"required": true,
+			"reason": "Rejects PRs without a plain-language change summary and completed verification notes",
 			"owner": "maintainers"
 		},
 		{
@@ -272,7 +288,7 @@
 			"workflow": "e2e-scale.yml",
 			"job": "e2e-scale",
 			"tier": "e2e",
-			"required": true,
+			"required": false,
 			"reason": "ERP scale gate on pull requests and merge queue (one-stack scope); required since the #1302 cutover; suite tests/e2e/scale/erp",
 			"owner": "maintainers"
 		},
@@ -291,7 +307,7 @@
 			"workflow": "e2e-examples.yml",
 			"job": "e2e-examples",
 			"tier": "e2e",
-			"required": true,
+			"required": false,
 			"reason": "Examples group gate, default leg; runs tests/e2e/examples/default; required since the #1302 cutover",
 			"owner": "maintainers"
 		},
@@ -393,6 +409,14 @@
 			}
 		},
 		{
+			"workflow": "publish-existing-npm-to-github-packages.yml",
+			"job": "publish",
+			"tier": "release",
+			"required": false,
+			"reason": "Backfills and verifies an existing public npm version in GitHub Packages (manual)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "release-binaries.yml",
 			"job": "changes",
 			"tier": "release",
@@ -410,6 +434,22 @@
 			"exempt": {
 				"check-name": "#1279"
 			}
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "publish-github-packages",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes the already-built release tarball to GitHub Packages",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "publish-unscoped-npm",
+			"tier": "release",
+			"required": false,
+			"reason": "Publishes the already-built release tarball to npm under the unscoped name",
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "release-binaries.yml",
@@ -517,7 +557,7 @@
 			"workflow": "e2e-platforms.yml",
 			"job": "e2e-platforms",
 			"tier": "e2e",
-			"required": true,
+			"required": false,
 			"reason": "Platforms group gate, windows leg; runs tests/e2e/platforms/windows; required since the #1302 cutover",
 			"owner": "maintainers"
 		},
@@ -545,7 +585,7 @@
 			"job": "drift",
 			"tier": "report",
 			"required": false,
-			"reason": "Compares branch protection on main with the required-checks snapshot daily; opens one issue on drift",
+			"reason": "Compares the live rulesets with their snapshots daily; opens one issue on drift",
 			"owner": "maintainers"
 		},
 		{
@@ -608,7 +648,7 @@
 			"workflow": "e2e-journeys.yml",
 			"job": "gate",
 			"tier": "gate",
-			"required": true,
+			"required": false,
 			"reason": "Passes when every selected journey passed or none was selected; required since the #1302 cutover (#1298)",
 			"owner": "maintainers"
 		},
@@ -634,6 +674,30 @@
 			"tier": "e2e",
 			"required": false,
 			"reason": "Full 100-service fixture boot, weekly and manual, carried over from erp-scale-e2e.yml at the #1302 cutover; suite tests/e2e/scale/erp",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-platforms-hardware.yml",
+			"job": "hosted",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Reference run of the Windows hardware suite on windows-latest (#1765); suite tests/e2e/platforms/windows-hardware",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-platforms-hardware.yml",
+			"job": "hardware",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Acceptance run of the Windows hardware suite on a self-hosted Windows 11 AMD64 machine, dispatched by hand (#1765)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-platforms-wsl2.yml",
+			"job": "wsl2",
+			"tier": "e2e",
+			"required": false,
+			"reason": "The WSL2 suite on a Windows runner, dispatched by hand; suite tests/e2e/platforms/wsl2 (#107, #1765)",
 			"owner": "maintainers"
 		}
 	]

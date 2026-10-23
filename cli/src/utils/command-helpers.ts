@@ -1,9 +1,23 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import type { Command } from "commander";
 import type { ValidationResult } from "../types/index.js";
 import { showErrorAndExit } from "./errors.js";
 import { showCancelled } from "./formatting.js";
 import { promptConfirm } from "./prompt.js";
+
+export const YES_OPTION_FLAGS = "-y, --yes";
+export const YES_OPTION_DESCRIPTION = "Skip prompts and confirmations; use defaults";
+
+/**
+ * Registers the standard `-y, --yes` flag on a Commander command with shared help text.
+ */
+export function addYesOption<T extends Command>(
+  command: T,
+  description: string = YES_OPTION_DESCRIPTION,
+): T {
+  return command.option(YES_OPTION_FLAGS, description, false);
+}
 
 export async function confirmAction(message: string, defaultValue = true): Promise<boolean> {
   const confirm = await promptConfirm({ message, initial: defaultValue });

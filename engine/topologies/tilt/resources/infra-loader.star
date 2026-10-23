@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🏗️ TILT SDK - INFRASTRUCTURE LOADER
@@ -21,6 +21,7 @@
 # =============================================================================
 
 load("../common/utils_debug.star", "debug_log")
+load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
@@ -48,7 +49,7 @@ def _docker_compose(compose_paths, env_file, infra):
     """docker_compose() wrapper for a shared platform stack, in its own Compose project.
 
     Without project_name, Compose names the project after the file's directory, so every
-    TDK project on one Docker daemon shares `database-management`, `traefik` and so on.
+    Flisk project on one Docker daemon shares `database-management`, `traefik` and so on.
     Then one project's `up` can recreate or remove another project's services.
     Tilt's builtin rejects env_file=None outright (it type-checks the kwarg as path|string,
     not Optional), so the keyword must be omitted entirely rather than passed as None.
@@ -162,7 +163,7 @@ def force_start_platform_postgres(should_enable, root_prefix="", env_file=None, 
     is materialized when missing. A failed materialize fails the run.
     """
     if env_file == None:
-        candidate_env_file = root_prefix + '.env' if root_prefix else '.env'
+        candidate_env_file = project_env_file(root_prefix.rstrip('/'))
         env_file = candidate_env_file if _file_exists(candidate_env_file) else None
     print("🗃️  Force-starting shared platform Postgres (selected dependsOn postgres/database-management)")
     _register_platform_postgres(should_enable, root_prefix, env_file, write_fn, required=True)
@@ -427,8 +428,8 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
         fix_docker_networks_fn: Function to fix Docker networks (optional)
         docker_provider: Docker provider struct (optional, for golden image)
         write_fn: File writing function (optional, for golden image)
-        project_root: Path to project root from TDK working directory (optional, e.g., "../../")
-        env_file: Path to .env file for docker-compose (optional, defaults to project_root + '.env')
+        project_root: Path to project root from Flisk working directory (optional, e.g., "../../")
+        env_file: Path to the env file for docker-compose (optional, defaults to the env file of the run: the project .env, or the file `flisk up --env-file` selected)
     """
     # Initialize networks first
     if fix_docker_networks_fn:
@@ -458,13 +459,14 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
     if root_prefix and not root_prefix.endswith('/'):
         root_prefix = root_prefix + '/'
 
-    # Load environment file for docker-compose variables
-    # Use provided env_file or construct default from root_prefix.
+    # Load the env file of the run for docker-compose variables.
+    # Use provided env_file or resolve it from the project root: the project .env, or the file
+    # `flisk up --env-file` selected.
     # `docker compose ... --env-file <path>` hard-fails if that path doesn't exist, and
-    # .env is gitignored (with no .env.example shipped) across every TDK example repo, so
+    # .env is gitignored (with no .env.example shipped) across every Flisk example repo, so
     # a fresh clone must fall back to no --env-file flag rather than a dangling path.
     if env_file == None:
-        candidate_env_file = root_prefix + '.env' if root_prefix else '.env'
+        candidate_env_file = project_env_file(project_root if project_root else '')
         env_file = candidate_env_file if _file_exists(candidate_env_file) else None
 
     # Load infrastructure in order

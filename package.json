@@ -1,22 +1,21 @@
 {
-  "name": "@tdk-landscape/tdk-cli-core",
-  "version": "1.3.186",
-  "description": "TDK CLI — start services on your machine.",
-  "homepage": "https://tdk-landscape.github.io/tdk-website",
+  "name": "@flisk-sh/flisk",
+  "version": "1.3.207",
+  "description": "Flisk CLI — start services on your machine.",
+  "homepage": "https://flisk.sh",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tdk-landscape/tdk-cli-core.git"
+    "url": "git+https://github.com/flisk-sh/flisk.git"
   },
   "bugs": {
-    "url": "https://github.com/tdk-landscape/tdk-cli-core/issues"
+    "url": "https://github.com/flisk-sh/flisk/issues"
   },
   "private": false,
   "workspaces": [
     "cli"
   ],
   "bin": {
-    "tdk": "cli/bin/tdk.js",
-    "tdk-cli": "cli/bin/tdk.js"
+    "flisk": "cli/bin/tdk.js"
   },
   "files": [
     "Tiltfile",
@@ -50,10 +49,10 @@
     "postpack": "rm -rf cli/dist-bundle",
     "prepare": "scripts/install-git-hooks.sh",
     "cli": "cd cli && node bin/tdk.js",
-    "tdk": "cd cli && node bin/tdk.js"
+    "flisk": "cd cli && node bin/tdk.js"
   },
   "keywords": [
-    "tdk",
+    "flisk",
     "tilt",
     "cli",
     "microservices",
@@ -83,7 +82,7 @@
     "chalk": "^6.0.1",
     "ink": "^8.0.0",
     "react": "^19.3.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.5",
     "knip": "^6.38.0",
     "yaml": "^2.9.1"
   },

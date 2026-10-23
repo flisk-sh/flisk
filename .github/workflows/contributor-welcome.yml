@@ -23,7 +23,7 @@ jobs:
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.user.type == 'User' &&
       contains(fromJSON('["FIRST_TIME_CONTRIBUTOR","FIRST_TIMER"]'), github.event.pull_request.author_association)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       pull-requests: write
@@ -35,7 +35,7 @@ jobs:
             const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
             const body = [
-              '<!-- tdk:first-pr -->',
+              '<!-- flisk:first-pr -->',
               `Welcome, @${pr.user.login}, and thank you for your first PR! 💜`,
               '',
               'What happens next:',
@@ -55,7 +55,7 @@ jobs:
       github.event.issue.state_reason == 'not_planned' &&
       !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association) &&
       !contains(fromJSON('["kburym","odykyi"]'), github.event.issue.user.login)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       issues: write
@@ -65,7 +65,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issue = context.payload.issue;
-            const MARK = '<!-- tdk:closed-not-planned -->';
+            const MARK = '<!-- flisk:closed-not-planned -->';
             const comments = await github.paginate(github.rest.issues.listComments,
               { owner, repo, issue_number: issue.number, per_page: 100 });
             // A maintainer already explained it, or we already posted: stay quiet.
@@ -75,5 +75,5 @@ jobs:
             if (explained) return;
             await github.rest.issues.createComment({
               owner, repo, issue_number: issue.number,
-              body: `${MARK}\nThanks @${issue.user.login} for taking the time to report this. We are closing it as not planned for now, because it is outside what TDK sets out to do or we cannot act on it as written. If you think we got it wrong, comment with more detail and we will happily reopen it.`,
+              body: `${MARK}\nThanks @${issue.user.login} for taking the time to report this. We are closing it as not planned for now, because it is outside what Flisk sets out to do or we cannot act on it as written. If you think we got it wrong, comment with more detail and we will happily reopen it.`,
             });

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Validates every live-stack suite under tests/e2e/<group>/<suite>/: its suite.json has the documented shape, its folder
 // matches its group and name, its run.sh is executable and defines every case suite.json lists. Workflows read suite.json, so
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
 export const GROUPS = ["resource-types", "orm", "journeys", "examples", "platforms", "scale"];
-export const TRIGGERS = ["pr", "nightly", "release", "manual", "weekly"];
+export const TRIGGERS = ["pr", "main", "nightly", "release", "manual", "weekly"];
 const KEYS = ["group", "suite", "description", "paths", "cases", "variants", "triggers", "timeoutMinutes", "needsSecrets", "checkName", "install", "freePostgres"];
 const CASE_ID = /^[A-Za-z][A-Za-z0-9_]*$/;
 

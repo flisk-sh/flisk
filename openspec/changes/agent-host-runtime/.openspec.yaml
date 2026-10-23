@@ -1,3 +1,3 @@
 schema: spec-driven
 created: 2026-10-04
-goal: Make TDK usable from agents that run inside Dev Containers or remote workspaces, via host detection and a stable JSON/MCP lifecycle. WebContainers stay unsupported for tdk up.
+goal: Make Flisk usable from agents that run inside Dev Containers or remote workspaces, via host detection and a stable JSON/MCP lifecycle. WebContainers stay unsupported for flisk up.

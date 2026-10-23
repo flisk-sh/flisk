@@ -1,4 +1,4 @@
-# TDK Landscape Tilt Architecture - Operations
+# Flisk Landscape Tilt Architecture - Operations
 
 ## Detailed Architecture Breakdown
 
@@ -154,7 +154,7 @@ graph TB
     subgraph "One-Time Build"
         GD[docker/golden.Dockerfile]
         GB[Golden Image Build]
-        GI[TDK Landscape-base:latest]
+        GI[Flisk Landscape-base:latest]
     end
     
     subgraph "Per-Service Builds (Fast)"
@@ -164,7 +164,7 @@ graph TB
     end
     
     subgraph "Service Dockerfiles"
-        DF1[FROM TDK Landscape-base:latest]
+        DF1[FROM Flisk Landscape-base:latest]
         DF2[COPY service code]
         DF3[RUN bun build]
     end
@@ -190,7 +190,7 @@ graph TB
 ```
 Package name → Directory path (automatic)
 
-@tdk-landscape/eventing → platform/packages/eventing/src
+@flisk-sh/eventing → platform/packages/eventing/src
 @tdk/domain            → shared-ddd-layers/domain/src
 ```
 

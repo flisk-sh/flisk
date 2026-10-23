@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import * as fs from "node:fs";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  createEnvRedactor,
   EnvUnreadableError,
   envSecretValues,
   MIN_REDACTED_VALUE_LENGTH,
@@ -48,12 +49,56 @@ describe("envSecretValues", () => {
     expect(envSecretValues(projectWithEnv(`TOKEN=${short}\n`))).toEqual([]);
   });
 
+  it("includes values with exactly the minimum redacted length", () => {
+    const exact = "12345678";
+    const tooShort = "1234567";
+    const root = projectWithEnv(`EXACT=${exact}\nSHORT=${tooShort}\n`);
+    expect(envSecretValues(root)).toEqual([exact]);
+  });
+
+  it("deduplicates identical values from different keys", () => {
+    const root = projectWithEnv("SECRET_A=shared-secret-val\nSECRET_B=shared-secret-val\n");
+    expect(envSecretValues(root)).toEqual(["shared-secret-val"]);
+  });
+
+  it("sorts multiple secrets strictly by length descending", () => {
+    const root = projectWithEnv(
+      [
+        "SHORT_SECRET=eightlen",
+        "MEDIUM_SECRET=fifteen_chars_1",
+        "LONGEST_SECRET=twenty_four_chars_long!!",
+      ].join("\n"),
+    );
+    expect(envSecretValues(root)).toEqual([
+      "twenty_four_chars_long!!",
+      "fifteen_chars_1",
+      "eightlen",
+    ]);
+  });
+
+  it("returns empty array for an empty or comments-only .env file", () => {
+    expect(envSecretValues(projectWithEnv(""))).toEqual([]);
+    expect(envSecretValues(projectWithEnv("   \n\n# only comments\n# second comment\n"))).toEqual(
+      [],
+    );
+  });
+
+  it("constructs EnvUnreadableError with expected properties", () => {
+    const err = new EnvUnreadableError("/app/.env", "EACCES: permission denied");
+    expect(err.name).toBe("EnvUnreadableError");
+    expect(err.path).toBe("/app/.env");
+    expect(err.message).toBe("Could not read /app/.env: EACCES: permission denied");
+  });
+
   it("throws EnvUnreadableError when .env exists but cannot be read", () => {
+    if (process.platform === "win32" || process.getuid?.() === 0) return;
     const root = projectWithEnv("TOKEN=abcdefghijk\n");
     fs.chmodSync(join(root, ".env"), 0o000);
-    if (process.getuid?.() === 0) return; // root reads any file, so the permission case cannot be set up
-    expect(() => envSecretValues(root)).toThrow(EnvUnreadableError);
-    fs.chmodSync(join(root, ".env"), 0o600);
+    try {
+      expect(() => envSecretValues(root)).toThrow(EnvUnreadableError);
+    } finally {
+      fs.chmodSync(join(root, ".env"), 0o600);
+    }
   });
 
   it("returns nothing when there is no .env file", () => {
@@ -62,9 +107,31 @@ describe("envSecretValues", () => {
 });
 
 describe("redactSecrets", () => {
+  it("returns text unchanged when secrets array is empty", () => {
+    expect(redactSecrets("database password is secret123", [])).toBe(
+      "database password is secret123",
+    );
+  });
+
+  it("leaves text unchanged when secrets do not appear", () => {
+    expect(redactSecrets("hello world", ["supersecrettoken"])).toBe("hello world");
+  });
+
+  it("masks an entire string when it equals the secret exactly", () => {
+    expect(redactSecrets("mysecretpassword", ["mysecretpassword"])).toBe(REDACTED);
+  });
+
   it("masks every occurrence of each secret", () => {
     expect(redactSecrets("pw=hunter2hunter2 again hunter2hunter2", ["hunter2hunter2"])).toBe(
       `pw=${REDACTED} again ${REDACTED}`,
+    );
+  });
+
+  it("masks multiple distinct secrets across text", () => {
+    const text =
+      "Connecting user admin with token_alpha to host using token_beta (fallback token_alpha)";
+    expect(redactSecrets(text, ["token_alpha", "token_beta"])).toBe(
+      `Connecting user admin with ${REDACTED} to host using ${REDACTED} (fallback ${REDACTED})`,
     );
   });
 
@@ -76,7 +143,61 @@ describe("redactSecrets", () => {
   });
 });
 
+describe("createEnvRedactor", () => {
+  it("masks the project's own .env values", () => {
+    const root = projectWithEnv("TOKEN=supersecrettoken\n");
+    const redact = createEnvRedactor(root);
+    expect(redact("bearer supersecrettoken here")).toBe(`bearer ${REDACTED} here`);
+  });
+
+  it("returns the text unchanged when the project has no .env", () => {
+    const redact = createEnvRedactor(projectWithEnv(undefined));
+    expect(redact("nothing to mask here")).toBe("nothing to mask here");
+  });
+
+  it("throws instead of guessing when the .env exists but cannot be read", () => {
+    if (process.platform === "win32" || process.getuid?.() === 0) return;
+    const root = projectWithEnv("TOKEN=abcdefghijk\n");
+    fs.chmodSync(join(root, ".env"), 0o000);
+    try {
+      // The original error is kept, so a caller can still tell an unreadable .env from another failure.
+      expect(() => createEnvRedactor(root)("some text")).toThrow(EnvUnreadableError);
+    } finally {
+      fs.chmodSync(join(root, ".env"), 0o600);
+    }
+  });
+});
+
 describe("redactValue", () => {
+  it("preserves non-string primitive values untouched", () => {
+    expect(redactValue(42, ["secret123"])).toBe(42);
+    expect(redactValue(true, ["secret123"])).toBe(true);
+    expect(redactValue(false, ["secret123"])).toBe(false);
+    expect(redactValue(null, ["secret123"])).toBeNull();
+    expect(redactValue(undefined, ["secret123"])).toBeUndefined();
+  });
+
+  it("redacts top-level strings directly", () => {
+    expect(redactValue("bearer secret123 token", ["secret123"])).toBe(`bearer ${REDACTED} token`);
+  });
+
+  it("redacts strings inside arrays and nested arrays", () => {
+    const input = ["secret123", 100, [true, "another secret123 here"], { key: "secret123" }];
+    expect(redactValue(input, ["secret123"])).toEqual([
+      REDACTED,
+      100,
+      [true, `another ${REDACTED} here`],
+      { key: REDACTED },
+    ]);
+  });
+
+  it("redacts object values without altering object keys", () => {
+    const input = { secret123: "value with secret123" };
+    expect(redactValue(input, ["secret123"])).toEqual({
+      secret123: `value with ${REDACTED}`,
+    });
+  });
+
   it("redacts nested strings and keeps the structure and non-string values", () => {
     const report = {
       schemaVersion: 1,

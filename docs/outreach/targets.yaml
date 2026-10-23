@@ -1,7 +1,7 @@
 # Candidate public lists to ask. See tool-allowlist-packet.md for the schema.
 # Rows are added by hand after checking list_path and the contributing guide.
 # Nothing here is sent until the packet PR merges.
-# Checked 2026-10-04. tdk-cli-core then: 15 stars, created 2026-09-19, MIT.
+# Checked 2026-10-04. flisk then: 15 stars, created 2026-09-19, MIT.
 targets:
   - url: https://github.com/veggiemonk/awesome-docker
     list_path: README.md
@@ -11,7 +11,7 @@ targets:
     channel: pr
     notes: >-
       .github/CONTRIBUTING.md applies a "for Docker" test and requires activity in
-      the last 2 years. Borderline: TDK's job is running local Docker containers,
+      the last 2 years. Borderline: Flisk's job is running local Docker containers,
       but Tilt and Traefik are part of the stack. The PR description must make the
       Docker connection explicit. Reviewer may reject; accept that.
   - url: https://github.com/agarrharr/awesome-cli-apps
@@ -22,7 +22,7 @@ targets:
     channel: pr
     notes: >-
       BLOCKED. contributing.md requires at least 3 months of age and 20 GitHub
-      stars; tdk-cli-core is created 2026-09-19 with 15 stars. Earliest 2026-12-19,
+      stars; flisk is created 2026-09-19 with 15 stars. Earliest 2026-12-19,
       and only if stars >= 20. It also says AI-generated PRs are not welcome and
       wants one PR per app with human reasoning, so a human writes it.
   - url: https://github.com/mfornos/awesome-microservices
@@ -34,7 +34,7 @@ targets:
     notes: >-
       CONTRIBUTING.md: one PR per suggestion, format "[Name](link) - Short
       description.", alphabetical order, no star or age rule. Fit is moderate: the
-      list is about microservice architecture and TDK runs local multi-service stacks.
+      list is about microservice architecture and Flisk runs local multi-service stacks.
   - url: https://github.com/wmariuss/awesome-devops
     list_path: README.md
     why: >-

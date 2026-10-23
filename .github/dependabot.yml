@@ -23,11 +23,13 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+      day: friday
     cooldown:
       default-days: 7
     labels:
       - dependencies
+      - github-actions
     commit-message:
       prefix: "⬆️ "
       include: scope
@@ -35,3 +37,19 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # First-party image with a pinned base (oven/bun). Root has no Dockerfile;
+  # example/byo Dockerfiles are out of scope for this update entry.
+  - package-ecosystem: docker
+    directory: /engine/assets/docker/wake-gateway
+    schedule:
+      interval: weekly
+      day: friday
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: "⬆️ "
+      include: scope

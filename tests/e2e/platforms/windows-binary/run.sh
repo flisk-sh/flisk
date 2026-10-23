@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # The Windows release candidate (moved from the windows-smoke job of .github/workflows/release-binaries.yml, #1300). The release
 # workflow downloads the candidate into release-dist/ and sets VERSION; WB1 is the job's one step, with the same logic

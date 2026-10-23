@@ -14,7 +14,7 @@
 
 ## 3. Check
 
-- [x] 3.1 Implement `tdk maintainers check` with the exit codes in the maintainers-check spec
+- [x] 3.1 Implement `flisk maintainers check` with the exit codes in the maintainers-check spec
 - [x] 3.2 Test the short-bar, met-bar, and missing-file cases
 
 ## 4. DCO

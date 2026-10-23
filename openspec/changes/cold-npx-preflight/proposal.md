@@ -1,6 +1,6 @@
 ## Why
 
-The CLI is advertised as runnable with `npx @tdk-landscape/tdk-cli-core`, but a cold invocation with no arguments currently prints help without checking readiness. The executable also lacks the Node.js 22.12 minimum guard already declared by the package. New users therefore discover basic machine prerequisites only after trying a command, while Bun, Prisma, and NATS can be mistaken for prerequisites even though they are generated or project-specific concerns. This change makes the first run explain the actual blockers in the order users encounter them.
+The CLI is advertised as runnable with `npx @flisk-sh/flisk`, but a cold invocation with no arguments currently prints help without checking readiness. The executable also lacks the Node.js 22.12 minimum guard already declared by the package. New users therefore discover basic machine prerequisites only after trying a command, while Bun, Prisma, and NATS can be mistaken for prerequisites even though they are generated or project-specific concerns. This change makes the first run explain the actual blockers in the order users encounter them.
 
 ## What Changes
 

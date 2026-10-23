@@ -31,7 +31,7 @@
 
 ## 4. Engine: Selection Bound (start path only)
 
-- [x] 4.1 Evaluate `dependsOn` for the **engine start path** only against resources in the current `tdk up` selection.
+- [x] 4.1 Evaluate `dependsOn` for the **engine start path** only against resources in the current `flisk up` selection.
 - [x] 4.2 A dependency on an unselected resource MUST NOT start Postgres when no selected resource depends on either name.
 - [x] 4.3 Unselected dependents MUST NOT receive a `postgres` edge solely because another selected resource listed it.
 - [x] 4.4 Add tests: unselected `dependsOn: ["postgres"]` does not start Postgres; selected one does; partial selection starts Postgres for selected dependents only and does not edge S1 because of S2. The multi-service Tilt registration test covers selected and unselected siblings; manual 7.7 covers the generated Tiltfile focus filter.
@@ -49,10 +49,10 @@
 
 ## 6. CLI: Verify and Doctor Reporting (project resource set)
 
-- [x] 6.1 Predicate shape matches the engine: Postgres will start when the feature is on **or** an inspected project resource depends on `postgres` / `database-management`. Resource set is what verify/doctor already inspect — **not** a `tdk up` filter.
+- [x] 6.1 Predicate shape matches the engine: Postgres will start when the feature is on **or** an inspected project resource depends on `postgres` / `database-management`. Resource set is what verify/doctor already inspect — **not** a `flisk up` filter.
 - [x] 6.1b Feature-on predicate uses `DEFAULT_ALWAYS_ENABLED_INFRA` from `project-config-defaults.ts` — the same default the generator bakes into the Tiltfile when `always_enabled_infra` is omitted (omitted field = feature ON, matching `should_enable`).
-- [x] 6.2 `tdk config verify`: when Postgres will start because of a project resource's `dependsOn`, report that it will start because of that dependency. Feature-on-only case prints gray (not yellow); dependsOn reason prints green; both note project resource set vs `tdk up` selection.
-- [x] 6.3 `tdk doctor`: same reporting for `dependsOn: ["postgres"]` and `["database-management"]`. Unknown-name failures still state whether Postgres will start (project scope).
+- [x] 6.2 `flisk config verify`: when Postgres will start because of a project resource's `dependsOn`, report that it will start because of that dependency. Feature-on-only case prints gray (not yellow); dependsOn reason prints green; both note project resource set vs `flisk up` selection.
+- [x] 6.3 `flisk doctor`: same reporting for `dependsOn: ["postgres"]` and `["database-management"]`. Unknown-name failures still state whether Postgres will start (project scope).
 - [x] 6.3b `--json` verify envelope: `sharedPlatformPostgres` is **additive**; consumers that only read the old shape are unaffected unless they require a closed schema.
 - [x] 6.4 Do not report `postgres` or `database-management` as missing services when that dependency is present.
 - [x] 6.5 Keep unknown names (e.g. `postgress`, `Postgres`, `postgresql`) as errors; they must not report Postgres-will-start.
@@ -60,12 +60,12 @@
 - [x] 6.7 When no inspected project resource depends on either name and the feature is off, verify/doctor MUST NOT report Postgres-will-start because of a dependency.
 - [x] 6.8 Add CLI tests for verify/doctor messages, missing-service suppression, typo/near-miss errors, agreement, and negative will-start cases.
 - [x] 6.9 Add CLI tests that doctor/verify do **not** claim Prisma will start when `prisma` is not enabled, even when Postgres will start because of `dependsOn`.
-- [x] 6.10 Add CLI tests that verify/doctor report will-start from a project resource even when that resource would not be selected by a hypothetical `tdk up` filter (project scope, not run scope).
-- [x] 6.11 Do not change `tdk resource` scaffold output (`dependsOn: []` remains; Prisma stays under #531).
+- [x] 6.10 Add CLI tests that verify/doctor report will-start from a project resource even when that resource would not be selected by a hypothetical `flisk up` filter (project scope, not run scope).
+- [x] 6.11 Do not change `flisk resource` scaffold output (`dependsOn: []` remains; Prisma stays under #531).
 
 ## 7. Verification and Evidence
 
-- [x] 7.1 Manual/e2e: `database-management` off, one resource with `dependsOn: ["postgres"]` — `tdk up` starts shared Postgres (platform files materialized) and the service's `resource_deps` includes `postgres`.
+- [x] 7.1 Manual/e2e: `database-management` off, one resource with `dependsOn: ["postgres"]` — `flisk up` starts shared Postgres (platform files materialized) and the service's `resource_deps` includes `postgres`.
   - **Force path proven on `560e5ca`** (scratch `/tmp/tdk-force-560b-5TEQ`):
     - `project.json`: `always_enabled_infra: ["proxy"]`; `pre_alpha`: `["proxy","app","orders-api","billing-api"]`; no `database-management`.
     - Regenerated Tiltfile: `ALWAYS_ENABLED_INFRA = ["proxy"]`; extension includes `force_start_shared_platform_postgres_once`.
@@ -77,7 +77,7 @@
       - **No** `Loading database management services...`
       - **No** second force-start for `orders-api` (ctx guard); both resources still get `postgres` in `resource_deps`
     - `ctx` identity: Tiltfile builds `TILT_CONTEXT` once and passes the same dict to every `Orchestrator.apply_service` (`cli/templates/Tiltfile.hbs`). The ctx guard holds across services for that run.
-  - **Implication for default `tdk up`:** focus mode enables `database-management` via `CORE_INFRA`, so Postgres still starts (feature path) and the edge is correct; the dependsOn force path runs when that feature is actually off (focus off / non-focus bring-up).
+  - **Implication for default `flisk up`:** focus mode enables `database-management` via `CORE_INFRA`, so Postgres still starts (feature path) and the edge is correct; the dependsOn force path runs when that feature is actually off (focus off / non-focus bring-up).
 - [x] 7.2 Manual/e2e: feature off + only `orders-api` listing `dependsOn: ["database-management"]`. In a scratch project with the platform Compose removed, `tilt alpha tiltfile-result` materialized it, registered one `postgres` resource, and gave `orders-api` one `postgres` edge; `billing-api` had none. Verify and doctor reported the dependency reason.
 - [x] 7.3 Manual: explicit feature on + `dependsOn: ["postgres", "database-management"]` in one resource. Tilt registered exactly one `postgres`, no `postgres-yaml`, and one `postgres` edge; the sole platform Compose used `postgres:16-alpine`, host port `15432`, and the project database network.
 - [x] 7.4 Manual: both `dependsOn` lists empty, feature off, platform Compose removed. Tilt registered no `postgres` or `postgres-yaml`, no app Postgres edges, and did not recreate the Compose. Verify's `sharedPlatformPostgres.willStart` was false.

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -6,7 +6,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { SCHEMA_VERSION } from "../machine-output.js";
+import {
+  isMachineOutputEnvelope,
+  type MachineOutputEnvelope,
+  SCHEMA_VERSION,
+} from "../machine-output.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
@@ -71,19 +75,21 @@ describe("machine output contract: every --json command emits the standard envel
     });
   }
 
-  function assertStandardEnvelope(stdout: string) {
+  function assertStandardEnvelope(stdout: string): MachineOutputEnvelope {
     const text = stdout.trim();
     // Parse the JSON envelope (handle either single line or multiline JSON like projects)
-    let envelope: any;
+    let parsed: unknown;
     try {
-      envelope = JSON.parse(text);
+      parsed = JSON.parse(text);
     } catch {
       // Find the last JSON block/line
       const lines = text.split(/\r?\n/).filter((l) => l.trim().startsWith("{"));
       expect(lines.length).toBeGreaterThan(0);
-      envelope = JSON.parse(lines[lines.length - 1]);
+      parsed = JSON.parse(lines[lines.length - 1] as string);
     }
 
+    expect(isMachineOutputEnvelope(parsed)).toBe(true);
+    const envelope = parsed as MachineOutputEnvelope;
     expect(Object.keys(envelope).sort()).toEqual(["data", "errors", "schemaVersion"].sort());
     expect(envelope.schemaVersion).toBe(SCHEMA_VERSION);
     expect(Array.isArray(envelope.errors)).toBe(true);

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Pure transform for the AI conflict-resolve comment. The workflow posts or
 // updates one PR comment; this file only builds that comment body.

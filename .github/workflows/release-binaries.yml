@@ -7,10 +7,6 @@ on:
     paths:
       - "package.json"
       - "cli/package.json"
-  # Every pull request runs this workflow so the release checks (windows-binary) always report.
-  # The `changes` job below decides whether the build and smoke test actually run; when they
-  # are not needed they are skipped, and a skipped required check counts as passing.
-  pull_request:
 
 permissions:
   contents: read
@@ -23,7 +19,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -62,7 +58,7 @@ jobs:
       && !(github.event_name == 'push'
       && startsWith(github.event.head_commit.message, 'Release ')
       && contains(github.event.head_commit.message, '(automatic version bump)'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -84,8 +80,8 @@ jobs:
       - run: bun install --frozen-lockfile
         working-directory: cli
 
-      # The Linux compiled-binary project-generation smoke test runs tdk doctor,
-      # which requires Tilt and the TDK host ports to be available.
+      # The Linux compiled-binary project-generation smoke test runs flisk doctor,
+      # which requires Tilt and the Flisk host ports to be available.
       - name: Install Tilt for the Linux release binary smoke test
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
@@ -104,7 +100,7 @@ jobs:
           current=$(node -p "require('./package.json').version")
           # main is protected, so the bot's version-bump push is usually rejected and package.json
           # lags behind. Start from the newest published version instead of counting up from it.
-          latest=$(npm view "@tdk-landscape/tdk-cli-core" version 2>/dev/null || true)
+          latest=$(npm view "@flisk-sh/flisk" version 2>/dev/null || true)
           version=$(node -e '
             const [cur, latest] = process.argv.slice(1);
             const parse = (v) => v.split(".").map(Number);
@@ -112,8 +108,8 @@ jobs:
               && n > parse(cur)[i] && parse(latest).slice(0, i).every((m, j) => m === parse(cur)[j]));
             console.log(newer ? latest : cur);
           ' "$current" "$latest")
-          while npm view "@tdk-landscape/tdk-cli-core@${version}" version >/dev/null 2>&1 \
-            || gh release view "v${version}" --repo tdk-landscape/tdk-cli-releases >/dev/null 2>&1; do
+          while npm view "@flisk-sh/flisk@${version}" version >/dev/null 2>&1 \
+            || gh release view "v${version}" --repo flisk-sh/releases >/dev/null 2>&1; do
             version=$(node -p 'const [a, b, c] = process.argv[1].split(".").map(Number); [a, b, c + 1].join(".")' "$version")
           done
           if [ "$version" = "$current" ]; then
@@ -174,7 +170,7 @@ jobs:
   publish:
     if: github.event_name != 'pull_request'
     needs: [build, windows-binary]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       actions: read
@@ -240,6 +236,34 @@ jobs:
         id: source
         run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      # Pack once so both registries receive byte-for-byte identical package contents.
+      - name: Pack npm package
+        id: package
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            echo "::error::Expected package version $VERSION, got $PKG_VERSION"
+            exit 1
+          fi
+          PACK_DIR="$RUNNER_TEMP/tdk-cli-package"
+          mkdir -p "$PACK_DIR"
+          npm pack --pack-destination "$PACK_DIR"
+          TARBALL=$(find "$PACK_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
+          if [ -z "$TARBALL" ]; then
+            echo "::error::npm pack did not produce a tarball"
+            exit 1
+          fi
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          path: ${{ steps.package.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Publish verified binary release
         run: scripts/release-binaries.sh --publish-only
         env:
@@ -259,7 +283,7 @@ jobs:
             const { owner, repo } = context.repo;
             const version = process.env.VERSION;
             const head = process.env.SOURCE_COMMIT;
-            const releases = (await github.rest.repos.listReleases({ owner, repo: 'tdk-cli-releases', per_page: 5 })).data;
+            const releases = (await github.rest.repos.listReleases({ owner, repo: 'releases', per_page: 5 })).data;
             const current = releases.find((r) => r.tag_name === `v${version}`);
             const previous = releases.find((r) => r.tag_name !== `v${version}`);
             if (!current || !previous) return;
@@ -276,29 +300,39 @@ jobs:
                 `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
                    closingIssuesReferences(first:20){nodes{number}}}}}`, { o: owner, r: repo, n: pr.number });
               for (const { number } of res.repository.pullRequest.closingIssuesReferences.nodes) {
-                const mark = `<!-- tdk:shipped:${number} -->`;
+                const mark = `<!-- flisk:shipped:${number} -->`;
                 const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
                 if (comments.some((c) => c.body && c.body.includes(mark))) continue;
                 await github.rest.issues.createComment({ owner, repo, issue_number: number,
-                  body: `${mark}\nShipped in [v${version}](${current.html_url}) (from #${pr.number}). Update with \`tdk upgrade\`, then tell us if it works for you. 🚀` });
+                  body: `${mark}\nShipped in [v${version}](${current.html_url}) (from #${pr.number}). Update with \`flisk upgrade\`, then tell us if it works for you. 🚀` });
               }
             }
 
-      # The root package owns the public tdk bin entry and compiled CLI.
+      # The root package owns the public flisk bin entry and compiled CLI.
+      # Authentication: npm trusted publishing (OIDC) is the default, so no long-lived token
+      # lives in the repository. NPM_TOKEN stays supported as a fallback for a fork that has no
+      # trusted publisher configured.
       - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ needs.build.outputs.version }}
+          TARBALL: ${{ steps.package.outputs.tarball }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$PKG_VERSION" != "$VERSION" ]; then
             echo "::error::Expected package version $VERSION, got $PKG_VERSION"
             exit 1
           fi
-          if npm view "@tdk-landscape/tdk-cli-core@${PKG_VERSION}" version >/dev/null 2>&1; then
-            echo "@tdk-landscape/tdk-cli-core@${PKG_VERSION} is already published, skipping."
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "Publishing with the NPM_TOKEN secret."
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
           else
-            npm publish --access public --provenance
+            echo "No NPM_TOKEN secret: publishing with npm trusted publishing (OIDC)."
+          fi
+          if npm view "@flisk-sh/flisk@${PKG_VERSION}" version >/dev/null 2>&1; then
+            echo "@flisk-sh/flisk@${PKG_VERSION} is already published, skipping."
+          else
+            npm publish "$TARBALL" --access public --provenance
           fi
 
       # Keep main in step with what was published. A push made with
@@ -346,8 +380,8 @@ jobs:
             echo "::warning::Released ${VERSION}, but could not enable auto-merge for the version bump PR ${branch}."
 
       # OpenSSF Scorecard's Signed-Releases check looks at the GitHub releases of THIS repository, while the binaries live in
-      # tdk-cli-releases. So this repository gets a release per version that carries the binaries' checksums and a keyless
-      # Sigstore signature of them (the signature is also attached to the binary release in tdk-cli-releases). It runs last and is allowed to fail: npm, the binary release and the version bump are already
+      # flisk-sh/releases. So this repository gets a release per version that carries the binaries' checksums and a keyless
+      # Sigstore signature of them (the signature is also attached to the binary release in flisk-sh/releases). It runs last and is allowed to fail: npm, the binary release and the version bump are already
       # done, and nothing here may ever block them.
       - name: Install cosign
         continue-on-error: true
@@ -365,14 +399,14 @@ jobs:
           cp "release-dist-${VERSION}/checksums.txt" checksums.txt
           cosign sign-blob --yes --bundle checksums.txt.sigstore.json checksums.txt
           # Next to the binaries users download, so they can verify them.
-          GH_TOKEN="$RELEASE_TOKEN" gh release upload "v${VERSION}" --repo tdk-landscape/tdk-cli-releases --clobber \
-            checksums.txt.sigstore.json || echo "::warning::Could not attach the signature to the tdk-cli-releases release"
+          GH_TOKEN="$RELEASE_TOKEN" gh release upload "v${VERSION}" --repo flisk-sh/releases --clobber \
+            checksums.txt.sigstore.json || echo "::warning::Could not attach the signature to the flisk-sh/releases release"
           # And to a release in this repository, which is where Scorecard looks.
           if gh release view "v${VERSION}" >/dev/null 2>&1; then
             gh release upload "v${VERSION}" --clobber checksums.txt checksums.txt.sigstore.json
           else
             gh release create "v${VERSION}" --draft --latest=false --title "v${VERSION}" \
-              --notes "Signed checksums for tdk ${VERSION}. The binaries are on https://github.com/tdk-landscape/tdk-cli-releases/releases/tag/v${VERSION} and the npm package is @tdk-landscape/tdk-cli-core@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/tdk-landscape/tdk-cli-core/.github/workflows/release-binaries.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
+              --notes "Signed checksums for flisk ${VERSION}. The binaries are on https://github.com/flisk-sh/releases/releases/tag/v${VERSION} and the npm package is @flisk-sh/flisk@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/release-binaries.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
               checksums.txt checksums.txt.sigstore.json
           fi
 
@@ -396,12 +430,133 @@ jobs:
           mv sha256:*.jsonl checksums.txt.intoto.jsonl
           gh release upload "v${VERSION}" --repo "$GITHUB_REPOSITORY" --clobber checksums.txt.intoto.jsonl
 
+  publish-github-packages:
+    name: Publish npm package to GitHub Packages
+    needs: [build, publish]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          path: package
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@flisk-sh"
+          package-manager-cache: false
+
+      # This job holds only package write access and never checks out or executes repository code.
+      # If it fails, rerunning this job downloads the same tarball retained from the successful publish job.
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PACKAGE_DIR: package
+        run: | # zizmor: ignore[use-trusted-publishing] GitHub Packages does not support npm trusted publishing; authenticate with the repository GITHUB_TOKEN
+          TARBALL=$(find "$PACKAGE_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
+          if [ -z "$TARBALL" ] || [ ! -f "$TARBALL" ]; then
+            echo "::error::Expected package tarball was not downloaded"
+            exit 1
+          fi
+          # npm reads a relative "dir/file.tgz" as a GitHub shorthand and tries to clone it, so the
+          # tarball path has to be absolute.
+          TARBALL="$PWD/$TARBALL"
+          if npm view "@flisk-sh/flisk@${VERSION}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "@flisk-sh/flisk@${VERSION} is already published to GitHub Packages, skipping."
+          else
+            npm publish "$TARBALL" --registry=https://npm.pkg.github.com
+          fi
+
+  # The same release is published a second time under the unscoped name. A package has exactly one name
+  # in its package.json, so the unscoped publication is the same archive with the name rewritten in the
+  # packed manifest. GitHub Packages is not involved: it serves scoped names only.
+  publish-unscoped-npm:
+    name: Publish npm package under the unscoped name
+    needs: [build, publish]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      id-token: write # npm trusted publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          path: package
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      # Trusted publishing needs an npm CLI that speaks OIDC.
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@12.2.0 # zizmor: ignore[adhoc-packages] npm CLI is pinned for trusted publishing
+
+      - name: Build the unscoped archive
+        id: unscoped
+        env:
+          PACKAGE_DIR: package
+        run: |
+          set -euo pipefail
+          TARBALL=$(find "$PACKAGE_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
+          if [ -z "$TARBALL" ] || [ ! -f "$TARBALL" ]; then
+            echo "::error::Expected package tarball was not downloaded"
+            exit 1
+          fi
+          WORK_DIR="$RUNNER_TEMP/unscoped-package"
+          mkdir -p "$WORK_DIR"
+          tar -xzf "$TARBALL" -C "$WORK_DIR"
+          node --input-type=module - "$WORK_DIR/package/package.json" <<'NODE'
+          import fs from 'node:fs';
+          const manifestPath = process.argv[2];
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          if (manifest.name !== '@flisk-sh/flisk') {
+            throw new Error(`Unexpected package name: ${manifest.name}`);
+          }
+          // Only the name changes: the bin entries, the version and the contents stay the ones the
+          // scoped package was published with.
+          manifest.name = 'flisk';
+          fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
+          # --ignore-scripts: the archive already carries the built CLI, and the prepack script is not
+          # part of the published files.
+          UNSCOPED_TARBALL="$(cd "$WORK_DIR/package" && npm pack --ignore-scripts --pack-destination "$WORK_DIR" --silent)"
+          if [ ! -f "$WORK_DIR/$UNSCOPED_TARBALL" ]; then
+            echo "::error::npm pack did not produce the unscoped archive."
+            exit 1
+          fi
+          echo "tarball=$WORK_DIR/$UNSCOPED_TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the unscoped package to npm
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          TARBALL: ${{ steps.unscoped.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          if npm view "flisk@${VERSION}" version >/dev/null 2>&1; then
+            echo "flisk@${VERSION} is already published, skipping."
+            exit 0
+          fi
+          # No NODE_AUTH_TOKEN: npm exchanges this workflow's OIDC identity for a short-lived publish
+          # token, and attaches a provenance attestation for the public package.
+          npm publish "$TARBALL" --access public --provenance
+
   # The version bump lands on main as a squash commit after publish, so the tag for this release can only point at it
   # once that commit exists. The sign step above leaves the GitHub release as a draft; this job tags the merged bump
   # commit and publishes the draft, so the tag and the package.json on it always carry the same version.
   tag-bumped-release:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '(automatic version bump)')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: write
@@ -431,5 +586,5 @@ jobs:
             gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
           else
             gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --latest=false --title "v${VERSION}" \
-              --notes "tdk ${VERSION}. Binaries: https://github.com/tdk-landscape/tdk-cli-releases/releases/tag/v${VERSION}"
+              --notes "flisk ${VERSION}. Binaries: https://github.com/flisk-sh/releases/releases/tag/v${VERSION}"
           fi

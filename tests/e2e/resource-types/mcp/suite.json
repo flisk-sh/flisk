@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "mcp",
-  "description": "An mcp resource on a live stack: scaffold with tdk resource --type mcp, tdk up, healthy through Traefik, and the official MCP TypeScript SDK client connects, lists the tools and calls echo (moved from scripts/verify-mcp.sh, #1296).",
+  "description": "An mcp resource on a live stack: scaffold with flisk resource --type mcp, flisk up, healthy through Traefik, and the official MCP TypeScript SDK client connects, lists the tools and calls echo (moved from scripts/verify-mcp.sh, #1296).",
   "paths": [
     "cli/src/backend-frameworks/mcp.ts",
     "cli/src/commands/resource.ts",

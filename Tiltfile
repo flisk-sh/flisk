@@ -5,7 +5,7 @@
 # It combines: engine, discovery, specs, and ext into one repository.
 #
 # Usage:
-#   v1alpha1.extension_repo(name='tdk-cli', url='https://github.com/tdk-landscape/tdk-cli')
+#   v1alpha1.extension_repo(name='tdk-cli', url='https://github.com/flisk-sh/flisk')
 #   load('ext://tdk-cli', 'Utils', 'Manifest', ...)
 # =============================================================================
 

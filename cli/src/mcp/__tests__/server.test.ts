@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { createMcpServer, type McpTool } from "../server.js";
@@ -14,7 +14,7 @@ const boom: McpTool = {
   name: "boom",
   handler: async () => Promise.reject(new Error("kaput")),
 };
-const server = createMcpServer([echo, boom], { name: "tdk", version: "1.0.0" });
+const server = createMcpServer([echo, boom], { name: "flisk", version: "1.0.0" });
 
 interface Response {
   result: unknown;
@@ -53,7 +53,7 @@ describe("mcp server", () => {
     const result = res.result as InitializeResult;
     expect(result.protocolVersion).toBe("2025-03-26");
     expect(result.capabilities).toEqual({ tools: { listChanged: false } });
-    expect(result.serverInfo).toEqual({ name: "tdk", version: "1.0.0" });
+    expect(result.serverInfo).toEqual({ name: "flisk", version: "1.0.0" });
   });
   it("falls back to its newest version for an unknown one", async () => {
     const res = await call({
@@ -120,5 +120,41 @@ describe("mcp server", () => {
     expect(JSON.parse((await server.handleLine("[1]")) as string).error.code).toBe(-32600);
     expect(await server.handleLine("   ")).toBeNull();
     expect((await call({ id: 9, method: "ping" })).error.code).toBe(-32600);
+  });
+  it("returns no reply for an invalid notification", async () => {
+    expect(await call({ method: "ping" })).toBeNull();
+  });
+  it("falls back to the newest version when initialize has no params", async () => {
+    const res = await call({ jsonrpc: "2.0", id: 10, method: "initialize" });
+    expect((res.result as InitializeResult).protocolVersion).toBe("2025-06-18");
+  });
+  it("rejects a non-string tool name", async () => {
+    const res = await call({
+      jsonrpc: "2.0",
+      id: 11,
+      method: "tools/call",
+      params: { name: 42, arguments: {} },
+    });
+    expect(res.error.code).toBe(-32602);
+    expect(res.error.message).toBe("Unknown tool: 42");
+  });
+  it("stringifies a non-Error handler failure", async () => {
+    const odd = createMcpServer(
+      [
+        {
+          ...echo,
+          name: "odd",
+          handler: async () => {
+            throw "plain failure";
+          },
+        },
+      ],
+      { name: "flisk", version: "1.0.0" },
+    );
+    const line = await odd.handleLine(
+      JSON.stringify({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "odd" } }),
+    );
+    const res = JSON.parse(line as string) as Response;
+    expect(res.result).toMatchObject({ isError: true, content: [{ text: "plain failure" }] });
   });
 });

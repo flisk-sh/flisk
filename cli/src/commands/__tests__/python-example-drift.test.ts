@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -16,7 +16,7 @@ const exampleDir = join(
   "api",
 );
 
-// The example is what `tdk resource api-backend --type backend --language python
+// The example is what `flisk resource api-backend --type backend --language python
 // --stack one-backend-python` generates. If the Python provider changes, regenerate the example.
 describe("examples/one-backend-python", () => {
   const generated = pythonBackendProvider.createFiles?.("api-backend") ?? [];

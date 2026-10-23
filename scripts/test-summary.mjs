@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // One pull request comment with unit test counts, failed test names, E2E results, coverage against the ratchet baseline
 // and a link to the run's logs and artifacts (#1385). Reads only JSON: the Vitest JSON reporter output, the coverage

@@ -1,4 +1,4 @@
-// TDK does not create the database for a bring-your-own job and TypeORM does not either, so create it if missing.
+// Flisk does not create the database for a bring-your-own job and TypeORM does not either, so create it if missing.
 const { Client } = require('pg');
 
 (async () => {

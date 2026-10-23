@@ -1,0 +1,31 @@
+{
+  "group": "platforms",
+  "suite": "windows-hardware",
+  "description": "The published Windows binary on a real Windows host (#1765): WH1 checks the released exe and engine archive against checksums.txt, WH2 runs the official PowerShell installer on this machine and checks what it installs, WH3 checks the version and the bundled runtime assets, WH4 checks that native Windows refuses doctor and up with WSL2 guidance and starts nothing, WH5 checks the host differences a hosted runner cannot show: a path with a space, PATH lookup and a project directory with a space, WH6 checks that the one-command demo flow does not boot a stack on native Windows.",
+  "paths": [
+    "cli/src/cli.ts",
+    "cli/src/utils/platform.ts",
+    "cli/src/utils/which.ts",
+    "cli/src/utils/windows-doctor.ts",
+    "cli/src/commands/up.ts",
+    "cli/src/commands/doctor.ts",
+    "cli/src/commands/runtime.ts",
+    "tests/e2e/lib/**",
+    "tests/e2e/platforms/windows-hardware/**",
+    ".github/workflows/e2e-platforms-hardware.yml"
+  ],
+  "cases": [
+    "WH1",
+    "WH2",
+    "WH3",
+    "WH4",
+    "WH5",
+    "WH6"
+  ],
+  "triggers": [
+    "pr",
+    "manual"
+  ],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}

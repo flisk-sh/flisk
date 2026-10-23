@@ -4,18 +4,18 @@
 
 Tüm depoyu anlamanıza gerek yok. Küçük bir değişiklik seçin ve ilgili rehberi izleyin. Bir adım belirsizse issue üzerinden sorun.
 
-Aşağıdaki adımları bir kez yapmanız yeterlidir. TDK CLI'ı ve kontrollerini çalıştırmak için gereken araçları kurar.
+Aşağıdaki adımları bir kez yapmanız yeterlidir. Flisk CLI'ı ve kontrollerini çalıştırmak için gereken araçları kurar.
 
 ## En hızlı yol: Dev Container / Codespaces
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tdk-landscape/tdk-cli-core?quickstart=1)
-[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-blue?logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-908a00?logo=gitpod)](https://gitpod.io/#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-4285F4?logo=firebase)](https://idx.google.com/import?url=https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-F26207?logo=replit)](https://replit.com/github/tdk-landscape/tdk-cli-core)
-[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-1C1C1C?logo=devpod)](https://devpod.sh/open#https://github.com/tdk-landscape/tdk-cli-core)
-[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-1269D3?logo=stackblitz)](https://stackblitz.com/github/tdk-landscape/tdk-cli-core)
-[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-151515?logo=codesandbox)](https://codesandbox.io/p/github/tdk-landscape/tdk-cli-core)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/flisk-sh/flisk?quickstart=1)
+[![Open in Dev Containers](https://img.shields.io/badge/Open%20in-Dev%20Containers-blue?logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/flisk-sh/flisk)
+[![Open in Gitpod](https://img.shields.io/badge/Open%20in-Gitpod-908a00?logo=gitpod)](https://gitpod.io/#https://github.com/flisk-sh/flisk)
+[![Open in Firebase Studio](https://img.shields.io/badge/Open%20in-Firebase%20Studio-4285F4?logo=firebase)](https://idx.google.com/import?url=https://github.com/flisk-sh/flisk)
+[![Open in Replit](https://img.shields.io/badge/Open%20in-Replit-F26207?logo=replit)](https://replit.com/github/flisk-sh/flisk)
+[![Open in DevPod](https://img.shields.io/badge/Open%20in-DevPod-1C1C1C?logo=devpod)](https://devpod.sh/open#https://github.com/flisk-sh/flisk)
+[![Open in StackBlitz](https://img.shields.io/badge/Open%20in-StackBlitz-1269D3?logo=stackblitz)](https://stackblitz.com/github/flisk-sh/flisk)
+[![Open in CodeSandbox](https://img.shields.io/badge/Open%20in-CodeSandbox-151515?logo=codesandbox)](https://codesandbox.io/p/github/flisk-sh/flisk)
 
 Ya da depoyu klonlayın ve VS Code'da **Dev Containers: Reopen in Container** komutunu kullanın.
 
@@ -27,22 +27,22 @@ bun run lint
 bun run test
 ```
 
-Docker ve Tilt isteğe bağlıdır ve varsayılan konteynerde yoktur. Yalnızca TDK servislerini veya tam yerel ortamı çalıştırmanız gerekiyorsa ekleyin.
+Docker ve Tilt isteğe bağlıdır ve varsayılan konteynerde yoktur. Yalnızca Flisk servislerini veya tam yerel ortamı çalıştırmanız gerekiyorsa ekleyin.
 
 ## Gerekenler (yerel kurulum)
 
 - Git
 - [Bun](https://bun.sh)
 - Node.js 22.12 veya daha yeni
-- Yalnızca TDK servislerini çalıştırmanız veya tam yerel ortamı kontrol etmeniz gerekiyorsa Docker ve [Tilt](https://docs.tilt.dev/install.html)
+- Yalnızca Flisk servislerini çalıştırmanız veya tam yerel ortamı kontrol etmeniz gerekiyorsa Docker ve [Tilt](https://docs.tilt.dev/install.html)
 
 ## Depoyu bilgisayarınıza kopyalayın
 
 Bir terminal açın ve şunu çalıştırın:
 
 ```bash
-git clone https://github.com/tdk-landscape/tdk-cli-core.git
-cd tdk-cli-core
+git clone https://github.com/flisk-sh/flisk.git
+cd flisk
 bun install
 git switch -c my-change
 ```
@@ -51,7 +51,7 @@ git switch -c my-change
 
 ## Bir değişiklik bulun
 
-1. [good first issue](https://github.com/tdk-landscape/tdk-cli-core/labels/good%20first%20issue) veya [help wanted issue](https://github.com/tdk-landscape/tdk-cli-core/labels/help%20wanted) listelerini açın.
+1. [good first issue](https://github.com/flisk-sh/flisk/labels/good%20first%20issue) veya [help wanted issue](https://github.com/flisk-sh/flisk/labels/help%20wanted) listelerini açın.
 2. Issue'yu okuyun ve birisinin zaten üzerinde çalışıp çalışmadığını kontrol edin.
 3. `I'll take this` (veya `I would like this one`) yazarak yorum bırakın; bir bot size atama yapar ve `claimed` etiketini ekler. Issue yoksa, büyük bir özelliğe başlamadan önce değişikliği anlatan bir issue açın.
 4. Olası dosyaları ve kontrolleri bulmak için [özellik rehberlerini](02-feature-recipes-tr.md) kullanın.

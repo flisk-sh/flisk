@@ -1,5 +1,5 @@
 name: I tried it and here is what I saw
-description: Short, informal report from running TDK or an example. Rough notes are fine.
+description: Short, informal report from running Flisk or an example. Rough notes are fine.
 title: "tried: "
 labels: ["show-and-tell"]
 body:
@@ -8,13 +8,13 @@ body:
       value: |
         No need to be formal. Tell us what you ran and what you saw, even if it worked and even if it is only half a report. Numbers and pasted output are the most useful part.
 
-        Not sure how to do the steps? [Try it and report what you saw](https://github.com/tdk-landscape/tdk-cli-core/blob/main/docs/contributing/try-and-report.md) walks through them, with filled-in examples.
+        Not sure how to do the steps? [Try it and report what you saw](https://github.com/flisk-sh/flisk/blob/main/docs/contributing/try-and-report.md) walks through them, with filled-in examples.
   - type: input
     id: what
     attributes:
       label: What did you try?
       description: One line is enough.
-      placeholder: Ran examples/one-backend-python and timed `tdk up`
+      placeholder: Ran examples/one-backend-python and timed `flisk up`
     validations:
       required: true
   - type: dropdown
@@ -34,8 +34,8 @@ body:
       label: What did you see?
       description: Numbers, messages, anything surprising. Paste output below if you have it.
       placeholder: |
-        First `tdk up`: 4 min 10 s.
-        Second `tdk up`: 35 s.
+        First `flisk up`: 4 min 10 s.
+        Second `flisk up`: 35 s.
         Edit to ready: about 6 s, API logged one connection error while Postgres started.
     validations:
       required: true
@@ -49,5 +49,5 @@ body:
     id: setup
     attributes:
       label: Your setup (optional)
-      description: OS, Docker flavour, and the output of `tdk --version`.
-      placeholder: macOS 15, OrbStack, tdk 1.3.126
+      description: OS, Docker flavour, and the output of `flisk --version`.
+      placeholder: macOS 15, OrbStack, flisk 1.3.126

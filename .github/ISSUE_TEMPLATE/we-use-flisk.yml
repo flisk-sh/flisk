@@ -1,0 +1,43 @@
+name: We use Flisk
+description: Ask to be listed in ADOPTERS.md without editing the table
+title: "adopter: "
+labels: ["growth"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        List only teams that run `flisk up` on their own repositories. See [What counts](https://github.com/flisk-sh/flisk/blob/main/ADOPTERS.md#what-counts) before you submit. Benchmark fixtures, "evaluating", and forks of the examples do not count.
+  - type: input
+    id: organization
+    attributes:
+      label: Organization
+      placeholder: Name of your company, team, or project
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Public link
+      description: A public repository, blog post, talk, or case study. Private teams can link a public write-up.
+      placeholder: https://github.com/your-org/your-repo
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: flisk --version
+      placeholder: Output of `flisk --version`
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything a maintainer should know
+      description: For a private team without a public repository link, put a public write-up in the link field above and explain how a maintainer can verify that you use Flisk.
+  - type: checkboxes
+    id: permission
+    attributes:
+      label: Permission
+      options:
+        - label: I am allowed to list this organization in ADOPTERS.md.
+          required: true

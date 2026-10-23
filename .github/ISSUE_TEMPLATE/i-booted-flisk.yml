@@ -1,0 +1,39 @@
+name: I booted Flisk
+description: Share evidence from your first Flisk run
+title: "boot: "
+labels: ["show-and-tell"]
+body:
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: Ubuntu 24.04, macOS 15, Windows 11 with WSL2
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: flisk --version
+      placeholder: Output of `flisk --version`
+    validations:
+      required: true
+  - type: input
+    id: minutes
+    attributes:
+      label: Minutes until first healthy URL
+      placeholder: For example, 8
+  - type: textarea
+    id: broke
+    attributes:
+      label: What broke
+      description: Include the relevant output or error.
+    validations:
+      required: true
+  - type: textarea
+    id: cmd
+    attributes:
+      label: Commands you ran
+      description: Include whether this was a fresh install or an existing project.
+      render: shell
+    validations:
+      required: true

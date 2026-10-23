@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +19,7 @@ function check(table: string | null) {
 
 const header = "| Name | GitHub id | Company |\n| --- | --- | --- |\n";
 
-describe("tdk maintainers check", () => {
+describe("flisk maintainers check", () => {
   it("fails with missing counts when short of the bar", () => {
     const result = check(`${header}| Ada | ada | Acme |\n`);
     expect(result.exitCode).toBe(1);
@@ -36,7 +36,7 @@ describe("tdk maintainers check", () => {
   });
 
   it("does not count placeholder companies", () => {
-    const result = check(`${header}| A | a | Acme |\n| B | b | TBD |\n| C | c | tdk-landscape |\n`);
+    const result = check(`${header}| A | a | Acme |\n| B | b | TBD |\n| C | c | flisk-sh |\n`);
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain("1 maintainers");
   });

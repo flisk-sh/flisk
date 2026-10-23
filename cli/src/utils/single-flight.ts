@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
  * Runs a load and applies its result, but starts nothing while a previous load is still running. A poll on a timer

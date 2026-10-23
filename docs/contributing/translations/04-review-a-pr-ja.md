@@ -14,12 +14,12 @@
 
 レビューの前に以下を読んでください。合計で約 1 時間かかり、一度だけ行えば十分です。これを読まないと、AI のコメントが正しいかどうか判断できません。
 
-**TDK とは**
+**Flisk とは**
 
-- [ ] [README](../../../README.md): TDK が何をするか、人々がどのコマンドを使うか。
+- [ ] [README](../../../README.md): Flisk が何をするか、人々がどのコマンドを使うか。
 - [ ] [プロジェクトの概要](../../project-overview.md): Project → Stack → Resource のモデル。
-- [ ] [スコープ](../../scope.md): TDK が何のためのもので、何のためのものではないか。
-- [ ] [生成されるファイル](../../generated-files.md): TDK が書き出すファイル。生成されたファイルを手で編集してはいけません。それを生み出す入力を変更してください。
+- [ ] [スコープ](../../scope.md): Flisk が何のためのもので、何のためのものではないか。
+- [ ] [生成されるファイル](../../generated-files.md): Flisk が書き出すファイル。生成されたファイルを手で編集してはいけません。それを生み出す入力を変更してください。
 
 **私たちの進め方**
 
@@ -65,7 +65,7 @@ PR が開かれたり、再オープンされたり、編集されたりする�
 各ボタンは単なるリンクです。AI のウェブサイトを新しいタブで開き、このメッセージがすでに入力された状態にします。
 
 ```text
-Review this pull request. Read the title and diff at https://github.com/tdk-landscape/tdk-cli-core/pull/123.
+Review this pull request. Read the title and diff at https://github.com/flisk-sh/flisk/pull/123.
 ```
 
 | ボタン | 開くサイト |
@@ -138,7 +138,7 @@ Question: what happens when `--port` is 0? The help text does not say.
 PR を確認して、マージしてよいと判断したときに **Approve** を使ってください。承認しても小さなコメントを残せます。その場合は、作成者がマージを妨げないと分かるように、任意であることを明記してください。
 
 ```markdown
-Looks good. I ran `bun run test` on this branch and tried `tdk up --dry-run` in the restaurant example: the new URLs show up as described.
+Looks good. I ran `bun run test` on this branch and tried `flisk up --dry-run` in the restaurant example: the new URLs show up as described.
 
 Optional (nit): `parsePort` could use a test for an empty string. Fine to do in a follow-up.
 ```

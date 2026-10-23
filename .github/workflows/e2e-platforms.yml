@@ -1,7 +1,7 @@
-# Platforms axis group gate (#1302, epic #1279). The windows leg runs tests/e2e/platforms/windows (W1-W3) on the native
-# Windows runner: typecheck, build and CLI help, platform unit tests, and the native Windows refusal contract. It runs on pull
-# requests and the merge queue, uses no secrets (suite.json needsSecrets is empty) and replaces the retired windows-smoke workflow as a required
-# check. The job name e2e-platforms is the required-check context.
+# Platforms axis group gate (#1302, epic #1279). The windows leg runs tests/e2e/platforms/windows (W1-W4) on the native
+# Windows runner: typecheck, build and CLI help, platform unit tests, the native Windows refusal contract, and the
+# one-command demo contract. It runs on pull requests and the merge queue, uses no secrets (suite.json needsSecrets is empty)
+# and replaces the retired windows-smoke workflow as a required check. The job name e2e-platforms is the required-check context.
 name: 🪟 Platforms E2E gate
 
 on:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     if: github.event_name == 'pull_request'
     permissions:
@@ -54,7 +54,7 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts
 
-      # The windows leg (tests/e2e/platforms/windows: suite.json, run.sh, native-refusal.ps1), run in order.
+      # The windows leg (tests/e2e/platforms/windows: suite.json, run.sh, native-refusal.ps1, demo-refusal.ps1), run in order.
       - name: Typecheck, build and run CLI help
         shell: bash
         run: tests/e2e/platforms/windows/run.sh W1
@@ -66,3 +66,7 @@ jobs:
       - name: Verify native Windows CLI contract
         shell: bash
         run: tests/e2e/platforms/windows/run.sh W3
+
+      - name: Verify native Windows demo contract
+        shell: bash
+        run: tests/e2e/platforms/windows/run.sh W4

@@ -1,7 +1,8 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { resolveAgentRuntime } from "../agent-runtimes/registry.js";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
+import { BACKEND_LANGUAGES, getBackendLanguage } from "../backend-languages/registry.js";
 import { TdkError } from "../utils/errors.js";
 import { elysiaBackendProvider } from "./elysia.js";
 import { expressBackendProvider } from "./express.js";
@@ -28,6 +29,55 @@ export const BACKEND_FRAMEWORKS = {
     koa: koaBackendProvider,
     nestjs: nestBackendProvider,
 };
+/**
+ * The languages a framework can be combined with, decided by the same validation the resource command
+ * uses: a language that owns its runtime (python, go, rust, node) cannot be combined with a framework.
+ */
+function compatibleLanguages(frameworkId) {
+    return Object.keys(BACKEND_LANGUAGES).filter((languageId) => {
+        try {
+            resolveBackendFramework("backend", frameworkId, BACKEND_LANGUAGES[languageId]);
+            return true;
+        }
+        catch (error) {
+            // Only the "a language that owns its runtime cannot be combined with a framework" rule is
+            // expected here. Any other error is a bug and must surface instead of silently shrinking
+            // the language column.
+            if (error instanceof TdkError)
+                return false;
+            throw error;
+        }
+    });
+}
+/**
+ * Lists the registered backend frameworks with the language (and runtime) they are scaffolded with, so
+ * `flisk resource --type backend --frameworks` is the whole backend discovery surface.
+ *
+ * `languageId` is the language the listing is judged against; the default Bun language is used when it
+ * is omitted. A language that was asked for is named in the printed command, so copying a row never
+ * scaffolds a different language than the one the listing was about.
+ */
+export function listBackendFrameworks(languageId) {
+    const requested = getBackendLanguage(languageId);
+    const namesLanguage = languageId !== undefined;
+    return Object.entries(BACKEND_FRAMEWORKS).map(([id, provider]) => {
+        const languages = compatibleLanguages(id);
+        const compatible = languages.includes(requested.id);
+        const languageFlag = namesLanguage ? ` --language ${requested.id}` : "";
+        // A language that owns its runtime cannot be combined with a framework, so the row carries the
+        // command that creates the resource in that language, without a framework.
+        const command = compatible
+            ? `flisk resource <name> --type backend --framework ${id}${languageFlag}`
+            : `flisk resource <name> --type backend${languageFlag}`;
+        return {
+            id,
+            label: provider.label,
+            languages,
+            compatible,
+            command,
+        };
+    });
+}
 export function getBackendFramework(frameworkId) {
     const id = (frameworkId ?? DEFAULT_BACKEND_FRAMEWORK).trim().toLowerCase();
     const provider = Object.hasOwn(BACKEND_FRAMEWORKS, id) ? BACKEND_FRAMEWORKS[id] : undefined;
@@ -58,7 +108,7 @@ export function resolveBackendFramework(resourceType, frameworkId, language) {
         return mcpBackendProvider;
     }
     // `agent` is scaffolded by an agent runtime (src/agent-runtimes/), not a framework. Only the default runtime is reachable here:
-    // `tdk resource` validates --runtime before it scaffolds, so the package.json and tsconfig always match the chosen runtime.
+    // `flisk resource` validates --runtime before it scaffolds, so the package.json and tsconfig always match the chosen runtime.
     if (resourceType === "agent") {
         if (frameworkId !== undefined && frameworkId !== "custom") {
             throw new TdkError("--framework cannot be combined with --type agent.", [

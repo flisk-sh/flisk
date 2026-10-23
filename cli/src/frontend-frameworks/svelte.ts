@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { FrontendFrameworkProvider } from "./types.js";
 
@@ -47,7 +47,7 @@ export default app;
       {
         filename: "src/App.svelte",
         content: `<script lang="ts">
-  const message: string = 'Frontend resource created with TDK';
+  const message: string = 'Frontend resource created with Flisk';
 </script>
 
 <main style="padding: 2rem; font-family: system-ui">

@@ -1,0 +1,46 @@
+# Installs the Flisk CLI for a CI job (#1282). One place for the installs that the workflows used to inline:
+#   tarball: <path>     installs a packed CLI tarball another job downloaded or built (ignores version)
+#   version: local      packs and installs this checkout's CLI (the tarball users would get from npm)
+#   version: latest     installs the newest published package
+#   version: 1.2.3      waits until that version is on npm, then installs it
+# The caller checks out this repository's scripts/install-global.mjs and scripts/wait-for-npm-version.sh first, and runs
+# setup-bun before this action when version is local (it needs bun install).
+name: Install Flisk
+description: Install the Flisk CLI from a packed tarball, this checkout (local), the latest npm release, or an exact published version
+inputs:
+  version:
+    description: "local, latest, or an exact npm version (ignored when tarball is set)"
+    required: false
+    default: latest
+  tarball:
+    description: "Path or glob of a packed CLI tarball to install instead of a version"
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Install the CLI
+      shell: bash
+      env:
+        TDK_VERSION: ${{ inputs.version }}
+        TDK_TARBALL: ${{ inputs.tarball }}
+      run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
+        set -euo pipefail
+        if [ -n "$TDK_TARBALL" ]; then
+          tgz="$(compgen -G "$TDK_TARBALL" | head -1 || true)"
+          if [ -z "$tgz" ]; then
+            echo "::error::no tarball matches $TDK_TARBALL"
+            exit 1
+          fi
+          scripts/e2e/retry-infra.sh "install the packed CLI" -- node scripts/install-global.mjs "$tgz"
+        elif [ "$TDK_VERSION" = "local" ]; then
+          scripts/e2e/retry-infra.sh "bun install" -- bun install --frozen-lockfile
+          tarball="$(npm pack --silent | tail -1)"
+          scripts/e2e/retry-infra.sh "install the packed CLI" -- node scripts/install-global.mjs "./$tarball"
+        else
+          if [ "$TDK_VERSION" != "latest" ]; then
+            scripts/wait-for-npm-version.sh "@flisk-sh/flisk" "$TDK_VERSION"
+          fi
+          scripts/e2e/retry-infra.sh "install the published CLI" -- node scripts/install-global.mjs "@flisk-sh/flisk@${TDK_VERSION}"
+        fi
+        flisk --version

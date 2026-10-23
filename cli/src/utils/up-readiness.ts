@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
 import { getDeferredResourceNames, parseTiltResourceFailures } from "./doctor-runtime.js";
@@ -71,6 +71,11 @@ export function checkExpectedResources(
   };
 }
 
+/** Resources that report on the stack without gating it. */
+export function isAdvisoryResource(name: string): boolean {
+  return name.endsWith("-typecheck");
+}
+
 /**
  * One look at `tilt get uiresources -o json`. `settled` means polling can stop: everything is ready, or the rest has
  * finished with a failure (an errored resource, or an expected service Tilt has disabled).
@@ -81,9 +86,12 @@ export function evaluateTiltReadiness(
   expected?: string[],
 ): { result: ReadinessResult; settled: boolean } {
   const parsed = parseTiltResourceFailures(onlyEnabledResources(jsonText), deferred);
+  // A `<service>-typecheck` resource runs on the host and is advisory: it reports type errors
+  // in Tilt, it does not decide whether the stack is up. It must not fail the stack.
+  const blocking = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
   let result: ReadinessResult = {
-    ready: parsed.failures.length === 0 && parsed.pendingCount === 0 && parsed.okCount > 0,
-    failures: parsed.failures.map((failure) => ({
+    ready: blocking.length === 0 && parsed.pendingCount === 0 && parsed.okCount > 0,
+    failures: blocking.map((failure) => ({
       name: failure.name,
       message: failure.error || `${failure.updateStatus}/${failure.runtimeStatus}`,
     })),

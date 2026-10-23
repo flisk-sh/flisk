@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { createTempProject, parseEnvelope, runTdk } from "../../test-support/index.js";
@@ -26,7 +26,7 @@ const runVerify = (projectRoot: string) =>
   runTdk(["config", "verify", "--json"], { cwd: projectRoot });
 
 // Each case spawns the built CLI. Under the parallel suite and a loaded machine that exceeds 20-30s, so the budget is 120s.
-describe("tdk config verify --json", () => {
+describe("flisk config verify --json", () => {
   it("prints one JSON report and exits 1 for drift without Commander diagnostics", () => {
     const projectRoot = createTempProject({ projectJson: verifyProject("verify-json") });
 
@@ -41,7 +41,7 @@ describe("tdk config verify --json", () => {
       errors: [],
     });
     expect(report.data.errors).toContain(
-      "Missing file: .tdk/.tdk-out/Tiltfile (run 'tdk config regenerate')",
+      "Missing file: .tdk/.tdk-out/Tiltfile (run 'flisk config regenerate')",
     );
     expect(
       report.data.diffs.find((diff: { file: string }) => diff.file.endsWith("Tiltfile"))?.diff,

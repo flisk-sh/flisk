@@ -1,11 +1,22 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const { execFileSyncMock } = vi.hoisted(() => ({ execFileSyncMock: vi.fn() }));
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  execFileSync: execFileSyncMock,
+}));
+
 import { classifyTiltPorts, findTiltPortOwner, isForeignTilt } from "../tilt-port-owner.js";
 import { resolveTiltPort, secondUpAction } from "../tilt-startup.js";
+
+afterEach(() => {
+  execFileSyncMock.mockReset();
+});
 
 const TILT = "tilt up -f /work/other/.tdk/.tdk-out/Tiltfile";
 
@@ -42,6 +53,48 @@ describe("findTiltPortOwner", () => {
     expect(findTiltPortOwner(10350, "darwin", runner({}))).toBeNull();
     expect(findTiltPortOwner(10350, "win32", runner({ "-iTCP": "1" }))).toBeNull();
   });
+
+  it("checks each listener until one is a tilt up, ignoring blank and CRLF lines", () => {
+    const owner = findTiltPortOwner(
+      10350,
+      "linux",
+      runner({
+        "-iTCP:10350": "111\r\n\n222\r\n",
+        "-p 111": "node server.js\n",
+        "-p 222": `${TILT}\n`,
+      }),
+    );
+    expect(owner).toEqual({ pid: 222, root: "/work/other" });
+  });
+
+  it("is unknown when ps fails for the listener", () => {
+    expect(findTiltPortOwner(10350, "linux", runner({ "-iTCP:10350": "333\n" }))).toBeNull();
+  });
+
+  it("is unknown when nothing listens on the port", () => {
+    expect(findTiltPortOwner(10350, "linux", runner({ "-iTCP:10350": "\n" }))).toBeNull();
+  });
+
+  it("uses the default runner with a bounded timeout", () => {
+    execFileSyncMock.mockImplementation((command: string) => {
+      if (command === "lsof") return "24170\n";
+      if (command === "ps") return `${TILT}\n`;
+      throw new Error(`unexpected command ${command}`);
+    });
+
+    expect(findTiltPortOwner(10350, "linux")).toEqual({ pid: 24170, root: "/work/other" });
+    expect(execFileSyncMock).toHaveBeenNthCalledWith(
+      1,
+      "lsof",
+      ["-nP", "-iTCP:10350", "-sTCP:LISTEN", "-t"],
+      expect.objectContaining({
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: 5000,
+        windowsHide: true,
+      }),
+    );
+  });
 });
 
 describe("isForeignTilt", () => {
@@ -61,7 +114,7 @@ describe("isForeignTilt", () => {
   });
 });
 
-describe("tdk up with a Tilt on the base port", () => {
+describe("flisk up with a Tilt on the base port", () => {
   const serving = async (port: number) => port === 10350;
   const free = async (base: number) => base + 1;
 

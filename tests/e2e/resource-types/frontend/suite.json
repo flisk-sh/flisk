@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "frontend",
-  "description": "A frontend resource per framework on a live stack: scaffold with tdk resource --framework, tdk up, GET the route through Traefik returns 200, and the app's module script is served with a JavaScript content type (moved from scripts/verify-frontend-frameworks.sh, #1296). One matrix leg per framework.",
+  "description": "A frontend resource per framework on a live stack: scaffold with flisk resource --framework, flisk up, GET the route through Traefik returns 200, and the app's module script is served with a JavaScript content type (moved from scripts/verify-frontend-frameworks.sh, #1296). One matrix leg per framework.",
   "paths": [
     "cli/src/frontend-frameworks/**",
     "cli/src/commands/resource.ts",

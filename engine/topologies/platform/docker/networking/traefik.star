@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # 🐳 TILT SDK - TRAEFIK LABELS GENERATOR
@@ -37,10 +37,17 @@ load("./sablier_container_cycle.star",
     "sablier_middleware_suffix",
     "sablier_container_labels",
 )
+load("../compose/unsafe_value.star", "reject_unsafe_value")
 
 
 def get_frontend_traefik_labels(res_name, domain, base_path, port, traefik_host=None, manifest=None):
     """Generate Traefik labels for frontend services."""
+    reject_unsafe_value(res_name, 'res_name')
+    reject_unsafe_value(domain, 'domain')
+    reject_unsafe_value(base_path, 'base_path')
+    reject_unsafe_value(port, 'port')
+    reject_unsafe_value(traefik_host, 'traefik_host')
+    
     # Priority based on path length ensures more specific paths win over broader ones
     router_priority = TRAEFIK_FRONTEND_PRIORITY_BASE + len(base_path or "")
     frontend_route_rule = frontend_rule(res_name, base_path, traefik_host)
@@ -111,6 +118,18 @@ def get_backend_traefik_labels(
     manifest=None,
 ):
     """Generate Traefik labels for backend services with enhanced health checks."""
+    reject_unsafe_value(resource_entry_name, 'resource_entry_name')
+    reject_unsafe_value(traefik_host, 'traefik_host')
+    reject_unsafe_value(traefik_path, 'traefik_path')
+    reject_unsafe_value(traefik_resource_name, 'traefik_resource_name')
+    reject_unsafe_value(health_path, 'health_path')
+    reject_unsafe_value(internal_port, 'internal_port')
+    if manifest:
+        reject_unsafe_value(manifest.get('stack'), 'stack')
+        traefik_cfg = manifest.get('traefik') or {}
+        reject_unsafe_value(traefik_cfg.get('host'), 'traefik.host')
+        reject_unsafe_value(traefik_cfg.get('pathPrefix'), 'traefik.pathPrefix')
+
     backend_route_rule = backend_rule(traefik_host, traefik_path)
     backend_entrypoints = build_entrypoints(
         TRAEFIK_BACKEND_ENABLE_HTTP,
@@ -196,7 +215,7 @@ def get_backend_traefik_labels(
     if sablier_enabled:
         labels += sablier_container_labels(manifest, resource_entry_name, "      ")
 
-    # Generate project localhost routing to match `tdk up` URLs:
+    # Generate project localhost routing to match `flisk up` URLs:
     # http://api.{project}.localhost/api/{resource-name}
     if manifest:
         stack = manifest.get("stack", "")

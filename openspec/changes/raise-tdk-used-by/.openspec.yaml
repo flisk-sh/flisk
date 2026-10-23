@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-20
+goal: Increase measurable GitHub dependents for @flisk-sh/flisk through legitimate declarations in official public examples and documented adopter guidance.
+skip_specs: true

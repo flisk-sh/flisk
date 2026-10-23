@@ -1,9 +1,9 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import chalk from "chalk";
 import { Command } from "commander";
-import { assertValid, confirmOrCancel } from "../utils/command-helpers.js";
+import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
 import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, requireProjectRoot, runCommand, TdkError } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
@@ -26,12 +26,11 @@ function normalizeResourceNames(names) {
         .filter(Boolean));
     return [...new Set(normalizedNames)];
 }
-export const stackCommand = new Command("stack")
+export const stackCommand = addYesOption(new Command("stack"))
     .description("Organize resources into stacks (groups)")
     .argument("[stack-name]", "Stack name to assign to resources")
     .option("--list", "List resources without a stack", false)
     .option("--resources <names...>", "Resource names to add (comma- or space-separated)")
-    .option("--yes", "Skip confirmation prompt", false)
     .action(async (stackName, options) => {
     await runCommand(async () => {
         requireProjectRoot();
@@ -71,7 +70,7 @@ export const stackCommand = new Command("stack")
             }
             if (!stackName) {
                 throw new TdkError("A stack name is required when stdin is not a TTY.", [
-                    "Use: tdk stack <stack-name> --resources <name...> [--yes]",
+                    "Use: flisk stack <stack-name> --resources <name...> [--yes]",
                 ]);
             }
             if (!options.yes) {
@@ -99,7 +98,7 @@ export const stackCommand = new Command("stack")
             const requestedNames = normalizeResourceNames(options.resources);
             if (requestedNames.length === 0) {
                 throw new TdkError("Pass at least one resource name to --resources.", [
-                    "Example: `tdk stack api --resources users-api orders-api --yes`",
+                    "Example: `flisk stack api --resources users-api orders-api --yes`",
                 ]);
             }
             const configPathsByName = new Map();
@@ -122,7 +121,7 @@ export const stackCommand = new Command("stack")
                     throw error;
                 }
                 if (resource.stack) {
-                    throw new TdkError(`Resource "${name}" is already assigned to stack "${resource.stack}".`, ["Run `tdk resources` to review current assignments."]);
+                    throw new TdkError(`Resource "${name}" is already assigned to stack "${resource.stack}".`, ["Run `flisk resources` to review current assignments."]);
                 }
                 selectedResources.push(resource.configPath);
             }
@@ -167,6 +166,6 @@ export const stackCommand = new Command("stack")
         }
         console.log();
         showSuccess(`Updated ${formatCount(updated, "resource")}.`);
-        showDetail(`\nYou can now run: tdk up ${targetStack}`, 0);
+        showDetail(`\nYou can now run: flisk up ${targetStack}`, 0);
     });
 });

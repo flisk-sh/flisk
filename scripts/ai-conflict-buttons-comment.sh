@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # Post or update the single conflict-button comment for PR_NUMBER.
 # Reads PR_URL, HEAD_OWNER, HEAD_BRANCH, BASE_BRANCH from the environment.

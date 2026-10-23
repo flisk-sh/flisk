@@ -11,7 +11,7 @@ export interface ContainerState {
     finishedAt?: string;
     exitCode: number;
 }
-/** Whether this container's compose project belongs to the TDK project, however the engine spelled the separator. */
+/** Whether this container's compose project belongs to the Flisk project, however the engine spelled the separator. */
 export declare function belongsToProject(composeProject: string, projectName: string): boolean;
 export declare function isCrashLooping(state: ContainerState, now?: number): boolean;
 /** A hint for a cause that the last log lines name. Null when they do not say. */

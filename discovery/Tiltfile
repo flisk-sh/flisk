@@ -5,7 +5,7 @@
 # It exports manifest loading, registry, and auto-discovery daemon.
 #
 # Usage:
-#   v1alpha1.extension_repo(name='tdk-discovery', url='https://github.com/tdk-landscape/tdk-discovery')
+#   v1alpha1.extension_repo(name='tdk-discovery', url='https://github.com/flisk-sh/flisk')
 #   load('ext://tdk-discovery', 'get_discovery_path', 'run_daemon', ...)
 # =============================================================================
 

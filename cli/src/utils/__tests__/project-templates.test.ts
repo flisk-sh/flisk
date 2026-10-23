@@ -1,10 +1,10 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { PROJECT_TEMPLATES } from "../project-templates.js";
+import { bareTemplateArg, PROJECT_TEMPLATES } from "../project-templates.js";
 
 const exampleRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -15,6 +15,7 @@ describe("PROJECT_TEMPLATES", () => {
   it("offers every public example repo", () => {
     expect(Object.keys(PROJECT_TEMPLATES).sort()).toEqual([
       "agent-stack",
+      "demo",
       "ecommerce",
       "erp",
       "example",
@@ -24,9 +25,17 @@ describe("PROJECT_TEMPLATES", () => {
     ]);
   });
 
+  it("points demo at the restaurant example", () => {
+    expect(PROJECT_TEMPLATES.demo.repo).toBe(PROJECT_TEMPLATES.restaurant.repo);
+  });
+
+  it("demo template has fixedDir for consistent demo location", () => {
+    expect(PROJECT_TEMPLATES.demo.fixedDir).toBe("flisk-demo");
+  });
+
   it("points ecommerce at tdk-ecommerce-example", () => {
     expect(PROJECT_TEMPLATES.ecommerce.repo).toBe(
-      "https://github.com/tdk-landscape/tdk-ecommerce-example.git",
+      "https://github.com/flisk-sh/tdk-ecommerce-example.git",
     );
   });
 
@@ -58,8 +67,30 @@ describe("PROJECT_TEMPLATES", () => {
 
   it("gives every template a github repo and a description", () => {
     for (const [name, t] of Object.entries(PROJECT_TEMPLATES)) {
-      expect(t.repo, name).toMatch(/^https:\/\/github\.com\/tdk-landscape\/[\w-]+\.git$/);
+      expect(t.repo, name).toMatch(/^https:\/\/github\.com\/flisk-sh\/[\w-]+\.git$/);
       expect(t.description, name).not.toBe("");
     }
+  });
+});
+
+describe("bareTemplateArg", () => {
+  it("reads the one-command form", () => {
+    expect(bareTemplateArg(["node", "flisk", "demo"])).toBe("demo");
+    expect(bareTemplateArg(["node", "flisk", "restaurant", "--project=my-stack"])).toBe(
+      "restaurant",
+    );
+  });
+
+  it("leaves a command that takes a template of its own alone", () => {
+    // `flisk project demo` clones a starter and configures it; it is not the one-command flow.
+    expect(bareTemplateArg(["node", "flisk", "project", "demo"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk", "project", "example", "--path", "x"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk", "up", "demo"])).toBeUndefined();
+  });
+
+  it("reads nothing from a flag or an unknown name", () => {
+    expect(bareTemplateArg(["node", "flisk", "--template", "demo"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk", "not-a-template"])).toBeUndefined();
+    expect(bareTemplateArg(["node", "flisk"])).toBeUndefined();
   });
 });

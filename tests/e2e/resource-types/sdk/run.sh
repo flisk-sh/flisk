@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # An sdk resource on a live project, with no stack (#1295). An sdk already lives in packages/<name>, so S1 writes that folder and its
-# service.json ("appType": "sdk") and registers it with `tdk resource --type sdk`. S2 checks `tdk status` lists it as an sdk. S3 runs
+# service.json ("appType": "sdk") and registers it with `flisk resource --type sdk`. S2 checks `flisk status` lists it as an sdk. S3 runs
 # the package's build script and S4 imports the built entry from a consumer script, which is the consumed-build check. The consumer
 # is a plain node import, not a stack resource: an sdk is not served, so it has no route to check. Runs nightly, on release and by
 # hand; see suite.json.
@@ -27,7 +27,7 @@ S1() { # write the sdk's package and service.json, then register it
   rm -rf "$DIR"; mkdir -p "$DIR/$PKG/scripts"
   (cd "$DIR" && git init -q .)
   run scaffold-project project --yes
-  [ "$RC" -eq 0 ] || die "tdk project --yes exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk project --yes exited $RC"
   printf '{"appName":"%s","appType":"sdk"}\n' "$RES" >"$DIR/$PKG/service.json"
   cat >"$DIR/$PKG/package.json" <<JSON
 {
@@ -45,12 +45,12 @@ mkdirSync("dist", { recursive: true });
 writeFileSync("dist/index.mjs", 'export const ok = true;\nexport const name = "$RES";\n');
 JS
   run "register-$RES" resource "$RES" --type sdk --path "$PKG" --stack "$STACK" --yes
-  [ "$RC" -eq 0 ] || die "tdk resource $RES --type sdk exited $RC"
+  [ "$RC" -eq 0 ] || die "flisk resource $RES --type sdk exited $RC"
   jq -e '.appType == "sdk"' "$DIR/$PKG/service.json" >/dev/null || die "registering changed the appType"
 }
 
-S2() { # tdk status lists the registered resource as an sdk
-  log "S2 tdk status lists $RES as an sdk"
+S2() { # flisk status lists the registered resource as an sdk
+  log "S2 flisk status lists $RES as an sdk"
   common_wait_status "$RES" sdk
 }
 

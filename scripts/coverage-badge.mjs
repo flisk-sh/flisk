@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Reads the line coverage from cli/coverage/coverage-summary.json (written by `npm run test:coverage`)
 // and writes docs/assets/coverage.svg. Run after `npm run test:coverage` in cli/, then commit the SVG via a PR:

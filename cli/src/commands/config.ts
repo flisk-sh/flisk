@@ -1,4 +1,4 @@
-// Copyright (c) 2026 TDK Landscape contributors
+// Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -16,8 +16,9 @@ import type { ProjectConfig } from "../types/index.js";
 import { isMasterConfigFileName } from "../types/index.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
+import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
-import { errorFactories, requireProjectRoot, runCommand } from "../utils/errors.js";
+import { errorFactories, requireProjectRoot, runCommand, showError } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -25,7 +26,11 @@ import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
   validateServiceManifest,
 } from "../utils/service-manifest.js";
-import { discoverServiceManifestPaths } from "../utils/services.js";
+import {
+  discoverResourcesWithProblems,
+  discoverServiceManifestPaths,
+  warnAboutSkippedFiles,
+} from "../utils/services.js";
 import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
 
@@ -213,10 +218,13 @@ export const configCommand = new Command("config")
             pendingMigrations.push({ filePath, manifest: record });
           }
 
-          for (const failure of failures) console.error(chalk.red(`❌ ${failure}`));
+          for (const failure of failures) showError(failure);
           if (failures.length > 0) process.exit(1);
           for (const migration of pendingMigrations) {
             writeFileSync(migration.filePath, `${JSON.stringify(migration.manifest, null, 2)}\n`);
+          }
+          if (pendingMigrations.length > 0) {
+            clearDiscoveryCache();
           }
           const migrated = pendingMigrations.length;
           console.log(
@@ -237,10 +245,16 @@ export const configCommand = new Command("config")
           const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
           if (!projectRoot) throw errorFactories.notInProject();
 
-          const result = verifyMasterConfigs(projectRoot);
-          // Same predicate as tdk doctor's Shared platform Postgres check.
-          const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot);
-          const prismaConsistency = checkPrismaConsistency(projectRoot);
+          const { resources, problems } = discoverResourcesWithProblems(projectRoot);
+          warnAboutSkippedFiles(problems);
+          const manifestPaths = [
+            ...resources.map((r) => r.configPath),
+            ...problems.map((p) => p.path),
+          ];
+          const result = verifyMasterConfigs(projectRoot, { manifestPaths });
+          // Same predicate as flisk doctor's Shared platform Postgres check.
+          const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
+          const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
           const sharedPostgresErrors = sharedPostgres.unknownDependsOnNames.map(
             ({ resource, name }) =>
               `dependsOn "${name}" on ${resource} is not a known service or stack (shared platform Postgres names are postgres and database-management)`,
@@ -275,12 +289,12 @@ export const configCommand = new Command("config")
           }
 
           for (const error of sharedPostgresErrors) {
-            console.log(chalk.red(`❌ ${error}`));
+            showError(error);
           }
-          if (!prismaConsistency.didPass) console.log(chalk.red(`❌ ${prismaConsistency.message}`));
+          if (!prismaConsistency.didPass) showError(prismaConsistency.message);
 
           if (sharedPostgres.willStart) {
-            // Project resource set (discoverResourcesFromRoot), not a tdk up --only filter.
+            // Project resource set (discoverResourcesFromRoot), not a flisk up --only filter.
             // Feature-on alone is not new behavior — print gray so default projects are not noisy.
             // dependsOn is the reason Postgres starts when the feature is off — green.
             if (sharedPostgres.reason === "feature" && sharedPostgres.dependsOnUsers.length === 0) {
@@ -290,26 +304,26 @@ export const configCommand = new Command("config")
                   : "";
               console.log(
                 chalk.gray(
-                  `ℹ️  Postgres will start because database-management is enabled${source} (project-wide; not a tdk up selection)`,
+                  `ℹ️  Postgres will start because database-management is enabled${source} (project-wide; not a flisk up selection)`,
                 ),
               );
             } else if (sharedPostgres.reason === "feature") {
               console.log(
                 chalk.yellow(
-                  `ℹ️  Postgres will start because database-management is enabled and resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; tdk up may select a subset)`,
+                  `ℹ️  Postgres will start because database-management is enabled and resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`,
                 ),
               );
             } else {
               console.log(
                 chalk.green(
-                  `ℹ️  Postgres will start because resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; tdk up may select a subset)`,
+                  `ℹ️  Postgres will start because resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`,
                 ),
               );
             }
           } else if (sharedPostgres.focusWouldEnableDatabaseManagement) {
             console.log(
               chalk.yellow(
-                "ℹ️  Postgres will not start from project.json/generated Tiltfile, but default focus/CORE_INFRA expansion would enable database-management on a typical tdk up",
+                "ℹ️  Postgres will not start from project.json/generated Tiltfile, but default focus/CORE_INFRA expansion would enable database-management on a typical flisk up",
               ),
             );
           }
@@ -325,10 +339,10 @@ export const configCommand = new Command("config")
             for (const { diff } of result.diffs) console.log(chalk.gray(`\n${diff}`));
             const schemaErrors = result.errors.filter((error) => error.includes(".schemaVersion:"));
             if (schemaErrors.length > 0) {
-              console.log(chalk.gray("\nRun `tdk config migrate` to fix schemaVersion."));
+              console.log(chalk.gray("\nRun `flisk config migrate` to fix schemaVersion."));
             }
             if (result.diffs.length > 0) {
-              console.log(chalk.gray("\nRun `tdk config regenerate` to fix generated files."));
+              console.log(chalk.gray("\nRun `flisk config regenerate` to fix generated files."));
             }
             process.exit(1);
           }
@@ -386,7 +400,7 @@ export const configCommand = new Command("config")
         }
 
         console.log(chalk.green("\n✅ Editor closed."));
-        console.log(chalk.gray("Run `tdk config regenerate` to apply changes."));
+        console.log(chalk.gray("Run `flisk config regenerate` to apply changes."));
       });
     }),
   );
@@ -417,7 +431,7 @@ async function toggleInfraService(service: string, enabled: boolean): Promise<vo
     if (!granted) {
       throw new Error(
         "Verdaccio is a Premium feature and requires a license key that grants it. " +
-          "Set export TDK_LICENSE_KEY=<key> (request a Premium license at https://tdk-landscape.github.io/tdk-website/#waitlist) and try again.",
+          "Set export TDK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
       );
     }
   }
@@ -441,7 +455,7 @@ async function toggleInfraService(service: string, enabled: boolean): Promise<vo
 
   const action = enabled ? "Enabled" : "Disabled";
   console.log(chalk.green(`✓ ${action}: ${service}`));
-  console.log(chalk.gray("Run `tdk config regenerate` to apply."));
+  console.log(chalk.gray("Run `flisk config regenerate` to apply."));
 }
 
 configCommand

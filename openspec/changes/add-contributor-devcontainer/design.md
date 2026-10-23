@@ -2,11 +2,11 @@
 
 ## Context
 
-The repository’s contributor path currently expects a local install of Bun and Node.js 22.12+. Docker and Tilt are only required when exercising full stack generation and `tdk up`. Most open issues under the CLI area can be validated with `bun run typecheck`, `bun run lint`, and `bun run test`.
+The repository’s contributor path currently expects a local install of Bun and Node.js 22.12+. Docker and Tilt are only required when exercising full stack generation and `flisk up`. Most open issues under the CLI area can be validated with `bun run typecheck`, `bun run lint`, and `bun run test`.
 
 GitHub Codespaces and the VS Code Dev Containers extension both honor a `.devcontainer/devcontainer.json` that follows the Development Container Specification. Official images such as `mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm` already supply a recent Node.js; Bun can be added via a feature or a short `postCreateCommand`.
 
-An existing OpenSpec change (`agent-host-runtime`) proposes a reference Dev Container oriented around running the published `tdk` binary with docker-outside-of-docker. That remains valuable for agents and end users. This change is narrower: a fast environment for editing and testing the CLI source itself.
+An existing OpenSpec change (`agent-host-runtime`) proposes a reference Dev Container oriented around running the published `flisk` binary with docker-outside-of-docker. That remains valuable for agents and end users. This change is narrower: a fast environment for editing and testing the CLI source itself.
 
 ## Goals / non-goals
 
@@ -20,7 +20,7 @@ An existing OpenSpec change (`agent-host-runtime`) proposes a reference Dev Cont
   - Replacing local development for maintainers who already have the tools.
   - Supporting WebContainers.
   - Pre-building and publishing a custom image (can be a later optimization).
-  - Changing how TDK generates stacks for end-user projects.
+  - Changing how Flisk generates stacks for end-user projects.
   - Docker-in-Docker or Tilt in the default configuration (they increase startup time and complexity).
 
 ## Decisions
