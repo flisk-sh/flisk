@@ -73,4 +73,60 @@ describe.skipIf(!hasTilt)("non-golden L4 backend HEALTHCHECK", { timeout: 60_000
     expect(result.status, result.stderr).toBe(0);
     expect(result.healthcheck).toBe("HEALTHCHECK NONE");
   });
+
+  it("disables HEALTHCHECK for bring-your-own services without healthCheckPath", () => {
+    const result = renderHealthcheck({ appType: "bring-your-own", port: 5000 });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.healthcheck).toBe("HEALTHCHECK NONE");
+  });
+
+  it("probes bring-your-own services when a healthCheckPath is explicitly configured", () => {
+    const result = renderHealthcheck({
+      appType: "bring-your-own",
+      port: 8088,
+      healthCheckPath: "/livez",
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.healthcheck).toContain("http://127.0.0.1:8088/livez");
+  });
+
+  it("honors manifest port over default when custom port is provided", () => {
+    const result = renderHealthcheck({ appType: "backend", port: 9000 });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.healthcheck).toContain("http://127.0.0.1:9000/health");
+  });
+
+  it("honors manifest healthCheckPath with default port", () => {
+    const result = renderHealthcheck({ appType: "backend", healthCheckPath: "/api/health" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.healthcheck).toContain("http://127.0.0.1:4000/api/health");
+  });
+});
+
+describe("L4 backend healthcheck and runtime Starlark contract", () => {
+  const starlarkContent = readFileSync(l4Layers, "utf-8");
+
+  it("defines _backend_healthcheck_instruction with worker and bring-your-own exemptions", () => {
+    expect(starlarkContent).toContain(
+      "def _backend_healthcheck_instruction(port, manifest = None):",
+    );
+    expect(starlarkContent).toContain("manifest.get('appType') == 'worker'");
+    expect(starlarkContent).toContain(
+      "manifest.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath')",
+    );
+    expect(starlarkContent).toContain('return "HEALTHCHECK NONE\\n"');
+  });
+
+  it("constructs curl/fetch probes using loopback 127.0.0.1 and exits 0 on ok", () => {
+    expect(starlarkContent).toContain("fetch('http://127.0.0.1:");
+    expect(starlarkContent).toContain(".then(r=>process.exit(r.ok?0:1),()=>process.exit(1))");
+    expect(starlarkContent).toContain("dockerfile_healthcheck_flags()");
+  });
+
+  it("resolves single entrypoint scripts cleanly in start_command_from_script", () => {
+    expect(starlarkContent).toContain("def start_command_from_script(start_script):");
+    expect(starlarkContent).toContain("DEFAULT_BUN_START_COMMAND");
+    expect(starlarkContent).toContain("_ENTRY_FILE_EXTENSIONS");
+    expect(starlarkContent).toContain("_SHELL_CHARS");
+  });
 });
