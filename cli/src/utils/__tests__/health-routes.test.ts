@@ -355,27 +355,38 @@ describe("findMissingHealthRoutes", () => {
     ]);
   });
 
-  it("recognizes health route quoted in backticks, single quotes, or double quotes", () => {
+  it("recognizes a health route declaration quoted in backticks, single quotes, or double quotes", () => {
     const src = join(tempDir, "src");
     mkdirSync(src, { recursive: true });
 
-    // Single quotes
-    writeFileSync(join(src, "single.ts"), "const r = '/health';");
     const resSingle: DiscoveredResource = {
       name: "api-single",
       path: tempDir,
       configPath: join(tempDir, "service.json"),
       config: { appName: "api-single", appType: "backend" },
     };
+
+    // Single quotes
+    writeFileSync(join(src, "single.ts"), "app.get('/health', (c) => c.json({ status: 'ok' }));");
     expect(findMissingHealthRoutes([resSingle])).toEqual([]);
 
     // Double quotes
-    writeFileSync(join(src, "single.ts"), 'const r = "/health";');
+    writeFileSync(join(src, "single.ts"), 'app.get("/health", (c) => c.json({ status: "ok" }));');
     expect(findMissingHealthRoutes([resSingle])).toEqual([]);
 
     // Backticks
-    writeFileSync(join(src, "single.ts"), "const r = `/health`;");
+    writeFileSync(join(src, "single.ts"), "app.get(`/health`, (c) => c.json({ status: `ok` }));");
     expect(findMissingHealthRoutes([resSingle])).toEqual([]);
+
+    // Unquoted mention of the path is not a route declaration
+    writeFileSync(join(src, "single.ts"), "const probe = healthCheckPath; // defaults to /health");
+    expect(findMissingHealthRoutes([resSingle])).toEqual([
+      {
+        name: "api-single",
+        healthPath: "/health",
+        usedBy: "container and Traefik healthchecks",
+      },
+    ]);
   });
 
   it("includes agent and mcp services in route validation", () => {
