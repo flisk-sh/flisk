@@ -479,6 +479,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "sign-release.yml",
+			"job": "sign",
+			"tier": "release",
+			"required": false,
+			"reason": "Signs the checksums of an already-published version that release-binaries.yml left unsigned (Scorecard Signed-Releases)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "release-candidate.yml",
 			"job": "plan",
 			"tier": "release",
