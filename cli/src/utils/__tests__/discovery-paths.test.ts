@@ -46,7 +46,7 @@ describe("discovery paths", () => {
   });
 
   it("matches hostile wildcard patterns quickly without backtracking blow-up", () => {
-    const hostile = "a*".repeat(30) + "b";
+    const hostile = `${"a*".repeat(30)}b`;
     const started = Date.now();
     expect(isPathDiscovered(root, `apps/${"a".repeat(5000)}`, [`apps/${hostile}`])).toBe(false);
     expect(Date.now() - started).toBeLessThan(1000);
