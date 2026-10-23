@@ -33,8 +33,27 @@ grep -q FAIL /tmp/layer-eval-build.log && { echo "status: crash (service build: 
 service_build_s=$(( $(t) - s ))
 
 cd "$CORE" || exit 1
-bun scripts/benchmark/container-scale.ts --synthetic --tiers "$SAMPLE" --gate "$SAMPLE" --settle 15 > /tmp/layer-eval-bench.log 2>&1
-result="$(python3 -c 'import glob, os; print(max(glob.glob("benchmarks/results/container-scale-*.json"), key=os.path.getmtime))')"
+marker="$(mktemp "${TMPDIR:-/tmp}/flisk-layer-eval.XXXXXX")" || { echo "status: crash (benchmark marker)"; exit 1; }
+if ! bun scripts/benchmark/container-scale.ts --synthetic --tiers "$SAMPLE" --gate "$SAMPLE" --settle 15 > /tmp/layer-eval-bench.log 2>&1; then
+  rm -f "$marker"
+  echo "status: crash (container benchmark)"
+  exit 1
+fi
+result="$(python3 - "$marker" <<'PY'
+import glob, os, sys
+marker_ns = os.stat(sys.argv[1]).st_mtime_ns
+paths = [p for p in glob.glob("benchmarks/results/container-scale-*.json")
+         if os.stat(p).st_mtime_ns > marker_ns]
+if not paths:
+    sys.exit(1)
+print(max(paths, key=os.path.getmtime))
+PY
+)" || {
+  rm -f "$marker"
+  echo "status: crash (no fresh benchmark result)"
+  exit 1
+}
+rm -f "$marker"
 tests=pass
 python3 -m pytest tests/tilt-engine/test_runtime_container_footprint.py -q -p no:cacheprovider >/tmp/layer-eval-tests.log 2>&1 || tests=fail
 
