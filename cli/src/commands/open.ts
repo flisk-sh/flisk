@@ -52,7 +52,6 @@ export async function pickReadyFrontend(
 ): Promise<FrontendTarget | undefined> {
   if (targets.length === 0) return undefined;
   const started = Date.now();
-  const deadline = started + waitMs;
   while (true) {
     for (const target of targets) {
       if (await isFrontendReady(target.url)) return target;
