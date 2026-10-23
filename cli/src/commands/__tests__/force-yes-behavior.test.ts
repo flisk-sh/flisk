@@ -113,7 +113,7 @@ describe("behavioral flag contract: --force vs --yes", () => {
         name: expect.any(String),
       },
     });
-    expect(generateMasterConfigsMock).toHaveBeenCalledWith(tempDir);
+    expect(generateMasterConfigsMock).toHaveBeenCalledWith(tempDir, { quiet: false });
     log.mockRestore();
   });
 

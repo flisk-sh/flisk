@@ -79,6 +79,7 @@ const runProject = async (options: Record<string, unknown>, template?: string) =
   projectCommand.setOptionValue("check", Boolean(options.check));
   projectCommand.setOptionValue("configFile", options.configFile);
   projectCommand.setOptionValue("path", options.path);
+  projectCommand.setOptionValue("quiet", Boolean(options.quiet));
 
   const handler = (projectCommand as unknown as { _actionHandler: (args: unknown[]) => unknown })
     ._actionHandler;
@@ -258,7 +259,7 @@ describe("project command action", () => {
 
     await runProject({ check: false, force: false, yes: false });
 
-    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
     expect(mocks.ensureEnvFile).toHaveBeenCalledWith(root);
     expect(mocks.completeEnvFile).toHaveBeenCalledWith(root);
     expect(mocks.ensureGitignore).toHaveBeenCalledWith(root);
@@ -275,8 +276,19 @@ describe("project command action", () => {
     expect(Object.keys(config.phases)).toEqual(["pre_alpha", "alpha", "beta", "out_of_scope"]);
     expect(config.project.name).toContain("tdk-project-command-");
     expect(mocks.promptText).not.toHaveBeenCalled();
-    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
     expect(mocks.ensureEnvFile).toHaveBeenCalledWith(root);
+  });
+
+  it("prints nothing but the files it writes when asked to be quiet", async () => {
+    await runProject({ check: false, force: false, yes: true, quiet: true });
+
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: true });
+    expect(mocks.showCommandHeader).not.toHaveBeenCalled();
+    expect(mocks.showStep).not.toHaveBeenCalled();
+    expect(mocks.showDetail).not.toHaveBeenCalled();
+    expect(mocks.showSuccess).not.toHaveBeenCalled();
+    expect(readProjectConfig().project.name).toContain("tdk-project-command-");
   });
 
   it("keeps the existing project when --force is declined", async () => {
@@ -299,7 +311,7 @@ describe("project command action", () => {
 
     expect(mocks.promptConfirm).not.toHaveBeenCalled();
     expect(readProjectConfig().project.name).toContain("tdk-project-command-");
-    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
   });
 
   it("checks only the scaffolding prerequisites, not the local runtime", async () => {
