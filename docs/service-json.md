@@ -61,7 +61,25 @@ A worker is a background process that reads from NATS. The service schema requir
 
 A worker has no HTTP server, so it needs no `healthCheckPath` or `traefik` block: Flisk gives it no proxy route and no HTTP health check. `port` is optional for a worker; if you set it, use the `6000`–`6999` range.
 
-Run `flisk resource <name> --type backend`, `flisk resource <name> --type frontend`, or `flisk resource <name> --type worker` to generate a starting manifest. Existing examples are in [`examples/tdk-example`](../examples/tdk-example).
+An MCP (Model Context Protocol) server is an API resource like a backend: it uses the same `4000`–`5999` port range, runs behind the Traefik API host, and speaks Streamable HTTP — clients POST JSON-RPC messages to its `/mcp` route on the public proxy URL. The generated scaffold also serves a plain `GET /health` endpoint, so the default health check needs no override. An MCP resource has no `framework` or `language` setting; `flisk resource <name> --type mcp` generates one fixed scaffold (a `@modelcontextprotocol/sdk` server).
+
+```json
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "tools-mcp-server",
+  "appType": "mcp",
+  "stack": "ai",
+  "port": 4002,
+  "healthCheckPath": "/health",
+  "featuresEnabled": [],
+  "dependsOn": ["knowledge-db"]
+}
+```
+
+`featuresEnabled` is optional; leave it empty or omit it unless the server opts into a platform feature. `dependsOn` follows the same rule as any other resource — it lists resources that must start first (here a database the tools read from). See the [AI Agents in Flisk guide](agents/ai-agents.md) for the MCP hosting model.
+
+Run `flisk resource <name> --type backend`, `flisk resource <name> --type frontend`, `flisk resource <name> --type worker`, or `flisk resource <name> --type mcp` to generate a starting manifest. Existing examples are in [`examples/tdk-example`](../examples/tdk-example).
 
 ## Required identity and compatibility fields
 
