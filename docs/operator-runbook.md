@@ -56,6 +56,8 @@ Put the environment values the services need in the project `.env`; values in th
 
 ## Cutting a release
 
+> The current ops checklist — pipeline order, candidate and dispatch commands, repair recipes, the unscoped npm package, and troubleshooting — is [Release operations](releasing.md). This section keeps the background: npm authentication, what past releases taught us, and the publish gate.
+
 > [!WARNING]
 > The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/flisk-sh/flisk/issues/1657), [#1658](https://github.com/flisk-sh/flisk/issues/1658), [#1659](https://github.com/flisk-sh/flisk/issues/1659).
 
