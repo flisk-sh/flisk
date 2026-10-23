@@ -24,6 +24,7 @@ jobs:
     permissions:
       issues: write
       pull-requests: read
+      contents: write
     steps:
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -88,15 +89,35 @@ jobs:
 
             const rows = [...people.entries()].sort((a, b) =>
               b[1].prs - a[1].prs || (b[1].best?.value ?? -1) - (a[1].best?.value ?? -1) || a[0].localeCompare(b[0]));
+            const base = `https://github.com/${owner}/${repo}`;
+            // shields.io splits badge segments on `-` and does not allow escaping
+            // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
+            // Replace `-` with `_` in the badge subject only; the link text keeps
+            // the real login.
+            const badgeLogin = (login) => login.replace(/-/g, '_');
+            const badgeUrl = (login, prs) =>
+              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + badgeLogin(login) + ' \u2022 ' + prs + ' merged PRs')}-06b6d4?style=for-the-badge&labelColor=07080f`;
+            const copySnippet = (login, prs) =>
+              `[![FLISK HALL OF FAME @${login} • ${prs} merged PRs](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
             const body = [
               MARK,
               'Everyone outside the maintainer team who has had a PR merged. Updated automatically on every merge.',
               '',
               'Ranks come from the `rank:` label of the issues your PRs fixed. The easiest is 8 kyu, then 7 down to 1 kyu, then 1 dan, which is the hardest. Pick a harder issue to rank up.',
               '',
-              '| Contributor | Merged PRs | Issues fixed | Highest rank |',
-              '| --- | ---: | ---: | --- |',
-              ...rows.map(([login, p]) => `| @${login} | ${p.prs} | ${p.issues} | ${p.best ? p.best.name : '-'} |`),
+              '| Contributor | Badge | Merged PRs | Issues fixed | Highest rank |',
+              '| --- | --- | ---: | ---: | --- |',
+              ...rows.map(([login, p]) =>
+                `| @${login} | [![FLISK HALL OF FAME](${badgeUrl(login, p.prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity) | ${p.prs} | ${p.issues} | ${p.best ? p.best.name : '-'} |`),
+              '',
+              '<details>',
+              '<summary>Copy your badge</summary>',
+              '',
+              'Paste one of these into your portfolio or README. Each badge links back to the open Hall of Fame issue.',
+              '',
+              ...rows.map(([login, p]) => '`- ' + copySnippet(login, p.prs) + '`'),
+              '',
+              '</details>',
               '',
               `Last updated for the ${rows.length} contributors above. Want to be on this list? Start with a [good first issue](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).`,
             ].join('\n');
@@ -123,4 +144,23 @@ jobs:
                 }
                 await github.rest.issues.create({ owner, repo, title: TITLE, body, labels: ['community'] });
               });
+            }
+
+            // Refresh the aggregate GLOBAL badge in README.md so the contributor count stays live.
+            try {
+              const readme = await retry('get README', () =>
+                github.rest.repos.getContents({ owner, repo, path: 'README.md' }));
+              const readmeText = Buffer.from(readme.data.content, 'base64').toString();
+              const next = readmeText.replace(/%23contributors/g, `%23${rows.length}`);
+              if (next !== readmeText) {
+                await retry('update README badge', () =>
+                  github.rest.repos.putContents({
+                    owner, repo, path: 'README.md',
+                    message: 'ci: refresh FLISK HALL OF FAME GLOBAL badge count [skip ci]',
+                    content: Buffer.from(next).toString('base64'),
+                    sha: readme.data.sha,
+                  }));
+              }
+            } catch (e) {
+              core.warning(`Could not refresh the README badge: ${e.message}`);
             }

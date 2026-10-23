@@ -37,6 +37,8 @@ export type SetupOutcome = {
   ok: boolean;
   /** The last line the setup printed, kept for the failure message. */
   error?: string;
+  /** Everything the setup printed, kept for `--verbose` and the log file. */
+  output?: string;
 };
 
 /**
@@ -45,6 +47,10 @@ export type SetupOutcome = {
  * A starter repository holds services and a Tiltfile, but no project configuration, and
  * `flisk up` refuses to run without one. So the one-command flow initializes the folder it
  * just cloned before it starts the stack.
+ *
+ * Nothing is inherited: a child that writes straight to the terminal corrupts the frame the
+ * caller is painting. Both streams are captured, and `--quiet` keeps the setup from printing
+ * its full configuration report at all.
  */
 export function initializeProject(
   binPath: string,
@@ -53,27 +59,30 @@ export function initializeProject(
   spawnFn: typeof spawn = spawn,
 ): Promise<SetupOutcome> {
   return new Promise((resolve) => {
-    const child = spawnFn(process.execPath, [binPath, "project", "--yes"], {
+    const child = spawnFn(process.execPath, [binPath, "project", "--yes", "--quiet"], {
       cwd,
       env,
-      stdio: ["inherit", "inherit", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    let errors = "";
+    let output = "";
+    child.stdout?.on("data", (chunk: Buffer | string) => {
+      output += String(chunk);
+    });
     child.stderr?.on("data", (chunk: Buffer | string) => {
-      errors += String(chunk);
+      output += String(chunk);
     });
-    child.on("error", (error) => resolve({ ok: false, error: error.message }));
+    child.on("error", (error) => resolve({ ok: false, error: error.message, output }));
     child.on("close", (code) => {
       if (code === 0) {
-        resolve({ ok: true });
+        resolve({ ok: true, output });
         return;
       }
-      const last = errors
+      const last = output
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean)
         .pop();
-      resolve({ ok: false, error: last ?? `the project setup failed (code ${code})` });
+      resolve({ ok: false, error: last ?? `the project setup failed (code ${code})`, output });
     });
   });
 }

@@ -21,6 +21,7 @@ Welcome! Small fixes and large features are both useful. Start with the short [c
 - [Labels](#labels)
 - [Sign your commits](#sign-your-commits)
 - [Contributor recognition](#contributor-recognition)
+- [Contributor badges](#contributor-badges)
 - [Add your team to the adopters list](#add-your-team-to-the-adopters-list)
 - [Governance](#governance)
 - [Be kind](#be-kind)
@@ -321,6 +322,12 @@ Every contribution matters. When your pull request is merged:
 - You are credited in the automated GitHub release notes for the next release.
 - Your contribution is recorded in [CHANGELOG.md](CHANGELOG.md).
 - You are recognized across the project contributor list and All Contributors records.
+
+## Contributor badges
+
+Every merged community PR earns you a personal `FLISK HALL OF FAME` badge you can copy into your portfolio or README. Your badge appears in the [Hall of fame: community contributors](https://github.com/flisk-sh/flisk/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity) issue alongside a copy-ready markdown snippet.
+
+See [Contributor badges](docs/contributing/contributor-badges.md) for how to find and use your badge.
 
 ## Add your team to the adopters list
 

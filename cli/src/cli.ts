@@ -2,17 +2,19 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { cwd } from "node:process";
 
 import chalk from "chalk";
 
+import pkg from "../package.json" with { type: "json" };
 import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
+import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
 import { bareTemplateArg } from "./utils/project-templates.js";
 
@@ -22,11 +24,10 @@ const program = createProgram();
 if (process.argv.length === 2) {
   const result = await runColdPreflight();
   console.log(formatColdPreflight(result));
-  await ensureGlobalInstall();
   console.log("\nCommands: flisk doctor | flisk project --yes | flisk --help");
-  console.log("\nOne command from scratch (installs, clones, boots and opens the browser):");
-  console.log("  npx @flisk-sh/flisk demo");
-  console.log("  npx @flisk-sh/flisk restaurant --project=my-stack");
+  console.log("\nOne command from scratch (clones, boots and opens the browser):");
+  console.log(`  npx -y @flisk-sh/flisk@latest demo`);
+  console.log(`  npx -y @flisk-sh/flisk@latest restaurant --project=my-stack`);
   process.exit(result.ok ? 0 : 1);
 }
 
@@ -49,16 +50,20 @@ if (templateArg) {
   }
 
   const { cloneProjectTemplate, templateTargetDir } = await import("./commands/project.js");
-  const { assertMachineReadyOrExit, detectRuntimePrerequisites, formatRuntimeNextSteps } =
-    await import("./utils/cold-preflight.js");
+  const { assertMachineReadyOrExit } = await import("./utils/cold-preflight.js");
   await assertMachineReadyOrExit({ scope: "scaffold" });
-  const runtimeNextSteps = formatRuntimeNextSteps(detectRuntimePrerequisites());
 
   // A second demo in the same folder gets its own directory instead of failing.
   const { nextAvailableProjectDir } = await import("./utils/one-command.js");
   const { PROJECT_TEMPLATES } = await import("./utils/project-templates.js");
+  const { listFrontendTargets, pickReadyFrontend } = await import("./commands/open.js");
+  const { discoverResourcesWithProblems } = await import("./utils/services.js");
+  const { openUrl } = await import("./utils/url-actions.js");
+  const { createDemoStage } = await import("./utils/demo-stage.js");
+
   const baseName = templateTargetDir(templateArg, projectArg);
   const fixedDir = projectArg ? undefined : PROJECT_TEMPLATES[templateArg]?.fixedDir;
+  const keep = process.argv.includes("--keep");
 
   let targetName: string;
   if (fixedDir) {
@@ -76,92 +81,160 @@ if (templateArg) {
   }
   const destination = isAbsolute(targetName) ? targetName : resolve(cwd(), targetName);
 
+  // Reusing an existing checkout is what keeps a second take free: the clone and the
+  // dependency install are skipped, so the recording starts on the interesting part.
+  let reused = false;
   if (fixedDir && existsSync(destination)) {
-    // The demo owns this directory, so a second run starts from a fresh copy of it.
-    if (existsSync(join(destination, ".tdk", "project.json"))) {
-      console.log(chalk.gray(`Refreshing the demo in ${destination}...`));
-      rmSync(destination, { recursive: true, force: true });
-    } else {
+    if (!existsSync(join(destination, ".tdk", "project.json"))) {
       console.log(chalk.yellow(`${destination} already exists and is not a Flisk project.`));
       console.log(
         chalk.gray("  Remove it, or use --project <dir> to put the demo somewhere else."),
       );
       process.exit(1);
     }
-  }
-
-  await cloneProjectTemplate(templateArg, targetName, runtimeNextSteps);
-
-  const install = ensureGlobalInstall();
-  if (install === "installed") {
-    console.log("\n\u2714 flisk is installed globally, so `flisk` works from any folder.");
-  }
-  const binPath = process.argv[1];
-  if (binPath && existsSync(destination)) {
-    const { initializeProject, installServiceDependencies, runStackQuiet } = await import(
-      "./utils/one-command.js"
-    );
-    const { openFirstFrontend } = await import("./commands/open.js");
-    const { startSpinner } = await import("./utils/spinner.js");
-
-    // Docker on Colima is only usable while the VM is up, and a stopped VM looks like a
-    // broken Docker daemon. Say so before the long wait instead of after it.
-    const { checkColima } = await import("./utils/colima.js");
-    const colima = checkColima();
-    if (colima.isColima && !colima.running) {
-      console.log(chalk.yellow(colima.problem ?? "The Colima VM is not running."));
-      console.log(chalk.gray(`  Fix: ${colima.fix ?? "colima start"}`));
-      process.exit(1);
-    }
 
     // A stack for this project may already be running (the same example in another folder
     // shares its compose project). Then there is nothing to start: open what is up.
-    const { findReadyFrontend } = await import("./commands/open.js");
-    const running = await findReadyFrontend(destination, 0);
+    const running = await pickReadyFrontend(await listFrontendTargets(destination), 0);
     if (running) {
-      console.log(chalk.gray(`A stack for this project is already running (${running.name}).`));
-      const { openFirstFrontend } = await import("./commands/open.js");
-      await openFirstFrontend(destination);
+      console.log(chalk.gray(`The demo is already running: ${running.url}`));
+      await openUrl(running.url);
       process.exit(0);
     }
 
-    // A cloned starter has no project configuration yet, and `flisk up` refuses to run
-    // without one, so the project is set up before the stack starts.
-    const setupSpinner = startSpinner("Setting up the project...");
-    const setup = await initializeProject(binPath, destination);
-    if (!setup.ok) {
-      setupSpinner.fail("The project setup failed.");
-      console.log(chalk.yellow(setup.error ?? "flisk project --yes did not finish."));
-      process.exit(1);
-    }
-    setupSpinner.succeed("The project is ready.");
-
-    // A fresh clone has no host dependencies, and the stack typechecks the services on the
-    // host, so install them before the stack starts.
-    const installSpinner = startSpinner("Installing the service dependencies...");
-    const installs = await installServiceDependencies(destination);
-    const failed = installs.filter((entry) => !entry.ok);
-    if (failed.length > 0) {
-      installSpinner.fail("Some services could not install their dependencies.");
-      for (const entry of failed) {
-        console.log(chalk.yellow(`  - ${entry.dir}: run "bun install" there`));
-      }
+    if (keep) {
+      reused = true;
     } else {
-      installSpinner.succeed("The service dependencies are installed.");
+      rmSync(destination, { recursive: true, force: true });
     }
+  }
 
-    const spinner = startSpinner("Starting the stack (the first build takes a few minutes)...");
-    const started = Date.now();
+  // Docker on Colima is only usable while the VM is up, and a stopped VM looks like a
+  // broken Docker daemon. Say so before the long wait instead of after it.
+  const { checkColima } = await import("./utils/colima.js");
+  const colima = checkColima();
+  if (colima.isColima && !colima.running) {
+    console.log(chalk.yellow(colima.problem ?? "The Colima VM is not running."));
+    console.log(chalk.gray(`  Fix: ${colima.fix ?? "colima start"}`));
+    process.exit(1);
+  }
 
-    // Show what the stack is doing instead of a silent spinner: the resource states, the
-    // elapsed time and where to watch the live logs. The Tilt port is not fixed (another
-    // project may hold the default), so the ports that answer are looked at.
-    const { readStackProgress, formatProgress } = await import("./utils/stack-progress.js");
-    const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
-    const candidates = Array.from({ length: 10 }, (_, index) => 10350 + index);
-    let watching = true;
-    void (async () => {
-      while (watching) {
+  let phases: DemoPhase[] = [
+    {
+      id: "fetch",
+      label: reused ? "Reusing the demo" : "Fetching the demo",
+      status: "active",
+    },
+    { id: "config", label: "Generating project config", status: "pending" },
+    { id: "deps", label: "Installing dependencies", status: "pending" },
+    { id: "start", label: "Starting services", status: "pending" },
+  ];
+
+  const stage = createDemoStage({
+    title: "Flisk demo",
+    subtitle: `${templateArg} starter`,
+    phases,
+    servicesReady: 0,
+    servicesTotal: 0,
+    servicesBuilding: 0,
+    elapsedMs: 0,
+  });
+
+  const setPhase = (id: string, status: DemoPhaseStatus, elapsedMs?: number): void => {
+    phases = phases.map((phase) =>
+      phase.id === id ? { ...phase, status, elapsedMs: elapsedMs ?? phase.elapsedMs } : phase,
+    );
+    stage.update({ phases });
+  };
+
+  const logLines: string[] = [`flisk ${pkg.version} ${templateArg}`, `cwd: ${destination}`];
+
+  // 1. Clone (or reuse) and install the CLI. Both are silent so the frame on screen is the
+  // only thing that moves.
+  const fetchStarted = Date.now();
+  try {
+    if (!reused) {
+      await cloneProjectTemplate(templateArg, targetName, [], { quiet: true });
+    }
+  } catch (error) {
+    stage.fail(
+      error instanceof Error ? error.message : String(error),
+      "Check that git is installed and that you are online, then run the command again.",
+    );
+    stage.stop();
+    process.exit(1);
+  }
+  const install = ensureGlobalInstall();
+  setPhase("fetch", "done", Date.now() - fetchStarted);
+
+  const binPath = process.argv[1];
+  if (!binPath || !existsSync(destination)) {
+    stage.fail(
+      "The demo could not find the CLI entry point or the project folder.",
+      "Reinstall the Flisk CLI package and run the command again.",
+    );
+    stage.stop();
+    process.exit(1);
+  }
+
+  const { initializeProject, installServiceDependencies, runStackQuiet } = await import(
+    "./utils/one-command.js"
+  );
+
+  // 2. A cloned starter has no project configuration yet, and `flisk up` refuses to run
+  // without one, so the project is set up before the stack starts.
+  const configStarted = Date.now();
+  const setup = await initializeProject(binPath, destination);
+  logLines.push("--- project setup ---", setup.output ?? "");
+  if (!setup.ok) {
+    const logPath = writeLog(logLines);
+    stage.fail(
+      setup.error ?? "The project setup did not finish.",
+      "Run `flisk project --yes` in the project folder to see what it printed.",
+      logPath,
+    );
+    stage.stop();
+    process.exit(1);
+  }
+  setPhase("config", "done", Date.now() - configStarted);
+
+  // The true service count comes from the project on disk, so the frame says "0 of 6"
+  // while the stack is starting instead of "no services found".
+  const discovered = discoverResourcesWithProblems(destination).resources.length;
+  stage.update({ servicesTotal: discovered });
+
+  // 3. A fresh clone has no host dependencies, and the stack typechecks the services on the
+  // host, so install them before the stack starts.
+  const depsStarted = Date.now();
+  const installs = await installServiceDependencies(destination);
+  const failedInstalls = installs.filter((entry) => !entry.ok);
+  for (const entry of installs)
+    logLines.push(`install ${entry.dir}: ${entry.ok ? "ok" : "failed"}`);
+  if (failedInstalls.length > 0) {
+    stage.fail(
+      `${failedInstalls.length} of ${installs.length} services could not install their dependencies.`,
+      `Run "bun install" in ${failedInstalls[0]?.dir ?? "the failed services"}.`,
+      writeLog(logLines),
+    );
+    stage.stop();
+    process.exit(1);
+  }
+  setPhase("deps", "done", Date.now() - depsStarted);
+
+  // 4. Start the stack and report what Tilt is doing. The Tilt port is not fixed (another
+  // project may hold the default), so the ports that answer are looked at.
+  const startStarted = Date.now();
+  setPhase("start", "active");
+  const { readStackProgress } = await import("./utils/stack-progress.js");
+  const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
+  const candidates = Array.from({ length: 10 }, (_, index) => 10350 + index);
+  let watching = true;
+  // Tilt counts every resource it starts, including the database and the proxy. That is the
+  // number the progress line shows, so the last frame has to finish on the same one.
+  let lastTotal = discovered;
+  void (async () => {
+    while (watching) {
+      try {
         const { running } = await classifyTiltPorts(
           candidates,
           destination,
@@ -170,42 +243,69 @@ if (templateArg) {
         for (const port of running) {
           const progress = await readStackProgress(port);
           if (progress) {
-            spinner.text = formatProgress({ ...progress, elapsed: (Date.now() - started) / 1000 });
+            lastTotal = progress.total;
+            stage.update({
+              servicesReady: progress.ready,
+              servicesTotal: progress.total,
+              servicesBuilding: progress.building,
+            });
             break;
           }
         }
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch {
+        // A port that closes mid-read is not a demo failure; the next pass picks it up.
       }
-    })();
+      await new Promise((resolve) => {
+        // Never keep the process alive just because the watcher is between passes.
+        const timer = setTimeout(resolve, 2000);
+        timer.unref?.();
+      });
+    }
+  })();
 
-    const outcome = await runStackQuiet(binPath, destination);
-    watching = false;
+  const outcome = await runStackQuiet(binPath, destination);
+  watching = false;
+  logLines.push("--- stack ---", outcome.raw ?? "");
+  if (!outcome.ok) {
     const tiltUiUrl =
       (outcome.data as { tiltUrl?: string } | undefined)?.tiltUrl ?? "http://localhost:10350";
-    if (!outcome.ok) {
-      spinner.fail("The stack did not come up.");
-      console.log(chalk.yellow(outcome.error ?? "The stack stopped before it was ready."));
-      console.log(chalk.gray("Run `flisk up` in that folder to see the full output."));
-      process.exit(1);
-    }
-    spinner.succeed("The stack is up.");
-    console.log(chalk.gray(`  Tilt UI (live build logs): ${tiltUiUrl}`));
-    console.log(chalk.gray(`  Container logs: docker compose logs -f (in ${destination})`));
+    stage.fail(
+      firstMachineFailure(outcome.raw) ?? outcome.error ?? "The stack stopped before it was ready.",
+      `Run \`flisk up\` in the project folder, or watch ${tiltUiUrl}.`,
+      writeLog(logLines),
+    );
+    stage.stop();
+    process.exit(1);
+  }
+  setPhase("start", "done", Date.now() - startStarted);
+  stage.update({ servicesReady: lastTotal, servicesTotal: lastTotal });
 
-    // The browser only opens when a frontend actually answers, the same way `flisk open` does.
-    const opened = await openFirstFrontend(destination).catch((error: unknown) => {
-      console.log(
-        chalk.yellow(
-          `Could not open a browser: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
-      return null;
-    });
-    if (!opened) {
-      console.log(
-        chalk.gray(`The stack is running. Open it yourself: cd ${destination} && flisk open`),
-      );
-    }
+  // 5. Open the browser only when a frontend actually answers, the same way `flisk open`
+  // does. A failed open is not a failed demo: the URL is already on screen.
+  const targets = await listFrontendTargets(destination);
+  const first = await pickReadyFrontend(targets, 30_000);
+  if (first) await openUrl(first.url);
+
+  const generated = countFiles(join(destination, ".tdk"));
+  const wired = countFiles(destination, ["node_modules", ".git"]);
+  stage.update({ subtitle: `${templateArg} starter \u00b7 ${countLabel(wired, "file")} wired` });
+  stage.finish({
+    urls: (first ? [first.url, ...targets.map((target) => target.url)] : targets.map((t) => t.url))
+      .filter((url, index, all) => all.indexOf(url) === index)
+      .slice(0, 2),
+    summary: `${countLabel(generated, "file")} generated \u00b7 ${countLabel(
+      discovered,
+      "app service",
+    )} \u00b7 live reload`,
+    hint: "Edit any file and the browser updates.",
+    version: pkg.version,
+  });
+  stage.stop();
+
+  if (install === "failed") {
+    console.log(
+      chalk.gray("\n  `flisk` is not on your PATH. Next time, run this command again with npx."),
+    );
   }
   process.exit(0);
 }
@@ -236,4 +336,56 @@ function readOptionValue(args: string[], name: string): string | undefined {
     if (arg === name) return args[index + 1];
   }
   return undefined;
+}
+
+/** `1 file`, `240 files`. The frame is read by people, so the count has to agree with itself. */
+function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/** Counts the files under `root`, skipping the directories in `skip`. */
+function countFiles(root: string, skip: string[] = []): number {
+  let total = 0;
+  const walk = (dir: string): void => {
+    try {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (skip.includes(entry.name)) continue;
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else if (entry.isFile()) total += 1;
+      }
+    } catch {
+      // An unreadable directory must not cost the demo its final frame.
+    }
+  };
+  walk(root);
+  return total;
+}
+
+/**
+ * The first machine check that failed in the stack output.
+ *
+ * `up` reports "exited with code 1" when a check fails before Tilt starts, which says
+ * nothing. The check line above it says what is actually missing.
+ */
+function firstMachineFailure(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  for (const line of raw.split("\n")) {
+    const match = /^\s*FAIL\s+(.+)$/.exec(line);
+    if (match?.[1]) return match[1].trim();
+  }
+  return undefined;
+}
+
+/** Writes the child output somewhere a failed run can be inspected. */
+function writeLog(lines: string[]): string | undefined {
+  try {
+    const dir = join(homedir(), ".flisk", "logs");
+    mkdirSync(dir, { recursive: true });
+    const path = join(dir, `demo-${new Date().toISOString().replace(/[:.]/g, "-")}.log`);
+    writeFileSync(path, lines.join("\n"));
+    return path;
+  } catch {
+    return undefined;
+  }
 }

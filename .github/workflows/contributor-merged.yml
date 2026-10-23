@@ -61,6 +61,15 @@ jobs:
             const MARK_PR = '<!-- flisk:contributor-merged -->';
             const MARK_ISSUE = `<!-- flisk:issue-fixed:${pr.number} -->`;
             const base = `https://github.com/${owner}/${repo}`;
+            // shields.io splits badge segments on `-` and does not allow escaping
+            // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
+            // Replace `-` with `_` in the badge subject only; the link text keeps
+            // the real login.
+            const badgeLogin = (login) => login.replace(/-/g, '_');
+            const badgeUrl = (login, prs) =>
+              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + badgeLogin(login) + ' \u2022 ' + prs + ' merged PRs')}-06b6d4?style=for-the-badge&labelColor=07080f`;
+            const copySnippet = (login, prs) =>
+              `[![FLISK HALL OF FAME @${login} • ${prs} merged PRs](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
 
             const hasMark = async (number, mark) => {
               const comments = await github.paginate(github.rest.issues.listComments,
@@ -157,6 +166,16 @@ jobs:
             lines.push('', MILESTONES[mergedCount]
               || `That is your ${ordinal(mergedCount)} merged PR here. We really appreciate you coming back. 💜`);
             if (rankLine) lines.push('', rankLine);
+            // Your personal FLISK HALL OF FAME badge, ready to copy into your portfolio or README.
+            lines.push('', '<details>');
+            lines.push('', '<summary>Your FLISK HALL OF FAME badge</summary>');
+            lines.push('', '');
+            lines.push('', 'Paste this into your portfolio or README. It links back to the open Hall of Fame issue.');
+            lines.push('', '');
+            lines.push('', '`- ' + copySnippet(author, mergedCount) + '`');
+            lines.push('', '');
+            lines.push('', '</details>');
+            lines.push('', '');
             // Link the open hall-of-fame issue so a new contributor can find their place on it.
             try {
               const hall = (await retry(() => github.rest.search.issuesAndPullRequests({

@@ -147,7 +147,7 @@ describe("flisk project without a local runtime", () => {
     await runProject({ check: false, force: false, yes: true });
 
     expect(existsSync(join(root, ".tdk", "project.json"))).toBe(true);
-    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
