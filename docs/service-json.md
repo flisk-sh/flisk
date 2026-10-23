@@ -61,7 +61,7 @@ A worker is a background process that reads from NATS. The service schema requir
 
 A worker has no HTTP server, so it needs no `healthCheckPath` or `traefik` block: Flisk gives it no proxy route and no HTTP health check. `port` is optional for a worker; if you set it, use the `6000`–`6999` range.
 
-An MCP (Model Context Protocol) server is an API resource like a backend: it uses the same `4000`–`5999` port range, runs behind the Traefik API host, and speaks Streamable HTTP — clients POST JSON-RPC messages to its `/mcp` route on the public proxy URL. The generated scaffold also serves a plain `GET /health` endpoint, so the default health check needs no override. An MCP resource has no `framework` or `language` setting; `flisk resource <name> --type mcp` generates one fixed scaffold (a `@modelcontextprotocol/sdk` server).
+An MCP (Model Context Protocol) server is an API resource like a backend: it uses the `4000`–`5999` HTTP-service range (wider than a backend's `4000`–`4999`, shared with `bring-your-own` and `agent` resources), runs behind the Traefik API host, and speaks Streamable HTTP — clients POST JSON-RPC messages to its `/mcp` route on the public proxy URL. The generated scaffold also serves a plain `GET /health` endpoint, so the default health check needs no override. An MCP resource has no `framework` or `language` setting; `flisk resource <name> --type mcp` generates one fixed scaffold (a `@modelcontextprotocol/sdk` server).
 
 ```json
 {
