@@ -10,7 +10,7 @@ https://flisk.sh/schema.service.json
 
 ## Minimal examples
 
-A backend resource needs a backend port. The usual backend range is `4000`–`5999`.
+A backend resource needs a backend port. The usual backend range is `4000`–`4999`.
 
 ```json
 {
@@ -98,7 +98,7 @@ Run `flisk resource <name> --type backend`, `flisk resource <name> --type fronte
 
 | Field | Type and default | Applies to | Description |
 | --- | --- | --- | --- |
-| `port` | integer; type-specific | backend, frontend, `mcp`, `bring-your-own` | External development port. Backends, MCP, and BYO resources use `4000`–`5999`; frontends use `3000`–`3999`. The internal container port remains `3000`. |
+| `port` | integer; type-specific | backend, frontend, `mcp`, `bring-your-own` | External development port. Backends use `4000`–`4999`; MCP and BYO resources use `4000`–`5999`; frontends use `3000`–`3999`. The internal container port remains `3000`. |
 | `runtime` | `"bun"` or `"node"`; defaults to `"bun"` | generated services | Runtime used for the resource. |
 | `language` | provider id; omitted means Bun for legacy backends | backend | Backend language provider, such as `bun`, `python`, `go`, `rust`, or `node`. The CLI provider registry, not this document or the schema examples, defines the current ids. |
 | `framework` | provider id; omitted means React for frontends and Hono for Bun backends | frontend and backend | Selects the registered framework provider. Unknown ids fail before a resource is written. |
