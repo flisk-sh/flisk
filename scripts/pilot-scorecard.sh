@@ -72,6 +72,7 @@ sample() {
   local ids="$1" mem=0 cpu=0 line
   local -a ids_array
   [[ -n "$ids" ]] || { echo "0.0 0.0"; return; }
+  ids="${ids//$'\n'/ }"
   read -r -a ids_array <<< "$ids"
   while read -r line; do
     mem="$(awk -v a="$mem" -v b="$(to_mib "$(echo "$line" | awk '{print $2}')")" 'BEGIN { printf "%.1f", a + b }')"
