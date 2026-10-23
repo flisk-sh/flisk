@@ -119,8 +119,8 @@ describe("initializeProject", () => {
     const result = await promise;
     expect(spawnFn).toHaveBeenCalledWith(
       process.execPath,
-      ["/bin/flisk", "project", "--yes"],
-      expect.objectContaining({ cwd: "/tmp/project" }),
+      ["/bin/flisk", "project", "--yes", "--quiet"],
+      expect.objectContaining({ cwd: "/tmp/project", stdio: ["ignore", "pipe", "pipe"] }),
     );
     expect(result.ok).toBe(true);
   });

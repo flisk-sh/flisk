@@ -631,7 +631,7 @@ export async function generateMasterConfigs(
   if (fs.existsSync(tiltignoreSource)) {
     if (!fs.existsSync(tiltignoreTarget)) {
       fs.copyFileSync(tiltignoreSource, tiltignoreTarget);
-      console.log(`✓ Copied: .tiltignore → project root`);
+      if (!options.quiet) console.log(`✓ Copied: .tiltignore → project root`);
     } else if (options.discardHandEdits) {
       // Only a file Flisk wrote (it carries the header) may be restored; one without the
       // header is the team's own and `verifyMasterConfigs` reports it as a warning.
@@ -641,20 +641,26 @@ export async function generateMasterConfigs(
         current !== fs.readFileSync(tiltignoreSource, "utf-8")
       ) {
         fs.copyFileSync(tiltignoreSource, tiltignoreTarget);
-        console.log("✓ Restored: .tiltignore → project root (hand edits discarded)");
+        if (!options.quiet) {
+          console.log("✓ Restored: .tiltignore → project root (hand edits discarded)");
+        }
       }
     }
   }
 
   const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
-  for (const asset of copiedAssets) {
-    console.log(`✓ Copied: ${asset} → project root`);
+  if (!options.quiet) {
+    for (const asset of copiedAssets) {
+      console.log(`✓ Copied: ${asset} → project root`);
+    }
   }
 
-  await vendorTdkExtension(projectRoot);
+  await vendorTdkExtension(projectRoot, { quiet: options.quiet });
 
-  console.log("");
-  console.log("💡 To start Tilt: flisk up");
+  if (!options.quiet) {
+    console.log("");
+    console.log("💡 To start Tilt: flisk up");
+  }
 }
 
 // The generated Tiltfile loads the Flisk Tilt extension (engine, discovery,
@@ -772,7 +778,10 @@ export function ensureProjectRuntimeAssets(projectRoot: string): string[] {
   return copied;
 }
 
-async function vendorTdkExtension(projectRoot: string): Promise<void> {
+async function vendorTdkExtension(
+  projectRoot: string,
+  options: { quiet?: boolean } = {},
+): Promise<void> {
   const vendoredDir = assertTdkGeneratedPath(
     projectRoot,
     path.join(".tdk", ".tdk-out", "tdk-cli-ext"),
@@ -834,7 +843,7 @@ async function vendorTdkExtension(projectRoot: string): Promise<void> {
       filter: (source) => !isTestFile(source),
     });
   }
-  console.log(`✓ Vendored Flisk extension → .tdk/.tdk-out/tdk-cli-ext/`);
+  if (!options.quiet) console.log(`✓ Vendored Flisk extension → .tdk/.tdk-out/tdk-cli-ext/`);
 
   // Best-effort: if TDK_LICENSE_KEY is set and grants any paid resource,
   // overlay the premium bundle over the stub files just vendored above.

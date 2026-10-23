@@ -16,6 +16,8 @@ export type SetupOutcome = {
     ok: boolean;
     /** The last line the setup printed, kept for the failure message. */
     error?: string;
+    /** Everything the setup printed, kept for `--verbose` and the log file. */
+    output?: string;
 };
 /**
  * Initializes a cloned project.
@@ -23,6 +25,10 @@ export type SetupOutcome = {
  * A starter repository holds services and a Tiltfile, but no project configuration, and
  * `flisk up` refuses to run without one. So the one-command flow initializes the folder it
  * just cloned before it starts the stack.
+ *
+ * Nothing is inherited: a child that writes straight to the terminal corrupts the frame the
+ * caller is painting. Both streams are captured, and `--quiet` keeps the setup from printing
+ * its full configuration report at all.
  */
 export declare function initializeProject(binPath: string, cwd: string, env?: NodeJS.ProcessEnv, spawnFn?: typeof spawn): Promise<SetupOutcome>;
 /** Reads the `{schemaVersion, data, errors}` envelope `flisk up --json` prints when it is done. */

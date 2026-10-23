@@ -38,12 +38,41 @@ vi.mock("../../utils/colima.js", async (importOriginal) => ({
   checkColima: vi.fn(() => ({ isColima: false, running: true })),
 }));
 
-// A "stack already running" makes cli.ts open the frontend and exit(0), so the
-// setup, install and Tilt steps never run.
+// The test subject is where the demo lands on disk, so every step that needs
+// Docker, the network or a browser reports success without doing anything.
+
 vi.mock("../open.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../open.js")>()),
-  findReadyFrontend: vi.fn(async () => ({ name: "web" })),
-  openFirstFrontend: vi.fn(async () => ({})),
+  listFrontendTargets: vi.fn(async () => []),
+  pickReadyFrontend: vi.fn(async () => undefined),
+  findReadyFrontend: vi.fn(async () => undefined),
+  openFirstFrontend: vi.fn(async () => null),
+}));
+
+vi.mock("../../utils/url-actions.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/url-actions.js")>()),
+  openUrl: vi.fn(async () => true),
+}));
+
+vi.mock("../../utils/one-command.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/one-command.js")>()),
+  initializeProject: vi.fn(async () => ({ ok: true, output: "" })),
+  installServiceDependencies: vi.fn(async () => []),
+  runStackQuiet: vi.fn(async () => ({
+    ok: true,
+    raw: "",
+    data: { tiltUrl: "http://localhost:10350" },
+  })),
+}));
+
+vi.mock("../../utils/stack-progress.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/stack-progress.js")>()),
+  readStackProgress: vi.fn(async () => undefined),
+}));
+
+vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/tilt-port-owner.js")>()),
+  classifyTiltPorts: vi.fn(async () => ({ running: [] })),
 }));
 
 // Replace only the clone: it creates a fake project instead of touching the network.
