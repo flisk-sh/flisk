@@ -378,6 +378,22 @@ describe("doctor-runtime utilities", () => {
       expect(result.message).toContain("foreign_proxy (host ports 80)");
       expect(result.fix).toContain("docker stop foreign_proxy");
     });
+
+    it("uses the injected exec on win32 instead of execFileSync", () => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      let calls = 0;
+      const fakeExec = () => {
+        calls += 1;
+        return "";
+      };
+      Object.defineProperty(process, "platform", { value: "win32" });
+      try {
+        checkIngressPorts(fakeExec as unknown as typeof execSync, "myproject", [80]);
+      } finally {
+        if (original) Object.defineProperty(process, "platform", original);
+      }
+      expect(calls).toBeGreaterThan(0);
+    });
   });
 
   describe("isInfraTiltFailure & orderTiltFailures", () => {

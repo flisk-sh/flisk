@@ -43,7 +43,8 @@ function runHostCommand(
   shellCommand: string,
   options: { stdio?: "pipe"; encoding: "utf-8"; timeout: number },
 ): string {
-  if (process.platform === "win32") {
+  // A supplied custom executor wins on every platform, including Windows.
+  if (process.platform === "win32" && exec === execSync) {
     return execFileSync(findOnPath(command) ?? command, args, {
       ...options,
       windowsHide: true,
