@@ -11,7 +11,7 @@
 
 def autodiscover_libraries(root_path, prefix):
     libs = []
-    result = str(local("ls -d " + root_path + "/" + prefix + "*/ 2>/dev/null || true", quiet=True, echo_off=True))
+    result = str(local(["sh", "-c", 'ls -d "$1"/"$2"*/ 2>/dev/null || true', "sh", root_path, prefix], quiet=True, echo_off=True))
 
     if result:
         for line in result.strip().split("\n"):

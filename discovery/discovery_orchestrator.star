@@ -54,13 +54,13 @@ def _to_project_relative_path(path, project_root):
     # Already project-relative (including ../sibling/...)
     if not path.startswith("/"):
         return path
-    cmd = (
-        "python3 -c \"import os; print(os.path.relpath(os.path.realpath('''" +
-        path +
-        "'''), os.path.realpath('''" +
-        root +
-        "''')))\""
-    )
+    cmd = [
+        "python3",
+        "-c",
+        "import os, sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])))",
+        path,
+        root,
+    ]
     relative = str(local(cmd, quiet=True, echo_off=True)).strip()
     if relative:
         return relative

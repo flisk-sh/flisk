@@ -27,7 +27,7 @@ def _find_backend_resource_path(resource_config):
             continue
 
         candidate = resource_path + '/' + res['name']
-        prisma_check = local("test -d " + candidate + "/prisma && echo yes || echo no", quiet=True)
+        prisma_check = local(["sh", "-c", 'test -d "$1/prisma" && echo yes || echo no', "sh", candidate], quiet=True)
         prisma_check_stdout = getattr(prisma_check, "stdout", prisma_check)
         has_prisma = str(prisma_check_stdout).strip() == 'yes'
 

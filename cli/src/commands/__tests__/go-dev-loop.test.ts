@@ -162,13 +162,16 @@ describe("Go development wiring", () => {
     expect(start).toBeGreaterThan(-1);
     const next = registration.indexOf("\ndef ", start + 1);
     const prebuild = registration.slice(start, next === -1 ? undefined : next);
-    // The variable interpolated into `docker build` is assigned once, from the shared helper, before the command is built.
+    // The variable passed to `docker build` is assigned once, from the shared helper, before the argv list is built.
     const assignments = prebuild.match(/^\s*target = .*$/gm) ?? [];
     expect(assignments).toEqual(["    target = _image_target(config)"]);
     const assigned = prebuild.indexOf("target = _image_target(config)");
-    const used = prebuild.indexOf('docker build --network host --target " + target');
+    // `--target "$4"` takes the fourth positional argument after "sh": dockerfile, prebuild, ignore_content, target.
+    const used = prebuild.indexOf('--target "$4"');
+    const passed = prebuild.indexOf("        ignore_content,\n        target,\n");
     expect(assigned).toBeGreaterThan(-1);
     expect(used).toBeGreaterThan(assigned);
+    expect(passed).toBeGreaterThan(used);
     expect(prebuild).not.toMatch(/--target\s+production/);
   });
 

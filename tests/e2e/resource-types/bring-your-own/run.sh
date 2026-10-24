@@ -33,7 +33,20 @@ run_verify() { # <verify script> <case label>
   bash "$SUITE_DIR/$script" $(variant_field args)
 }
 
-BY1() { run_verify verify-byo-example.sh "BY1 example runs alone and answers its health route with 200"; }
+# A folder listed in examples/byo/templates.json comes from its own repository (#1965): sync it at the pinned tag first,
+# and fail if it is tracked here again. Scaffolders run at build time, so give them longer to start.
+sync_if_template() { # <folder>
+  node -e 'process.exit(require(process.argv[1]).templates.some(t=>t.folder===process.argv[2]) ? 0 : 1)' \
+    "$REPO_ROOT/examples/byo/templates.json" "$1" || return 0
+  bash "$REPO_ROOT/scripts/sync-byo-templates.sh" --check
+  bash "$REPO_ROOT/scripts/sync-byo-templates.sh" --folder "$1"
+  export VERIFY_WAIT_SECONDS="${VERIFY_WAIT_SECONDS:-120}"
+}
+BY1() {
+  local args; args="$(variant_field args)"
+  sync_if_template "${args%% *}"
+  run_verify verify-byo-example.sh "BY1 example runs alone and answers its health route with 200"
+}
 BY2() { run_verify verify-byo-tdk.sh "BY2 through flisk up and Traefik, with Flisk's Postgres and DATABASE_URL"; }
 BY3() { run_verify verify-byo-job.sh "BY3 one-shot job exits 0 and its query returns the expected row"; }
 BY4() { run_verify verify-byo-pair.sh "BY4 dependency and app round trip through flisk up and Traefik"; }

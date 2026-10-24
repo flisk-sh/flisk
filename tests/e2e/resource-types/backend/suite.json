@@ -12,7 +12,7 @@
     "tests/e2e/resource-types/backend/**",
     ".github/workflows/e2e-resource-types.yml"
   ],
-  "cases": ["B1", "B2", "B3", "B4", "B5"],
+  "cases": ["B1", "B1b", "B2", "B2b", "B3", "B4", "B5"],
   "triggers": ["pr", "nightly", "release", "manual"],
   "timeoutMinutes": 25,
   "needsSecrets": []

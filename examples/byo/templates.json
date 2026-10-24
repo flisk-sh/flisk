@@ -1,0 +1,26 @@
+{
+  "$schema": "./templates.schema.json",
+  "$comment": "Bring-your-own templates kept in their own repositories (#1965). scripts/sync-byo-templates.sh clones each at its pinned tag into examples/byo/<folder>/; those folders are git-ignored. This file is the only place a template version is pinned.",
+  "templates": [
+    {
+      "id": "vue",
+      "folder": "create-vue",
+      "repository": "flisk-sh/flisk-template-vue",
+      "tag": "v1.0.0",
+      "port": 3000,
+      "healthCheckPath": "/",
+      "upstream": "npm create vue@latest",
+      "label": "Vue (create-vue)"
+    },
+    {
+      "id": "next-app",
+      "folder": "create-next-app",
+      "repository": "flisk-sh/flisk-template-next-app",
+      "tag": "v1.0.0",
+      "port": 3000,
+      "healthCheckPath": "/",
+      "upstream": "npx create-next-app@latest",
+      "label": "Next.js (create-next-app)"
+    }
+  ]
+}

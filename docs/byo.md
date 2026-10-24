@@ -113,13 +113,15 @@ and a check command:
 
 ```bash
 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh fastify          # health path /health
-tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-vue /     # Vite apps answer on /
+scripts/sync-byo-templates.sh vue && tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-vue /   # synced template; Vite apps answer on /
 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/   # needs a database: real flisk up
 VERIFY_WAIT_SECONDS=120 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-mastra /health   # slow starters
 ```
 
 The check builds the image, runs it with `PORT=4000` and expects HTTP 200. Folders named `create-*`, `ember`, `rsbuild`
 and similar run the real scaffolder at build time, so they stay in step with it.
+`create-vue` and `create-next-app` come from their own template repositories at the tag pinned in
+[`examples/byo/templates.json`](../examples/byo/templates.json); run `scripts/sync-byo-templates.sh` to copy them in first.
 
 Recipes for using Flisk next to other tools live in [`recipes/`](recipes/): [moon](recipes/moon.md), [Rsbuild](recipes/rsbuild.md).
 

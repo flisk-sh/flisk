@@ -7,7 +7,7 @@ The ops checklist for cutting a Flisk CLI release, repairing one that only half 
 1. [What a release publishes](#what-a-release-publishes)
 2. [The pipeline at a glance](#the-pipeline-at-a-glance)
 3. [Cutting a release](#cutting-a-release)
-4. [Verify a release](#verify-a-release)
+4. [Where to look](#where-to-look) and [verify a release](#verify-a-release)
 5. [Repair a half-finished release](#repair-a-half-finished-release)
 6. [Backfill GitHub Packages](#backfill-github-packages)
 7. [Unscoped npm package (flisk)](#unscoped-npm-package-flisk)
@@ -102,7 +102,14 @@ gh pr list --search "automatic version bump" --state open
 gh pr checks <number> --watch && gh pr review <number> --approve
 ```
 
-Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, which tags `v<version>` on the bump commit and publishes the checksums draft.
+Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, which tags `v<version>` on the bump commit and publishes the checksums draft. It only publishes a draft that already exists; it never creates the release.
+
+## Where to look
+
+Two repositories carry a release per version, and both are linked from each other's notes:
+
+- [`flisk-sh/releases`](https://github.com/flisk-sh/releases/releases): the binaries, `checksums.txt`, signature and provenance. This is what `install.sh` downloads.
+- [`flisk-sh/flisk` releases](https://github.com/flisk-sh/flisk/releases): the signed checksums only, which is what Scorecard reads. Its notes link back to the binaries on `flisk-sh/releases`.
 
 ## Verify a release
 
@@ -110,12 +117,26 @@ Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, wh
 npm view "@flisk-sh/flisk" dist-tags                      # latest = version
 npm view "@flisk-sh/flisk@<version>" dist.tarball
 gh release view "v<version>" --repo flisk-sh/releases \
-  --json assets --jq '.assets[].name'                     # 5 binaries + engine + zip + checksums
+  --json assets --jq '.assets[].name'                     # 5 binaries + engine + zip + checksums + sigstore
 gh release view "v<version>" --repo flisk-sh/flisk \
-  --json isDraft,assets --jq '{draft:.isDraft,assets:[.assets[].name]}'   # draft false, checksums + sigstore + intoto
+  --json isDraft,assets --jq '{draft:.isDraft,assets:[.assets[].name]}'   # draft false, checksums.txt + checksums.txt.sigstore.json + checksums.txt.intoto.jsonl
 git ls-remote --tags origin "refs/tags/v<version>"        # tag exists
 git show "v<version>":package.json | grep '"version"'     # version field matches
 ```
+
+Signature and provenance (the two checks OpenSSF Scorecard's Signed-Releases reads). Both files live on the `flisk-sh/flisk` release:
+
+```bash
+mkdir -p verify && gh release download "v<version>" --repo flisk-sh/flisk \
+  --pattern checksums.txt --pattern checksums.txt.sigstore.json --dir verify
+cosign verify-blob --bundle verify/checksums.txt.sigstore.json \
+  --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/(release-binaries|sign-release)\.yml@.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  verify/checksums.txt                                    # signature: Verified OK
+gh attestation verify verify/checksums.txt --repo flisk-sh/flisk   # provenance: only releases built by release-binaries.yml have it
+```
+
+A release without `checksums.txt.intoto.jsonl` has no provenance; that is expected for versions cut before provenance was added. A release without a signature is a gap to close with [sign-release.yml](#repair-a-half-finished-release), not something to fix by hand.
 
 See also the [maintainer checks for GitHub Packages](github-packages.md#maintainer-release-checks).
 
@@ -126,12 +147,18 @@ See also the [maintainer checks for GitHub Packages](github-packages.md#maintain
 | What is missing | Fix |
 | --- | --- |
 | No version-bump PR | Apply the bump on `main` yourself (both `package.json` files), commit as `Release <version> (automatic version bump)`, push. The message triggers `tag-bumped-release`, which tags and publishes the release. |
-| Draft checksums release never created (sign step did not run) | Download `release-dist-<version>` from the run, then `gh release create "v<version>" --repo flisk-sh/flisk --draft --latest=false --title "v<version>" --notes "..." release-dist-<version>/checksums.txt` **before** pushing the bump commit. `tag-bumped-release` finds the draft and publishes it with the checksums attached. |
+| Draft checksums release never created (sign step did not run) | Create an empty draft first: `gh release create "v<version>" --repo flisk-sh/flisk --draft --latest=false --title "v<version>" --notes "Signed checksums for flisk <version>."`, then run `sign-release.yml` (next row), which uploads the checksums **and** their signature into it, **before** pushing the bump commit. `tag-bumped-release` finds the draft and publishes it. Never upload a bare `checksums.txt`: that is how 1.3.207 ended up unsigned. |
 | No `v<version>` tag | `tag-bumped-release` creates it on the bump push. To do it by hand: `git tag "v<version>" <bump-commit> && git push origin "refs/tags/v<version>"`. |
 | GitHub Packages missing the version | [Backfill](#backfill-github-packages). |
-| Signature (`checksums.txt.sigstore.json`) missing | Re-run the `Sign the checksums` step is not possible from the UI; sign from the run's OIDC identity by re-running the whole `publish` job once the bump push works (every step is idempotent: npm and binaries skip what exists). |
+| Signature (`checksums.txt.sigstore.json`) missing on a published version | Run **Actions → Sign an existing release**, or `gh workflow run sign-release.yml -f version=<version>`. It downloads the published binaries from `flisk-sh/releases`, checks them against `checksums.txt`, signs it keyless, and attaches the signature to the `flisk-sh/releases` release and the `flisk-sh/flisk` release. Do not re-run the `publish` job: it uses the workflow file of the original run. Provenance cannot be added afterwards; it has to come from the run that built the binaries, so that version stays without `checksums.txt.intoto.jsonl`. |
 
-Case studies: 1.3.187 (bump push rejected, signing skipped), 1.3.206 (version already in `package.json`, so no bump PR ran — tag and draft published by hand), 1.3.207 (bump push rejected by the `release/*` ruleset at branch creation — ruleset relaxed, bump and tag done by hand).
+Case studies: 1.3.187 (bump push rejected, signing skipped), 1.3.206 (version already in `package.json`, so no bump PR ran — tag and draft published by hand), 1.3.207 (bump push rejected by the `release/*` ruleset at branch creation — ruleset relaxed, bump and tag done by hand; the signing steps had run after the bump step and were skipped, and the hand-made release carried an unsigned `checksums.txt`, which OpenSSF Scorecard flagged. The bump step now runs last, and `sign-release.yml` signs a version after the fact. 1.3.205 on `flisk-sh/releases` was also unsigned).
+
+Both repositories are scored: `flisk-sh/flisk` (checksums, signature, provenance) and `flisk-sh/releases` (the binaries, which have no workflows of their own). Every signing or provenance step has to attach its file to both.
+
+### Why provenance is missing on 1.3.205 and 1.3.207
+
+OpenSSF Scorecard's Signed-Releases check reads the last five releases of `flisk-sh/flisk` and wants a signature **and** provenance on each. A GitHub attestation is bound to the workflow run that created it, so it cannot be added after the fact. 1.3.205 and 1.3.207 were finished by hand (bump and tag) after the signing steps were skipped, so they have a signature (added later with `sign-release.yml`) but no `checksums.txt.intoto.jsonl`. The fix is forward only: every release cut by `release-binaries.yml` since the bump step moved last carries both files, and the two gaps leave the five-release window after five more releases. Do not hand-craft a provenance file to close them.
 
 ## Backfill GitHub Packages
 
@@ -143,7 +170,7 @@ To publish an already-released npm version to GitHub Packages without cutting an
 gh workflow run publish-existing-npm-to-github-packages.yml -f version=<version>
 ```
 
-It downloads the exact public npm tarball, publishes it to `npm.pkg.github.com`, and installs it in a clean prefix to verify. If the package is the first publication, make it public in the package settings and confirm it is linked to `flisk-sh/flisk`.
+It downloads the exact public npm tarball, publishes it to `npm.pkg.github.com`, then fetches the tarball back from GitHub Packages, checks its sha512 against the npm tarball, and installs that file in a clean prefix to verify. If the package is the first publication, make it public in the package settings and confirm it is linked to `flisk-sh/flisk`.
 
 ## Unscoped npm package (flisk)
 

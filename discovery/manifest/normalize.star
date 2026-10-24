@@ -150,10 +150,7 @@ def _discover_manifests_in_path(root_path):
     Returns:
         List of manifest file paths
     """
-    find_cmd = "find {root} -name '{filename}' -type f 2>/dev/null | sort".format(
-        root=root_path,
-        filename=MANIFEST_FILENAME
-    )
+    find_cmd = ["sh", "-c", 'find "$1" -name "$2" -type f 2>/dev/null | sort', "sh", root_path, MANIFEST_FILENAME]
     result = str(local(find_cmd, quiet=True, echo_off=True))
     
     manifests = []

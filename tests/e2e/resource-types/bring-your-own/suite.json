@@ -10,6 +10,8 @@
     "tests/e2e/resource-types/bring-your-own/**",
     ".github/workflows/e2e-resource-types.yml",
     "examples/byo/**",
+    "examples/byo/templates.json",
+    "scripts/sync-byo-templates.sh",
     "examples/byo-jobs/**",
     "cli/src/commands/up.ts",
     "engine/schemas/service-schema.json",
@@ -28,6 +30,27 @@
       "id": "example",
       "case": "BY1",
       "args": "echo /health"
+    },
+    {
+      "id": "example-lobster",
+      "case": "BY1",
+      "args": "lobster /health"
+
+    },
+    {
+      "id": "example-goose",
+      "case": "BY1",
+      "args": "goose /health"
+    },
+    {
+      "id": "template-vue",
+      "case": "BY1",
+      "args": "create-vue /"
+    },
+    {
+      "id": "template-next-app",
+      "case": "BY1",
+      "args": "create-next-app /"
     },
     {
       "id": "flisk",

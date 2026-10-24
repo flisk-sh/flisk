@@ -172,7 +172,7 @@ def _handle_new_service(
 def _file_exists(path):
     """Check if a file exists."""
     result = local(
-        "test -f {} && echo 'yes' || echo 'no'".format(path),
+        ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path],
         quiet=True,
         echo_off=True
     )
@@ -185,7 +185,7 @@ def time_now():
 
 def sleep(seconds):
     """Sleep for specified seconds."""
-    local("sleep {}".format(seconds), quiet=True, echo_off=True)
+    local(["sleep", str(seconds)], quiet=True, echo_off=True)
 
 # Export daemon functions
 DiscoveryDaemon = struct(

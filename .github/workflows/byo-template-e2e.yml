@@ -1,0 +1,86 @@
+# End-to-end check that template repositories (flisk-sh/flisk-template-<id>, #1965) call by commit SHA:
+#   uses: flisk-sh/flisk/.github/workflows/byo-template-e2e.yml@<sha>
+#   with: { flisk-ref: <same sha> }
+# It registers the calling repository's template in a throwaway Flisk project, runs a real `flisk up`, and expects
+# HTTP 200 on the template's healthCheckPath through Traefik (scripts/e2e/verify-byo-template.sh).
+name: BYO template e2e
+
+on:
+  workflow_call:
+    inputs:
+      flisk-ref:
+        description: Commit of flisk-sh/flisk to take the e2e script from; pass the same SHA as in `uses:`
+        required: true
+        type: string
+      flisk-version:
+        description: Published @flisk-sh/flisk version to test against, or latest
+        required: false
+        default: latest
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: e2e (flisk up)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the template
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: template
+          persist-credentials: false
+
+      - name: Check out the e2e script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: flisk-sh/flisk
+          ref: ${{ inputs.flisk-ref }}
+          path: flisk
+          sparse-checkout: scripts/e2e
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      # `flisk project` checks for Bun 1.2+; same pinned action as .github/actions/setup-bun.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      # Same pinned release and checksum as .github/actions/setup-tilt; installed under $HOME so no sudo is needed.
+      - name: Install Tilt
+        run: |
+          curl -fsSL --retry 3 -o tilt.tgz https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz
+          echo "e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f  tilt.tgz" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin" && tar -xzf tilt.tgz -C "$HOME/.local/bin" tilt && rm -f tilt.tgz
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Flisk
+        env:
+          FLISK_VERSION: ${{ inputs.flisk-version }}
+        run: npm install -g "@flisk-sh/flisk@${FLISK_VERSION}" # zizmor: ignore[adhoc-packages] the point is to test what users install
+
+      - name: Tool versions
+        run: |
+          echo "docker: $(docker --version)"
+          echo "bun: $(bun --version)"
+          echo "tilt: $(tilt version)"
+          echo "flisk: $(flisk --version)"
+
+      - name: Run the template through flisk up
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/evidence
+        run: flisk/scripts/e2e/verify-byo-template.sh template
+
+      - name: Keep the flisk up log
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: byo-template-e2e-evidence
+          path: ${{ runner.temp }}/evidence
+          retention-days: 7
+          if-no-files-found: ignore

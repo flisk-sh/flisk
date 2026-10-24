@@ -54,3 +54,8 @@ release-dist-*/
 
 # scratch file for trying Starlark changes (docs/contributing/02-feature-recipes.md)
 /try.Tiltfile
+
+# Bring-your-own templates synced from their own repositories by scripts/sync-byo-templates.sh (examples/byo/templates.json, #1965)
+/examples/byo/create-vue/
+/examples/byo/create-next-app/
+/examples/byo/.sync-*

@@ -12,7 +12,7 @@ _SNAPSHOT_SCRIPT = ".tdk/.tdk-out/snapshots/resource_snapshot.py"
 def _run_snapshot_command(cmd):
     """Run a snapshot command via Python script."""
     result = local(
-        "python3 " + _SNAPSHOT_SCRIPT + " " + cmd,
+        ["python3", _SNAPSHOT_SCRIPT, cmd],
         quiet=True,
         echo_off=True
     )
@@ -27,7 +27,7 @@ def save_snapshot(resources):
     """
     # Use Python to save snapshot directly
     result = local(
-        "cd " + config.main_dir + " && python3 " + _SNAPSHOT_SCRIPT + " save",
+        ["sh", "-c", 'cd "$1" && python3 "$2" save', "sh", config.main_dir, _SNAPSHOT_SCRIPT],
         quiet=True,
         echo_off=True
     )
@@ -109,7 +109,7 @@ def get_current_resources(scan_roots=["services/product"]):
     
     for root in scan_roots:
         # Use find command to locate service.json files
-        cmd = "find " + root + " -type f -name 'service.json' 2>/dev/null | sort"
+        cmd = ["sh", "-c", 'find "$1" -type f -name service.json 2>/dev/null | sort', "sh", root]
         result = local(cmd, quiet=True, echo_off=True)
         
         if result:

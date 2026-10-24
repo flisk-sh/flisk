@@ -33,7 +33,7 @@ def _get_project_discovery_roots():
     ]
     
     for spec_path in spec_paths:
-        check_cmd = "test -f '{}' && echo 'yes' || echo 'no'".format(spec_path)
+        check_cmd = ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", spec_path]
         exists = str(local(check_cmd, quiet=True, echo_off=True)).strip() == 'yes'
         if exists:
             # Read and parse spec.master for RESOURCE_PATTERNS
@@ -66,7 +66,7 @@ def _get_enabled_project_stacks():
         return []
 
     project_config_path = project_root + "/.tdk/project.json"
-    exists = str(local("test -f '{}' && echo 'yes' || echo 'no'".format(project_config_path), quiet=True, echo_off=True)).strip() == 'yes'
+    exists = str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", project_config_path], quiet=True, echo_off=True)).strip() == 'yes'
     if not exists:
         return []
 

@@ -56,13 +56,13 @@ def normalize_res_path(res_path):
     if not res_path.startswith('/'):
         return res_path
     project_root = os.environ.get('TDK_PROJECT_ROOT', '.')
-    cmd = (
-        "python3 -c \"import os; print(os.path.relpath(os.path.realpath('''" +
-        res_path +
-        "'''), os.path.realpath('''" +
-        project_root +
-        "''')))\""
-    )
+    cmd = [
+        "python3",
+        "-c",
+        "import os, sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])))",
+        res_path,
+        project_root,
+    ]
     relative = str(local(cmd, quiet=True, echo_off=True)).strip()
     if relative:
         return relative

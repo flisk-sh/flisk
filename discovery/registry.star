@@ -316,10 +316,10 @@ def _write_file_if_changed(path, content):
         fail("Flisk discovery refused to write outside its generated-file allowlist: " + path)
 
     # Read existing file (returns empty string on error via shell)
-    existing = str(local("cat " + path + " 2>/dev/null || echo ''", quiet=True, echo_off=True))
+    existing = str(local(["sh", "-c", 'cat "$1" 2>/dev/null || echo ""', "sh", path], quiet=True, echo_off=True))
     
     if existing != content:
-        local("mkdir -p $(dirname " + path + ") && echo '" + content + "' > " + path, quiet=True, echo_off=True)
+        local(["sh", "-c", 'mkdir -p "$(dirname "$1")" && echo "$2" > "$1"', "sh", path, content], quiet=True, echo_off=True)
         return True
     return False
 
@@ -329,7 +329,7 @@ def _render_star_file(description, var_name, data):
 
 def generate_product_stack_topology():
     """Generate product stack topology folders."""
-    local("mkdir -p " + PRODUCT_TOPOLOGY_DIR, quiet=True)
+    local(["mkdir", "-p", PRODUCT_TOPOLOGY_DIR], quiet=True)
     
     changes = 0
     for resource in APP_RESOURCES:
@@ -349,7 +349,7 @@ def generate_product_stack_topology():
 
 def generate_product_snapshot_topology():
     """Generate product snapshot topology files."""
-    local("mkdir -p " + PRODUCT_SNAPSHOT_DIR, quiet=True)
+    local(["mkdir", "-p", PRODUCT_SNAPSHOT_DIR], quiet=True)
     
     services_path = PRODUCT_SNAPSHOT_DIR + "/services.star"
     deps_path = PRODUCT_SNAPSHOT_DIR + "/dependencies.star"
@@ -510,7 +510,7 @@ def load_yaml_manifests_as_resources():
         
         local_resource(
             name=resource_name,
-            cmd="echo 'YAML manifest: " + yaml_path_display + "'",
+            cmd=['echo', 'YAML manifest: ' + yaml_path_display],
             deps=[yaml_file],
             labels=["yaml-manifest"],
         )

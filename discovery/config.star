@@ -37,7 +37,7 @@ def load_project_defaults(project_root):
     
     spec_path = None
     for path in spec_paths:
-        check_cmd = "test -f '{}' && echo 'yes' || echo 'no'".format(path)
+        check_cmd = ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path]
         exists = str(local(check_cmd, quiet=True, echo_off=True)).strip() == 'yes'
         if exists:
             spec_path = path
