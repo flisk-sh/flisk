@@ -1,6 +1,6 @@
 # django
 
-**Stack:** a real `django-admin startproject` app (Django from PyPI at build time, default SQLite, no external database)
+**Stack:** a real `django-admin startproject` app (Django 5.2, default SQLite, no external database), `requirements.in` (the dependencies you want), and `requirements.txt` (hash-locked from it with `uv pip compile --generate-hashes`)
 
 **Notes:**
 - The generator runs at build time and the Dockerfile applies the built-in migrations to the SQLite file once.
@@ -10,7 +10,8 @@
   would need `.localhost` added (not run here).
 - `runserver 0.0.0.0:$PORT --noreload` is Django's development server, for local use only.
 - Django's welcome page on `/` is the health route (it answers 200 with `DEBUG` on).
-- Django comes from PyPI at build time, so the version is whatever is current.
+- Django is pulled from PyPI at build time within `>=5.2,<6`, pinned and hash-checked by `requirements.txt`. To refresh the lock, run
+  `uv pip compile requirements.in --upgrade --generate-hashes --python-version 3.12 --no-header -o requirements.txt`.
 - For Django with PostgreSQL see the [cookiecutter-django](../cookiecutter-django/README.md) example.
 
 ## Check it
