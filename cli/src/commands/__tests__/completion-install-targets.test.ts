@@ -93,7 +93,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
 
     const { stdout } = await runCompletion(["--install"]);
 
-    const installPath = join(home.dir, ".zsh", "completions", "_tdk");
+    const installPath = join(home.dir, ".zsh", "completions", "_flisk");
     expect(fsStore.files.get(installPath)).toContain("#compdef flisk");
     expect(stdout).toContain("Installed zsh completion to:");
   });
@@ -104,20 +104,20 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     const { stderr } = await runCompletion(["--install"]);
 
     expect(stderr).toContain("Using bash completion");
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
     expect(fsStore.files.get(installPath)).toContain("complete -F _tdk_completions flisk");
   });
 
   it("lets the --shell option pick the install target", async () => {
     const { stdout } = await runCompletion(["--shell", "fish", "--install"]);
 
-    const installPath = join(home.dir, ".config", "fish", "completions", "tdk.fish");
+    const installPath = join(home.dir, ".config", "fish", "completions", "flisk.fish");
     expect(fsStore.files.get(installPath)).toContain("complete -c flisk");
     expect(stdout).toContain("Installed fish completion to:");
   });
 
   it("overwrites an existing bash completion on reinstall", async () => {
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
     const writeMock = vi.mocked(writeFileSync);
 
     await runCompletion(["bash", "--install"]);

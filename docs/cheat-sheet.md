@@ -425,11 +425,11 @@ The script is generated from the CLI itself: the command names, their flags, the
 
 ```bash
 flisk completion --shell bash --install
-echo 'source ~/.bash_completion.d/tdk-completion.bash' >> ~/.bashrc
+echo 'source ~/.bash_completion.d/flisk-completion.bash' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-The first command writes `~/.bash_completion.d/tdk-completion.bash`. The second makes new shells load it.
+The first command writes `~/.bash_completion.d/flisk-completion.bash`. The second makes new shells load it.
 
 #### zsh
 
@@ -442,7 +442,7 @@ EOF
 source ~/.zshrc
 ```
 
-The first command writes `~/.zsh/completions/_tdk`. The `fpath` line has to come before `compinit`. If your `~/.zshrc` already calls `compinit`, add only the `fpath+=(...)` line above it.
+The first command writes `~/.zsh/completions/_flisk`. The `fpath` line has to come before `compinit`. If your `~/.zshrc` already calls `compinit`, add only the `fpath+=(...)` line above it.
 
 #### fish
 
@@ -450,7 +450,7 @@ The first command writes `~/.zsh/completions/_tdk`. The `fpath` line has to come
 flisk completion --shell fish --install
 ```
 
-This writes `~/.config/fish/completions/tdk.fish`, which fish loads by itself. Open a new fish session.
+This writes `~/.config/fish/completions/flisk.fish`, which fish loads by itself. Open a new fish session.
 
 #### PowerShell
 

@@ -272,7 +272,7 @@ Rather than reinventing test patterns from scratch, reference these canonical, h
 
   it("installs the bash script under ~/.bash_completion.d and prints the source line", async () => {
     const { stdout } = await runCompletion(["bash", "--install"]);
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
     expect(readFileSync(installPath, "utf-8")).toContain("complete -F _tdk_completions flisk");
     expect(stdout).toContain("Installed bash completion to:");
   });

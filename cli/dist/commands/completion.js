@@ -761,11 +761,11 @@ export const completionCommand = new Command("completion")
     const candidates = buildCompletionCandidates(program);
     const completionScript = renderCompletionScript(shell, candidates);
     const filename = shell === "bash"
-        ? "tdk-completion.bash"
+        ? "flisk-completion.bash"
         : shell === "zsh"
-            ? "_tdk"
+            ? "_flisk"
             : shell === "fish"
-                ? "tdk.fish"
+                ? "flisk.fish"
                 : "Microsoft.PowerShell_profile.ps1";
     if (options.install) {
         const home = homedir();

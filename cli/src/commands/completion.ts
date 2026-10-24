@@ -957,11 +957,11 @@ export const completionCommand = new Command("completion")
     const completionScript = renderCompletionScript(shell as SupportedShell, candidates);
     const filename =
       shell === "bash"
-        ? "tdk-completion.bash"
+        ? "flisk-completion.bash"
         : shell === "zsh"
-          ? "_tdk"
+          ? "_flisk"
           : shell === "fish"
-            ? "tdk.fish"
+            ? "flisk.fish"
             : "Microsoft.PowerShell_profile.ps1";
 
     if (options.install) {
