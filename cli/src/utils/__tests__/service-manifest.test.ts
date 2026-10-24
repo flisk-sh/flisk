@@ -476,4 +476,128 @@ describe("service manifest compatibility", () => {
       );
     });
   });
+
+  // GHSA-phgf-pww4-7jxc: these values are written into generated compose YAML as they are.
+  it("rejects line breaks and YAML syntax in fields that reach generated output", () => {
+    const base = {
+      appName: "api",
+      appType: "backend",
+      stack: "shop",
+      schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+      traefik: { pathPrefix: "/api/v1/shop-management" },
+    };
+    const hostile: Array<Record<string, unknown>> = [
+      { healthCheckPath: "/health\n    privileged: true" },
+      { healthCheckPath: '/health"' },
+      { traefik: { pathPrefix: "/api", host: "a.local\n    privileged: true" } },
+      { traefik: { pathPrefix: "/api/v1/x\n    network_mode: host" } },
+      { traefik: { pathPrefix: "/api", healthCheck: "/h\n    volumes: []" } },
+      { nats: { queueGroup: "g: true" } },
+      { databaseName: "Flisk_x\n  privileged: true" },
+      { stack: "shop # comment" },
+      { image: "app\n    privileged: true" },
+      { healthCheckPath: "health" },
+      { healthCheckPath: 42 },
+    ];
+    for (const extra of hostile) {
+      const result = validateServiceManifest({ ...base, ...extra }, "service.json");
+      expect(result.errors, JSON.stringify(extra)).not.toEqual([]);
+    }
+  });
+
+  it("names the field in the error and does not echo the unsafe value", () => {
+    const result = validateServiceManifest(
+      { ...manifestBase(), healthCheckPath: "/health\n    privileged: true" },
+      "services/shop/api/service.json",
+    );
+    expect(result.errors).toEqual([
+      "services/shop/api/service.json.healthCheckPath: must be a path such as /health (no spaces, line breaks or YAML syntax)",
+    ]);
+  });
+
+  it("accepts the values the generator and existing service.json files use", () => {
+    const result = validateServiceManifest(
+      {
+        ...manifestBase(),
+        healthCheckPath: "/api/v1/health",
+        databaseName: "Flisk_shop",
+        image: "ghcr.io/acme/app:1.0@sha256:abc",
+        traefik: {
+          host: "shop.backend.my-project.local",
+          pathPrefix: "/api/v1/shop-management",
+          healthCheck: "/health",
+        },
+        nats: { queueGroup: "shop_backend_svc" },
+      },
+      "service.json",
+    );
+    expect(result.errors).toEqual([]);
+  });
+
+  it("treats empty generated-output values as unset", () => {
+    const result = validateServiceManifest(
+      { ...manifestBase(), traefik: { pathPrefix: "/api", healthCheck: "" } },
+      "service.json",
+    );
+    expect(result.errors).toEqual([]);
+  });
+
+  it("reports unsafe generated-output values from a file, and nothing for a file it cannot parse", () => {
+    const dir = mkdtempSync(join(tmpdir(), "service-manifest-"));
+    try {
+      const file = join(dir, "service.json");
+      writeFileSync(file, JSON.stringify({ ...manifestBase(), stack: "shop\nprivileged: true" }));
+      expect(generatedFieldErrorsForFile(file, "service.json")).toEqual([
+        "service.json.stack: must be letters, digits, '_' or '-' (no spaces, line breaks or YAML syntax)",
+      ]);
+
+      writeFileSync(file, "{ not json");
+      expect(generatedFieldErrorsForFile(file, "service.json")).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Fields outside the per-field allowlist also reach generated YAML (port, appName, dockerfile, buildContext, basePath, envVars).
+  it("rejects a line break in any string key or value, not only the allowlisted fields", () => {
+    const hostile: Array<[Record<string, unknown>, string]> = [
+      [{ port: "4000\n    privileged: true" }, "service.json.port"],
+      [{ appName: "api\n    privileged: true" }, "service.json.appName"],
+      [{ dockerfile: "Dockerfile\n    privileged: true" }, "service.json.dockerfile"],
+      [{ buildContext: "src\r    privileged: true" }, "service.json.buildContext"],
+      [{ basePath: "/shop privileged: true" }, "service.json.basePath"],
+      [
+        { envVars: [{ name: "A", value: "v\n    privileged: true" }] },
+        "service.json.envVars[0].value",
+      ],
+      [{ params: { "a\n    privileged": "x" } }, "service.json.params"],
+    ];
+    for (const [extra, field] of hostile) {
+      const { errors } = validateServiceManifest({ ...manifestBase(), ...extra }, "service.json");
+      expect(
+        errors.some((error) => error.startsWith(`${field}: `)),
+        JSON.stringify(extra),
+      ).toBe(true);
+      expect(errors.join("\n")).not.toContain("privileged");
+    }
+  });
+
+  it("reports an allowlisted field once and leaves smoke, which never reaches generated config, alone", () => {
+    const { errors } = validateServiceManifest(
+      {
+        ...manifestBase(),
+        healthCheckPath: "/health\n    privileged: true",
+        smoke: { via: "/api/v1/shop", create: { body: "{\n}" } },
+      },
+      "service.json",
+    );
+    expect(errors.filter((error) => error.startsWith("service.json.healthCheckPath"))).toHaveLength(
+      1,
+    );
+    expect(
+      errors.filter(
+        (error) => error.startsWith("service.json.smoke") && error.includes("line break"),
+      ),
+    ).toEqual([]);
+  });
 });
