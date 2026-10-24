@@ -40,12 +40,15 @@ updates:
 
   # The npm CLI that release-binaries.yml uses for trusted publishing, pinned by
   # .github/npm-cli/package-lock.json. Its undici and ip-address are bundled inside npm,
-  # so only a new npm release can patch them: check daily with no cooldown so that bump
-  # arrives as soon as npm ships it.
+  # so only a new npm release can patch them: check daily with a one-day cooldown (the
+  # shortest that satisfies Semgrep's dependabot-missing-cooldown rule) so that bump
+  # arrives the day after npm ships it.
   - package-ecosystem: npm
     directory: /.github/npm-cli
     schedule:
       interval: daily
+    cooldown:
+      default-days: 1
     open-pull-requests-limit: 2
     labels:
       - dependencies
