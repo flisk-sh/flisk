@@ -9,7 +9,7 @@ One page for whoever installs, supports, or releases the Flisk CLI. Details live
 | macOS | supported | supported |
 | Linux | supported | supported |
 | WSL2 Ubuntu | supported (see [wsl2.md](wsl2.md)) | supported |
-| Native Windows | not supported; refuses with "Native Windows is inspect-only" | inspect-only |
+| Native Windows | not supported; refuses with "Native Windows is inspect-only" (see [decision](design/native-windows-runtime-decision.md)) | inspect-only |
 
 `flisk up` needs Docker and Tilt on the host. Run `flisk doctor` to check them.
 
@@ -37,24 +37,26 @@ For a file-by-file guide to service outputs, see [Generated service files](gener
 - `flisk config verify` runs a wider check: it compares generated project files, validates discovered service manifests, and checks generated service snapshots. It prints diffs for project files and names service errors.
 - `flisk up --dry-run` runs the same check and exits 2 on drift, so you can see it without starting anything.
 - `flisk up --ignore-drift` skips the check and always prints a warning, whether or not anything drifted, because the check did not run.
-- A missing `.tdk-contract` snapshot is reported by `flisk config verify` as an error, but it does not block `flisk up`: only files that differ from an existing snapshot count as hand edits. A project with no `.tdk/project.json` is not checked.
+- A missing `.flisk-contract` snapshot is reported by `flisk config verify` as an error, but it does not block `flisk up`: only files that differ from an existing snapshot count as hand edits. A project with no `.flisk/project.json` is not checked.
 
 ## Importing an existing repo
 
-`flisk import` runs the published importer, [`flisk-import`](https://www.npmjs.com/package/flisk-import), at the exact version pinned in `cli/src/commands/import.ts` (`IMPORT_PACKAGE`). `TDK_IMPORT_PACKAGE` overrides it. When a new importer is published, move the pin in a CLI release.
+`flisk import` runs the published importer, [`flisk-import`](https://www.npmjs.com/package/flisk-import), at the exact version pinned in `cli/src/commands/import.ts` (`IMPORT_PACKAGE`). `FLISK_IMPORT_PACKAGE` overrides it. When a new importer is published, move the pin in a CLI release.
 
-It reads one file, the root `docker-compose.yml`, and writes one bring-your-own `service.json` per Compose service, plus `.tdk/project.json` if the directory is not a Flisk project. It does not read other Compose file names, override files, Dockerfiles, `package.json` or Procfiles, and it names what it did not translate. See the importer's [import.md](https://github.com/flisk-sh/flisk-import/blob/main/docs/import.md) for the mapping.
+It reads one file, the root `docker-compose.yml`, and writes one bring-your-own `service.json` per Compose service, plus `.flisk/project.json` if the directory is not a Flisk project. It does not read other Compose file names, override files, Dockerfiles, `package.json` or Procfiles, and it names what it did not translate. See the importer's [import.md](https://github.com/flisk-sh/flisk-import/blob/main/docs/import.md) for the mapping.
 
 ```bash
 flisk import <dir> --dry-run
 flisk import <dir> --yes
 ```
 
-Start the imported stack with Flisk core **1.3.145 or later**. 1.3.104 added `buildContext` ([flisk#525](https://github.com/flisk-sh/flisk/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.tdk/project.json` but none yet ([flisk#1018](https://github.com/flisk-sh/flisk/pull/1018)). `flisk import` enforces that the installed core is at least 1.3.104 before writing; if an older core is encountered, it exits before writing and prints the upgrade command (`flisk upgrade`).
+Start the imported stack with Flisk core **1.3.145 or later**. 1.3.104 added `buildContext` ([flisk#525](https://github.com/flisk-sh/flisk/pull/525)); 1.3.145 generates the Tiltfile for a project that has `.flisk/project.json` but none yet ([flisk#1018](https://github.com/flisk-sh/flisk/pull/1018)). `flisk import` enforces that the installed core is at least 1.3.104 before writing; if an older core is encountered, it exits before writing and prints the upgrade command (`flisk upgrade`).
 
 Put the environment values the services need in the project `.env`; values in the Compose file are never copied. Evidence of the importer running through a real `flisk up`: [#1007](https://github.com/flisk-sh/flisk/issues/1007).
 
 ## Cutting a release
+
+> The current ops checklist — pipeline order, candidate and dispatch commands, repair recipes, the unscoped npm package, and troubleshooting — is [Release operations](releasing.md). This section keeps the background: npm authentication, what past releases taught us, and the publish gate.
 
 > [!WARNING]
 > The automatic version bump does not work as expected yet. After the 1.3.185 release, the git tag `v1.3.185` pointed at a commit whose `package.json` still said `1.3.184`, and `bun.lock` was never bumped. npm and the GitHub release had the right version. Check the tag, `package.json`, `cli/package.json` and `bun.lock` after every release until these are fixed: [#1657](https://github.com/flisk-sh/flisk/issues/1657), [#1658](https://github.com/flisk-sh/flisk/issues/1658), [#1659](https://github.com/flisk-sh/flisk/issues/1659).
@@ -94,7 +96,7 @@ The normal release is the workflow, from a release branch (see the publish gate 
 
 1. Cut `release/rc-<timestamp>` at the commit to ship, and run the Release candidate workflow on it. Wait for it to pass.
 2. Run `gh workflow run release-binaries.yml --ref release/rc-<timestamp>`. The workflow picks the next unpublished version, builds and checks the binaries, publishes the npm package and the release in `flisk-sh/releases`, and credits fixed issues.
-3. The workflow does not commit the version it published. Open a PR on `main` that sets `version` in `package.json` and `cli/package.json` to that version, so `main` matches npm.
+3. The workflow signs the checksums, then opens a `Release <version> (automatic version bump)` PR so `main` matches npm; merging it tags `v<version>` and publishes the checksums release. If a step fails after publication, follow [Repair a half-finished release](releasing.md#repair-a-half-finished-release) instead of re-dispatching.
 4. The installer verifies each binary against `checksums.txt`.
 
 To build a binary by hand, without publishing, run `scripts/release-binaries.sh`. It writes `tdk-linux-{amd64,arm64}`, `tdk-darwin-{amd64,arm64}`, `tdk-windows-amd64.exe`, `tdk-cli-engine.tar.gz`, and `checksums.txt` (SHA-256) into `release-dist-<version>/`. `scripts/release-binaries.sh --publish` creates a draft release, downloads every asset, compares bytes with the local build, and only then publishes it as latest. `--publish-only` reuses an existing `release-dist-<version>/`.
@@ -124,13 +126,13 @@ Tracked in [#1627](https://github.com/flisk-sh/flisk/issues/1627).
 
 ## License key
 
-`TDK_LICENSE_KEY` is optional. `flisk up` still runs the free stack when the key is unset, invalid, or expired. The cases differ in what `flisk up` does:
+`FLISK_LICENSE_KEY` is optional. `flisk up` still runs the free stack when the key is unset, invalid, or expired. The cases differ in what `flisk up` does:
 
 | Key state | Premium-bundle request | Premium overlay |
 | --- | --- | --- |
 | Unset | none | none; Verdaccio and Sablier fall back to disabled public stubs and print a message that they need a license |
-| Invalid or expired | made, unless a cached result is still fresh | none for a rejected key; an overlay already in `.tdk/.tdk-out/tdk-cli-ext` stays in use |
+| Invalid or expired | made, unless a cached result is still fresh | none for a rejected key; an overlay already in `.flisk/.flisk-out/flisk-cli-ext` stays in use |
 
-- Bundle downloads and entitlement checks (grant or denial) are cached per key under `~/.tdk/cache` and reused for up to 12 hours. For that window a key that was just revoked or has just expired can still be treated as entitled, and a key that was denied is not re-checked until the cache expires. Operators will hit this most often.
-- `flisk up` does not revalidate the key or re-vendor `.tdk/.tdk-out/tdk-cli-ext`. A premium overlay created while the key was valid can stay in use after the key expires.
+- Bundle downloads and entitlement checks (grant or denial) are cached per key under `~/.flisk/cache` and reused for up to 12 hours. For that window a key that was just revoked or has just expired can still be treated as entitled, and a key that was denied is not re-checked until the cache expires. Operators will hit this most often.
+- `flisk up` does not revalidate the key or re-vendor `.flisk/.flisk-out/flisk-cli-ext`. A premium overlay created while the key was valid can stay in use after the key expires.
 - DDD is public code gated separately by `flisk resource --ddd`; it is not a stub.

@@ -23,18 +23,18 @@
 
 **우리가 일하는 방식**
 
-- [ ] [기여 안내](../../../CONTRIBUTING.md): 라벨, issue 담당, DCO 서명.
+- [ ] [기여 안내](../../../.github/CONTRIBUTING.md): 라벨, issue 담당, DCO 서명.
 - [ ] [1. 변경할 준비하기](01-first-change-ko.md): 언제 OpenSpec 제안서가 필요한지.
 - [ ] [2. 변경 종류별 레시피](02-feature-recipes-ko.md): 코드가 어디에 있는지, 각 변경에 어떤 검사가 필요한지.
 - [ ] [3. pull request 열기](03-open-a-pr-ko.md): 좋은 PR에 무엇이 있어야 하는지, 변경 전후 증거를 포함해서.
 
 **모두가 지키는 규칙**
 
-- [ ] [행동 강령](../../../CODE_OF_CONDUCT.md): 리뷰에서 서로 어떻게 말하는지.
-- [ ] [보안 정책](../../../SECURITY.md): 보안 문제는 비공개로 보고하고, PR 댓글에 절대 쓰지 마세요.
-- [ ] [거버넌스](../../../GOVERNANCE.md)와 [메인테이너](../../../MAINTAINERS.md): 누가 결정하고 누가 병합하는지.
+- [ ] [행동 강령](../../../.github/CODE_OF_CONDUCT.md): 리뷰에서 서로 어떻게 말하는지.
+- [ ] [보안 정책](../../../.github/SECURITY.md): 보안 문제는 비공개로 보고하고, PR 댓글에 절대 쓰지 마세요.
+- [ ] [거버넌스](../../project/GOVERNANCE.md)와 [메인테이너](../../project/MAINTAINERS.md): 누가 결정하고 누가 병합하는지.
 
-그다음 한 번 시도해 보세요. [빠른 설정](../../../CONTRIBUTING.md#quick-setup)을 실행하면 PR을 체크아웃하고 직접 검사를 실행할 수 있습니다.
+그다음 한 번 시도해 보세요. [빠른 설정](../../../.github/CONTRIBUTING.md#quick-setup)을 실행하면 PR을 체크아웃하고 직접 검사를 실행할 수 있습니다.
 
 ## 요약
 
@@ -170,7 +170,7 @@ Everything else looks good. Happy to re-review once these are in.
 - 사소한 것에는 `nit:` 또는 `optional:`을 붙여서 병합을 막지 않는다는 것을 알려 주세요.
 - 사람이 아니라 코드를 리뷰하세요.
 
-모든 댓글에서 [행동 강령](../../../CODE_OF_CONDUCT.md)을 따르세요.
+모든 댓글에서 [행동 강령](../../../.github/CODE_OF_CONDUCT.md)을 따르세요.
 
 ## 터미널에서 (선택 사항)
 
@@ -196,4 +196,4 @@ gh pr review 123 --request-changes --body "The new flag is never passed to the g
 
 - 누구나 댓글, 승인, 변경 요청을 할 수 있습니다. 모든 리뷰는 메인테이너가 더 빨리 결정하도록 돕습니다.
 - 자신의 PR은 승인할 수 없습니다.
-- 병합은 [메인테이너](../../../MAINTAINERS.md)만 합니다. 병합 전에 메인테이너는 리뷰와 필수 검사가 통과했는지 확인합니다.
+- 병합은 [메인테이너](../../project/MAINTAINERS.md)만 합니다. 병합 전에 메인테이너는 리뷰와 필수 검사가 통과했는지 확인합니다.

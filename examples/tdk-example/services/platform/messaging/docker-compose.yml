@@ -1,15 +1,15 @@
 services:
   nats:
     image: nats:2.10-alpine
-    container_name: tdk_example_nats
+    container_name: flisk_example_nats
     command: ["--jetstream", "--store_dir=/data/jetstream", "--http_port", "8222"]
     restart: unless-stopped
     networks:
-      tdk_example_backend:
+      flisk_example_backend:
         aliases:
-          - tdk_example_nats
+          - flisk_example_nats
     volumes:
-      - tdk_example_nats_data:/data
+      - flisk_example_nats_data:/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
       interval: 5s
@@ -18,9 +18,9 @@ services:
       retries: 20
 
 networks:
-  tdk_example_backend:
+  flisk_example_backend:
     external: true
-    name: tdk_example_backend
+    name: flisk_example_backend
 
 volumes:
-  tdk_example_nats_data:
+  flisk_example_nats_data:

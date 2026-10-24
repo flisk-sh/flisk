@@ -12,9 +12,9 @@ Validate/render with Helm and the pinned OCI chart, without installing it into a
 
 ```bash
 helm pull oci://ghcr.io/bjw-s-labs/helm/app-template \
-  --version 5.2.1 --untar --untardir /tmp/tdk-helm-example
-helm lint /tmp/tdk-helm-example/app-template --values values.yaml
-helm template api /tmp/tdk-helm-example/app-template --values values.yaml
+  --version 5.2.1 --untar --untardir /tmp/flisk-helm-example
+helm lint /tmp/flisk-helm-example/app-template --values values.yaml
+helm template api /tmp/flisk-helm-example/app-template --values values.yaml
 ```
 
 Chart reference and matching schema/docs:

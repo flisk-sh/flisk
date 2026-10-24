@@ -25,7 +25,7 @@ function service(name: string, extra: Record<string, unknown> = {}, dir = `app/$
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-config-checks-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-config-checks-"));
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });

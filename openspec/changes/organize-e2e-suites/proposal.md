@@ -37,5 +37,5 @@ None. No e2e behavior is specified in `openspec/specs` today. `agent-e2e-ci` (#1
 - **New:** `tests/e2e/lib/`, `tests/e2e/<group>/<suite>/run.sh`, `e2e-<group>.yml` workflows, `docs/contributing/05-write-e2e.md`, `.claude/skills/flisk-e2e-author/`, and a coverage check.
 - **Changed:** `Makefile` (`make test-e2e GROUP=… SUITE=…`), `CONTRIBUTING.md` (Tests section links the guide), `docs/contributing/02-feature-recipes.md` (each recipe names its e2e), `scripts/sync-tdk-skills.sh` (keeps repo-local skills).
 - **CI-wide:** every file in `.github/workflows/` (triggers, timeouts, concurrency, setup), new `.github/actions/{setup-bun,setup-tilt,free-postgres-port,install-flisk}`, `.github/ci-inventory.json` and its check, generated `docs/ci.md`, `docs-only.yml` removed, a red-job tracker and a weekly `ci-report` workflow.
-- **Admin:** branch protection's required checks switch to the single aggregate gate, the merge queue is enabled, and `TDK_LICENSE_KEY` is configured or `cold-start` stays neutral (maintainer actions).
+- **Admin:** branch protection's required checks switch to the single aggregate gate, the merge queue is enabled, and `FLISK_LICENSE_KEY` is configured or `cold-start` stays neutral (maintainer actions).
 - **Builds on:** [PR #1272](https://github.com/flisk-sh/flisk/pull/1272) (merged), whose agent suite is the reference.

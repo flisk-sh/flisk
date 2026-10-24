@@ -9,7 +9,7 @@
 | 改动 | 需要运行的检查 |
 |---|---|
 | CLI 代码或生成的 CLI 行为 | `bun run typecheck`、`bun run lint`、`bun run test` |
-| CLI 测试使用的引擎/Starlark 生成器 | 运行 `bun run typecheck`、`bun run lint`，以及 `cd cli && TDK_REQUIRE_TILT=1 npm test`。CI 测试任务会安装 Tilt 并设置此标志。 |
+| CLI 测试使用的引擎/Starlark 生成器 | 运行 `bun run typecheck`、`bun run lint`，以及 `cd cli && FLISK_REQUIRE_TILT=1 npm test`。CI 测试任务会安装 Tilt 并设置此标志。 |
 | Python 引擎测试区域 | 运行一次 `python3 -m pip install -r tests/requirements.txt` 安装测试包，然后用 `pytest` 运行相关测试文件，或使用 `make test-tilt-engine` 运行该套件。其中部分测试在干净的检出上也会失败；哪些测试、为什么失败，请参阅 #700。这些 Python 检查不会由 `.github/workflows/ci.yml` 运行。 |
 | 仅文档 | 检查你修改过的链接和命令；作为新手通读一遍页面。 |
 
@@ -23,7 +23,7 @@
 
 对于 bug 修复或行为改动，如果可能，请在 `main` 和你的分支上执行相同的步骤。粘贴真实的前后输出，不要凭记忆重现。包括命令、项目或夹具，以及重现所需的任何设置。覆盖 issue 中提到的空状态、错误状态或恢复状态。
 
-如果你要测试构建后的 CLI 入口，请先运行 `bun run build`，以免使用旧的编译文件。在真实终端中检查 `flisk ui` 等交互式命令。如果缺少自动化测试，请说明原因，并链接一个用于添加测试的 issue。新行为和 bug 修复需要在同一个 pull request 中包含测试；请参阅 [CONTRIBUTING.md 中的测试](../../../CONTRIBUTING.md#tests)。
+如果你要测试构建后的 CLI 入口，请先运行 `bun run build`，以免使用旧的编译文件。在真实终端中检查 `flisk ui` 等交互式命令。如果缺少自动化测试，请说明原因，并链接一个用于添加测试的 issue。新行为和 bug 修复需要在同一个 pull request 中包含测试；请参阅 [CONTRIBUTING.md 中的测试](../../../.github/CONTRIBUTING.md#tests)。
 
 ## 推送你的分支
 

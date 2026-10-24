@@ -94,7 +94,7 @@ def define_library_resource(ctx, name, path, labels, internal_deps=None, consume
         or global_config.get('verdaccio_url_local')
         or PlatformDockerConstants.VERDACCIO_URL_DOCKER
     )
-    internal_scope = ctx.get('internal_scope', '@tdk/')
+    internal_scope = ctx.get('internal_scope', '@flisk/')
     pkg_name = internal_scope + name
 
     if write_fn and generate_vite_fn:
@@ -115,7 +115,7 @@ def define_library_resource(ctx, name, path, labels, internal_deps=None, consume
     if consumer_paths:
         consumer_paths_str = ','.join(consumer_paths)
 
-    publish_cmd = './engine/scripts/build-and-publish-lib.sh "' + path + '" "' + registry + '" "' + pkg_name + '" "' + consumer_paths_str + '"'
+    publish_cmd = ['./engine/scripts/build-and-publish-lib.sh', path, registry, pkg_name, consumer_paths_str]
 
     # Sanitize name to remove invalid characters for Tilt resource names
     # e.g., "introvertic/ui" -> "introvertic-ui"

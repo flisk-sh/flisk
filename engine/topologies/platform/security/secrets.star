@@ -150,7 +150,7 @@ def _generate_org_config(org_name=None, environments=None, resource_names=None):
 # Predefined Services Configuration
 # =============================================================================
 
-# Project-specific service configurations should be defined in .tdk/project.json
+# Project-specific service configurations should be defined in .flisk/project.json
 # This dict is kept for backward compatibility but should be empty for generic Flisk CLI
 PREDEFINED_RESOURCES = {}
 

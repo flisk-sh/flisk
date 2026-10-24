@@ -1,4 +1,4 @@
-name: 🏆 Hall of fame
+name: 🏆 Community | Hall of fame
 
 # Keeps one pinned-style tracking issue up to date with every community contributor's
 # merged PRs and highest kyu/dan rank. It edits an issue body, so it needs no push to
@@ -90,8 +90,13 @@ jobs:
             const rows = [...people.entries()].sort((a, b) =>
               b[1].prs - a[1].prs || (b[1].best?.value ?? -1) - (a[1].best?.value ?? -1) || a[0].localeCompare(b[0]));
             const base = `https://github.com/${owner}/${repo}`;
+            // shields.io splits badge segments on `-` and does not allow escaping
+            // hyphens, so hyphenated usernames (e.g. AK-Lmn) break the badge.
+            // Replace `-` with `_` in the badge subject only; the link text keeps
+            // the real login.
+            const badgeLogin = (login) => login.replace(/-/g, '_');
             const badgeUrl = (login, prs) =>
-              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + login + ' \u2022 ' + prs + ' merged PRs')}-06b6d4?style=for-the-badge&labelColor=07080f`;
+              `https://img.shields.io/badge/FLISK%20HALL%20OF%20FAME-${encodeURIComponent('@' + badgeLogin(login) + ' \u2022 ' + prs + ' merged PRs')}-06b6d4?style=for-the-badge&labelColor=07080f`;
             const copySnippet = (login, prs) =>
               `[![FLISK HALL OF FAME @${login} • ${prs} merged PRs](${badgeUrl(login, prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity)`;
             const body = [
@@ -105,10 +110,14 @@ jobs:
               ...rows.map(([login, p]) =>
                 `| @${login} | [![FLISK HALL OF FAME](${badgeUrl(login, p.prs)})](${base}/issues?q=is%3Aissue+is%3Aopen+label%3Acommunity) | ${p.prs} | ${p.issues} | ${p.best ? p.best.name : '-'} |`),
               '',
-              '## Copy your badge',
+              '<details>',
+              '<summary>Copy your badge</summary>',
+              '',
               'Paste one of these into your portfolio or README. Each badge links back to the open Hall of Fame issue.',
               '',
               ...rows.map(([login, p]) => '`- ' + copySnippet(login, p.prs) + '`'),
+              '',
+              '</details>',
               '',
               `Last updated for the ${rows.length} contributors above. Want to be on this list? Start with a [good first issue](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).`,
             ].join('\n');

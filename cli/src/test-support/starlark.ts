@@ -16,7 +16,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const TILT_TIMEOUT_MS = 60_000;
 
 export const MISSING_TILT_MESSAGE =
-  "Tilt was not found on PATH. Install Tilt to run the Starlark tests, or leave TDK_REQUIRE_TILT unset to skip them.";
+  "Tilt was not found on PATH. Install Tilt to run the Starlark tests, or leave FLISK_REQUIRE_TILT unset to skip them.";
 
 /** Whether `tilt version` runs. Exported so a test can stub the lookup. */
 export function probeTilt(): boolean {
@@ -25,7 +25,7 @@ export function probeTilt(): boolean {
 
 /**
  * Returns whether Tilt is available. When it is missing, returns false and logs one warning, or throws when
- * `TDK_REQUIRE_TILT=1` (CI), so the suites that call this skip locally and fail in CI.
+ * `FLISK_REQUIRE_TILT=1` (CI), so the suites that call this skip locally and fail in CI.
  */
 export function resolveTiltAvailability(
   probe: () => boolean = probeTilt,
@@ -33,7 +33,7 @@ export function resolveTiltAvailability(
   warn: (message: string) => void = (message) => process.stderr.write(`${message}\n`),
 ): boolean {
   if (probe()) return true;
-  if (env.TDK_REQUIRE_TILT === "1") throw new Error(MISSING_TILT_MESSAGE);
+  if (env.FLISK_REQUIRE_TILT === "1") throw new Error(MISSING_TILT_MESSAGE);
   warn(MISSING_TILT_MESSAGE);
   return false;
 }
@@ -81,7 +81,7 @@ afterEach(() => {
  */
 export function evaluateStarlark(file: string, options: StarlarkOptions): StarlarkRun {
   if (!existsSync(file)) throw new Error(`Starlark module not found: ${file}`);
-  const dir = mkdtempSync(join(tmpdir(), "tdk-starlark-"));
+  const dir = mkdtempSync(join(tmpdir(), "flisk-starlark-"));
   scratchDirs.push(dir);
   for (const [path, content] of Object.entries(options.files ?? {})) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });

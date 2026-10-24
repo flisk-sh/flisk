@@ -68,7 +68,7 @@ engine/topologies/tilt/resources/
 
 **Responsibilities**:
 - Shared library build orchestration
-- Per-service database provisioning (`TDK_{domain}`)
+- Per-service database provisioning (`FLISK_{domain}`)
 - Service startup order (via dependency graph)
 - Infrastructure bootstrapping (Postgres, NATS, Traefik)
 - Hot-reload triggers on file changes
@@ -191,7 +191,7 @@ graph TB
 Package name → Directory path (automatic)
 
 @flisk-sh/eventing → platform/packages/eventing/src
-@tdk/domain            → shared-ddd-layers/domain/src
+@flisk/domain            → shared-ddd-layers/domain/src
 ```
 
 ### **2. Single Source of Truth**

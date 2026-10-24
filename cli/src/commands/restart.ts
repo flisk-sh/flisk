@@ -3,7 +3,13 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import { STANDARD_PORTS } from "../utils/constants.js";
-import { errorFactories, runCommand, showErrorAndExit, TdkError } from "../utils/errors.js";
+import {
+  errorFactories,
+  FliskError,
+  ProcessExitError,
+  runCommand,
+  showErrorAndExit,
+} from "../utils/errors.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
@@ -55,7 +61,7 @@ export const restartCommand = new Command("restart")
           );
           process.exit(1);
         }
-        throw new TdkError(msg, ["Start the stack first with: flisk up"]);
+        throw new FliskError(msg, ["Start the stack first with: flisk up"]);
       }
 
       const result = await runTilt("trigger", [resourceName, "--port", portText], {
@@ -74,7 +80,7 @@ export const restartCommand = new Command("restart")
             );
             process.exit(1);
           }
-          throw new TdkError(msg, ["Start the stack first with: flisk up"]);
+          throw new FliskError(msg, ["Start the stack first with: flisk up"]);
         }
         if (options.json) {
           console.log(
@@ -84,7 +90,7 @@ export const restartCommand = new Command("restart")
           );
           process.exit(1);
         }
-        throw new TdkError(`Failed to restart ${resourceName}: ${detail}`);
+        throw new FliskError(`Failed to restart ${resourceName}: ${detail}`);
       }
 
       if (options.json) {
@@ -101,6 +107,9 @@ export const restartCommand = new Command("restart")
       try {
         await action();
       } catch (err) {
+        if (err instanceof ProcessExitError) {
+          throw err;
+        }
         writeMachineError(err);
       }
       return;

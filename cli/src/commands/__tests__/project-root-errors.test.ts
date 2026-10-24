@@ -8,13 +8,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 const commands = ["projects", "resources", "stacks", "networks"] as const;
 // Each test starts four Bun processes in a row; under the full suite's parallel load that passes vitest's 5s default.
 const CLI_SPAWN_TIMEOUT_MS = 30_000;
 
 function runOutsideProject(args: string[]) {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-no-project-"));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-no-project-"));
   try {
     return spawnSync(process.execPath, [cliBin, ...args], {
       cwd,
@@ -53,7 +53,7 @@ describe("missing project root errors", () => {
         errors: [
           {
             code: "COMMAND_FAILED",
-            message: "Could not find project root (no .tdk/project.json found)",
+            message: "Could not find project root (no .flisk/project.json found)",
           },
         ],
       });

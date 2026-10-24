@@ -1,8 +1,8 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """Regression tests for standalone generated-project boot.
 
-Standalone TDK projects do not ship Traefik/Verdaccio compose files. The
+Standalone Flisk projects do not ship Traefik/Verdaccio compose files. The
 Tiltfile still has to load the project-root .env and publish host ports so
 the generated API is reachable at localhost:<port>.
 """
@@ -16,7 +16,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.generator]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_load_dotenv_uses_tdk_project_root():
+def test_load_dotenv_uses_flisk_project_root():
     source = (
         REPO_ROOT
         / "engine"
@@ -25,7 +25,7 @@ def test_load_dotenv_uses_tdk_project_root():
         / "common"
         / "utils_env.star"
     ).read_text()
-    assert "TDK_PROJECT_ROOT" in source
+    assert "FLISK_PROJECT_ROOT" in source
     assert "if not project_root:" in source
 
 

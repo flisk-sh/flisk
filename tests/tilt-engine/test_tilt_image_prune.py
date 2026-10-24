@@ -1,12 +1,12 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Tests for Tilt image pruning wired from watchers.star.
 
 Covers two things:
 - every cleanup script path that watchers.star runs exists in the engine
-  tree that init vendors into .tdk/.tdk-out/tdk-cli-ext/ (regression: the
-  paths used to point at a .tdk-out/ext/ tree that init never creates)
+  tree that init vendors into .flisk/.flisk-out/flisk-cli-ext/ (regression: the
+  paths used to point at a .flisk-out/ext/ tree that init never creates)
 - cleanup-tilt-images.sh keeps only the newest N tilt-* builds per repo
 """
 
@@ -21,7 +21,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WATCHERS = REPO_ROOT / "engine" / "topologies" / "tilt" / "resources" / "watchers.star"
 SCRIPTS_DIR = REPO_ROOT / "engine" / "assets" / "scripts"
-VENDORED_PREFIX = ".tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/"
+VENDORED_PREFIX = ".flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/"
 CLEANUP = SCRIPTS_DIR / "cleanup-tilt-images.sh"
 
 
@@ -50,7 +50,7 @@ class TestWatcherScriptPaths:
 
     def test_no_reference_to_stale_ext_assets_path(self):
         text = WATCHERS.read_text(encoding="utf-8")
-        assert ".tdk-out/ext/assets/" not in text
+        assert ".flisk-out/ext/assets/" not in text
 
     def test_dangling_prune_watcher_starts_automatically(self):
         # auto_init=False on a serve_cmd resource means Tilt never runs its loop,

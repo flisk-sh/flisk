@@ -75,7 +75,7 @@ The validator also accepts a `weekly` trigger, but no group workflow runs it yet
 
 ### Missing secrets and red jobs
 
-A job that needs a secret starts with a check step or job. When the secret is missing, the check writes a warning that names the secret and a job summary, and the jobs that need it are skipped. GitHub has no neutral job conclusion, so a skipped job is the neutral result, and the check itself succeeds. Current examples: `TDK_LICENSE_KEY` in `e2e-journeys.yml`, `NPM_TOKEN` in `publish-tdk-import.yml`, and `CI_INVENTORY_TOKEN` in `required-checks-drift.yml`. A release job that publishes to npm (`release-binaries.yml`) does not skip: a missing token there fails the run, because a skipped release would look like a success.
+A job that needs a secret starts with a check step or job. When the secret is missing, the check writes a warning that names the secret and a job summary, and the jobs that need it are skipped. GitHub has no neutral job conclusion, so a skipped job is the neutral result, and the check itself succeeds. Current examples: `FLISK_LICENSE_KEY` in `e2e-journeys.yml`, `NPM_TOKEN` in `publish-tdk-import.yml`, and `CI_INVENTORY_TOKEN` in `required-checks-drift.yml`. A release job that publishes to npm (`release-binaries.yml`) does not skip: a missing token there fails the run, because a skipped release would look like a success.
 
 `red-job-tracker.yml` runs daily. For each scheduled or `main` workflow in its `TRACKED` list it opens one issue when the last three runs on `main` failed, with the first failing run and the last error line. It updates that issue while the job stays red and closes it after three passing runs. To add a workflow, add its file name to `TRACKED` in `scripts/red-job-tracker.mjs`.
 
@@ -124,7 +124,7 @@ The list lives in `scripts/e2e-gate-expectations.mjs`, the wait in `scripts/wait
 - **Set `timeout-minutes` per suite,** from `suite.json`, not in the workflow.
 - **Retry only infrastructure steps** (image pulls, package installs). Never retry a step that asserts behaviour. See [write an e2e test](05-write-e2e.md) for the case rules.
 - **Keep the `pr` set small.** Put every other axis value on `nightly`, `release` and `manual`. A pull request should get feedback in minutes.
-- **Failure evidence is part of the leg.** The group workflow runs `run.sh diagnostics` and uploads `tdk-e2e/<suite>/artifacts` with an `if: failure()` step, named `e2e-resource-types-<label>-<run_id>` and kept 14 days. A new group copies that step.
+- **Failure evidence is part of the leg.** The group workflow runs `run.sh diagnostics` and uploads `flisk-e2e/<suite>/artifacts` with an `if: failure()` step, named `e2e-resource-types-<label>-<run_id>` and kept 14 days. A new group copies that step.
 
 ## Checking the matrix locally
 

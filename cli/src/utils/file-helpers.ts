@@ -64,9 +64,9 @@ export function ensureDirectory(dirPath: string): void {
 /** Generated files that must never be committed: .env holds a generated DB password. */
 const GITIGNORE_ENTRIES = [
   ".env",
-  ".tdk/.tdk-out/",
-  ".tdk/.project-id",
-  ".tdk/smoke/",
+  ".flisk/.flisk-out/",
+  ".flisk/.project-id",
+  ".flisk/smoke/",
   "node_modules/",
 ];
 
@@ -105,7 +105,7 @@ export function isInsideGitWorkTree(startPath: string): boolean {
 }
 
 /**
- * Makes sure the smoke records cannot be committed by accident: the project .gitignore must ignore `.tdk/smoke/` before
+ * Makes sure the smoke records cannot be committed by accident: the project .gitignore must ignore `.flisk/smoke/` before
  * `flisk up` writes a record. Only meaningful inside a git working tree, so nothing is written outside one. Returns the
  * warning to show when the entry could not be ensured, and undefined when it is.
  */
@@ -116,6 +116,6 @@ export function ensureSmokeRecordsIgnored(projectRoot: string): string | undefin
     return undefined;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return `Could not add .tdk/smoke/ to ${resolve(projectRoot, ".gitignore")}: ${reason}. Git may track the smoke response records.`;
+    return `Could not add .flisk/smoke/ to ${resolve(projectRoot, ".gitignore")}: ${reason}. Git may track the smoke response records.`;
   }
 }

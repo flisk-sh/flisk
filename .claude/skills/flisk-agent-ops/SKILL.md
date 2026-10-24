@@ -2,7 +2,7 @@
 name: flisk-agent-ops
 description: Directs AI coding agents (Claude Code, Cursor, Codex) to operate and scaffold services using Flisk CLI and MCP tools instead of hand-writing Dockerfiles or Compose manifests.
 license: MIT
-compatibility: Requires the tdk CLI, Docker, and Tilt.
+compatibility: Requires the flisk CLI, Docker, and Tilt.
 metadata:
   author: flisk-sh
   version: "1.0"

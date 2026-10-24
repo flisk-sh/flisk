@@ -163,12 +163,12 @@ describe("groupSharedPostgres", () => {
 });
 
 describe("readProjectName", () => {
-  it("reads project.name from .tdk/project.json", () => {
+  it("reads project.name from .flisk/project.json", () => {
     const root = mkdtempSync(join(tmpdir(), "shared-infra-"));
     try {
-      mkdirSync(join(root, ".tdk"));
+      mkdirSync(join(root, ".flisk"));
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: "auth-user" } }),
       );
       expect(readProjectName(root)).toBe("auth-user");
@@ -181,8 +181,8 @@ describe("readProjectName", () => {
     const root = mkdtempSync(join(tmpdir(), "shared-infra-"));
     try {
       expect(readProjectName(root)).toBeNull();
-      mkdirSync(join(root, ".tdk"));
-      writeFileSync(join(root, ".tdk", "project.json"), "{}");
+      mkdirSync(join(root, ".flisk"));
+      writeFileSync(join(root, ".flisk", "project.json"), "{}");
       expect(readProjectName(root)).toBeNull();
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -192,23 +192,23 @@ describe("readProjectName", () => {
   it("returns null when project.json is malformed or project.name is non-string", () => {
     const root = mkdtempSync(join(tmpdir(), "shared-infra-"));
     try {
-      mkdirSync(join(root, ".tdk"));
-      writeFileSync(join(root, ".tdk", "project.json"), "{ invalid-json }");
+      mkdirSync(join(root, ".flisk"));
+      writeFileSync(join(root, ".flisk", "project.json"), "{ invalid-json }");
       expect(readProjectName(root)).toBeNull();
 
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: 1234 } }),
       );
       expect(readProjectName(root)).toBeNull();
 
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: "my-app", version: "1.0.0" }, extra: true }),
       );
       expect(readProjectName(root)).toBe("my-app");
 
-      writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ project: null }));
+      writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify({ project: null }));
       expect(readProjectName(root)).toBeNull();
     } finally {
       rmSync(root, { recursive: true, force: true });

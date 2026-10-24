@@ -1,4 +1,4 @@
-name: 🔄 Sync shared Flisk skills
+name: 🔁 Automation | Sync shared Flisk skills
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ jobs:
           path: .tmp-tdk-skills
           persist-credentials: false
       - name: Sync plugin metadata and skills
-        run: TDK_SKILLS_REPO="$GITHUB_WORKSPACE/.tmp-tdk-skills" scripts/sync-tdk-skills.sh
+        run: FLISK_SKILLS_REPO="$GITHUB_WORKSPACE/.tmp-tdk-skills" scripts/sync-tdk-skills.sh
       - name: Commit sync if changed
         run: |
           rm -rf .tmp-tdk-skills

@@ -21,18 +21,18 @@ Read these before you review. They take about an hour in total, and you only do 
 
 **How we work**
 
-- [ ] [Contributing](../../CONTRIBUTING.md): labels, issue claims, and DCO sign-off.
+- [ ] [Contributing](../../.github/CONTRIBUTING.md): labels, issue claims, and DCO sign-off.
 - [ ] [1. Get ready to make a change](01-first-change.md): when a change needs an OpenSpec proposal.
 - [ ] [2. Recipes for each kind of change](02-feature-recipes.md): where code lives and which checks each change needs.
 - [ ] [3. Open a pull request](03-open-a-pr.md): what a good PR has, including before-and-after evidence.
 
 **Rules everyone follows**
 
-- [ ] [Code of Conduct](../../CODE_OF_CONDUCT.md): how we talk to each other in reviews.
-- [ ] [Security policy](../../SECURITY.md): report security problems privately, never in a PR comment.
-- [ ] [Governance](../../GOVERNANCE.md) and [Maintainers](../../MAINTAINERS.md): who decides and who merges.
+- [ ] [Code of Conduct](../../.github/CODE_OF_CONDUCT.md): how we talk to each other in reviews.
+- [ ] [Security policy](../../.github/SECURITY.md): report security problems privately, never in a PR comment.
+- [ ] [Governance](../project/GOVERNANCE.md) and [Maintainers](../project/MAINTAINERS.md): who decides and who merges.
 
-Then try it once: run the [quick setup](../../CONTRIBUTING.md#quick-setup) so you can check out a PR and run its checks yourself.
+Then try it once: run the [quick setup](../../.github/CONTRIBUTING.md#quick-setup) so you can check out a PR and run its checks yourself.
 
 ## The short version
 
@@ -170,7 +170,7 @@ Requesting changes is not the same as closing. Only maintainers close PRs, usual
 - Label small things as `nit:` or `optional:` so the author knows they do not block the merge.
 - Review the code, not the person.
 
-Follow the [Code of Conduct](../../CODE_OF_CONDUCT.md) in every comment.
+Follow the [Code of Conduct](../../.github/CODE_OF_CONDUCT.md) in every comment.
 
 ## From the terminal (optional)
 
@@ -196,4 +196,4 @@ gh pr review 123 --request-changes --body "The new flag is never passed to the g
 
 - Anyone can comment, approve, or request changes. Every review helps maintainers decide faster.
 - You cannot approve your own PR.
-- Only [maintainers](../../MAINTAINERS.md) merge. Before merging, they check the reviews and that the required checks pass.
+- Only [maintainers](../project/MAINTAINERS.md) merge. Before merging, they check the reviews and that the required checks pass.

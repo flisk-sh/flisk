@@ -13,15 +13,15 @@ vi.setConfig({ testTimeout: 60_000 });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
-function runTdk(args: string[], cwd: string): string {
+function runFlisk(args: string[], cwd: string): string {
   return execFileSync("bun", [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
     env: {
       ...process.env,
-      TDK_EXTENSION_SOURCE: repoRoot,
+      FLISK_EXTENSION_SOURCE: repoRoot,
     },
   });
 }
@@ -36,13 +36,13 @@ describe("stack feature E2E", () => {
   });
 
   it("generates database-management compose from pre_alpha services", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-feature-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-feature-"));
 
-    const output = runTdk(["project", "--yes"], projectRoot);
+    const output = runFlisk(["project", "--yes"], projectRoot);
     expect(output).toContain("Generated: services/platform/database-management/docker-compose.yml");
 
     const projectJson = JSON.parse(
-      readFileSync(join(projectRoot, ".tdk", "project.json"), "utf-8"),
+      readFileSync(join(projectRoot, ".flisk", "project.json"), "utf-8"),
     );
     expect(projectJson.stack_features).toBeUndefined();
     expect(projectJson.phases.pre_alpha.enabledStacks).toContain("database-management");
@@ -59,14 +59,14 @@ describe("stack feature E2E", () => {
     const compose = readFileSync(composePath, "utf-8");
     expect(compose).toContain("Stack feature: database-management");
     expect(compose).toContain(
-      'Source: .tdk/project.json phases.*.enabledStacks includes "database-management"',
+      'Source: .flisk/project.json phases.*.enabledStacks includes "database-management"',
     );
-    expect(compose).toContain("container_name: tdk_stack_feature_");
+    expect(compose).toContain("container_name: flisk_stack_feature_");
     expect(compose).toContain("_postgres");
     expect(compose).toContain("_database");
-    expect(compose).toContain("$" + "{TDK_POSTGRES_PORT:-15432}:5432");
+    expect(compose).toContain("$" + "{FLISK_POSTGRES_PORT:-15432}:5432");
 
-    const spec = readFileSync(join(projectRoot, ".tdk", ".tdk-out", "spec.master"), "utf-8");
+    const spec = readFileSync(join(projectRoot, ".flisk", ".flisk-out", "spec.master"), "utf-8");
     expect(spec).toMatch(/"database-management":\s*True/);
     expect(spec).not.toContain("STACK_FEATURES");
 
@@ -75,42 +75,42 @@ describe("stack feature E2E", () => {
   });
 
   it("does not keep database-management enabled after it leaves stack services", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-feature-off-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-feature-off-"));
+    runFlisk(["project", "--yes"], projectRoot);
 
-    const projectJsonPath = join(projectRoot, ".tdk", "project.json");
+    const projectJsonPath = join(projectRoot, ".flisk", "project.json");
     const projectJson = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
     projectJson.phases.pre_alpha.enabledStacks = projectJson.phases.pre_alpha.enabledStacks.filter(
       (service: string) => service !== "database-management",
     );
     writeFileSync(projectJsonPath, `${JSON.stringify(projectJson, null, 2)}\n`);
 
-    runTdk(["project", "--yes"], projectRoot);
+    runFlisk(["project", "--yes"], projectRoot);
 
-    const spec = readFileSync(join(projectRoot, ".tdk", ".tdk-out", "spec.master"), "utf-8");
+    const spec = readFileSync(join(projectRoot, ".flisk", ".flisk-out", "spec.master"), "utf-8");
     expect(spec).not.toMatch(/"database-management":\s*True/);
     expect(spec).not.toContain("STACK_FEATURES");
   });
 
   it("dedupes a duplicated service name in project.json instead of emitting a duplicate Starlark key", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-feature-dupe-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-feature-dupe-"));
+    runFlisk(["project", "--yes"], projectRoot);
 
-    const projectJsonPath = join(projectRoot, ".tdk", "project.json");
+    const projectJsonPath = join(projectRoot, ".flisk", "project.json");
     const projectJson = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
     projectJson.phases.pre_alpha.enabledStacks.push("database-management");
     writeFileSync(projectJsonPath, `${JSON.stringify(projectJson, null, 2)}\n`);
 
-    runTdk(["project"], projectRoot);
+    runFlisk(["project"], projectRoot);
 
-    const spec = readFileSync(join(projectRoot, ".tdk", ".tdk-out", "spec.master"), "utf-8");
+    const spec = readFileSync(join(projectRoot, ".flisk", ".flisk-out", "spec.master"), "utf-8");
     const matches = spec.match(/"database-management":\s*True/g) ?? [];
     expect(matches.length).toBe(1);
   });
 
   it("adds newly discovered unassigned service stacks to pre_alpha on regeneration", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-stack-discovery-sync-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-stack-discovery-sync-"));
+    runFlisk(["project", "--yes"], projectRoot);
 
     const serviceDir = join(projectRoot, "services", "billing", "checkout-app");
     mkdirSync(serviceDir, { recursive: true });
@@ -128,14 +128,14 @@ describe("stack feature E2E", () => {
       )}\n`,
     );
 
-    runTdk(["project", "--yes"], projectRoot);
+    runFlisk(["project", "--yes"], projectRoot);
 
     const projectJson = JSON.parse(
-      readFileSync(join(projectRoot, ".tdk", "project.json"), "utf-8"),
+      readFileSync(join(projectRoot, ".flisk", "project.json"), "utf-8"),
     );
     expect(projectJson.phases.pre_alpha.enabledStacks).toContain("billing");
 
-    const spec = readFileSync(join(projectRoot, ".tdk", ".tdk-out", "spec.master"), "utf-8");
+    const spec = readFileSync(join(projectRoot, ".flisk", ".flisk-out", "spec.master"), "utf-8");
     expect(spec).toMatch(/"billing":\s*True/);
   });
 });

@@ -10,17 +10,17 @@
 load('../../../../topologies/tilt/common/utils.star', 'Utils')
 
 # Load npm scope from project.json (or use project name as default)
-# Use TDK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
 def _load_npm_scope():
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    project_json_path = '.tdk/project.json'
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = '.flisk/project.json'
     if project_root:
         project_json_path = project_root + '/' + project_json_path
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'tdk-project')
-    return 'tdk-project'
+        return _project_json.get('project', {}).get('name', 'flisk-project')
+    return 'flisk-project'
 
 _NPM_SCOPE = _load_npm_scope()
 # =============================================================================
@@ -156,7 +156,7 @@ def generate_proxy_block(api_base_path, backend_port, additional_routes, stack='
 
 
 def generate_backend_path_aliases(resource_path, manifest):
-    """Generate TypeScript path aliases for DDD architecture (Premium - requires TDK_LICENSE_KEY)."""
+    """Generate TypeScript path aliases for DDD architecture (Premium - requires FLISK_LICENSE_KEY)."""
     lines = []
 
     # DDD is a premium feature: requires both "ddd" in the resource's service.json
@@ -166,7 +166,7 @@ def generate_backend_path_aliases(resource_path, manifest):
     # hand-edited features: ["ddd"] with no key at all is still blocked, but real
     # entitlement is checked client-side by hasDddLicense() in extension-fetch.ts
     # before the CLI ever writes "ddd" into a resource's features array.
-    ddd_enabled = 'ddd' in manifest.get('featuresEnabled', []) and os.environ.get('TDK_LICENSE_KEY', '') != ''
+    ddd_enabled = 'ddd' in manifest.get('featuresEnabled', []) and os.environ.get('FLISK_LICENSE_KEY', '') != ''
 
     if ddd_enabled:
         ddd_aliases = [

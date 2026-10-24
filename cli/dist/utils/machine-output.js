@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { TdkError } from "./errors.js";
+import { FliskError } from "./errors.js";
 export const SCHEMA_VERSION = 1;
 export function createMachineEnvelope(data, errors = []) {
     return { schemaVersion: SCHEMA_VERSION, data, errors };
@@ -33,7 +33,7 @@ export function isMachineOutputEnvelope(value) {
     return envelope.errors.every(isMachineError);
 }
 export function toMachineError(error) {
-    if (error instanceof TdkError) {
+    if (error instanceof FliskError) {
         return {
             error: {
                 code: "COMMAND_FAILED",

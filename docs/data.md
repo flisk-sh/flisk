@@ -13,9 +13,9 @@ Flisk runs **one** Postgres container for the whole project. The generated `DATA
 | Password | `DB_PASSWORD` in the project `.env` | |
 | Database | `<project>_<stack>` (read from the generated `DATABASE_URL`) | `my_shop_store` |
 | Volume | `database-management_<project>_postgres_data` | `database-management_my_shop_postgres_data` |
-| Host port | `15432`, or `TDK_POSTGRES_PORT` | |
+| Host port | `15432`, or `FLISK_POSTGRES_PORT` | |
 
-`<project>` is `project.name` from `.tdk/project.json` with `-` replaced by `_`. The same rule applies to the stack name. The volume name was read from existing volumes on a machine that had run Flisk (for example `database-management_auth_user_postgres_data` for project `auth-user`), so check yours with `docker volume ls | grep postgres_data`. The database name was read from the generated Compose `DATABASE_URL` (for project `pilot`, stack `shop`: `.../pilot_shop`), not from a running container: list the real ones with `docker exec <container> psql -U <user> -d postgres -c '\l'`.
+`<project>` is `project.name` from `.flisk/project.json` with `-` replaced by `_`. The same rule applies to the stack name. The volume name was read from existing volumes on a machine that had run Flisk (for example `database-management_auth_user_postgres_data` for project `auth-user`), so check yours with `docker volume ls | grep postgres_data`. The database name was read from the generated Compose `DATABASE_URL` (for project `pilot`, stack `shop`: `.../pilot_shop`), not from a running container: list the real ones with `docker exec <container> psql -U <user> -d postgres -c '\l'`.
 
 ## Does it survive `flisk down`?
 

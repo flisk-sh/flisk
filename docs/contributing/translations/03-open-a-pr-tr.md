@@ -9,7 +9,7 @@ Bir komut aksini belirtmedikçe kontrolleri depo kökünden çalıştırın.
 | Değişiklik | Çalıştırılacak kontroller |
 |---|---|
 | CLI kodu veya üretilen CLI davranışı | `bun run typecheck`, `bun run lint`, `bun run test` |
-| CLI testlerinde kullanılan engine/Starlark üreticisi | `bun run typecheck`, `bun run lint` ve `cd cli && TDK_REQUIRE_TILT=1 npm test` çalıştırın. CI test işi Tilt'i kurar ve bu bayrağı ayarlar. |
+| CLI testlerinde kullanılan engine/Starlark üreticisi | `bun run typecheck`, `bun run lint` ve `cd cli && FLISK_REQUIRE_TILT=1 npm test` çalıştırın. CI test işi Tilt'i kurar ve bu bayrağı ayarlar. |
 | Python engine test alanı | Test bağımlılıklarını bir kez `python3 -m pip install -r tests/requirements.txt` ile kurun, ardından ilgili test dosyasını `pytest` ile veya bu test grubu için `make test-tilt-engine` ile çalıştırın. Bazı testler temiz bir checkout'ta da başarısız olabilir; hangileri ve neden olduğu için #700'e bakın. Bu Python kontrolleri `.github/workflows/ci.yml` tarafından çalıştırılmaz. |
 | Yalnızca dokümantasyon | Değiştirdiğiniz bağlantıları ve komutları kontrol edin; sayfayı yeni başlayan biri gibi bir kez baştan sona okuyun. |
 
@@ -23,7 +23,7 @@ Bir kontrolü çalıştırmadıysanız geçtiğini söylemeyin. Çalıştıramı
 
 Bir hata düzeltmesi veya davranış değişikliği için mümkünse `main` ve kendi dalınızda aynı adımları çalıştırın. Gerçek önce-sonra çıktısını yapıştırın; hafızanızdan yeniden oluşturmayın. Komutu, projeyi veya test verisini ve tekrarlamak için gereken kurulumu ekleyin. Issue'da adı geçen boş, hata veya kurtarma durumlarını da kapsayın.
 
-Derlenmiş CLI giriş noktasını test ediyorsanız eski derlenmiş dosyaları kullanmamak için önce `bun run build` çalıştırın. `flisk ui` gibi etkileşimli komutları gerçek bir terminalde kontrol edin. Otomatik test yoksa nedenini açıklayın ve testi eklemek için bir issue bağlayın. Yeni davranış ve hata düzeltmeleri aynı pull request içinde testler gerektirir; ayrıntılar için [CONTRIBUTING.md içindeki testlere](../../../CONTRIBUTING.md#tests) bakın.
+Derlenmiş CLI giriş noktasını test ediyorsanız eski derlenmiş dosyaları kullanmamak için önce `bun run build` çalıştırın. `flisk ui` gibi etkileşimli komutları gerçek bir terminalde kontrol edin. Otomatik test yoksa nedenini açıklayın ve testi eklemek için bir issue bağlayın. Yeni davranış ve hata düzeltmeleri aynı pull request içinde testler gerektirir; ayrıntılar için [CONTRIBUTING.md içindeki testlere](../../../.github/CONTRIBUTING.md#tests) bakın.
 
 ## Dalınızı gönderin
 

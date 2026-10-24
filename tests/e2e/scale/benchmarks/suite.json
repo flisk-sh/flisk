@@ -8,7 +8,7 @@
     "discovery/**",
     "Tiltfile",
     "scripts/benchmark/**",
-    "benchmarks/results/**",
+    "docs/benchmarks/results/**",
     "tests/e2e/lib/**",
     "tests/e2e/scale/benchmarks/**",
     ".github/workflows/benchmarks.yml"

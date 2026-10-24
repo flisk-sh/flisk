@@ -4,7 +4,7 @@
 # 🛠️ TILT SDK - DEBUG UTILITIES
 # =============================================================================
 
-DEBUG_MODE = (os.environ.get('TDK_DEBUG') or os.environ.get('TILT_DEBUG', 'false')).lower() in ['true', '1', 'yes']
+DEBUG_MODE = (os.environ.get('FLISK_DEBUG') or os.environ.get('TILT_DEBUG', 'false')).lower() in ['true', '1', 'yes']
 
 
 def debug_log(message, data=None):

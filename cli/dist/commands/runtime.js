@@ -4,6 +4,7 @@ import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { findCliAssetRoot, loadTemplate } from "../generator/template-engine.js";
+import { EXTENSION_DIRS, resolveExtensionDir } from "../utils/runtime-layout.js";
 const REQUIRED_ASSET_PATHS = [
     { path: "Tiltfile", directory: false },
     { path: "engine", directory: true },
@@ -13,6 +14,7 @@ const REQUIRED_ASSET_PATHS = [
     { path: "cli/templates", directory: true },
     { path: "shared-platform-engineering/docker-templates", directory: true },
 ];
+const EXTENSION_NAMES = new Set(EXTENSION_DIRS);
 const REQUIRED_TEMPLATES = [
     ".tiltignore.hbs",
     "TILT_RESOURCE_DEFAULTS.star.hbs",
@@ -35,7 +37,9 @@ export const runtimeCommand = new Command("runtime")
     const missing = assetRoot
         ? REQUIRED_ASSET_PATHS.filter(({ path, directory }) => {
             try {
-                const stats = statSync(join(assetRoot, path));
+                const stats = statSync(EXTENSION_NAMES.has(path)
+                    ? resolveExtensionDir(assetRoot, path)
+                    : join(assetRoot, path));
                 return directory ? !stats.isDirectory() : !stats.isFile();
             }
             catch {

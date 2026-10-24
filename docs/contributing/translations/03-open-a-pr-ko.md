@@ -9,7 +9,7 @@
 | 변경 | 실행할 검사 |
 |---|---|
 | CLI 코드 또는 생성되는 CLI 동작 | `bun run typecheck`, `bun run lint`, `bun run test` |
-| CLI 테스트에서 사용하는 엔진/Starlark 생성기 | `bun run typecheck`, `bun run lint`, `cd cli && TDK_REQUIRE_TILT=1 npm test`를 실행하세요. CI 테스트 작업은 Tilt를 설치하고 이 플래그를 설정합니다. |
+| CLI 테스트에서 사용하는 엔진/Starlark 생성기 | `bun run typecheck`, `bun run lint`, `cd cli && FLISK_REQUIRE_TILT=1 npm test`를 실행하세요. CI 테스트 작업은 Tilt를 설치하고 이 플래그를 설정합니다. |
 | Python 엔진 테스트 영역 | 한 번 `python3 -m pip install -r tests/requirements.txt`로 테스트 패키지를 설치한 뒤, 관련 테스트 파일을 `pytest`로 실행하거나 해당 스위트에서는 `make test-tilt-engine`을 실행하세요. 일부 테스트는 깨끗한 체크아웃에서도 실패합니다. 어떤 테스트가 왜 실패하는지는 #700을 보세요. 이 Python 검사는 `.github/workflows/ci.yml`에서 실행되지 않습니다. |
 | 문서만 변경 | 바꾼 링크와 명령을 확인하세요. 초보자의 시선으로 페이지를 한 번 읽어보세요. |
 
@@ -23,7 +23,7 @@
 
 버그 수정이나 동작 변경이라면 가능한 한 `main`과 내 브랜치에서 같은 단계를 실행하세요. 실제 변경 전후 출력을 붙여 넣고, 기억에서 재구성하지 마세요. 명령, 프로젝트 또는 픽스처, 재현에 필요한 설정을 포함하세요. issue에 언급된 빈 상태, 오류 상태, 복구 상태도 다루세요.
 
-빌드된 CLI 진입점을 테스트한다면 오래된 컴파일 파일을 쓰지 않도록 먼저 `bun run build`를 실행하세요. `flisk ui` 같은 대화형 명령은 실제 터미널에서 확인하세요. 자동화 테스트가 없다면 이유를 설명하고 테스트를 추가할 issue를 연결하세요. 새 동작과 버그 수정에는 같은 pull request에 테스트가 필요합니다. 자세한 내용은 [CONTRIBUTING.md의 테스트](../../../CONTRIBUTING.md#tests)를 보세요.
+빌드된 CLI 진입점을 테스트한다면 오래된 컴파일 파일을 쓰지 않도록 먼저 `bun run build`를 실행하세요. `flisk ui` 같은 대화형 명령은 실제 터미널에서 확인하세요. 자동화 테스트가 없다면 이유를 설명하고 테스트를 추가할 issue를 연결하세요. 새 동작과 버그 수정에는 같은 pull request에 테스트가 필요합니다. 자세한 내용은 [CONTRIBUTING.md의 테스트](../../../.github/CONTRIBUTING.md#tests)를 보세요.
 
 ## 브랜치 push하기
 

@@ -1,8 +1,8 @@
 # 为 Flisk 做贡献
 
-[English](../../../CONTRIBUTING.md) | 简体中文 | [繁體中文](CONTRIBUTING-zh_tw.md) | [日本語](CONTRIBUTING-ja.md) | [한국어](CONTRIBUTING-ko.md)
+[English](../../../.github/CONTRIBUTING.md) | 简体中文 | [繁體中文](CONTRIBUTING-zh_tw.md) | [日本語](CONTRIBUTING-ja.md) | [한국어](CONTRIBUTING-ko.md)
 
-> 本页是 [CONTRIBUTING.md](../../../CONTRIBUTING.md) 的翻译。如有不一致，以英文版为准。链接的指南目前只有英文版。
+> 本页是 [CONTRIBUTING.md](../../../.github/CONTRIBUTING.md) 的翻译。如有不一致，以英文版为准。链接的指南目前只有英文版。
 
 欢迎！小修复和大功能都很有价值。先从简短的[贡献者指南](../README.md)开始：它会带你完成找到要改的内容、动手修改、检查结果，以及提交 pull request 的全过程。
 
@@ -86,16 +86,16 @@ bun run typecheck && bun run lint && bun run test   # 约一分钟；在你修�
 
 ## 签署你的提交
 
-每个提交都需要 [Developer Certificate of Origin](../../../DCO) 签署。使用 `git commit -s` 添加，它会追加 `Signed-off-by: Your Name <you@example.com>`。要修复已有的提交，请运行 `git rebase --signoff origin/main` 并强制推送你的分支。如果某个提交缺少这一行，pull request 检查会失败。
+每个提交都需要 [Developer Certificate of Origin](../../project/DCO) 签署。使用 `git commit -s` 添加，它会追加 `Signed-off-by: Your Name <you@example.com>`。要修复已有的提交，请运行 `git rebase --signoff origin/main` 并强制推送你的分支。如果某个提交缺少这一行，pull request 检查会失败。
 
 ## 把你的团队加入采用者列表
 
-在你自己的仓库中使用 Flisk？你可以通过两种方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：打开 [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue 表单，或在 pull request 中向表格添加一行。[What counts](../../../ADOPTERS.md#what-counts) 说明了应该链接什么，以及什么不算。
+在你自己的仓库中使用 Flisk？你可以通过两种方式被列入 [ADOPTERS.md](../../project/ADOPTERS.md)：打开 [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue 表单，或在 pull request 中向表格添加一行。[What counts](../../project/ADOPTERS.md#what-counts) 说明了应该链接什么，以及什么不算。
 
 ## 治理
 
-请参阅 [GOVERNANCE.md](../../../GOVERNANCE.md) 了解如何做出决定以及如何增加维护者，[MAINTAINERS.md](../../../MAINTAINERS.md) 了解谁可以合并，[ADOPTERS.md](../../../ADOPTERS.md) 了解哪些团队在使用 Flisk。
+请参阅 [GOVERNANCE.md](../../project/GOVERNANCE.md) 了解如何做出决定以及如何增加维护者，[MAINTAINERS.md](../../project/MAINTAINERS.md) 了解谁可以合并，[ADOPTERS.md](../../project/ADOPTERS.md) 了解哪些团队在使用 Flisk。
 
 ## 友善待人
 
-参与即表示你同意遵守[行为准则](../../../CODE_OF_CONDUCT.md)。请使用 [SECURITY.md](../../../SECURITY.md) 私下报告安全问题，不要在公开 issue 中报告。
+参与即表示你同意遵守[行为准则](../../../.github/CODE_OF_CONDUCT.md)。请使用 [SECURITY.md](../../../.github/SECURITY.md) 私下报告安全问题，不要在公开 issue 中报告。

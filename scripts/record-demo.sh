@@ -30,7 +30,7 @@ type_cmd() {
 
 clear; sleep 0.5
 type_cmd "flisk project --yes"
-flisk project --yes 2>&1 | tidy | grep --line-buffered -E "Initializing|✓ Created: .tdk/project|Generated: .tdk/.tdk-out/Tiltfile|docker-compose|✅"
+flisk project --yes 2>&1 | tidy | grep --line-buffered -E "Initializing|✓ Created: .flisk/project|Generated: .flisk/.flisk-out/Tiltfile|docker-compose|✅"
 sleep 1.8
 type_cmd "flisk resource orders-api --type backend --stack shop"
 printf 'y\n' | flisk resource orders-api --type backend --stack shop 2>&1 | tidy | grep --line-buffered -E "Port:|Path:|Dockerfile|backend source|test file|✅"

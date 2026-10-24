@@ -7,17 +7,17 @@ load('../config/healthcheck.star', 'DOCKER_HEALTHCHECK', 'dockerfile_healthcheck
 
 
 # Load project name for dynamic naming
-# Use TDK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
 def _load_golden_prefix():
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    project_json_path = '.tdk/project.json'
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = '.flisk/project.json'
     if project_root:
         project_json_path = project_root + '/' + project_json_path
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'tdk-project')
-    return 'tdk-project'
+        return _project_json.get('project', {}).get('name', 'flisk-project')
+    return 'flisk-project'
 
 _GOLDEN_PREFIX = _load_golden_prefix()
 
@@ -166,9 +166,9 @@ ENV BUN_OPTIONS=--smol
 USER bun
 
 # Backend-specific healthcheck: probes the service over HTTP. The image is shared by every backend,
-# so the port and path come from the container env (PORT is set by compose, TDK_HEALTH_PATH is optional).
+# so the port and path come from the container env (PORT is set by compose, FLISK_HEALTH_PATH is optional).
 HEALTHCHECK {hc_flags} \
-  CMD bun -e "fetch('http://127.0.0.1:'+process.env.PORT+(process.env.TDK_HEALTH_PATH||'/health')).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" || exit 1
+  CMD bun -e "fetch('http://127.0.0.1:'+process.env.PORT+(process.env.FLISK_HEALTH_PATH||'/health')).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" || exit 1
 
 WORKDIR /app
 
@@ -197,7 +197,7 @@ USER app
 
 # Backend-specific healthcheck: probes the service over HTTP (port and path from container env, see the Bun stage)
 HEALTHCHECK {hc_flags} \
-  CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+(process.env.TDK_HEALTH_PATH||'/health')).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" || exit 1
+  CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+(process.env.FLISK_HEALTH_PATH||'/health')).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" || exit 1
 
 WORKDIR /app
 

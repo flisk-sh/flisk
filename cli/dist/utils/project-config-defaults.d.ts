@@ -1,7 +1,7 @@
 /**
  * Defaults shared by project generation and CLI predicates.
  *
- * Source of truth for `always_enabled_infra` when `.tdk/project.json` omits
+ * Source of truth for `always_enabled_infra` when `.flisk/project.json` omits
  * the field. The generator bakes this into the Tiltfile
  * (`Tiltfile.hbs` → `ALWAYS_ENABLED_INFRA`); `should_enable` then returns
  * `RESOURCE_DEFAULTS.get(name, True)` for names in that list — so an omitted

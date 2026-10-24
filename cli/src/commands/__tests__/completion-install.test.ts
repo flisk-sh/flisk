@@ -43,7 +43,7 @@ describe("flisk completion --install and --output", () => {
   let previousPsModulePath: string | undefined;
 
   beforeEach(() => {
-    workDir = mkdtempSync(join(tmpdir(), "tdk-completion-"));
+    workDir = mkdtempSync(join(tmpdir(), "flisk-completion-"));
     home.dir = join(workDir, "home");
     mkdirSync(home.dir, { recursive: true });
     previousShell = process.env.SHELL;
@@ -77,11 +77,11 @@ describe("flisk completion --install and --output", () => {
   it("installs the bash script under ~/.bash_completion.d and prints the source line", async () => {
     const { stdout } = await runCompletion(["bash", "--install"]);
 
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
-    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _tdk_completions flisk");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
+    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _flisk_completions flisk");
     expect(stdout).toContain("Installed bash completion to:");
     expect(stdout).toContain(installPath);
-    expect(stdout).toContain("source ~/.bash_completion.d/tdk-completion.bash");
+    expect(stdout).toContain("source ~/.bash_completion.d/flisk-completion.bash");
   });
 
   it("reuses an existing bash completion directory", async () => {
@@ -89,13 +89,13 @@ describe("flisk completion --install and --output", () => {
 
     await runCompletion(["bash", "--install"]);
 
-    expect(existsSync(join(home.dir, ".bash_completion.d", "tdk-completion.bash"))).toBe(true);
+    expect(existsSync(join(home.dir, ".bash_completion.d", "flisk-completion.bash"))).toBe(true);
   });
 
   it("installs the zsh script under ~/.zsh/completions and prints the fpath hint", async () => {
     const { stdout } = await runCompletion(["zsh", "--install"]);
 
-    const installPath = join(home.dir, ".zsh", "completions", "_tdk");
+    const installPath = join(home.dir, ".zsh", "completions", "_flisk");
     expect(readFileSync(installPath, "utf-8")).toContain("#compdef flisk");
     expect(stdout).toContain("Installed zsh completion to:");
     expect(stdout).toContain("fpath+=(~/.zsh/completions)");
@@ -105,7 +105,7 @@ describe("flisk completion --install and --output", () => {
   it("installs the fish script under ~/.config/fish/completions", async () => {
     const { stdout } = await runCompletion(["fish", "--install"]);
 
-    const installPath = join(home.dir, ".config", "fish", "completions", "tdk.fish");
+    const installPath = join(home.dir, ".config", "fish", "completions", "flisk.fish");
     expect(readFileSync(installPath, "utf-8")).toContain("complete -c flisk");
     expect(stdout).toContain("Installed fish completion to:");
     expect(stdout).toContain("Fish completions loaded automatically");

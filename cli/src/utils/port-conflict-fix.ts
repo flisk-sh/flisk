@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 /** The env var that moves each host port Flisk publishes. Services publish no host ports, so only these conflict. */
 const PORT_ENV_VARS: Record<string, string> = {
-  "80": "TDK_HTTP_PORT",
-  "443": "TDK_HTTPS_PORT",
-  "5432": "TDK_POSTGRES_PORT",
+  "80": "FLISK_HTTP_PORT",
+  "443": "FLISK_HTTPS_PORT",
+  "5432": "FLISK_POSTGRES_PORT",
 };
 
 /**

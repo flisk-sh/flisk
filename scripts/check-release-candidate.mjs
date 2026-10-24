@@ -20,6 +20,7 @@ export const RELEASE_INPUTS = [
   "discovery/**",
   "specs/**",
   "ext/**",
+  "runtime/**",
   "shared-platform-engineering/docker-templates/**",
 ];
 

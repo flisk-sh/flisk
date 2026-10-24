@@ -10,7 +10,7 @@ _DOTENV_NAME_REST = _DOTENV_NAME_FIRST + '0123456789'
 
 # The environment variable `flisk up --env-file <path>` sets. The CLI resolves the path and
 # exports it, so the engine reads one file for the whole run.
-PROJECT_ENV_FILE_VAR = 'TDK_ENV_FILE'
+PROJECT_ENV_FILE_VAR = 'FLISK_ENV_FILE'
 
 
 def _is_dotenv_name(name):
@@ -63,7 +63,7 @@ def _dotenv_value(raw):
 def project_env_file(project_root=''):
     """The project env file of this run.
 
-    `flisk up --env-file <path>` exports TDK_ENV_FILE, and the run then reads that file instead of the
+    `flisk up --env-file <path>` exports FLISK_ENV_FILE, and the run then reads that file instead of the
     project `.env` - for the Tilt environment and for the Compose interpolation alike. Without the
     variable the project `.env` is used, which is what every run did before the option existed.
 
@@ -79,15 +79,15 @@ def project_env_file(project_root=''):
 def load_dotenv(project_root=''):
     """Load the project env file of this run into os.environ.
 
-    The Tiltfile lives in `.tdk/.tdk-out/`, so a bare `.env` lookup misses the
-    project-root file. Prefer an explicit project_root, then TDK_PROJECT_ROOT.
+    The Tiltfile lives in `.flisk/.flisk-out/`, so a bare `.env` lookup misses the
+    project-root file. Prefer an explicit project_root, then FLISK_PROJECT_ROOT.
 
     The file is read with `read_file` and parsed here: nothing goes through a shell, so a path containing a quote is fine, and Tilt
     re-evaluates the Tiltfile when the .env changes. Lines may be `NAME=value` or `export NAME=value`; comments, blank lines and
     lines that are not an assignment to a valid name are ignored. A missing file does nothing.
     """
     if not project_root:
-        project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+        project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
     env_path = project_env_file(project_root)
     content = str(read_file(env_path, default=''))
     if not content:

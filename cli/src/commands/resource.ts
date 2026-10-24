@@ -53,7 +53,7 @@ import {
   isPathDiscovered,
   readDiscoveryPaths,
 } from "../utils/discovery-paths.js";
-import { errorFactories, requireProjectRoot, runCommand, TdkError } from "../utils/errors.js";
+import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import { assignPort } from "../utils/port-assignment.js";
@@ -152,15 +152,15 @@ export function resolveResourcePort(
   const flag = resourceType === BRING_YOUR_OWN_TYPE ? "BYO --port" : "--port";
   const subject = resourceType === BRING_YOUR_OWN_TYPE ? "BYO port" : "Port";
   if (!/^\d+$/.test(value)) {
-    throw new TdkError(`${flag} must be an integer from ${min} through ${max}.`);
+    throw new FliskError(`${flag} must be an integer from ${min} through ${max}.`);
   }
 
   const port = Number(value);
   if (!Number.isInteger(port) || port < min || port > max) {
-    throw new TdkError(`${flag} must be an integer from ${min} through ${max}.`);
+    throw new FliskError(`${flag} must be an integer from ${min} through ${max}.`);
   }
   if (resources.some((resource) => resource.config?.port === port)) {
-    throw new TdkError(`${subject} ${port} is already assigned to another resource.`);
+    throw new FliskError(`${subject} ${port} is already assigned to another resource.`);
   }
   return port;
 }
@@ -432,7 +432,7 @@ export function parseResourceType(type: string): CreatableResourceType | "sdk" {
   const normalized = type === "byo" ? BRING_YOUR_OWN_TYPE : type;
   const validTypes: readonly string[] = [...RESOURCE_TYPE_VALUES];
   if (!validTypes.includes(normalized)) {
-    throw new TdkError(
+    throw new FliskError(
       `Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`,
       [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"],
     );
@@ -453,7 +453,7 @@ type ExistingServiceConfig = {
 /**
  * Parse an existing `service.json` manifest.
  *
- * Wraps JSON syntax errors in a `TdkError` that names the offending file, so a malformed manifest
+ * Wraps JSON syntax errors in a `FliskError` that names the offending file, so a malformed manifest
  * is reported as a CLI error instead of an unhandled `SyntaxError`. Only the JSON syntax is
  * checked here: the manifest fields themselves are not validated, and a syntactically valid file
  * is returned as-is, including unknown or missing fields.
@@ -461,7 +461,7 @@ type ExistingServiceConfig = {
  * @param content - The raw contents of the `service.json` file.
  * @param configPath - Path to the manifest, used in the error message.
  * @returns The parsed manifest.
- * @throws TdkError When the content is not valid JSON.
+ * @throws FliskError When the content is not valid JSON.
  */
 export function parseExistingServiceJson(
   content: string,
@@ -471,7 +471,7 @@ export function parseExistingServiceJson(
     return JSON.parse(content) as ExistingServiceConfig;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new TdkError(`Could not parse service.json at ${configPath}: ${reason}`);
+    throw new FliskError(`Could not parse service.json at ${configPath}: ${reason}`);
   }
 }
 
@@ -496,7 +496,7 @@ function printFrameworkInventory(
 
   const resourceType = parseResourceType(options.type ?? "backend");
   if (resourceType !== "frontend" && resourceType !== "backend") {
-    throw new TdkError(`No frameworks are registered for --type ${resourceType}.`, [
+    throw new FliskError(`No frameworks are registered for --type ${resourceType}.`, [
       "Use --type frontend or --type backend to list frameworks",
       "Omit --type to list the frontend frameworks",
     ]);
@@ -552,7 +552,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .option("--register-existing", "Register an existing resource without creating templates")
   .option(
     "--ddd",
-    "Scaffold DDD (domain-driven design) folders + path aliases (Premium - requires TDK_LICENSE_KEY)",
+    "Scaffold DDD (domain-driven design) folders + path aliases (Premium - requires FLISK_LICENSE_KEY)",
   )
   .option("--dockerfile <path>", "Path to Dockerfile relative to resource dir (for bring-your-own)")
   .option("--health-path <path>", "HTTP health check path (for bring-your-own)", "/health")
@@ -594,7 +594,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
 
       let resourceName = name;
       if (!resourceName && options.yes) {
-        throw new TdkError("A resource name is required when using --yes.", [
+        throw new FliskError("A resource name is required when using --yes.", [
           "Pass the name explicitly, for example: flisk resource api --yes.",
         ]);
       }
@@ -616,7 +616,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         resourceType !== "agent" &&
         (options.runtime !== undefined || options.durability !== undefined)
       ) {
-        throw new TdkError("--runtime and --durability can only be used with --type agent.", [
+        throw new FliskError("--runtime and --durability can only be used with --type agent.", [
           "Drop --runtime and --durability, or pass --type agent",
         ]);
       }
@@ -708,7 +708,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
           if (!granted) {
             throw new Error(
               "DDD scaffolding is a Premium feature and requires a license key that grants it. " +
-                "Set export TDK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
+                "Set export FLISK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
             );
           }
           dddEnabled = true;
@@ -728,7 +728,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         if (existingStacks.length > 0) {
           if (options.yes) {
             if (existingStacks.length > 1) {
-              throw new TdkError("Multiple stacks exist; specify --stack when using --yes.", [
+              throw new FliskError("Multiple stacks exist; specify --stack when using --yes.", [
                 `Available stacks: ${existingStacks.join(", ")}`,
               ]);
             }
@@ -814,12 +814,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
       const hasServiceJson = existsSync(resolve(fullPath, SERVICE_JSON));
 
       if (options.port !== undefined && resourceType === "sdk") {
-        throw new TdkError("--port does not apply to --type sdk.", [
+        throw new FliskError("--port does not apply to --type sdk.", [
           "Drop --port, or use a service type",
         ]);
       }
       if (resourceType === "sdk" && !hasServiceJson) {
-        throw new TdkError(`No service.json in ${finalResourcePath}`, [
+        throw new FliskError(`No service.json in ${finalResourcePath}`, [
           'Add one with "appType": "sdk", then run this again to register it',
         ]);
       }
@@ -842,12 +842,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
             );
       if (options.restart !== undefined) {
         if (resourceType !== BRING_YOUR_OWN_TYPE) {
-          throw new TdkError("--restart can only be used with --type bring-your-own.", [
+          throw new FliskError("--restart can only be used with --type bring-your-own.", [
             "Add --type bring-your-own, or drop --restart",
           ]);
         }
         if (!BYO_RESTART_POLICIES.includes(options.restart)) {
-          throw new TdkError(`Unknown --restart policy "${options.restart}".`, [
+          throw new FliskError(`Unknown --restart policy "${options.restart}".`, [
             `Use one of: ${BYO_RESTART_POLICIES.join(", ")}`,
           ]);
         }
@@ -858,7 +858,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         requestedFeatures.includes("drizzle") &&
         (resourceType !== "backend" || backendLanguage?.createFiles)
       ) {
-        throw new TdkError("--feature drizzle is only supported for Bun backends.", [
+        throw new FliskError("--feature drizzle is only supported for Bun backends.", [
           "Use --type backend without --language, or drop --feature drizzle",
         ]);
       }
@@ -1294,7 +1294,7 @@ This file contains the resource configuration for Flisk.
         console.log(
           chalk.yellow(
             `\n📁 Placed in ${finalResourcePath} instead of the usual ${pathAdjustedFrom}: ` +
-              `discovery.paths in .tdk/project.json is ${JSON.stringify(discoveryPaths)}, ` +
+              `discovery.paths in .flisk/project.json is ${JSON.stringify(discoveryPaths)}, ` +
               `so ${pathAdjustedFrom} would never be started by \`flisk up\`.`,
           ),
         );
@@ -1308,7 +1308,7 @@ This file contains the resource configuration for Flisk.
         );
         console.log(
           chalk.gray(
-            "   Add a matching pattern to discovery.paths in .tdk/project.json and run `flisk config regenerate`.",
+            "   Add a matching pattern to discovery.paths in .flisk/project.json and run `flisk config regenerate`.",
           ),
         );
       }

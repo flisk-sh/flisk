@@ -12,8 +12,9 @@ import { STANDARD_PORTS } from "../utils/constants.js";
 import { getDeferredResourceNames, summarizeTiltBuildError } from "../utils/doctor-runtime.js";
 import { applyEnvFileSelection, assertEngineSupportsEnvFile, EnvFileError, envFileWarning, PROJECT_ENV_FILE_VAR, selectEnvFile, } from "../utils/env-selection.js";
 import { completeEnvFile } from "../utils/env-validator.js";
-import { errorFactories, getErrorMessage, handleTiltFailure, requireProjectRoot, runCommand, showError, showErrorAndExit, TdkError, withTiltCheck, } from "../utils/errors.js";
+import { errorFactories, FliskError, getErrorMessage, handleTiltFailure, requireProjectRoot, runCommand, showError, showErrorAndExit, withTiltCheck, } from "../utils/errors.js";
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
+import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
 import { exportHostPortPlan, getHostPortPlan, writeSavedHostPortPlan, } from "../utils/host-port-config.js";
 import { formatHostPortPlan } from "../utils/host-port-plan.js";
@@ -30,7 +31,6 @@ import { appendHealthPath, resolveSubdomainBases } from "../utils/service-urls.j
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, formatStartupReport, isStartupStalled, } from "../utils/startup-report.js";
-import { evaluateTdkVersionFloor } from "../utils/tdk-version.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
@@ -87,7 +87,7 @@ export function driftReport(projectRoot, resources) {
             : undefined));
     }
     catch (error) {
-        // A project with no .tdk/project.json has no snapshots to compare. Anything else (a corrupt config) must not skip the gate.
+        // A project with no .flisk/project.json has no snapshots to compare. Anything else (a corrupt config) must not skip the gate.
         if (error instanceof ProjectConfigNotFoundError)
             return null;
         throw error;
@@ -117,16 +117,16 @@ export function enforceDriftGate(projectRoot, options, exit = process.exit) {
     exit(DRIFT_EXIT_CODE);
 }
 /**
- * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minTdkVersion` in
- * .tdk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
- * `ignoreVersion` skips the check and says so. No minTdkVersion means no check.
+ * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minFliskVersion` in
+ * .flisk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
+ * `ignoreVersion` skips the check and says so. No minFliskVersion means no check.
  */
 export function enforceVersionFloor(projectRoot, options, currentVersion = getPackageVersion(), exit = process.exit) {
     if (options.ignoreVersion) {
-        console.warn(chalk.yellow("Warning: --ignore-version set; minTdkVersion was not checked."));
+        console.warn(chalk.yellow("Warning: --ignore-version set; minFliskVersion was not checked."));
         return;
     }
-    const floor = evaluateTdkVersionFloor(projectRoot, currentVersion);
+    const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
     if (floor.status === "none" || floor.status === "ok")
         return;
     options.onFail?.(`${floor.message}\n${floor.fix}`);
@@ -171,7 +171,7 @@ function waitForTiltUi(port, timeoutMs = 30_000) {
  * file is resolved, read and checked before anything is written or started. Without the option the
  * project `.env` stays the env file of the run, exactly as before.
  *
- * @throws TdkError when the file cannot be used; the run stops before it starts
+ * @throws FliskError when the file cannot be used; the run stops before it starts
  */
 export function selectRunEnvFile(projectRoot, requested) {
     if (requested === undefined)
@@ -187,14 +187,14 @@ export function selectRunEnvFile(projectRoot, requested) {
 }
 /** The machine-readable failure of a refused `--env-file`, and the exit code it stops the run with. */
 function envFileFailure(error) {
-    const suggestions = error instanceof TdkError ? error.suggestions : [];
+    const suggestions = error instanceof FliskError ? error.suggestions : [];
     return {
         failure: {
             code: error instanceof EnvFileError ? error.code : "ENV_FILE_INVALID",
             message: getErrorMessage(error),
             ...(suggestions.length > 0 ? { suggestions } : {}),
         },
-        exitCode: error instanceof TdkError ? error.exitCode : 2,
+        exitCode: error instanceof FliskError ? error.exitCode : 2,
     };
 }
 export const upCommand = new Command("up")
@@ -206,7 +206,7 @@ export const upCommand = new Command("up")
     .option("--dry-run", "Show what would be started without starting", false)
     .option("-f, --force", "Kill existing Tilt process before starting", false)
     .option("--ignore-drift", "Start even if generated files differ from service.json", false)
-    .option("--ignore-version", "Start even if this flisk is older than minTdkVersion in .tdk/project.json", false)
+    .option("--ignore-version", "Start even if this flisk is older than minFliskVersion in .flisk/project.json", false)
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
     .option("--env-file <path>", "Use this project env file for the run instead of .env (for example: --env-file .env.integration)")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
@@ -225,7 +225,7 @@ export const upCommand = new Command("up")
     if (versionRoot) {
         enforceVersionFloor(versionRoot, {
             ignoreVersion: options.ignoreVersion,
-            onFail: (message) => emit?.({ ok: false }, [{ code: "TDK_VERSION_TOO_OLD", message }]),
+            onFail: (message) => emit?.({ ok: false }, [{ code: "FLISK_VERSION_TOO_OLD", message }]),
         });
     }
     // The env file of the run. `--env-file` replaces the project .env for this run, so the file is
@@ -234,7 +234,7 @@ export const upCommand = new Command("up")
     let envFileSelection;
     if (options.envFile === undefined) {
         // Without the option the project .env is the env file of the run, whatever the environment
-        // carries: an inherited TDK_ENV_FILE must not change the default.
+        // carries: an inherited FLISK_ENV_FILE must not change the default.
         delete process.env[PROJECT_ENV_FILE_VAR];
     }
     if (options.envFile !== undefined) {
@@ -262,7 +262,7 @@ export const upCommand = new Command("up")
         emit?.({ ok: false }, [{ code: "HOST_UNSUPPORTED", message: hostRefusal }]);
         showErrorAndExit(hostRefusal);
     }
-    const platformRefusal = nativeWindowsUpRefusal(process.platform, process.env.TDK_ALLOW_NATIVE_WINDOWS);
+    const platformRefusal = nativeWindowsUpRefusal(process.platform, process.env.FLISK_ALLOW_NATIVE_WINDOWS);
     if (platformRefusal)
         showErrorAndExit(platformRefusal);
     // An unknown schemaVersion is refused before the machine check, so --json can name the file even when Bun is missing.
@@ -297,7 +297,7 @@ export const upCommand = new Command("up")
             discoveredStacks = discoverStacks(discoveredResources);
             discoveredStackNames = discoveredStacks.map((stack) => stack.name);
         }
-        // Reject a bad request before anything below can write to the project (.env, runtime assets, .tdk/project.json).
+        // Reject a bad request before anything below can write to the project (.env, runtime assets, .flisk/project.json).
         if (options.only) {
             if (stackName && !stackExists(stackName, discoveredResources)) {
                 const error = errorFactories.stackNotFound(stackName, discoveredStackNames);
@@ -353,11 +353,11 @@ export const upCommand = new Command("up")
                     console.log(chalk.gray(`Added ${addedEnvKeys.join(", ")} to .env (generated; existing values unchanged)`));
                 }
             }
-            // A project made by `flisk import` has .tdk/project.json but no generated files yet. Generate them rather than letting
+            // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
             // Tilt fail on a missing Tiltfile.
-            if (foundRoot && !existsSync(join(projectRoot, ".tdk", ".tdk-out", "Tiltfile"))) {
+            if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
                 if (!options.quiet) {
-                    console.log(chalk.gray("No generated Tiltfile yet; generating .tdk/.tdk-out/ ..."));
+                    console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
                 }
                 await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }
@@ -367,7 +367,7 @@ export const upCommand = new Command("up")
             }
             const newlyEnabledStacks = enableDiscoveredStacks(projectRoot, discoveredResources);
             if (newlyEnabledStacks.length > 0 && !options.quiet) {
-                console.log(chalk.gray(`Added ${newlyEnabledStacks.join(", ")} to the pre_alpha phase in .tdk/project.json`));
+                console.log(chalk.gray(`Added ${newlyEnabledStacks.join(", ")} to the pre_alpha phase in .flisk/project.json`));
             }
         }
         let servicesToStart;
@@ -441,7 +441,7 @@ export const upCommand = new Command("up")
             console.log(chalk.blue(formatHostPortPlan(hostPortPlan)));
             for (const line of formatPortFallbackNotice(hostPortPlan))
                 console.log(chalk.yellow(line));
-            console.log(chalk.gray("Override with TDK_HTTP_PORT, TDK_HTTPS_PORT, or TDK_POSTGRES_PORT."));
+            console.log(chalk.gray("Override with FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT."));
         }
         if (emit && options.dryRun) {
             emit({
@@ -530,7 +530,7 @@ export const upCommand = new Command("up")
         });
         if (!options.quiet) {
             console.log(chalk.gray("\nRunning tilt up..."));
-            console.log(chalk.gray(`Using Tiltfile: .tdk/.tdk-out/Tiltfile`));
+            console.log(chalk.gray(`Using Tiltfile: .flisk/.flisk-out/Tiltfile`));
         }
         const tiltRun = runTilt("up", tiltArgs, {
             verbose: options.verbose && !options.json,
@@ -626,7 +626,7 @@ export const upCommand = new Command("up")
                 if (ignoreWarning)
                     console.warn(chalk.yellow(ignoreWarning));
                 const results = await runSmokePlans(smokePlans, {
-                    recordDir: join(projectRoot, ".tdk", "smoke"),
+                    recordDir: join(projectRoot, ".flisk", "smoke"),
                     ...safeSmokeDeps(projectRoot, (message) => console.warn(chalk.yellow(message)), {
                         // The selected env file holds secrets as much as the project .env.
                         envFiles: envFileSelection ? [envFileSelection.path] : [],

@@ -8,5 +8,7 @@ import type { DiscoveredResource } from "../types/index.js";
 export declare function enableDiscoveredStacks(projectRoot: string, resources?: DiscoveredResource[]): string[];
 /** The directory a template lands in: the requested path, or the template's repository name. */
 export declare function templateTargetDir(templateName: string, targetDir?: string): string;
-export declare function cloneProjectTemplate(templateName: string, targetDir: string | undefined, runtimeNextSteps: string[]): Promise<void>;
+export declare function cloneProjectTemplate(templateName: string, targetDir: string | undefined, runtimeNextSteps: string[], options?: {
+    quiet?: boolean;
+}): Promise<void>;
 export declare const projectCommand: Command;

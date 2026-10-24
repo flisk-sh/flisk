@@ -213,7 +213,7 @@ export async function runColdPreflight(
       id: "ports",
       ok: false,
       message: error instanceof Error ? error.message : String(error),
-      fix: "Set TDK_HTTP_PORT, TDK_HTTPS_PORT, or TDK_POSTGRES_PORT to available host ports.",
+      fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
     });
   }
 
@@ -229,7 +229,7 @@ export async function runColdPreflight(
     if (usesPrisma(projectRoot)) {
       let dbUp = false;
       try {
-        const config = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
+        const config = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
         const projectName = String(config?.project?.name ?? "").replace(/-/g, "_");
         if (projectName) {
           const running = execFileSync(

@@ -9,7 +9,7 @@
 | 変更内容 | 実行するチェック |
 |---|---|
 | CLI のコード、または生成される CLI の動作 | `bun run typecheck`、`bun run lint`、`bun run test` |
-| CLI のテストで使われるエンジン/Starlark の生成器 | `bun run typecheck`、`bun run lint`、`cd cli && TDK_REQUIRE_TILT=1 npm test` を実行してください。CI のテストジョブは Tilt をインストールし、このフラグを設定します。 |
+| CLI のテストで使われるエンジン/Starlark の生成器 | `bun run typecheck`、`bun run lint`、`cd cli && FLISK_REQUIRE_TILT=1 npm test` を実行してください。CI のテストジョブは Tilt をインストールし、このフラグを設定します。 |
 | Python エンジンのテスト領域 | 一度だけ `python3 -m pip install -r tests/requirements.txt` でテストパッケージをインストールし、関連するテストファイルを `pytest` で実行するか、そのスイートでは `make test-tilt-engine` を実行してください。一部のテストはクリーンなチェックアウトでも失敗します。どれがなぜ失敗するかは #700 を参照してください。これらの Python のチェックは `.github/workflows/ci.yml` では実行されません。 |
 | ドキュメントのみ | 変更したリンクとコマンドを確認する。ページを初めて読む人の目線で一度通して読む。 |
 
@@ -23,7 +23,7 @@
 
 バグ修正や動作の変更では、可能なら `main` と自分のブランチで同じ手順を実行してください。実際の前後の出力を貼り付けてください。記憶から再現しないでください。コマンド、プロジェクトまたはフィクスチャ、再現に必要なセットアップを含めます。issue に書かれた空の状態、エラーの状態、リカバリーの状態も確認してください。
 
-ビルド済みの CLI エントリーポイントをテストする場合は、古いコンパイル済みファイルを使わないように、先に `bun run build` を実行してください。`flisk ui` のような対話型コマンドは、実際のターミナルで確認してください。自動テストがない場合は、その理由を書き、テストを追加する issue をリンクしてください。新しい動作やバグ修正には、同じ pull request にテストが必要です。詳しくは [CONTRIBUTING.md のテスト](../../../CONTRIBUTING.md#tests)を参照してください。
+ビルド済みの CLI エントリーポイントをテストする場合は、古いコンパイル済みファイルを使わないように、先に `bun run build` を実行してください。`flisk ui` のような対話型コマンドは、実際のターミナルで確認してください。自動テストがない場合は、その理由を書き、テストを追加する issue をリンクしてください。新しい動作やバグ修正には、同じ pull request にテストが必要です。詳しくは [CONTRIBUTING.md のテスト](../../../.github/CONTRIBUTING.md#tests)を参照してください。
 
 ## ブランチを push する
 

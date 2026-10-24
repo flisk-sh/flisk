@@ -22,7 +22,7 @@ tests/e2e/resource-types/bring-your-own/verify-byo-example.sh flask
 Through a real `flisk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh flask /health
+VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh flask /health
 ```
 
 ## Register it in a Flisk project

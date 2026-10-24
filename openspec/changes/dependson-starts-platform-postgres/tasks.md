@@ -66,7 +66,7 @@
 ## 7. Verification and Evidence
 
 - [x] 7.1 Manual/e2e: `database-management` off, one resource with `dependsOn: ["postgres"]` — `flisk up` starts shared Postgres (platform files materialized) and the service's `resource_deps` includes `postgres`.
-  - **Force path proven on `560e5ca`** (scratch `/tmp/tdk-force-560b-5TEQ`):
+  - **Force path proven on `560e5ca`** (scratch `/tmp/flisk-force-560b-5TEQ`):
     - `project.json`: `always_enabled_infra: ["proxy"]`; `pre_alpha`: `["proxy","app","orders-api","billing-api"]`; no `database-management`.
     - Regenerated Tiltfile: `ALWAYS_ENABLED_INFRA = ["proxy"]`; extension includes `force_start_shared_platform_postgres_once`.
     - Scratch Tiltfile only: `FOCUS_MODE = False` after `Config.apply_focus` (default focus expands `CORE_INFRA` → `database-management`).

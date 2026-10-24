@@ -7,7 +7,7 @@
 # =============================================================================
 # The real generator is part of a paid Flisk license. When a valid license
 # grants the "playwright" resource, cli/src/generator/template-engine.ts
-# (vendorTdkExtension) overwrites this file with the licensed version
+# (vendorFliskExtension) overwrites this file with the licensed version
 # fetched via extension-fetch.ts before Tilt loads it. Same function
 # signature either way, so nothing else in the generator pipeline changes.
 # =============================================================================

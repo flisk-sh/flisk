@@ -90,8 +90,8 @@ A scheduled, `workflow_run` or `main` job that fails three runs in a row SHALL o
 A job that needs a secret SHALL check for it first. When the secret is not configured, the job SHALL end with a warning annotation naming the secret and a neutral result, not a failure.
 
 #### Scenario: License secret missing
-- **WHEN** `journeys / cold-start` runs after a release and `TDK_LICENSE_KEY` is not configured
-- **THEN** it reports "skipped: TDK_LICENSE_KEY not configured" as a warning, and the tracking issue names the missing secret
+- **WHEN** `journeys / cold-start` runs after a release and `FLISK_LICENSE_KEY` is not configured
+- **THEN** it reports "skipped: FLISK_LICENSE_KEY not configured" as a warning, and the tracking issue names the missing secret
 
 ### Requirement: Flaky jobs are tracked, not retried
 No job SHALL retry a failed test or case automatically to turn it green. A case that fails and then passes on the same commit SHALL be recorded as flaky in the CI report. A suite MAY quarantine a case only with an issue link, and a quarantined case still runs nightly and reports its result.

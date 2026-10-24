@@ -18,14 +18,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BACKEND_LANGUAGES, DEFAULT_BACKEND_LANGUAGE } from "../../backend-languages/registry.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 function flisk(args: string[], cwd: string, input = "y\n") {
   return spawnSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
     input,
-    env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
+    env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
   });
 }
 
@@ -88,10 +88,10 @@ describe("flisk resource --language", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-backend-language-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-backend-language-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
-      env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
+      env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
     });
   }, 30000);
 

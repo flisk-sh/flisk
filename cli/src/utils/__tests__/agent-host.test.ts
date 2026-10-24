@@ -62,7 +62,7 @@ describe("detectHost", () => {
       canUp: false,
     });
     expect(
-      detectHost({ ...base, platform: "win32", env: { TDK_ALLOW_NATIVE_WINDOWS: "1" } }).canUp,
+      detectHost({ ...base, platform: "win32", env: { FLISK_ALLOW_NATIVE_WINDOWS: "1" } }).canUp,
     ).toBe(true);
   });
   it("detects WSL2 and plain local hosts", () => {

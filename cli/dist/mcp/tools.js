@@ -19,7 +19,7 @@ export function cliInvocation(execPath = process.execPath, script = process.argv
     return [execPath, script];
 }
 /** Runs this same CLI (`flisk <args>`) so every tool behaves exactly like its command. */
-export const runTdkCli = (args, options = {}) => new Promise((resolve, reject) => {
+export const runFliskCli = (args, options = {}) => new Promise((resolve, reject) => {
     const [command, ...prefix] = cliInvocation();
     const child = spawn(command, [...prefix, ...args], {
         cwd: options.cwd,
@@ -219,7 +219,7 @@ function projectPath(value) {
     }
     return value;
 }
-export function createTdkTools(run = runTdkCli, up = defaultUpDeps) {
+export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
     const viaCli = (build) => async (args) => toToolResult(await run(build(args), { cwd: projectPath(args.projectPath) }));
     return [
         {

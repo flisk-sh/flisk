@@ -1,4 +1,4 @@
-name: 👋 Contributor welcome
+name: 👋 Community | Contributor welcome
 
 # Welcomes a first-time contributor when they open their first PR, and explains
 # community issues that are closed without a fix. Like contributor-merged.yml, this
@@ -43,7 +43,7 @@ jobs:
               '- Every commit needs a `Signed-off-by` line (DCO). If the DCO check fails, run `git rebase --signoff origin/main` and force-push.',
               '- A maintainer will review it. Small follow-ups are normal and not a sign that something is wrong.',
               '',
-              `See the [contributing guide](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md) for the checks to run (\`bun run typecheck\`, \`bun run lint\`, \`bun run test\`).`,
+              `See the [contributing guide](https://github.com/${owner}/${repo}/blob/main/.github/CONTRIBUTING.md) for the checks to run (\`bun run typecheck\`, \`bun run lint\`, \`bun run test\`).`,
             ].join('\n');
             await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
 

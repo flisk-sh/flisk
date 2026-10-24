@@ -102,7 +102,7 @@ export function readyNextStep(
   const workspace = suggestedWorkspace(env);
   return (
     `Next: mkdir -p ${workspace} && cd ${workspace} && ${CLI_COMMAND} project --yes\n` +
-    `(${CLI_COMMAND} project writes .tdk/ and the master configs into the current folder, ` +
+    `(${CLI_COMMAND} project writes .flisk/ and the master configs into the current folder, ` +
     `so it starts clean in a folder of its own. Or clone a starter: ${CLI_COMMAND} project example)`
   );
 }
@@ -124,7 +124,9 @@ export function ensureGlobalInstall(
     // Not installed under the old name, or the manager is missing.
   }
   try {
-    execFileSync(manager, ["install", "-g", CLI_PACKAGE], { stdio: "inherit", timeout: 300000 });
+    // Silent on purpose: the caller owns the screen, and npm's install banner would paint
+    // over whatever it is showing. Progress is reported by the caller, not by npm.
+    execFileSync(manager, ["install", "-g", CLI_PACKAGE], { stdio: "ignore", timeout: 300000 });
     return "installed";
   } catch {
     return "failed";

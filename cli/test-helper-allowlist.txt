@@ -3,27 +3,27 @@
 # This list only shrinks: a new duplicate fails the check, and a line whose file no longer declares the helper
 # fails too, so delete the line when you migrate a file to import from test-support.
 
-cli/src/commands/__tests__/agent-sessions.test.ts runTdk
+cli/src/commands/__tests__/agent-sessions.test.ts runFlisk
 cli/src/commands/__tests__/project-e2e-helpers.ts cliBin
-cli/src/commands/__tests__/project-e2e-helpers.ts runTdk
+cli/src/commands/__tests__/project-e2e-helpers.ts runFlisk
 cli/src/commands/__tests__/project-root-errors.test.ts cliBin
 cli/src/commands/__tests__/projects-json.test.ts createProject
 cli/src/commands/__tests__/projects-stacks.test.ts cliBin
 cli/src/commands/__tests__/projects-stacks.test.ts createTempDir
-cli/src/commands/__tests__/projects-stacks.test.ts runTdk
+cli/src/commands/__tests__/projects-stacks.test.ts runFlisk
 cli/src/commands/__tests__/resource-agent.test.ts cliBin
 cli/src/commands/__tests__/resource-backend-frameworks.test.ts cliBin
 cli/src/commands/__tests__/resource-backend-languages.test.ts cliBin
 cli/src/commands/__tests__/resource-frameworks-e2e.test.ts cliBin
-cli/src/commands/__tests__/resource-frameworks-e2e.test.ts runTdk
+cli/src/commands/__tests__/resource-frameworks-e2e.test.ts runFlisk
 cli/src/commands/__tests__/resource-mcp.test.ts cliBin
-cli/src/commands/__tests__/restart.test.ts runTdk
+cli/src/commands/__tests__/restart.test.ts runFlisk
 cli/src/commands/__tests__/saas-starter-integration.test.ts runCli
 cli/src/commands/__tests__/stack-features-e2e.test.ts cliBin
-cli/src/commands/__tests__/stack-features-e2e.test.ts runTdk
+cli/src/commands/__tests__/stack-features-e2e.test.ts runFlisk
 cli/src/commands/__tests__/stack-scriptable.test.ts cliBin
 cli/src/commands/__tests__/stack-scriptable.test.ts createProject
-cli/src/commands/__tests__/stack-scriptable.test.ts runTdk
+cli/src/commands/__tests__/stack-scriptable.test.ts runFlisk
 cli/src/commands/__tests__/stacks-json.test.ts createProject
 cli/src/commands/__tests__/version.test.ts runCli
 cli/src/components/__tests__/ui-ascii-invariant.test.ts resource

@@ -38,7 +38,7 @@ export const configCommand = new Command("config")
   .description("Manage project configuration and regenerate master files")
   .addCommand(
     new Command("regenerate")
-      .description("Regenerate all 4 master config files from .tdk/project.json")
+      .description("Regenerate all 4 master config files from .flisk/project.json")
       .option("--dry-run", "Show what would change without writing files")
       .action(async (options) => {
         await runCommand(async () => {
@@ -55,7 +55,7 @@ export const configCommand = new Command("config")
               const engine = new TemplateEngine();
               const newFiles = engine.generateAll(projectConfig);
 
-              const outputDir = join(projectRoot, ".tdk", ".tdk-out");
+              const outputDir = join(projectRoot, ".flisk", ".flisk-out");
               const filesToCheck = MASTER_CONFIG_FILES;
 
               let hasChanges = false;
@@ -238,7 +238,7 @@ export const configCommand = new Command("config")
   )
   .addCommand(
     new Command("verify")
-      .description("Verify that generated files match .tdk/project.json")
+      .description("Verify that generated files match .flisk/project.json")
       .option("--json", "Emit a machine-readable verification report")
       .action(async (options) => {
         const action = async (): Promise<void> => {
@@ -360,13 +360,13 @@ export const configCommand = new Command("config")
       }),
   )
   .addCommand(
-    new Command("edit").description("Open .tdk/project.json in your $EDITOR").action(async () => {
+    new Command("edit").description("Open .flisk/project.json in your $EDITOR").action(async () => {
       await runCommand(async () => {
         const projectRoot = requireProjectRoot();
 
-        const projectJsonPath = join(projectRoot, ".tdk", PROJECT_JSON);
+        const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
         if (!existsSync(projectJsonPath)) {
-          throw new Error(".tdk/project.json not found");
+          throw new Error(".flisk/project.json not found");
         }
 
         const editor = process.env.EDITOR || "vi";
@@ -431,7 +431,7 @@ async function toggleInfraService(service: string, enabled: boolean): Promise<vo
     if (!granted) {
       throw new Error(
         "Verdaccio is a Premium feature and requires a license key that grants it. " +
-          "Set export TDK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
+          "Set export FLISK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
       );
     }
   }
@@ -449,7 +449,7 @@ async function toggleInfraService(service: string, enabled: boolean): Promise<vo
   // Type-safe assignment: service is now narrowed to OptionalInfraKey
   config.optional_infra[service] = enabled;
 
-  const projectJsonPath = join(projectRoot, ".tdk", PROJECT_JSON);
+  const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
   // ProjectConfig is guaranteed to be JSON-serializable
   writeJsonFile(projectJsonPath, config as unknown);
 

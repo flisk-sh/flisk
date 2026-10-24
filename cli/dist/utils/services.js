@@ -168,9 +168,9 @@ export function discoverResourcesStrict(discovered) {
 }
 /**
  * Unique, sorted `stack` values across discovered service.json files under `projectRoot`.
- * Tilt's discovery groups services by this same field (see tdk-cli-extensions
+ * Tilt's discovery groups services by this same field (see flisk-cli-extensions
  * discovery_orchestrator.star), so these are the names that must appear in a
- * stack's `services` list in .tdk/project.json for that group to be enabled.
+ * stack's `services` list in .flisk/project.json for that group to be enabled.
  */
 export function discoverStackNames(projectRoot, resources) {
     const resourcesToScan = resources ?? discoverResourcesFromRoot(projectRoot);

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Tests for Docker and Compose generators to catch parameter mismatch bugs.
@@ -418,7 +418,7 @@ class TestL2BunDirectoryGuarantee:
     """Test that l2_deps_manifest always creates /app/node_modules/.bun.
 
     Regression test for: Bun's isolated linker only creates /app/node_modules/.bun
-    when hoisted packages are present. Without TDK_LICENSE_KEY the Verdaccio
+    when hoisted packages are present. Without FLISK_LICENSE_KEY the Verdaccio
     private registry is skipped, the public-npm install may not produce that
     directory, and the subsequent L3 `COPY --link --from=l2_deps_manifest
     /app/node_modules/.bun` fails with 'not found'.
@@ -440,7 +440,7 @@ class TestL2BunDirectoryGuarantee:
         assert "mkdir -p /app/node_modules/.bun" in content, (
             "l2_dependency_layers.star must emit `RUN mkdir -p /app/node_modules/.bun` "
             "so L3's COPY --link never fails when Bun skips creating the directory "
-            "(e.g. when TDK_LICENSE_KEY is unset and only public npm packages are installed)."
+            "(e.g. when FLISK_LICENSE_KEY is unset and only public npm packages are installed)."
         )
 
     def test_mkdir_comes_after_install_deps(self):

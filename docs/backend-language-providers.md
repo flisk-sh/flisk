@@ -75,7 +75,7 @@ Add `dev.liveReload` to the service's `service.json` and run `flisk up` again:
 ```
 
 Tilt then builds the image's `development` target instead of `production`, copies each edit into the running container, and a small
-watcher (`tdk-go-watch`, written into the image by the engine) recompiles and restarts the app. An ordinary edit is not an image rebuild.
+watcher (`flisk-go-watch`, written into the image by the engine) recompiles and restarts the app. An ordinary edit is not an image rebuild.
 Without the switch nothing changes, and `liveReload` on a non-Go service logs a warning and is ignored.
 
 - **Build, then swap.** A change is compiled into a staging binary while the running app keeps serving. Only when that build succeeds is
@@ -136,7 +136,7 @@ route through Traefik every 25 ms until the edited response appears. "Rebuild" i
 
 | Run (8 edits unless noted) | Edit-to-ready (min / median / max) | App unreachable during an edit | Edits with a Traefik 503 |
 | --- | --- | --- | --- |
-| `tdk-go-watch` (this guide) | 1.31 s / 1.63 s / 2.50 s | at most 0.13 s | 0 of 8 |
+| `flisk-go-watch` (this guide) | 1.31 s / 1.63 s / 2.50 s | at most 0.13 s | 0 of 8 |
 | Air (the first watcher), same script | 3.27 s / 3.73 s / 16.96 s (only 6 of 8 edits finished; edits 7 and 8 were not served within 20 s, cause not diagnosed) | 1.8 to 5.7 s on 5 of 6, over the script's limit each time | 2 of 6 (10 s each) |
 
 Both rows are one run on an Apple-silicon Mac running Docker Desktop, with a load average of about 9 from other work, a single-file

@@ -10,7 +10,7 @@ import * as envValidator from "../env-validator.js";
 let root = "";
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-env-validator-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-env-validator-"));
 });
 
 afterEach(() => {

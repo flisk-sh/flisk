@@ -13,9 +13,9 @@ import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { agentCommand, agentSessionRequest } from "../agent.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliPath = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliPath = path.join(repoRoot, "cli", "bin", "flisk.js");
 
-function runTdk(args: string[], cwd: string) {
+function runFlisk(args: string[], cwd: string) {
   return spawnSync(process.execPath, [cliPath, ...args], {
     cwd,
     encoding: "utf-8",
@@ -24,9 +24,9 @@ function runTdk(args: string[], cwd: string) {
 
 describe("flisk agent sessions", () => {
   it("fails when called outside a Flisk project", () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-outside-"));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-agent-outside-"));
     try {
-      const res = runTdk(["agent", "sessions", "bot", "--json"], tmp);
+      const res = runFlisk(["agent", "sessions", "bot", "--json"], tmp);
       expect(res.status).not.toBe(0);
       const envelope = JSON.parse(res.stdout);
       expect(envelope.errors[0].code).toBe("COMMAND_FAILED");
@@ -40,9 +40,9 @@ describe("flisk agent sessions", () => {
   let envelopeProject = "";
 
   beforeAll(() => {
-    envelopeProject = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-agent-envelope-"));
-    fs.mkdirSync(path.join(envelopeProject, ".tdk"), { recursive: true });
-    fs.writeFileSync(path.join(envelopeProject, ".tdk", "project.json"), "{}\n");
+    envelopeProject = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-agent-envelope-"));
+    fs.mkdirSync(path.join(envelopeProject, ".flisk"), { recursive: true });
+    fs.writeFileSync(path.join(envelopeProject, ".flisk", "project.json"), "{}\n");
     fs.mkdirSync(path.join(envelopeProject, "services", "api"), { recursive: true });
     fs.writeFileSync(
       path.join(envelopeProject, "services", "api", "service.json"),
@@ -109,11 +109,11 @@ describe("flisk agent sessions", () => {
     return createTempProject({ resources: { bot: { appType: "agent", port } } });
   }
 
-  function runTdkAsync(args: string[], cwd: string, baseUrl?: string) {
+  function runFliskAsync(args: string[], cwd: string, baseUrl?: string) {
     return new Promise<{ status: number | null; stdout: string }>((resolve) => {
       const child = spawn(process.execPath, [cliPath, ...args], {
         cwd,
-        env: { ...process.env, ...(baseUrl ? { TDK_SERVICE_BASE_URL: baseUrl } : {}) },
+        env: { ...process.env, ...(baseUrl ? { FLISK_SERVICE_BASE_URL: baseUrl } : {}) },
       });
       let stdout = "";
       child.stdout.on("data", (chunk) => {
@@ -133,7 +133,7 @@ describe("flisk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(port);
     try {
-      const res = await runTdkAsync(
+      const res = await runFliskAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
         `http://127.0.0.1:${port}`,
@@ -155,7 +155,7 @@ describe("flisk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(port);
     try {
-      const res = await runTdkAsync(
+      const res = await runFliskAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
         `http://127.0.0.1:${port}`,
@@ -204,7 +204,7 @@ describe("flisk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(port);
     try {
-      const res = await runTdkAsync(
+      const res = await runFliskAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
         `http://127.0.0.1:${port}`,
@@ -228,7 +228,7 @@ describe("flisk agent sessions", () => {
     // The agent's own port (4999) has no listener: a CLI that still dials it would report AGENT_NOT_RUNNING.
     const tmp = agentProject(4999);
     try {
-      const res = await runTdkAsync(
+      const res = await runFliskAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
         `http://127.0.0.1:${ingressPort}`,
@@ -265,7 +265,7 @@ describe("flisk agent sessions", () => {
       const port = (server.address() as AddressInfo).port;
       const tmp = agentProject(4999);
       try {
-        const res = await runTdkAsync(
+        const res = await runFliskAsync(
           ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
           tmp,
           `http://127.0.0.1:${port}`,
@@ -289,7 +289,7 @@ describe("flisk agent sessions", () => {
     const port = (server.address() as AddressInfo).port;
     const tmp = agentProject(4999);
     try {
-      const res = await runTdkAsync(
+      const res = await runFliskAsync(
         ["agent", "sessions", "bot", "--session-id", "s1", "--json"],
         tmp,
         `http://demo.localhost:${port}`,

@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   BASE_TEMPLATE,
+  createByoServiceJson,
   createPackageJson,
   createResourceTsconfig,
   createServiceJson,
@@ -39,7 +40,7 @@ import {
   resolveFrontendFramework,
 } from "../../frontend-frameworks/registry.js";
 import { CREATABLE_RESOURCE_TYPES, isCreatableResourceType } from "../../types/index.js";
-import { TdkError } from "../../utils/errors.js";
+import { FliskError } from "../../utils/errors.js";
 import { discoverResourcesFromRoot } from "../../utils/services.js";
 import { KEBAB_CASE_REGEX } from "../../utils/validation.js";
 
@@ -134,6 +135,46 @@ describe("resource command", () => {
       expect(serviceJson.dev.command).toBe("bun run worker");
     });
 
+    it("creates agent service.json with durability and custom runtime", () => {
+      const serviceJson = createServiceJson(
+        "research-agent",
+        "agent",
+        "ai",
+        4200,
+        [],
+        undefined,
+        undefined,
+        { runtime: "custom", durability: "postgres" },
+      );
+      expect(serviceJson.appName).toBe("research-agent");
+      expect(serviceJson.appType).toBe("agent");
+      expect(serviceJson.agent).toEqual({ runtime: "custom", durability: "postgres" });
+      expect(serviceJson.healthCheckPath).toBe("/health");
+      expect(serviceJson.port).toBe(4200);
+    });
+
+    it("creates mcp service.json without backend framework pollution", () => {
+      const serviceJson = createServiceJson("tools-server", "mcp", "ai", 4300);
+      expect(serviceJson.appName).toBe("tools-server");
+      expect(serviceJson.appType).toBe("mcp");
+      expect(serviceJson).not.toHaveProperty("framework");
+      expect(serviceJson.healthCheckPath).toBe("/health");
+    });
+
+    it("omits Prisma feature when non-Bun backend language is selected", () => {
+      const serviceJson = createServiceJson(
+        "py-api",
+        "backend",
+        "main",
+        4100,
+        [],
+        undefined,
+        "python",
+      );
+      expect(serviceJson.language).toBe("python");
+      expect(serviceJson.featuresEnabled).not.toContain("prisma");
+    });
+
     it("should have correct TYPE_SPECIFIC extensions for each resource type", () => {
       expect(TYPE_SPECIFIC.backend).toHaveProperty("healthCheckPath", "/health");
       expect(TYPE_SPECIFIC.frontend.dev?.watch).toContain("public/**/*");
@@ -146,6 +187,48 @@ describe("resource command", () => {
       expect(BASE_TEMPLATE).toHaveProperty("build");
       expect(BASE_TEMPLATE).toHaveProperty("dev");
       expect(BASE_TEMPLATE.build).toHaveProperty("dockerfile", "Dockerfile");
+    });
+  });
+
+  describe("createByoServiceJson", () => {
+    it("creates standard BYO service manifest with Dockerfile and default settings", () => {
+      const manifest = createByoServiceJson("cache-service", "infra", 4500, {
+        healthCheckPath: "/health",
+        dockerfile: "Dockerfile.custom",
+      });
+      expect(manifest.appName).toBe("cache-service");
+      expect(manifest.appType).toBe("bring-your-own");
+      expect(manifest.stack).toBe("infra");
+      expect(manifest.port).toBe(4500);
+      expect(manifest.healthCheckPath).toBe("/health");
+      expect((manifest as Record<string, unknown>).dockerfile).toBe("Dockerfile.custom");
+      expect(manifest).not.toHaveProperty("image");
+      expect(manifest).not.toHaveProperty("exposeViaProxy");
+      expect(manifest).not.toHaveProperty("restart");
+      expect(manifest.$schema).toMatch(/schema\.service\.json$/);
+    });
+
+    it("creates BYO service manifest with image instead of dockerfile", () => {
+      const manifest = createByoServiceJson("redis-db", "data", 4501, {
+        healthCheckPath: "/ready",
+        dockerfile: "",
+        image: "redis:7-alpine",
+      });
+      expect(manifest.appName).toBe("redis-db");
+      expect((manifest as Record<string, unknown>).image).toBe("redis:7-alpine");
+      expect(manifest).not.toHaveProperty("dockerfile");
+      expect(manifest.healthCheckPath).toBe("/ready");
+    });
+
+    it("creates BYO service manifest with exposeViaProxy false and custom restart policy", () => {
+      const manifest = createByoServiceJson("nats-mq", "infra", 4502, {
+        healthCheckPath: "/healthz",
+        dockerfile: "Dockerfile",
+        exposeViaProxy: false,
+        restart: "always",
+      });
+      expect(manifest.exposeViaProxy).toBe(false);
+      expect(manifest.restart).toBe("always");
     });
   });
 
@@ -190,7 +273,10 @@ describe("resource command", () => {
       // Backends and workers have no generated Vite config, so no guard.
       expect(createPackageJson("api", "backend").scripts).not.toHaveProperty("prebuild");
 
-      const dir = mkdtempSync(join(tmpdir(), "tdk-frontend-guard-"));
+      const hasBun = spawnSync("bun", ["--version"], { encoding: "utf-8" }).status === 0;
+      if (!hasBun) return;
+
+      const dir = mkdtempSync(join(tmpdir(), "flisk-frontend-guard-"));
       try {
         let stderr = "";
         try {
@@ -263,10 +349,19 @@ describe("resource command", () => {
     });
 
     it("lists node types for non-frontend resources (TS7 does not auto-include @types)", () => {
-      for (const type of ["backend", "worker", "mcp"] as const) {
+      for (const type of ["backend", "worker", "mcp", "agent"] as const) {
         expect(createResourceTsconfig(type).compilerOptions.types).toEqual(["node"]);
       }
       expect(createResourceTsconfig("frontend").compilerOptions).not.toHaveProperty("types");
+    });
+
+    it("handles all creatable resource types when generating tsconfig", () => {
+      for (const type of ["backend", "worker", "mcp", "agent", "bring-your-own"] as const) {
+        const config = createResourceTsconfig(type);
+        expect(config.compilerOptions.target).toBe("ES2022");
+        expect(config.compilerOptions.strict).toBe(true);
+        expect(config.include).toContain("src/**/*");
+      }
     });
   });
 
@@ -286,7 +381,7 @@ describe("resource command", () => {
       expect(() => getFrontendFramework("__proto__")).toThrow(/Unknown frontend framework/);
       expect(getFrontendFramework("React").id).toBe("react");
       expect(getFrontendFramework(" VUE ").id).toBe("vue");
-      expect(() => getFrontendFramework("angular")).toThrow(TdkError);
+      expect(() => getFrontendFramework("angular")).toThrow(FliskError);
       expect(() => getFrontendFramework("")).toThrow(/Unknown frontend framework/);
     });
 
@@ -482,7 +577,7 @@ describe("resource command", () => {
 
   describe("legacy frontend service metadata", () => {
     it("discovers a frontend without framework without rewriting service.json", () => {
-      const projectRoot = mkdtempSync(join(tmpdir(), "tdk-legacy-frontend-"));
+      const projectRoot = mkdtempSync(join(tmpdir(), "flisk-legacy-frontend-"));
       try {
         const serviceDir = join(projectRoot, "apps", "legacy-web");
         mkdirSync(serviceDir, { recursive: true });
@@ -700,7 +795,7 @@ describe("parseResourceType", () => {
   });
 
   it("rejects an unknown type with the supported list instead of prompting", () => {
-    expect(() => parseResourceType("bogus")).toThrow(TdkError);
+    expect(() => parseResourceType("bogus")).toThrow(FliskError);
     expect(() => parseResourceType("bogus")).toThrow(
       /Unknown resource type "bogus"\. Supported types: backend, frontend/,
     );
@@ -708,12 +803,12 @@ describe("parseResourceType", () => {
   });
 });
 
-const resourceCliPath = join(dirname(fileURLToPath(import.meta.url)), "../../../bin/tdk.js");
+const resourceCliPath = join(dirname(fileURLToPath(import.meta.url)), "../../../bin/flisk.js");
 
 function createResourceProject(): string {
-  const projectRoot = mkdtempSync(join(tmpdir(), "tdk-resource-cli-"));
-  mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
-  writeFileSync(join(projectRoot, ".tdk", "project.json"), "{}\n");
+  const projectRoot = mkdtempSync(join(tmpdir(), "flisk-resource-cli-"));
+  mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
+  writeFileSync(join(projectRoot, ".flisk", "project.json"), "{}\n");
   return projectRoot;
 }
 
@@ -940,10 +1035,10 @@ describe("resource command non-interactive mode", () => {
     }
   });
 
-  it("wraps a malformed service.json in a TdkError naming the file during registration", () => {
+  it("wraps a malformed service.json in a FliskError naming the file during registration", () => {
     expect(() =>
       parseExistingServiceJson('{"appName": "broken",', "/tmp/services/main/broken/service.json"),
-    ).toThrow(TdkError);
+    ).toThrow(FliskError);
     expect(() =>
       parseExistingServiceJson('{"appName": "broken",', "/tmp/services/main/broken/service.json"),
     ).toThrow(/Could not parse service\.json at \/tmp\/services\/main\/broken\/service\.json:/);

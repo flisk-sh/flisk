@@ -9,7 +9,7 @@
 | 改動 | 需要執行的檢查 |
 |---|---|
 | CLI 程式碼或產生的 CLI 行為 | `bun run typecheck`、`bun run lint`、`bun run test` |
-| CLI 測試使用的引擎/Starlark 產生器 | 執行 `bun run typecheck`、`bun run lint`，以及 `cd cli && TDK_REQUIRE_TILT=1 npm test`。CI 測試工作會安裝 Tilt 並設定此旗標。 |
+| CLI 測試使用的引擎/Starlark 產生器 | 執行 `bun run typecheck`、`bun run lint`，以及 `cd cli && FLISK_REQUIRE_TILT=1 npm test`。CI 測試工作會安裝 Tilt 並設定此旗標。 |
 | Python 引擎測試區域 | 執行一次 `python3 -m pip install -r tests/requirements.txt` 安裝測試套件，然後用 `pytest` 執行相關測試檔案，或使用 `make test-tilt-engine` 執行該套件。其中部分測試在乾淨的 checkout 上也會失敗；哪些測試、為什麼失敗，請參閱 #700。這些 Python 檢查不會由 `.github/workflows/ci.yml` 執行。 |
 | 僅文件 | 檢查你修改過的連結和指令；以新手的角度完整讀過一次頁面。 |
 
@@ -23,7 +23,7 @@
 
 對於錯誤修正或行為改動，如果可以，請在 `main` 和你的分支上執行相同的步驟。貼上真實的前後輸出，不要憑記憶重建。包括指令、專案或測試夾具，以及重現所需的任何設定。涵蓋 issue 中提到的空狀態、錯誤狀態或復原狀態。
 
-如果你要測試建置後的 CLI 進入點，請先執行 `bun run build`，以免使用舊的編譯檔案。在真實的終端機中檢查 `flisk ui` 等互動式指令。如果缺少自動化測試，請說明原因，並連結一個用於新增測試的 issue。新的行為和錯誤修正需要在同一個 pull request 中包含測試；請參閱 [CONTRIBUTING.md 中的測試](../../../CONTRIBUTING.md#tests)。
+如果你要測試建置後的 CLI 進入點，請先執行 `bun run build`，以免使用舊的編譯檔案。在真實的終端機中檢查 `flisk ui` 等互動式指令。如果缺少自動化測試，請說明原因，並連結一個用於新增測試的 issue。新的行為和錯誤修正需要在同一個 pull request 中包含測試；請參閱 [CONTRIBUTING.md 中的測試](../../../.github/CONTRIBUTING.md#tests)。
 
 ## 推送你的分支
 

@@ -43,7 +43,7 @@ If accepted, add the outbound link under a "Listed by" note in awesome-tdk-frame
 - Maintainer annoyance → hard cap, one issue per repo, no bumps after decline.
 - Over-claiming security → packet review rejects unaudited claims.
 - Wrong repo (private policy) → `list_path` must be a public file.
-- Name collision with the Turkish-dictionary `tdk-cli` on PyPI → packet uses `@flisk-sh/flisk` and the landscape org, not the bare name alone.
+- Name collision with the Turkish-dictionary `flisk-cli` on PyPI → packet uses `@flisk-sh/flisk` and the landscape org, not the bare name alone.
 
 ## Migration Plan
 

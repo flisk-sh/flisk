@@ -8,7 +8,7 @@
 # The real generator (Sablier + Traefik label wiring that stops idle
 # containers and wakes them on the next request) is part of a paid Flisk
 # license. When a valid license grants the "sablier" resource,
-# cli/src/generator/template-engine.ts (vendorTdkExtension) overwrites this
+# cli/src/generator/template-engine.ts (vendorFliskExtension) overwrites this
 # file with the licensed version fetched via extension-fetch.ts before Tilt
 # loads it. Same function signatures either way, so nothing else in the
 # generator pipeline changes -- every call site just gets "disabled" back

@@ -11,24 +11,24 @@ describe("findProjectRoot", () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "tdk-test-"));
+    tmpDir = mkdtempSync(join(tmpdir(), "flisk-test-"));
   });
 
   afterEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("should find project root when .tdk/project.json exists", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+  it("should find project root when .flisk/project.json exists", () => {
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
     const root = findProjectRoot(tmpDir);
     expect(root).toBe(tmpDir);
   });
 
   it("should find project root from a nested subdirectory", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
     const subDir = join(tmpDir, "services", "product", "my-service", "backend");
     mkdirSync(subDir, { recursive: true });
 
@@ -36,15 +36,15 @@ describe("findProjectRoot", () => {
     expect(root).toBe(tmpDir);
   });
 
-  it("should return null when no .tdk/project.json exists", () => {
+  it("should return null when no .flisk/project.json exists", () => {
     mkdirSync(join(tmpDir, "services"), { recursive: true });
 
     const root = findProjectRoot(tmpDir);
     expect(root).toBeNull();
   });
 
-  it("should return null when .tdk directory exists but no project.json inside", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
+  it("should return null when .flisk directory exists but no project.json inside", () => {
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
 
     const root = findProjectRoot(tmpDir);
     expect(root).toBeNull();
@@ -55,8 +55,8 @@ describe("findProjectRoot", () => {
     expect(root).toBeNull();
   });
 
-  it("should handle when .tdk is a regular file instead of a directory", () => {
-    writeFileSync(join(tmpDir, ".tdk"), "regular file");
+  it("should handle when .flisk is a regular file instead of a directory", () => {
+    writeFileSync(join(tmpDir, ".flisk"), "regular file");
 
     const root = findProjectRoot(tmpDir);
     expect(root).toBeNull();
@@ -68,8 +68,8 @@ describe("findProjectRoot", () => {
       process.chdir(tmpDir);
       expect(findProjectRoot()).toBeNull();
 
-      mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-      writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+      mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+      writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
       expect(findProjectRoot()).toBe(tmpDir);
     } finally {
@@ -83,8 +83,8 @@ describe("findProjectRoot", () => {
   });
 
   it("should handle very deep paths correctly", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
     const deepDir = join(tmpDir, "a", "b", "c", "d", "e", "f", "g");
     mkdirSync(deepDir, { recursive: true });
@@ -94,8 +94,8 @@ describe("findProjectRoot", () => {
   });
 
   it("should handle paths with symlinks (resolve to real path)", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
     const realDir = join(tmpDir, "real");
     mkdirSync(realDir, { recursive: true });
     const linkDir = join(tmpDir, "link");
@@ -109,11 +109,11 @@ describe("findProjectRoot", () => {
     }
   });
 
-  it("should not confuse .tdk directory outside project root", () => {
-    const outerDir = mkdtempSync(join(tmpdir(), "tdk-outer-"));
+  it("should not confuse .flisk directory outside project root", () => {
+    const outerDir = mkdtempSync(join(tmpdir(), "flisk-outer-"));
     try {
-      mkdirSync(join(outerDir, ".tdk"), { recursive: true });
-      writeFileSync(join(outerDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+      mkdirSync(join(outerDir, ".flisk"), { recursive: true });
+      writeFileSync(join(outerDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
       const root = findProjectRoot(tmpDir);
       expect(root).toBeNull();
@@ -123,44 +123,44 @@ describe("findProjectRoot", () => {
   });
 
   it("should return resolved path (no trailing separators or dot segments)", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
     const root = findProjectRoot(join(tmpDir, ".", "services", ".."));
     expect(root).toBe(tmpDir);
   });
 
   it("should find project root with trailing slash in startDir", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
     const root = findProjectRoot(`${tmpDir}/`);
     expect(root).toBe(tmpDir);
   });
 
   it("should handle startDir being a non-existent path (resolves to cwd parent)", () => {
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
     // A non-existent path - resolve will still produce something based on cwd
     const root = findProjectRoot(resolve(tmpDir, "nonexistent", "dir"));
 
-    // Since we have .tdk/project.json in tmpDir and the resolved path
+    // Since we have .flisk/project.json in tmpDir and the resolved path
     // starts with tmpDir, walking up should find it
     // resolve(tmpDir, 'nonexistent', 'dir') = tmpDir + '/nonexistent/dir'
     // Walking up from there: tmpDir + '/nonexistent/dir' -> tmpDir + '/nonexistent' -> tmpDir
-    // tmpDir has .tdk/project.json so it should be found
+    // tmpDir has .flisk/project.json so it should be found
     expect(root).toBe(tmpDir);
   });
 
-  it("should work when .tdk is a symlink to another directory", () => {
-    const realTdkDir = join(tmpDir, "real-tdk");
-    mkdirSync(realTdkDir, { recursive: true });
-    writeFileSync(join(realTdkDir, "project.json"), JSON.stringify({ version: "2" }));
+  it("should work when .flisk is a symlink to another directory", () => {
+    const realFliskDir = join(tmpDir, "real-flisk");
+    mkdirSync(realFliskDir, { recursive: true });
+    writeFileSync(join(realFliskDir, "project.json"), JSON.stringify({ version: "2" }));
     mkdirSync(join(tmpDir, "services"), { recursive: true });
 
     try {
-      symlinkSync(realTdkDir, join(tmpDir, ".tdk"));
+      symlinkSync(realFliskDir, join(tmpDir, ".flisk"));
       const root = findProjectRoot(tmpDir);
       expect(root).toBe(tmpDir);
     } catch {
@@ -168,12 +168,15 @@ describe("findProjectRoot", () => {
     }
   });
 
-  it("should find project root even when there are multiple .tdk directories in the path", () => {
-    // Create a .tdk/project.json in a parent and child
-    mkdirSync(join(tmpDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
-    mkdirSync(join(tmpDir, "subdir", ".tdk"), { recursive: true });
-    writeFileSync(join(tmpDir, "subdir", ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+  it("should find project root even when there are multiple .flisk directories in the path", () => {
+    // Create a .flisk/project.json in a parent and child
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, "subdir", ".flisk"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, "subdir", ".flisk", "project.json"),
+      JSON.stringify({ version: "2" }),
+    );
 
     // Starting from the child, it should find the child first
     const root = findProjectRoot(join(tmpDir, "subdir"));

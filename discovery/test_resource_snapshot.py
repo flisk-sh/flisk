@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 🧪 Tests for resource_snapshot.py
@@ -44,7 +44,7 @@ class TestSaveSnapshot:
         services = ["services/a/service.json", "services/b/service.json"]
         save_snapshot(services)
         
-        snapshot_file = Path(".tdk/.tdk-out/snapshots/resource-snapshot.json")
+        snapshot_file = Path(".flisk/.flisk-out/snapshots/resource-snapshot.json")
         assert snapshot_file.exists(), "Snapshot file should be created"
         
         # Verify content
@@ -55,11 +55,11 @@ class TestSaveSnapshot:
             assert "timestamp" in data
     
     def test_save_creates_directory(self, temp_workspace):
-        """Test that save_snapshot creates the .tdk directory if needed."""
+        """Test that save_snapshot creates the .flisk directory if needed."""
         services = ["services/test/service.json"]
         save_snapshot(services)
         
-        assert Path(".tdk/.tdk-out/snapshots").exists(), ".tdk/.tdk-out/snapshots directory should be created"
+        assert Path(".flisk/.flisk-out/snapshots").exists(), ".flisk/.flisk-out/snapshots directory should be created"
 
 
 class TestLoadSnapshot:
@@ -89,8 +89,8 @@ class TestLoadSnapshot:
     def test_load_invalid_json(self, temp_workspace):
         """Test loading when snapshot has invalid JSON."""
         # Create invalid snapshot
-        Path(".tdk/.tdk-out/snapshots").mkdir(parents=True, exist_ok=True)
-        with open(".tdk/.tdk-out/snapshots/resource-snapshot.json", "w") as f:
+        Path(".flisk/.flisk-out/snapshots").mkdir(parents=True, exist_ok=True)
+        with open(".flisk/.flisk-out/snapshots/resource-snapshot.json", "w") as f:
             f.write("not valid json")
         
         snapshot = load_snapshot()

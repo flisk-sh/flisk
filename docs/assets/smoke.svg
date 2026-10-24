@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 628" role="img" aria-labelledby="t d">
-<title id="t">tdk up smoke check</title><desc id="d">Animated: the smoke block runs through Traefik on the printed URL. Loop one passes (201 then 200). Loop two fails (404) and tdk up exits 1.</desc>
+<title id="t">flisk up smoke check</title><desc id="d">Animated: the smoke block runs through Traefik on the printed URL. Loop one passes (201 then 200). Loop two fails (404) and flisk up exits 1.</desc>
 <style>@keyframes l1{0.000% {opacity:0.0} 1.812% {opacity:0.0} 3.438% {opacity:1.0} 48.125% {opacity:1.0} 49.688% {opacity:0.0} 51.813% {opacity:0.0} 53.438% {opacity:1.0} 98.125% {opacity:1.0} 99.688% {opacity:0.0} 100.000% {opacity:0.0}} .l1{animation:l1 16.0s linear infinite;opacity:0.0} @keyframes l2{0.000% {opacity:0.0} 8.062% {opacity:0.0} 9.688% {opacity:1.0} 48.125% {opacity:1.0} 49.688% {opacity:0.0} 58.063% {opacity:0.0} 59.688% {opacity:1.0} 98.125% {opacity:1.0} 99.688% {opacity:0.0} 100.000% {opacity:0.0}} .l2{animation:l2 16.0s linear infinite;opacity:0.0} @keyframes l3{0.000% {opacity:0.0} 15.563% {opacity:0.0} 17.188% {opacity:1.0} 48.125% {opacity:1.0} 49.688% {opacity:0.0} 65.562% {opacity:0.0} 67.188% {opacity:1.0} 98.125% {opacity:1.0} 99.688% {opacity:0.0} 100.000% {opacity:0.0}} .l3{animation:l3 16.0s linear infinite;opacity:0.0} @keyframes l4{0.000% {opacity:0.0} 23.063% {opacity:0.0} 24.688% {opacity:1.0} 48.125% {opacity:1.0} 49.688% {opacity:0.0} 73.062% {opacity:0.0} 74.688% {opacity:1.0} 98.125% {opacity:1.0} 99.688% {opacity:0.0} 100.000% {opacity:0.0}} .l4{animation:l4 16.0s linear infinite;opacity:0.0} @keyframes l5ok{0.000% {opacity:0.0} 30.563% {opacity:0.0} 32.188% {opacity:1.0} 48.125% {opacity:1.0} 49.688% {opacity:0.0} 100.000% {opacity:0.0}} .l5ok{animation:l5ok 16.0s linear infinite;opacity:0.0} @keyframes l5bad{0.000% {opacity:0.0} 80.562% {opacity:0.0} 82.188% {opacity:1.0} 98.125% {opacity:1.0} 99.688% {opacity:0.0} 100.000% {opacity:0.0}} .l5bad{animation:l5bad 16.0s linear infinite;opacity:0.0} @keyframes r6ok{0.000% {opacity:0.0} 37.438% {opacity:0.0} 39.062% {opacity:1.0} 48.125% {opacity:1.0} 49.688% {opacity:0.0} 100.000% {opacity:0.0}} .r6ok{animation:r6ok 16.0s linear infinite;opacity:0.0} @keyframes r6bad{0.000% {opacity:0.0} 87.438% {opacity:0.0} 89.062% {opacity:1.0} 98.125% {opacity:1.0} 99.688% {opacity:0.0} 100.000% {opacity:0.0}} .r6bad{animation:r6bad 16.0s linear infinite;opacity:0.0} @keyframes p1{0.000% {opacity:0.0} 1.812% {opacity:0.0} 3.438% {opacity:1.0} 48.125% {opacity:1.0} 49.688% {opacity:0.0} 51.813% {opacity:0.0} 53.438% {opacity:1.0} 98.125% {opacity:1.0} 99.688% {opacity:0.0} 100.000% {opacity:0.0}} .p1{animation:p1 16.0s linear infinite;opacity:0.0} @keyframes lab1{0.000% {opacity:0.0} 0.000% {opacity:0.0} 1.562% {opacity:1.0} 49.375% {opacity:1.0} 50.938% {opacity:0.0} 100.000% {opacity:0.0}} .lab1{animation:lab1 16.0s linear infinite;opacity:0.0} @keyframes lab2{0.000% {opacity:0.0} 49.938% {opacity:0.0} 51.562% {opacity:1.0} 99.375% {opacity:1.0} 100.000% {opacity:0.0} 100.937% {opacity:0.0}} .lab2{animation:lab2 16.0s linear infinite;opacity:0.0}
 text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .dim{fill:#1b2330;stroke:#334155}.t{fill:#94a3b8;font-size:15px}.s{fill:#64748b;font-size:12px}
@@ -8,10 +8,10 @@ text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;opacity:1!important}}
 </style>
 <rect width="100%" height="100%" rx="12" fill="#0b1220"/>
-<text x="40" y="44" class="tw" font-size="18" style="font-size:18px">tdk up: smoke check through the public URL</text>
+<text x="40" y="44" class="tw" font-size="18" style="font-size:18px">flisk up: smoke check through the public URL</text>
 <g class="lab1"><text x="40" y="76" class="g">loop 1 · the route works</text></g>
 <g class="lab2"><text x="40" y="76" class="r">loop 2 · GET read-back returns 404</text></g>
-<text x="40" y="98" class="s">not the container /health: the request goes to the URL tdk up prints</text>
+<text x="40" y="98" class="s">not the container /health: the request goes to the URL flisk up prints</text>
 <rect x="40" y="120" width="520" height="56" rx="8" class="dim"/>
 <g class="l1"><rect x="40" y="120" width="520" height="56" rx="8" class="lit"/></g>
 <text x="56" y="144" class="tw">1. service.json</text>
@@ -19,7 +19,7 @@ text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 <text x="296.0" y="192" class="s">↓</text>
 <rect x="40" y="198" width="520" height="56" rx="8" class="dim"/>
 <g class="l2"><rect x="40" y="198" width="520" height="56" rx="8" class="lit"/></g>
-<text x="56" y="222" class="tw">2. tdk up</text>
+<text x="56" y="222" class="tw">2. flisk up</text>
 <text x="56" y="242" class="t">starts the stack</text>
 <text x="296.0" y="270" class="s">↓</text>
 <rect x="40" y="276" width="520" height="56" rx="8" class="dim"/>
@@ -41,5 +41,5 @@ text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 <text x="296.0" y="504" class="s">↓</text>
 <rect x="40" y="510" width="520" height="56" rx="8" class="dim"/>
 <g class="r6ok"><rect x="40" y="510" width="520" height="56" rx="8" class="okb"/><text x="56" y="544" class="g" style="font-size:17px">✓ Smoke check passed</text></g>
-<g class="r6bad"><rect x="40" y="510" width="520" height="56" rx="8" class="badb"/><text x="56" y="534" class="r" style="font-size:17px">✗ Smoke check failed</text><text x="56" y="554" class="r">tdk up exits 1</text></g>
+<g class="r6bad"><rect x="40" y="510" width="520" height="56" rx="8" class="badb"/><text x="56" y="534" class="r" style="font-size:17px">✗ Smoke check failed</text><text x="56" y="554" class="r">flisk up exits 1</text></g>
 </svg>

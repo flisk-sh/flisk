@@ -12,7 +12,7 @@ GitHub uses one static PR template, so it cannot hide or add checklist items bas
 - [ ] Database or infrastructure (`engine/topologies/platform/`, `engine/topologies/tilt/resources/`, `discovery/services/platform/`)
 - [ ] Engine or service discovery (`engine/`, `discovery/`, `Tiltfile`)
 - [ ] Extension or shared platform package (`ext/`, `shared-platform-engineering/`)
-- [ ] Tests, scripts, or benchmarks (`tests/`, `scripts/`, `benchmarks/`)
+- [ ] Tests, scripts, or benchmarks (`tests/`, `scripts/`, `docs/benchmarks/`)
 - [ ] Spec or schema (`openspec/`, `specs/`, `engine/schemas/`)
 - [ ] GitHub Actions or repository setup (`.github/`, package files)
 - [ ] Contributor, agent, or user documentation
@@ -60,7 +60,7 @@ For example: a new database usually changes Tilt `.star` files, Docker/Compose `
 - Keep React as the default and add one Vite-based provider per PR.
 - Test generated files, Vite configs, unknown ids, old manifests, and the unchanged React path.
 - Keep Docker, nginx, Traefik, and shared API/environment behavior common to providers.
-- Run `bun run typecheck`, `bun run lint`, and `cd cli && TDK_REQUIRE_TILT=1 npm test`.
+- Run `bun run typecheck`, `bun run lint`, and `cd cli && FLISK_REQUIRE_TILT=1 npm test`.
 - Update the provider guide and `cli/README.md`.
 
 </details>
@@ -71,7 +71,7 @@ For example: a new database usually changes Tilt `.star` files, Docker/Compose `
 - Trace the feature setting from validation to generated Compose config and Tilt resource registration.
 - Check startup order, health/readiness, environment/secrets, disable behavior, and cleanup.
 - Test the enabled and disabled paths and update `docs/FEATURES.md` or the relevant CLI guide.
-- Run the CLI checks; use `TDK_REQUIRE_TILT=1` for Starlark generator tests.
+- Run the CLI checks; use `FLISK_REQUIRE_TILT=1` for Starlark generator tests.
 
 </details>
 
@@ -81,7 +81,7 @@ For example: a new database usually changes Tilt `.star` files, Docker/Compose `
 - Identify the entry point and follow its imports: platform code is under `engine/topologies/platform/`; Tilt code is under `engine/topologies/tilt/`.
 - Preserve deterministic generation and existing output contracts. Update golden/fixture tests when generated output changes.
 - For a new infrastructure resource, check registration, dependencies/startup order, health/readiness, disable behavior, and cleanup.
-- Run the targeted Starlark/Tilt tests. Use `cd cli && TDK_REQUIRE_TILT=1 npm test` for CLI tests that require Tilt; use `make test-tilt-engine` for `tests/tilt-engine/` when its Python environment is available.
+- Run the targeted Starlark/Tilt tests. Use `cd cli && FLISK_REQUIRE_TILT=1 npm test` for CLI tests that require Tilt; use `make test-tilt-engine` for `tests/tilt-engine/` when its Python environment is available.
 - Include a small before/after generated-output example in **Evidence**.
 
 </details>
@@ -91,7 +91,7 @@ For example: a new database usually changes Tilt `.star` files, Docker/Compose `
 
 - Check generated output and existing `service.json` manifests for compatibility.
 - Update the relevant Starlark or discovery tests and user-facing docs.
-- Run the CLI checks; use `cd cli && TDK_REQUIRE_TILT=1 npm test` for Tilt-dependent generator tests.
+- Run the CLI checks; use `cd cli && FLISK_REQUIRE_TILT=1 npm test` for Tilt-dependent generator tests.
 - Changes under `engine/`, `discovery/`, `cli/`, or `Tiltfile` also trigger Quickstart E2E.
 
 </details>

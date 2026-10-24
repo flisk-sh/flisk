@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Canonical npx form
-Public markdown SHALL write npx commands as `npx -y @flisk-sh/flisk <tdk-args>`. The package is `@flisk-sh/flisk` and its bin is `flisk` (`package.json` `bin.tdk`). The npx `-y` flag SHALL precede the package name; it only suppresses the npx install prompt and is distinct from Flisk's own `--yes`. Docs SHALL NOT write `npx … flisk <cmd>`, SHALL NOT place `-y` after the CLI args, and SHALL NOT use `npm install -g` as the first public command. Bare `flisk` remains valid after a global install or the curl binary.
+Public markdown SHALL write npx commands as `npx -y @flisk-sh/flisk <flisk-args>`. The package is `@flisk-sh/flisk` and its bin is `flisk` (`package.json` `bin.flisk`). The npx `-y` flag SHALL precede the package name; it only suppresses the npx install prompt and is distinct from Flisk's own `--yes`. Docs SHALL NOT write `npx … flisk <cmd>`, SHALL NOT place `-y` after the CLI args, and SHALL NOT use `npm install -g` as the first public command. Bare `flisk` remains valid after a global install or the curl binary.
 
 #### Scenario: Scaffolding command is written
 - **WHEN** a doc shows the backend scaffold command

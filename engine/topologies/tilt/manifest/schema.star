@@ -284,7 +284,7 @@ MANIFEST_SCHEMA = {
                 'description': 'Skip this resource during flisk up entirely (no container is created or started); a Traefik static route wakes it and its dependencies on the first request instead. Requires enable: true.',
             },
         },
-        'description': 'On-demand scaling via Sablier: stop idle containers, wake them on the next request. Not recommended for stateful resources (databases) with in-flight writes. (Premium - requires TDK_LICENSE_KEY; see hasSablierLicense() in extension-fetch.ts)',
+        'description': 'On-demand scaling via Sablier: stop idle containers, wake them on the next request. Not recommended for stateful resources (databases) with in-flight writes. (Premium - requires FLISK_LICENSE_KEY; see hasSablierLicense() in extension-fetch.ts)',
     },
 }
 

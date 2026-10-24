@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { TdkError } from "./errors.js";
+import { FliskError } from "./errors.js";
 
 export const SCHEMA_VERSION = 1 as const;
 
@@ -48,7 +48,7 @@ export function isMachineOutputEnvelope(value: unknown): value is MachineOutputE
 }
 
 export function toMachineError(error: unknown): { error: MachineError; exitCode: number } {
-  if (error instanceof TdkError) {
+  if (error instanceof FliskError) {
     return {
       error: {
         code: "COMMAND_FAILED",

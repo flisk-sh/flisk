@@ -79,6 +79,7 @@ const runProject = async (options: Record<string, unknown>, template?: string) =
   projectCommand.setOptionValue("check", Boolean(options.check));
   projectCommand.setOptionValue("configFile", options.configFile);
   projectCommand.setOptionValue("path", options.path);
+  projectCommand.setOptionValue("quiet", Boolean(options.quiet));
 
   const handler = (projectCommand as unknown as { _actionHandler: (args: unknown[]) => unknown })
     ._actionHandler;
@@ -90,7 +91,7 @@ let exitSpy: ReturnType<typeof vi.spyOn>;
 let logSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-project-command-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-project-command-"));
   mocks.findProjectRoot.mockReturnValue(root);
   mocks.assertMachineReadyOrExit.mockResolvedValue(undefined);
   mocks.generateMasterConfigs.mockResolvedValue(undefined);
@@ -143,10 +144,10 @@ function projectConfig(
   };
 }
 
-const projectJsonPath = () => join(root, ".tdk", "project.json");
+const projectJsonPath = () => join(root, ".flisk", "project.json");
 
 function writeProjectConfig(config: ProjectConfig): string {
-  mkdirSync(join(root, ".tdk"), { recursive: true });
+  mkdirSync(join(root, ".flisk"), { recursive: true });
   const content = `${JSON.stringify(config, null, 2)}\n`;
   writeFileSync(projectJsonPath(), content);
   return content;
@@ -222,7 +223,7 @@ describe("enableDiscoveredStacks", () => {
 });
 
 function writeMasterConfigs() {
-  const outDir = join(root, ".tdk", ".tdk-out");
+  const outDir = join(root, ".flisk", ".flisk-out");
   mkdirSync(outDir, { recursive: true });
   for (const file of MASTER_CONFIG_FILES) {
     writeFileSync(join(outDir, file), "");
@@ -248,7 +249,7 @@ describe("project command action", () => {
     });
 
     expect(exitSpy).toHaveBeenCalledWith(1);
-    expect(mocks.showDetail).toHaveBeenCalledWith(".tdk/project.json (not found)", 3);
+    expect(mocks.showDetail).toHaveBeenCalledWith(".flisk/project.json (not found)", 3);
   });
 
   it("regenerates master configs and completes an existing .env", async () => {
@@ -258,7 +259,7 @@ describe("project command action", () => {
 
     await runProject({ check: false, force: false, yes: false });
 
-    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
     expect(mocks.ensureEnvFile).toHaveBeenCalledWith(root);
     expect(mocks.completeEnvFile).toHaveBeenCalledWith(root);
     expect(mocks.ensureGitignore).toHaveBeenCalledWith(root);
@@ -273,10 +274,21 @@ describe("project command action", () => {
 
     const config = readProjectConfig();
     expect(Object.keys(config.phases)).toEqual(["pre_alpha", "alpha", "beta", "out_of_scope"]);
-    expect(config.project.name).toContain("tdk-project-command-");
+    expect(config.project.name).toContain("flisk-project-command-");
     expect(mocks.promptText).not.toHaveBeenCalled();
-    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
     expect(mocks.ensureEnvFile).toHaveBeenCalledWith(root);
+  });
+
+  it("prints nothing but the files it writes when asked to be quiet", async () => {
+    await runProject({ check: false, force: false, yes: true, quiet: true });
+
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: true });
+    expect(mocks.showCommandHeader).not.toHaveBeenCalled();
+    expect(mocks.showStep).not.toHaveBeenCalled();
+    expect(mocks.showDetail).not.toHaveBeenCalled();
+    expect(mocks.showSuccess).not.toHaveBeenCalled();
+    expect(readProjectConfig().project.name).toContain("flisk-project-command-");
   });
 
   it("keeps the existing project when --force is declined", async () => {
@@ -298,8 +310,8 @@ describe("project command action", () => {
     await runProject({ check: false, force: true, yes: true });
 
     expect(mocks.promptConfirm).not.toHaveBeenCalled();
-    expect(readProjectConfig().project.name).toContain("tdk-project-command-");
-    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root);
+    expect(readProjectConfig().project.name).toContain("flisk-project-command-");
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
   });
 
   it("checks only the scaffolding prerequisites, not the local runtime", async () => {

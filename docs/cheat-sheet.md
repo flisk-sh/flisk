@@ -154,7 +154,7 @@ See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-flisk.md).
 
 ### `flisk eject`
 
-Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the files stay in `.tdk/.tdk-out/`.
+Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the files stay in `.flisk/.flisk-out/`.
 
 | Flag | Effect |
 | --- | --- |
@@ -197,7 +197,7 @@ flisk resource old-api --path services/old-api --register-existing
 | `-y`, `--yes` | No prompts, use defaults |
 | `--port <port>` | Port (default: next free in 4000-5999) |
 | `--feature <feature...>` | Enable a resource feature, for example `prisma` |
-| `--ddd` | Domain-driven design folders and path aliases. Premium, needs `TDK_LICENSE_KEY` |
+| `--ddd` | Domain-driven design folders and path aliases. Premium, needs `FLISK_LICENSE_KEY` |
 
 Bring-your-own only:
 
@@ -273,7 +273,7 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | `--dry-run` | Show what would start |
 | `-f`, `--force` | Kill an existing Tilt process before starting |
 | `--ignore-drift` | Start even if generated files differ from `service.json` |
-| `--ignore-version` | Start even if this `flisk` is older than `minTdkVersion` in `.tdk/project.json` |
+| `--ignore-version` | Start even if this `flisk` is older than `minFliskVersion` in `.flisk/project.json` |
 | `--json` | Print one JSON object when the stack is ready or the command fails. Implies `--quiet` |
 | `-q`, `--quiet` | Less output |
 | `-v`, `--verbose` | More output |
@@ -335,20 +335,20 @@ flisk logs --since 5m --json
 
 ```bash
 flisk config regenerate --dry-run      # preview changes to the 4 master files
-flisk config regenerate                # rewrite them from .tdk/project.json
+flisk config regenerate                # rewrite them from .flisk/project.json
 flisk config verify --json             # do generated files match project.json?
 flisk config migrate                   # move service.json files to the current schema
-flisk config edit                      # open .tdk/project.json in $EDITOR
+flisk config edit                      # open .flisk/project.json in $EDITOR
 flisk config enable-infra monitoring
 flisk config disable-infra elk
 ```
 
 | Subcommand | Effect |
 | --- | --- |
-| `regenerate [--dry-run]` | Regenerate the 4 master config files from `.tdk/project.json` |
-| `verify [--json]` | Check generated files match `.tdk/project.json`. Drift exits 1 |
+| `regenerate [--dry-run]` | Regenerate the 4 master config files from `.flisk/project.json` |
+| `verify [--json]` | Check generated files match `.flisk/project.json`. Drift exits 1 |
 | `migrate` | Migrate `service.json` files to the current schema version |
-| `edit` | Open `.tdk/project.json` in `$EDITOR` |
+| `edit` | Open `.flisk/project.json` in `$EDITOR` |
 | `enable-infra <service>` | Enable optional infrastructure: `monitoring`, `elk`, `debezium`, `golden_image`, `verdaccio` |
 | `disable-infra <service>` | Disable it again |
 
@@ -425,11 +425,11 @@ The script is generated from the CLI itself: the command names, their flags, the
 
 ```bash
 flisk completion --shell bash --install
-echo 'source ~/.bash_completion.d/tdk-completion.bash' >> ~/.bashrc
+echo 'source ~/.bash_completion.d/flisk-completion.bash' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-The first command writes `~/.bash_completion.d/tdk-completion.bash`. The second makes new shells load it.
+The first command writes `~/.bash_completion.d/flisk-completion.bash`. The second makes new shells load it.
 
 #### zsh
 
@@ -442,7 +442,7 @@ EOF
 source ~/.zshrc
 ```
 
-The first command writes `~/.zsh/completions/_tdk`. The `fpath` line has to come before `compinit`. If your `~/.zshrc` already calls `compinit`, add only the `fpath+=(...)` line above it.
+The first command writes `~/.zsh/completions/_flisk`. The `fpath` line has to come before `compinit`. If your `~/.zshrc` already calls `compinit`, add only the `fpath+=(...)` line above it.
 
 #### fish
 
@@ -450,7 +450,7 @@ The first command writes `~/.zsh/completions/_tdk`. The `fpath` line has to come
 flisk completion --shell fish --install
 ```
 
-This writes `~/.config/fish/completions/tdk.fish`, which fish loads by itself. Open a new fish session.
+This writes `~/.config/fish/completions/flisk.fish`, which fish loads by itself. Open a new fish session.
 
 #### PowerShell
 
@@ -494,14 +494,14 @@ stdout holds one JSON document; diagnostics go to stderr. See [machine-readable 
 
 | Variable | Effect |
 | --- | --- |
-| `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, `TDK_POSTGRES_PORT` | Override the host ports Flisk picks |
-| `TDK_BIND_ADDRESS` | Bind address for dev ports (default `127.0.0.1`; `0.0.0.0` to test from a phone) |
+| `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT`, `FLISK_POSTGRES_PORT` | Override the host ports Flisk picks |
+| `FLISK_BIND_ADDRESS` | Bind address for dev ports (default `127.0.0.1`; `0.0.0.0` to test from a phone) |
 | `TILT_PORT` | Tilt UI port (default 10350) |
-| `TDK_SERVICE_BASE_URL` | Base URL for doctor pings and `up` smoke checks (default `<project>.localhost`) |
-| `TDK_UP_READY_TIMEOUT_MS` | How long `flisk up --json` waits for readiness (default 15 minutes) |
-| `TDK_ALLOW_NATIVE_WINDOWS` | Set to `1` to allow `flisk up` on native Windows |
-| `TDK_LICENSE_KEY` | Unlocks premium features such as `--ddd` |
-| `TDK_DEBUG` | Set to `1` with `flisk up --verbose` to include Starlark debug logs |
+| `FLISK_SERVICE_BASE_URL` | Base URL for doctor pings and `up` smoke checks (default `<project>.localhost`) |
+| `FLISK_UP_READY_TIMEOUT_MS` | How long `flisk up --json` waits for readiness (default 15 minutes) |
+| `FLISK_ALLOW_NATIVE_WINDOWS` | Set to `1` to allow `flisk up` on native Windows |
+| `FLISK_LICENSE_KEY` | Unlocks premium features such as `--ddd` |
+| `FLISK_DEBUG` | Set to `1` with `flisk up --verbose` to include Starlark debug logs |
 
 Project `.env` keys (`DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET`, ...) are covered in [environment, params and secrets](environment.md).
 
@@ -509,8 +509,8 @@ Project `.env` keys (`DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET`, ...) are cover
 
 | Path | What it is |
 | --- | --- |
-| `.tdk/project.json` | Project settings. `flisk config regenerate` rebuilds from it |
-| `.tdk/.tdk-out/` | The 4 master files: `Tiltfile`, `spec.master`, `TILT_RESOURCE_DEFAULTS.star`, `TILT_TECH_STACK.star` |
+| `.flisk/project.json` | Project settings. `flisk config regenerate` rebuilds from it |
+| `.flisk/.flisk-out/` | The 4 master files: `Tiltfile`, `spec.master`, `TILT_RESOURCE_DEFAULTS.star`, `TILT_TECH_STACK.star` |
 | `services/<group>/<name>/service.json` | One per resource: type, port, stack, params, secrets. **Edit this** |
 | `services/<group>/<name>/.autogenerated/` | Docker and Tilt files generated from `service.json`. Don't hand-edit them |
 | `.env` | Generated credentials. Gitignored |

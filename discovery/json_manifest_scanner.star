@@ -16,14 +16,14 @@ def discover_json_manifests(root_path):
     
     Args:
         root_path: Path relative to project root (e.g., "services/product")
-                   or absolute path. Uses TDK_PROJECT_ROOT env var if set.
+                   or absolute path. Uses FLISK_PROJECT_ROOT env var if set.
                    Supports glob patterns like "identity-*" for flat structures.
     
     Returns:
         List of manifest file paths (strings)
     """
     # Get project root from environment variable set by main Tiltfile
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '.')
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '.')
     
     # Check if root_path contains glob patterns
     if '*' in root_path or '?' in root_path:

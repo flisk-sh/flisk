@@ -19,11 +19,11 @@ import { startSpinner } from "../utils/spinner.js";
 import { extractTarball } from "../utils/tar.js";
 import { findAllOnPath, findOnPath } from "../utils/which.js";
 /** @internal Exported for unit tests only; not part of the package API. */
-export function isStandaloneBinary(tdkPath) {
-    if (isWindows() && tdkPath.toLowerCase().endsWith(".exe"))
+export function isStandaloneBinary(fliskPath) {
+    if (isWindows() && fliskPath.toLowerCase().endsWith(".exe"))
         return true;
     try {
-        const fileInfo = execFileSync("file", ["-b", tdkPath], { encoding: "utf-8" });
+        const fileInfo = execFileSync("file", ["-b", fliskPath], { encoding: "utf-8" });
         return /Mach-O|ELF/.test(fileInfo);
     }
     catch (err) {
@@ -34,7 +34,7 @@ export function isStandaloneBinary(tdkPath) {
 /** @internal Exported for unit tests only; not part of the package API. */
 export function classifyRunningInstall(execPath, scriptPath, platformName = process.platform) {
     const runningName = (platformName === "win32" ? win32.basename(execPath) : basename(execPath)).toLowerCase();
-    if (runningName === "flisk" || runningName === "tdk.exe") {
+    if (runningName === "flisk" || runningName === "flisk.exe") {
         return { method: "binary", path: execPath };
     }
     if (runningName === "node" || runningName === "node.exe") {
@@ -58,24 +58,26 @@ export function detectInstallation() {
     if (runningInstall)
         return runningInstall;
     try {
-        const tdkPath = findOnPath(executableName());
-        if (!tdkPath)
+        const fliskPath = findOnPath(executableName());
+        if (!fliskPath)
             return { method: "unknown" };
         // `readlink -f` is not available on macOS. Use Node's cross-platform
         // realpath implementation so standalone binaries are detected there too.
-        const realPath = realpathSync(tdkPath);
-        // If the real path contains tdk-cli and has .git, it's a linked git install
-        if (realPath.includes("tdk-cli")) {
+        const realPath = realpathSync(fliskPath);
+        // If the real path contains flisk-cli and has .git, it's a linked git install
+        if (realPath.includes("flisk-cli")) {
             const possibleGitRoot = resolve(realPath, "..", "..", "..");
             if (existsSync(join(possibleGitRoot, ".git"))) {
                 return { method: "git", path: possibleGitRoot };
             }
         }
-        if (tdkPath.includes("node_modules") || tdkPath.includes(".npm") || tdkPath.includes(".bun")) {
-            if (tdkPath.includes(".bun")) {
-                return { method: "bun", path: tdkPath };
+        if (fliskPath.includes("node_modules") ||
+            fliskPath.includes(".npm") ||
+            fliskPath.includes(".bun")) {
+            if (fliskPath.includes(".bun")) {
+                return { method: "bun", path: fliskPath };
             }
-            return { method: "npm", path: tdkPath };
+            return { method: "npm", path: fliskPath };
         }
         const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
         if (existsSync(join(cliRoot, ".git"))) {
@@ -86,7 +88,7 @@ export function detectInstallation() {
         if (isStandaloneBinary(realPath)) {
             return { method: "binary", path: realPath };
         }
-        return { method: "unknown", path: tdkPath };
+        return { method: "unknown", path: fliskPath };
     }
     catch (err) {
         console.warn(chalk.yellow("⚠️ Could not detect installation method"));
@@ -95,25 +97,27 @@ export function detectInstallation() {
     }
 }
 /** @internal Exported for unit tests only; not part of the package API. */
-export function detectInstallationForPath(tdkPath) {
+export function detectInstallationForPath(fliskPath) {
     try {
-        const realPath = realpathSync(tdkPath);
-        if (realPath.includes("tdk-cli")) {
+        const realPath = realpathSync(fliskPath);
+        if (realPath.includes("flisk-cli")) {
             const possibleGitRoot = resolve(realPath, "..", "..", "..");
             if (existsSync(join(possibleGitRoot, ".git"))) {
                 return { method: "git", path: possibleGitRoot };
             }
         }
-        if (tdkPath.includes("node_modules") || tdkPath.includes(".npm") || tdkPath.includes(".bun")) {
-            return { method: tdkPath.includes(".bun") ? "bun" : "npm", path: tdkPath };
+        if (fliskPath.includes("node_modules") ||
+            fliskPath.includes(".npm") ||
+            fliskPath.includes(".bun")) {
+            return { method: fliskPath.includes(".bun") ? "bun" : "npm", path: fliskPath };
         }
         if (isStandaloneBinary(realPath))
             return { method: "binary", path: realPath };
     }
     catch (err) {
-        logVerbose(`Installation detection failed for ${tdkPath}`, err);
+        logVerbose(`Installation detection failed for ${fliskPath}`, err);
     }
-    return { method: "unknown", path: tdkPath };
+    return { method: "unknown", path: fliskPath };
 }
 /** @internal Exported for unit tests only; not part of the package API. */
 export function detectAllInstallations() {
@@ -211,11 +215,11 @@ export function isWritable(path) {
     }
 }
 /** @internal Exported for unit tests only; not part of the package API. */
-export async function upgradeViaBinary(tdkPath, release) {
+export async function upgradeViaBinary(fliskPath, release) {
     // Never shells out to sudo - if the install dir isn't user-writable, fail
     // fast with the manual curl command instead of downloading first and
     // elevating automatically. The user runs that curl themselves.
-    const installDir = dirname(tdkPath);
+    const installDir = dirname(fliskPath);
     if (!isWritable(installDir)) {
         console.log(chalk.yellow(`\n🔒 ${installDir} isn't writable by your user.`));
         console.log(chalk.yellow("💡 Upgrade manually instead:"));
@@ -223,19 +227,19 @@ export async function upgradeViaBinary(tdkPath, release) {
             console.log(chalk.cyan("   Install Flisk in a user-writable directory, then retry the upgrade."));
         }
         else {
-            console.log(chalk.cyan(`   curl -fsSL -o ${tdkPath} ${release.downloadUrl}`));
-            console.log(chalk.cyan(`   chmod +x ${tdkPath}`));
+            console.log(chalk.cyan(`   curl -fsSL -o ${fliskPath} ${release.downloadUrl}`));
+            console.log(chalk.cyan(`   chmod +x ${fliskPath}`));
         }
         return false;
     }
     const spinner = startSpinner(`Downloading ${release.assetName} (${release.tag})...`);
-    const tempDir = join(installDir, `.tdk-upgrade-${process.pid}-${Date.now()}`);
+    const tempDir = join(installDir, `.flisk-upgrade-${process.pid}-${Date.now()}`);
     const tmpPath = join(tempDir, release.assetName);
     const engineTmpPath = join(tempDir, "engine.tar.gz");
-    const engineDir = join(installDir, "tdk-cli");
-    const engineStageDir = join(tempDir, "tdk-cli");
-    const binaryBackup = join(tempDir, `${basename(tdkPath)}.previous`);
-    const engineBackup = join(tempDir, "tdk-cli.previous");
+    const engineDir = join(installDir, "flisk-cli");
+    const engineStageDir = join(tempDir, "flisk-cli");
+    const binaryBackup = join(tempDir, `${basename(fliskPath)}.previous`);
+    const engineBackup = join(tempDir, "flisk-cli.previous");
     try {
         mkdirSync(tempDir, { recursive: true });
         const binaryResponse = await fetch(release.downloadUrl, {
@@ -245,8 +249,8 @@ export async function upgradeViaBinary(tdkPath, release) {
             throw new Error(`Download failed (${binaryResponse.status})`);
         writeFileSync(tmpPath, Buffer.from(await binaryResponse.arrayBuffer()));
         // The compiled binary has no source checkout to find engine/ or
-        // cli/templates/ in, so it looks for a tdk-cli/ folder next to itself
-        // (see template-engine.ts loadTemplate() / vendorTdkExtension()).
+        // cli/templates/ in, so it looks for a flisk-cli/ folder next to itself
+        // (see template-engine.ts loadTemplate() / vendorFliskExtension()).
         // `flisk upgrade` only used to swap the binary, leaving that folder
         // stale/missing after an upgrade - refresh it here too, every time,
         // the same way install.sh does on a fresh install.
@@ -275,14 +279,14 @@ export async function upgradeViaBinary(tdkPath, release) {
             chmodSync(tmpPath, 0o755);
         mkdirSync(engineStageDir, { recursive: true });
         extractTarball(engineBuffer, engineStageDir);
-        if (existsSync(tdkPath))
-            renameSync(tdkPath, binaryBackup);
+        if (existsSync(fliskPath))
+            renameSync(fliskPath, binaryBackup);
         try {
-            renameSync(tmpPath, tdkPath);
+            renameSync(tmpPath, fliskPath);
         }
         catch (err) {
             if (existsSync(binaryBackup))
-                renameSync(binaryBackup, tdkPath);
+                renameSync(binaryBackup, fliskPath);
             throw err;
         }
         if (existsSync(engineDir))
@@ -294,8 +298,8 @@ export async function upgradeViaBinary(tdkPath, release) {
             if (existsSync(engineBackup))
                 renameSync(engineBackup, engineDir);
             if (existsSync(binaryBackup)) {
-                rmSync(tdkPath, { force: true });
-                renameSync(binaryBackup, tdkPath);
+                rmSync(fliskPath, { force: true });
+                renameSync(binaryBackup, fliskPath);
             }
             throw err;
         }
@@ -639,7 +643,7 @@ export function createUpgradeCommand() {
             console.log(chalk.yellow("\nManual upgrade using a published package:"));
             console.log(chalk.cyan("   npm install -g @flisk-sh/flisk@latest"));
             console.log(chalk.cyan("   bun install -g @flisk-sh/flisk@latest"));
-            console.log(chalk.cyan("   git:  cd /path/to/tdk-cli && git pull && bun link --force"));
+            console.log(chalk.cyan("   git:  cd /path/to/flisk-cli && git pull && bun link --force"));
             process.exit(1);
         }
         let latestVersion = null;
@@ -782,7 +786,7 @@ export function createUpgradeCommand() {
                 console.log(chalk.cyan("   Commit or stash them, then retry: flisk upgrade"));
             }
             else if (installInfo.method === "binary" && binaryRelease && installInfo.path) {
-                const engineDir = join(dirname(installInfo.path), "tdk-cli");
+                const engineDir = join(dirname(installInfo.path), "flisk-cli");
                 if (isWindows()) {
                     console.log(chalk.cyan("   irm https://flisk.sh/install.ps1 | iex"));
                 }

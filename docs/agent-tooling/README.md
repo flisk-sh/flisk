@@ -17,4 +17,4 @@ The server exposes nine tools: `doctor`, `up`, `down`, `status`, `logs`, `resour
 
 Flisk is open source. When an agent or a person using `flisk mcp` hits a framework problem, open an issue in [flisk-sh/flisk](https://github.com/flisk-sh/flisk/issues) with the flisk version, a minimal reproduction, and the expected behavior. If you have a fix, open a pull request against the same repository.
 
-Example: [#1204](https://github.com/flisk-sh/flisk/issues/1204) reports that `flisk project` output under `.tdk/.tdk-out` is picked up by Vitest in Node and TypeScript projects.
+Example: [#1204](https://github.com/flisk-sh/flisk/issues/1204) reports that `flisk project` output under `.flisk/.flisk-out` is picked up by Vitest in Node and TypeScript projects.

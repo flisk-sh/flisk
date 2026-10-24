@@ -9,7 +9,7 @@ import { getProjectName } from "./service-urls.js";
 import { findOnPath } from "./which.js";
 
 const WINDOWS_DNS_FAILURE =
-  "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.";
+  "Windows did not resolve *.flisk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.";
 
 function loopbackAddresses(addresses: string[]): boolean {
   return (
@@ -176,7 +176,7 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
   }
 
   let dnsOk = true;
-  for (const host of ["tdk.localhost", "example.tdk.localhost"]) {
+  for (const host of ["flisk.localhost", "example.flisk.localhost"]) {
     try {
       const records = await lookup(host, { all: true, verbatim: true });
       if (!loopbackAddresses(records.map((record) => record.address))) dnsOk = false;
@@ -186,7 +186,7 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
   }
   if (!dnsOk) {
     warnings.push(
-      `${WINDOWS_DNS_FAILURE}\nAdd these lines to C:\\Windows\\System32\\drivers\\etc\\hosts (Administrator Notepad):\n127.0.0.1 tdk.localhost\n127.0.0.1 example.tdk.localhost`,
+      `${WINDOWS_DNS_FAILURE}\nAdd these lines to C:\\Windows\\System32\\drivers\\etc\\hosts (Administrator Notepad):\n127.0.0.1 flisk.localhost\n127.0.0.1 example.flisk.localhost`,
     );
   }
 

@@ -13,10 +13,10 @@ A copy-paste GitHub Actions workflow for **your own repository**, with two jobs:
 
 ## The workflow
 
-Save it as `.github/workflows/tdk-ci.yml`. The same file lives in the repository as [`docs/examples/ci/tdk-ci.yml`](examples/ci/tdk-ci.yml).
+Save it as `.github/workflows/flisk-ci.yml`. The same file lives in the repository as [`docs/examples/ci/flisk-ci.yml`](examples/ci/flisk-ci.yml).
 
 ```yaml
-# Copy to .github/workflows/tdk-ci.yml in your own repository.
+# Copy to .github/workflows/flisk-ci.yml in your own repository.
 # Two jobs: `verify` checks the committed Flisk files without starting any
 # container; `boot` runs a real `flisk up` and waits for every service's /health.
 # Adapted from flisk's e2e-examples.yml and e2e-journeys.yml.
@@ -32,15 +32,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: tdk-${{ github.event.pull_request.number || github.ref }}
+  group: flisk-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   # The flisk version CI uses. Replace it with the version your team runs; raise
-  # `minTdkVersion` in .tdk/project.json when you raise this.
-  TDK_VERSION: "1.3.110"
+  # `minFliskVersion` in .flisk/project.json when you raise this.
+  FLISK_VERSION: "1.3.110"
   # The stack `flisk up` starts in the `boot` job.
-  TDK_STACK: shop
+  FLISK_STACK: shop
   # What the `boot` job waits for, as space-separated <route>:<tilt resource>
   # pairs. <route> is the path segment before /health in the URL that
   # `flisk up <stack> --dry-run` prints; <tilt resource> is the service name.
@@ -67,10 +67,10 @@ jobs:
 
       - name: Install flisk
         run: |
-          npm install --global "@flisk-sh/flisk@${TDK_VERSION}"
+          npm install --global "@flisk-sh/flisk@${FLISK_VERSION}"
           flisk --version
 
-      # A fresh clone has neither the git-ignored .env nor .tdk/.tdk-out/, so
+      # A fresh clone has neither the git-ignored .env nor .flisk/.flisk-out/, so
       # `flisk config verify` alone reports them as missing.
       - name: Generate the local project files
         run: flisk project --yes
@@ -78,7 +78,7 @@ jobs:
       - name: flisk doctor
         run: flisk doctor --no-ping
 
-      # Exits 1 when a generated file differs from what .tdk/project.json produces.
+      # Exits 1 when a generated file differs from what .flisk/project.json produces.
       - name: flisk config verify
         run: flisk config verify
 
@@ -109,7 +109,7 @@ jobs:
 
       - name: Install flisk
         run: |
-          npm install --global "@flisk-sh/flisk@${TDK_VERSION}"
+          npm install --global "@flisk-sh/flisk@${FLISK_VERSION}"
           flisk --version
 
       - name: Generate the local project files
@@ -121,9 +121,9 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          mkdir -p "$RUNNER_TEMP/tdk-logs"
-          log="$RUNNER_TEMP/tdk-logs/up.log"
-          flisk up "$TDK_STACK" > "$log" 2>&1 &
+          mkdir -p "$RUNNER_TEMP/flisk-logs"
+          log="$RUNNER_TEMP/flisk-logs/up.log"
+          flisk up "$FLISK_STACK" > "$log" 2>&1 &
 
           # `flisk up` prints one health URL per service. Wait for each to appear.
           urls=""
@@ -183,7 +183,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          out="$RUNNER_TEMP/tdk-logs"
+          out="$RUNNER_TEMP/flisk-logs"
           mkdir -p "$out"
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' > "$out/docker-ps.txt" 2>&1 || true
           tilt get uiresources > "$out/tilt-resources.txt" 2>&1 || true
@@ -196,8 +196,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: tdk-logs-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/tdk-logs/
+          name: flisk-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/flisk-logs/
           retention-days: 7
           if-no-files-found: warn
 
@@ -208,7 +208,7 @@ jobs:
         run: flisk down --prune-networks || flisk down || true
 ```
 
-Change three values at the top: `TDK_VERSION`, `TDK_STACK` and `HEALTH_SERVICES`. `flisk up <stack> --dry-run` shows the URLs a stack will print (`http://api.localhost:8080/api/orders/health` for the scaffolded `orders-api` in the `shop` stack, so the route is `orders`) without starting anything.
+Change three values at the top: `FLISK_VERSION`, `FLISK_STACK` and `HEALTH_SERVICES`. `flisk up <stack> --dry-run` shows the URLs a stack will print (`http://api.localhost:8080/api/orders/health` for the scaffolded `orders-api` in the `shop` stack, so the route is `orders`) without starting anything.
 
 ## Installing flisk and Tilt
 
@@ -224,7 +224,7 @@ The version in the file (`1.3.110`) is the latest npm release at the time of wri
 
 ### Pin the version in the repository too
 
-Add `minTdkVersion` to `.tdk/project.json` ([upgrading](upgrading.md#set-a-minimum-version-for-the-repo)). It is a floor: `flisk doctor` fails on an older CLI and says `Run: flisk upgrade`. `flisk up` checks it as well. The CHANGELOG lists both under **Unreleased** at the time of writing, so check `flisk doctor` on the version you pin before you depend on it.
+Add `minFliskVersion` to `.flisk/project.json` ([upgrading](upgrading.md#set-a-minimum-version-for-the-repo)). It is a floor: `flisk doctor` fails on an older CLI and says `Run: flisk upgrade`. `flisk up` checks it as well. The CHANGELOG lists both under **Unreleased** at the time of writing, so check `flisk doctor` on the version you pin before you depend on it.
 
 ## What each command does in the first job
 
@@ -236,20 +236,20 @@ Run for real in a scratch repository (a backend `orders-api` in stack `shop`, co
 | `flisk resource orders-api --type backend --stack shop` (answering `y`) | New repository | 0 |
 | `flisk doctor --no-ping` | New repository | 0 |
 | `flisk config verify` | New repository | 0 (`All files are in sync!`) |
-| `flisk config verify` | Fresh `git clone`, **before** `flisk project --yes` | 1: five `Missing file: .tdk/.tdk-out/...` lines plus a diff |
+| `flisk config verify` | Fresh `git clone`, **before** `flisk project --yes` | 1: five `Missing file: .flisk/.flisk-out/...` lines plus a diff |
 | `flisk project --yes`, then `flisk config verify` | Fresh `git clone` | 0, 0 |
 | `flisk doctor --no-ping` | Fresh clone after `flisk project --yes` | 0 |
 | `flisk config verify` after appending a line to the committed `.tiltignore` that Flisk generated | Fresh clone | 1 |
-| `flisk config verify` after editing `discovery.paths` in `.tdk/project.json` | Fresh clone | 1: `Out of sync: .tdk/.tdk-out/spec.master` |
+| `flisk config verify` after editing `discovery.paths` in `.flisk/project.json` | Fresh clone | 1: `Out of sync: .flisk/.flisk-out/spec.master` |
 | `flisk config verify --json` for that edit | Fresh clone | `data.valid` false, `data.errors` holds the same line |
 
-Why the workflow runs `flisk project --yes` first: `.env` and `.tdk/.tdk-out/` are git-ignored ([gradual adoption](gradual-adoption.md#what-to-commit)), so a clone has neither. Verify reports the missing generated files as drift, and `flisk doctor` without `.env` fails with `Missing required env variables: TILT_ENV, DB_PASSWORD`. In the example project, `flisk config regenerate` also made verify pass without writing `.env` (and without touching tracked files), but `doctor` then failed for the missing variables, so the workflow uses `flisk project --yes`.
+Why the workflow runs `flisk project --yes` first: `.env` and `.flisk/.flisk-out/` are git-ignored ([gradual adoption](gradual-adoption.md#what-to-commit)), so a clone has neither. Verify reports the missing generated files as drift, and `flisk doctor` without `.env` fails with `Missing required env variables: TILT_ENV, DB_PASSWORD`. In the example project, `flisk config regenerate` also made verify pass without writing `.env` (and without touching tracked files), but `doctor` then failed for the missing variables, so the workflow uses `flisk project --yes`.
 
 ### What the first job needs from the machine
 
-- `flisk project --yes` **exits 0 without a running Docker daemon, the Compose plugin and Tilt** (observed on the branch build, with Docker and Tilt removed from `PATH`: it wrote `.tdk/project.json` and the generated master files, then printed a `Runtime readiness:` block naming the missing Docker and Tilt instead of a `Cold start blocked` failure). The runtime gate now belongs to `flisk up`, which still exits 1 with `Cold start blocked` and a `FAIL docker / compose / tilt` list, and `flisk doctor` still fails on the same three. A Flisk release that predates this change still exits 1 in `flisk project` without the runtime, so pin a version that includes it before relying on the new behaviour. GitHub-hosted `ubuntu-latest` runners come with Docker, and the workflow installs Tilt, so no image is built and no container is started. Whether the preinstalled Docker on the runner satisfies `flisk doctor`'s Compose and healthcheck version checks was **not verified** on a runner.
+- `flisk project --yes` **exits 0 without a running Docker daemon, the Compose plugin and Tilt** (observed on the branch build, with Docker and Tilt removed from `PATH`: it wrote `.flisk/project.json` and the generated master files, then printed a `Runtime readiness:` block naming the missing Docker and Tilt instead of a `Cold start blocked` failure). The runtime gate now belongs to `flisk up`, which still exits 1 with `Cold start blocked` and a `FAIL docker / compose / tilt` list, and `flisk doctor` still fails on the same three. A Flisk release that predates this change still exits 1 in `flisk project` without the runtime, so pin a version that includes it before relying on the new behaviour. GitHub-hosted `ubuntu-latest` runners come with Docker, and the workflow installs Tilt, so no image is built and no container is started. Whether the preinstalled Docker on the runner satisfies `flisk doctor`'s Compose and healthcheck version checks was **not verified** on a runner.
 - `flisk config verify` on its own (after `flisk config regenerate`) needed neither Docker nor Tilt on `PATH`: it exited 0 with both removed. Use that if you want a job without Docker, and skip `flisk doctor`.
-- `flisk project --yes` may change a tracked file. In the clone above it added the stack `shop` to `enabledStacks` in `.tdk/project.json`, because the committed file did not list it. Commit the result; add `git diff --exit-code -- .tdk/project.json` after it if you want CI to fail when someone forgets.
+- `flisk project --yes` may change a tracked file. In the clone above it added the stack `shop` to `enabledStacks` in `.flisk/project.json`, because the committed file did not list it. Commit the result; add `git diff --exit-code -- .flisk/project.json` after it if you want CI to fail when someone forgets.
 
 ### Exit codes
 
@@ -267,7 +267,7 @@ Mirrors [`e2e-journeys.yml`](../.github/workflows/e2e-journeys.yml), reduced to 
 2. Start `flisk up <stack>` in the background, with its output in a log file, and wait for it to print one `/health` URL for every `HEALTH_SERVICES` entry.
 3. Poll the URLs every 10 seconds until all answer with a 2xx status. At most 120 polls, which is the 20 minutes `e2e-journeys.yml` allows; the quickstart suite's 30-minute timeout is the value in `tests/e2e/journeys/quickstart/suite.json`.
 4. Once a minute, ask Tilt (`tilt get uiresources`) for resources whose update status is `error`. Tilt does not retry a failed image build, so after two checks in a row the job stops with the resource names instead of waiting out the timeout. The quickstart workflow also stops early when Tilt has no resource for a service (a service Flisk never discovered); that check is left out here.
-5. Collect `docker ps -a`, `tilt get uiresources`, `flisk doctor` and the last 200 lines of every container into `tdk-logs/`, and upload it with `actions/upload-artifact` (kept 7 days, a choice). The step runs on success too, so a green run leaves the same record.
+5. Collect `docker ps -a`, `tilt get uiresources`, `flisk doctor` and the last 200 lines of every container into `flisk-logs/`, and upload it with `actions/upload-artifact` (kept 7 days, a choice). The step runs on success too, so a green run leaves the same record.
 6. `flisk down --prune-networks`. `--prune-networks` came with PR [#585](https://github.com/flisk-sh/flisk/pull/585) and is under **Unreleased** in the CHANGELOG; an older flisk rejects the flag (exit 1 for an unknown option, checked), so the step falls back to `flisk down`. Without the flag the project's Docker networks stay. `flisk down` needs no confirmation, so `--force` is unnecessary. On a throwaway runner the networks do not matter; on a self-hosted runner they do.
 
 Not covered by the repository's own workflows, so not claimed here: caching Docker layers or the images Flisk builds locally. None of this repository's workflows does it. On a clean runner the first `flisk up` builds the project's golden layers and each service image from scratch; how long that takes for your stack was not measured.
