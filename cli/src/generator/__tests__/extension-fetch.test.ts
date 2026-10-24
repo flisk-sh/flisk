@@ -154,7 +154,7 @@ describe("applyPremiumOverlay", () => {
 
     const fetchSpy = vi.fn().mockImplementation((url: string) => {
       expect(url).toContain(
-        "https://flisk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz",
+        "https://tdk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz",
       );
       return Promise.resolve(new Response("denied", { status: 403 }));
     });

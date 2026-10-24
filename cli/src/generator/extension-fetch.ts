@@ -32,8 +32,11 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { extractTarball } from "../utils/tar.js";
 
+// The worker keeps its pre-rename name (tdk-extension-dist, see wrangler.toml
+// in flisk-extension-dist); the worker name sets the hostname, so the live
+// host is still tdk-*. Switch back once the worker itself is renamed.
 const DEFAULT_ENDPOINT =
-  "https://flisk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz";
+  "https://tdk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz";
 
 // Tried in order until one is granted - the worker unlocks the whole
 // bundle on the first resource name a key is found to grant, since

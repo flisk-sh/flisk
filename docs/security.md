@@ -9,7 +9,7 @@ Flisk has no telemetry or analytics ([project overview](project-overview.md#tele
 | Call | When | Goes to | Sends |
 | --- | --- | --- | --- |
 | `flisk upgrade` version check and download | Only when you run `flisk upgrade` | `api.github.com` releases, GitHub release assets, and on Windows `registry.npmjs.org` | An ordinary unauthenticated request. The binary and the bundled engine are checked against the release `checksums.txt` before the installed copy is replaced (`checksum mismatch` error path read in `upgrade.ts`). |
-| Premium extension fetch | Only when `FLISK_LICENSE_KEY` is set and a premium feature is used | `FLISK_PREMIUM_ENDPOINT`, default a Cloudflare Worker (`flisk-extension-dist.oranguman.workers.dev`) | The licence key as a bearer token, the resource name and a random per-project id stored in `.flisk/`. A bundle is cached under `~/.flisk/cache/`. |
+| Premium extension fetch | Only when `FLISK_LICENSE_KEY` is set and a premium feature is used | `FLISK_PREMIUM_ENDPOINT`, default a Cloudflare Worker (`tdk-extension-dist.oranguman.workers.dev`) | The license key as a bearer token, the resource name and a random per-project id stored in `.flisk/`. A bundle is cached under `~/.flisk/cache/`. |
 | `flisk doctor` service ping, and the `smoke` checks that `flisk up` runs for services that declare them | When services are running; `flisk doctor --no-ping` skips the ping | `<project>.localhost` (or `FLISK_SERVICE_BASE_URL`) | A GET to each service's health endpoint. |
 
 Without a licence key, and without running `flisk upgrade`, the CLI makes no outbound request of its own. There is no update check on startup.
