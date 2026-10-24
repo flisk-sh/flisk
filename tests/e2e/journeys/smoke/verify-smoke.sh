@@ -5,9 +5,9 @@
 #   Phase 1: a backend with an in-memory /records API declares a smoke block (POST a record, GET it back by the saved id).
 #            `flisk up` must print "Smoke check passed" and keep running.
 #   Phase 2: the same service.json points a step at a route the service does not have. `flisk up` must print "Smoke check failed"
-#            with the URL and status, and exit non-zero. The retained record (.tdk/smoke/<service>/read-back/latest.json) must hold
+#            with the URL and status, and exit non-zero. The retained record (.flisk/smoke/<service>/read-back/latest.json) must hold
 #            the public URL, status 404 and a non-empty body, and phase 1's last-success copy must still be there.
-# VERIFY_SMOKE_ARTIFACT_DIR: when set, the project's .tdk/smoke records are copied there on exit (pass or fail) for CI to upload.
+# VERIFY_SMOKE_ARTIFACT_DIR: when set, the project's .flisk/smoke records are copied there on exit (pass or fail) for CI to upload.
 # Needs Docker, Tilt, and a built CLI (cli/dist). Uses a unique project name and random alternate ports, and removes only the
 # containers, networks and images carrying that name (it never calls `flisk down`).
 #
@@ -19,11 +19,11 @@ proj="smk$$"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))
-flisk() { TDK_EXTENSION_SOURCE="$root" node "$root/cli/bin/tdk.js" "$@"; }
+flisk() { FLISK_EXTENSION_SOURCE="$root" node "$root/cli/bin/flisk.js" "$@"; }
 
 cleanup() {
-  if [ -n "${VERIFY_SMOKE_ARTIFACT_DIR:-}" ] && [ -d "$work/.tdk/smoke" ]; then
-    mkdir -p "$VERIFY_SMOKE_ARTIFACT_DIR" && cp -R "$work/.tdk/smoke/." "$VERIFY_SMOKE_ARTIFACT_DIR/" || true
+  if [ -n "${VERIFY_SMOKE_ARTIFACT_DIR:-}" ] && [ -d "$work/.flisk/smoke" ]; then
+    mkdir -p "$VERIFY_SMOKE_ARTIFACT_DIR" && cp -R "$work/.flisk/smoke/." "$VERIFY_SMOKE_ARTIFACT_DIR/" || true
   fi
   pkill -f "tilt up.*$proj" >/dev/null 2>&1 || true
   docker rm -f $(docker ps -aq --filter "name=$proj") >/dev/null 2>&1 || true
@@ -37,7 +37,7 @@ cd "$work"
 git init -q .
 flisk project --yes >/dev/null 2>&1
 # Exported, not written to .env: `flisk up` reads these from its own environment when it prints and checks the public URLs.
-export TDK_HTTP_PORT="$http_port" TDK_HTTPS_PORT="$((32000 + RANDOM % 2000))" TDK_POSTGRES_PORT="$((34000 + RANDOM % 2000))"
+export FLISK_HTTP_PORT="$http_port" FLISK_HTTPS_PORT="$((32000 + RANDOM % 2000))" FLISK_POSTGRES_PORT="$((34000 + RANDOM % 2000))"
 flisk resource "$proj" --type backend --stack app --yes >/dev/null
 svc="services/app/$proj"
 
@@ -91,7 +91,7 @@ wait_for() { # $1 = pattern, $2 = pid
 # Phase 1: a correct smoke block passes.
 set_smoke '/records/{{id}}'
 : > up.log
-nohup node "$root/cli/bin/tdk.js" up app >"$work/up.log" 2>&1 &
+nohup node "$root/cli/bin/flisk.js" up app >"$work/up.log" 2>&1 &
 pid=$!
 if ! wait_for "Smoke check passed: $proj" "$pid"; then
   echo "FAIL smoke phase 1: no 'Smoke check passed' line" >&2
@@ -110,14 +110,14 @@ wait "$pid" 2>/dev/null || true
 set_smoke '/missing/{{id}}'
 : > up.log
 set +e
-node "$root/cli/bin/tdk.js" up app >"$work/up.log" 2>&1 &
+node "$root/cli/bin/flisk.js" up app >"$work/up.log" 2>&1 &
 pid=$!
 wait_for "Smoke check failed" "$pid"
 wait "$pid"
 code=$?
 set -e
 fail_line="$(grep "Smoke check failed" up.log | tail -1 || true)"
-record_dir="$work/.tdk/smoke/$proj/read-back"
+record_dir="$work/.flisk/smoke/$proj/read-back"
 record_error="$(python3 - "$record_dir" "$proj" <<'PY'
 import json, os, sys
 d, proj = sys.argv[1], sys.argv[2]

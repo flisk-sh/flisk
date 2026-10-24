@@ -33,7 +33,7 @@ async function getClient(): Promise<Client> {
   await c.connect();
   if (!initialized) {
     await c.query(\`
-      CREATE TABLE IF NOT EXISTS tdk_agent_sessions (
+      CREATE TABLE IF NOT EXISTS flisk_agent_sessions (
         session_id VARCHAR(128) PRIMARY KEY,
         messages JSONB NOT NULL DEFAULT '[]'::jsonb,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -59,7 +59,7 @@ const store = {
   async load(sessionId: string): Promise<Checkpoint> {
     try {
       const c = await getClient();
-      const res = await c.query('SELECT messages FROM tdk_agent_sessions WHERE session_id = $1', [sessionId]);
+      const res = await c.query('SELECT messages FROM flisk_agent_sessions WHERE session_id = $1', [sessionId]);
       if (res.rows.length > 0 && res.rows[0].messages) {
         return { sessionId, messages: res.rows[0].messages };
       }
@@ -72,7 +72,7 @@ const store = {
   async save(checkpoint: Checkpoint): Promise<void> {
     const c = await getClient();
     await c.query(
-      \`INSERT INTO tdk_agent_sessions (session_id, messages, updated_at)
+      \`INSERT INTO flisk_agent_sessions (session_id, messages, updated_at)
        VALUES ($1, $2, NOW())
        ON CONFLICT (session_id) DO UPDATE
        SET messages = EXCLUDED.messages, updated_at = NOW()\`,

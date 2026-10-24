@@ -5,7 +5,7 @@
 # memory, instead of Tilt's default, so a warm `flisk up` on a machine with spare
 # capacity builds more than three images at once.
 #
-# Override with TDK_MAX_PARALLEL_BUILDS=<positive integer>.
+# Override with FLISK_MAX_PARALLEL_BUILDS=<positive integer>.
 # =============================================================================
 
 MIN_PARALLEL_BUILDS = 3
@@ -42,10 +42,10 @@ def compute_max_parallel_builds(cpus, memory_bytes):
 
 def configure_build_concurrency():
     """Calls update_settings once with the chosen max_parallel_updates. Call at Tiltfile load."""
-    override = os.environ.get('TDK_MAX_PARALLEL_BUILDS', '').strip()
+    override = os.environ.get('FLISK_MAX_PARALLEL_BUILDS', '').strip()
     if _is_positive_int(override):
         value = int(override)
-        print("🧮 Parallel builds: " + str(value) + " (TDK_MAX_PARALLEL_BUILDS)")
+        print("🧮 Parallel builds: " + str(value) + " (FLISK_MAX_PARALLEL_BUILDS)")
     else:
         resources = _engine_resources()
         if resources == None:

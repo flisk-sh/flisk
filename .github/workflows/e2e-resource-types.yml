@@ -2,7 +2,7 @@
 # suites that run for the event; each matrix leg boots one suite's stack and runs all of its cases. Replaces agent-e2e.yml.
 # On a pull request and nightly a leg tests the packed CLI of the checkout (main, nightly), so a regression on main shows up
 # before a release ships it. After a release it tests the published npm package. The gate job always runs and fails when the plan or any selected leg failed.
-name: 🤖 Resource-type E2E
+name: 🧩 E2E | Resource types
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
   # Prove each release right after it is published. Read-only token, no secrets, main branch only; it checks out main itself
   # rather than the triggering run's ref, so nothing untrusted is executed.
   workflow_run: # zizmor: ignore[dangerous-triggers]
-    workflows: ["Release binaries and npm package"]
+    workflows: ["🚀 Release | Binaries and npm package"]
     types: [completed]
     branches: [main]
 
@@ -145,10 +145,10 @@ jobs:
 
       - name: Tool versions and commit
         env:
-          TDK_VERSION: ${{ steps.version.outputs.version }}
+          FLISK_VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "commit: $(git rev-parse HEAD)"
-          echo "tested package: @flisk-sh/flisk@$TDK_VERSION"
+          echo "tested package: @flisk-sh/flisk@$FLISK_VERSION"
           echo "node: $(node --version)"
           echo "docker: $(docker --version)"
           echo "tilt: $(tilt version)"
@@ -180,7 +180,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: e2e-resource-types-${{ matrix.label }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
+          path: ${{ runner.temp }}/flisk-e2e/${{ matrix.suite }}/artifacts
           if-no-files-found: warn
           retention-days: 14
       - name: Tear down

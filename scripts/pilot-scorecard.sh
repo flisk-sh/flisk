@@ -7,7 +7,7 @@
 # questions, CI flakes) are left blank in the record.
 #
 # Usage: scripts/pilot-scorecard.sh [-p project_root] [-s stack] [-c cold|warm] [-t timeout_s] [-i idle_s]
-#   -p  project root containing .tdk/project.json (default: .)
+#   -p  project root containing .flisk/project.json (default: .)
 #   -s  stack to start with `flisk up <stack>` (default: all, plain `flisk up`)
 #   -c  cache state you set up before the run: cold (images removed) or warm (default: unknown).
 #       The script never clears caches itself.
@@ -30,21 +30,21 @@ done
 case "$cache" in cold|warm|unknown) ;; *) echo "-c must be cold, warm or unknown" >&2; exit 2 ;; esac
 
 project_root="$(cd "$project_root" && pwd)"
-[[ -f "$project_root/.tdk/project.json" ]] || { echo "No .tdk/project.json in $project_root" >&2; exit 2; }
+[[ -f "$project_root/.flisk/project.json" ]] || { echo "No .flisk/project.json in $project_root" >&2; exit 2; }
 command -v flisk >/dev/null 2>&1 || { echo "flisk must be on PATH" >&2; exit 2; }
 command -v docker >/dev/null 2>&1 || { echo "docker must be on PATH" >&2; exit 2; }
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 results_dir="$project_root/pilot-scorecard-results"
 record="$results_dir/$timestamp.md"
-run_dir="$(mktemp -d "${TMPDIR:-/tmp}/tdk-pilot.XXXXXX")"
+run_dir="$(mktemp -d "${TMPDIR:-/tmp}/flisk-pilot.XXXXXX")"
 mkdir -p "$results_dir"
 up_pid=""
 
 # `flisk down` removes the containers but leaves the `tilt up` process running, so
 # stop this project's Tilt (matched by its Tiltfile path) as well.
 stop_stack() {
-  pkill -f "tilt up -f $project_root/.tdk/.tdk-out/Tiltfile" 2>/dev/null || true
+  pkill -f "tilt up -f $project_root/.flisk/.flisk-out/Tiltfile" 2>/dev/null || true
   sleep 1
   (cd "$project_root" && flisk down) >/dev/null 2>&1 || true
   if [[ -n "$up_pid" ]] && kill -0 "$up_pid" 2>/dev/null; then
@@ -82,7 +82,7 @@ sample() {
 }
 
 before_ids="$(docker ps -q | sort)"
-tdk_version="$(version_of 'flisk --version')"
+flisk_version="$(version_of 'flisk --version')"
 {
   echo "# Flisk pilot scorecard - $timestamp"
   echo
@@ -90,7 +90,7 @@ tdk_version="$(version_of 'flisk --version')"
   echo "- Project: \`$(basename "$project_root")\` (commit \`$(git -C "$project_root" rev-parse --short HEAD 2>/dev/null || echo unknown)\`)"
   echo "- Stack: \`${stack:-all}\`"
   echo "- Machine: \`$(uname -srm)\`, $(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo '?') CPUs"
-  echo "- Flisk: \`$tdk_version\`; Docker \`$(version_of 'docker version --format {{.Server.Version}}')\`; Tilt \`$(version_of 'tilt version')\`"
+  echo "- Flisk: \`$flisk_version\`; Docker \`$(version_of 'docker version --format {{.Server.Version}}')\`; Tilt \`$(version_of 'tilt version')\`"
   echo "- Image cache: $cache (set by you; not verified)"
   echo "- Containers already running before the run: $(echo "$before_ids" | grep -c . || true)"
   echo

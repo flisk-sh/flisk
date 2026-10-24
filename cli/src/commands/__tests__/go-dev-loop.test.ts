@@ -22,7 +22,7 @@ afterEach(() => {
 
 // Dockerfile text exactly as the engine generates it, written out with local() because tilt's result JSON does not carry print output.
 function generatedGoDockerfile(dev: boolean): string {
-  const dir = mkdtempSync(join(tmpdir(), "tdk-go-dockerfile-"));
+  const dir = mkdtempSync(join(tmpdir(), "flisk-go-dockerfile-"));
   dirs.push(dir);
   const out = join(dir, "Dockerfile");
   const result = evaluateStarlark(languageDockerfile, {
@@ -44,9 +44,9 @@ dev = generate_language_dockerfile('services/shop/orders', 'go', 4100, True)
 if 'AS development' in default: fail('the default Go Dockerfile must not gain a development target')
 if 'air-verse' in default: fail('the default Go Dockerfile must not mention Air')
 if 'AS development' not in dev: fail('missing development target')
-if 'tdk-go-watch' in default: fail('the default Go Dockerfile must not mention the watcher')
-if 'COPY --chmod=755 <<' not in dev or '/usr/local/bin/tdk-go-watch' not in dev: fail('the watcher script is not installed')
-if 'CMD ["tdk-go-watch"]' not in dev: fail('the development target must run the watcher')
+if 'flisk-go-watch' in default: fail('the default Go Dockerfile must not mention the watcher')
+if 'COPY --chmod=755 <<' not in dev or '/usr/local/bin/flisk-go-watch' not in dev: fail('the watcher script is not installed')
+if 'CMD ["flisk-go-watch"]' not in dev: fail('the development target must run the watcher')
 if 'air-verse' in dev or 'cosmtrek' in dev: fail('Air stops the app before it compiles, so the watcher replaced it')
 if '--mount=type=cache,target=/go/pkg/mod' in dev: fail('modules must be downloaded into an image layer, not a cache mount that the priming build cannot see')
 if "RUN go build -ldflags='-s -w' -o /tmp/app ." not in dev: fail('the image must prime the Go build cache (a RUN, not a cache mount, so the warm cache is kept in the image the watcher runs from)')
@@ -73,14 +73,14 @@ if 'EXPOSE 4100' not in dev: fail('port contract changed')
 
   it("ships a watcher script the shell accepts", () => {
     const dev = generatedGoDockerfile(true);
-    const start = dev.indexOf("<<'TDK_GO_DEV_WATCH'");
+    const start = dev.indexOf("<<'FLISK_GO_DEV_WATCH'");
     expect(start).toBeGreaterThan(-1);
     const bodyStart = dev.indexOf("\n", start) + 1;
-    const bodyEnd = dev.indexOf("\nTDK_GO_DEV_WATCH\n", bodyStart);
+    const bodyEnd = dev.indexOf("\nFLISK_GO_DEV_WATCH\n", bodyStart);
     expect(bodyEnd).toBeGreaterThan(bodyStart);
-    const dir = mkdtempSync(join(tmpdir(), "tdk-go-watch-"));
+    const dir = mkdtempSync(join(tmpdir(), "flisk-go-watch-"));
     dirs.push(dir);
-    const script = join(dir, "tdk-go-watch");
+    const script = join(dir, "flisk-go-watch");
     writeFileSync(script, `${dev.slice(bodyStart, bodyEnd)}\n`);
     // `find -printf` needs GNU find, so the script itself only runs in the image; here it is parsed, not executed.
     const parsed = spawnSync("sh", ["-n", script], { encoding: "utf-8" });
@@ -162,13 +162,16 @@ describe("Go development wiring", () => {
     expect(start).toBeGreaterThan(-1);
     const next = registration.indexOf("\ndef ", start + 1);
     const prebuild = registration.slice(start, next === -1 ? undefined : next);
-    // The variable interpolated into `docker build` is assigned once, from the shared helper, before the command is built.
+    // The variable passed to `docker build` is assigned once, from the shared helper, before the argv list is built.
     const assignments = prebuild.match(/^\s*target = .*$/gm) ?? [];
     expect(assignments).toEqual(["    target = _image_target(config)"]);
     const assigned = prebuild.indexOf("target = _image_target(config)");
-    const used = prebuild.indexOf('docker build --network host --target " + target');
+    // `--target "$4"` takes the fourth positional argument after "sh": dockerfile, prebuild, ignore_content, target.
+    const used = prebuild.indexOf('--target "$4"');
+    const passed = prebuild.indexOf("        ignore_content,\n        target,\n");
     expect(assigned).toBeGreaterThan(-1);
     expect(used).toBeGreaterThan(assigned);
+    expect(passed).toBeGreaterThan(used);
     expect(prebuild).not.toMatch(/--target\s+production/);
   });
 

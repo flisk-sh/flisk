@@ -44,16 +44,16 @@ describe("createHostPortPlan", () => {
     expect(plan.requested.postgres).toBe(5432);
     expect(plan.postgres).toBe(15432);
     expect(formatHostPortPlan(plan)).toContain("Postgres 15432");
-    const originalBaseUrl = process.env.TDK_SERVICE_BASE_URL;
-    process.env.TDK_SERVICE_BASE_URL = "http://port-plan.localhost";
+    const originalBaseUrl = process.env.FLISK_SERVICE_BASE_URL;
+    process.env.FLISK_SERVICE_BASE_URL = "http://port-plan.localhost";
     try {
       expect(resolveSubdomainBases(plan.ingressHttp)).toEqual({
         appBase: "http://app.port-plan.localhost:8080",
         apiBase: "http://api.port-plan.localhost:8080",
       });
     } finally {
-      if (originalBaseUrl === undefined) delete process.env.TDK_SERVICE_BASE_URL;
-      else process.env.TDK_SERVICE_BASE_URL = originalBaseUrl;
+      if (originalBaseUrl === undefined) delete process.env.FLISK_SERVICE_BASE_URL;
+      else process.env.FLISK_SERVICE_BASE_URL = originalBaseUrl;
     }
   });
 
@@ -61,33 +61,37 @@ describe("createHostPortPlan", () => {
     const plan = await createHostPortPlan({ env: {}, isAvailable: async () => true });
     expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([80, 443, 15432]);
     expect(plan.reason.ingressHttp).toBe("requested port is free");
-    const originalBaseUrl = process.env.TDK_SERVICE_BASE_URL;
-    process.env.TDK_SERVICE_BASE_URL = "http://port-plan.localhost";
+    const originalBaseUrl = process.env.FLISK_SERVICE_BASE_URL;
+    process.env.FLISK_SERVICE_BASE_URL = "http://port-plan.localhost";
     try {
       expect(resolveSubdomainBases(plan.ingressHttp)).toEqual({
         appBase: "http://app.port-plan.localhost",
         apiBase: "http://api.port-plan.localhost",
       });
     } finally {
-      if (originalBaseUrl === undefined) delete process.env.TDK_SERVICE_BASE_URL;
-      else process.env.TDK_SERVICE_BASE_URL = originalBaseUrl;
+      if (originalBaseUrl === undefined) delete process.env.FLISK_SERVICE_BASE_URL;
+      else process.env.FLISK_SERVICE_BASE_URL = originalBaseUrl;
     }
   });
 
   it("honors explicit overrides and rejects collisions", async () => {
-    const env = { TDK_HTTP_PORT: "18080", TDK_HTTPS_PORT: "18443", TDK_POSTGRES_PORT: "15433" };
+    const env = {
+      FLISK_HTTP_PORT: "18080",
+      FLISK_HTTPS_PORT: "18443",
+      FLISK_POSTGRES_PORT: "15433",
+    };
     const plan = await createHostPortPlan({ env, isAvailable: async () => true });
     expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([18080, 18443, 15433]);
     expect(Object.values(plan.explicit).every(Boolean)).toBe(true);
     await expect(
       createHostPortPlan({ env, isAvailable: async (port) => port !== 18080 }),
-    ).rejects.toThrow("TDK_HTTP_PORT=18080 is already in use");
+    ).rejects.toThrow("FLISK_HTTP_PORT=18080 is already in use");
   });
 
   it("rejects invalid ports and fails with an override hint when ranges are exhausted", async () => {
     await expect(
-      createHostPortPlan({ env: { TDK_HTTP_PORT: "70000" }, isAvailable: async () => true }),
-    ).rejects.toThrow("TDK_HTTP_PORT must be an integer");
+      createHostPortPlan({ env: { FLISK_HTTP_PORT: "70000" }, isAvailable: async () => true }),
+    ).rejects.toThrow("FLISK_HTTP_PORT must be an integer");
     await expect(
       createHostPortPlan({
         env: {},
@@ -98,7 +102,7 @@ describe("createHostPortPlan", () => {
           postgres: { start: 15432, end: 15432 },
         },
       }),
-    ).rejects.toThrow("Set TDK_HTTP_PORT to a free port");
+    ).rejects.toThrow("Set FLISK_HTTP_PORT to a free port");
   });
 
   it("probes host publish availability on IPv4 loopback", async () => {
@@ -109,10 +113,10 @@ describe("createHostPortPlan", () => {
     try {
       await expect(
         createHostPortPlan({
-          env: { TDK_HTTP_PORT: String(address.port) },
+          env: { FLISK_HTTP_PORT: String(address.port) },
           isAvailable: undefined,
         }),
-      ).rejects.toThrow(`TDK_HTTP_PORT=${address.port} is already in use`);
+      ).rejects.toThrow(`FLISK_HTTP_PORT=${address.port} is already in use`);
     } finally {
       server.close();
     }
@@ -166,7 +170,7 @@ describe("concurrent projects", () => {
     const start = createHost();
     for (let i = 0; i < 101; i++) await start();
     await expect(start()).rejects.toThrow(
-      "No available host port in 15432-15532 for postgres. Set TDK_POSTGRES_PORT",
+      "No available host port in 15432-15532 for postgres. Set FLISK_POSTGRES_PORT",
     );
   });
 

@@ -239,8 +239,8 @@ describe("Tilt build concurrency wiring", () => {
   // so these checks pin the source they depend on.
   const source = readFileSync(concurrency, "utf-8");
 
-  it("reads TDK_MAX_PARALLEL_BUILDS first and accepts only a positive integer", () => {
-    expect(source).toContain("os.environ.get('TDK_MAX_PARALLEL_BUILDS'");
+  it("reads FLISK_MAX_PARALLEL_BUILDS first and accepts only a positive integer", () => {
+    expect(source).toContain("os.environ.get('FLISK_MAX_PARALLEL_BUILDS'");
     expect(source).toContain("_is_positive_int(override)");
   });
 

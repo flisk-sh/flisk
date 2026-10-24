@@ -3,7 +3,7 @@ import { Command } from "commander";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
- * when a new importer is published. `TDK_IMPORT_PACKAGE` overrides the package spec.
+ * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
 export declare const IMPORT_PACKAGE = "flisk-import@0.2.2";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */

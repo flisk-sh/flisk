@@ -34,7 +34,7 @@ load("../../platform/registries/verdaccio_loader.star", "load_verdaccio")
 
 def _file_exists(path):
     """Check if a file exists."""
-    result = str(local("test -f '{path}' && echo 'yes' || echo 'no'".format(path=path), quiet=True, echo_off=True)).strip()
+    result = str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path], quiet=True, echo_off=True)).strip()
     return result == 'yes'
 
 
@@ -68,7 +68,7 @@ def _generate_database_management_compose():
     return """###############################################################################
 # SYSTEM-GENERATED - DO NOT EDIT
 # Stack feature: database-management
-# Source: .tdk/project.json stacks.*.services includes "database-management"
+# Source: .flisk/project.json stacks.*.services includes "database-management"
 ###############################################################################
 
 services:
@@ -99,15 +99,15 @@ networks:
 
 volumes:
   {name}_postgres_data:
-""".format(name=name, database_network=database_network, host_port=os.environ.get('TDK_POSTGRES_PORT', '15432'), bind_address=os.environ.get('TDK_BIND_ADDRESS', '127.0.0.1'))
+""".format(name=name, database_network=database_network, host_port=os.environ.get('FLISK_POSTGRES_PORT', '15432'), bind_address=os.environ.get('FLISK_BIND_ADDRESS', '127.0.0.1'))
 
 
 def _ensure_database_management_compose(root_prefix, write_fn):
     """Ensure the database-management stack feature has its compose file.
 
     write_fn is expected to be Utils.write_file_if_changed, which prepends
-    TDK_PROJECT_ROOT to relative paths — the same base as root_prefix when
-    the Tiltfile sets TDK_PROJECT_ROOT = PROJECT_ROOT. A custom write_fn that
+    FLISK_PROJECT_ROOT to relative paths — the same base as root_prefix when
+    the Tiltfile sets FLISK_PROJECT_ROOT = PROJECT_ROOT. A custom write_fn that
     does not prepend may write a different file; if the path we return is
     absolute and still missing after the relative write, write that exact
     path once so the exists-check and the write cannot diverge.
@@ -238,16 +238,16 @@ def _load_infisical(should_enable, root_prefix="", env_file=None):
 
 def _load_standalone_traefik(root_prefix, env_file, write_fn):
     """Generate and load a self-contained Traefik compose for standalone projects."""
-    compose_rel = ".tdk/.tdk-out/docker-compose.traefik.yml"
+    compose_rel = ".flisk/.flisk-out/docker-compose.traefik.yml"
     # The free-tier stub always reports "disabled"; the licensed module reports
     # enabled for a manifest that opts in. Probing it keeps this file free of any
     # license logic while starting the sablier containers only when they can work.
     _, sablier_enabled = sablier_middleware_suffix({"sablier": {"enable": True}}, "probe")
     content = generate_standalone_traefik_compose(
         sablier_enabled,
-        os.environ.get('TDK_HTTP_PORT', '8080'),
-        os.environ.get('TDK_HTTPS_PORT', '8443'),
-        os.environ.get('TDK_BIND_ADDRESS', '127.0.0.1'),
+        os.environ.get('FLISK_HTTP_PORT', '8080'),
+        os.environ.get('FLISK_HTTPS_PORT', '8443'),
+        os.environ.get('FLISK_BIND_ADDRESS', '127.0.0.1'),
     )
     if write_fn:
         write_fn(compose_rel, content)
@@ -388,7 +388,7 @@ def _load_golden_image(should_enable, docker_provider, project_root='.'):
 
     project_root must be passed through here the same way every other
     infra loader below receives it (as root_prefix) - local_resource cmds
-    run relative to the Tiltfile's own directory (.tdk/.tdk-out/), not
+    run relative to the Tiltfile's own directory (.flisk/.flisk-out/), not
     the project root, so an unprefixed project-root-relative path like
     GOLDEN_DOCKERFILE resolves to the wrong file otherwise.
     """
@@ -410,7 +410,7 @@ def _generate_golden_dockerfile(should_enable, docker_provider, write_fn):
     if not should_enable('golden-image'):
         return
 
-    dockerfile_path = '.tdk/.tdk-out/golden-layers.Dockerfile'
+    dockerfile_path = '.flisk/.flisk-out/golden-layers.Dockerfile'
     content = docker_provider.golden_image.generate_dockerfile()
     write_fn(dockerfile_path, content)
 
@@ -453,7 +453,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
         _generate_golden_dockerfile(should_enable, docker_provider, write_fn)
         golden_image_resource = _load_golden_image(should_enable, docker_provider, project_root=project_root or '.')
 
-    # Get project root prefix for paths (e.g., "../../" from .tdk/.tdk-out/)
+    # Get project root prefix for paths (e.g., "../../" from .flisk/.flisk-out/)
     # Ensure root_prefix ends with / for proper path concatenation
     root_prefix = project_root if project_root else ""
     if root_prefix and not root_prefix.endswith('/'):

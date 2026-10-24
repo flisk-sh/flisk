@@ -38,17 +38,17 @@ load('./infisical/infisical_docker.star', 'InfisicalDocker')
 
 
 # Load project name for dynamic golden image naming
-# Use TDK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
 def _load_golden_prefix():
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    project_json_path = '.tdk/project.json'
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = '.flisk/project.json'
     if project_root:
         project_json_path = project_root + '/' + project_json_path
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'tdk-project')
-    return 'tdk-project'
+        return _project_json.get('project', {}).get('name', 'flisk-project')
+    return 'flisk-project'
 
 _GOLDEN_PREFIX = _load_golden_prefix()
 
@@ -95,7 +95,7 @@ def resolve_bun_start_command(res_path, cmd = DEFAULT_BUN_START_COMMAND):
         return cmd
     package_json_path = res_path + '/package.json'
     if not res_path.startswith('/'):
-        package_json_path = os.environ.get('TDK_PROJECT_ROOT', '.') + '/' + package_json_path
+        package_json_path = os.environ.get('FLISK_PROJECT_ROOT', '.') + '/' + package_json_path
     if not os.path.exists(package_json_path):
         return cmd
     package_json = read_json(package_json_path, default = {}) or {}
@@ -173,12 +173,12 @@ def L4_generate_backend_runtime(res_path, port = BASE_PORT_BACKEND, cmd = 'bun r
         parts.append("RUN apk add --no-cache hugo\n")
         parts.append("USER bun\n")
 
-    # A files-durability agent keeps its checkpoints in /var/lib/tdk-agent, a named volume. Docker seeds a new volume with the
+    # A files-durability agent keeps its checkpoints in /var/lib/flisk-agent, a named volume. Docker seeds a new volume with the
     # image directory's owner, so create the directory owned by bun, or the agent cannot write its first checkpoint (EACCES).
     agent_cfg = manifest.get('agent') if manifest else None
     if type(agent_cfg) == 'dict' and agent_cfg.get('durability', 'files') == 'files':
         parts.append("USER root\n")
-        parts.append("RUN mkdir -p /var/lib/tdk-agent && chown bun:bun /var/lib/tdk-agent\n")
+        parts.append("RUN mkdir -p /var/lib/flisk-agent && chown bun:bun /var/lib/flisk-agent\n")
         parts.append("USER bun\n")
 
     if has_prisma_config:

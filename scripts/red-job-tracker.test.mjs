@@ -66,12 +66,12 @@ test("the last error line is the last line that names an error, without log pref
 	const log = [
 		"cold-start\tStep one\t2026-10-01T00:00:00Z ##[group]Run make",
 		"cold-start\tStep one\t2026-10-01T00:00:01Z Installing deps",
-		"cold-start\tStep one\t2026-10-01T00:00:02Z ##[error]Configure the TDK_LICENSE_KEY secret",
+		"cold-start\tStep one\t2026-10-01T00:00:02Z ##[error]Configure the FLISK_LICENSE_KEY secret",
 		"cold-start\tStep one\t2026-10-01T00:00:03Z ##[endgroup]",
 	].join("\n");
 	assert.equal(
 		lastErrorLine(log),
-		"##[error]Configure the TDK_LICENSE_KEY secret",
+		"##[error]Configure the FLISK_LICENSE_KEY secret",
 	);
 });
 
@@ -85,11 +85,11 @@ test("a log with no error line falls back to its last line", () => {
 
 test("GitHub's generic exit-code line is not reported as the error; the real error above it is", () => {
 	const log = [
-		"cold-start\tStep one\t2026-10-01T00:00:00Z ##[error]Error: TDK_LICENSE_KEY does not grant sablier",
+		"cold-start\tStep one\t2026-10-01T00:00:00Z ##[error]Error: FLISK_LICENSE_KEY does not grant sablier",
 		"cold-start\tStep one\t2026-10-01T00:00:01Z ##[error]Process completed with exit code 1.",
 	].join("\n");
 	assert.equal(
 		lastErrorLine(log),
-		"##[error]Error: TDK_LICENSE_KEY does not grant sablier",
+		"##[error]Error: FLISK_LICENSE_KEY does not grant sablier",
 	);
 });

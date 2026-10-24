@@ -1,6 +1,6 @@
 # Spike: `flisk up --only` and Tilt resource selection
 
-Run 2026-10-04 against a scratch copy of `tdk-ecommerce-example` (stack `store`: `catalog-api`, and `storefront-web` which has `"dependsOn": ["catalog-api"]`), Tilt 0.37.7. Selection was read with `tilt alpha tiltfile-result -f .tdk/.tdk-out/Tiltfile -- <args>`, which evaluates the Tiltfile and lists `EnabledManifests` without starting any container. Readiness behavior was read from a real Tilt with two local resources, one disabled by `config.set_enabled_resources`.
+Run 2026-10-04 against a scratch copy of `tdk-ecommerce-example` (stack `store`: `catalog-api`, and `storefront-web` which has `"dependsOn": ["catalog-api"]`), Tilt 0.37.7. Selection was read with `tilt alpha tiltfile-result -f .flisk/.flisk-out/Tiltfile -- <args>`, which evaluates the Tiltfile and lists `EnabledManifests` without starting any container. Readiness behavior was read from a real Tilt with two local resources, one disabled by `config.set_enabled_resources`.
 
 ## What Tilt selects
 
@@ -30,7 +30,7 @@ Always on in every case: `init-networks`, `postgres`, `traefik`, `golden-layers-
 - `flisk up [stack] --only <service...>` starts the named services plus their `dependsOn` closure, and the always-on infra. Unknown names fail before anything starts.
 - `--only` is passed to the Tiltfile as `--focus=<names>`; the stack argument only limits which names are valid.
 - `--json` readiness covers the enabled resources only, so a partial up reports ready when its own resources are running. The success object adds `requested` and `dependencies`.
-- `--only` validates names before the CLI writes anything to the project (`.env`, runtime assets, `.tdk/project.json`).
+- `--only` validates names before the CLI writes anything to the project (`.env`, runtime assets, `.flisk/project.json`).
 - `--only` while a Tilt answers on the default port 10350 or on `TILT_PORT` is `TILT_ALREADY_RUNNING`, not a second Tilt; with `--force` it stops those instances first. A listener that is not Tilt does not count.
 - Readiness for `--only` expects each requested service to be listed, enabled and running: one Tilt lists as disabled is a failure, and one not listed yet is pending, so it cannot be filtered out of an otherwise-ready stack. Dependencies are not individually expected, because the Tiltfile skips some on purpose (for example a dependency whose name contains `frontend`).
 - `dependencies` in the success object is what Tilt actually enabled (services that are not `requested`). The dry-run object has no Tilt to ask and reports the `service.json` closure as `declaredDependencies`, which can differ from the Tiltfile's expansion (aliases, domains, frontend skipping).

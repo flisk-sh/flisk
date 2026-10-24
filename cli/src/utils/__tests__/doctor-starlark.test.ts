@@ -43,8 +43,8 @@ describe("Starlark doctor helpers", () => {
     expect(resolveStarlarkLoadTarget(entry, "./library.star", projectRoot)).toBe(
       join(projectRoot, "library.star"),
     );
-    expect(resolveStarlarkLoadTarget(entry, "ext://tdk-cli", projectRoot)).toBe(
-      join(projectRoot, ".tdk", ".tdk-out", "tdk-cli-ext", "Tiltfile"),
+    expect(resolveStarlarkLoadTarget(entry, "ext://flisk-cli", projectRoot)).toBe(
+      join(projectRoot, ".flisk", ".flisk-out", "flisk-cli-ext", "Tiltfile"),
     );
     expect(resolveStarlarkLoadTarget(entry, "@repo//:library.star", projectRoot)).toBeNull();
   });
@@ -129,7 +129,7 @@ describe("checkStarlarkLoadExports", () => {
   }
 
   it("skips when no generated Tiltfile exists", () => {
-    writeProjectFile(".tdk/project.json", '{"name":"test"}');
+    writeProjectFile(".flisk/project.json", '{"name":"test"}');
     const result = checkStarlarkLoadExports();
     expect(result.isSkipped).toBe(true);
     expect(result.didPass).toBe(true);
@@ -137,9 +137,9 @@ describe("checkStarlarkLoadExports", () => {
   });
 
   it("passes when reachable Starlark files have valid load exports and targets", () => {
-    writeProjectFile(".tdk/project.json", '{"name":"test"}');
-    writeProjectFile(".tdk/.tdk-out/Tiltfile", 'load("./helper.star", "my_func")');
-    writeProjectFile(".tdk/.tdk-out/helper.star", "def my_func(): pass");
+    writeProjectFile(".flisk/project.json", '{"name":"test"}');
+    writeProjectFile(".flisk/.flisk-out/Tiltfile", 'load("./helper.star", "my_func")');
+    writeProjectFile(".flisk/.flisk-out/helper.star", "def my_func(): pass");
 
     const result = checkStarlarkLoadExports();
     expect(result.didPass).toBe(true);
@@ -149,9 +149,12 @@ describe("checkStarlarkLoadExports", () => {
   });
 
   it("fails when reachable Starlark files export private symbols starting with underscore", () => {
-    writeProjectFile(".tdk/project.json", '{"name":"test"}');
-    writeProjectFile(".tdk/.tdk-out/Tiltfile", 'load("./helper.star", "_private_fn", "public_fn")');
-    writeProjectFile(".tdk/.tdk-out/helper.star", "def _private_fn(): pass");
+    writeProjectFile(".flisk/project.json", '{"name":"test"}');
+    writeProjectFile(
+      ".flisk/.flisk-out/Tiltfile",
+      'load("./helper.star", "_private_fn", "public_fn")',
+    );
+    writeProjectFile(".flisk/.flisk-out/helper.star", "def _private_fn(): pass");
 
     const result = checkStarlarkLoadExports();
     expect(result.didPass).toBe(false);
@@ -161,8 +164,8 @@ describe("checkStarlarkLoadExports", () => {
   });
 
   it("fails when reachable Starlark files have missing relative load targets", () => {
-    writeProjectFile(".tdk/project.json", '{"name":"test"}');
-    writeProjectFile(".tdk/.tdk-out/Tiltfile", 'load("./nonexistent.star", "symbol")');
+    writeProjectFile(".flisk/project.json", '{"name":"test"}');
+    writeProjectFile(".flisk/.flisk-out/Tiltfile", 'load("./nonexistent.star", "symbol")');
 
     const result = checkStarlarkLoadExports();
     expect(result.didPass).toBe(false);
@@ -172,12 +175,12 @@ describe("checkStarlarkLoadExports", () => {
   });
 
   it("reports both private exports and missing targets when both occur", () => {
-    writeProjectFile(".tdk/project.json", '{"name":"test"}');
+    writeProjectFile(".flisk/project.json", '{"name":"test"}');
     writeProjectFile(
-      ".tdk/.tdk-out/Tiltfile",
+      ".flisk/.flisk-out/Tiltfile",
       'load("./helper.star", "_secret")\nload("./missing.star", "other")',
     );
-    writeProjectFile(".tdk/.tdk-out/helper.star", "def _secret(): pass");
+    writeProjectFile(".flisk/.flisk-out/helper.star", "def _secret(): pass");
 
     const result = checkStarlarkLoadExports();
     expect(result.didPass).toBe(false);

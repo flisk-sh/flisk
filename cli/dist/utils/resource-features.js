@@ -133,7 +133,7 @@ export const RESOURCE_FEATURES = {
         name: "ddd",
         description: "Domain-driven design folder structure (domain/application/infrastructure/presentation) " +
             "and matching @domain/@application/@infrastructure/@presentation/@test path aliases " +
-            "(Premium - requires TDK_LICENSE_KEY; see hasDddLicense() in extension-fetch.ts)",
+            "(Premium - requires FLISK_LICENSE_KEY; see hasDddLicense() in extension-fetch.ts)",
         applies_to: ["backend", "worker", "migrator"],
         enabled_by_default: false,
         category: "premium",
@@ -148,12 +148,12 @@ export const RESOURCE_FEATURES = {
             "is created or started, and a Traefik static route wakes it on the first request instead " +
             "(backends only for now), so it doesn't wait behind the rest of a large landscape's " +
             "bring-up. Requires `enable: true`. " +
-            "(Premium - requires TDK_LICENSE_KEY; free tier writes a disabled stub; see " +
+            "(Premium - requires FLISK_LICENSE_KEY; free tier writes a disabled stub; see " +
             "hasSablierLicense() in extension-fetch.ts KNOWN_RESOURCES/PREMIUM_PATH_MAP)",
         applies_to: ["backend", "frontend"],
         enabled_by_default: false,
         category: "premium",
-        generator_file: "engine/topologies/platform/docker/networking/sablier_container_cycle.star (stub; real generator in tdk-cli-extensions/premium/networking/), engine/topologies/platform/docker/networking/traefik.star, engine/topologies/platform/docker/compose/traefik_standalone.star (deferStart wake gateway + static route), engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star (deferred image prebuild + wake route wiring)",
+        generator_file: "engine/topologies/platform/docker/networking/sablier_container_cycle.star (stub; real generator in flisk-cli-extensions/premium/networking/), engine/topologies/platform/docker/networking/traefik.star, engine/topologies/platform/docker/compose/traefik_standalone.star (deferStart wake gateway + static route), engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star (deferred image prebuild + wake route wiring)",
         output_file: "(Traefik + Sablier Docker labels on the resource's own compose service; with deferStart, also a generated Traefik file-provider dynamic-config entry, wake gateway, and image prebuild resource)",
     },
 };

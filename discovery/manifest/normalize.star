@@ -37,7 +37,7 @@ def _load_and_normalize(manifest_path, warn_only=True):
         Normalized manifest dict or None on error (if warn_only=True)
     """
     # Prepend project root to relative paths for correct resolution
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
     if project_root and not manifest_path.startswith('/'):
         full_path = project_root + '/' + manifest_path
     else:
@@ -79,7 +79,7 @@ def _load_and_normalize(manifest_path, warn_only=True):
     
     # BUG FIX: Normalize various path patterns to project-relative paths
     # Pattern 1: Worktrees - .worktrees/task1-dry/services/platform/...
-    # Pattern 2: Flisk output - .tdk/.tdk-out/../.. or .tdk/.tdk-out/../../path
+    # Pattern 2: Flisk output - .flisk/.flisk-out/../.. or .flisk/.flisk-out/../../path
     
     if resource_path.startswith('.worktrees/'):
         # Extract the part after the worktree name
@@ -92,15 +92,15 @@ def _load_and_normalize(manifest_path, warn_only=True):
         parts = after_worktree.split('/')
         if len(parts) >= 3:
             resource_path = '/'.join(parts[2:])
-    elif '.tdk/.tdk-out/../..' in resource_path:
-        # Handle Flisk output paths like: /path/to/.tdk/.tdk-out/../.. or .tdk/.tdk-out/../../services/...
-        tdk_idx = resource_path.find('.tdk/.tdk-out/../..')
-        if tdk_idx != -1:
-            after_tdk = resource_path[tdk_idx + len('.tdk/.tdk-out/../..'):]
-            if after_tdk.startswith('/'):
-                after_tdk = after_tdk[1:]
-            resource_path = after_tdk
-    elif resource_path.endswith('.tdk/.tdk-out/../..'):
+    elif '.flisk/.flisk-out/../..' in resource_path:
+        # Handle Flisk output paths like: /path/to/.flisk/.flisk-out/../.. or .flisk/.flisk-out/../../services/...
+        flisk_idx = resource_path.find('.flisk/.flisk-out/../..')
+        if flisk_idx != -1:
+            after_flisk = resource_path[flisk_idx + len('.flisk/.flisk-out/../..'):]
+            if after_flisk.startswith('/'):
+                after_flisk = after_flisk[1:]
+            resource_path = after_flisk
+    elif resource_path.endswith('.flisk/.flisk-out/../..'):
         # Handle bare Flisk output path that ends with just the resolution pattern
         resource_path = ''
     
@@ -150,10 +150,7 @@ def _discover_manifests_in_path(root_path):
     Returns:
         List of manifest file paths
     """
-    find_cmd = "find {root} -name '{filename}' -type f 2>/dev/null | sort".format(
-        root=root_path,
-        filename=MANIFEST_FILENAME
-    )
+    find_cmd = ["sh", "-c", 'find "$1" -name "$2" -type f 2>/dev/null | sort', "sh", root_path, MANIFEST_FILENAME]
     result = str(local(find_cmd, quiet=True, echo_off=True))
     
     manifests = []

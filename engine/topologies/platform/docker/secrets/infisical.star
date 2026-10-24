@@ -39,13 +39,13 @@ def get_infisical_environment_vars(as_array=True, resource_name=None, resource_t
         String with environment variables in YAML format
     """
     env = {
-        "TDK_SECRET_PROVIDER": "${TDK_SECRET_PROVIDER:-env-file}",
-        "TDK_ENV": "${TILT_ENV:-development}",
+        "FLISK_SECRET_PROVIDER": "${FLISK_SECRET_PROVIDER:-env-file}",
+        "FLISK_ENV": "${TILT_ENV:-development}",
     }
 
     if resource_name:
-        env["TDK_RESOURCE_NAME"] = resource_name
-        env["TDK_RESOURCE_TYPE"] = resource_type
+        env["FLISK_RESOURCE_NAME"] = resource_name
+        env["FLISK_RESOURCE_TYPE"] = resource_type
     
     if as_array:
         lines = []

@@ -6,11 +6,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { TdkError } from "../../utils/errors.js";
+import { FliskError } from "../../utils/errors.js";
 import { parseStackResourceConfig } from "../stack.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 describe("flisk stack command scriptability", () => {
   const tempDirs: string[] = [];
@@ -23,10 +23,10 @@ describe("flisk stack command scriptability", () => {
   });
 
   function createProject(): string {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-stack-cli-"));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-stack-cli-"));
     tempDirs.push(projectRoot);
-    fs.mkdirSync(path.join(projectRoot, ".tdk"), { recursive: true });
-    fs.writeFileSync(path.join(projectRoot, ".tdk", "project.json"), "{}\n");
+    fs.mkdirSync(path.join(projectRoot, ".flisk"), { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, ".flisk", "project.json"), "{}\n");
     return projectRoot;
   }
 
@@ -52,7 +52,7 @@ describe("flisk stack command scriptability", () => {
     return manifestPath;
   }
 
-  function runTdk(projectRoot: string, args: string[], input?: string) {
+  function runFlisk(projectRoot: string, args: string[], input?: string) {
     return spawnSync(process.execPath, [cliBin, ...args], {
       cwd: projectRoot,
       input,
@@ -72,7 +72,7 @@ describe("flisk stack command scriptability", () => {
       error = caught;
     }
 
-    expect(error).toBeInstanceOf(TdkError);
+    expect(error).toBeInstanceOf(FliskError);
     expect((error as Error).message).toContain("Could not parse service.json");
     expect((error as Error).message).toContain(configPath);
   });
@@ -84,7 +84,7 @@ describe("flisk stack command scriptability", () => {
     fs.mkdirSync(path.dirname(malformedPath), { recursive: true });
     fs.writeFileSync(malformedPath, "{");
 
-    const result = runTdk(projectRoot, ["stack", "--list"]);
+    const result = runFlisk(projectRoot, ["stack", "--list"]);
     const output = result.stdout + result.stderr;
 
     expect(result.status).toBe(0);
@@ -96,7 +96,7 @@ describe("flisk stack command scriptability", () => {
   it("validates explicit resource names when discovery finds no resources", () => {
     const projectRoot = createProject();
 
-    const result = runTdk(projectRoot, ["stack", "backend", "--resources", "missing", "--yes"]);
+    const result = runFlisk(projectRoot, ["stack", "backend", "--resources", "missing", "--yes"]);
     const output = result.stdout + result.stderr;
 
     expect(result.status).toBe(1);
@@ -107,7 +107,7 @@ describe("flisk stack command scriptability", () => {
     const projectRoot = createProject();
     const manifests = ["api", "worker", "web"].map((name) => addResource(projectRoot, name));
 
-    const result = runTdk(projectRoot, [
+    const result = runFlisk(projectRoot, [
       "stack",
       "backend",
       "--resources",
@@ -128,7 +128,7 @@ describe("flisk stack command scriptability", () => {
     const apiManifest = addResource(projectRoot, "api");
     addResource(projectRoot, "worker");
 
-    const result = runTdk(projectRoot, ["stack", "backend", "--resources", "missing", "--yes"]);
+    const result = runFlisk(projectRoot, ["stack", "backend", "--resources", "missing", "--yes"]);
     const output = result.stdout + result.stderr;
 
     expect(result.status).toBe(1);
@@ -142,7 +142,7 @@ describe("flisk stack command scriptability", () => {
     const firstManifest = addResource(projectRoot, "api");
     const secondManifest = addResource(projectRoot, "api", "", "copied");
 
-    const result = runTdk(projectRoot, ["stack", "backend", "--resources", "api", "--yes"]);
+    const result = runFlisk(projectRoot, ["stack", "backend", "--resources", "api", "--yes"]);
     const output = result.stdout + result.stderr;
 
     expect(result.status).toBe(1);
@@ -157,7 +157,7 @@ describe("flisk stack command scriptability", () => {
     const projectRoot = createProject();
     const apiManifest = addResource(projectRoot, "api", "legacy");
 
-    const result = runTdk(projectRoot, ["stack", "backend", "--resources", "api", "--yes"]);
+    const result = runFlisk(projectRoot, ["stack", "backend", "--resources", "api", "--yes"]);
 
     expect(result.status).toBe(1);
     expect(result.stdout + result.stderr).toContain('already assigned to stack "legacy"');
@@ -168,7 +168,7 @@ describe("flisk stack command scriptability", () => {
     const projectRoot = createProject();
     const apiManifest = addResource(projectRoot, "api");
 
-    const result = runTdk(projectRoot, ["stack", "backend"]);
+    const result = runFlisk(projectRoot, ["stack", "backend"]);
     const output = result.stdout + result.stderr;
 
     expect(result.status).toBe(1);
@@ -180,7 +180,7 @@ describe("flisk stack command scriptability", () => {
     const projectRoot = createProject();
     const apiManifest = addResource(projectRoot, "api");
 
-    const result = runTdk(projectRoot, ["stack", "--resources", "api", "--yes"]);
+    const result = runFlisk(projectRoot, ["stack", "--resources", "api", "--yes"]);
 
     expect(result.status).toBe(1);
     expect(result.stdout + result.stderr).toContain("stack name");
@@ -191,7 +191,7 @@ describe("flisk stack command scriptability", () => {
     const projectRoot = createProject();
     const apiManifest = addResource(projectRoot, "api");
 
-    const result = runTdk(projectRoot, ["stack", "backend", "--resources", "api"]);
+    const result = runFlisk(projectRoot, ["stack", "backend", "--resources", "api"]);
     const output = result.stdout + result.stderr;
 
     expect(result.status).toBe(1);
@@ -203,7 +203,7 @@ describe("flisk stack command scriptability", () => {
     const projectRoot = createProject();
     addResource(projectRoot, "api");
 
-    const result = runTdk(projectRoot, ["stack", "--list"]);
+    const result = runFlisk(projectRoot, ["stack", "--list"]);
 
     expect(result.status).toBe(0);
     expect(result.stdout + result.stderr).toContain("api");

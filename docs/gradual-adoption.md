@@ -7,21 +7,21 @@ What happens when Flisk is added to a repository that already has its own `packa
 | Existing file | Result |
 | --- | --- |
 | `package.json`, `Tiltfile`, `.tiltignore`, `docker-compose.yml`, `Dockerfile` | Byte-for-byte unchanged |
-| `.gitignore` | Four lines appended: `.env`, `.tdk/.tdk-out/`, `.tdk/.project-id`, `.tdk/smoke/` |
+| `.gitignore` | Four lines appended: `.env`, `.flisk/.flisk-out/`, `.flisk/.project-id`, `.flisk/smoke/` |
 
 New files that show up in `git status`:
 
 ```text
-.tdk/project.json
+.flisk/project.json
 services/platform/database-management/docker-compose.yml
 shared-platform-engineering/docker-templates/   (5 shell scripts)
 ```
 
-New files that are git-ignored: `.env` (generated defaults) and `.tdk/.tdk-out/` (242 files, about 2 MB when re-checked on current `main`: the generated Tiltfile, the vendored engine and the master configs).
+New files that are git-ignored: `.env` (generated defaults) and `.flisk/.flisk-out/` (242 files, about 2 MB when re-checked on current `main`: the generated Tiltfile, the vendored engine and the master configs).
 
 Running `flisk project --yes` a second time changed nothing.
 
-Flisk starts from its own `Tiltfile` in `.tdk/.tdk-out/`, so a root `Tiltfile` the team already uses is not replaced. Developers who do not use Flisk keep running whatever they run today.
+Flisk starts from its own `Tiltfile` in `.flisk/.flisk-out/`, so a root `Tiltfile` the team already uses is not replaced. Developers who do not use Flisk keep running whatever they run today.
 
 ## Each service you add
 
@@ -29,9 +29,9 @@ Flisk starts from its own `Tiltfile` in `.tdk/.tdk-out/`, so a root `Tiltfile` t
 
 ## What to commit
 
-- Commit: `.tdk/project.json`, each `services/<stack>/<name>/service.json`, and the four `.gitignore` lines.
+- Commit: `.flisk/project.json`, each `services/<stack>/<name>/service.json`, and the four `.gitignore` lines.
 - Also untracked, not git-ignored, and your call: `shared-platform-engineering/docker-templates/` and `services/platform/database-management/docker-compose.yml`. Whether a teammate's fresh clone regenerates them with `flisk project --yes` was not tested.
-- Do not commit `.env` or `.tdk/.tdk-out/`; Flisk already ignores them.
+- Do not commit `.env` or `.flisk/.flisk-out/`; Flisk already ignores them.
 
 ## Your own `.tiltignore`
 
@@ -39,7 +39,7 @@ Flisk starts from its own `Tiltfile` in `.tdk/.tdk-out/`, so a root `Tiltfile` t
 
 ## Taking it out again
 
-Run `flisk down` first (`--prune-networks` also removes the project's Docker networks that no container uses; Postgres data stays in its volume, see [local data](data.md#does-it-survive-flisk-down)). Then delete what the list above shows: `.tdk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, any `services/<stack>/` you added, `.env`, and the four `.gitignore` lines. [Leaving Flisk](leaving-flisk.md) covers what survives, what you lose and what `flisk eject` does.
+Run `flisk down` first (`--prune-networks` also removes the project's Docker networks that no container uses; Postgres data stays in its volume, see [local data](data.md#does-it-survive-flisk-down)). Then delete what the list above shows: `.flisk/`, `services/platform/database-management/`, `shared-platform-engineering/docker-templates/`, any `services/<stack>/` you added, `.env`, and the four `.gitignore` lines. [Leaving Flisk](leaving-flisk.md) covers what survives, what you lose and what `flisk eject` does.
 
 ## Not covered
 

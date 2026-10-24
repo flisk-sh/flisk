@@ -168,7 +168,7 @@ def validate_resource_structure(resource_path):
     for filename in required_files:
         filepath = resource_path + "/" + filename
         result = local(
-            "test -f {} && echo 'yes' || echo 'no'".format(filepath),
+            ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", filepath],
             quiet=True,
             echo_off=True
         )

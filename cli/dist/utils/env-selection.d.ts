@@ -1,10 +1,10 @@
-import { TdkError } from "./errors.js";
+import { FliskError } from "./errors.js";
 /**
  * The environment variable the engine reads the env file of the run from. The CLI resolves the
  * requested path and exports it, so the engine reads one file for the whole run: the Tilt
  * environment (engine/topologies/tilt/common/utils_env.star) and the Compose interpolation alike.
  */
-export declare const PROJECT_ENV_FILE_VAR = "TDK_ENV_FILE";
+export declare const PROJECT_ENV_FILE_VAR = "FLISK_ENV_FILE";
 /**
  * The keys the platform needs in the env file of a run. They are the keys `completeEnvFile` keeps
  * complete in the project `.env`: the Tilt environment, the Postgres password and the JWT secret.
@@ -17,9 +17,9 @@ export declare const ENV_FILE_ERROR_EXIT_CODE = 2;
 export declare const ENV_FILE_ENGINE_EXIT_CODE = 1;
 /**
  * A rejected `--env-file`. It carries a code so a JSON consumer can tell an unusable file from
- * another failure, and it is a TdkError so the CLI shows it in the house style.
+ * another failure, and it is a FliskError so the CLI shows it in the house style.
  */
-export declare class EnvFileError extends TdkError {
+export declare class EnvFileError extends FliskError {
     readonly code: "ENV_FILE_INVALID" | "ENV_FILE_ENGINE_TOO_OLD";
     constructor(code: "ENV_FILE_INVALID" | "ENV_FILE_ENGINE_TOO_OLD", message: string, suggestions?: string[], exitCode?: number);
 }
@@ -45,7 +45,7 @@ export declare function isInsideProject(projectRoot: string, path: string): bool
  * (which mounts the project read-only and runs Compose itself) can only read a file inside it. A
  * path outside the project would also turn the flag into a way to read any file on the machine.
  *
- * @throws TdkError when the path is empty, leaves the project, or does not exist
+ * @throws FliskError when the path is empty, leaves the project, or does not exist
  */
 export declare function resolveEnvFilePath(projectRoot: string, requested: string, options?: {
     baseDir?: string;
@@ -54,7 +54,7 @@ export declare function resolveEnvFilePath(projectRoot: string, requested: strin
  * Reads the env file. The values are secrets, so they are only used to configure the run and to
  * mask output; they are never printed.
  *
- * @throws TdkError when the file cannot be read
+ * @throws FliskError when the file cannot be read
  */
 export declare function readEnvFileValues(path: string): Map<string, string>;
 /** The platform keys the file is missing, so the run would start without them. */
@@ -66,7 +66,7 @@ export declare function missingRequiredEnvKeys(values: Map<string, string>): str
  * does not complete it: a file the user named may well be committed, and writing a generated
  * credential into it would leak one.
  *
- * @throws TdkError when the file is unusable or misses a key the platform needs
+ * @throws FliskError when the file is unusable or misses a key the platform needs
  */
 export declare function selectEnvFile(projectRoot: string, requested: string, options?: {
     baseDir?: string;
@@ -80,7 +80,7 @@ export declare function applyEnvFileSelection(selection: SelectedEnvFile): void;
  * Refuses the run when the project's vendored engine cannot honour the selection. Without this check
  * the flag would be ignored silently and the run would use the project .env after all.
  *
- * @throws TdkError when the vendored engine is older than this option
+ * @throws FliskError when the vendored engine is older than this option
  */
 export declare function assertEngineSupportsEnvFile(projectRoot: string): void;
 /**

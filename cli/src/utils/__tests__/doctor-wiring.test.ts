@@ -43,9 +43,9 @@ function resource(
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), "flisk-doctor-wiring-"));
-  mkdirSync(join(root, ".tdk"), { recursive: true });
+  mkdirSync(join(root, ".flisk"), { recursive: true });
   writeFileSync(
-    join(root, ".tdk", "project.json"),
+    join(root, ".flisk", "project.json"),
     JSON.stringify({ project: { name: "reports-demo" } }),
   );
 });
@@ -249,7 +249,7 @@ describe("checkSharedPlatformPostgres", () => {
       },
     } as ProjectConfig;
     const generated = new TemplateEngine(join(repoRoot, "cli", "templates")).generateAll(config);
-    const output = join(root, ".tdk", ".tdk-out");
+    const output = join(root, ".flisk", ".flisk-out");
     mkdirSync(output, { recursive: true });
     writeFileSync(join(output, "Tiltfile"), generated.Tiltfile);
     writeFileSync(join(output, "spec.master"), generated["spec.master"]);
@@ -257,14 +257,14 @@ describe("checkSharedPlatformPostgres", () => {
       "discovery/config.star",
       "engine/topologies/tilt/config/profiles.star",
     ]) {
-      const destination = join(output, "tdk-cli-ext", relativePath);
+      const destination = join(output, "flisk-cli-ext", relativePath);
       mkdirSync(join(destination, ".."), { recursive: true });
       copyFileSync(join(repoRoot, relativePath), destination);
     }
   }
 
   function writeProjectJson(config: Record<string, unknown>): void {
-    writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify(config));
+    writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify(config));
   }
 
   function featureOffProjectJson(): Record<string, unknown> {
@@ -707,7 +707,7 @@ describe("checkPrismaConsistency", () => {
 
 describe("checkTiltInstances", () => {
   const tiltLine = (pid: number, project: string) =>
-    `${pid} tilt up -f ${project}/.tdk/.tdk-out/Tiltfile -- --focus=store`;
+    `${pid} tilt up -f ${project}/.flisk/.flisk-out/Tiltfile -- --focus=store`;
   const fakeExec = (output: string) => (() => output) as unknown as typeof execSync;
 
   it("parses pid and project root from ps output", () => {
@@ -742,8 +742,8 @@ describe("checkDockerNetworkCapacity", async () => {
       return "";
     }) as unknown as ExecAsync;
     expect((await checkDockerNetworkCapacity(exec)).didPass).toBe(true);
-    expect(calls[0]).toMatch(/^docker network create tdk_doctor_probe_/);
-    expect(calls[1]).toMatch(/^docker network rm tdk_doctor_probe_/);
+    expect(calls[0]).toMatch(/^docker network create flisk_doctor_probe_/);
+    expect(calls[1]).toMatch(/^docker network rm flisk_doctor_probe_/);
   });
 
   it("fails when Docker has no address pool left", async () => {

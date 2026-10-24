@@ -11,12 +11,12 @@ import type { McpTool, McpToolResult } from "./server.js";
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
 
-export type RunTdk = (
+export type RunFlisk = (
   args: string[],
   options?: { timeoutMs?: number; cwd?: string },
-) => Promise<TdkRun>;
+) => Promise<FliskRun>;
 
-export interface TdkRun {
+export interface FliskRun {
   exitCode: number | null;
   stdout: string;
   stderr: string;
@@ -38,7 +38,7 @@ export function cliInvocation(
 }
 
 /** Runs this same CLI (`flisk <args>`) so every tool behaves exactly like its command. */
-export const runTdkCli: RunTdk = (args, options = {}) =>
+export const runFliskCli: RunFlisk = (args, options = {}) =>
   new Promise((resolve, reject) => {
     const [command, ...prefix] = cliInvocation();
     const child = spawn(command as string, [...prefix, ...args], {
@@ -88,7 +88,7 @@ function flag(value: unknown, field: string): boolean {
 }
 
 /** Turn a command's `--json` stdout into a tool result. A parseable envelope with errors, or `ok: false`, is an error result. */
-export function toToolResult(run: TdkRun): McpToolResult {
+export function toToolResult(run: FliskRun): McpToolResult {
   const text = run.stdout.trim();
   // The envelope is the last JSON line; anything before it is incidental output.
   const lastLine = text
@@ -253,7 +253,10 @@ function projectPath(value: unknown): string | undefined {
   return value;
 }
 
-export function createTdkTools(run: RunTdk = runTdkCli, up: UpDeps = defaultUpDeps): McpTool[] {
+export function createFliskTools(
+  run: RunFlisk = runFliskCli,
+  up: UpDeps = defaultUpDeps,
+): McpTool[] {
   const viaCli =
     (build: (args: Record<string, unknown>) => string[]) => async (args: Record<string, unknown>) =>
       toToolResult(await run(build(args), { cwd: projectPath(args.projectPath) }));

@@ -13,7 +13,7 @@ vi.setConfig({ testTimeout: 60_000 });
 // Get the CLI bin path dynamically
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const CLI_BIN_PATH = join(__dirname, "..", "..", "..", "bin", "tdk.js");
+const CLI_BIN_PATH = join(__dirname, "..", "..", "..", "bin", "flisk.js");
 
 // `flisk doctor` requires these (see REQUIRED_ENV_VARS in ../../utils/env-validator.ts);
 // an empty .env satisfies `flisk project`'s docker-compose validation but leaves doctor
@@ -43,27 +43,27 @@ function runCli(cwd: string, args: string[], env: Record<string, string> = {}): 
   return result.stdout;
 }
 
-// tdk-cli-extensions is a sibling checkout, not a dependency of this repo, so its
+// flisk-cli-extensions is a sibling checkout, not a dependency of this repo, so its
 // location varies per machine. Respect an explicit override, then fall back to the
 // conventional sibling-directory layout (both repos checked out next to each other),
 // instead of hardcoding one contributor's absolute path.
 const REPO_ROOT = join(__dirname, "..", "..", "..", "..");
 const EXTENSION_SOURCE =
-  process.env.TDK_EXTENSION_SOURCE ?? join(REPO_ROOT, "..", "tdk-cli-extensions");
+  process.env.FLISK_EXTENSION_SOURCE ?? join(REPO_ROOT, "..", "flisk-cli-extensions");
 const EXTENSION_SOURCE_AVAILABLE = existsSync(EXTENSION_SOURCE);
 
 describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery", () => {
   if (!EXTENSION_SOURCE_AVAILABLE) {
     console.warn(
-      `Skipping saas-starter integration tests: tdk-cli-extensions not found at ${EXTENSION_SOURCE}. ` +
-        "Set TDK_EXTENSION_SOURCE to its checkout path to run these.",
+      `Skipping saas-starter integration tests: flisk-cli-extensions not found at ${EXTENSION_SOURCE}. ` +
+        "Set FLISK_EXTENSION_SOURCE to its checkout path to run these.",
     );
   }
 
   let testDir: string;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `tdk-saas-test-${Date.now()}`);
+    testDir = join(tmpdir(), `flisk-saas-test-${Date.now()}`);
   });
 
   afterEach(() => {
@@ -71,7 +71,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
       // Safety: only delete if path is under tmpdir and contains our test marker
       if (
         testDir?.startsWith(tmpdir()) &&
-        testDir.includes("tdk-saas-test-") &&
+        testDir.includes("flisk-saas-test-") &&
         testDir.length > 20
       ) {
         rmSync(testDir, { recursive: true, force: true });
@@ -131,10 +131,10 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
     writeTestEnvFile(starterRoot);
 
     // Generate project config
-    runCli(starterRoot, ["project", "--yes"], { TDK_EXTENSION_SOURCE: EXTENSION_SOURCE });
+    runCli(starterRoot, ["project", "--yes"], { FLISK_EXTENSION_SOURCE: EXTENSION_SOURCE });
 
     // Verify project.json has services populated
-    const projectJsonPath = join(starterRoot, ".tdk", "project.json");
+    const projectJsonPath = join(starterRoot, ".flisk", "project.json");
     expect(existsSync(projectJsonPath)).toBe(true);
 
     const projectJson = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
@@ -157,9 +157,9 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
     const starterRoot = join(cwd, "tdk-saas-starter");
     writeTestEnvFile(starterRoot);
 
-    runCli(starterRoot, ["project", "--yes"], { TDK_EXTENSION_SOURCE: EXTENSION_SOURCE });
+    runCli(starterRoot, ["project", "--yes"], { FLISK_EXTENSION_SOURCE: EXTENSION_SOURCE });
 
-    const specPath = join(starterRoot, ".tdk", ".tdk-out", "spec.master");
+    const specPath = join(starterRoot, ".flisk", ".flisk-out", "spec.master");
     expect(existsSync(specPath)).toBe(true);
 
     const specContent = readFileSync(specPath, "utf-8");
@@ -174,7 +174,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
 
   /**
    * Verifies that `flisk doctor` correctly reports master configs as present
-   * (they are in .tdk/.tdk-out/, not the project root).
+   * (they are in .flisk/.flisk-out/, not the project root).
    */
   it("should pass doctor check after project init", () => {
     const cwd = testDir;
@@ -185,7 +185,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
     const starterRoot = join(cwd, "tdk-saas-starter");
     writeTestEnvFile(starterRoot);
 
-    runCli(starterRoot, ["project", "--yes"], { TDK_EXTENSION_SOURCE: EXTENSION_SOURCE });
+    runCli(starterRoot, ["project", "--yes"], { FLISK_EXTENSION_SOURCE: EXTENSION_SOURCE });
 
     // Check the master-config result even if another local project occupies ingress ports.
     const doctorResult = spawnSync("bun", [CLI_BIN_PATH, "doctor"], {

@@ -10,9 +10,9 @@ import { type ColimaStatus, checkColima, nativeLimaPath, planColimaRepair } from
 import { DISK_WARN_GIB } from "./doctor-host.js";
 import {
   findProjectTiltUpPids,
+  fliskNetworkOwner,
+  fliskNetworkPrefixes,
   projectNetworkNames,
-  tdkNetworkOwner,
-  tdkNetworkPrefixes,
 } from "./down-cleanup.js";
 import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
@@ -21,7 +21,7 @@ const execFilePromise = promisify(execFile);
 const DOCKER_TIMEOUT_MS = 15_000;
 
 /** The networks `flisk doctor` creates to test capacity; an interrupted run leaves one behind. */
-const PROBE_NETWORK = /^tdk_doctor_probe_(\d+)$/;
+const PROBE_NETWORK = /^flisk_doctor_probe_(\d+)$/;
 
 export type DoctorActionStatus = "planned" | "applied" | "skipped" | "failed";
 
@@ -378,7 +378,7 @@ export async function planDoctorFixes(
     }
   }
   const own = new Set(projectName ? projectNetworkNames(projectName) : []);
-  const prefixes = tdkNetworkPrefixes(networks.map((network) => network.name));
+  const prefixes = fliskNetworkPrefixes(networks.map((network) => network.name));
   for (const network of networks) {
     const probe = PROBE_NETWORK.exec(network.name);
     let scope: DoctorAction["scope"];
@@ -390,10 +390,10 @@ export async function planDoctorFixes(
     } else if (own.has(network.name)) {
       scope = "project";
       check = "Docker networks";
-    } else if (context.machine && tdkNetworkOwner(network.name, prefixes)) {
+    } else if (context.machine && fliskNetworkOwner(network.name, prefixes)) {
       scope = "machine";
       check = "Docker networks";
-      reason = `unused network of project "${tdkNetworkOwner(network.name, prefixes)}"`;
+      reason = `unused network of project "${fliskNetworkOwner(network.name, prefixes)}"`;
     } else {
       continue;
     }
@@ -502,12 +502,12 @@ export function hasFailedActions(actions: DoctorAction[]): boolean {
   return actions.some((action) => action.status === "failed");
 }
 
-export interface TdkInstall {
+export interface FliskInstall {
   path: string;
   version: string | null;
 }
 
-async function readTdkVersion(path: string): Promise<string | null> {
+async function readFliskVersion(path: string): Promise<string | null> {
   try {
     const { stdout } = await execFilePromise(path, ["--version"], {
       encoding: "utf-8",
@@ -521,12 +521,12 @@ async function readTdkVersion(path: string): Promise<string | null> {
 }
 
 /** Every distinct `flisk` on PATH (symlinks to one binary count once), in PATH order. */
-export async function findTdkInstalls(
+export async function findFliskInstalls(
   paths: string[] = findAllOnPath("flisk"),
-  readVersion: (path: string) => Promise<string | null> = readTdkVersion,
-): Promise<TdkInstall[]> {
+  readVersion: (path: string) => Promise<string | null> = readFliskVersion,
+): Promise<FliskInstall[]> {
   const seen = new Set<string>();
-  const installs: TdkInstall[] = [];
+  const installs: FliskInstall[] = [];
   for (const path of paths) {
     let real = path;
     try {
@@ -542,8 +542,8 @@ export async function findTdkInstalls(
 }
 
 /** Two `flisk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
-export async function checkDuplicateTdkInstalls(installs?: TdkInstall[]): Promise<CheckResult> {
-  const found = installs ?? (await findTdkInstalls());
+export async function checkDuplicateFliskInstalls(installs?: FliskInstall[]): Promise<CheckResult> {
+  const found = installs ?? (await findFliskInstalls());
   if (found.length <= 1) {
     return { name: "Flisk installs", didPass: true, message: "One flisk install on PATH" };
   }
@@ -574,7 +574,7 @@ export function projectTiltPids(
   }
   const pids = new Set<number>();
   for (const root of roots) {
-    for (const pid of find(join(root, ".tdk", ".tdk-out", "Tiltfile"))) pids.add(pid);
+    for (const pid of find(join(root, ".flisk", ".flisk-out", "Tiltfile"))) pids.add(pid);
   }
   return [...pids];
 }

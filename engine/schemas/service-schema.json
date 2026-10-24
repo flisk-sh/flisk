@@ -138,12 +138,12 @@
       "type": "string"
     },
     "basePath": {
-      "description": "Base path for frontend routing on tdk.localhost. Default is /{stack}s when omitted.",
+      "description": "Base path for frontend routing on flisk.localhost. Default is /{stack}s when omitted.",
       "pattern": "^/[a-z0-9/-]*$",
       "type": "string"
     },
     "databaseName": {
-      "description": "Override auto-generated DB name.\nDefault: TDK_{stack}",
+      "description": "Override auto-generated DB name.\nDefault: FLISK_{stack}",
       "pattern": "^Flisk_[a-z_]+$",
       "type": "string"
     },
@@ -185,7 +185,7 @@
       "type": "string"
     },
     "stack": {
-      "description": "Technology stack this resource belongs to.\nUsed for:\n• Database naming: TDK_{stack}\n• Traefik routing: /api/{stack}\n• NATS queue: {stack}_backend_svc",
+      "description": "Technology stack this resource belongs to.\nUsed for:\n• Database naming: FLISK_{stack}\n• Traefik routing: /api/{stack}\n• NATS queue: {stack}_backend_svc",
       "type": "string"
     },
     "params": {
@@ -196,7 +196,7 @@
       "type": "object"
     },
     "secrets": {
-      "description": "Names of secrets the resource needs. By default each is read from the project .env (gitignored) and injected into the container; with TDK_SECRET_PROVIDER=infisical they are left to Infisical. NO secret values in params/envVars or anywhere in service.json.",
+      "description": "Names of secrets the resource needs. By default each is read from the project .env (gitignored) and injected into the container; with FLISK_SECRET_PROVIDER=infisical they are left to Infisical. NO secret values in params/envVars or anywhere in service.json.",
       "properties": {
         "required": {
           "description": "Required secret names. The resource does not start if any is missing from the project .env.",
@@ -348,7 +348,7 @@
       "type": "integer"
     },
     "sablier": {
-      "description": "On-demand scaling: stop this container when idle, wake it on the next request.\nNot recommended for databases or other stateful resources with in-flight writes.\n(Premium - requires TDK_LICENSE_KEY; see hasSablierLicense() in extension-fetch.ts)",
+      "description": "On-demand scaling: stop this container when idle, wake it on the next request.\nNot recommended for databases or other stateful resources with in-flight writes.\n(Premium - requires FLISK_LICENSE_KEY; see hasSablierLicense() in extension-fetch.ts)",
       "properties": {
         "enable": {
           "default": false,

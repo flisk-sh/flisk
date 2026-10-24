@@ -137,18 +137,18 @@ def get_all_needed_services(targets, skip_frontend = False):
 
 def _load_focus_lists():
     """Load focus lists from project spec.master directly."""
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
     if not project_root:
         return ([], [], [])
     
     # Load from spec.master
     spec_paths = [
-        project_root + "/.tdk/.tdk-out/spec.master",
+        project_root + "/.flisk/.flisk-out/spec.master",
         project_root + "/spec.master",
     ]
     
     for spec_path in spec_paths:
-        check_cmd = "test -f '{}' && echo 'yes' || echo 'no'".format(spec_path)
+        check_cmd = ["sh", "-c", "test -f \"$1\" && echo 'yes' || echo 'no'", "sh", spec_path]
         exists = str(local(check_cmd, quiet=True, echo_off=True)).strip() == 'yes'
         if exists:
             # Parse PRE_ALPHA_RESOURCES from spec.master
@@ -156,7 +156,7 @@ def _load_focus_lists():
             alpha = []
             beta = []
             
-            content = str(local("cat '" + spec_path + "' 2>/dev/null || true", quiet=True, echo_off=True))
+            content = str(local(["sh", "-c", "cat \"$1\" 2>/dev/null || true", "sh", spec_path], quiet=True, echo_off=True))
             
             # Simple parsing for PRE_ALPHA_RESOURCES = {"key": True, ...}
             if "PRE_ALPHA_RESOURCES" in content:

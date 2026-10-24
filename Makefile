@@ -48,7 +48,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/test-summary.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 
-test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, tdk)
+test-e2e: ## Run a live-stack e2e suite: make test-e2e GROUP=resource-types SUITE=agent [CASES="A1 A2"] (needs Docker, Tilt, flisk)
 	@test -n "$(GROUP)" -a -n "$(SUITE)" || { echo "usage: make test-e2e GROUP=<group> SUITE=<suite> [CASES=\"<case> ...\"]"; ls tests/e2e/*/*/suite.json | sed 's#tests/e2e/##; s#/suite.json##'; exit 2; }
 	tests/e2e/$(GROUP)/$(SUITE)/run.sh $(if $(CASES),$(CASES),all)
 
@@ -100,7 +100,7 @@ pre-commit-fast: ## Run only fast tests (pre-commit style)
 
 # Video Generator targets
 video: ## Show video generator help
-	@cd video-generator && swift run tdk-video help
+	@cd video-generator && swift run flisk-video help
 
 video-build: ## Build the video generator
 	@echo "🔨 Building video generator..."
@@ -112,13 +112,13 @@ video-test: ## Run video generator tests
 
 video-validate: ## Validate video generator system setup
 	@echo "🔍 Validating video generator setup..."
-	cd video-generator && swift run tdk-video validate
+	cd video-generator && swift run flisk-video validate
 
-video-generate: ## Generate the TDK CLI tutorial video (requires FFmpeg)
-	@echo "🎬 Generating TDK CLI tutorial video..."
-	@echo "   This will create TDK_Tutorial_1440p.mp4 (20 min, 2K)"
-	cd video-generator && swift run tdk-video generate
+video-generate: ## Generate the Flisk CLI tutorial video (requires FFmpeg)
+	@echo "🎬 Generating Flisk CLI tutorial video..."
+	@echo "   This will create FLISK_Tutorial_1440p.mp4 (20 min, 2K)"
+	cd video-generator && swift run flisk-video generate
 
 video-generate-quick: ## Generate 1080p test video (faster)
 	@echo "🎬 Generating 1080p test video..."
-	cd video-generator && swift run tdk-video generate -o TDK_Tutorial_Test_1080p.mp4
+	cd video-generator && swift run flisk-video generate -o FLISK_Tutorial_Test_1080p.mp4

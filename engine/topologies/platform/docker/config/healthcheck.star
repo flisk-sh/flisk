@@ -10,7 +10,7 @@
 # Compose 2.20.2+ (checked by `flisk doctor`).
 #
 # Override per run with environment variables, e.g.:
-#   TDK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
+#   FLISK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
 # =============================================================================
 
 
@@ -23,12 +23,12 @@ def _env_int(name, default):
 
 DOCKER_HEALTHCHECK = {
     "path": "/health",
-    "interval_seconds": _env_int("TDK_HEALTHCHECK_INTERVAL_SECONDS", 30),
-    "start_interval_seconds": _env_int("TDK_HEALTHCHECK_START_INTERVAL_SECONDS", 2),
-    "timeout_seconds": _env_int("TDK_HEALTHCHECK_TIMEOUT_SECONDS", 5),
-    "start_period_seconds": _env_int("TDK_HEALTHCHECK_START_PERIOD_SECONDS", 30),
-    "frontend_start_period_seconds": _env_int("TDK_HEALTHCHECK_START_PERIOD_SECONDS", 30),
-    "retries": _env_int("TDK_HEALTHCHECK_RETRIES", 3),
+    "interval_seconds": _env_int("FLISK_HEALTHCHECK_INTERVAL_SECONDS", 30),
+    "start_interval_seconds": _env_int("FLISK_HEALTHCHECK_START_INTERVAL_SECONDS", 2),
+    "timeout_seconds": _env_int("FLISK_HEALTHCHECK_TIMEOUT_SECONDS", 5),
+    "start_period_seconds": _env_int("FLISK_HEALTHCHECK_START_PERIOD_SECONDS", 30),
+    "frontend_start_period_seconds": _env_int("FLISK_HEALTHCHECK_START_PERIOD_SECONDS", 30),
+    "retries": _env_int("FLISK_HEALTHCHECK_RETRIES", 3),
 }
 
 

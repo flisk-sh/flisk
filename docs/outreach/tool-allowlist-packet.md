@@ -5,7 +5,7 @@ For maintainers of public projects that publish a tool catalog, recommended-CLI 
 ## Identity
 
 - Project: Flisk CLI, canonical repo [`flisk-sh/flisk`](https://github.com/flisk-sh/flisk)
-- npm package: `@flisk-sh/flisk` (not the unrelated Turkish-dictionary `tdk-cli` on PyPI)
+- npm package: `@flisk-sh/flisk` (not the unrelated Turkish-dictionary `flisk-cli` on PyPI)
 - License: MIT for core (see `LICENSE`). Premium extras use a separate key; `flisk up` needs no key.
 - Sender: always a Flisk maintainer, stated as such in every issue or PR.
 

@@ -46,7 +46,7 @@ export interface ResourceConfigFields {
   traefik?: { host?: string; pathPrefix?: string; healthCheck?: string };
   /** bring-your-own only: false keeps the resource off Traefik (no route, no health check). Defaults to true. */
   exposeViaProxy?: boolean;
-  /** On-demand scaling via Sablier (Premium - requires TDK_LICENSE_KEY). See hasSablierLicense() in extension-fetch.ts. */
+  /** On-demand scaling via Sablier (Premium - requires FLISK_LICENSE_KEY). See hasSablierLicense() in extension-fetch.ts. */
   sablier?: {
     enable?: boolean;
     group?: string;

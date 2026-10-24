@@ -10,17 +10,17 @@ export function getErrorMessage(err) {
     return err instanceof Error ? err.message : String(err);
 }
 export function logVerbose(message, err) {
-    if (process.env.TDK_VERBOSE) {
+    if (process.env.FLISK_VERBOSE) {
         const errMsg = err !== undefined ? `: ${getErrorMessage(err)}` : "";
         console.warn(chalk.gray(`${message}${errMsg}`));
     }
 }
-export class TdkError extends Error {
+export class FliskError extends Error {
     suggestions;
     exitCode;
     constructor(message, suggestions = [], exitCode = 1) {
         super(message);
-        this.name = "TdkError";
+        this.name = "FliskError";
         this.suggestions = suggestions;
         this.exitCode = exitCode;
     }
@@ -56,28 +56,28 @@ function closestNameSuggestions(names, candidates, includeInput = false) {
     return [...suggestions];
 }
 export const errorFactories = {
-    tiltNotInstalled: () => new TdkError("Tilt CLI is not installed", [
+    tiltNotInstalled: () => new FliskError("Tilt CLI is not installed", [
         "Install Tilt: `brew install tilt` (macOS)",
         "Or download from: https://docs.tilt.dev/install.html",
         "Verify with: `tilt version`",
         `Setup guide: ${QUICKSTART_DOCS_URL}`,
     ]),
-    dockerNotAvailable: () => new TdkError("Docker (or a compatible container runtime) is not running", [
+    dockerNotAvailable: () => new FliskError("Docker (or a compatible container runtime) is not running", [
         "Start Docker Desktop, then verify with: `docker ps`",
         "Or start Colima: `colima start`",
         "Or start the Docker service on Linux: `sudo systemctl start docker`",
         `Setup guide: ${QUICKSTART_DOCS_URL}`,
     ]),
-    dockerNotResponding: () => new TdkError("Docker is running but not responding (`docker ps` hung for 10s)", [
+    dockerNotResponding: () => new FliskError("Docker is running but not responding (`docker ps` hung for 10s)", [
         "Quit and reopen Docker Desktop, or run `colima restart`",
         "Then verify with: `docker ps`",
     ]),
-    stackNotFound: (name, stackNames = []) => new TdkError(`Stack "${name}" not found`, [
+    stackNotFound: (name, stackNames = []) => new FliskError(`Stack "${name}" not found`, [
         ...closestNameSuggestions([name], stackNames),
         "Run `flisk stacks` to see available stacks",
         "Run `flisk stack` to assign resources to a stack",
     ]),
-    resourceNotFound: (name, resourceNames = []) => new TdkError(`Resource "${name}" not found`, [
+    resourceNotFound: (name, resourceNames = []) => new FliskError(`Resource "${name}" not found`, [
         ...closestNameSuggestions([name], resourceNames),
         "Run `flisk resources` to list all resources",
         "Check the resource name spelling",
@@ -85,17 +85,17 @@ export const errorFactories = {
     unknownServices: (names, validNames) => {
         // Service selectors are Tilt resource names, so share the resource suggestion path.
         const suggestions = closestNameSuggestions(names, validNames, names.length > 1);
-        return new TdkError(`Unknown service ${names.join(", ")}. Valid names: ${validNames.join(", ")}`, suggestions, 2);
+        return new FliskError(`Unknown service ${names.join(", ")}. Valid names: ${validNames.join(", ")}`, suggestions, 2);
     },
-    directoryExists: (path) => new TdkError(`Directory already exists: ${path}`, [
+    directoryExists: (path) => new FliskError(`Directory already exists: ${path}`, [
         "Use `--path` to specify a different location",
         "Remove the existing directory if no longer needed",
     ]),
-    invalidPath: (path) => new TdkError(`Invalid path: ${path}`, [
+    invalidPath: (path) => new FliskError(`Invalid path: ${path}`, [
         "Path must be within the project directory",
         'Path cannot contain special characters like <>:"|?*',
     ]),
-    notInProject: () => new TdkError("Could not find project root (no .tdk/project.json found)", [
+    notInProject: () => new FliskError("Could not find project root (no .flisk/project.json found)", [
         "Run this from within a Flisk project",
         "Run `flisk project --yes` to initialize a new project",
     ]),
@@ -108,7 +108,7 @@ export function requireProjectRoot() {
     return projectRoot;
 }
 function handleCommandError(err) {
-    if (err instanceof TdkError) {
+    if (err instanceof FliskError) {
         err.exit();
     }
     showError(getErrorMessage(err));

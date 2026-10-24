@@ -7,7 +7,7 @@ Run checks from the repository root unless a command says otherwise.
 | Change | Checks to run |
 |---|---|
 | CLI code or generated CLI behavior | `bun run typecheck`, `bun run lint`, `bun run test` |
-| Engine/Starlark generator used by the CLI tests | Run `bun run typecheck`, `bun run lint`, and `cd cli && TDK_REQUIRE_TILT=1 npm test`. The CI test job installs Tilt and sets this flag. |
+| Engine/Starlark generator used by the CLI tests | Run `bun run typecheck`, `bun run lint`, and `cd cli && FLISK_REQUIRE_TILT=1 npm test`. The CI test job installs Tilt and sets this flag. |
 | Python engine test area | Install the test packages once with `python3 -m pip install -r tests/requirements.txt`, then run the relevant test file with `pytest`, or `make test-tilt-engine` for that suite. Some tests there fail on a clean checkout; see #700 for which and why. These Python checks are not run by `.github/workflows/ci.yml`. |
 | Docs only | Check links and commands you changed; read the page once as a newcomer. |
 

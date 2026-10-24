@@ -28,7 +28,7 @@
 ## 5. Footprint budget and docs (D6)
 
 - [ ] 5.1 Add `scripts/measure-idle-footprint.sh <container>`. It waits for the running backend container to be `healthy`, counts Bun processes, samples `docker stats` for 60 s, and exits non-zero if it finds more than one Bun process, memory over 64 MiB, or average CPU of 2% or more. (It measures an existing container instead of generating a template backend, because generation needs a whole project. The ERP backends are generated from the default template.) Verify it passes against a finance backend built from the new layers.
-- [ ] 5.2 Document the minimum Docker Engine / Compose versions, the `TDK_HEALTHCHECK_*` overrides, the `featuresEnabled: ["hugo"]` migration note, and how to run the footprint script in `cli/README.md` (the repo has no root README). Verify the documented commands run as written.
+- [ ] 5.2 Document the minimum Docker Engine / Compose versions, the `FLISK_HEALTHCHECK_*` overrides, the `featuresEnabled: ["hugo"]` migration note, and how to run the footprint script in `cli/README.md` (the repo has no root README). Verify the documented commands run as written.
 
 ## 6. Integration
 

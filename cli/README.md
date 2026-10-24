@@ -216,11 +216,11 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk import [dir]` | 📥 Import the services in a directory's root `docker-compose.yml` (`--dry-run`, `--yes`, `--force`) |
 | `flisk eject` | 🚪 Write `EJECTED.md` describing the generated Tilt files; copies nothing (`--dry-run`, `--yes`) |
 | `flisk mcp` | 🤖 Run a Model Context Protocol server over stdio for coding agents |
-| `flisk config regenerate` | ♻️ Regenerate master config files from `.tdk/project.json` |
-| `flisk config verify` | ✅ Check generated files match `.tdk/project.json` |
+| `flisk config regenerate` | ♻️ Regenerate master config files from `.flisk/project.json` |
+| `flisk config verify` | ✅ Check generated files match `.flisk/project.json` |
 | `flisk config enable-infra <service>` | ➕ Enable an optional infrastructure service (`disable-infra` to turn it off) |
 | `flisk doctor` | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports) |
-| `flisk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#tdk-completion-shell) |
+| `flisk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#flisk-completion-shell) |
 | `flisk upgrade` | ⬆️ Self-update to the latest version (`--dry-run`, `--force`, `--all`) |
 | `flisk version` | ℹ️ Show version |
 | `flisk --help` | ❓ Show help |
@@ -307,7 +307,7 @@ flisk resources --stack api
 Use `Determinism` in your Tiltfile for reproducible builds:
 
 ```starlark
-load('ext://tdk-cli', 'Determinism')
+load('ext://flisk-cli', 'Determinism')
 
 # Deterministic file discovery (sorted results)
 files = Determinism.deterministic_find('./services', 'service.json')
@@ -369,7 +369,7 @@ Checks for:
     "errors": []
   }
   ```
-- `--fix`: When free disk is below 10 GB, also runs `docker builder prune -f` and `docker image prune -f` (untagged images only, never volumes), showing the reclaimable size. Before the checks run, remove unused Docker networks that belong to this project (the exact names `flisk up` creates) and leftover `tdk_doctor_probe_*` networks from interrupted runs. Asks before each removal. Never touches another project's networks, never runs `sudo`.
+- `--fix`: When free disk is below 10 GB, also runs `docker builder prune -f` and `docker image prune -f` (untagged images only, never volumes), showing the reclaimable size. Before the checks run, remove unused Docker networks that belong to this project (the exact names `flisk up` creates) and leftover `flisk_doctor_probe_*` networks from interrupted runs. Asks before each removal. Never touches another project's networks, never runs `sudo`.
 - `--scope <project|machine>`: With `--fix`, `machine` also removes unused networks of other Flisk projects on this machine (a project is recognised by its Traefik network), naming each owner. Default `project`.
 - `--dry-run`: With `--fix`, list the commands without running them.
 - `-y, --yes`: With `--fix`, run every repair without asking. Without a terminal and without `--yes`, repairs are skipped.
@@ -390,10 +390,10 @@ Generated runtimes are sized so large landscapes fit on a 16 GB machine:
 - **Healthchecks:** every 2 s during startup, then every 30 s. You can override the timing for a run:
 
   ```bash
-  TDK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
+  FLISK_HEALTHCHECK_INTERVAL_SECONDS=15 flisk up
   ```
 
-  The other overrides are `TDK_HEALTHCHECK_START_INTERVAL_SECONDS`, `TDK_HEALTHCHECK_TIMEOUT_SECONDS`, `TDK_HEALTHCHECK_START_PERIOD_SECONDS` and `TDK_HEALTHCHECK_RETRIES`.
+  The other overrides are `FLISK_HEALTHCHECK_START_INTERVAL_SECONDS`, `FLISK_HEALTHCHECK_TIMEOUT_SECONDS`, `FLISK_HEALTHCHECK_START_PERIOD_SECONDS` and `FLISK_HEALTHCHECK_RETRIES`.
 - **Optional tooling is per service.** The golden backend image no longer ships `hugo`. A service that needs it declares it in `service.json`:
 
   ```json
@@ -485,7 +485,7 @@ To bring an existing Compose repo in, `flisk import` runs [flisk-import](https:/
 
 <div align="center">
 
-**[⬆️ Back to Top](#-tdk-cli--start-services-on-your-machine)**
+**[⬆️ Back to Top](#-flisk-cli--start-services-on-your-machine)**
 
 Made with 💚 for developers who ship
 

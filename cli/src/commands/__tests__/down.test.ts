@@ -43,7 +43,7 @@ describe("flisk down", () => {
   });
 
   it("prints the shared project-root error before checking prerequisites outside a project", async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-test-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-down-test-"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("exit:1");
@@ -56,7 +56,7 @@ describe("flisk down", () => {
       );
 
       const output = error.mock.calls.flat().join("\n");
-      expect(output).toContain("Could not find project root (no .tdk/project.json found)");
+      expect(output).toContain("Could not find project root (no .flisk/project.json found)");
       expect(output).toContain("Run this from within a Flisk project");
       expect(output).toContain("Run `flisk project --yes` to initialize a new project");
       expect(runTiltMock).not.toHaveBeenCalled();
@@ -71,7 +71,7 @@ describe("flisk down", () => {
   });
 
   it("emits one machine-readable project-root error before prerequisites in JSON mode", async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-json-test-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-down-json-test-"));
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = vi.spyOn(process, "exit").mockImplementation((() => {
@@ -92,7 +92,7 @@ describe("flisk down", () => {
         errors: [
           {
             code: "COMMAND_FAILED",
-            message: "Could not find project root (no .tdk/project.json found)",
+            message: "Could not find project root (no .flisk/project.json found)",
             suggestions: [
               "Run this from within a Flisk project",
               "Run `flisk project --yes` to initialize a new project",
@@ -101,7 +101,7 @@ describe("flisk down", () => {
         ],
       });
       expect(error).toHaveBeenCalledWith(
-        "Could not find project root (no .tdk/project.json found)",
+        "Could not find project root (no .flisk/project.json found)",
       );
       expect(runTiltMock).not.toHaveBeenCalled();
       expect(getContainerRuntimeStatusMock).not.toHaveBeenCalled();
@@ -116,9 +116,9 @@ describe("flisk down", () => {
   });
 
   it("prints the dry-run plan without building arguments or invoking Tilt", async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-dry-run-test-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tempDir, ".tdk", "project.json"), "{}");
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-down-dry-run-test-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tempDir, ".flisk", "project.json"), "{}");
     process.chdir(tempDir);
     getContainerRuntimeStatusMock.mockReturnValue("running");
     isTiltAvailableMock.mockResolvedValue(true);
@@ -142,9 +142,9 @@ describe("flisk down", () => {
   });
 
   it("accepts --force as a deprecated alias for --yes without forwarding force to buildTiltDownArgs", async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-force-test-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tempDir, ".tdk", "project.json"), "{}");
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-down-force-test-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tempDir, ".flisk", "project.json"), "{}");
     process.chdir(tempDir);
     getContainerRuntimeStatusMock.mockReturnValue("running");
     isTiltAvailableMock.mockResolvedValue(true);
@@ -179,9 +179,9 @@ describe("flisk down", () => {
   });
 
   it("accepts -f as a deprecated alias for -y/--yes with deprecation notice", async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-force-short-test-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tempDir, ".tdk", "project.json"), "{}");
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-down-force-short-test-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tempDir, ".flisk", "project.json"), "{}");
     process.chdir(tempDir);
     getContainerRuntimeStatusMock.mockReturnValue("running");
     isTiltAvailableMock.mockResolvedValue(true);
@@ -216,9 +216,9 @@ describe("flisk down", () => {
   });
 
   it("accepts -y and --yes without printing the --force deprecation notice", async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "tdk-down-yes-test-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
-    writeFileSync(join(tempDir, ".tdk", "project.json"), "{}");
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-down-yes-test-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tempDir, ".flisk", "project.json"), "{}");
     process.chdir(tempDir);
     getContainerRuntimeStatusMock.mockReturnValue("running");
     isTiltAvailableMock.mockResolvedValue(true);

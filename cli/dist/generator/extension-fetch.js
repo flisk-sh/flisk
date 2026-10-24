@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Fetches the paid-tier "premium" resource bundle (playwright, c4-diagram,
 // logging, agents-md, sablier, verdaccio, and a few other extras - see
-// tdk-cli-extensions/premium/) from the gated distribution worker, when a
+// flisk-cli-extensions/premium/) from the gated distribution worker, when a
 // license key is configured. The free engine never needs this for its own
 // resources - docker-compose, npm, bun, etc. are already public in this
 // repo, no key required.
@@ -30,7 +30,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "no
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { extractTarball } from "../utils/tar.js";
-const DEFAULT_ENDPOINT = "https://tdk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz";
+const DEFAULT_ENDPOINT = "https://flisk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz";
 // Tried in order until one is granted - the worker unlocks the whole
 // bundle on the first resource name a key is found to grant, since
 // premium.tar.gz ships all paid resources together. Keep in sync with
@@ -66,21 +66,21 @@ const PREMIUM_PATH_MAP = {
     "registries/verdaccio_loader.star": "engine/topologies/platform/registries/verdaccio_loader.star",
 };
 function getLicenseKey() {
-    return process.env.TDK_LICENSE_KEY?.trim() || null;
+    return process.env.FLISK_LICENSE_KEY?.trim() || null;
 }
 function getEndpoint() {
-    return process.env.TDK_PREMIUM_ENDPOINT?.trim() || DEFAULT_ENDPOINT;
+    return process.env.FLISK_PREMIUM_ENDPOINT?.trim() || DEFAULT_ENDPOINT;
 }
 // A stable per-project id for the worker's project-limit tracking - not a
 // device or user id. Generated once and persisted alongside the rest of
-// the project's .tdk/ state.
+// the project's .flisk/ state.
 function getOrCreateProjectId(projectRoot) {
-    const idPath = join(projectRoot, ".tdk", ".project-id");
+    const idPath = join(projectRoot, ".flisk", ".project-id");
     if (existsSync(idPath)) {
         return readFileSync(idPath, "utf-8").trim();
     }
     const id = randomUUID();
-    mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
+    mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
     writeFileSync(idPath, `${id}\n`);
     return id;
 }
@@ -89,7 +89,7 @@ function cacheTarballPath(key) {
     // machine) so switching license keys doesn't serve a stale bundle
     // fetched under a different plan.
     const safeName = key.replace(/[^a-zA-Z0-9_-]/g, "_");
-    return join(homedir(), ".tdk", "cache", `premium-${safeName}`, "premium.tar.gz");
+    return join(homedir(), ".flisk", "cache", `premium-${safeName}`, "premium.tar.gz");
 }
 function isCacheFresh(path) {
     if (!existsSync(path))
@@ -189,7 +189,7 @@ export async function applyPremiumOverlay(projectRoot, destDir) {
         if (missing.length > 0) {
             console.info(`🔎 Premium bundle missing mapped files: ${missing.join(", ")}`);
         }
-        if (!existsSync(sablierPath) && process.env.TDK_PREMIUM_DIAGNOSTICS === "1") {
+        if (!existsSync(sablierPath) && process.env.FLISK_PREMIUM_DIAGNOSTICS === "1") {
             const sablierGranted = await hasSablierLicense(projectRoot);
             console.info(`🔎 Sablier entitlement check: ${sablierGranted ? "granted" : "not confirmed"}; compare with sablier_overlay above to distinguish license access from bundle contents`);
         }
@@ -206,7 +206,7 @@ export async function applyPremiumOverlay(projectRoot, destDir) {
 }
 function liveResourceAccessCachePath(key, resource) {
     const safeName = key.replace(/[^a-zA-Z0-9_-]/g, "_");
-    return join(homedir(), ".tdk", "cache", `premium-${safeName}`, `${resource}-access.json`);
+    return join(homedir(), ".flisk", "cache", `premium-${safeName}`, `${resource}-access.json`);
 }
 /**
  * Checks whether the configured license key grants a given "live" premium

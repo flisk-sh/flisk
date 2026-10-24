@@ -7,7 +7,7 @@
 ## What Changes
 
 - Lock the three config commands as separate operations:
-  - `flisk config regenerate` rewrites generated files from `.tdk/project.json`. It does not edit `service.json`.
+  - `flisk config regenerate` rewrites generated files from `.flisk/project.json`. It does not edit `service.json`.
   - `flisk config migrate` writes `schemaVersion` on `service.json`. It does not rewrite Docker or Tilt files.
   - `flisk import` runs `flisk-import`. It does not regenerate or migrate.
 - Lock `flisk config verify` as the drift check for generated files. The fix hint stays `flisk config regenerate`.
@@ -26,8 +26,8 @@
 
 ### Modified Capabilities
 
-- `tdk-environment-doctor`: Doctor's current checks, exit codes, and JSON envelope stay the contract.
-- `tdk-up-lifecycle`: Repeated `flisk up` and interrupted `flisk up` leave a recoverable environment.
+- `flisk-environment-doctor`: Doctor's current checks, exit codes, and JSON envelope stay the contract.
+- `flisk-up-lifecycle`: Repeated `flisk up` and interrupted `flisk up` leave a recoverable environment.
 - `generated-config-safety`: `flisk config verify` stays the drift check, and regenerate output is byte-stable.
 
 ## Impact
@@ -37,7 +37,7 @@ Ship this change. Do not widen it.
 ### In scope
 
 - Tests that lock the current command boundaries. No new command names.
-- `flisk config regenerate` rewrites generated files only. `--dry-run` writes nothing. A second run on the same `.tdk/project.json` is byte-identical.
+- `flisk config regenerate` rewrites generated files only. `--dry-run` writes nothing. A second run on the same `.flisk/project.json` is byte-identical.
 - `flisk config migrate` writes `schemaVersion` on `service.json` only. It does not rewrite Docker or Tilt files. An unsupported version fails and writes nothing.
 - `flisk import` runs `flisk-import` and does not call regenerate or migrate. npx failure stays exit 127.
 - `flisk config verify` stays the drift check. The fix line stays `flisk config regenerate`.

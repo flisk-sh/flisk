@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { createTempProject, parseEnvelope, runTdk } from "../../test-support/index.js";
+import { createTempProject, parseEnvelope, runFlisk } from "../../test-support/index.js";
 
 const verifyProject = (name: string) => ({
   version: "1.0",
@@ -23,7 +23,7 @@ const verifyProject = (name: string) => ({
 });
 
 const runVerify = (projectRoot: string) =>
-  runTdk(["config", "verify", "--json"], { cwd: projectRoot });
+  runFlisk(["config", "verify", "--json"], { cwd: projectRoot });
 
 // Each case spawns the built CLI. Under the parallel suite and a loaded machine that exceeds 20-30s, so the budget is 120s.
 describe("flisk config verify --json", () => {
@@ -41,11 +41,11 @@ describe("flisk config verify --json", () => {
       errors: [],
     });
     expect(report.data.errors).toContain(
-      "Missing file: .tdk/.tdk-out/Tiltfile (run 'flisk config regenerate')",
+      "Missing file: .flisk/.flisk-out/Tiltfile (run 'flisk config regenerate')",
     );
     expect(
       report.data.diffs.find((diff: { file: string }) => diff.file.endsWith("Tiltfile"))?.diff,
-    ).toContain("+++ b/.tdk/.tdk-out/Tiltfile");
+    ).toContain("+++ b/.flisk/.flisk-out/Tiltfile");
   }, 120_000);
 
   it("emits a structured INTERNAL error and exits 2 for invalid project JSON", () => {

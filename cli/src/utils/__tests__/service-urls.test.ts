@@ -26,23 +26,23 @@ describe("appendHealthPath", () => {
 });
 
 describe("getProjectNameFor", () => {
-  it("reads the project name from .tdk/project.json", () => {
+  it("reads the project name from .flisk/project.json", () => {
     const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
     expect(getProjectNameFor(root)).toBe("demo-shop");
   });
 
   it("falls back when the project file has no project name", () => {
     const root = createTempProject({ projectJson: { project: {} } });
-    expect(getProjectNameFor(root)).toBe("tdk-project");
+    expect(getProjectNameFor(root)).toBe("flisk-project");
   });
 
   it("falls back when the project file is not valid JSON", () => {
     const root = createTempProject({ projectJson: "{not json" });
-    expect(getProjectNameFor(root)).toBe("tdk-project");
+    expect(getProjectNameFor(root)).toBe("flisk-project");
   });
 
   it("falls back when there is no project root", () => {
-    expect(getProjectNameFor(null)).toBe("tdk-project");
+    expect(getProjectNameFor(null)).toBe("flisk-project");
   });
 });
 
@@ -64,18 +64,18 @@ describe("getProjectName", () => {
 });
 
 describe("resolveSubdomainBases", () => {
-  const original = process.env.TDK_SERVICE_BASE_URL;
+  const original = process.env.FLISK_SERVICE_BASE_URL;
 
   afterEach(() => {
     if (original === undefined) {
-      delete process.env.TDK_SERVICE_BASE_URL;
+      delete process.env.FLISK_SERVICE_BASE_URL;
     } else {
-      process.env.TDK_SERVICE_BASE_URL = original;
+      process.env.FLISK_SERVICE_BASE_URL = original;
     }
   });
 
   it("splits a bare domain into app/api subdomains", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "http://demo.localhost";
     expect(resolveSubdomainBases()).toEqual({
       appBase: "http://app.demo.localhost",
       apiBase: "http://api.demo.localhost",
@@ -83,7 +83,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("does not add subdomains to plain localhost", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://localhost:8080";
+    process.env.FLISK_SERVICE_BASE_URL = "http://localhost:8080";
     expect(resolveSubdomainBases()).toEqual({
       appBase: "http://localhost:8080",
       apiBase: "http://localhost:8080",
@@ -91,7 +91,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("adds the planned ingress port when a configured hostname has no port", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "http://demo.localhost";
     expect(resolveSubdomainBases(8081)).toEqual({
       appBase: "http://app.demo.localhost:8081",
       apiBase: "http://api.demo.localhost:8081",
@@ -99,7 +99,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("leaves the default port out of the URL", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "http://demo.localhost";
     expect(resolveSubdomainBases(80)).toEqual({
       appBase: "http://app.demo.localhost",
       apiBase: "http://api.demo.localhost",
@@ -107,7 +107,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("preserves an explicit port in the configured base URL", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost:9000";
+    process.env.FLISK_SERVICE_BASE_URL = "http://demo.localhost:9000";
     expect(resolveSubdomainBases(8081)).toEqual({
       appBase: "http://app.demo.localhost:9000",
       apiBase: "http://api.demo.localhost:9000",
@@ -115,7 +115,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("uses the project name when no base URL is configured", () => {
-    delete process.env.TDK_SERVICE_BASE_URL;
+    delete process.env.FLISK_SERVICE_BASE_URL;
     const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
     expect(resolveSubdomainBases(undefined, root)).toEqual({
       appBase: "http://app.demo-shop.localhost",
@@ -124,7 +124,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("adds the ingress port to the project default base URL", () => {
-    delete process.env.TDK_SERVICE_BASE_URL;
+    delete process.env.FLISK_SERVICE_BASE_URL;
     const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
     expect(resolveSubdomainBases(8081, root)).toEqual({
       appBase: "http://app.demo-shop.localhost:8081",
@@ -133,7 +133,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("accepts a base URL without a scheme", () => {
-    process.env.TDK_SERVICE_BASE_URL = "demo.localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "demo.localhost";
     expect(resolveSubdomainBases()).toEqual({
       appBase: "http://app.demo.localhost",
       apiBase: "http://api.demo.localhost",
@@ -141,7 +141,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("drops the https default port", () => {
-    process.env.TDK_SERVICE_BASE_URL = "https://demo.localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "https://demo.localhost";
     expect(resolveSubdomainBases(443)).toEqual({
       appBase: "https://app.demo.localhost",
       apiBase: "https://api.demo.localhost",
@@ -149,7 +149,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("keeps plain localhost without a port", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "http://localhost";
     expect(resolveSubdomainBases()).toEqual({
       appBase: "http://localhost",
       apiBase: "http://localhost",
@@ -157,7 +157,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("keeps an IP address as the host for both bases", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://127.0.0.1:8080";
+    process.env.FLISK_SERVICE_BASE_URL = "http://127.0.0.1:8080";
     expect(resolveSubdomainBases()).toEqual({
       appBase: "http://127.0.0.1:8080",
       apiBase: "http://127.0.0.1:8080",
@@ -165,7 +165,7 @@ describe("resolveSubdomainBases", () => {
   });
 
   it("falls back to the project defaults when the base URL is malformed", () => {
-    process.env.TDK_SERVICE_BASE_URL = "http://bad host";
+    process.env.FLISK_SERVICE_BASE_URL = "http://bad host";
     const root = createTempProject({ projectJson: { project: { name: "demo-shop" } } });
     expect(resolveSubdomainBases(undefined, root)).toEqual({
       appBase: "http://app.demo-shop.localhost",
@@ -197,17 +197,17 @@ describe("resolveServicePath", () => {
 });
 
 describe("buildHealthTargets", () => {
-  const original = process.env.TDK_SERVICE_BASE_URL;
+  const original = process.env.FLISK_SERVICE_BASE_URL;
 
   beforeEach(() => {
-    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "http://demo.localhost";
   });
 
   afterEach(() => {
     if (original === undefined) {
-      delete process.env.TDK_SERVICE_BASE_URL;
+      delete process.env.FLISK_SERVICE_BASE_URL;
     } else {
-      process.env.TDK_SERVICE_BASE_URL = original;
+      process.env.FLISK_SERVICE_BASE_URL = original;
     }
   });
 
@@ -237,17 +237,17 @@ describe("buildHealthTargets", () => {
 });
 
 describe("buildAdvertisedTargets", () => {
-  const original = process.env.TDK_SERVICE_BASE_URL;
+  const original = process.env.FLISK_SERVICE_BASE_URL;
 
   beforeEach(() => {
-    process.env.TDK_SERVICE_BASE_URL = "http://demo.localhost";
+    process.env.FLISK_SERVICE_BASE_URL = "http://demo.localhost";
   });
 
   afterEach(() => {
     if (original === undefined) {
-      delete process.env.TDK_SERVICE_BASE_URL;
+      delete process.env.FLISK_SERVICE_BASE_URL;
     } else {
-      process.env.TDK_SERVICE_BASE_URL = original;
+      process.env.FLISK_SERVICE_BASE_URL = original;
     }
   });
 

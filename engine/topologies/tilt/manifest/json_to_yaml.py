@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """Convert JSON manifest to Tilt-compatible YAML resource"""
 import sys
@@ -17,7 +17,7 @@ try:
         data = json.load(f)
     
     # The YAML is a generated, committed mirror used only for Tilt resource tracking. A secret that someone put in service.json must
-    # not be copied into it (the JWT secret belongs in the project .env; `tdk doctor` warns about it).
+    # not be copied into it (the JWT secret belongs in the project .env; `flisk doctor` warns about it).
     data = {key: value for key, value in data.items() if key not in ("jwtSecret",)}
 
     # Deterministic: the mirror is regenerated on every run, so a wall-clock time or random uid would change the file each time.

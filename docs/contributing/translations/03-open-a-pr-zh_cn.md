@@ -9,7 +9,7 @@
 | 改动 | 需要运行的检查 |
 |---|---|
 | CLI 代码或生成的 CLI 行为 | `bun run typecheck`、`bun run lint`、`bun run test` |
-| CLI 测试使用的引擎/Starlark 生成器 | 运行 `bun run typecheck`、`bun run lint`，以及 `cd cli && TDK_REQUIRE_TILT=1 npm test`。CI 测试任务会安装 Tilt 并设置此标志。 |
+| CLI 测试使用的引擎/Starlark 生成器 | 运行 `bun run typecheck`、`bun run lint`，以及 `cd cli && FLISK_REQUIRE_TILT=1 npm test`。CI 测试任务会安装 Tilt 并设置此标志。 |
 | Python 引擎测试区域 | 运行一次 `python3 -m pip install -r tests/requirements.txt` 安装测试包，然后用 `pytest` 运行相关测试文件，或使用 `make test-tilt-engine` 运行该套件。其中部分测试在干净的检出上也会失败；哪些测试、为什么失败，请参阅 #700。这些 Python 检查不会由 `.github/workflows/ci.yml` 运行。 |
 | 仅文档 | 检查你修改过的链接和命令；作为新手通读一遍页面。 |
 

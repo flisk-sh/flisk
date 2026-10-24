@@ -32,7 +32,7 @@ def generate_backend_tsconfig(resource_path, prisma_path, write_fn, internal_dep
         "@prisma/client": [prisma_path]
     }
     # DDD is premium - same gate as generate_backend_path_aliases() in vite/helpers.star.
-    ddd_enabled = features and 'ddd' in features and os.environ.get('TDK_LICENSE_KEY', '') != ''
+    ddd_enabled = features and 'ddd' in features and os.environ.get('FLISK_LICENSE_KEY', '') != ''
     if ddd_enabled:
         paths["@application/*"] = ["../src/application/*"]
         paths["@domain/*"] = ["../src/domain/*"]

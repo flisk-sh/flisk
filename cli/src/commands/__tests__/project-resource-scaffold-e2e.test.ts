@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { runTdk, runTdkAllowFailure } from "./project-e2e-helpers.js";
+import { runFlisk, runFliskAllowFailure } from "./project-e2e-helpers.js";
 
 describe("resource scaffold E2E", () => {
   let projectRoot = "";
@@ -16,13 +16,13 @@ describe("resource scaffold E2E", () => {
   });
 
   it("scaffolds a backend that `flisk doctor` has nothing to say about, with the health route under the key the engine reads", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-healthpath-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-healthpath-"));
+    runFlisk(["project", "--yes"], projectRoot);
     for (const [name, type] of [
       ["fresh-api", "backend"],
       ["fresh-mcp", "mcp"],
     ] as const) {
-      runTdk(["resource", name, "--type", type, "--stack", "app", "--yes"], projectRoot);
+      runFlisk(["resource", name, "--type", type, "--stack", "app", "--yes"], projectRoot);
       const service = JSON.parse(
         readFileSync(join(projectRoot, "services", "app", name, "service.json"), "utf-8"),
       );
@@ -38,7 +38,7 @@ describe("resource scaffold E2E", () => {
       );
     }
 
-    const output = runTdkAllowFailure(["doctor"], projectRoot);
+    const output = runFliskAllowFailure(["doctor"], projectRoot);
     expect(output).not.toMatch(/service\.json\.healthCheck: unknown field/);
     // Nothing about the scaffold itself: no deprecation and no unknown field for either fresh resource.
     expect(output).not.toMatch(
@@ -47,16 +47,16 @@ describe("resource scaffold E2E", () => {
   }, 120000);
 
   it("calls a deprecated service.json field deprecated, not unknown, in `flisk doctor`", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-deprecated-"));
-    runTdk(["project", "--yes"], projectRoot);
-    runTdk(["resource", "dep-api", "--type", "backend", "--stack", "app", "--yes"], projectRoot);
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-deprecated-"));
+    runFlisk(["project", "--yes"], projectRoot);
+    runFlisk(["resource", "dep-api", "--type", "backend", "--stack", "app", "--yes"], projectRoot);
     const servicePath = join(projectRoot, "services", "app", "dep-api", "service.json");
     const service = JSON.parse(readFileSync(servicePath, "utf-8"));
     service.envVars = { LOG_LEVEL: "debug" };
     service.dependencies = ["other"];
     writeFileSync(servicePath, JSON.stringify(service, null, 2));
 
-    const output = runTdkAllowFailure(["doctor"], projectRoot);
+    const output = runFliskAllowFailure(["doctor"], projectRoot);
     expect(output).toContain("service.json.envVars: deprecated, use params");
     expect(output).toContain("service.json.dependencies: deprecated, use dependsOn");
     // A deprecation is not an unknown field, and the message must not claim it is.

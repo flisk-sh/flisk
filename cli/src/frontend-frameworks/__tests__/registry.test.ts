@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { TdkError } from "../../utils/errors.js";
+import { FliskError } from "../../utils/errors.js";
 import {
   FRONTEND_FRAMEWORKS,
   getFrontendFramework,
@@ -57,8 +57,8 @@ describe("frontend framework resolution", () => {
       getFrontendFramework("next", "web");
       expect.unreachable();
     } catch (e) {
-      expect(e).toBeInstanceOf(TdkError);
-      const err = e as TdkError;
+      expect(e).toBeInstanceOf(FliskError);
+      const err = e as FliskError;
       expect(err.message).toContain("react, vue");
       expect(JSON.stringify(err)).toContain("flisk resource web --type bring-your-own");
     }
@@ -69,7 +69,7 @@ describe("frontend framework resolution", () => {
       getFrontendFramework("not-a-framework", "web");
       expect.unreachable();
     } catch (e) {
-      const err = e as TdkError;
+      const err = e as FliskError;
       expect(err.message).toContain("react, vue");
       expect(JSON.stringify(err)).not.toContain("bring-your-own");
     }

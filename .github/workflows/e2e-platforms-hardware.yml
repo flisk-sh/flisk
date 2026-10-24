@@ -1,11 +1,11 @@
 # The published Windows binary on a real Windows host (#1765). The hosted job runs the same suite on windows-latest, so the
 # suite stays honest and the published release keeps a canary; the hardware job runs it on a self-hosted Windows 11 AMD64
-# machine, which is the acceptance run the design asks for (openspec/changes/tdk-windows-first-class-support, task 7.3).
+# machine, which is the acceptance run the design asks for (openspec/changes/flisk-windows-first-class-support, task 7.3).
 #
 # The hardware job never runs on a pull request: a self-hosted runner would execute untrusted pull-request code. It runs
 # when a maintainer dispatches this workflow by hand on a machine that has a runner registered with the labels
 # "self-hosted", "windows" and "x64". The hosted job runs on every pull request that touches the paths below.
-name: 🪟 Platforms hardware E2E
+name: 🔌 E2E | Platforms hardware
 
 on:
   workflow_dispatch:
@@ -56,7 +56,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-hardware-findings-hosted-${{ github.run_id }}
-          path: ${{ runner.temp }}/tdk-e2e/windows-hardware/artifacts
+          path: ${{ runner.temp }}/flisk-e2e/windows-hardware/artifacts
           if-no-files-found: warn
           retention-days: 14
 
@@ -78,7 +78,7 @@ jobs:
         shell: powershell
         env:
           FLISK_WINDOWS_RELEASE: ${{ github.event.inputs.release || 'latest' }}
-          FLISK_WINDOWS_WORK_DIR: ${{ runner.temp }}\flisk-windows-hardware
+          FLISK_WINDOWS_WORK_DIR: ${{ runner.temp }}\tdk-windows-hardware
           FLISK_HARDWARE_REPORT: ${{ github.workspace }}\artifacts\windows-hardware-findings.md
         run: tests/e2e/platforms/windows-hardware/windows-hardware.ps1 -Case all
 

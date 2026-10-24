@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { TdkError } from "../utils/errors.js";
+import { FliskError } from "../utils/errors.js";
 import { bunBackendProvider } from "./bun.js";
 import { goBackendProvider } from "./go.js";
 import { nodeBackendProvider } from "./node.js";
@@ -24,7 +24,7 @@ export function getBackendLanguage(languageId?: string): BackendLanguageProvider
 
   if (!provider) {
     const supportedIds = Object.keys(BACKEND_LANGUAGES).join(", ");
-    throw new TdkError(
+    throw new FliskError(
       `Unknown backend language "${languageId}". Supported languages: ${supportedIds}.`,
       [`Use one of: ${supportedIds}`, `Omit --language to use ${DEFAULT_BACKEND_LANGUAGE}`],
     );
@@ -40,7 +40,7 @@ export function resolveBackendLanguage(
 ): BackendLanguageProvider | undefined {
   if (resourceType !== "backend") {
     if (languageId !== undefined) {
-      throw new TdkError("--language can only be used with --type backend.", [
+      throw new FliskError("--language can only be used with --type backend.", [
         "Add --type backend, or drop --language for this resource type",
       ]);
     }

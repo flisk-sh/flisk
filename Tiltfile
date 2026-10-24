@@ -1,12 +1,12 @@
 # =============================================================================
-# 🎯 TDK CLI - Combined Tilt Development Kit
+# 🎯 Flisk CLI - Combined Tilt Development Kit
 # =============================================================================
-# This is the unified Tiltfile entry point for tdk-cli.
+# This is the unified Tiltfile entry point for flisk-cli.
 # It combines: engine, discovery, specs, and ext into one repository.
 #
 # Usage:
-#   v1alpha1.extension_repo(name='tdk-cli', url='https://github.com/flisk-sh/flisk')
-#   load('ext://tdk-cli', 'Utils', 'Manifest', ...)
+#   v1alpha1.extension_repo(name='flisk-cli', url='https://github.com/flisk-sh/flisk')
+#   load('ext://flisk-cli', 'Utils', 'Manifest', ...)
 # =============================================================================
 
 # =============================================================================
@@ -131,7 +131,7 @@ Infra = _Infra
 Watchers = _Watchers
 
 # True when a manifest's deferStart is actually active (licensed); decides whether a `<name>-image` prebuild resource exists.
-# The generated Tiltfile loads this from ext://tdk-cli, which resolves to this root Tiltfile.
+# The generated Tiltfile loads this from ext://flisk-cli, which resolves to this root Tiltfile.
 resource_defers_start = _resource_defers_start
 FrontendBuildPlan = _frontend_build_plan
 

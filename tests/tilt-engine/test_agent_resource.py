@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 An `agent` resource is normalised to a backend, and its files durability gets a named state volume.
@@ -64,8 +64,8 @@ r = {
 
 def run_tilt(tmp_path: Path, body: str) -> dict:
     project_root = tmp_path / "agent-project"
-    (project_root / ".tdk").mkdir(parents=True, exist_ok=True)
-    (project_root / ".tdk" / "project.json").write_text(json.dumps({"project": {"name": "agent-project"}}))
+    (project_root / ".flisk").mkdir(parents=True, exist_ok=True)
+    (project_root / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": "agent-project"}}))
     service_dir = project_root / "services" / "shop" / "bot"
     service_dir.mkdir(parents=True, exist_ok=True)
     (service_dir / "service.json").write_text(json.dumps(AGENT_SERVICE_JSON))
@@ -77,7 +77,7 @@ def run_tilt(tmp_path: Path, body: str) -> dict:
         text=True,
         timeout=180,
         cwd=project_root,
-        env={**os.environ, "TDK_PROJECT_ROOT": str(project_root)},
+        env={**os.environ, "FLISK_PROJECT_ROOT": str(project_root)},
     )
     output = proc.stdout + proc.stderr
     assert RESULT_MARKER in output, output[-3000:]
@@ -99,9 +99,9 @@ def test_files_durability_mounts_a_named_volume_declared_at_the_top_level(tmp_pa
     result = run_tilt(tmp_path, COMPOSE_BODY)
     yaml_text = result["files_yaml"]
 
-    assert "    volumes:\n      - bot-agent-state:/var/lib/tdk-agent\n" in yaml_text
+    assert "    volumes:\n      - bot-agent-state:/var/lib/flisk-agent\n" in yaml_text
     assert "      - AGENT_DURABILITY=files\n" in yaml_text
-    assert "      - AGENT_STATE_DIR=/var/lib/tdk-agent\n" in yaml_text
+    assert "      - AGENT_STATE_DIR=/var/lib/flisk-agent\n" in yaml_text
     assert "\nvolumes:\n  bot-agent-state:\n" in yaml_text
     # The backend path is unchanged: health check and Traefik route.
     assert "traefik.enable=true" in yaml_text or "traefik." in yaml_text
@@ -146,8 +146,8 @@ def test_files_durability_creates_the_state_directory_owned_by_bun(tmp_path):
     # Without this, a new named volume is root-owned and the agent's first checkpoint fails with EACCES.
     result = run_tilt(tmp_path, RUNTIME_BODY)
 
-    assert "RUN mkdir -p /var/lib/tdk-agent && chown bun:bun /var/lib/tdk-agent" in result["agent"]
-    assert "tdk-agent" not in result["plain"]
+    assert "RUN mkdir -p /var/lib/flisk-agent && chown bun:bun /var/lib/flisk-agent" in result["agent"]
+    assert "flisk-agent" not in result["plain"]
 
 
 @TILT_REQUIRED

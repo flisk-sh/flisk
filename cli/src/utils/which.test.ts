@@ -14,7 +14,7 @@ afterEach(() => {
 
 describe("findOnPath", () => {
   it("finds an existing command on PATH", () => {
-    const directory = mkdtempSync(join(tmpdir(), "tdk-path-"));
+    const directory = mkdtempSync(join(tmpdir(), "flisk-path-"));
     directories.push(directory);
     writeFileSync(join(directory, "tool"), "");
     const original = process.env.PATH;
@@ -27,8 +27,8 @@ describe("findOnPath", () => {
   });
 
   it("returns null when a command is absent", () => {
-    const directory = mkdtempSync(join(tmpdir(), "tdk-path-"));
+    const directory = mkdtempSync(join(tmpdir(), "flisk-path-"));
     directories.push(directory);
-    expect(findOnPath("tdk-definitely-missing")).toBeNull();
+    expect(findOnPath("flisk-definitely-missing")).toBeNull();
   });
 });

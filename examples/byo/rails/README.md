@@ -15,7 +15,7 @@
   To use Flisk's Postgres instead, add the `pg` gem and migrate (see the database examples).
 - **Rails blocks Traefik's host name by default.** Through `flisk up`, requests carry `Host: api.<project>.localhost`, and Rails'
   development host check answered every request with `Blocked hosts: api.<project>.localhost`. The Dockerfile adds
-  `config/initializers/tdk_hosts.rb` with `Rails.application.config.hosts.clear` (any host, for local use). The standalone check
+  `config/initializers/flisk_hosts.rb` with `Rails.application.config.hosts.clear` (any host, for local use). The standalone check
   cannot show this, because it sends `127.0.0.1`; only the `flisk up` check does.
 - No external database and no migrations job: the SQLite file lives in the image.
 - The first image build compiles native gems and takes several minutes.
@@ -32,7 +32,7 @@ Then through a real `flisk up` and Traefik (needs Docker, Tilt and a built CLI),
 `DATABASE_URL` points above (the first build compiles native gems, so allow several minutes):
 
 ```bash
-VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh rails /up
+VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh rails /up
 ```
 
 ## Register it in a Flisk project

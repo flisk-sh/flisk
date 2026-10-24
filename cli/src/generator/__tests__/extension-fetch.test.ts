@@ -25,8 +25,8 @@ const originalUserProfile = process.env.USERPROFILE;
 // Synthetic test credentials only. The network boundary (fetch) is mocked, so
 // no real license key is ever needed here - and none may be committed: a real
 // key in a public repository is an exposed credential.
-const LICENSE_KEY_GRANTED = "tdk-test-key-0001";
-const LICENSE_KEY_DENIED = "tdk-test-key-0002";
+const LICENSE_KEY_GRANTED = "flisk-test-key-0001";
+const LICENSE_KEY_DENIED = "flisk-test-key-0002";
 
 // Minimal USTAR writer: the fixture archive is assembled in memory with Node
 // built-ins only, so the test never shells out to an external `tar` binary
@@ -90,9 +90,9 @@ function buildFixtureTarball(): Buffer {
 }
 
 beforeEach(() => {
-  projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-"));
-  destDir = mkdtempSync(join(tmpdir(), "tdk-dest-"));
-  fakeHome = mkdtempSync(join(tmpdir(), "tdk-home-"));
+  projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-"));
+  destDir = mkdtempSync(join(tmpdir(), "flisk-dest-"));
+  fakeHome = mkdtempSync(join(tmpdir(), "flisk-home-"));
 
   mkdirSync(join(destDir, "engine/topologies/tilt/generators/typescript"), { recursive: true });
   writeFileSync(
@@ -102,9 +102,9 @@ beforeEach(() => {
 
   process.env.HOME = fakeHome;
   process.env.USERPROFILE = fakeHome;
-  delete process.env.TDK_LICENSE_KEY;
-  delete process.env.TDK_PREMIUM_ENDPOINT;
-  delete process.env.TDK_PREMIUM_DIAGNOSTICS;
+  delete process.env.FLISK_LICENSE_KEY;
+  delete process.env.FLISK_PREMIUM_ENDPOINT;
+  delete process.env.FLISK_PREMIUM_DIAGNOSTICS;
   vi.restoreAllMocks();
 });
 
@@ -138,7 +138,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("returns false without fetching when license key is empty or whitespace", async () => {
-    process.env.TDK_LICENSE_KEY = "    ";
+    process.env.FLISK_LICENSE_KEY = "    ";
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -150,11 +150,11 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("scenario 2: invalid/ungranted key -> tries every known resource, then falls back to free tier", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_DENIED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_DENIED;
 
     const fetchSpy = vi.fn().mockImplementation((url: string) => {
       expect(url).toContain(
-        "https://tdk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz",
+        "https://flisk-extension-dist.oranguman.workers.dev/v1/premium/bundle.tar.gz",
       );
       return Promise.resolve(new Response("denied", { status: 403 }));
     });
@@ -188,7 +188,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("scenario 3: valid key granting the first resource -> real files overlay the stubs", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     fixtureTarball ??= buildFixtureTarball();
 
     const fetchSpy = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
@@ -215,9 +215,9 @@ describe("applyPremiumOverlay", () => {
     ).toContain("REAL premium c4 diagram generator");
   });
 
-  it("uses custom TDK_PREMIUM_ENDPOINT when specified in environment", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
-    process.env.TDK_PREMIUM_ENDPOINT = "https://custom-dist.internal/v1/bundle.tar.gz";
+  it("uses custom FLISK_PREMIUM_ENDPOINT when specified in environment", async () => {
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_PREMIUM_ENDPOINT = "https://custom-dist.internal/v1/bundle.tar.gz";
     fixtureTarball ??= buildFixtureTarball();
 
     const fetchSpy = vi.fn().mockImplementation((url: string) => {
@@ -232,7 +232,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("stops probing and falls back when server returns an unexpected error code like 500", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     const fetchSpy = vi
       .fn()
       .mockResolvedValue(new Response("Internal Server Error", { status: 500 }));
@@ -246,7 +246,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("sends the per-project id and reuses it across calls instead of generating a new one each time", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_DENIED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_DENIED;
 
     const seenProjectIds: string[] = [];
     const fetchSpy = vi.fn().mockImplementation((url: string) => {
@@ -260,7 +260,7 @@ describe("applyPremiumOverlay", () => {
     await applyPremiumOverlay(projectRoot, destDir);
     await applyPremiumOverlay(projectRoot, destDir);
 
-    const idFile = join(projectRoot, ".tdk", ".project-id");
+    const idFile = join(projectRoot, ".flisk", ".project-id");
     expect(existsSync(idFile)).toBe(true);
     const persistedId = readFileSync(idFile, "utf-8").trim();
 
@@ -269,7 +269,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("caches a successful fetch and does not re-fetch within the TTL", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     fixtureTarball ??= buildFixtureTarball();
 
     const fetchSpy = vi
@@ -285,7 +285,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("re-fetches once the cached bundle is older than the TTL", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     fixtureTarball ??= buildFixtureTarball();
 
     const fetchSpy = vi
@@ -300,7 +300,7 @@ describe("applyPremiumOverlay", () => {
 
     const cachedPath = join(
       fakeHome,
-      ".tdk",
+      ".flisk",
       "cache",
       `premium-${LICENSE_KEY_GRANTED}`,
       "premium.tar.gz",
@@ -316,7 +316,7 @@ describe("applyPremiumOverlay", () => {
   it("switching keys uses a separate cache instead of serving the other key's bundle", async () => {
     fixtureTarball ??= buildFixtureTarball();
 
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(new Response(new Uint8Array(fixtureTarball), { status: 200 })),
@@ -324,7 +324,7 @@ describe("applyPremiumOverlay", () => {
     const { applyPremiumOverlay } = await import("../extension-fetch.js");
     await applyPremiumOverlay(projectRoot, destDir);
 
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_DENIED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_DENIED;
     const secondFetch = vi.fn().mockResolvedValue(new Response("not granted", { status: 403 }));
     vi.stubGlobal("fetch", secondFetch);
     const applied = await applyPremiumOverlay(projectRoot, destDir);
@@ -334,7 +334,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("a network error is caught, never throws, and falls back to the free tier", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network unreachable")));
 
     const { applyPremiumOverlay } = await import("../extension-fetch.js");
@@ -342,7 +342,7 @@ describe("applyPremiumOverlay", () => {
   });
 
   it("catches extraction failures gracefully when bundle is corrupt", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     const corruptBuffer = Buffer.from("not a valid gzipped tarball content");
     vi.stubGlobal(
       "fetch",
@@ -354,9 +354,9 @@ describe("applyPremiumOverlay", () => {
     expect(applied).toBe(false);
   });
 
-  it("exercises sablier diagnostics branch when TDK_PREMIUM_DIAGNOSTICS is enabled", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
-    process.env.TDK_PREMIUM_DIAGNOSTICS = "1";
+  it("exercises sablier diagnostics branch when FLISK_PREMIUM_DIAGNOSTICS is enabled", async () => {
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_PREMIUM_DIAGNOSTICS = "1";
     fixtureTarball ??= buildFixtureTarball();
 
     const fetchSpy = vi.fn().mockImplementation((url: string) => {
@@ -380,7 +380,7 @@ describe("applyPremiumOverlay", () => {
 
 describe("license key transport", () => {
   it("retries once with ?key= when a worker that predates the header answers 401", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     fixtureTarball ??= buildFixtureTarball();
     const fetchSpy = vi
       .fn()
@@ -405,7 +405,7 @@ describe("license key transport", () => {
   });
 
   it("license checks (hasDddLicense) send the key in the header too", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     const fetchSpy = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -420,7 +420,7 @@ describe("license key transport", () => {
   });
 
   it("returns false from license checks when no key is configured", async () => {
-    delete process.env.TDK_LICENSE_KEY;
+    delete process.env.FLISK_LICENSE_KEY;
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -435,7 +435,7 @@ describe("license key transport", () => {
   });
 
   it("checks verdaccio and sablier licenses directly with caching", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     const fetchSpy = vi.fn().mockImplementation((url: string) => {
       if (url.includes("resource=verdaccio")) {
         return Promise.resolve(new Response("granted", { status: 200 }));
@@ -458,8 +458,8 @@ describe("license key transport", () => {
   });
 
   it("handles corrupt cache files in live resource checks and falls back to live fetch", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
-    const cacheDir = join(fakeHome, ".tdk", "cache", `premium-${LICENSE_KEY_GRANTED}`);
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    const cacheDir = join(fakeHome, ".flisk", "cache", `premium-${LICENSE_KEY_GRANTED}`);
     mkdirSync(cacheDir, { recursive: true });
     writeFileSync(join(cacheDir, "ddd-access.json"), "{ invalid-json ");
 
@@ -472,7 +472,7 @@ describe("license key transport", () => {
   });
 
   it("handles network failure during live resource license check without throwing", async () => {
-    process.env.TDK_LICENSE_KEY = LICENSE_KEY_GRANTED;
+    process.env.FLISK_LICENSE_KEY = LICENSE_KEY_GRANTED;
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection reset")));
 
     const { hasDddLicense } = await import("../extension-fetch.js");

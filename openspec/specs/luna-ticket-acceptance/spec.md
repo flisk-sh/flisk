@@ -60,7 +60,7 @@ Doctor MUST preserve the exact completion and WSL2 guidance strings in its CLI t
 
 ## Requirement: Eject documents retained files and exact recovery
 
-`flisk eject` MUST fail outside a project with `flisk eject: no .tdk/project.json in this directory or parents`. Its dry-run MUST list generated project outputs only and MUST NOT write `EJECTED.md`.
+`flisk eject` MUST fail outside a project with `flisk eject: no .flisk/project.json in this directory or parents`. Its dry-run MUST list generated project outputs only and MUST NOT write `EJECTED.md`.
 
 On confirmation, it MUST create an `EJECTED.md` with this exact body:
 
@@ -76,7 +76,7 @@ Keep:
 - Traefik / proxy config Flisk wrote
 
 Optional to delete later:
-- .tdk/
+- .flisk/
 - service.json files (only if you no longer want flisk up)
 
 To go back: install Flisk and run `flisk config regenerate`.

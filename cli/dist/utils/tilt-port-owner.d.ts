@@ -1,7 +1,7 @@
 type CommandRunner = (command: string, args: string[]) => string;
 export interface TiltPortOwner {
     pid: number;
-    /** The project root of the Tiltfile (`tilt up -f <root>/.tdk/.tdk-out/Tiltfile`). */
+    /** The project root of the Tiltfile (`tilt up -f <root>/.flisk/.flisk-out/Tiltfile`). */
     root: string;
 }
 /**

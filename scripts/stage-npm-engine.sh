@@ -6,9 +6,9 @@
 #
 # npm's `files` field can only package files inside the package directory
 # (cli/), but those directories live at the repo root - the same directories
-# scripts/release-binaries.sh bundles as tdk-cli/ next to the compiled
+# scripts/release-binaries.sh bundles as flisk-cli/ next to the compiled
 # binaries. Staging them here lets findSelfContainedEngineRoot() in
-# template-engine.ts (vendorTdkExtension) find them for an npm/bun-installed
+# template-engine.ts (vendorFliskExtension) find them for an npm/bun-installed
 # package the same way it already does for a plain git clone: Tiltfile and
 # engine/ sitting next to each other.
 #

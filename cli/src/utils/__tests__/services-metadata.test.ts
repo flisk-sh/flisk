@@ -17,7 +17,7 @@ import {
 const tempRoots: string[] = [];
 
 function writeProject(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), "tdk-services-metadata-"));
+  const root = mkdtempSync(join(tmpdir(), "flisk-services-metadata-"));
   tempRoots.push(root);
   for (const [relative, content] of Object.entries(files)) {
     const fullPath = join(root, relative);

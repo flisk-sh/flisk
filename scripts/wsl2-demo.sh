@@ -20,7 +20,7 @@ if [ "$#" -gt 1 ]; then
   exit 2
 fi
 
-evidence_dir="${1:-${EVIDENCE_DIR:-/root/tdk-evidence}}"
+evidence_dir="${1:-${EVIDENCE_DIR:-/root/flisk-evidence}}"
 mkdir -p "$evidence_dir"
 
 demo_log="$evidence_dir/demo.log"

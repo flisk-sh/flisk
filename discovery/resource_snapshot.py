@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Service Snapshot Utility
@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-SNAPSHOT_FILE = Path(".tdk/.tdk-out/snapshots/resource-snapshot.json")
+SNAPSHOT_FILE = Path(".flisk/.flisk-out/snapshots/resource-snapshot.json")
 
 
 def compute_resource_hash(resource_path: str) -> Optional[str]:

@@ -1,6 +1,6 @@
 export declare function getErrorMessage(err: unknown): string;
 export declare function logVerbose(message: string, err?: unknown): void;
-export declare class TdkError extends Error {
+export declare class FliskError extends Error {
     suggestions: string[];
     exitCode: number;
     constructor(message: string, suggestions?: string[], exitCode?: number);
@@ -17,15 +17,15 @@ export declare class ProcessExitError extends Error {
     constructor(code?: number);
 }
 export declare const errorFactories: {
-    tiltNotInstalled: () => TdkError;
-    dockerNotAvailable: () => TdkError;
-    dockerNotResponding: () => TdkError;
-    stackNotFound: (name: string, stackNames?: readonly string[]) => TdkError;
-    resourceNotFound: (name: string, resourceNames?: readonly string[]) => TdkError;
-    unknownServices: (names: readonly string[], validNames: readonly string[]) => TdkError;
-    directoryExists: (path: string) => TdkError;
-    invalidPath: (path: string) => TdkError;
-    notInProject: () => TdkError;
+    tiltNotInstalled: () => FliskError;
+    dockerNotAvailable: () => FliskError;
+    dockerNotResponding: () => FliskError;
+    stackNotFound: (name: string, stackNames?: readonly string[]) => FliskError;
+    resourceNotFound: (name: string, resourceNames?: readonly string[]) => FliskError;
+    unknownServices: (names: readonly string[], validNames: readonly string[]) => FliskError;
+    directoryExists: (path: string) => FliskError;
+    invalidPath: (path: string) => FliskError;
+    notInProject: () => FliskError;
 };
 export declare function requireProjectRoot(): string;
 export declare function runCommand<T>(action: () => Promise<T>, options?: {

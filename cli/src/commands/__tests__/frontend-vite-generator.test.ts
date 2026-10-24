@@ -201,12 +201,12 @@ it("selects the framework entry in generated frontend health checks", () => {
   expect(validators).toContain('"frontend": ["package.json", "index.html", frontend_entry]');
 });
 
-// A project root whose .tdk/project.json names the project, which is the npm scope and the local domain.
+// A project root whose .flisk/project.json names the project, which is the npm scope and the local domain.
 function projectRootNamed(name: string) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-generator-project-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-generator-project-"));
   temporaryDirs.push(directory);
-  mkdirSync(join(directory, ".tdk"));
-  writeFileSync(join(directory, ".tdk", "project.json"), JSON.stringify({ project: { name } }));
+  mkdirSync(join(directory, ".flisk"));
+  writeFileSync(join(directory, ".flisk", "project.json"), JSON.stringify({ project: { name } }));
   return directory;
 }
 
@@ -215,7 +215,7 @@ function projectRootNamed(name: string) {
 function generatedFiles(source: string, projectRoot: string) {
   const result = evaluateStarlark(frontendGenerator, {
     args: source,
-    env: { ...process.env, TDK_PROJECT_ROOT: projectRoot },
+    env: { ...process.env, FLISK_PROJECT_ROOT: projectRoot },
   });
   const marker = "GENERATED_FILES_JSON=";
   const line = result.stderr.split("\n").find((entry) => entry.includes(marker));

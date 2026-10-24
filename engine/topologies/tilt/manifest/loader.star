@@ -38,7 +38,7 @@ def load_from_file(path):
     YAML files are generated from JSON for Tilt resource tracking only.
     """
     # Prepend project root to relative paths for correct resolution
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
     if project_root and not path.startswith('/'):
         full_path = project_root + '/' + path
     else:
@@ -136,7 +136,7 @@ def _get_manifest_filename(resource_path):
     Returns: filename if exists, None otherwise (triggers synthesis)
     """
     # Prepend project root to relative paths for correct resolution
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
     if project_root and not resource_path.startswith('/'):
         base_path = project_root + '/' + resource_path
     else:

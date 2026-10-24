@@ -11,7 +11,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const orchestrator = join(repoRoot, "discovery/discovery_orchestrator.star");
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
 
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for the service.json injection Starlark tests in CI.");
 }
 
@@ -22,7 +22,7 @@ afterEach(() => {
 
 /** Runs Tilt's own discovery over a project with one service.json and returns the discovered ports, or Tilt's error. */
 function discover(manifest: Record<string, unknown>) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-ghsa-phgf-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-ghsa-phgf-"));
   dirs.push(project);
   const serviceDir = join(project, "services/product/shop/api");
   mkdirSync(serviceDir, { recursive: true });
@@ -40,7 +40,7 @@ local('cat > ' + ${JSON.stringify(JSON.stringify(out))}, quiet = True, stdin = r
   const result = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", join(project, "Tiltfile")], {
     cwd: project,
     encoding: "utf-8",
-    env: { ...process.env, TDK_PROJECT_ROOT: project },
+    env: { ...process.env, FLISK_PROJECT_ROOT: project },
     timeout: 30_000,
   });
   return {

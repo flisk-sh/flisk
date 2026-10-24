@@ -11,5 +11,5 @@ COPY --from=build /work/app /app
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app && chown -R app:app .
 USER app
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD php -r "exit(@fsockopen('127.0.0.1', ${PORT:-8000}) ? 0 : 1);"
-# PHP's built-in server: listen beyond loopback and on the port TDK assigns. For local use only.
+# PHP's built-in server: listen beyond loopback and on the port Flisk assigns. For local use only.
 CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8000} -t public"]

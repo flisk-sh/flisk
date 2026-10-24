@@ -41,10 +41,10 @@ describe("bring-your-own resource type", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-byo-test-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-byo-test-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
     writeFileSync(
-      join(tempDir, ".tdk", "project.json"),
+      join(tempDir, ".flisk", "project.json"),
       JSON.stringify({
         version: "1.0.0",
         project: { name: "test", version: "1.0.0" },
@@ -371,8 +371,8 @@ describe("bring-your-own resource type", () => {
 
   it("suggests a close service name for --only", async () => {
     await createByo();
-    const originalAllowNativeWindows = process.env.TDK_ALLOW_NATIVE_WINDOWS;
-    process.env.TDK_ALLOW_NATIVE_WINDOWS = "1";
+    const originalAllowNativeWindows = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+    process.env.FLISK_ALLOW_NATIVE_WINDOWS = "1";
     const errors: string[] = [];
     const error = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
       errors.push(parts.map(String).join(" "));
@@ -388,8 +388,8 @@ describe("bring-your-own resource type", () => {
     } finally {
       error.mockRestore();
       exit.mockRestore();
-      if (originalAllowNativeWindows === undefined) delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
-      else process.env.TDK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
+      if (originalAllowNativeWindows === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      else process.env.FLISK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
       clearDiscoveryCache();
     }
   });
@@ -408,8 +408,8 @@ describe("bring-your-own resource type", () => {
     );
     clearDiscoveryCache();
 
-    const originalAllowNativeWindows = process.env.TDK_ALLOW_NATIVE_WINDOWS;
-    process.env.TDK_ALLOW_NATIVE_WINDOWS = "1";
+    const originalAllowNativeWindows = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+    process.env.FLISK_ALLOW_NATIVE_WINDOWS = "1";
     const emitted: Array<{ data: Record<string, unknown>; errors?: unknown[] }> = [];
     jsonOutput.createJsonEmitter.mockReturnValue(((
       data: Record<string, unknown>,
@@ -433,8 +433,8 @@ describe("bring-your-own resource type", () => {
       error.mockRestore();
       exit.mockRestore();
       jsonOutput.createJsonEmitter.mockReset();
-      if (originalAllowNativeWindows === undefined) delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
-      else process.env.TDK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
+      if (originalAllowNativeWindows === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      else process.env.FLISK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
       clearDiscoveryCache();
     }
   });
@@ -476,8 +476,8 @@ describe("bring-your-own resource type", () => {
   });
   it("emits service suggestions separately in --only JSON errors", async () => {
     await createByo();
-    const originalAllowNativeWindows = process.env.TDK_ALLOW_NATIVE_WINDOWS;
-    process.env.TDK_ALLOW_NATIVE_WINDOWS = "1";
+    const originalAllowNativeWindows = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+    process.env.FLISK_ALLOW_NATIVE_WINDOWS = "1";
     const emitted: Array<{ data: Record<string, unknown>; errors?: unknown[] }> = [];
     const emit = (data: Record<string, unknown>, errors?: unknown[]) => {
       emitted.push({ data, errors });
@@ -506,16 +506,16 @@ describe("bring-your-own resource type", () => {
       error.mockRestore();
       exit.mockRestore();
       jsonOutput.createJsonEmitter.mockReset();
-      if (originalAllowNativeWindows === undefined) delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
-      else process.env.TDK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
+      if (originalAllowNativeWindows === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      else process.env.FLISK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
       clearDiscoveryCache();
     }
   });
 
   it("emits stack suggestions in JSON errors from up", async () => {
     await createByo();
-    const originalAllowNativeWindows = process.env.TDK_ALLOW_NATIVE_WINDOWS;
-    process.env.TDK_ALLOW_NATIVE_WINDOWS = "1";
+    const originalAllowNativeWindows = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+    process.env.FLISK_ALLOW_NATIVE_WINDOWS = "1";
     const emitted: Array<{ data: Record<string, unknown>; errors?: unknown[] }> = [];
     const emit = (data: Record<string, unknown>, errors?: unknown[]) => {
       emitted.push({ data, errors });
@@ -546,8 +546,8 @@ describe("bring-your-own resource type", () => {
       error.mockRestore();
       exit.mockRestore();
       jsonOutput.createJsonEmitter.mockReset();
-      if (originalAllowNativeWindows === undefined) delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
-      else process.env.TDK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
+      if (originalAllowNativeWindows === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      else process.env.FLISK_ALLOW_NATIVE_WINDOWS = originalAllowNativeWindows;
       clearDiscoveryCache();
     }
   });
@@ -736,8 +736,8 @@ describe("bring-your-own resource type", () => {
       expect(warnings.join("\n")).toContain(badPath);
       expect(warnings.join("\n")).toContain("invalid JSON");
 
-      const previousWindowsOverride = process.env.TDK_ALLOW_NATIVE_WINDOWS;
-      process.env.TDK_ALLOW_NATIVE_WINDOWS = "1";
+      const previousWindowsOverride = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      process.env.FLISK_ALLOW_NATIVE_WINDOWS = "1";
       const error = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
         errors.push(parts.map(String).join(" "));
       });
@@ -750,8 +750,8 @@ describe("bring-your-own resource type", () => {
       } finally {
         error.mockRestore();
         exit.mockRestore();
-        if (previousWindowsOverride === undefined) delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
-        else process.env.TDK_ALLOW_NATIVE_WINDOWS = previousWindowsOverride;
+        if (previousWindowsOverride === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+        else process.env.FLISK_ALLOW_NATIVE_WINDOWS = previousWindowsOverride;
       }
       expect(errors.join("\n")).toContain(badPath);
     } finally {

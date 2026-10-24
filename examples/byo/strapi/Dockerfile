@@ -15,5 +15,5 @@ RUN npm run build
 RUN chown -R node:node .
 USER node
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD node -e "require('net').connect(${PORT:-1337},'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
-# HOST and PORT are read by config/server.ts. Strapi's default HOST is 0.0.0.0; PORT comes from TDK.
+# HOST and PORT are read by config/server.ts. Strapi's default HOST is 0.0.0.0; PORT comes from Flisk.
 CMD ["sh", "-c", "HOST=0.0.0.0 PORT=${PORT:-1337} npm run start"]

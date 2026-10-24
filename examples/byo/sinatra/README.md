@@ -23,7 +23,7 @@ tests/e2e/resource-types/bring-your-own/verify-byo-example.sh sinatra
 Through a real `flisk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh sinatra /health
+VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh sinatra /health
 ```
 
 ## Register it in a Flisk project

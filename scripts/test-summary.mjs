@@ -20,7 +20,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const MARKER = "<!-- tdk-test-summary -->";
+export const MARKER = "<!-- flisk-test-summary -->";
 const MAX_FAILED = 20;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

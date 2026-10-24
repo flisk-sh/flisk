@@ -8,7 +8,7 @@
 # =============================================================================
 #
 # Usage:
-#   load('ext://tdk-cli', 'deterministic_find', 'deterministic_local')
+#   load('ext://flisk-cli', 'deterministic_find', 'deterministic_local')
 #
 #   files = deterministic_find('./services', 'service.json')
 #   result = deterministic_local('bun install')
@@ -46,7 +46,7 @@ def deterministic_find(path, pattern):
     Returns:
         Sorted list of files (alphabetical, cross-platform consistent)
     """
-    cmd = "find {} -type f -name '{}' 2>/dev/null | sort".format(path, pattern)
+    cmd = ["sh", "-c", 'find "$1" -type f -name "$2" 2>/dev/null | sort', "sh", path, pattern]
     result = str(local(cmd, quiet=True, echo_off=True)).strip()
     if result:
         return result.split('\n')

@@ -33,7 +33,7 @@ if [ -z "$expected" ]; then
   exit 1
 fi
 
-work_dir="$(mktemp -d -t tdk-lifecycle.XXXXXX)"
+work_dir="$(mktemp -d -t flisk-lifecycle.XXXXXX)"
 cleanup() {
   status=$?
   trap - EXIT
@@ -112,8 +112,8 @@ if command -v flisk >/dev/null 2>&1; then
   echo "flisk is still on PATH after uninstall: $(command -v flisk)" >&2
   exit 1
 fi
-if [ -e "$work_dir/prefix/bin/tdk" ]; then
-  echo "$work_dir/prefix/bin/tdk still exists after uninstall" >&2
+if [ -e "$work_dir/prefix/bin/flisk" ]; then
+  echo "$work_dir/prefix/bin/flisk still exists after uninstall" >&2
   exit 1
 fi
 echo "flisk is gone"

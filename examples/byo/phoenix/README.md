@@ -26,7 +26,7 @@ Through a real `flisk up` and Traefik, which sends `Host: api.<project>.localhos
 Flisk's base images, so allow several minutes):
 
 ```bash
-VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh phoenix /
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh phoenix /
 ```
 
 The app accepted Traefik's host name with no host configuration (checked through a real `flisk up`).

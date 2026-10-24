@@ -7,11 +7,11 @@
     "@mikro-orm/core": "^6.4.0",
     "@mikro-orm/migrations": "^6.4.0",
     "@mikro-orm/postgresql": "^6.4.0",
-    "braces": "file:vendor/braces-3.0.4-tdk.1.tgz"
+    "braces": "file:vendor/braces-3.0.4-flisk.1.tgz"
   },
   "overrides": {
     "ajv": "8.20.0",
     "argparse": "2.0.1",
-    "braces": "file:vendor/braces-3.0.4-tdk.1.tgz"
+    "braces": "file:vendor/braces-3.0.4-flisk.1.tgz"
   }
 }

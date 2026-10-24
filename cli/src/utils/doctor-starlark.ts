@@ -32,8 +32,8 @@ export function resolveStarlarkLoadTarget(
   modulePath: string,
   projectRoot: string,
 ): string | null {
-  if (modulePath === "ext://tdk-cli") {
-    return join(projectRoot, ".tdk", ".tdk-out", "tdk-cli-ext", "Tiltfile");
+  if (modulePath === "ext://flisk-cli") {
+    return join(projectRoot, ".flisk", ".flisk-out", "flisk-cli-ext", "Tiltfile");
   }
 
   if (modulePath.startsWith(".") || (!modulePath.includes("://") && !modulePath.startsWith("@"))) {
@@ -121,7 +121,7 @@ export function collectReachableStarlarkFiles(entryFile: string, projectRoot: st
 
 export function checkStarlarkLoadExports(): CheckResult {
   const projectRoot = findProjectRoot() ?? process.cwd();
-  const entryFile = join(projectRoot, ".tdk", ".tdk-out", "Tiltfile");
+  const entryFile = join(projectRoot, ".flisk", ".flisk-out", "Tiltfile");
 
   if (!existsSync(entryFile)) {
     return {

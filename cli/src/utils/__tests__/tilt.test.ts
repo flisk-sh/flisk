@@ -36,7 +36,7 @@ describe("getTiltfilePath", () => {
   it("should return correct tiltfile path for valid project", async () => {
     const { getTiltfilePath } = await import("../tilt.js");
     const tiltfilePath = getTiltfilePath();
-    expect(tiltfilePath).toBe(join("/fake/project", ".tdk", ".tdk-out", "Tiltfile"));
+    expect(tiltfilePath).toBe(join("/fake/project", ".flisk", ".flisk-out", "Tiltfile"));
   });
 
   it("should not have double slashes in path", async () => {
@@ -67,7 +67,7 @@ describe("getTiltfilePath error", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe(
-      "Could not find project root (no .tdk/project.json found)",
+      "Could not find project root (no .flisk/project.json found)",
     );
     expect((error as { suggestions: string[] }).suggestions).toEqual([
       "Run this from within a Flisk project",
@@ -91,7 +91,7 @@ describe("buildTiltUpArgs", () => {
     expect(args).toContain("-f");
     const fIndex = args.indexOf("-f");
     expect(fIndex).toBeGreaterThanOrEqual(0);
-    expect(args[fIndex + 1]).toContain(join(".tdk", ".tdk-out", "Tiltfile"));
+    expect(args[fIndex + 1]).toContain(join(".flisk", ".flisk-out", "Tiltfile"));
   });
 
   it("should include service names in order", async () => {

@@ -6,7 +6,7 @@
 
 ## 2. CLI integration
 
-- [x] 2.1 Add the plain JavaScript Node 22.12+ guard to `cli/bin/tdk.js` before compiled CLI loading, preserving the file's module system.
+- [x] 2.1 Add the plain JavaScript Node 22.12+ guard to `cli/bin/flisk.js` before compiled CLI loading, preserving the file's module system.
 - [x] 2.2 Change no-argument handling in `cli/src/cli.ts` to print preflight plus the concise command hint and set exit status from readiness.
 - [x] 2.3 Add `--doctor` alias behavior and wire `doctor` to print ranked preflight before existing detailed diagnostics.
 - [x] 2.4 Add a single early machine-readiness gate to `project` and `up` command actions before side effects; retain help/version/completion bypass behavior.

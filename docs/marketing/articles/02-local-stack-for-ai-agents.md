@@ -11,7 +11,7 @@ canonical_url: https://flisk.sh/docs/quickstart/
 
 That is the question behind [issue #792](https://github.com/flisk-sh/flisk/issues/792). It matters more once an AI agent is editing your repo: an agent that hand-edits a generated Tiltfile will happily "fix" it, and the next `flisk up` runs the broken version.
 
-The answer is a drift check. Flisk writes the generated files, `flisk config verify` checks that they still match `.tdk/project.json`, and `flisk config regenerate` puts them back.
+The answer is a drift check. Flisk writes the generated files, `flisk config verify` checks that they still match `.flisk/project.json`, and `flisk config regenerate` puts them back.
 
 ## Add an agent and an MCP server
 
@@ -39,7 +39,7 @@ flisk config verify
 Now simulate an agent (or a teammate) editing a generated file by hand:
 
 ```bash
-echo "# hand edit" >> .tdk/.tdk-out/TILT_RESOURCE_DEFAULTS.star
+echo "# hand edit" >> .flisk/.flisk-out/TILT_RESOURCE_DEFAULTS.star
 flisk config verify
 ```
 

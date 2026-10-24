@@ -111,7 +111,7 @@ The findings report the suite writes (host facts, one row per case, the SHA-256 
 | `start_stack`, `wait_status_url` | `flisk up` in the background, then wait until the resource is routed |
 | `running_container`, `wait_restarted` | find a resource's container, and wait for a replaced one after a restart |
 | `traefik_request`, `traefik_request_ok` | curl a resource's Traefik route; the `_ok` form fails on non-2xx |
-| `with_stub`, `stop_stub` | stand-in server (`stub.mjs`: hang, stall, status, json) behind `TDK_SERVICE_BASE_URL` |
+| `with_stub`, `stop_stub` | stand-in server (`stub.mjs`: hang, stall, status, json) behind `FLISK_SERVICE_BASE_URL` |
 | `mcp_session`, `mcp_structured` | one `flisk mcp` stdio session through `mcp-client.mjs` |
 | `e2e_diagnostics`, `e2e_cleanup` | failure artifacts; remove the scratch stack, volumes, networks and folder |
 
@@ -142,7 +142,7 @@ tests/e2e/resource-types/agent/run.sh A4
 tests/e2e/resource-types/agent/run.sh cleanup
 ```
 
-Without `CASES`, `make test-e2e` runs every case in order, collects diagnostics on failure and cleans up either way. Scratch state goes to `$E2E_ROOT/<suite>` (default `$TMPDIR/tdk-e2e`), and `$OUT/<name>.out` holds each command's output.
+Without `CASES`, `make test-e2e` runs every case in order, collects diagnostics on failure and cleans up either way. Scratch state goes to `$E2E_ROOT/<suite>` (default `$TMPDIR/flisk-e2e`), and `$OUT/<name>.out` holds each command's output.
 
 ## How CI runs it
 

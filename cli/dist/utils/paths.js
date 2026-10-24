@@ -7,16 +7,16 @@ import packageJson from "../../package.json" with { type: "json" };
 import { PROJECT_JSON } from "./constants.js";
 /**
  * Find the nearest enclosing Flisk project root by walking up from `startDir` until a
- * `.tdk/project.json` marker is found. Stops at the filesystem root without treating the
+ * `.flisk/project.json` marker is found. Stops at the filesystem root without treating the
  * root itself as a project.
  * @param startDir - Directory to start searching from (default: cwd)
- * @returns Absolute path of the project root, or null if no `.tdk/project.json` exists on any parent
+ * @returns Absolute path of the project root, or null if no `.flisk/project.json` exists on any parent
  */
 export function findProjectRoot(startDir = cwd()) {
     let currentDir = resolve(startDir);
     const root = resolve("/");
     while (currentDir !== root) {
-        if (existsSync(join(currentDir, ".tdk", PROJECT_JSON))) {
+        if (existsSync(join(currentDir, ".flisk", PROJECT_JSON))) {
             return currentDir;
         }
         const parentDir = dirname(currentDir);

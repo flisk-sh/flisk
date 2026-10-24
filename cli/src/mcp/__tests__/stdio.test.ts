@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-const cliBin = fileURLToPath(new URL("../../../bin/tdk.js", import.meta.url));
+const cliBin = fileURLToPath(new URL("../../../bin/flisk.js", import.meta.url));
 
 interface InitializeResponse {
   jsonrpc: string;
