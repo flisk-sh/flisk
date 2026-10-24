@@ -74,8 +74,8 @@ GitHub 还会在你的 PR 描述末尾添加 **Grok**、**Claude** 和 **Codex**
 [PR 模板](../../../.github/pull_request_template.md)会要求你选择改动所涉及的领域，并展示每个领域的简短说明。GitHub 还会根据改动的路径添加对应的 `area:*` 标签，并在你推送更新的差异时移除过时的领域标签。标签用于整理 PR；由工作流的路径规则决定运行哪些自动化。
 
 - **每个 pull request：** [CI](../../../.github/workflows/ci.yml) 会运行 lint、typecheck、CLI 测试和包冒烟检查。部分额外的 CI 任务取决于改动了哪些文件或仓库设置。
-- **运行时文件有改动：** 当 PR 修改了 `cli/`、`engine/` 或 `discovery/` 下的文件，或修改了 `Tiltfile`、`package.json` 或该工作流文件时，Quickstart E2E 也会运行。
-- **框架示例：** 添加 Vue、React 或其他 provider 会改动 `cli/` 和 `engine/`，因此始终运行的 CI 和 Quickstart E2E 都会运行。
+- **运行时文件有改动：** 当 PR 修改了 `cli/`、`runtime/engine/` 或 `runtime/discovery/` 下的文件，或修改了 `Tiltfile`、`package.json` 或该工作流文件时，Quickstart E2E 也会运行。
+- **框架示例：** 添加 Vue、React 或其他 provider 会改动 `cli/` 和 `runtime/engine/`，因此始终运行的 CI 和 Quickstart E2E 都会运行。
 - **仅文档改动：** 始终运行的 CI 仍会运行。除非 PR 同时修改了 Quickstart E2E 所列出的路径之一，否则 Quickstart E2E 不会运行。
 
 其他示例应用以及 100 个服务的夹具基准检查是按计划运行或通过手动请求运行的，并非每个 PR 都会运行。你可以在 `.github/workflows/` 中每个工作流文件的顶部查看其触发路径。

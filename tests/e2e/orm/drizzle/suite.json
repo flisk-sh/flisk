@@ -7,7 +7,7 @@
     "cli/src/utils/resource-features.ts",
     "cli/src/backend-languages/**",
     "cli/src/backend-frameworks/**",
-    "engine/**",
+    "runtime/engine/**",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/common.sh",
     "tests/e2e/orm/drizzle/**",

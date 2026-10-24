@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def test_load_dotenv_uses_flisk_project_root():
     source = (
         REPO_ROOT
-        / "engine"
+        / "runtime" / "engine"
         / "topologies"
         / "tilt"
         / "common"
@@ -38,7 +38,7 @@ def test_tiltfile_template_passes_project_root_to_load_dotenv():
 def test_compose_registration_applies_port_override_when_present():
     source = (
         REPO_ROOT
-        / "engine"
+        / "runtime" / "engine"
         / "topologies"
         / "tilt"
         / "resources"
@@ -52,7 +52,7 @@ def test_compose_registration_applies_port_override_when_present():
 def test_verdaccio_dependency_requires_compose_file():
     source = (
         REPO_ROOT
-        / "engine"
+        / "runtime" / "engine"
         / "topologies"
         / "tilt"
         / "resources"

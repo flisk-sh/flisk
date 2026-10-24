@@ -11,6 +11,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const registrationStar = JSON.stringify(
   join(
     repoRoot,
+    "runtime",
     "engine",
     "topologies",
     "tilt",
@@ -20,7 +21,16 @@ const registrationStar = JSON.stringify(
   ),
 );
 const composeStar = JSON.stringify(
-  join(repoRoot, "engine", "topologies", "platform", "docker", "compose", "compose.star"),
+  join(
+    repoRoot,
+    "runtime",
+    "engine",
+    "topologies",
+    "platform",
+    "docker",
+    "compose",
+    "compose.star",
+  ),
 );
 
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;

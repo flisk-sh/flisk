@@ -16,7 +16,7 @@
           - "cli/src/components/**"
           - "cli/src/commands/ui.tsx"
           - "cli/src/commands/__tests__/*ui*.test.ts"
-          - "ext/ui-enhancements/**"
+          - "runtime/ext/ui-enhancements/**"
 
 "area: doctor":
   - changed-files:
@@ -33,17 +33,17 @@
           - "cli/src/frontend-frameworks/**"
           - "cli/src/commands/__tests__/resource-frameworks-e2e.test.ts"
           - "cli/src/commands/__tests__/frontend-vite-generator.test.ts"
-          - "engine/topologies/tilt/generators/vite/**"
-          - "engine/topologies/tilt/generators/typescript/frontend_tsconfig.star"
-          - "engine/schemas/service-schema.json"
+          - "runtime/engine/topologies/tilt/generators/vite/**"
+          - "runtime/engine/topologies/tilt/generators/typescript/frontend_tsconfig.star"
+          - "runtime/engine/schemas/service-schema.json"
           - "docs/frontend-framework-providers.md"
 
 "area: infrastructure":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/topologies/tilt/resources/**"
-          - "engine/topologies/platform/**"
-          - "discovery/services/platform/**"
+          - "runtime/engine/topologies/tilt/resources/**"
+          - "runtime/engine/topologies/platform/**"
+          - "runtime/discovery/services/platform/**"
           - "platform/services/**"
           - "shared-platform-engineering/**"
           - "cli/shared-platform-engineering/**"
@@ -52,25 +52,25 @@
 "area: engine":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/**"
-          - "Tiltfile"
+          - "runtime/engine/**"
+          - "runtime/Tiltfile"
 
 "area: discovery":
   - changed-files:
       - any-glob-to-any-file:
-          - "discovery/**"
+          - "runtime/discovery/**"
 
 "area: extensions":
   - changed-files:
       - any-glob-to-any-file:
-          - "ext/**"
+          - "runtime/ext/**"
 
 "area: specifications":
   - changed-files:
       - any-glob-to-any-file:
-          - "specs/**"
+          - "runtime/specs/**"
           - "openspec/**"
-          - "engine/schemas/**"
+          - "runtime/engine/schemas/**"
 
 "area: tests":
   - changed-files:
@@ -123,7 +123,7 @@ documentation:
           - ".github/CONTRIBUTING.md"
           - "CHANGELOG.md"
           - "cli/README.md"
-          - "engine/README.md"
+          - "runtime/engine/README.md"
           - "**/*.md"
 
 guide:
@@ -131,7 +131,7 @@ guide:
       - any-glob-to-any-file:
           - "docs/contributing/**"
           - "docs/frontend-framework-providers.md"
-          - "engine/docs/**"
+          - "runtime/engine/docs/**"
           - "cli/README.md"
           - ".github/CONTRIBUTING.md"
 
@@ -162,8 +162,8 @@ design:
   - changed-files:
       - any-glob-to-any-file:
           - "cli/src/components/**"
-          - "ext/ui-enhancements/**"
-          - "ext/ide-components/**/static/**"
+          - "runtime/ext/ui-enhancements/**"
+          - "runtime/ext/ide-components/**/static/**"
           - "docs/assets/demo.svg"
 
 ci:
@@ -181,7 +181,7 @@ ci:
           - "cli/**/*.ts"
           - "cli/**/*.tsx"
           - "scripts/**/*.ts"
-          - "engine/assets/**/*.ts"
+          - "runtime/engine/assets/**/*.ts"
 
 "tech: bun":
   - changed-files:
@@ -190,7 +190,7 @@ ci:
           - "package.json"
           - "cli/package.json"
           - "cli/src/**"
-          - "engine/topologies/platform/docker/layers/bun_helpers.star"
+          - "runtime/engine/topologies/platform/docker/layers/bun_helpers.star"
           - "shared-platform-engineering/docker-templates/bun-*.sh"
 
 "tech: javascript":
@@ -214,7 +214,7 @@ ci:
           - "cli/src/frontend-frameworks/react.ts"
           - "cli/src/components/**"
           - "cli/src/commands/ui.tsx"
-          - "engine/topologies/tilt/generators/vite/frameworks/react.star"
+          - "runtime/engine/topologies/tilt/generators/vite/frameworks/react.star"
 
 "tech: ink":
   - changed-files:
@@ -226,8 +226,8 @@ ci:
 "tech: prisma":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/topologies/platform/docker/layers/prisma/**"
-          - "engine/topologies/tilt/generators/typescript/prisma_config.star"
+          - "runtime/engine/topologies/platform/docker/layers/prisma/**"
+          - "runtime/engine/topologies/tilt/generators/typescript/prisma_config.star"
           - "shared-platform-engineering/docker-templates/prisma-*.sh"
           - "cli/shared-platform-engineering/docker-templates/prisma-*.sh"
           - "docs/FEATURES.md"
@@ -238,16 +238,16 @@ ci:
           - "cli/src/frontend-frameworks/**"
           - "cli/src/commands/__tests__/frontend-vite-generator.test.ts"
           - "cli/src/commands/__tests__/resource-frameworks-e2e.test.ts"
-          - "engine/topologies/tilt/generators/vite/**"
+          - "runtime/engine/topologies/tilt/generators/vite/**"
           - "docs/frontend-framework-providers.md"
 
 "tech: nats":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/topologies/tilt/resources/infra-loader.star"
-          - "engine/topologies/platform/docker/compose/compose.star"
-          - "discovery/services/platform/cdc/**/nats*/**"
-          - "discovery/services/platform/cdc/**/service.yaml"
+          - "runtime/engine/topologies/tilt/resources/infra-loader.star"
+          - "runtime/engine/topologies/platform/docker/compose/compose.star"
+          - "runtime/discovery/services/platform/cdc/**/nats*/**"
+          - "runtime/discovery/services/platform/cdc/**/service.yaml"
           - "docs/FEATURES.md"
 
 "tech: biome":
@@ -269,49 +269,49 @@ ci:
 "tech: docker":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/topologies/platform/docker/**"
-          - "engine/assets/docker/**"
+          - "runtime/engine/topologies/platform/docker/**"
+          - "runtime/engine/assets/docker/**"
           - "shared-platform-engineering/docker-templates/**"
           - "cli/shared-platform-engineering/docker-templates/**"
-          - "discovery/**/docker-compose*.yml"
-          - "engine/topologies/tilt/resources/infra-loader.star"
+          - "runtime/discovery/**/docker-compose*.yml"
+          - "runtime/engine/topologies/tilt/resources/infra-loader.star"
 
 "tech: tilt":
   - changed-files:
       - any-glob-to-any-file:
-          - "Tiltfile"
-          - "engine/**/*.star"
-          - "discovery/**/*.star"
-          - "ext/Tiltfile"
+          - "runtime/Tiltfile"
+          - "runtime/engine/**/*.star"
+          - "runtime/discovery/**/*.star"
+          - "runtime/ext/Tiltfile"
           - "cli/templates/*.star.hbs"
           - "tests/tilt-engine/**"
 
 "tech: traefik":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/topologies/platform/docker/networking/traefik*.star"
-          - "engine/topologies/platform/docker/compose/traefik*.star"
-          - "engine/topologies/tilt/resources/infra-loader.star"
+          - "runtime/engine/topologies/platform/docker/networking/traefik*.star"
+          - "runtime/engine/topologies/platform/docker/compose/traefik*.star"
+          - "runtime/engine/topologies/tilt/resources/infra-loader.star"
           - "platform/services/platform/proxy/**"
           - "tests/tilt-engine/test_*traefik*.py"
 
 "tech: postgres":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/topologies/tilt/resources/databases.star"
-          - "engine/topologies/tilt/resources/infra-loader.star"
-          - "engine/topologies/platform/state/**"
-          - "engine/topologies/platform/docker/layers/prisma/**"
-          - "engine/topologies/platform/docker/compose/compose.star"
+          - "runtime/engine/topologies/tilt/resources/databases.star"
+          - "runtime/engine/topologies/tilt/resources/infra-loader.star"
+          - "runtime/engine/topologies/platform/state/**"
+          - "runtime/engine/topologies/platform/docker/layers/prisma/**"
+          - "runtime/engine/topologies/platform/docker/compose/compose.star"
           - "docs/FEATURES.md"
 
 "tech: starlark":
   - changed-files:
       - any-glob-to-any-file:
           - "**/*.star"
-          - "Tiltfile"
-          - "engine/Tiltfile"
-          - "discovery/Tiltfile"
+          - "runtime/Tiltfile"
+          - "runtime/engine/Tiltfile"
+          - "runtime/discovery/Tiltfile"
 
 "tech: github-actions":
   - changed-files:
@@ -324,9 +324,9 @@ ci:
 "tech: json-schema":
   - changed-files:
       - any-glob-to-any-file:
-          - "engine/schemas/**"
-          - "engine/topologies/tilt/manifest/schema.star"
-          - "discovery/schemas.star"
-          - "discovery/manifest/**"
+          - "runtime/engine/schemas/**"
+          - "runtime/engine/topologies/tilt/manifest/schema.star"
+          - "runtime/discovery/schemas.star"
+          - "runtime/discovery/manifest/**"
           - "cli/src/frontend-frameworks/registry.ts"
           - "cli/src/commands/__tests__/resource.test.ts"

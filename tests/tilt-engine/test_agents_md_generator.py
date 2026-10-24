@@ -25,7 +25,7 @@ class TestAgentsMdGeneratorSource:
     @pytest.fixture
     def generator_path(self) -> Path:
         """Return path to the agents_md.star generator."""
-        return Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
+        return Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
     
     def test_generator_file_exists(self, generator_path: Path):
         """Verify the generator file exists."""
@@ -95,17 +95,17 @@ class TestAgentsMdGeneratorIntegration:
     @pytest.fixture
     def generators_index_path(self) -> Path:
         """Return path to generators index.star."""
-        return Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "generators" / "index.star"
+        return Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "generators" / "index.star"
     
     @pytest.fixture
     def constants_path(self) -> Path:
         """Return path to manifest constants."""
-        return Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "manifest" / "constants.star"
+        return Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "manifest" / "constants.star"
     
     @pytest.fixture
     def manifest_resource_path(self) -> Path:
         """Return path to manifest_resource orchestrator."""
-        return Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "resources" / "orchestrator" / "generators" / "manifest_resource.star"
+        return Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "orchestrator" / "generators" / "manifest_resource.star"
     
     def test_generator_loaded_in_index(self, generators_index_path: Path):
         """Verify agents_md.star is loaded in generators index."""
@@ -152,7 +152,7 @@ class TestGeneratedAgentsMdContent:
     @pytest.fixture
     def generator_path(self) -> Path:
         """Return path to the agents_md.star generator."""
-        return Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
+        return Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
     
     @pytest.fixture
     def template_content(self, generator_path: Path) -> str:
@@ -257,7 +257,7 @@ class TestAgentsMdGeneratorMetadata:
     @pytest.fixture
     def generator_path(self) -> Path:
         """Return path to the agents_md.star generator."""
-        return Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
+        return Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
     
     def test_generator_has_proper_header(self, generator_path: Path):
         """Verify generator has proper file header."""
@@ -326,7 +326,7 @@ class TestAgentsMdEndToEnd:
     
     def test_all_required_files_exist(self):
         """Verify all files in the AGENTS.md generator chain exist."""
-        root = Path(__file__).parent.parent.parent / "engine" / "topologies"
+        root = Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies"
         
         required_files = [
             root / "tilt" / "generators" / "agents_md.star",

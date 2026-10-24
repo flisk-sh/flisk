@@ -9,10 +9,28 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const composeStar = JSON.stringify(
-  join(repoRoot, "engine", "topologies", "platform", "docker", "compose", "compose.star"),
+  join(
+    repoRoot,
+    "runtime",
+    "engine",
+    "topologies",
+    "platform",
+    "docker",
+    "compose",
+    "compose.star",
+  ),
 );
 const traefikStar = JSON.stringify(
-  join(repoRoot, "engine", "topologies", "platform", "docker", "networking", "traefik.star"),
+  join(
+    repoRoot,
+    "runtime",
+    "engine",
+    "topologies",
+    "platform",
+    "docker",
+    "networking",
+    "traefik.star",
+  ),
 );
 
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;

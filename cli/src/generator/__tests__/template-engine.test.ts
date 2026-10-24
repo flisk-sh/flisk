@@ -19,7 +19,8 @@ import {
 } from "../template-engine.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const readEngine = (rel: string) => fs.readFileSync(path.join(repoRoot, "engine", rel), "utf-8");
+const readEngine = (rel: string) =>
+  fs.readFileSync(path.join(repoRoot, "runtime", "engine", rel), "utf-8");
 
 // Real template files, keyed by a substring that only appears in that specific
 // file - regression coverage for the bug where loadTemplate joined a candidate

@@ -19,8 +19,8 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-WATCHERS = REPO_ROOT / "engine" / "topologies" / "tilt" / "resources" / "watchers.star"
-SCRIPTS_DIR = REPO_ROOT / "engine" / "assets" / "scripts"
+WATCHERS = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "watchers.star"
+SCRIPTS_DIR = REPO_ROOT / "runtime" / "engine" / "assets" / "scripts"
 VENDORED_PREFIX = ".flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/"
 CLEANUP = SCRIPTS_DIR / "cleanup-tilt-images.sh"
 

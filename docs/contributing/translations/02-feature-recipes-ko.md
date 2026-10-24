@@ -23,8 +23,8 @@
 
 기존 코드를 지도처럼 사용하세요.
 
-1. `engine/topologies/tilt/resources/infra-loader.star`에서 공유 인프라가 어떻게 로드되고 등록되는지 보세요.
-2. 데이터베이스 수명 주기 예시로 `engine/topologies/tilt/resources/databases.star`를, Compose 생성은 `engine/topologies/platform/docker/compose/`를 보세요.
+1. `runtime/engine/topologies/tilt/resources/infra-loader.star`에서 공유 인프라가 어떻게 로드되고 등록되는지 보세요.
+2. 데이터베이스 수명 주기 예시로 `runtime/engine/topologies/tilt/resources/databases.star`를, Compose 생성은 `runtime/engine/topologies/platform/docker/compose/`를 보세요.
 3. 관련 기능이나 manifest 설정을 찾아 검증되고 활성화되는 곳까지 따라가세요. `rg`로 설정 이름을 검색하세요.
 4. 설정, 생성 파일, 시작 순서, 헬스/readiness, 환경 변수와 시크릿, 종료와 정리, 도구를 비활성화했을 때의 동작까지 전체 수명 주기를 추적하세요.
 5. 변경한 동작에 대한 검사를 추가하세요. CLI와 Starlark 생성기 테스트는 `cli/src/commands/__tests__/`에 있고, Python 엔진 테스트는 `tests/tilt-engine/`에 있습니다.
@@ -37,7 +37,7 @@
 Tilt만 설치되어 있으면 어떤 엔진 함수든 실행하고 출력을 볼 수 있습니다. 저장소 루트에 `try.Tiltfile`을 만드세요(git이 무시하는 파일입니다).
 
 ```python
-load("engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
+load("runtime/engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
 
 manifest = {"appType": "backend", "stack": "shop", "port": 4000, "appName": "orders-api"}
 resource = {"name": "orders-api", "_resource_path": "services/shop/orders-api"}
@@ -55,14 +55,14 @@ tilt alpha tiltfile-result -f try.Tiltfile
 
 ## 엔진 또는 서비스 디스커버리 변경하기
 
-1. Tilt 리소스 오케스트레이션은 `engine/topologies/tilt/resources/`에서 시작하세요.
-2. Docker, 네트워킹, 영속 상태는 `engine/topologies/platform/`에서 시작하세요.
-3. manifest 스캔과 의존성 그래프는 `discovery/`에서 시작하세요.
+1. Tilt 리소스 오케스트레이션은 `runtime/engine/topologies/tilt/resources/`에서 시작하세요.
+2. Docker, 네트워킹, 영속 상태는 `runtime/engine/topologies/platform/`에서 시작하세요.
+3. manifest 스캔과 의존성 그래프는 `runtime/discovery/`에서 시작하세요.
 4. 영향을 받는 출력 파일이나 manifest 필드를 검색해 생성기와 테스트를 찾으세요. CLI 테스트에는 Starlark 생성기 검사가 포함됩니다.
 5. 기존 manifest와 생성된 프로젝트가 계속 작동하는지 확인하세요. 동작이 바뀌면 스키마, 예제, CLI 문서를 업데이트하세요.
 6. 변경이 계약이나 여러 모듈에 걸친다면 먼저 [OpenSpec 제안서](01-first-change-ko.md#변경-제안서를-작성할-때)를 작성하세요.
 
-`engine/AGENTS.md`와 다른 `AGENTS.md` 파일은 에이전트를 위한 작업 메모입니다. 로컬 코드를 설명하는 데 도움이 될 수 있지만, 제품 문서로 쓰기 전에 경로와 조언을 현재 소스와 테스트에 대해 확인하세요.
+`runtime/engine/AGENTS.md`와 다른 `AGENTS.md` 파일은 에이전트를 위한 작업 메모입니다. 로컬 코드를 설명하는 데 도움이 될 수 있지만, 제품 문서로 쓰기 전에 경로와 조언을 현재 소스와 테스트에 대해 확인하세요.
 
 ## 문서 변경하기
 

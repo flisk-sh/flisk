@@ -756,7 +756,7 @@ describe("service.json schema", () => {
   it("keeps framework open to every registered frontend provider", () => {
     const schemaPath = join(
       dirname(fileURLToPath(import.meta.url)),
-      "../../../../engine/schemas/service-schema.json",
+      "../../../../runtime/engine/schemas/service-schema.json",
     );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
 

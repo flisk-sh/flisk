@@ -22,11 +22,11 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const goldenBuild = join(
   repoRoot,
-  "engine/topologies/platform/docker/build/golden_image_build.star",
+  "runtime/engine/topologies/platform/docker/build/golden_image_build.star",
 );
 const goldenConstants = join(
   repoRoot,
-  "engine/topologies/platform/docker/build/golden_image_constants.star",
+  "runtime/engine/topologies/platform/docker/build/golden_image_constants.star",
 );
 const hasTilt = tiltAvailable();
 

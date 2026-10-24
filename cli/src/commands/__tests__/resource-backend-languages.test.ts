@@ -68,7 +68,7 @@ describe("backend language registry", () => {
 
   it("keeps the service schema open to every registered language", () => {
     const schema = JSON.parse(
-      readFileSync(join(repoRoot, "engine", "schemas", "service-schema.json"), "utf-8"),
+      readFileSync(join(repoRoot, "runtime", "engine", "schemas", "service-schema.json"), "utf-8"),
     );
     expect(schema.properties.language.enum).toBeUndefined();
     const idPattern = new RegExp(schema.properties.language.pattern);

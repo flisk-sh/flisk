@@ -4,7 +4,7 @@ import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { findCliAssetRoot, loadTemplate } from "../generator/template-engine.js";
-import { EXTENSION_DIRS, resolveExtensionDir } from "../utils/runtime-layout.js";
+import { describeLayoutProblems, EXTENSION_DIRS, inspectExtensionLayout, resolveExtensionDir, resolveTiltfile, } from "../utils/runtime-layout.js";
 const REQUIRED_ASSET_PATHS = [
     { path: "Tiltfile", directory: false },
     { path: "engine", directory: true },
@@ -39,7 +39,9 @@ export const runtimeCommand = new Command("runtime")
             try {
                 const stats = statSync(EXTENSION_NAMES.has(path)
                     ? resolveExtensionDir(assetRoot, path)
-                    : join(assetRoot, path));
+                    : path === "Tiltfile"
+                        ? resolveTiltfile(assetRoot)
+                        : join(assetRoot, path));
                 return directory ? !stats.isDirectory() : !stats.isFile();
             }
             catch {
@@ -47,6 +49,8 @@ export const runtimeCommand = new Command("runtime")
             }
         }).map(({ path }) => path)
         : REQUIRED_ASSET_PATHS.map(({ path }) => path);
+    const layout = assetRoot ? inspectExtensionLayout(assetRoot) : null;
+    const layoutErrors = assetRoot && layout?.kind === "mixed" ? [describeLayoutProblems(assetRoot, layout)] : [];
     const templateErrors = [];
     if (assetRoot && missing.length === 0) {
         for (const template of REQUIRED_TEMPLATES) {
@@ -58,9 +62,12 @@ export const runtimeCommand = new Command("runtime")
             }
         }
     }
-    const ok = Boolean(assetRoot) && missing.length === 0 && templateErrors.length === 0;
+    const ok = Boolean(assetRoot) &&
+        missing.length === 0 &&
+        layoutErrors.length === 0 &&
+        templateErrors.length === 0;
     if (options.json) {
-        console.log(JSON.stringify({ ok, assetRoot, missing, templateErrors }));
+        console.log(JSON.stringify({ ok, assetRoot, missing, layoutErrors, templateErrors }));
     }
     else if (ok) {
         console.log(`Flisk runtime assets found at ${assetRoot}`);
@@ -71,6 +78,7 @@ export const runtimeCommand = new Command("runtime")
                 ? `Incomplete Flisk runtime assets at ${assetRoot}`
                 : "Flisk runtime assets not found",
             ...missing.map((path) => `Missing: ${path}`),
+            ...layoutErrors,
             ...templateErrors,
         ].join("\n"));
     }

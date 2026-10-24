@@ -11,12 +11,12 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 // instead of the project .env - for the Tilt environment and for the Compose interpolation alike.
 // These tests run the engine's own Starlark under Tilt, so a change in the resolution shows up here.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const envUtils = join(repoRoot, "engine/topologies/tilt/common/utils_env.star");
+const envUtils = join(repoRoot, "runtime/engine/topologies/tilt/common/utils_env.star");
 const composeRegistration = join(
   repoRoot,
-  "engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star",
+  "runtime/engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star",
 );
-const infraLoader = join(repoRoot, "engine/topologies/tilt/resources/infra-loader.star");
+const infraLoader = join(repoRoot, "runtime/engine/topologies/tilt/resources/infra-loader.star");
 const hasTilt = tiltAvailable();
 
 const dirs: string[] = [];

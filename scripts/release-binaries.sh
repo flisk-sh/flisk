@@ -51,7 +51,7 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
   # templates loadTemplate() reads at module init) there so a standalone binary
   # works the same as `flisk` cloned from source.
   mkdir -p "${RELEASE_DIR}/flisk-cli"
-  cp "${ROOT_DIR}/Tiltfile" "${RELEASE_DIR}/flisk-cli/Tiltfile"
+  cp "$(runtime_tiltfile "${ROOT_DIR}")" "${RELEASE_DIR}/flisk-cli/Tiltfile"
   cp -R "$(runtime_src_dir "${ROOT_DIR}" engine)" "${RELEASE_DIR}/flisk-cli/engine"
   cp -R "$(runtime_src_dir "${ROOT_DIR}" discovery)" "${RELEASE_DIR}/flisk-cli/discovery"
   cp -R "$(runtime_src_dir "${ROOT_DIR}" specs)" "${RELEASE_DIR}/flisk-cli/specs"

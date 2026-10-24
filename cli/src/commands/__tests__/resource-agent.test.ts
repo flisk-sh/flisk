@@ -66,7 +66,7 @@ describe("the agent resource type", () => {
 
   it("is accepted by the service schema, and the engine runs it as a backend", () => {
     const schema = JSON.parse(
-      readFileSync(join(repoRoot, "engine", "schemas", "service-schema.json"), "utf-8"),
+      readFileSync(join(repoRoot, "runtime", "engine", "schemas", "service-schema.json"), "utf-8"),
     );
     expect(schema.properties.appType.enum).toContain("agent");
     expect(schema.properties.type.enum).toContain("agent");
@@ -76,7 +76,7 @@ describe("the agent resource type", () => {
     // The engine normalises an agent manifest once, where service.json is loaded, so every backend code path (routing,
     // health gate, DATABASE_URL, restart policy) applies. This pins the normalisation; see loader.test below for the rest.
     const loader = readFileSync(
-      join(repoRoot, "engine", "topologies", "tilt", "manifest", "loader.star"),
+      join(repoRoot, "runtime", "engine", "topologies", "tilt", "manifest", "loader.star"),
       "utf-8",
     );
     expect(loader).toContain('manifest.get("appType") == "agent"');
@@ -86,7 +86,16 @@ describe("the agent resource type", () => {
 
   it("gets a named state volume for files durability, declared at the top of the compose file", () => {
     const compose = readFileSync(
-      join(repoRoot, "engine", "topologies", "platform", "docker", "compose", "compose.star"),
+      join(
+        repoRoot,
+        "runtime",
+        "engine",
+        "topologies",
+        "platform",
+        "docker",
+        "compose",
+        "compose.star",
+      ),
       "utf-8",
     );
     expect(compose).toContain("res_name + '-agent-state'");

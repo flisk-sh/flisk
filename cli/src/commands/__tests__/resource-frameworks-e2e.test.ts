@@ -67,7 +67,7 @@ describe("frontend resource framework selection", () => {
     const pkg = JSON.parse(readFileSync(join(resourcePath, "package.json"), "utf-8"));
     const tsconfig = JSON.parse(readFileSync(join(resourcePath, "tsconfig.json"), "utf-8"));
     const engineConstants = readFileSync(
-      join(repoRoot, "engine", "topologies", "tilt", "manifest", "constants.star"),
+      join(repoRoot, "runtime", "engine", "topologies", "tilt", "manifest", "constants.star"),
       "utf-8",
     );
     const generatedViteConfig = engineConstants.match(/'vite_frontend': '([^']+)'/)?.[1];

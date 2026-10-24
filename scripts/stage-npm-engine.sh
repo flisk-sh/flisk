@@ -32,7 +32,7 @@ if [[ "${1:-}" == "--clean" ]]; then
   exit 0
 fi
 
-cp "${ROOT_DIR}/Tiltfile" "${CLI_DIR}/Tiltfile"
+cp "$(runtime_tiltfile "${ROOT_DIR}")" "${CLI_DIR}/Tiltfile"
 for d in "${DIRS[@]}"; do
   rm -rf "${CLI_DIR:?}/${d}"
   cp -R "$(runtime_src_dir "${ROOT_DIR}" "${d}")" "${CLI_DIR}/${d}"

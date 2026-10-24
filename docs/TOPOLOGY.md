@@ -32,15 +32,15 @@ The two stages are connected but not interchangeable: CLI templates establish a 
 | `cli/src/generator/` | Handlebars project-file rendering and extension bundle handling | [`template-engine.ts`](../cli/src/generator/template-engine.ts) |
 | `cli/templates/` | Handlebars source templates for the generated project root, such as `Tiltfile.hbs`, `spec.master.hbs`, `TILT_TECH_STACK.star.hbs`, and `TILT_RESOURCE_DEFAULTS.star.hbs` | [templates](../cli/templates) |
 | `cli/src/frontend-frameworks/` | TypeScript providers for frontend scaffolding (framework-owned source files and package dependencies) | [frontend providers](../cli/src/frontend-frameworks) |
-| `discovery/` | Manifest scanning, validation/normalization, registry/index generation, and snapshots | [`registry.star`](../discovery/registry.star), [`discovery_orchestrator.star`](../discovery/discovery_orchestrator.star), [`manifest/`](../discovery/manifest) |
-| `engine/topologies/tilt/manifest/` | Engine-side manifest loading, schema/constants, mapping, and manifest support utilities | [`manifest`](../engine/topologies/tilt/manifest) |
-| `engine/topologies/tilt/generators/` | Starlark generators for Vite, TypeScript configs, Docker/package configs, environment files, and other generated files | [`index.star`](../engine/topologies/tilt/generators/index.star) |
-| `engine/topologies/tilt/resources/` | Resource declaration, startup ordering, dependency handling, triggers, and manifest-driven generation orchestration | [`resources`](../engine/topologies/tilt/resources) |
-| `engine/topologies/platform/` | Shared platform building blocks, including Docker, networking, and other infrastructure | [`platform`](../engine/topologies/platform) |
-| Root `Tiltfile` | Entry point that loads and wires discovery, engine, specs, and extensions | [`Tiltfile`](../Tiltfile) |
-| `specs/specs/` | Shared runtime and technology defaults consumed by CLI-generated config and/or engine | [`specs`](../specs/specs) |
+| `runtime/discovery/` | Manifest scanning, validation/normalization, registry/index generation, and snapshots | [`registry.star`](../runtime/discovery/registry.star), [`discovery_orchestrator.star`](../runtime/discovery/discovery_orchestrator.star), [`manifest/`](../runtime/discovery/manifest) |
+| `runtime/engine/topologies/tilt/manifest/` | Engine-side manifest loading, schema/constants, mapping, and manifest support utilities | [`manifest`](../runtime/engine/topologies/tilt/manifest) |
+| `runtime/engine/topologies/tilt/generators/` | Starlark generators for Vite, TypeScript configs, Docker/package configs, environment files, and other generated files | [`index.star`](../runtime/engine/topologies/tilt/generators/index.star) |
+| `runtime/engine/topologies/tilt/resources/` | Resource declaration, startup ordering, dependency handling, triggers, and manifest-driven generation orchestration | [`resources`](../runtime/engine/topologies/tilt/resources) |
+| `runtime/engine/topologies/platform/` | Shared platform building blocks, including Docker, networking, and other infrastructure | [`platform`](../runtime/engine/topologies/platform) |
+| Root `Tiltfile` | Entry point that loads and wires discovery, engine, specs, and extensions | [`Tiltfile`](../runtime/Tiltfile) |
+| `runtime/specs/specs/` | Shared runtime and technology defaults consumed by CLI-generated config and/or engine | [`specs`](../runtime/specs/specs) |
 
-The monorepo has historic names in comments and older architecture files. For active engine/discovery work, use the source locations in this table and the contributor guide rather than assuming every older diagram reflects current code.
+The monorepo has historic names in comments and older architecture files. For active runtime/engine/discovery work, use the source locations in this table and the contributor guide rather than assuming every older diagram reflects current code.
 
 ## The two generation stages in detail
 
@@ -54,9 +54,9 @@ The project template is distinct from the **project starter repository** selecte
 
 ### Stage 2: Tilt discovers resources and generates runtime configuration
 
-The root `Tiltfile` loads `discovery/` and `engine/topologies/`. Discovery scans configured paths (from `discovery.paths` in `.flisk/project.json` where applicable), loads JSON manifests, validates and normalizes metadata, and builds resource/stack/dependency indexes. The engine consumes that registry to generate runtime/build config, then declares infrastructure and application resources to Tilt.
+The root `Tiltfile` loads `runtime/discovery/` and `runtime/engine/topologies/`. Discovery scans configured paths (from `discovery.paths` in `.flisk/project.json` where applicable), loads JSON manifests, validates and normalizes metadata, and builds resource/stack/dependency indexes. The engine consumes that registry to generate runtime/build config, then declares infrastructure and application resources to Tilt.
 
-Most per-resource file generators are Starlark (`.star`) modules in `engine/topologies/tilt/generators/` or `engine/topologies/tilt/resources/orchestrator/generators/`. **Starlark is the generator implementation language here; it is not a template-file extension.** The modules construct output content and write it through Tilt's filesystem helpers. Examples include Vite config, Dockerfiles, local/container TypeScript configs, Prisma config, npm/Bun package-manager config, frontend API helpers, environment config, and generated agent guidance. Outputs generally live under each resource's `.autogenerated/` folder.
+Most per-resource file generators are Starlark (`.star`) modules in `runtime/engine/topologies/tilt/generators/` or `runtime/engine/topologies/tilt/resources/orchestrator/generators/`. **Starlark is the generator implementation language here; it is not a template-file extension.** The modules construct output content and write it through Tilt's filesystem helpers. Examples include Vite config, Dockerfiles, local/container TypeScript configs, Prisma config, npm/Bun package-manager config, frontend API helpers, environment config, and generated agent guidance. Outputs generally live under each resource's `.autogenerated/` folder.
 
 Some of these Starlark generators produce **TypeScript files** (`.ts`) or TypeScript project configuration (`.json`). “TypeScript generator” can therefore mean two different things in this repo:
 
@@ -83,7 +83,7 @@ The repo has more than one YAML concern: `service.yaml` is generated per resourc
                │                                   │
                └──────────────┬────────────────────┘
                               ▼
-                    discovery/ registry
+                    runtime/discovery/ registry
                     ├─ validates/normalizes manifests
                     ├─ indexes resources by name, path, stack
                     └─ records dependency relationships
@@ -109,22 +109,22 @@ Project phases select which stacks are brought up by default; `dependsOn` descri
 | Change default project files or `.flisk/project.json`-driven root config | `cli/src/generator/template-engine.ts`, `cli/templates/*.hbs`, project command/config code |
 | Add or change a field on a resource manifest | Resource schema, discovery manifest normalization/validation, engine manifest mapping and consumers; update generated YAML projection if the field is represented there |
 | Change which resource folders are scanned | `.flisk/project.json` `discovery.paths`, discovery scan/config code, and project config types/defaults |
-| Change generated per-resource Docker/Vite/TS/package/env files | Corresponding Starlark generator and its orchestration call in `engine/topologies/tilt/resources/orchestrator/generators/` |
+| Change generated per-resource Docker/Vite/TS/package/env files | Corresponding Starlark generator and its orchestration call in `runtime/engine/topologies/tilt/resources/orchestrator/generators/` |
 | Change startup order or selected stack behavior | Discovery dependency indexes, project phase handling, and engine resource ordering/declaration |
-| Change platform infrastructure | Relevant `engine/topologies/platform/` modules and platform resource definitions |
+| Change platform infrastructure | Relevant `runtime/engine/topologies/platform/` modules and platform resource definitions |
 
 Generated files are useful for debugging the output, but the source templates, manifest, project config, or generator owns their content. Keep writes idempotent where possible and avoid modifying generated output as a fix: it will be regenerated on a later Tilt/config run.
 
 ## Key references
 
-- [Root Tiltfile](../Tiltfile)
+- [Root Tiltfile](../runtime/Tiltfile)
 - [CLI project configuration templates](../cli/templates)
 - [CLI template engine](../cli/src/generator/template-engine.ts)
 - [Resource command](../cli/src/commands/resource.ts)
-- [Discovery registry](../discovery/registry.star)
-- [Discovery orchestrator](../discovery/discovery_orchestrator.star)
-- [Engine generator index](../engine/topologies/tilt/generators/index.star)
-- [Manifest resource generator/orchestrator](../engine/topologies/tilt/resources/orchestrator/generators/manifest_resource.star)
-- [Manifest schema](../engine/schemas/service-schema.json)
+- [Discovery registry](../runtime/discovery/registry.star)
+- [Discovery orchestrator](../runtime/discovery/discovery_orchestrator.star)
+- [Engine generator index](../runtime/engine/topologies/tilt/generators/index.star)
+- [Manifest resource generator/orchestrator](../runtime/engine/topologies/tilt/resources/orchestrator/generators/manifest_resource.star)
+- [Manifest schema](../runtime/engine/schemas/service-schema.json)
 - [Feature configuration reference](FEATURES.md)
 - [Contributor recipes](contributing/02-feature-recipes.md)

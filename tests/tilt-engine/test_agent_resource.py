@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.generator]
 TILT_REQUIRED = pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ENGINE_ROOT = REPO_ROOT / "engine"
+ENGINE_ROOT = REPO_ROOT / "runtime" / "engine"
 RESULT_MARKER = "Error in fail: RESULT"
 
 AGENT_SERVICE_JSON = {

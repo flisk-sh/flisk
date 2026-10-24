@@ -15,17 +15,17 @@ project. The archived repository is read-only; new work happens here.
 
 ## Repository map
 
-This is the core monorepo. Day-to-day CLI work is under `cli/`; `engine/` and `discovery/` implement the Tilt orchestration the CLI drives.
+This is the core monorepo. Day-to-day CLI work is under `cli/`; `runtime/engine/` and `runtime/discovery/` implement the Tilt orchestration the CLI drives.
 
 | Path | Contents |
 |------|----------|
 | [`cli/`](../cli) | CLI commands, UI, and templates. See [cli/README.md](../cli/README.md). |
-| [`engine/`](../engine) | Starlark Tilt framework for Docker, networking, database virtualization, secrets, and observability. |
-| [`discovery/`](../discovery) | Manifest discovery and dependency graphs. |
-| [`ext/`](../ext) | Tilt extension and IDE/UI components. |
+| [`runtime/engine/`](../runtime/engine) | Starlark Tilt framework for Docker, networking, database virtualization, secrets, and observability. |
+| [`runtime/discovery/`](../runtime/discovery) | Manifest discovery and dependency graphs. |
+| [`runtime/ext/`](../runtime/ext) | Tilt extension and IDE/UI components. |
 | [`scripts/`](../scripts) | Release, benchmark, and development tooling. |
 | [`docs/benchmarks/results/`](benchmarks/results) | Container and landscape scale measurements. |
-| [`Tiltfile`](../Tiltfile) | Entry point connecting Tilt to the engine. |
+| [`Tiltfile`](../runtime/Tiltfile) | Entry point connecting Tilt to the engine. |
 
 ## Features and licensing
 

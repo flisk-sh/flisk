@@ -106,7 +106,7 @@ To build a binary by hand, without publishing, run `scripts/release-binaries.sh`
 `release-binaries.yml` publishes to npm only when a passing **Release candidate** run (`release-candidate.yml`) covers the commit being released. Dispatch the release on `main`, and the `publish` job checks this first with `scripts/check-release-candidate.mjs`:
 
 - **Exact commit:** a passing candidate ran on the same commit. This is the normal case.
-- **Ancestor commit:** a passing candidate ran on an earlier commit, and no commit since changed a release input. The release inputs are the paths the `changes` job filters on (`cli/**`, `engine/**`, `package.json`, `bun.lock`, `Tiltfile`, `discovery/**`, `specs/**`, `ext/**`, `scripts/release-binaries.sh`, `shared-platform-engineering/docker-templates/**`, and `release-binaries.yml` itself). CI-only and docs-only commits do not invalidate a candidate.
+- **Ancestor commit:** a passing candidate ran on an earlier commit, and no commit since changed a release input. The release inputs are the paths the `changes` job filters on (`cli/**`, `runtime/engine/**`, `package.json`, `bun.lock`, `Tiltfile`, `runtime/discovery/**`, `runtime/specs/**`, `runtime/ext/**`, `scripts/release-binaries.sh`, `shared-platform-engineering/docker-templates/**`, and `release-binaries.yml` itself). CI-only and docs-only commits do not invalidate a candidate.
 - **Otherwise** the gate fails and lists, for each candidate, why it does not cover the commit (for example `release inputs changed since (cli/**)`). Run a new candidate on the commit, then re-run publish.
 
 **Release from a `release/*` branch.** `main` moves every few minutes, so a candidate on `main` is stale before it finishes. Release from a branch instead:

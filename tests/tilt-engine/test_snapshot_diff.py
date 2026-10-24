@@ -9,7 +9,7 @@ import pytest
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path("discovery").resolve()))
+sys.path.insert(0, str(Path("runtime/discovery").resolve()))
 from resource_snapshot import diff_snapshots
 
 

@@ -74,8 +74,8 @@ GitHub은 PR 설명 끝에 **Grok**, **Claude**, **Codex** 버튼도 추가합�
 [PR 템플릿](../../../.github/pull_request_template.md)은 변경한 영역을 선택하도록 요청하고, 영역별 짧은 안내를 엽니다. GitHub은 변경된 경로에 따라 일치하는 `area:*` 라벨을 추가하고, 업데이트된 diff를 push하면 오래된 영역 라벨을 제거합니다. 라벨은 PR을 정리할 뿐이며, 어떤 자동화가 실행될지는 워크플로 경로 규칙이 결정합니다.
 
 - **모든 pull request:** [CI](../../../.github/workflows/ci.yml)가 lint, typecheck, CLI 테스트, 패키지 스모크 검사를 실행합니다. 추가 CI 작업은 변경된 파일이나 저장소 설정에 따라 실행될 수 있습니다.
-- **런타임 파일이 변경된 경우:** PR이 `cli/`, `engine/`, `discovery/` 아래 파일이나 `Tiltfile`, `package.json`, 해당 워크플로 파일을 바꾸면 Quickstart E2E도 실행됩니다.
-- **프레임워크 예제:** Vue, React 또는 다른 provider를 추가하면 `cli/`와 `engine/`이 바뀌므로, 항상 실행되는 CI와 Quickstart E2E가 모두 실행됩니다.
+- **런타임 파일이 변경된 경우:** PR이 `cli/`, `runtime/engine/`, `runtime/discovery/` 아래 파일이나 `Tiltfile`, `package.json`, 해당 워크플로 파일을 바꾸면 Quickstart E2E도 실행됩니다.
+- **프레임워크 예제:** Vue, React 또는 다른 provider를 추가하면 `cli/`와 `runtime/engine/`이 바뀌므로, 항상 실행되는 CI와 Quickstart E2E가 모두 실행됩니다.
 - **문서만 변경:** 항상 실행되는 CI는 여전히 실행됩니다. Quickstart E2E는 PR이 나열된 경로 중 하나를 함께 바꾸지 않는 한 실행되지 않습니다.
 
 그 밖의 예제 앱과 100개 서비스 픽스처 벤치 검사는 PR마다가 아니라 일정에 따라 또는 수동 요청으로 실행됩니다. 각 워크플로의 트리거 경로는 `.github/workflows/`의 파일 상단에서 확인할 수 있습니다.

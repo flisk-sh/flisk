@@ -15,11 +15,6 @@ export const RELEASE_INPUTS = [
   "bun.lock",
   "cli/**",
   "scripts/release-binaries.sh",
-  "Tiltfile",
-  "engine/**",
-  "discovery/**",
-  "specs/**",
-  "ext/**",
   "runtime/**",
   "shared-platform-engineering/docker-templates/**",
 ];

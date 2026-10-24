@@ -170,6 +170,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "e2e-premium-endpoint.yml",
+			"job": "live",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Nightly live check that the default premium endpoint reaches the distribution worker; granted-key case needs the FLISK_E2E_LICENSE_KEY secret",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "security-alert-issues.yml",
 			"job": "sync",
 			"tier": "bot",

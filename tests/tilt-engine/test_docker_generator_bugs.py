@@ -30,7 +30,7 @@ class TestDockerGeneratorSignatures:
         
         # Simulate loading the function (we can't import .star files directly)
         # Instead we verify the source code has the expected signature
-        dockerfile_star = Path(__file__).parent.parent.parent / "engine" / "topologies" / "platform" / "docker" / "dockerfile" / "dockerfile.star"
+        dockerfile_star = Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "platform" / "docker" / "dockerfile" / "dockerfile.star"
         
         if dockerfile_star.exists():
             content = dockerfile_star.read_text()
@@ -50,7 +50,7 @@ class TestDockerGeneratorSignatures:
     
     def test_generate_app_dockerfile_signature(self):
         """Verify backend generator has expected parameter names."""
-        dockerfile_star = Path(__file__).parent.parent.parent / "engine" / "topologies" / "platform" / "docker" / "dockerfile" / "dockerfile.star"
+        dockerfile_star = Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "platform" / "docker" / "dockerfile" / "dockerfile.star"
         
         if dockerfile_star.exists():
             content = dockerfile_star.read_text()
@@ -68,7 +68,7 @@ class TestDockerGeneratorSignatures:
     
     def test_l4_generate_orchestrator_signature(self):
         """Verify L4_generate_orchestrator has expected parameter order."""
-        golden_generator = Path(__file__).parent.parent.parent / "engine" / "topologies" / "platform" / "docker" / "generators" / "golden_docker_generator_v2.star"
+        golden_generator = Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "platform" / "docker" / "generators" / "golden_docker_generator_v2.star"
         
         if golden_generator.exists():
             content = golden_generator.read_text()
@@ -367,7 +367,7 @@ class TestGeneratorCallerPatterns:
         """Verify all Docker generator callers use keyword arguments."""
         # This test inspects the source code to ensure keyword args are used
         
-        orchestrator_dir = Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
+        orchestrator_dir = Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
         
         if orchestrator_dir.exists():
             for star_file in orchestrator_dir.glob("*.star"):
@@ -389,7 +389,7 @@ class TestGeneratorCallerPatterns:
         """Test that bare boolean values aren't passed positionally."""
         # The bug: Docker.frontend(path, name, True) - True became port!
         
-        orchestrator_dir = Path(__file__).parent.parent.parent / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
+        orchestrator_dir = Path(__file__).parent.parent.parent / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
         
         if orchestrator_dir.exists():
             for star_file in orchestrator_dir.glob("*.star"):
@@ -428,6 +428,7 @@ class TestL2BunDirectoryGuarantee:
         """l2_dependency_layers.star must guarantee /app/node_modules/.bun exists."""
         l2_star = (
             Path(__file__).parent.parent.parent
+            / "runtime"
             / "engine"
             / "topologies"
             / "platform"
@@ -447,6 +448,7 @@ class TestL2BunDirectoryGuarantee:
         """The mkdir must appear AFTER install-deps.sh runs, not before."""
         l2_star = (
             Path(__file__).parent.parent.parent
+            / "runtime"
             / "engine"
             / "topologies"
             / "platform"
@@ -469,6 +471,7 @@ class TestL2BunDirectoryGuarantee:
         """l3_builder_layers.star must copy /app/node_modules/.bun from l2_deps_manifest."""
         l3_star = (
             Path(__file__).parent.parent.parent
+            / "runtime"
             / "engine"
             / "topologies"
             / "platform"

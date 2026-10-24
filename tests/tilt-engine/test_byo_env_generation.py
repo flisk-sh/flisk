@@ -12,6 +12,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.generator]
 def test_byo_manifest_has_resource_path_before_env_generation():
     source = (
         Path(__file__).resolve().parents[2]
+        / "runtime"
         / "engine"
         / "topologies"
         / "tilt"
@@ -35,6 +36,7 @@ def test_byo_manifest_has_resource_path_before_env_generation():
 def test_byo_compose_build_uses_service_directory_as_context():
     source = (
         Path(__file__).resolve().parents[2]
+        / "runtime"
         / "engine"
         / "topologies"
         / "platform"
@@ -59,6 +61,7 @@ def test_byo_compose_build_uses_service_directory_as_context():
 def test_byo_compose_does_not_require_curl_inside_the_image():
     source = (
         Path(__file__).resolve().parents[2]
+        / "runtime"
         / "engine"
         / "topologies"
         / "platform"
@@ -75,6 +78,7 @@ def test_byo_compose_does_not_require_curl_inside_the_image():
 def test_byo_compose_build_context_can_point_at_a_source_tree():
     source = (
         Path(__file__).resolve().parents[2]
+        / "runtime"
         / "engine"
         / "topologies"
         / "platform"
@@ -96,7 +100,7 @@ def test_byo_compose_build_context_can_point_at_a_source_tree():
 
 def test_discovery_checks_the_dockerfile_relative_to_build_context():
     source = (
-        Path(__file__).resolve().parents[2] / "discovery" / "manifest" / "loading.star"
+        Path(__file__).resolve().parents[2] / "runtime" / "discovery" / "manifest" / "loading.star"
     ).read_text()
     check = source[source.index("if 'dockerfile' in result:") :]
     assert "result.get('buildContext')" in check[:600]

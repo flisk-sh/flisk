@@ -18,6 +18,7 @@ interface CheckAssetsResult {
   ok: boolean;
   assetRoot: string | null;
   missing: string[];
+  layoutErrors: string[];
   templateErrors: string[];
 }
 
@@ -31,7 +32,7 @@ const EXPECTED_ASSET_PATHS = [
   "shared-platform-engineering/docker-templates",
 ];
 
-const JSON_KEYS = ["assetRoot", "missing", "ok", "templateErrors"];
+const JSON_KEYS = ["assetRoot", "layoutErrors", "missing", "ok", "templateErrors"];
 
 /** Builds a directory that has every path `flisk runtime --check-assets` requires. */
 function createCompleteAssetRoot(root: string): void {
@@ -85,7 +86,7 @@ describe("flisk runtime", () => {
     expect(templateEngine.findCliAssetRoot).not.toHaveBeenCalled();
   });
 
-  it("prints { ok, assetRoot, missing, templateErrors } as JSON when every asset is present", async () => {
+  it("prints { ok, assetRoot, missing, layoutErrors, templateErrors } as JSON when every asset is present", async () => {
     createCompleteAssetRoot(tempDir);
     templateEngine.findCliAssetRoot.mockReturnValue(tempDir);
     templateEngine.loadTemplate.mockReturnValue("");
@@ -98,6 +99,7 @@ describe("flisk runtime", () => {
       ok: true,
       assetRoot: resolve(tempDir),
       missing: [],
+      layoutErrors: [],
       templateErrors: [],
     });
     expect(process.exitCode).toBeUndefined();

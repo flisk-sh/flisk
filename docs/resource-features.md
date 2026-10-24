@@ -8,7 +8,7 @@ This guide provides the complete catalogue of resource features, explains when t
 
 ## 1. Feature Catalogue
 
-Resource features are defined in [cli/src/utils/resource-features.ts](../cli/src/utils/resource-features.ts) and validated against the [Service JSON Schema](../engine/schemas/service-schema.json). They fall into three categories:
+Resource features are defined in [cli/src/utils/resource-features.ts](../cli/src/utils/resource-features.ts) and validated against the [Service JSON Schema](../runtime/engine/schemas/service-schema.json). They fall into three categories:
 
 - **Core Generator Features**: Per-service code and client generators that developers enable or disable directly in `featuresEnabled: []`.
 - **Core Build Generators**: Foundational runtime files (Dockerfiles, TypeScript configs, Vite configs) that are always generated for applicable resource types.

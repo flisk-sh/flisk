@@ -41,7 +41,7 @@ class TestSnapshotScanning:
         
         # Import and test
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import get_current_resources
         
         # Change to temp directory for scanning
@@ -74,7 +74,7 @@ class TestSnapshotScanning:
         (resource_dir / "config.ts").write_text("export const config = {};")
         
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import get_current_resources
         
         original_dir = os.getcwd()
@@ -108,7 +108,7 @@ class TestSnapshotScanning:
             full_path.write_text(json.dumps({"name": "test"}))
         
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import get_current_resources
         
         original_dir = os.getcwd()

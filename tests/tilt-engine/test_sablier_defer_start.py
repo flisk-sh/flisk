@@ -23,8 +23,8 @@ pytestmark = [
     pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed"),
 ]
 
-MANIFEST_DIR = Path(__file__).resolve().parents[2] / "engine" / "topologies" / "tilt" / "manifest"
-ORCHESTRATOR_DIR = Path(__file__).resolve().parents[2] / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
+MANIFEST_DIR = Path(__file__).resolve().parents[2] / "runtime" / "engine" / "topologies" / "tilt" / "manifest"
+ORCHESTRATOR_DIR = Path(__file__).resolve().parents[2] / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
 RESULT_MARKER = "Error in fail: RESULT"
 
 

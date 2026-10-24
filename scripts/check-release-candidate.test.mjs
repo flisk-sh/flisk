@@ -25,9 +25,10 @@ test("releaseInputFor matches the same paths as the changes filter in release-bi
   assert.equal(releaseInputFor(".github/workflows/e2e-resource-types.yml"), undefined);
   assert.equal(releaseInputFor(".github/workflows/release-binaries.yml"), ".github/workflows/release-binaries.yml");
   assert.equal(releaseInputFor("docs/ci.md"), undefined);
-  assert.equal(releaseInputFor("engine/x/y.star"), "engine/**");
-  assert.equal(releaseInputFor("Tiltfile"), "Tiltfile");
-  assert.equal(releaseInputFor("TiltfileX"), undefined);
+  assert.equal(releaseInputFor("runtime/engine/x/y.star"), "runtime/**");
+  assert.equal(releaseInputFor("runtime/Tiltfile"), "runtime/**");
+  assert.equal(releaseInputFor("engine/x/y.star"), undefined);
+  assert.equal(releaseInputFor("Tiltfile"), undefined);
 });
 
 test("the exact release commit passes without any compare call", () => {
@@ -66,11 +67,11 @@ test("a rename out of a release input path still counts as a change to it", () =
     sha: RELEASE,
     candidates: [OLD],
     compare: compareWith({
-      [OLD]: { status: "ahead", files: [{ filename: "docs/moved.md", previous_filename: "engine/moved.star" }] },
+      [OLD]: { status: "ahead", files: [{ filename: "docs/moved.md", previous_filename: "runtime/engine/moved.star" }] },
     }),
   });
   assert.equal(result.ok, false);
-  assert.match(result.reasons[0], /engine\/\*\*/);
+  assert.match(result.reasons[0], /runtime\/\*\*/);
 });
 
 test("a candidate that is not an ancestor of the release commit never passes", () => {

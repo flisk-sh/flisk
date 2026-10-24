@@ -3,10 +3,13 @@
 # =============================================================================
 # This is the unified Tiltfile entry point for flisk-cli.
 # It combines: engine, discovery, specs, and ext into one repository.
+# In a source checkout this file lives at runtime/Tiltfile; packaged and vendored
+# copies place it at the bundle root.
 #
 # Usage:
 #   v1alpha1.extension_repo(name='flisk-cli', url='https://github.com/flisk-sh/flisk')
 #   load('ext://flisk-cli', 'Utils', 'Manifest', ...)
+#   Note: the repository root no longer holds a Tiltfile; in this checkout the entry point is runtime/Tiltfile.
 # =============================================================================
 
 # =============================================================================
@@ -131,7 +134,8 @@ Infra = _Infra
 Watchers = _Watchers
 
 # True when a manifest's deferStart is actually active (licensed); decides whether a `<name>-image` prebuild resource exists.
-# The generated Tiltfile loads this from ext://flisk-cli, which resolves to this root Tiltfile.
+# The generated Tiltfile loads this from ext://flisk-cli, which resolves to this Tiltfile: the bundle root in a
+# packaged or vendored copy, and runtime/ (repo_path='runtime') in a source checkout.
 resource_defers_start = _resource_defers_start
 FrontendBuildPlan = _frontend_build_plan
 

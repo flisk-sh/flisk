@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const discoveryLoading = join(repoRoot, "discovery/loading.star");
+const discoveryLoading = join(repoRoot, "runtime/discovery/loading.star");
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
 
 if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
@@ -201,7 +201,7 @@ describe.skipIf(!hasTilt)("Tilt discovery of healthCheckPath", { timeout: 60_000
 });
 
 describe("Starlark BYO healthCheckPath discovery contract", () => {
-  const loadingStarPath = join(repoRoot, "discovery/manifest/loading.star");
+  const loadingStarPath = join(repoRoot, "runtime/discovery/manifest/loading.star");
   const loadingStarContent = readFileSync(loadingStarPath, "utf-8");
 
   it("strips default healthCheckPath from bring-your-own services without explicit path", () => {

@@ -10,6 +10,7 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const frontendGenerator = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -19,6 +20,7 @@ const frontendGenerator = join(
 );
 const frontendTsconfigGenerator = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -28,6 +30,7 @@ const frontendTsconfigGenerator = join(
 );
 const frontendApiGenerators = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -38,6 +41,7 @@ const frontendApiGenerators = join(
 );
 const envGenerators = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -48,6 +52,7 @@ const envGenerators = join(
 );
 const viteLibraryTemplates = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -57,6 +62,7 @@ const viteLibraryTemplates = join(
 );
 const frontendValidators = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -179,6 +185,7 @@ it("passes the persisted framework to the shared frontend TypeScript generator",
   const orchestrator = readFileSync(
     join(
       repoRoot,
+      "runtime",
       "engine",
       "topologies",
       "tilt",

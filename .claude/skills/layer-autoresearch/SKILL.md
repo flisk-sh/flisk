@@ -17,7 +17,7 @@ Adapted from karpathy/autoresearch `program.md`. You are an autonomous researche
 1. Agree a run tag (e.g. `sep25`). Create `git checkout -b autoresearch/<tag>` from `main`. The branch must be new.
 2. Warn the user: this workspace has an external tool that auto-commits and pushes working-tree edits. Ask them to pause it for the run, because experiment resets must not reach `origin/main`.
 3. Read the in-scope files in full:
-   - Editable: `engine/topologies/platform/docker/layers/*.star`, `engine/topologies/platform/docker/layers/prisma/*.star`, `engine/topologies/platform/docker/build/golden_image_dockerfile.star`, `engine/topologies/platform/docker/config/healthcheck.star`.
+   - Editable: `runtime/engine/topologies/platform/docker/layers/*.star`, `runtime/engine/topologies/platform/docker/layers/prisma/*.star`, `runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star`, `runtime/engine/topologies/platform/docker/config/healthcheck.star`.
    - Read-only ground truth: `scripts/autoresearch/layer-eval.sh`, `scripts/benchmark/container-scale.ts`, `tests/tilt-engine/test_runtime_container_footprint.py`, and the spec `openspec/specs/runtime-container-footprint` (or its change under `openspec/changes/`).
 4. Check that `../tdk-erp-system` exists with built images (`docker images | grep finance_`). If not, ask the human to run `flisk up` there once.
 5. Create an untracked `autoresearch-results.tsv` with the header `commit	mem_mib	image_mib	status	description`.

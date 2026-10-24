@@ -19,7 +19,7 @@ import { createByoServiceJson, createServiceJson } from "../resource.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const schema = JSON.parse(
-  readFileSync(join(repoRoot, "engine", "schemas", "service-schema.json"), "utf-8"),
+  readFileSync(join(repoRoot, "runtime", "engine", "schemas", "service-schema.json"), "utf-8"),
 );
 const publishWorkflow = readFileSync(
   join(repoRoot, ".github", "workflows", "publish-service-schema.yml"),

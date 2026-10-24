@@ -5,7 +5,7 @@
   "paths": [
     "docs/byo.md",
     "cli/src/commands/resource.ts",
-    "engine/**",
+    "runtime/engine/**",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/bring-your-own/**",
     ".github/workflows/e2e-resource-types.yml",
@@ -14,7 +14,7 @@
     "scripts/sync-byo-templates.sh",
     "examples/byo-jobs/**",
     "cli/src/commands/up.ts",
-    "engine/schemas/service-schema.json",
+    "runtime/engine/schemas/service-schema.json",
     "tests/e2e/fixtures/byo-python-health/**"
   ],
   "cases": [

@@ -1,0 +1,41 @@
+# Live check that the CLI's default premium endpoint reaches the distribution worker (the default host once pointed at a
+# dead hostname and silently dropped every licensed user to the free tier). Nightly and by hand, on main only. The unknown-key
+# check needs no secret; the granted-key check runs when the FLISK_E2E_LICENSE_KEY secret is set and is skipped otherwise.
+name: 🧩 E2E | Premium endpoint
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-premium-endpoint-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live:
+    name: Premium endpoint (live)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Run the live premium endpoint test
+        working-directory: cli
+        env:
+          FLISK_E2E_LIVE: "1"
+          FLISK_E2E_LICENSE_KEY: ${{ secrets.FLISK_E2E_LICENSE_KEY }}
+        run: npx vitest run src/generator/__tests__/extension-fetch.live.test.ts

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const ENGINE_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../engine");
+const ENGINE_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../runtime/engine");
 
 // Every base image line the engine may build on, with its end-of-life date (YYYY-MM-DD).
 // Keys are release lines (`alpine:<major>.<minor>`, `node:<major>-alpine`); versioned references such as

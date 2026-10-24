@@ -22,9 +22,12 @@ import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "../utils/project-config-defaults.js";
 import {
+  describeLayoutProblems,
   EXTENSION_DIRS,
   hasExtensionLayout,
+  inspectExtensionLayout,
   resolveExtensionDir,
+  resolveTiltfile,
 } from "../utils/runtime-layout.js";
 import {
   generatedFieldErrorsForFile,
@@ -819,6 +822,15 @@ async function vendorFliskExtension(
   sources.push(path.join(exeDir, "flisk-cli"));
   sources.push(path.join(projectRoot, "..", "flisk-cli"));
 
+  // An explicit override that fails the layout check is skipped below; say why instead of silently falling
+  // back to a different copy of the extension.
+  const override = process.env.FLISK_EXTENSION_SOURCE;
+  if (override && fs.existsSync(override) && !hasExtensionLayout(override)) {
+    console.warn(
+      `⚠️  FLISK_EXTENSION_SOURCE is not a usable Flisk extension and is ignored:\n   ${describeLayoutProblems(override)}`,
+    );
+  }
+
   let sourceRoot = "";
   for (const candidate of sources) {
     if (candidate && hasExtensionLayout(candidate)) {
@@ -828,9 +840,17 @@ async function vendorFliskExtension(
   }
 
   if (!sourceRoot) {
+    // A candidate that has some extension entries but fails the layout check is a stale or half-migrated tree.
+    const broken = sources
+      .filter((candidate) => candidate && fs.existsSync(candidate))
+      .map((candidate) => ({ candidate, report: inspectExtensionLayout(candidate) }))
+      .filter(({ report }) => report.kind === "mixed" || report.missing.length < 5);
     console.warn(
       "⚠️  Flisk extension not found - set FLISK_EXTENSION_SOURCE to its checkout path " +
-        "and re-run `flisk project` (or `flisk config regenerate`) to vendor it before `flisk up`.",
+        "and re-run `flisk project` (or `flisk config regenerate`) to vendor it before `flisk up`." +
+        broken
+          .map(({ candidate, report }) => `\n   ${describeLayoutProblems(candidate, report)}`)
+          .join(""),
     );
     return;
   }
@@ -838,7 +858,7 @@ async function vendorFliskExtension(
   if (!fs.existsSync(vendoredDir)) {
     fs.mkdirSync(vendoredDir, { recursive: true });
   }
-  fs.copyFileSync(path.join(sourceRoot, "Tiltfile"), path.join(vendoredDir, "Tiltfile"));
+  fs.copyFileSync(resolveTiltfile(sourceRoot), path.join(vendoredDir, "Tiltfile"));
   for (const dir of FLISK_EXTENSION_DIRS) {
     // A project vendored by an older Flisk already holds test files; cpSync only adds, so drop them.
     removeVendoredTestFiles(path.join(vendoredDir, dir));

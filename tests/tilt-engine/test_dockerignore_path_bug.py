@@ -36,6 +36,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.generator]
 def manifest_resource_path() -> Path:
     return (
         Path(__file__).parent.parent.parent
+        / "runtime"
         / "engine"
         / "topologies"
         / "tilt"

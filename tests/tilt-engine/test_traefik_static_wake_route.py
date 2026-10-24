@@ -24,7 +24,7 @@ pytestmark = [
     pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed"),
 ]
 
-NETWORKING_DIR = Path(__file__).resolve().parents[2] / "engine" / "topologies" / "platform" / "docker" / "networking"
+NETWORKING_DIR = Path(__file__).resolve().parents[2] / "runtime" / "engine" / "topologies" / "platform" / "docker" / "networking"
 RESULT_MARKER = "Error in fail: RESULT"
 
 

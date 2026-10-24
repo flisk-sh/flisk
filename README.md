@@ -298,7 +298,7 @@ You do not need to write the nginx config, Dockerfile, or a `docker-compose.yml`
 
 If Helm, Compose, or your existing Tilt setup already gives you a working local environment, keep using it. Flisk CLI is for engineers managing several services who want a clear local service contract and one command to start the stack.
 
-See [how Flisk compares to alternative dev tools](docs/comparison.md), [how Flisk CLI works alongside Helm](https://flisk.sh/docs/with-helm/), the [service schema](engine/schemas/service-schema.json), and the [project configuration schema](engine/schemas/project-schema.json).
+See [how Flisk compares to alternative dev tools](docs/comparison.md), [how Flisk CLI works alongside Helm](https://flisk.sh/docs/with-helm/), the [service schema](runtime/engine/schemas/service-schema.json), and the [project configuration schema](runtime/engine/schemas/project-schema.json).
 
 ## Terminal UI
 
