@@ -96,7 +96,7 @@ function errorOutput(): string {
 }
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), "tdk-project-no-runtime-")));
+  root = realpathSync(mkdtempSync(join(tmpdir(), "flisk-project-no-runtime-")));
   originalCwd = process.cwd();
   process.chdir(root);
   mocks.checkDockerRuntime.mockResolvedValue({
@@ -146,7 +146,7 @@ describe("flisk project without a local runtime", () => {
   it("creates the project configuration while Docker is stopped and Tilt is missing", async () => {
     await runProject({ check: false, force: false, yes: true });
 
-    expect(existsSync(join(root, ".tdk", "project.json"))).toBe(true);
+    expect(existsSync(join(root, ".flisk", "project.json"))).toBe(true);
     expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
     expect(exitSpy).not.toHaveBeenCalled();
   });
@@ -185,6 +185,6 @@ describe("flisk project without a local runtime", () => {
     expect(errorOutput()).toContain("Project setup blocked. Bun 1.2+ must be installed on PATH.");
     expect(errorOutput()).toContain("FAIL bun");
     // Nothing is written before the gate blocks.
-    expect(existsSync(join(root, ".tdk", "project.json"))).toBe(false);
+    expect(existsSync(join(root, ".flisk", "project.json"))).toBe(false);
   });
 });

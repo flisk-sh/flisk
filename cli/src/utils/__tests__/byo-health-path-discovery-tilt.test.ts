@@ -11,7 +11,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const discoveryLoading = join(repoRoot, "discovery/loading.star");
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
 
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for the health-path discovery Starlark tests in CI.");
 }
 
@@ -26,7 +26,7 @@ afterEach(() => {
  * and returns the healthCheckPath they receive, or Tilt's error.
  */
 function discoverHealthCheckPath(manifest: Record<string, unknown>) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-health-path-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-health-path-"));
   dirs.push(project);
   const serviceDir = join(project, "services/product/shop/api");
   mkdirSync(serviceDir, { recursive: true });
@@ -43,7 +43,7 @@ local('cat > ' + ${JSON.stringify(JSON.stringify(out))}, quiet = True, stdin = r
   const result = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", join(project, "Tiltfile")], {
     cwd: project,
     encoding: "utf-8",
-    env: { ...process.env, TDK_PROJECT_ROOT: project },
+    env: { ...process.env, FLISK_PROJECT_ROOT: project },
     timeout: 30_000,
   });
   return {
@@ -59,7 +59,7 @@ const base = { appName: "api", stack: "shop", schemaVersion: 1, port: 4000 };
  * Loads one service.json and extracts a specified manifest expression.
  */
 function discoverManifestExpression(manifest: Record<string, unknown>, expression: string) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-health-path-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-health-path-"));
   dirs.push(project);
   const serviceDir = join(project, "services/product/shop/api");
   mkdirSync(serviceDir, { recursive: true });
@@ -76,7 +76,7 @@ local('cat > ' + ${JSON.stringify(JSON.stringify(out))}, quiet = True, stdin = r
   const result = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", join(project, "Tiltfile")], {
     cwd: project,
     encoding: "utf-8",
-    env: { ...process.env, TDK_PROJECT_ROOT: project },
+    env: { ...process.env, FLISK_PROJECT_ROOT: project },
     timeout: 30_000,
   });
   return {

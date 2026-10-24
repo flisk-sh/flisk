@@ -41,11 +41,11 @@ D2() {
   mkdir -p "$tmp/repo/.claude/skills/removed-upstream"; echo "# gone" >"$tmp/repo/.claude/skills/removed-upstream/SKILL.md"
   ln -sfn ../../.claude/skills/removed-upstream "$tmp/repo/.agents/skills/removed-upstream"
   # Fixture source repo: one kept skill and one new one.
-  mkdir -p "$tmp/src/.claude-plugin" "$tmp/src/plugins/tdk-cli/.claude-plugin" "$tmp/src/skills/kept-upstream" "$tmp/src/skills/new-upstream"
+  mkdir -p "$tmp/src/.claude-plugin" "$tmp/src/plugins/flisk-cli/.claude-plugin" "$tmp/src/skills/kept-upstream" "$tmp/src/skills/new-upstream"
   echo '{"name":"fixture","plugins":[]}' >"$tmp/src/.claude-plugin/marketplace.json"
-  echo '{"name":"tdk-cli"}' >"$tmp/src/plugins/tdk-cli/.claude-plugin/plugin.json"
+  echo '{"name":"flisk-cli"}' >"$tmp/src/plugins/flisk-cli/.claude-plugin/plugin.json"
   echo "# kept" >"$tmp/src/skills/kept-upstream/SKILL.md"; echo "# new" >"$tmp/src/skills/new-upstream/SKILL.md"
-  (cd "$tmp/repo" && TDK_SKILLS_REPO="$tmp/src" bash scripts/sync-tdk-skills.sh) || die "sync-tdk-skills.sh failed on the fixture"
+  (cd "$tmp/repo" && FLISK_SKILLS_REPO="$tmp/src" bash scripts/sync-tdk-skills.sh) || die "sync-tdk-skills.sh failed on the fixture"
   ls -l "$tmp/repo/.agents/skills"
   local name kept=0
   while IFS= read -r name; do

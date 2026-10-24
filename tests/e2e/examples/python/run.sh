@@ -42,7 +42,7 @@ P3() { # boot and require routed /health
     cd "$DIR"
     set -euo pipefail
     flisk up one-backend-python > up.log 2>&1 &
-    tdk_pid=$!
+    flisk_pid=$!
     cleanup() {
       status=$?
       if [ "$status" -ne 0 ]; then
@@ -55,7 +55,7 @@ P3() { # boot and require routed /health
         tilt get uiresources -o json > ci-logs/tilt-uiresources.json 2>&1 || true
         jq -r '.items[] | "\(.metadata.name): update=\(.status.updateStatus // "-") runtime=\(.status.runtimeStatus // "-")"' ci-logs/tilt-uiresources.json 2>/dev/null || true
       fi
-      kill "$tdk_pid" 2>/dev/null || true
+      kill "$flisk_pid" 2>/dev/null || true
       flisk down >/dev/null 2>&1 || true
       return "$status"
     }
@@ -63,7 +63,7 @@ P3() { # boot and require routed /health
 
     for _ in $(seq 1 75); do
       if grep -q 'Running tilt up' up.log; then break; fi
-      if ! kill -0 "$tdk_pid" 2>/dev/null; then tail -120 up.log; exit 1; fi
+      if ! kill -0 "$flisk_pid" 2>/dev/null; then tail -120 up.log; exit 1; fi
       sleep 2
     done
     grep -q 'Running tilt up' up.log

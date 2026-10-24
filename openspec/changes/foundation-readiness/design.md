@@ -2,7 +2,7 @@
 
 ## Context
 
-Sandbox applications are closed without review if the license is not already allowlisted, if MAINTAINERS.md lacks Name / GitHub id / Company columns, or if there are not 3 maintainers from 2 employers. Employer means company, not GitHub org membership. Incubation later wants independent production adopters. Premium features in this repo are stubs until TDK_LICENSE_KEY downloads an implementation.
+Sandbox applications are closed without review if the license is not already allowlisted, if MAINTAINERS.md lacks Name / GitHub id / Company columns, or if there are not 3 maintainers from 2 employers. Employer means company, not GitHub org membership. Incubation later wants independent production adopters. Premium features in this repo are stubs until FLISK_LICENSE_KEY downloads an implementation.
 
 ## Goals / Non-Goals
 

@@ -74,7 +74,7 @@ Count: 63 characters.
 
 > Hi HN, I maintain Flisk CLI. It turns one `service.json` per service into a local Docker and Tilt stack, so `flisk up <stack>` starts the services you pick and nothing else.
 >
-> What it does: scaffolds services (`flisk resource`), generates the Docker, Compose and Tilt files from `service.json` and `.tdk/project.json`, and checks they still match (`flisk config verify`). `flisk up <stack> --dry-run` prints the services and URLs before any container starts.
+> What it does: scaffolds services (`flisk resource`), generates the Docker, Compose and Tilt files from `service.json` and `.flisk/project.json`, and checks they still match (`flisk config verify`). `flisk up <stack> --dry-run` prints the services and URLs before any container starts.
 >
 > What it does not do: it is not a deploy tool (production stays on Helm or whatever you use), and it is not a drop-in Compose replacement for a stack you already maintain. If Compose or your own Tilt file works for you, keep it.
 >

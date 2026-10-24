@@ -13,7 +13,7 @@ set -euo pipefail
 name="${1:?usage: verify-byo-example.sh <name> [health-path]}"
 health="${2:-/health}"
 dir="$(cd "$(dirname "$0")/../../../.." && pwd)/examples/byo/$name"
-image="tdk-byo-verify-$name"
+image="flisk-byo-verify-$name"
 container="$image-$$"
 
 [ -d "$dir" ] || { echo "no such example: $dir" >&2; exit 2; }

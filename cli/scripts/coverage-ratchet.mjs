@@ -28,7 +28,7 @@ const AREAS = [
     name: "install and update",
     match: (rel) =>
       rel === "src/commands/upgrade.ts" ||
-      rel === "src/utils/tdk-version.ts" ||
+      rel === "src/utils/flisk-version.ts" ||
       rel === "src/utils/bun-floor.ts" ||
       rel === "src/utils/bun-requirement.ts",
   },

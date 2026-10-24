@@ -8,7 +8,7 @@ services in the scale benchmark as business services.
 
 - Use a fresh Linux machine or CI runner. Record whether Docker image layers and package caches are
   empty; the script deliberately does not delete or bypass caches.
-- Provide a checked-out project with `.tdk/project.json`, all twelve implementations, and local
+- Provide a checked-out project with `.flisk/project.json`, all twelve implementations, and local
   test doubles for external providers. Keep credentials out of the report.
 - Confirm that the project defines readiness checks for its actual dependencies and application
   behavior. A process-only `/health` endpoint is not sufficient evidence that checkout or workers

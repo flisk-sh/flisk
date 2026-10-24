@@ -70,7 +70,7 @@ export declare const STANDARD_PORTS: {
     readonly traefik: 8080;
 };
 export declare const QUICKSTART_DOCS_URL = "https://flisk.sh/docs/quickstart/";
-export declare const BASE_DOMAIN_DEFAULT = "tdk-project.localhost";
+export declare const BASE_DOMAIN_DEFAULT = "flisk-project.localhost";
 export declare const APP_SUBDOMAIN_PREFIX = "app";
 export declare const API_SUBDOMAIN_PREFIX = "api";
 export declare function getBaseDomain(): string;

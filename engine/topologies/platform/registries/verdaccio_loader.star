@@ -8,7 +8,7 @@
 # The real loader (stands up the Verdaccio private npm registry container and
 # wires it into the project's Docker network) is part of a paid Flisk license.
 # When a valid license grants the "verdaccio" resource,
-# cli/src/generator/template-engine.ts (vendorTdkExtension) overwrites this
+# cli/src/generator/template-engine.ts (vendorFliskExtension) overwrites this
 # file with the licensed version fetched via extension-fetch.ts before Tilt
 # loads it. Same function signature either way, so nothing else in the
 # loader pipeline changes.

@@ -50,17 +50,17 @@ def _to_project_relative_path(path, project_root):
     """
     if not path:
         return path
-    root = project_root if project_root else os.environ.get("TDK_PROJECT_ROOT", ".")
+    root = project_root if project_root else os.environ.get("FLISK_PROJECT_ROOT", ".")
     # Already project-relative (including ../sibling/...)
     if not path.startswith("/"):
         return path
-    cmd = (
-        "python3 -c \"import os; print(os.path.relpath(os.path.realpath('''" +
-        path +
-        "'''), os.path.realpath('''" +
-        root +
-        "''')))\""
-    )
+    cmd = [
+        "python3",
+        "-c",
+        "import os, sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])))",
+        path,
+        root,
+    ]
     relative = str(local(cmd, quiet=True, echo_off=True)).strip()
     if relative:
         return relative
@@ -250,13 +250,13 @@ def _scan_resources():
             seen_paths[path] = True
             manifest_paths.append(path)
 
-    # CRITICAL FIX: Filter out tdk-cli internal paths to prevent self-scanning
-    # This prevents tdk-cli from discovering its own internal test stubs
-    def _is_tdk_cli_internal_path(path):
-        """Check if path is within tdk-cli's own directory structure."""
+    # CRITICAL FIX: Filter out flisk-cli internal paths to prevent self-scanning
+    # This prevents flisk-cli from discovering its own internal test stubs
+    def _is_flisk_cli_internal_path(path):
+        """Check if path is within flisk-cli's own directory structure."""
         internal_markers = [
-            "tdk-cli/discovery/services/",
-            "tdk-cli/discovery/identity-",
+            "flisk-cli/discovery/services/",
+            "flisk-cli/discovery/identity-",
         ]
         for marker in internal_markers:
             if marker in path:
@@ -265,8 +265,8 @@ def _scan_resources():
 
     filtered_manifest_paths = []
     for path in manifest_paths:
-        if _is_tdk_cli_internal_path(path):
-            print("⚠️  Skipping tdk-cli internal stub: {}".format(path))
+        if _is_flisk_cli_internal_path(path):
+            print("⚠️  Skipping flisk-cli internal stub: {}".format(path))
             continue
         filtered_manifest_paths.append(path)
 
@@ -275,7 +275,7 @@ def _scan_resources():
     if not manifest_paths:
         return resources
     
-    project_root = os.environ.get("TDK_PROJECT_ROOT", ".")
+    project_root = os.environ.get("FLISK_PROJECT_ROOT", ".")
 
     for manifest_path in manifest_paths:
         # manifest_path may be absolute (legacy find) or project-relative.

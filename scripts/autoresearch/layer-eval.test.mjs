@@ -20,12 +20,12 @@ function runScenario(mode) {
     const bin = join(root, "bin");
     mkdirSync(bin);
     mkdirSync(join(root, "tmp"));
-    mkdirSync(join(root, "benchmarks", "results"), { recursive: true });
+    mkdirSync(join(root, "docs", "benchmarks", "results"), { recursive: true });
     const mockBun = join(bin, "bun");
-    writeFileSync(mockBun, '#!/usr/bin/env bash\ncase "$MODE" in\n  failure) exit 7 ;;\n  success) sleep 0.05; echo \'{}\' > benchmarks/results/container-scale-current.json ;;\n  no-result|stale) exit 0 ;;\nesac\n');
+    writeFileSync(mockBun, '#!/usr/bin/env bash\ncase "$MODE" in\n  failure) exit 7 ;;\n  success) sleep 0.05; echo \'{}\' > docs/benchmarks/results/container-scale-current.json ;;\n  no-result|stale) exit 0 ;;\nesac\n');
     chmodSync(mockBun, 0o755);
     if (mode === "stale") {
-      const path = join(root, "benchmarks/results/container-scale-old.json");
+      const path = join(root, "docs/benchmarks/results/container-scale-old.json");
       writeFileSync(path, "{}");
       utimesSync(path, new Date(0), new Date(0));
     }
@@ -63,5 +63,5 @@ test("stale results are not mistaken for a fresh benchmark result", () => {
 test("fresh result is selected on success", () => {
   const result = runScenario("success");
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /RESULT:benchmarks\/results\/container-scale-current\.json/);
+  assert.match(result.stdout, /RESULT:docs\/benchmarks\/results\/container-scale-current\.json/);
 });

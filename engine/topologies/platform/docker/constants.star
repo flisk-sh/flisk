@@ -9,21 +9,21 @@
 # =============================================================================
 
 # Load project name from project.json (makes Flisk CLI portable across projects)
-# Falls back to 'tdk_project' / 'tdk-project' if project.json not found
-# Use TDK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Falls back to 'flisk_project' / 'flisk-project' if project.json not found
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
 def _load_project_names():
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    project_json_path = '.tdk/project.json'
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = '.flisk/project.json'
     if project_root:
         project_json_path = project_root + '/' + project_json_path
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        _PROJECT_NAME_HYPHEN = _project_json.get('project', {}).get('name', 'tdk-project')
+        _PROJECT_NAME_HYPHEN = _project_json.get('project', {}).get('name', 'flisk-project')
         # Convert hyphenated name to underscore (e.g., "my-project" -> "my_project")
         _PROJECT_NAME = _PROJECT_NAME_HYPHEN.replace('-', '_')
         return _PROJECT_NAME, _PROJECT_NAME_HYPHEN
-    return "tdk_project", "tdk-project"
+    return "flisk_project", "flisk-project"
 
 _PROJECT_NAME, _PROJECT_NAME_HYPHEN = _load_project_names()
 
@@ -67,7 +67,7 @@ NETWORK_PROXY = PROJECT_NAME + "_proxy"
 # Traefik file-provider dynamic config: one generated YAML per `sablier.deferStart`
 # resource's static route (see openspec/changes/prioritized-cold-start), mounted
 # read-only into the standalone Traefik container at /etc/traefik/dynamic.
-TRAEFIK_DYNAMIC_DIR_REL = ".tdk/.tdk-out/traefik-dynamic"
+TRAEFIK_DYNAMIC_DIR_REL = ".flisk/.flisk-out/traefik-dynamic"
 TRAEFIK_WAKE_GATEWAY_CONTAINER = PROJECT_NAME_HYPHEN + "-wake-gateway"
 TRAEFIK_WAKE_GATEWAY_PORT = 9999
 

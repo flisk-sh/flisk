@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveAgentRuntime } from "../agent-runtimes/registry.js";
 import { getBackendIndexTemplate } from "../backend-languages/bun.js";
-import { TdkError } from "../utils/errors.js";
+import { FliskError } from "../utils/errors.js";
 import { elysiaBackendProvider } from "./elysia.js";
 import { expressBackendProvider } from "./express.js";
 import { fastifyBackendProvider } from "./fastify.js";
@@ -75,12 +75,12 @@ describe("getBackendFramework", () => {
       error = caught;
     }
 
-    expect(error).toBeInstanceOf(TdkError);
-    const tdkError = error as TdkError;
-    expect(tdkError.message).toBe(
+    expect(error).toBeInstanceOf(FliskError);
+    const fliskError = error as FliskError;
+    expect(fliskError.message).toBe(
       'Unknown backend framework "django". Supported frameworks: hono, express, elysia, fastify, h3, koa, nestjs.',
     );
-    expect(tdkError.suggestions).toEqual([
+    expect(fliskError.suggestions).toEqual([
       "Use one of: hono, express, elysia, fastify, h3, koa, nestjs",
       "Omit --framework to use hono",
     ]);
@@ -192,10 +192,10 @@ describe("resolveBackendFramework", () => {
         error = caught;
       }
 
-      expect(error).toBeInstanceOf(TdkError);
-      const tdkError = error as TdkError;
-      expect(tdkError.message).toBe("--framework cannot be combined with --language rust.");
-      expect(tdkError.suggestions).toEqual([
+      expect(error).toBeInstanceOf(FliskError);
+      const fliskError = error as FliskError;
+      expect(fliskError.message).toBe("--framework cannot be combined with --language rust.");
+      expect(fliskError.suggestions).toEqual([
         "The rust provider owns its runtime and framework",
         "Drop --framework, or use --language bun",
       ]);

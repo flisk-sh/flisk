@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 # The flisk up warm and cold start benchmark on the restaurant example (moved from .github/workflows/benchmarks.yml, #1301). Each
 # case is one step of the old measure job: B1 generates the project from this commit's extension, B2 runs the cold and warm
-# starts with scripts/benchmark/tdk-up-warm-start.sh, B3 builds the HTML report and its summary. The job builds the CLI from
+# starts with scripts/benchmark/flisk-up-warm-start.sh, B3 builds the HTML report and its summary. The job builds the CLI from
 # this commit and installs Tilt first (the workflow's steps), and the publish job stays in the workflow: this suite measures,
 # and the workflow decides what is published (scheduled and release runs only).
 #
@@ -19,7 +19,7 @@ e2e_init benchmarks restaurant
 DIR="${RESTAURANT_DIR:-$REPO_ROOT/restaurant}"
 BENCH_OUT="${RUNNER_TEMP:-$SUITE_ROOT}/bench"
 SITE_OUT="${RUNNER_TEMP:-$SUITE_ROOT}/site"
-export TDK_EXTENSION_SOURCE="${TDK_EXTENSION_SOURCE:-$REPO_ROOT}"
+export FLISK_EXTENSION_SOURCE="${FLISK_EXTENSION_SOURCE:-$REPO_ROOT}"
 RESOURCES=()
 
 B1() { # generate the restaurant project from this commit's extension
@@ -31,7 +31,7 @@ B1() { # generate the restaurant project from this commit's extension
 B2() { # cold and warm starts of flisk up, each until eight services answer
   log "B2 cold and warm starts"
   local COLD_RUNS="${COLD_RUNS:-1}" WARM_RUNS="${WARM_RUNS:-1}"
-  "$REPO_ROOT/scripts/benchmark/tdk-up-warm-start.sh" \
+  "$REPO_ROOT/scripts/benchmark/flisk-up-warm-start.sh" \
     --project "$DIR" \
     --out "$BENCH_OUT" \
     --cold-runs "$COLD_RUNS" \
@@ -46,7 +46,7 @@ B3() { # the report: the Pages site's HTML and the raw results, plus the job sum
   local summary="${GITHUB_STEP_SUMMARY:-$OUT/step-summary.md}"
   node "$REPO_ROOT/scripts/benchmark/build-report.mjs" \
     --run "$BENCH_OUT" \
-    --history "$REPO_ROOT/benchmarks/results" \
+    --history "$REPO_ROOT/docs/benchmarks/results" \
     --out "$SITE_OUT" \
     --commit "$COMMIT" \
     --run-url "$RUN_URL"

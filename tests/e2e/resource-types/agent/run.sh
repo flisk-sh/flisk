@@ -207,7 +207,7 @@ B0() {
   local cid; cid="$(agent_container)"; [ -n "$cid" ] || die "no running $AGENT container"
   docker stop -t 15 "$cid" >/dev/null
   echo "stopped container $cid"
-  tdk_jq_check() { (cd "$DIR" && flisk status --json >/dev/null); }
+  flisk_jq_check() { (cd "$DIR" && flisk status --json >/dev/null); }
   tilt get uiresources >/dev/null 2>&1 || die "Tilt is not reachable after stopping the container"
 }
 
@@ -286,8 +286,8 @@ B7() { # UNKNOWN_RESOURCE, NOT_AN_AGENT, NO_PORT: one smoke each
   assert envelope "$OUT/b7-unknown.out" UNKNOWN_RESOURCE
   # The other two need resources the live project does not have: use a throwaway project (no stack needed).
   local tmp; tmp="$(mktemp -d)"
-  mkdir -p "$tmp/.tdk" "$tmp/services/api" "$tmp/services/noport"
-  echo '{}' >"$tmp/.tdk/project.json"
+  mkdir -p "$tmp/.flisk" "$tmp/services/api" "$tmp/services/noport"
+  echo '{}' >"$tmp/.flisk/project.json"
   echo '{"appName":"api","appType":"backend","port":4000}' >"$tmp/services/api/service.json"
   echo '{"appName":"noport","appType":"agent"}' >"$tmp/services/noport/service.json"
   for pair in "api:NOT_AN_AGENT" "noport:NO_PORT"; do

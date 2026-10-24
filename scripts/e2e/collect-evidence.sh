@@ -16,7 +16,7 @@ shift 2
 
 runner_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 if [ "$#" -eq 0 ]; then
-  set -- "$runner_temp/tdk-e2e" "$runner_temp/shop" "$runner_temp/tdk-cold-start" "$runner_temp/smoke-records" "$runner_temp/tdk-byo-python-boot"
+  set -- "$runner_temp/flisk-e2e" "$runner_temp/shop" "$runner_temp/flisk-cold-start" "$runner_temp/smoke-records" "$runner_temp/flisk-byo-python-boot"
 fi
 
 budget=$((20 * 1024 * 1024))
@@ -85,7 +85,7 @@ if command -v flisk >/dev/null 2>&1; then
   flisk doctor --json 2>&1 | tail -n 500 > "$work/doctor" || true
   redact < "$work/doctor" > "$work/doctor.redacted" && commit "$work/doctor.redacted" logs/flisk-doctor.json
   flisk status --json 2>&1 | tail -n 500 > "$work/status" || true
-  redact < "$work/status" > "$work/status.redacted" && commit "$work/status.redacted" logs/tdk-status.json
+  redact < "$work/status" > "$work/status.redacted" && commit "$work/status.redacted" logs/flisk-status.json
 fi
 
 # Source directories: logs are tailed; generated project files are copied up to a size cap. .env files and dependency
@@ -113,7 +113,7 @@ for dir in "$@"; do
     esac
     redact < "$work/src" > "$work/src.redacted"
     commit "$work/src.redacted" "generated/$safe"
-  done < <(find "$dir" \( -name node_modules -o -name .git -o -name .tdk-cache \) -prune -o -type f \
+  done < <(find "$dir" \( -name node_modules -o -name .git -o -name .flisk-cache \) -prune -o -type f \
     \( -name '*.log' -o -name '*.out' -o -name '*.json' -o -name '*.yml' -o -name '*.yaml' -o -name 'Tiltfile' -o -name '*.star' -o -name '*.md' \) \
     ! -name '.env*' ! -name '*.env' -print 2>/dev/null)
 done

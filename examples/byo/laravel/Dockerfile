@@ -11,5 +11,5 @@ RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app
 USER app
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD php -r "exit(@fsockopen('127.0.0.1', ${PORT:-8000}) ? 0 : 1);"
 # create-project already wrote .env with an APP_KEY and created database/database.sqlite.
-# artisan serve must listen beyond loopback (--host) and on the port TDK assigns.
+# artisan serve must listen beyond loopback (--host) and on the port Flisk assigns.
 CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]

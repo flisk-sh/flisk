@@ -9,7 +9,7 @@
 大切なプロジェクトではなく、空のディレクトリで作業してください。
 
 ```bash
-mkdir /tmp/tdk-bugs && cd /tmp/tdk-bugs
+mkdir /tmp/flisk-bugs && cd /tmp/flisk-bugs
 flisk --version
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
@@ -121,7 +121,7 @@ mkdir demo && cd demo && flisk project --yes
 
 確認したことと、確認していないことを明記してください。"Docker がここで起動していないため `flisk up` は実行できませんでした。URL は `--dry-run` で確認しました" のような説明は役に立ちます。推測を事実のように書かないでください。
 
-原因や修正が分からなくても報告できます。自分で修正する場合は、issue に `I'll take this` とコメントし、[CLI の手順](../02-feature-recipes.md#change-a-cli-command)に従ってください。セキュリティ上の問題は公開 issue ではなく [SECURITY.md](../../../SECURITY.md) に報告してください。
+原因や修正が分からなくても報告できます。自分で修正する場合は、issue に `I'll take this` とコメントし、[CLI の手順](../02-feature-recipes.md#change-a-cli-command)に従ってください。セキュリティ上の問題は公開 issue ではなく [SECURITY.md](../../../.github/SECURITY.md) に報告してください。
 
 ---
 

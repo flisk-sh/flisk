@@ -15,7 +15,7 @@
 #
 # e2e_init sets (environment overrides in brackets):
 #   REPO_ROOT, E2E_LIB    the repository root and this directory
-#   SUITE_ROOT            scratch space for the suite: $E2E_ROOT/<suite> [E2E_ROOT, default $RUNNER_TEMP/tdk-e2e or $TMPDIR/tdk-e2e]
+#   SUITE_ROOT            scratch space for the suite: $E2E_ROOT/<suite> [E2E_ROOT, default $RUNNER_TEMP/flisk-e2e or $TMPDIR/flisk-e2e]
 #   PROJECT, DIR          the scratch project's name [E2E_PROJECT] and directory ($SUITE_ROOT/$PROJECT)
 #   OUT                   stdout/stderr of every `run`, one file per name
 #   ARTIFACTS             where `diagnostics` writes [E2E_ARTIFACTS, default $SUITE_ROOT/artifacts]
@@ -29,7 +29,7 @@ REPO_ROOT="$(cd "$E2E_LIB/../../.." && pwd)"
 
 e2e_init() { # <suite> <default project name>
   SUITE_NAME="$1"
-  SUITE_ROOT="${E2E_ROOT:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/tdk-e2e}/$SUITE_NAME"
+  SUITE_ROOT="${E2E_ROOT:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/flisk-e2e}/$SUITE_NAME"
   PROJECT="${E2E_PROJECT:-$2}"
   DIR="$SUITE_ROOT/$PROJECT"
   OUT="$SUITE_ROOT/out"
@@ -137,15 +137,15 @@ traefik_request_ok() {
 direct() { curl -sS --max-time 20 "$@"; } # <curl args...> <url>
 
 # with_stub <port> <mode> [args...]: start tests/e2e/lib/stub.mjs on 127.0.0.1:<port> and point the CLI at it through
-# TDK_SERVICE_BASE_URL, so a case can make the "agent" hang, stall or answer anything. stop_stub undoes both.
+# FLISK_SERVICE_BASE_URL, so a case can make the "agent" hang, stall or answer anything. stop_stub undoes both.
 with_stub() {
   local port="$1"; shift
   node "$E2E_LIB/stub.mjs" "$1" "$port" "${@:2}" >"$OUT/stub.log" 2>&1 &
   STUB_PID=$!
   poll_until "stub to listen on $port" 20 grep -q listening "$OUT/stub.log"
-  export TDK_SERVICE_BASE_URL="http://127.0.0.1:$port"
+  export FLISK_SERVICE_BASE_URL="http://127.0.0.1:$port"
 }
-stop_stub() { unset TDK_SERVICE_BASE_URL; kill "$STUB_PID" 2>/dev/null || true; wait "$STUB_PID" 2>/dev/null || true; }
+stop_stub() { unset FLISK_SERVICE_BASE_URL; kill "$STUB_PID" 2>/dev/null || true; wait "$STUB_PID" 2>/dev/null || true; }
 
 # ------------------------------------------------------------------------------------------------------------- MCP
 
@@ -167,8 +167,8 @@ e2e_diagnostics() {
   mkdir -p "$ARTIFACTS"
   [ -d "$DIR" ] && (
     cd "$DIR"
-    flisk status --json >"$ARTIFACTS/tdk-status.json" 2>&1 || true
-    flisk logs --json >"$ARTIFACTS/tdk-logs.json" 2>&1 || true
+    flisk status --json >"$ARTIFACTS/flisk-status.json" 2>&1 || true
+    flisk logs --json >"$ARTIFACTS/flisk-logs.json" 2>&1 || true
     cp up.log "$ARTIFACTS/up.log" 2>/dev/null || true
   )
   docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' >"$ARTIFACTS/docker-ps.txt" 2>&1 || true

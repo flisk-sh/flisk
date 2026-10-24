@@ -6,6 +6,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly ROOT_DIR
+# shellcheck source=lib/runtime-layout.sh
+source "${ROOT_DIR}/scripts/lib/runtime-layout.sh"
 readonly RELEASE_REPOSITORY="flisk-sh/releases"
 VERSION="$(node -p "require('${ROOT_DIR}/cli/package.json').version")"
 readonly VERSION
@@ -45,25 +47,25 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
 
   # A compiled binary has no import.meta.dirname to walk up from, so it can't
   # find engine/ the way a source checkout can. template-engine.ts checks
-  # exeDir/tdk-cli as a candidate - bundle the free engine (and the Handlebars
+  # exeDir/flisk-cli as a candidate - bundle the free engine (and the Handlebars
   # templates loadTemplate() reads at module init) there so a standalone binary
   # works the same as `flisk` cloned from source.
-  mkdir -p "${RELEASE_DIR}/tdk-cli"
-  cp "${ROOT_DIR}/Tiltfile" "${RELEASE_DIR}/tdk-cli/Tiltfile"
-  cp -R "${ROOT_DIR}/engine" "${RELEASE_DIR}/tdk-cli/engine"
-  cp -R "${ROOT_DIR}/discovery" "${RELEASE_DIR}/tdk-cli/discovery"
-  cp -R "${ROOT_DIR}/specs" "${RELEASE_DIR}/tdk-cli/specs"
-  cp -R "${ROOT_DIR}/ext" "${RELEASE_DIR}/tdk-cli/ext"
-  mkdir -p "${RELEASE_DIR}/tdk-cli/cli"
-  cp -R "${ROOT_DIR}/cli/templates" "${RELEASE_DIR}/tdk-cli/cli/templates"
+  mkdir -p "${RELEASE_DIR}/flisk-cli"
+  cp "${ROOT_DIR}/Tiltfile" "${RELEASE_DIR}/flisk-cli/Tiltfile"
+  cp -R "$(runtime_src_dir "${ROOT_DIR}" engine)" "${RELEASE_DIR}/flisk-cli/engine"
+  cp -R "$(runtime_src_dir "${ROOT_DIR}" discovery)" "${RELEASE_DIR}/flisk-cli/discovery"
+  cp -R "$(runtime_src_dir "${ROOT_DIR}" specs)" "${RELEASE_DIR}/flisk-cli/specs"
+  cp -R "$(runtime_src_dir "${ROOT_DIR}" ext)" "${RELEASE_DIR}/flisk-cli/ext"
+  mkdir -p "${RELEASE_DIR}/flisk-cli/cli"
+  cp -R "${ROOT_DIR}/cli/templates" "${RELEASE_DIR}/flisk-cli/cli/templates"
   # `flisk project` copies these into every project; generated Dockerfiles run them.
-  mkdir -p "${RELEASE_DIR}/tdk-cli/shared-platform-engineering"
+  mkdir -p "${RELEASE_DIR}/flisk-cli/shared-platform-engineering"
   cp -R "${ROOT_DIR}/shared-platform-engineering/docker-templates" \
-    "${RELEASE_DIR}/tdk-cli/shared-platform-engineering/docker-templates"
+    "${RELEASE_DIR}/flisk-cli/shared-platform-engineering/docker-templates"
 
   # Smoke-test the binary for this machine the way users install it (binary with
-  # tdk-cli/ next to it): `flisk project` must find the engine and runtime assets.
-  host_binary="tdk-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+  # flisk-cli/ next to it): `flisk project` must find the engine and runtime assets.
+  host_binary="flisk-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
   if [ -x "${RELEASE_DIR}/${host_binary}" ]; then
     smoke_dir="$(mktemp -d)"
     smoke_log="$(cd "${smoke_dir}" && "${RELEASE_DIR}/${host_binary}" project --yes </dev/null 2>&1)" || {
@@ -85,15 +87,15 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
     # Fixed filename (no version/tag in the name) so install.sh can always
     # find it via the stable /releases/latest/download/ URL, unlike the zip
     # below whose name embeds the tag and changes every release.
-    tar -czf tdk-cli-engine.tar.gz tdk-cli
+    tar -czf tdk-cli-engine.tar.gz flisk-cli
     # install.sh and `flisk upgrade` verify the binary and the engine tarball
     # against this file before installing them.
     shasum -a 256 tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
       tdk-windows-amd64.exe \
       tdk-cli-engine.tar.gz > checksums.txt
-    zip -qr "tdk-cli-${RELEASE_TAG}-binaries.zip" \
+    zip -qr "flisk-cli-${RELEASE_TAG}-binaries.zip" \
       tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 tdk-windows-amd64.exe \
-      tdk-cli checksums.txt
+      flisk-cli checksums.txt
   )
 
 fi
@@ -107,7 +109,7 @@ validate_release_assets() {
     tdk-windows-amd64.exe
     tdk-cli-engine.tar.gz
     checksums.txt
-    "tdk-cli-${RELEASE_TAG}-binaries.zip"
+    "flisk-cli-${RELEASE_TAG}-binaries.zip"
   )
   local asset
 
@@ -141,7 +143,7 @@ validate_release_assets() {
   )
 
   local zip_contents
-  zip_contents="$(unzip -Z1 "${RELEASE_DIR}/tdk-cli-${RELEASE_TAG}-binaries.zip")"
+  zip_contents="$(unzip -Z1 "${RELEASE_DIR}/flisk-cli-${RELEASE_TAG}-binaries.zip")"
   for asset in \
     tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
     tdk-windows-amd64.exe checksums.txt; do
@@ -150,8 +152,8 @@ validate_release_assets() {
       return 1
     fi
   done
-  if ! grep -Eq '^tdk-cli/' <<<"${zip_contents}"; then
-    echo "Binary ZIP is missing the tdk-cli/ engine directory" >&2
+  if ! grep -Eq '^flisk-cli/' <<<"${zip_contents}"; then
+    echo "Binary ZIP is missing the flisk-cli/ engine directory" >&2
     return 1
   fi
 }
@@ -169,7 +171,7 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
-# Upload actual files only - tdk-cli/ is a directory (the bundled engine),
+# Upload actual files only - flisk-cli/ is a directory (the bundled engine),
 # already packed inside the zip, and `gh release upload` can't take a
 # directory as an asset.
 readonly ASSETS=(
@@ -179,13 +181,13 @@ readonly ASSETS=(
   "${RELEASE_DIR}/tdk-darwin-arm64"
   "${RELEASE_DIR}/tdk-windows-amd64.exe"
   "${RELEASE_DIR}/checksums.txt"
-  "${RELEASE_DIR}/tdk-cli-${RELEASE_TAG}-binaries.zip"
+  "${RELEASE_DIR}/flisk-cli-${RELEASE_TAG}-binaries.zip"
   "${RELEASE_DIR}/tdk-cli-engine.tar.gz"
 )
 
 # Never mark a release latest until every asset is uploaded. `gh release create
 # --latest FILE...` publishes the tag first, then uploads binaries, so
-# /releases/latest/download/tdk-* 404s for a few minutes (install.sh hits this).
+# /releases/latest/download/flisk-* 404s for a few minutes (install.sh hits this).
 if existing_release_draft="$(gh release view "${RELEASE_TAG}" --repo "${RELEASE_REPOSITORY}" --json isDraft --jq '.isDraft' 2>/dev/null)"; then
   if [[ "${existing_release_draft}" != "true" ]]; then
     echo "Refusing to overwrite published release ${RELEASE_TAG}; published assets may already be in use" >&2
@@ -272,7 +274,7 @@ trap 'rm -rf "${verify_dir}"' EXIT
 for asset in \
   tdk-linux-amd64 tdk-linux-arm64 tdk-darwin-amd64 tdk-darwin-arm64 \
   tdk-windows-amd64.exe tdk-cli-engine.tar.gz checksums.txt \
-  "tdk-cli-${RELEASE_TAG}-binaries.zip"; do
+  "flisk-cli-${RELEASE_TAG}-binaries.zip"; do
   if ! grep -Fxq "${asset}" <<<"${remote_assets}"; then
     echo "Published release is missing required asset: ${asset}" >&2
     exit 1

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Ajv from "ajv";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { repoRoot, runTdk } from "./project-e2e-helpers.js";
+import { repoRoot, runFlisk } from "./project-e2e-helpers.js";
 
 const schema = JSON.parse(
   readFileSync(join(repoRoot, "engine", "schemas", "project-schema.json"), "utf-8"),
@@ -19,9 +19,9 @@ describe("project-schema.json", () => {
   let defaults: Record<string, unknown> = {};
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-project-schema-"));
-    runTdk(["project", "--yes"], projectRoot);
-    defaults = JSON.parse(readFileSync(join(projectRoot, ".tdk", "project.json"), "utf-8"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-project-schema-"));
+    runFlisk(["project", "--yes"], projectRoot);
+    defaults = JSON.parse(readFileSync(join(projectRoot, ".flisk", "project.json"), "utf-8"));
   }, 30000);
 
   afterAll(() => {
@@ -33,7 +33,7 @@ describe("project-schema.json", () => {
     return { valid, errors: validateProject.errors ?? [] };
   };
 
-  it("accepts the default .tdk/project.json that flisk project writes", () => {
+  it("accepts the default .flisk/project.json that flisk project writes", () => {
     const { valid, errors } = validate(defaults);
     expect(errors).toEqual([]);
     expect(valid).toBe(true);
@@ -55,18 +55,18 @@ describe("project-schema.json", () => {
   });
 
   it.each([["abc"], ["1.3"], ["v1.3.80"], ["1.3.80-beta"]])(
-    "rejects minTdkVersion %s with a pattern error",
-    (minTdkVersion) => {
-      const { valid, errors } = validate({ ...defaults, minTdkVersion });
+    "rejects minFliskVersion %s with a pattern error",
+    (minFliskVersion) => {
+      const { valid, errors } = validate({ ...defaults, minFliskVersion });
 
       expect(valid).toBe(false);
       expect(errors).toEqual([
-        expect.objectContaining({ keyword: "pattern", instancePath: "/minTdkVersion" }),
+        expect.objectContaining({ keyword: "pattern", instancePath: "/minFliskVersion" }),
       ]);
     },
   );
 
-  it("accepts a MAJOR.MINOR.PATCH minTdkVersion", () => {
-    expect(validate({ ...defaults, minTdkVersion: "1.3.80" }).valid).toBe(true);
+  it("accepts a MAJOR.MINOR.PATCH minFliskVersion", () => {
+    expect(validate({ ...defaults, minFliskVersion: "1.3.80" }).valid).toBe(true);
   });
 });

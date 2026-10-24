@@ -1,0 +1,248 @@
+#!/bin/sh
+# Copyright (c) 2026 Flisk Landscape contributors
+# SPDX-License-Identifier: MIT
+#
+# Times `flisk up` on a Flisk project: one cold run (built images and build cache removed first) and
+# N warm runs. A run is timed until every Tilt resource is idle and the expected containers are
+# healthy, or until 30 minutes pass. Every run records an outcome; a run that could not establish
+# its starting state is recorded as failed and is not timed. scripts/benchmark/summarize-flisk-up.mjs
+# turns the run directory into the tables and chart in docs/benchmarks/results/.
+#
+# Usage:
+#   scripts/benchmark/flisk-up-warm-start.sh --project <dir> --out <dir> [--cold-runs 1] [--warm-runs 3]
+#                                          [--port 10350] [--healthy 8] [--sample-vm]
+#
+# --cold-runs 0 skips the cold run. --sample-vm records the Docker VM processes' memory every 3 seconds
+# (macOS process names; elsewhere the samples are empty and the summary says so).
+#
+# Side effects: a cold run removes the project's built images (its golden layers and its service
+# images, matched by exact name) and runs `docker builder prune -af`, which clears the build cache for
+# every project on the machine. Every run starts with `flisk down` in the project.
+
+set -eu
+
+project=""
+out=""
+cold_runs=1
+warm_runs=3
+port=10350
+healthy=8
+sample_vm=0
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --project) project="$2"; shift 2 ;;
+    --out) out="$2"; shift 2 ;;
+    --cold-runs) cold_runs="$2"; shift 2 ;;
+    --warm-runs) warm_runs="$2"; shift 2 ;;
+    --port) port="$2"; shift 2 ;;
+    --healthy) healthy="$2"; shift 2 ;;
+    --sample-vm) sample_vm=1; shift ;;
+    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+    *) echo "unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+
+[ -n "$project" ] || { echo "--project is required" >&2; exit 2; }
+[ -n "$out" ] || { echo "--out is required" >&2; exit 2; }
+for tool in flisk tilt docker jq node; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required on PATH" >&2; exit 2; }
+done
+
+here="$(cd "$(dirname "$0")" && pwd)"
+expected=""
+durations="$here/tilt-build-durations.mjs"
+project="$(cd "$project" && pwd)"
+# Container and image names come from the project's name in .flisk/project.json, not from its directory name:
+# a checkout into "restaurant" still runs as "tdk-restaurant-example". Fall back to the directory name.
+slug="$(jq -r '.project.name // empty' "$project/.flisk/project.json" 2>/dev/null || true)"
+[ -n "$slug" ] || slug="$(basename "$project")"
+slug_us="$(printf '%s' "$slug" | tr '-' '_')"
+slug_re="$(printf '%s' "$slug" | sed 's/[][\.*^$+?(){}|/-]/\\&/g')"
+mkdir -p "$out"
+out="$(cd "$out" && pwd)"
+expected="$out/expected-containers.txt"
+
+# Preflight: fail fast if the project or tools look wrong, before any long flisk up.
+preflight() {
+  echo "=== preflight ==="
+  echo "flisk: $(flisk --version 2>/dev/null || echo MISSING)"
+  echo "tilt: $(tilt version 2>/dev/null | head -1 || echo MISSING)"
+  echo "docker: $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo MISSING)"
+  docker info >/dev/null 2>&1 || { echo "FAIL: docker daemon not responding" >&2; exit 1; }
+  [ -f "$project/.flisk/project.json" ] || { echo "FAIL: missing $project/.flisk/project.json" >&2; exit 1; }
+  [ -d "$project/services" ] || { echo "FAIL: missing $project/services" >&2; exit 1; }
+  expected_containers > "$expected"
+  expected_count=$(wc -l < "$expected" | tr -d ' ')
+  echo "project: $slug"
+  echo "expected containers ($expected_count):"
+  sed 's/^/  /' "$expected"
+  if [ "$expected_count" -lt "$healthy" ]; then
+    echo "FAIL: --healthy $healthy is higher than the $expected_count expected containers" >&2
+    exit 1
+  fi
+  echo "preflight OK (healthy target $healthy of $expected_count containers)"
+}
+
+settled() {
+  # Settled: at least one resource was loaded; no blocking resource is in progress, pending or in error; and at
+  # least the expected number of this project's containers (exact names, see expected_containers) are ready: healthy, or running
+  # with no healthcheck. Workers get no healthcheck by design (engine compose.star: an HTTP probe would mark a healthy worker
+  # unhealthy forever), so a running worker counts as ready.
+  # Frontend typechecks are deliberately non-blocking local resources and can outlast app startup.
+  state=$(tilt get uiresources --port "$port" -o json 2>/dev/null) || state=""
+  busy=$(printf '%s' "$state" | jq '[.items[] | select((.metadata.name | endswith("-typecheck") | not) and (.status.updateStatus=="in_progress" or .status.updateStatus=="pending" or .status.updateStatus=="error"))] | length' 2>/dev/null || echo 1)
+  loaded=$(printf '%s' "$state" | jq '.items | length' 2>/dev/null || echo 0)
+  ok=$(docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want) && (/\(healthy\)/ || (/ Up / && !/health:/)) { c++ } END { print c + 0 }')
+  [ "${busy:-1}" = "0" ] && [ "${loaded:-0}" -gt 0 ] && [ "${ok:-0}" -ge "$healthy" ]
+}
+
+# Snapshot used by the progress line (does not affect the settled() decision).
+# Prints a ready-to-use fragment: busy=N healthy=N/N busy_names=...
+progress_snapshot() {
+  state=$(tilt get uiresources --port "$port" -o json 2>/dev/null) || state=""
+  busy=$(printf '%s' "$state" | jq -r '[.items[] | select((.metadata.name | endswith("-typecheck") | not) and (.status.updateStatus=="in_progress" or .status.updateStatus=="pending" or .status.updateStatus=="error")) | .metadata.name] | join(",")' 2>/dev/null || echo "")
+  if [ -z "$busy" ]; then
+    busy_count=0
+    busy_short="none"
+  else
+    busy_count=$(printf '%s' "$busy" | awk -F, '{print NF}')
+    busy_short=$(printf '%s' "$busy" | cut -c1-120)
+  fi
+  ok=$(docker ps --format '{{.Names}} {{.Status}}' 2>/dev/null | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want) && (/\(healthy\)/ || (/ Up / && !/health:/)) { c++ } END { print c + 0 }')
+  printf 'busy=%s healthy=%s/%s busy_names=%s' "${busy_count}" "${ok:-0}" "$healthy" "$busy_short"
+}
+
+vm_memory_mib() {
+  # Docker's VM processes on macOS: the Virtualization XPC service and Docker's own processes, resident memory summed.
+  ps -axo rss=,command= | awk '/Virtualization.framework.*XPCServices.*Virtualization|com\.docker\.(backend|build|virtualization)/ && !/awk/ {s+=$1} END {printf "%d", s/1024}'
+}
+
+project_services() {
+  # "<stack> <service>" for each services/<stack>/<service> directory of the project.
+  (cd "$project" && for service_dir in services/*/*/; do
+    [ -d "$service_dir" ] || continue
+    printf '%s %s\n' "$(basename "$(dirname "$service_dir")")" "$(basename "$service_dir")"
+  done)
+}
+
+project_repositories() {
+  # The exact image repositories this project builds: its golden layers (<slug>-l<n>[-<name>]) and its
+  # service images (<slug_us>_<stack>_<service>). Nothing else is matched; cold_cleanup matches the golden pattern.
+  project_services | while read -r stack service; do
+    printf '%s_%s_%s\n' "$slug_us" "$stack" "$service"
+  done
+}
+
+expected_containers() {
+  # The exact container names this project starts: one per service (<slug>-<stack>-autogenerated-<service>-1)
+  # and the shared Traefik and Postgres containers (<slug_us>_traefik, <slug_us>_postgres).
+  project_services | while read -r stack service; do
+    printf '%s-%s-autogenerated-%s-1\n' "$slug" "$stack" "$service"
+  done
+  printf '%s_traefik\n%s_postgres\n' "$slug_us" "$slug_us"
+}
+
+cold_cleanup() {
+  # Returns non-zero when the cleanup could not finish, so the run is recorded as failed.
+  list="$1"
+  ids=$(docker images --format '{{.Repository}}	{{.ID}}' \
+    | awk -F'\t' -v L="$list" -v R="$slug_re" 'BEGIN { while ((getline r < L) > 0) want[r] = 1 } ($1 in want) || ($1 ~ ("^" R "-l[0-9]+(-[a-z-]+)?$")) { print $2 }' \
+    | sort -u)
+  if [ -n "$ids" ]; then
+    # shellcheck disable=SC2086
+    docker rmi -f $ids >/dev/null 2>&1 || return 1
+  fi
+  docker builder prune -af >/dev/null 2>&1 || return 1
+}
+
+run_once() {
+  name="$1"; kind="$2"
+  dir="$out/$name"; mkdir -p "$dir"
+  started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  write_run() {
+    printf 'name=%s\nkind=%s\noutcome=%s\nwall_seconds=%s\nhealthy_expected=%s\nhealthy_seen=%s\nport=%s\nstarted=%s\n' \
+      "$name" "$kind" "$1" "$2" "$healthy" "$(grep -c '(healthy)' "$dir/containers.txt" 2>/dev/null || true)" "$port" "$started_at" > "$dir/run.txt"
+  }
+  : > "$dir/containers.txt"
+  expected_containers > "$expected"
+
+  echo "$name: starting ($kind)"
+  if ! (cd "$project" && flisk down > "$dir/down.log" 2>&1); then
+    write_run down_failed 0
+    echo "$name: flisk down failed; not timed (see $dir/down.log)" >&2
+    return 0
+  fi
+  if [ "$kind" = cold ]; then
+    echo "$name: cold cleanup (removing images and build cache)"
+    project_repositories > "$dir/repositories.txt"
+    if ! cold_cleanup "$dir/repositories.txt" > "$dir/cleanup.log" 2>&1; then
+      write_run cleanup_failed 0
+      echo "$name: cold cleanup failed; not timed (see $dir/cleanup.log)" >&2
+      return 0
+    fi
+  fi
+
+  : > "$dir/vm-samples.txt"
+  start=$(date +%s)
+  (cd "$project" && flisk up > "$dir/up.log" 2>&1) &
+  waited=0
+  outcome=timeout
+  # Progress every ~30 s so a long run is not silent.
+  progress_every=30
+  while :; do
+    if [ "$sample_vm" = 1 ]; then
+      echo "$(date +%T) $(vm_memory_mib)" >> "$dir/vm-samples.txt"
+    fi
+    if settled; then outcome=settled; break; fi
+    if [ "$waited" -ge 1800 ]; then break; fi
+    if [ $((waited % progress_every)) -eq 0 ] && [ "$waited" -gt 0 ]; then
+      echo "$name: still waiting (${waited}s) $(progress_snapshot)"
+      if [ -s "$dir/up.log" ]; then
+        echo "$name: recent flisk up output:"
+        tail -n 5 "$dir/up.log" | sed 's/^/  /'
+      fi
+    fi
+    sleep 3; waited=$((waited + 3))
+  done
+  end=$(date +%s)
+  wall=$((end - start))
+  echo "$wall" > "$dir/wall-seconds.txt"
+  node "$durations" --port "$port" > "$dir/durations.txt" 2>&1 || true
+  tilt logs golden-layers-build --port "$port" > "$dir/golden.log" 2>&1 || true
+  docker ps --format '{{.Names}} {{.Status}}' | awk -v L="$expected" 'BEGIN { while ((getline n < L) > 0) want[n] = 1 } ($1 in want)' > "$dir/containers.txt" || true
+  write_run "$outcome" "$wall"
+  echo "$name: $outcome after $wall s"
+  [ "$outcome" = settled ] || return 1
+}
+
+{
+  echo "flisk: $(flisk --version 2>/dev/null || echo unknown)"
+  echo "tilt: $(tilt version 2>/dev/null | head -1)"
+  echo "docker: $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo unknown)"
+  echo "node: $(node -v)"
+  echo "os: $(uname -s) $(uname -r) $(uname -m)"
+  echo "cpus: $(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo unknown)"
+  echo "memory_bytes: $(sysctl -n hw.memsize 2>/dev/null || echo unknown)"
+  echo "project: $slug"
+  echo "healthy_expected: $healthy"
+  echo "sample_vm: $sample_vm"
+} > "$out/environment.txt"
+
+preflight
+
+failed=0
+i=1
+while [ "$i" -le "$cold_runs" ]; do
+  run_once "cold-$i" cold || failed=1
+  i=$((i + 1))
+done
+i=1
+while [ "$i" -le "$warm_runs" ]; do
+  run_once "warm-$i" warm || failed=1
+  i=$((i + 1))
+done
+(cd "$project" && flisk down > "$out/final-down.log" 2>&1) || true
+
+node "$here/summarize-flisk-up.mjs" "$out" || true
+exit "$failed"

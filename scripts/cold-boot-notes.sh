@@ -5,8 +5,8 @@ set -euo pipefail
 
 project_root="$(cd "${1:-.}" && pwd)"
 stack="${2:-shop}"
-if [[ ! -f "$project_root/.tdk/project.json" ]]; then
-  echo "Run this script from a Flisk project containing .tdk/project.json." >&2
+if [[ ! -f "$project_root/.flisk/project.json" ]]; then
+  echo "Run this script from a Flisk project containing .flisk/project.json." >&2
   exit 2
 fi
 if ! command -v flisk >/dev/null 2>&1; then
@@ -18,7 +18,7 @@ results_dir="$project_root/cold-boot-results"
 mkdir -p "$results_dir"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 record="$results_dir/shop-cold-boot-$timestamp.md"
-run_dir="$(mktemp -d "${TMPDIR:-/tmp}/tdk-cold-boot.XXXXXX")"
+run_dir="$(mktemp -d "${TMPDIR:-/tmp}/flisk-cold-boot.XXXXXX")"
 up_pid=""
 
 # Invoked indirectly by the EXIT, INT, and TERM traps below.
@@ -44,7 +44,7 @@ run_checked_version() {
 
 commit="$(git -C "$project_root" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 os="$(uname -srm)"
-tdk_version="$(flisk --version 2>&1 | head -n 1 || true)"
+flisk_version="$(flisk --version 2>&1 | head -n 1 || true)"
 docker_version="$(run_checked_version 'docker version --format {{.Server.Version}}')"
 compose_version="$(run_checked_version 'docker compose version --short')"
 tilt_version="$(run_checked_version 'tilt version')"
@@ -57,7 +57,7 @@ bun_version="$(run_checked_version 'bun --version')"
   echo "- Stack: \`$stack\`"
   echo "- Commit: \`$commit\`"
   echo "- OS / architecture: \`$os\`"
-  echo "- Flisk: \`$tdk_version\`"
+  echo "- Flisk: \`$flisk_version\`"
   echo "- Docker Engine: \`$docker_version\`"
   echo "- Docker Compose: \`$compose_version\`"
   echo "- Tilt: \`$tilt_version\`"

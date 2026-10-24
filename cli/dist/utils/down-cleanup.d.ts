@@ -6,9 +6,9 @@ export declare function projectNetworkNames(projectName: string): string[];
  * `backend` also occur in non-Flisk compose projects, so a prefix counts only if it has a Traefik network, which
  * only Flisk creates.
  */
-export declare function tdkNetworkPrefixes(networkNames: string[]): Set<string>;
+export declare function fliskNetworkPrefixes(networkNames: string[]): Set<string>;
 /** The Flisk project prefix a network belongs to (`umami` for `umami_backend`), or null. */
-export declare function tdkNetworkOwner(name: string, prefixes: Set<string>): string | null;
+export declare function fliskNetworkOwner(name: string, prefixes: Set<string>): string | null;
 export interface PruneNetworksResult {
     removed: string[];
     /** Networks that exist but Docker refused to remove, usually because a container is still attached. */

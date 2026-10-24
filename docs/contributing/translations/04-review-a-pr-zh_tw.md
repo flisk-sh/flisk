@@ -23,18 +23,18 @@
 
 **我們如何運作**
 
-- [ ] [貢獻指南](../../../CONTRIBUTING.md)：標籤、issue 認領和 DCO 簽署。
+- [ ] [貢獻指南](../../../.github/CONTRIBUTING.md)：標籤、issue 認領和 DCO 簽署。
 - [ ] [1. 準備進行改動](01-first-change-zh_tw.md)：何時需要 OpenSpec 提案。
 - [ ] [2. 各類改動的指南](02-feature-recipes-zh_tw.md)：程式碼位於何處，以及每種改動需要哪些檢查。
 - [ ] [3. 提交 pull request](03-open-a-pr-zh_tw.md)：一個好的 PR 應包含什麼，包括前後對比的證據。
 
 **所有人都遵守的規則**
 
-- [ ] [行為準則](../../../CODE_OF_CONDUCT.md)：在審查中如何彼此溝通。
-- [ ] [安全政策](../../../SECURITY.md)：私下回報安全問題，切勿在 PR 留言中回報。
-- [ ] [治理](../../../GOVERNANCE.md)和[維護者](../../../MAINTAINERS.md)：誰做決定，誰負責合併。
+- [ ] [行為準則](../../../.github/CODE_OF_CONDUCT.md)：在審查中如何彼此溝通。
+- [ ] [安全政策](../../../.github/SECURITY.md)：私下回報安全問題，切勿在 PR 留言中回報。
+- [ ] [治理](../../project/GOVERNANCE.md)和[維護者](../../project/MAINTAINERS.md)：誰做決定，誰負責合併。
 
-然後試一次：執行[快速設定](../../../CONTRIBUTING.md#quick-setup)，這樣你就可以檢出 PR 並自己執行其檢查。
+然後試一次：執行[快速設定](../../../.github/CONTRIBUTING.md#quick-setup)，這樣你就可以檢出 PR 並自己執行其檢查。
 
 ## 簡要步驟
 
@@ -170,7 +170,7 @@ Everything else looks good. Happy to re-review once these are in.
 - 對小問題加上 `nit:` 或 `optional:` 標記，讓作者知道它們不會阻擋合併。
 - 審查程式碼，而不是評判人。
 
-每則留言都要遵守[行為準則](../../../CODE_OF_CONDUCT.md)。
+每則留言都要遵守[行為準則](../../../.github/CODE_OF_CONDUCT.md)。
 
 ## 透過終端機（選用）
 
@@ -196,4 +196,4 @@ gh pr review 123 --request-changes --body "The new flag is never passed to the g
 
 - 任何人都可以留言、核准或要求修改。每一次審查都能幫助維護者更快做出決定。
 - 你不能核准自己的 PR。
-- 只有[維護者](../../../MAINTAINERS.md)可以合併。在合併之前，他們會檢查審查情況，以及必要的檢查是否通過。
+- 只有[維護者](../../project/MAINTAINERS.md)可以合併。在合併之前，他們會檢查審查情況，以及必要的檢查是否通過。

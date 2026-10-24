@@ -91,7 +91,7 @@
 "area: benchmarks":
   - changed-files:
       - any-glob-to-any-file:
-          - "benchmarks/**"
+          - "docs/benchmarks/**"
           - "scripts/benchmark/**"
 
 "area: platform":
@@ -120,7 +120,7 @@ documentation:
       - any-glob-to-any-file:
           - "docs/**"
           - "README*"
-          - "CONTRIBUTING.md"
+          - ".github/CONTRIBUTING.md"
           - "CHANGELOG.md"
           - "cli/README.md"
           - "engine/README.md"
@@ -133,7 +133,7 @@ guide:
           - "docs/frontend-framework-providers.md"
           - "engine/docs/**"
           - "cli/README.md"
-          - "CONTRIBUTING.md"
+          - ".github/CONTRIBUTING.md"
 
 agents:
   - changed-files:
@@ -154,8 +154,8 @@ dx:
 community:
   - changed-files:
       - any-glob-to-any-file:
-          - "CODE_OF_CONDUCT.md"
-          - "SECURITY.md"
+          - ".github/CODE_OF_CONDUCT.md"
+          - ".github/SECURITY.md"
           - ".github/ISSUE_TEMPLATE/**"
 
 design:

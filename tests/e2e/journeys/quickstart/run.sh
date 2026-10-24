@@ -41,8 +41,8 @@ Q1() { # scaffold the quickstart project: a backend, a React frontend and a Vue 
   fi
   # Log what discovery will see, so a missing service is obvious here rather than 20 minutes later as a 404.
   echo "::group::scaffolded project"
-  echo "discovery paths: $(jq -c '.discovery.paths' .tdk/project.json)"
-  find . -name service.json -not -path './node_modules/*' -not -path './.tdk/*' \
+  echo "discovery paths: $(jq -c '.discovery.paths' .flisk/project.json)"
+  find . -name service.json -not -path './node_modules/*' -not -path './.flisk/*' \
     | sort | while read -r f; do echo "$f: $(jq -c '{name,type,framework,stack}' "$f")"; done
   echo "::endgroup::"
   flisk doctor
@@ -120,8 +120,8 @@ Q2() { # flisk up, then wait for every /health URL to answer through Traefik
         if [ "$missing_checks" -ge 2 ]; then
           echo "-- resources Tilt does know about:"; echo "$known"
           echo "-- discovery paths and service.json files:"
-          jq -c '.discovery.paths' .tdk/project.json
-          find . -name service.json -not -path './node_modules/*' -not -path './.tdk/*' | sort
+          jq -c '.discovery.paths' .flisk/project.json
+          find . -name service.json -not -path './node_modules/*' -not -path './.flisk/*' | sort
           die "Giving up early: Tilt never created a resource for:$missing"
         fi
       else
@@ -140,14 +140,14 @@ Q3() { # the time to a healthy stack, from flisk project --yes, recorded as a jo
   t0="$(cat "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/quickstart-t0")"
   t1="$(date +%s)"
   seconds=$((t1 - t0))
-  printf '{"metric":"time_to_healthy_stack","seconds":%d,"tdk_version":"%s","runner":"%s","start_epoch":%d,"healthy_epoch":%d,"start_cache":"cold"}\n' \
-    "$seconds" "${TDK_VERSION:-local}" "${RUNNER_OS:-$(uname -s)}" "$t0" "$t1" > "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/time-to-healthy.json"
+  printf '{"metric":"time_to_healthy_stack","seconds":%d,"flisk_version":"%s","runner":"%s","start_epoch":%d,"healthy_epoch":%d,"start_cache":"cold"}\n' \
+    "$seconds" "${FLISK_VERSION:-local}" "${RUNNER_OS:-$(uname -s)}" "$t0" "$t1" > "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/time-to-healthy.json"
   cat "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/time-to-healthy.json"
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     {
       echo "### Time to healthy stack"
       echo ""
-      echo "- flisk version: \`${TDK_VERSION:-local}\`"
+      echo "- flisk version: \`${FLISK_VERSION:-local}\`"
       echo "- \`flisk project --yes\` to every /health answering: **${seconds}s** ($((seconds / 60))m $((seconds % 60))s)"
       echo "- Cold start: no images or build cache on the runner"
     } >> "$GITHUB_STEP_SUMMARY"

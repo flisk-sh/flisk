@@ -128,7 +128,7 @@ def get_synthesis_config():
 
         # Database naming pattern: {project}_{domain}_{resource_function}
         # Example: services/product/users/user-management-backend -> {project}_user_management
-        "database_name_pattern": "TDK_{domain}_{function}",
+        "database_name_pattern": "FLISK_{domain}_{function}",
 
         # Backend name pattern for frontends: {domain}-management-backend
         "backend_name_pattern": "{domain}-management-backend",
@@ -144,7 +144,7 @@ def get_synthesis_config():
 # =============================================================================
 # DOMAIN CONFIGURATION
 # =============================================================================
-# Business stacks are defined in .tdk/project.json per project.
+# Business stacks are defined in .flisk/project.json per project.
 # This function returns an empty list - stacks are discovered dynamically.
 
 
@@ -152,7 +152,7 @@ def get_valid_stacks():
     """Return list of valid business stacks from project config.
 
     Returns:
-        list: Valid stack names (loaded from .tdk/project.json)
+        list: Valid stack names (loaded from .flisk/project.json)
     """
     # Stacks are project-specific and loaded from project.json
     # Return empty list - actual stacks discovered from filesystem
@@ -213,7 +213,7 @@ def get_valid_resource_features():
         "grpc",
         "vite-node",
         "maintenance",
-        # Premium (requires TDK_LICENSE_KEY) - see generate_backend_path_aliases()
+        # Premium (requires FLISK_LICENSE_KEY) - see generate_backend_path_aliases()
         # in engine/topologies/tilt/generators/vite/helpers.star
         "ddd",
     ]
@@ -265,7 +265,7 @@ def get_dependency_resolution_config():
 
         # Library dependency patterns (package.json prefixes)
         "library_dependency_prefixes": [
-            "@tdk/",
+            "@flisk/",
         ],
 
         # Default internal dependencies for service types

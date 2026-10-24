@@ -21,7 +21,7 @@ L1 is the root of the entire stack. Every generated service Dockerfile (`.autoge
 
 ### Where L1 is generated and built
 
-1. **Dockerfile definition:** The L1 stage is emitted into `.tdk/.tdk-out/golden-layers.Dockerfile` by [`golden_image_dockerfile.star`](../engine/topologies/platform/docker/build/golden_image_dockerfile.star):
+1. **Dockerfile definition:** The L1 stage is emitted into `.flisk/.flisk-out/golden-layers.Dockerfile` by [`golden_image_dockerfile.star`](../engine/topologies/platform/docker/build/golden_image_dockerfile.star):
    ```dockerfile
    # L1: OS BASE + RUNTIME ENVIRONMENT
    FROM oven/bun:1.3.11-alpine@sha256:7ed9f74c326d1c260abe247ac423ccbf5ac92af62bb442d515d1f92f21e8ea9b AS l1_golden
@@ -44,7 +44,7 @@ L1 is the root of the entire stack. Every generated service Dockerfile (`.autoge
 
    WORKDIR /app
    ```
-2. **Build orchestration:** The Tilt resource `golden-layers-build` (in [`golden_image_build.star`](../engine/topologies/platform/docker/build/golden_image_build.star)) builds target `l1_golden` and tags it locally as `<project>-l1:latest` (or `tdk-project-l1:latest`).
+2. **Build orchestration:** The Tilt resource `golden-layers-build` (in [`golden_image_build.star`](../engine/topologies/platform/docker/build/golden_image_build.star)) builds target `l1_golden` and tags it locally as `<project>-l1:latest` (or `flisk-project-l1:latest`).
 
 ---
 
@@ -59,7 +59,7 @@ When L1 begins building, Docker must resolve and pull the upstream base image:
 
 **Symptom:**
 ```text
-$ docker build -f .tdk/.tdk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
+$ docker build -f .flisk/.flisk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
 ERROR: Cannot connect to the Docker daemon at unix:///Users/<user>/.docker/run/docker.sock. Is the docker daemon running?
 ```
 
@@ -167,11 +167,11 @@ Flisk's golden images (`<project>-l1:latest`, `<project>-l2:latest`, `<project>-
 When starting services or building an individual service before the golden layers finish building, Docker attempts to pull the image from Docker Hub and fails:
 
 ```text
- => ERROR [internal] load metadata for docker.io/library/tdk-project-l1:latest
+ => ERROR [internal] load metadata for docker.io/library/flisk-project-l1:latest
 ------
- > [internal] load metadata for docker.io/library/tdk-project-l1:latest:
+ > [internal] load metadata for docker.io/library/flisk-project-l1:latest:
 ------
-ERROR: failed to build: failed to solve: tdk-project-l1:latest: failed to resolve source metadata for docker.io/library/tdk-project-l1:latest: pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed
+ERROR: failed to build: failed to solve: flisk-project-l1:latest: failed to resolve source metadata for docker.io/library/flisk-project-l1:latest: pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed
 ```
 
 In the Tilt web UI, the service resource turns red with:
@@ -182,7 +182,7 @@ pull access denied for docker.io/library/<project>-l1:latest
 #### Cause:
 1. **Race condition during first startup:** Tilt started compiling/building a service container before the `golden-layers-build` local resource finished producing the golden images.
 2. **Pruned Docker images:** A cleanup command such as `docker system prune -a` or `docker rmi` removed the locally built `<project>-l*` images.
-3. **Mismatched project prefix:** If `.tdk/project.json` has a different `"name"`, service Dockerfiles reference `<project>-l1:latest` while existing local images may carry another prefix.
+3. **Mismatched project prefix:** If `.flisk/project.json` has a different `"name"`, service Dockerfiles reference `<project>-l1:latest` while existing local images may carry another prefix.
 
 #### How to verify if the L1 golden image exists:
 Run:
@@ -192,16 +192,16 @@ docker image ls "*l1*"
 If the image exists, you will see output like:
 ```text
 REPOSITORY              TAG       IMAGE ID       CREATED          SIZE
-tdk-project-l1          latest    ae5f25bdb9bc   10 minutes ago   180MB
+flisk-project-l1          latest    ae5f25bdb9bc   10 minutes ago   180MB
 ```
 If nothing is returned, the L1 golden image has not been built or was deleted.
 
 #### How to rebuild the L1 golden image:
 
 - **Method 1: Force rebuild via Flisk (Recommended)**
-  Set `TDK_GOLDEN_REBUILD=1` and run `flisk up`:
+  Set `FLISK_GOLDEN_REBUILD=1` and run `flisk up`:
   ```bash
-  TDK_GOLDEN_REBUILD=1 flisk up
+  FLISK_GOLDEN_REBUILD=1 flisk up
   ```
   This tells the `golden-layers-build` Tilt resource to ignore cache hashes and rebuild all golden layers.
 
@@ -211,7 +211,7 @@ If nothing is returned, the L1 golden image has not been built or was deleted.
 - **Method 3: Build the L1 target directly with Docker (diagnostic only)**
   This isolates whether the Dockerfile itself builds. It does not run Flisk's orchestration, so it is not a full recovery: the later golden layers are not rebuilt and the hash Flisk checks is not refreshed.
   ```bash
-  docker build -f .tdk/.tdk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
+  docker build -f .flisk/.flisk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
   docker image ls "*l1*"
   ```
   Confirm the tag matches what the service Dockerfiles use, then run Method 1 or 2 so `golden-layers-build` rebuilds L2–L4 on top of it.

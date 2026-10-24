@@ -35,7 +35,7 @@ ADOPTERS.md SHALL list only teams that run flisk up on their own repositories. T
 
 #### Scenario: Fixture is offered as an adopter
 
-- **WHEN** a proposed row cites tdk-erp-system or benchmarks/results
+- **WHEN** a proposed row cites tdk-erp-system or docs/benchmarks/results
 - **THEN** the row is rejected
 
 #### Scenario: Real adopter

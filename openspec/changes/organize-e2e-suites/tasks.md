@@ -68,6 +68,6 @@
 
 ## 6. Cutover
 
-- [ ] 6.1 Maintainers switch branch protection to the single aggregate gate, enable the merge queue, and configure `TDK_LICENSE_KEY` or accept a neutral `cold-start`
+- [ ] 6.1 Maintainers switch branch protection to the single aggregate gate, enable the merge queue, and configure `FLISK_LICENSE_KEY` or accept a neutral `cold-start`
 - [ ] 6.2 Remove the compatibility check names and the old workflow files and scripts
 - [ ] 6.3 Run `openspec validate organize-e2e-suites --strict`

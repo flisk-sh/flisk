@@ -36,7 +36,7 @@ def normalize_abs_path(path):
     """Absolute path with `.`/`..` segments collapsed, or "" for "".
 
     Tilt's os.path.abspath does not collapse `..` (confirmed:
-    abspath("/a/.tdk/.tdk-out/../..") comes back unchanged), and the
+    abspath("/a/.flisk/.flisk-out/../..") comes back unchanged), and the
     generated Tiltfile's project root is exactly that shape
     (config.main_dir + "/../.."). The gateway's project mount and the compose
     paths in its route headers must match byte-for-byte, so both go through here.

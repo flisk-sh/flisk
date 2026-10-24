@@ -7,11 +7,11 @@
 ## ADDED Requirements
 
 ### Requirement: Regenerate rewrites generated files only
-`flisk config regenerate` SHALL rewrite the generated master config files from `.tdk/project.json`. It SHALL NOT change `service.json` schema versions. It SHALL NOT import a Compose file, Dockerfile, or Procfile. `--dry-run` SHALL print the diff and SHALL NOT write files.
+`flisk config regenerate` SHALL rewrite the generated master config files from `.flisk/project.json`. It SHALL NOT change `service.json` schema versions. It SHALL NOT import a Compose file, Dockerfile, or Procfile. `--dry-run` SHALL print the diff and SHALL NOT write files.
 
 #### Scenario: Regenerate after a project.json edit
 - **WHEN** the user runs `flisk config regenerate`
-- **THEN** generated master files are rewritten from `.tdk/project.json` and every `service.json` stays byte-identical
+- **THEN** generated master files are rewritten from `.flisk/project.json` and every `service.json` stays byte-identical
 
 #### Scenario: Regenerate dry-run
 - **WHEN** the user runs `flisk config regenerate --dry-run`

@@ -1,8 +1,8 @@
 ## Context
 
-Smoke records are written beneath `.tdk/smoke/<service>/<step-slug>/`. The latest response is stored in `body.txt`, and a passing response is copied to `last-success-body.txt`. That text is kept exactly as the service returned it. The repository has shared helpers in `cli/src/utils/secret-redaction.ts` (`envSecretValues()` and `redactSecrets()`), which `flisk logs` and `flisk doctor` already use, but the smoke runner does not.
+Smoke records are written beneath `.flisk/smoke/<service>/<step-slug>/`. The latest response is stored in `body.txt`, and a passing response is copied to `last-success-body.txt`. That text is kept exactly as the service returned it. The repository has shared helpers in `cli/src/utils/secret-redaction.ts` (`envSecretValues()` and `redactSecrets()`), which `flisk logs` and `flisk doctor` already use, but the smoke runner does not.
 
-`ensureGitignore()` already knows about `.tdk/smoke/`, but it is currently called only from the `flisk project` flows (`cli/src/commands/project.ts:323` and `:494`). A project that gains smoke configuration in another way can therefore write response bodies with no matching ignore entry, and `examples/tdk-example/.gitignore` has the gap today: `git check-ignore -v .tdk/smoke/orders-api/read-back/body.txt` exits 1 there, while the same check at the repository root prints `.gitignore:47:.tdk/smoke/`.
+`ensureGitignore()` already knows about `.flisk/smoke/`, but it is currently called only from the `flisk project` flows (`cli/src/commands/project.ts:323` and `:494`). A project that gains smoke configuration in another way can therefore write response bodies with no matching ignore entry, and `examples/tdk-example/.gitignore` has the gap today: `git check-ignore -v .flisk/smoke/orders-api/read-back/body.txt` exits 1 there, while the same check at the repository root prints `.gitignore:47:.flisk/smoke/`.
 
 Records intentionally survive `flisk down`. The `smoke` suite in `.github/workflows/e2e-journeys.yml` uploads them as `smoke-records-<run id>-<attempt>` with 14-day retention.
 
@@ -28,11 +28,11 @@ The same raw response text has three more sinks than the files: the failure line
 
 ### Ensure ignore protection at the record-writing path
 
-Ensure the project `.gitignore` ignores `.tdk/smoke/` before `flisk up` writes its first smoke record. Reuse `ensureGitignore()` rather than maintaining a second list of generated paths.
+Ensure the project `.gitignore` ignores `.flisk/smoke/` before `flisk up` writes its first smoke record. Reuse `ensureGitignore()` rather than maintaining a second list of generated paths.
 
 Two consequences of reusing that helper are accepted deliberately:
 
-- It adds the whole Flisk set (`.env`, `.tdk/.tdk-out/`, `.tdk/.project-id`, `.tdk/smoke/`, `node_modules/`), not only `.tdk/smoke/`. Those are the same entries `flisk project` writes, and a project that has none of them has the same problem for every one of them.
+- It adds the whole Flisk set (`.env`, `.flisk/.flisk-out/`, `.flisk/.project-id`, `.flisk/smoke/`, `node_modules/`), not only `.flisk/smoke/`. Those are the same entries `flisk project` writes, and a project that has none of them has the same problem for every one of them.
 - It creates the file when it is missing. That is noise in a directory that is not a git working tree, so the CLI only calls it when the project root or one of its ancestors holds a `.git` entry (a file in a worktree, a directory in a clone). Outside a git working tree there is nothing to protect, so no `.gitignore` is created and no warning is printed.
 
 If the ignore entry cannot be ensured (a read-only `.gitignore`, for example), the CLI warns before writing the records and says that Git may track them. It never reports the directory as protected when it could not check.
@@ -59,7 +59,7 @@ Redaction is not a general scanner. It covers the values in a readable `.env`; i
 
 ### Keep records after `flisk down`, but explain their lifecycle
 
-Do not add cleanup on `flisk down` in this change: retaining the latest failure and the last passing response is what makes a regression diagnosable after the containers stop. Instead document that local records remain under `.tdk/smoke/` until they are deleted or overwritten by later runs, and give `rm -rf .tdk/smoke/` as the cleanup command.
+Do not add cleanup on `flisk down` in this change: retaining the latest failure and the last passing response is what makes a regression diagnosable after the containers stop. Instead document that local records remain under `.flisk/smoke/` until they are deleted or overwritten by later runs, and give `rm -rf .flisk/smoke/` as the cleanup command.
 
 Document that the `smoke` suite of `.github/workflows/e2e-journeys.yml` uploads the records as a `smoke-records-*` artifact with 14-day retention, and that anyone who can read the workflow run in this public repository can download that artifact. The upload and the retention are not changed here.
 

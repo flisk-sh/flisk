@@ -62,7 +62,7 @@ Rules:
 - Values are never printed. The output names the file (`Using env file: .env.integration`), never a
   value, and the values of the selected file are masked in smoke-check output just like the ones in
   the project `.env`.
-- `--env-file` is the only way to select the file. `TDK_ENV_FILE` is the variable the CLI uses to
+- `--env-file` is the only way to select the file. `FLISK_ENV_FILE` is the variable the CLI uses to
   hand the file to the engine, and an inherited value is ignored, so a run without the option always
   uses the project `.env`.
 
@@ -87,8 +87,8 @@ same values reach every service of the stack.
 
 For the keys the env file of the run defines, its value wins over the value exported in your shell: the engine loads the file into the
 Tilt environment, and Compose prefers the environment of the process over the `--env-file` it is given. A key the env file does not
-define keeps the value from the shell - including the host ports Flisk picks for the run (`TDK_HTTP_PORT`, `TDK_HTTPS_PORT`,
-`TDK_POSTGRES_PORT`, `TDK_BIND_ADDRESS`), which the env file of the run can override in turn.
+define keeps the value from the shell - including the host ports Flisk picks for the run (`FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT`,
+`FLISK_POSTGRES_PORT`, `FLISK_BIND_ADDRESS`), which the env file of the run can override in turn.
 
 So a `param` in `service.json` and a key in the env file of the run are two different things: the `param` wins for its own key (it is
 the only source for it), and the env file of the run wins for the keys Compose injects (`JWT_SECRET`, the secrets, the database
@@ -162,7 +162,7 @@ STRIPE_KEY=sk_test_...
 - An **optional** name is injected as `${NAME:-}`: the resource starts with the variable empty.
 - Names must be valid environment variable names (letters, digits and underscores, not starting with a digit); anything else fails
   with the resource and the name in the message.
-- `TDK_SECRET_PROVIDER=infisical` (set in the environment) leaves secrets to Infisical, and nothing is injected from `.env`.
+- `FLISK_SECRET_PROVIDER=infisical` (set in the environment) leaves secrets to Infisical, and nothing is injected from `.env`.
 
 ## Auth
 

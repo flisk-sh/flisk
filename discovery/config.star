@@ -9,7 +9,7 @@ load("./constants.star", "RESOURCES_ROOT")
 load("../engine/topologies/platform/docker/constants.star", "PlatformDockerConstants")
 
 # NOTE: DEFAULTS and focus lists are now loaded dynamically in resource_registry.star
-# from the project's spec.master (using TDK_PROJECT_ROOT environment variable).
+# from the project's spec.master (using FLISK_PROJECT_ROOT environment variable).
 # This allows per-project resource configuration.
 
 # Default empty values - will be populated by _load_project_defaults() in resource_registry.star
@@ -31,13 +31,13 @@ def load_project_defaults(project_root):
     
     # Check multiple locations for spec.master (in order of preference)
     spec_paths = [
-        project_root + "/.tdk/.tdk-out/generated/spec.master",  # New unified output folder
+        project_root + "/.flisk/.flisk-out/generated/spec.master",  # New unified output folder
         project_root + "/spec.master",                       # Original location (legacy)
     ]
     
     spec_path = None
     for path in spec_paths:
-        check_cmd = "test -f '{}' && echo 'yes' || echo 'no'".format(path)
+        check_cmd = ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path]
         exists = str(local(check_cmd, quiet=True, echo_off=True)).strip() == 'yes'
         if exists:
             spec_path = path
@@ -141,7 +141,7 @@ def load_project_defaults(project_root):
 # 🎛️ RESOURCE DEFAULTS
 # -----------------------------------------------------------------------------
 # LOADED FROM: spec.master (searched in order):
-#   1. .tdk/.tdk-out/generated/spec.master (new unified output folder)
+#   1. .flisk/.flisk-out/generated/spec.master (new unified output folder)
 #   2. spec.master (legacy location in project root)
 # PURPOSE: Single source of truth for resource enable/disable configuration
 # 
@@ -156,7 +156,7 @@ def get_global_config():
     )
     # Verdaccio is a premium feature — only enabled when a license key is present.
     # Without a key, scoped packages fall back to the public npm registry.
-    verdaccio_license_key = os.environ.get("TDK_LICENSE_KEY", "")
+    verdaccio_license_key = os.environ.get("FLISK_LICENSE_KEY", "")
     verdaccio_enabled = verdaccio_license_key != ""
     return {
         "verdaccio_url_local": PlatformDockerConstants.VERDACCIO_URL_LOCAL,

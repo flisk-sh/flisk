@@ -57,7 +57,7 @@ BP3() { # an unhealthy service: flisk up reports the failing health check and ke
   # flisk up does not exit after a readiness failure: it prints the failure and leaves Tilt running for inspection (the
   # 2026-10-18 CI run showed "✗ bpapi failed: container is running, but its health check is failing"). So this case
   # starts flisk up in the background, streams its output, waits for that line, and then runs flisk down.
-  (cd "$DIR" && TDK_UP_READY_TIMEOUT_MS=240000 nohup flisk up app >"$OUT/bp3-up.out" 2>"$OUT/bp3-up.err" &)
+  (cd "$DIR" && FLISK_UP_READY_TIMEOUT_MS=240000 nohup flisk up app >"$OUT/bp3-up.out" 2>"$OUT/bp3-up.err" &)
   local deadline=$((SECONDS + 900)) shown=0
   until grep -q "✗ $SERVICE failed" "$OUT/bp3-up.out" "$OUT/bp3-up.err" 2>/dev/null; do
     if [ "$SECONDS" -ge "$deadline" ]; then
@@ -87,7 +87,7 @@ BP4() { # an interrupted flisk up is cleaned up by flisk down, and a second flis
   poll_until "Docker has created a container for $SERVICE" "$READY_TIMEOUT" \
     bash -c "docker ps -aq --filter 'name=${PROJECT}-' | grep -q ."
   # Interrupt: kill the flisk process that owns this run. Its Tilt child may survive, which is the state flisk down must clear.
-  pkill -KILL -f "bin/tdk.js up app" >/dev/null 2>&1 || true
+  pkill -KILL -f "bin/flisk.js up app" >/dev/null 2>&1 || true
 
   run bp4-down down
   [ "$RC" -eq 0 ] || die "BP4: flisk down exited $RC after an interrupted up"

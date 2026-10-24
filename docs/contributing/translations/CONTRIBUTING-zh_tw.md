@@ -1,8 +1,8 @@
 # 為 Flisk 做出貢獻
 
-[English](../../../CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | 繁體中文 | [日本語](CONTRIBUTING-ja.md) | [한국어](CONTRIBUTING-ko.md)
+[English](../../../.github/CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | 繁體中文 | [日本語](CONTRIBUTING-ja.md) | [한국어](CONTRIBUTING-ko.md)
 
-> 本頁是 [CONTRIBUTING.md](../../../CONTRIBUTING.md) 的翻譯。如有不一致，以英文版為準。連結的指南目前只有英文版。
+> 本頁是 [CONTRIBUTING.md](../../../.github/CONTRIBUTING.md) 的翻譯。如有不一致，以英文版為準。連結的指南目前只有英文版。
 
 歡迎！小修正和大功能都很有價值。先從簡短的[貢獻者指南](../README.md)開始：它會帶你完成找到要改的內容、動手修改、檢查結果，以及提交 pull request 的整個流程。
 
@@ -86,16 +86,16 @@ bun run typecheck && bun run lint && bun run test   # 約一分鐘；在你修�
 
 ## 簽署你的 commit
 
-每個 commit 都需要 [Developer Certificate of Origin](../../../DCO) 簽署。使用 `git commit -s` 加上，它會附加 `Signed-off-by: Your Name <you@example.com>`。要修正既有的 commit，請執行 `git rebase --signoff origin/main` 並強制推送你的分支。如果某個 commit 缺少這一行，pull request 檢查會失敗。
+每個 commit 都需要 [Developer Certificate of Origin](../../project/DCO) 簽署。使用 `git commit -s` 加上，它會附加 `Signed-off-by: Your Name <you@example.com>`。要修正既有的 commit，請執行 `git rebase --signoff origin/main` 並強制推送你的分支。如果某個 commit 缺少這一行，pull request 檢查會失敗。
 
 ## 把你的團隊加入採用者清單
 
-在你自己的儲存庫中使用 Flisk？你可以透過兩種方式被列入 [ADOPTERS.md](../../../ADOPTERS.md)：開啟 [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue 表單，或在 pull request 中向表格新增一列。[What counts](../../../ADOPTERS.md#what-counts) 說明了應該連結什麼，以及什麼不算。
+在你自己的儲存庫中使用 Flisk？你可以透過兩種方式被列入 [ADOPTERS.md](../../project/ADOPTERS.md)：開啟 [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue 表單，或在 pull request 中向表格新增一列。[What counts](../../project/ADOPTERS.md#what-counts) 說明了應該連結什麼，以及什麼不算。
 
 ## 治理
 
-請參閱 [GOVERNANCE.md](../../../GOVERNANCE.md) 了解如何做出決定以及如何新增維護者，[MAINTAINERS.md](../../../MAINTAINERS.md) 了解誰可以合併，[ADOPTERS.md](../../../ADOPTERS.md) 了解哪些團隊在使用 Flisk。
+請參閱 [GOVERNANCE.md](../../project/GOVERNANCE.md) 了解如何做出決定以及如何新增維護者，[MAINTAINERS.md](../../project/MAINTAINERS.md) 了解誰可以合併，[ADOPTERS.md](../../project/ADOPTERS.md) 了解哪些團隊在使用 Flisk。
 
 ## 友善待人
 
-參與即表示你同意遵守[行為準則](../../../CODE_OF_CONDUCT.md)。請使用 [SECURITY.md](../../../SECURITY.md) 私下回報安全問題，不要在公開 issue 中回報。
+參與即表示你同意遵守[行為準則](../../../.github/CODE_OF_CONDUCT.md)。請使用 [SECURITY.md](../../../.github/SECURITY.md) 私下回報安全問題，不要在公開 issue 中回報。

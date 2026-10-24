@@ -12,13 +12,13 @@ afterEach(() => {
 });
 
 function project(savedHttp: number | null, name = "tdk-restaurant-example"): string {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "tdk-runtime-port-")));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "flisk-runtime-port-")));
   dirs.push(root);
-  mkdirSync(join(root, ".tdk", ".tdk-out"), { recursive: true });
-  writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ project: { name } }));
+  mkdirSync(join(root, ".flisk", ".flisk-out"), { recursive: true });
+  writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify({ project: { name } }));
   if (savedHttp !== null) {
     writeFileSync(
-      join(root, ".tdk", ".tdk-out", "host-ports.json"),
+      join(root, ".flisk", ".flisk-out", "host-ports.json"),
       JSON.stringify({
         ingressHttp: savedHttp,
         ingressHttps: 8443,
@@ -44,9 +44,9 @@ describe("resolveRuntimeIngressPort", () => {
     const root = project(8080);
     const docker = ps(
       line(
-        "tdk_restaurant_example_traefik",
+        "flisk_restaurant_example_traefik",
         "127.0.0.1:8080->80/tcp",
-        join(root, ".tdk", ".tdk-out"),
+        join(root, ".flisk", ".flisk-out"),
       ),
     );
     expect(resolveRuntimeIngressPort(root, 80, docker)).toBe(8080);
@@ -56,18 +56,22 @@ describe("resolveRuntimeIngressPort", () => {
     const root = project(8080);
     const other = project(8080, "other-project");
     const docker = ps(
-      line("other_project_traefik", "127.0.0.1:8080->80/tcp", join(other, ".tdk", ".tdk-out")),
+      line("other_project_traefik", "127.0.0.1:8080->80/tcp", join(other, ".flisk", ".flisk-out")),
     );
     expect(resolveRuntimeIngressPort(root, 80, docker)).toBe(80);
     expect(resolveRuntimeIngressPort(root, 80, ps())).toBe(80);
   });
 
   it("does not mistake a project whose name starts with this one's for this project", () => {
-    // tdk-shop-extra's containers are named tdk_shop_extra_*, which a tdk_shop_ prefix match would claim.
-    const shop = project(8080, "tdk-shop");
-    const shopExtra = project(8080, "tdk-shop-extra");
+    // flisk-shop-extra's containers are named flisk_shop_extra_*, which a flisk_shop_ prefix match would claim.
+    const shop = project(8080, "flisk-shop");
+    const shopExtra = project(8080, "flisk-shop-extra");
     const docker = ps(
-      line("tdk_shop_extra_traefik", "127.0.0.1:8080->80/tcp", join(shopExtra, ".tdk", ".tdk-out")),
+      line(
+        "flisk_shop_extra_traefik",
+        "127.0.0.1:8080->80/tcp",
+        join(shopExtra, ".flisk", ".flisk-out"),
+      ),
     );
     expect(resolveRuntimeIngressPort(shop, 80, docker)).toBe(80);
     expect(resolveRuntimeIngressPort(shopExtra, 80, docker)).toBe(8080);
@@ -77,9 +81,9 @@ describe("resolveRuntimeIngressPort", () => {
     const withoutPlan = project(null);
     const claim = ps(
       line(
-        "tdk_restaurant_example_traefik",
+        "flisk_restaurant_example_traefik",
         ":8080->80/tcp",
-        join(withoutPlan, ".tdk", ".tdk-out"),
+        join(withoutPlan, ".flisk", ".flisk-out"),
       ),
     );
     expect(resolveRuntimeIngressPort(withoutPlan, 80, claim)).toBe(80);
@@ -102,7 +106,7 @@ describe("resolveRuntimeIngressPort", () => {
 describe("isPortHeldByProjectContainers", () => {
   it("requires the compose working directory to be inside the project and the port to match", () => {
     const root = project(null);
-    const inside = join(root, ".tdk", ".tdk-out");
+    const inside = join(root, ".flisk", ".flisk-out");
     expect(
       isPortHeldByProjectContainers(line("a", "0.0.0.0:8080->80/tcp", inside), root, 8080),
     ).toBe(true);
@@ -132,24 +136,24 @@ describe("isPortHeldByProjectContainers", () => {
     const root = project(null);
     expect(
       isPortHeldByProjectContainers(
-        line("tdk_restaurant_example_traefik", ":8080->80/tcp", ""),
+        line("flisk_restaurant_example_traefik", ":8080->80/tcp", ""),
         root,
         8080,
       ),
     ).toBe(false);
     expect(
-      isPortHeldByProjectContainers("tdk_restaurant_example_traefik|:8080->80/tcp", root, 8080),
+      isPortHeldByProjectContainers("flisk_restaurant_example_traefik|:8080->80/tcp", root, 8080),
     ).toBe(false);
     expect(isPortHeldByProjectContainers("", root, 8080)).toBe(false);
   });
 
   it("matches a project reached through a symlink", () => {
     const root = project(null);
-    const link = join(tmpdir(), `tdk-link-${process.pid}-${Date.now()}`);
+    const link = join(tmpdir(), `flisk-link-${process.pid}-${Date.now()}`);
     symlinkSync(root, link);
     dirs.push(link);
     expect(
-      isPortHeldByProjectContainers(line("a", ":8080->80/tcp", join(root, ".tdk")), link, 8080),
+      isPortHeldByProjectContainers(line("a", ":8080->80/tcp", join(root, ".flisk")), link, 8080),
     ).toBe(true);
   });
 });

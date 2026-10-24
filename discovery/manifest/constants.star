@@ -62,7 +62,7 @@ VALIDATION_THRESHOLDS = {
 }
 
 # Valid stacks - loaded dynamically from project config
-# Projects define their own stacks in .tdk/project.json
+# Projects define their own stacks in .flisk/project.json
 VALID_STACKS = []
 
 # Valid features

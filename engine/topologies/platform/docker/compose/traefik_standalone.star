@@ -80,12 +80,13 @@ volumes:
             name=name,
             gateway_container=PlatformDockerConstants.TRAEFIK_WAKE_GATEWAY_CONTAINER,
             gateway_port=PlatformDockerConstants.TRAEFIK_WAKE_GATEWAY_PORT,
-            vendored_gateway_dir="tdk-cli-ext/engine/assets/docker/wake-gateway",
+            vendored_gateway_dir="flisk-cli-ext/engine/assets/docker/wake-gateway",
             tilt_dev_dir=os.environ.get("HOME", "") + "/.tilt-dev",
             project_root_mount=_project_root_mount(),
+            docker_socket_gid=_docker_socket_gid(),
         ) if sablier_enabled else "",
         dynamic_dir_name=PlatformDockerConstants.TRAEFIK_DYNAMIC_DIR_REL.split("/")[-1],
-        vendored_gateway_dir="tdk-cli-ext/engine/assets/docker/wake-gateway",
+        vendored_gateway_dir="flisk-cli-ext/engine/assets/docker/wake-gateway",
         gateway_container=PlatformDockerConstants.TRAEFIK_WAKE_GATEWAY_CONTAINER,
         gateway_port=PlatformDockerConstants.TRAEFIK_WAKE_GATEWAY_PORT,
         tilt_dev_dir=os.environ.get("HOME", "") + "/.tilt-dev",
@@ -95,6 +96,16 @@ volumes:
     )
 
 
+def _docker_socket_gid():
+    """Group ID the wake gateway joins to reach /var/run/docker.sock.
+
+    Docker Desktop exposes the socket as root:root (gid 0). On Linux hosts it
+    is usually root:docker, whose gid varies, so set FLISK_DOCKER_SOCKET_GID to
+    the socket's gid there (`stat -c %g /var/run/docker.sock`).
+    """
+    return os.environ.get("FLISK_DOCKER_SOCKET_GID", "0")
+
+
 def _project_root_mount():
     """Read-only mount of the project at its own absolute host path.
 
@@ -102,7 +113,7 @@ def _project_root_mount():
     itself (bypassing Tilt's build queue), using the compose files Tilt uses.
     Compose resolves relative paths in them (env_file etc.) client-side, so
     they must exist at the same absolute paths inside the gateway container.
-    Empty when TDK_PROJECT_ROOT is unset (the generated Tiltfile sets it).
+    Empty when FLISK_PROJECT_ROOT is unset (the generated Tiltfile sets it).
     """
     root = project_root_abspath()
     if not root:
@@ -111,8 +122,8 @@ def _project_root_mount():
 
 
 def project_root_abspath():
-    """Absolute, normalized project root (TDK_PROJECT_ROOT), or "" when unset."""
-    return normalize_abs_path(os.environ.get("TDK_PROJECT_ROOT", ""))
+    """Absolute, normalized project root (FLISK_PROJECT_ROOT), or "" when unset."""
+    return normalize_abs_path(os.environ.get("FLISK_PROJECT_ROOT", ""))
 
 
 _SABLIER_DEPENDS_ON = """    depends_on:
@@ -162,9 +173,13 @@ _SABLIER_SERVICES = """  sablier:
       - TILT_PORT=10350
       - SABLIER_URL=http://sablier:10000
       - PORT={gateway_port}
+    # Non-root (see the Dockerfile): the Docker socket is root-owned, so the
+    # gateway joins the socket's group instead of running as root.
+    group_add:
+      - "{docker_socket_gid}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - {tilt_dev_dir}:/root/.tilt-dev:ro{project_root_mount}
+      - {tilt_dev_dir}:/home/bun/.tilt-dev:ro{project_root_mount}
     networks:
       - traefik-public
 

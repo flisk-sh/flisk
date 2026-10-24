@@ -13,7 +13,7 @@ This page is the setup path, from installing Flisk to a first `doctor` and `up`.
 | The Flisk CLI (`flisk --version`) | Everything. `flisk mcp` is a subcommand of it. |
 | An MCP client: Codex, Claude Code, Claude Desktop, or Cursor | Connecting the server. |
 | Docker running and Tilt installed | Starting and stopping a stack. |
-| A Flisk project directory, the folder that holds `.tdk/project.json` | Every tool except `doctor`. |
+| A Flisk project directory, the folder that holds `.flisk/project.json` | Every tool except `doctor`. |
 
 `doctor` runs outside a project, so you can connect the server and check the machine before a project exists.
 
@@ -42,20 +42,20 @@ Both installation paths install the same CLI, and `flisk mcp` comes with it. The
 
 ## 2. Point a client at `flisk mcp`
 
-The client launches `flisk mcp` for you. The server inherits the directory it is started in, so the project tools find `.tdk/project.json` when the client runs inside a Flisk project. Two ways to make that deterministic:
+The client launches `flisk mcp` for you. The server inherits the directory it is started in, so the project tools find `.flisk/project.json` when the client runs inside a Flisk project. Two ways to make that deterministic:
 
 - start the client in the project directory, or
 - set the working directory in the client's configuration: `cwd` in Codex, and a `cd` in the command for clients that have no working-directory setting.
 
 ### Codex
 
-Add a project-scoped entry to `.codex/config.toml` in the Flisk project. Replace the example directory with the absolute path to the folder that contains `.tdk/project.json`:
+Add a project-scoped entry to `.codex/config.toml` in the Flisk project. Replace the example directory with the absolute path to the folder that contains `.flisk/project.json`:
 
 ```toml
-[mcp_servers.tdk]
+[mcp_servers.flisk]
 command = "flisk"
 args = ["mcp"]
-cwd = "/path/to/your/tdk-project"
+cwd = "/path/to/your/flisk-project"
 ```
 
 `cwd` is the directory Codex starts the server in. Codex loads project-scoped MCP settings only for trusted projects; `~/.codex/config.toml` is the global variant. You can also create the entry from a terminal with `codex mcp add flisk -- flisk mcp`, then add `cwd` to it. Confirm the server is connected with `/mcp` in the app or `codex mcp list` in the CLI. Codex's [MCP guide](https://developers.openai.com/codex/extend/mcp) lists the other options.
@@ -65,7 +65,7 @@ cwd = "/path/to/your/tdk-project"
 From the Flisk project directory, add a local stdio server and start Claude Code there:
 
 ```bash
-cd /path/to/your/tdk-project
+cd /path/to/your/flisk-project
 claude mcp add --scope local --transport stdio flisk -- flisk mcp
 claude
 ```
@@ -81,13 +81,13 @@ Claude Desktop has no working-directory setting, so run the server through a she
   "mcpServers": {
     "flisk": {
       "command": "sh",
-      "args": ["-c", "cd \"/path/to/your/tdk-project\" && exec flisk mcp"]
+      "args": ["-c", "cd \"/path/to/your/flisk-project\" && exec flisk mcp"]
     }
   }
 }
 ```
 
-Replace the example path with the absolute path to the folder that contains `.tdk/project.json`. A desktop app may not see the same `PATH` as your shell, so if the server does not start, put the absolute path to the `flisk` binary in that `cd` line. Restart Claude Desktop after editing the file. The [MCP quickstart](https://modelcontextprotocol.io/quickstart/user) shows where this file lives and how the client restarts it.
+Replace the example path with the absolute path to the folder that contains `.flisk/project.json`. A desktop app may not see the same `PATH` as your shell, so if the server does not start, put the absolute path to the `flisk` binary in that `cd` line. Restart Claude Desktop after editing the file. The [MCP quickstart](https://modelcontextprotocol.io/quickstart/user) shows where this file lives and how the client restarts it.
 
 ### Cursor
 

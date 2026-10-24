@@ -17,7 +17,7 @@ VERIFY_WAIT_SECONDS=60 tests/e2e/resource-types/bring-your-own/verify-byo-exampl
 Then through a real `flisk up` and Traefik (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh sveltekit /
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh sveltekit /
 ```
 
 Observed (2026-10-03): `PASS sveltekit: through flisk up and Traefik, GET /api/<name>/ -> 200 (<!doctype html>`. The Vite dev server accepted Traefik's `Host: api.<project>.localhost` with no override. Not covered: SSR routes beyond `/`, adapters, production builds.

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { TdkError } from "../utils/errors.js";
+import { FliskError } from "../utils/errors.js";
 import { litFrontendProvider } from "./lit.js";
 import { preactFrontendProvider } from "./preact.js";
 import { qwikFrontendProvider } from "./qwik.js";
@@ -61,7 +61,7 @@ export function getFrontendFramework(frameworkId, resourceName) {
         const supportedIds = Object.keys(FRONTEND_FRAMEWORKS).join(", ");
         const isMeta = META_FRAMEWORK_IDS.includes(id);
         const byo = `flisk resource ${resourceName ?? "<name>"} --type bring-your-own`;
-        throw new TdkError(`${isMeta ? `"${frameworkId}" is not a Vite SPA provider` : `Unknown frontend framework "${frameworkId}"`}. Supported frameworks: ${supportedIds}.`, [
+        throw new FliskError(`${isMeta ? `"${frameworkId}" is not a Vite SPA provider` : `Unknown frontend framework "${frameworkId}"`}. Supported frameworks: ${supportedIds}.`, [
             `Use one of: ${supportedIds}`,
             `Omit --framework to use ${DEFAULT_FRONTEND_FRAMEWORK}`,
             ...(isMeta ? [`Create the app with ${id}'s own CLI, then register it: ${byo}`] : []),
@@ -73,7 +73,7 @@ export function resolveFrontendFramework(resourceType, frameworkId, resourceName
     if (resourceType !== "frontend") {
         // Backends take their own framework ids (see backend-frameworks/registry.ts).
         if (frameworkId !== undefined && resourceType !== "backend") {
-            throw new TdkError("--framework can only be used with --type frontend or --type backend.", [
+            throw new FliskError("--framework can only be used with --type frontend or --type backend.", [
                 "Add --type frontend or --type backend, or drop --framework for this resource type",
             ]);
         }

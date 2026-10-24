@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 
-// The env file of a run. `flisk up --env-file <path>` sets TDK_ENV_FILE, and the engine reads that file
+// The env file of a run. `flisk up --env-file <path>` sets FLISK_ENV_FILE, and the engine reads that file
 // instead of the project .env - for the Tilt environment and for the Compose interpolation alike.
 // These tests run the engine's own Starlark under Tilt, so a change in the resolution shows up here.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -28,18 +28,18 @@ afterEach(() => {
 function runStarlark(file: string, body: string, env: Record<string, string> = {}): unknown {
   const result = evaluateStarlark(file, {
     args: `${body}\nlocal('cat > out.json', quiet = True, stdin = encode_json(RESULT))\n`,
-    env: { TDK_ENV_FILE: "", ...env },
+    env: { FLISK_ENV_FILE: "", ...env },
   });
   if (result.status !== 0) throw new Error(`tilt failed: ${result.stderr || result.stdout}`);
   return JSON.parse(readFileSync(join(result.dir, "out.json"), "utf-8"));
 }
 
 describe.skipIf(!hasTilt)("the env file of a run", () => {
-  it("is the file TDK_ENV_FILE names, and the project .env is not read then", () => {
-    const dir = mkdtempSync(join(tmpdir(), "tdk-selected-env-"));
+  it("is the file FLISK_ENV_FILE names, and the project .env is not read then", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-selected-env-"));
     dirs.push(dir);
     const selected = join(dir, ".env.integration");
-    writeFileSync(selected, "TDK_T_SELECTED=fromselected\n");
+    writeFileSync(selected, "FLISK_T_SELECTED=fromselected\n");
     try {
       const result = runStarlark(
         envUtils,
@@ -47,10 +47,10 @@ describe.skipIf(!hasTilt)("the env file of a run", () => {
 load_dotenv("/project")
 RESULT = {
   "selected": project_env_file("/project"),
-  "from_selected": os.environ.get("TDK_T_SELECTED", "<unset>"),
-  "from_project": os.environ.get("TDK_T_PROJECT", "<unset>"),
+  "from_selected": os.environ.get("FLISK_T_SELECTED", "<unset>"),
+  "from_project": os.environ.get("FLISK_T_PROJECT", "<unset>"),
 }`,
-        { TDK_ENV_FILE: selected },
+        { FLISK_ENV_FILE: selected },
       ) as { selected: string; from_selected: string; from_project: string };
 
       expect(result.selected).toBe(selected);
@@ -104,20 +104,20 @@ describe.skipIf(!hasTilt)("the selected env file is read by the engine", () => {
   it("keeps the selected value in the Tilt environment, which is what Compose interpolates", () => {
     // Docker Compose prefers the shell environment over --env-file, so the engine has to load the
     // selected file into os.environ. Otherwise the run would interpolate the project .env values.
-    const dir = mkdtempSync(join(tmpdir(), "tdk-selected-env-"));
+    const dir = mkdtempSync(join(tmpdir(), "flisk-selected-env-"));
     dirs.push(dir);
     const selected = join(dir, ".env.integration");
-    writeFileSync(selected, "TDK_T_SELECTED=fromselected\n");
+    writeFileSync(selected, "FLISK_T_SELECTED=fromselected\n");
     const project = join(dir, "project");
     mkdirSync(project, { recursive: true });
-    writeFileSync(join(project, ".env"), "TDK_T_SELECTED=fromproject\n");
+    writeFileSync(join(project, ".env"), "FLISK_T_SELECTED=fromproject\n");
 
     const result = runStarlark(
       envUtils,
       `load(${JSON.stringify(envUtils)}, "load_dotenv")
 load_dotenv(${JSON.stringify(project)})
-RESULT = {"value": os.environ.get("TDK_T_SELECTED", "<unset>")}`,
-      { TDK_ENV_FILE: selected },
+RESULT = {"value": os.environ.get("FLISK_T_SELECTED", "<unset>")}`,
+      { FLISK_ENV_FILE: selected },
     ) as { value: string };
 
     expect(result.value).toBe("fromselected");

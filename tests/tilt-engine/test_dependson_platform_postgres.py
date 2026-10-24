@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 dependsOn starting shared platform Postgres (openspec/changes/dependson-starts-platform-postgres).
@@ -184,7 +184,7 @@ def test_generated_writer_can_materialize_shared_postgres_compose(tmp_path):
     result = run_starlark(
         tmp_path,
         "load('" + str(UTILS) + "', 'Utils')\n"
-        "os.environ['TDK_PROJECT_ROOT'] = config.main_dir\n"
+        "os.environ['FLISK_PROJECT_ROOT'] = config.main_dir\n"
         "Utils.write_file_if_changed('services/platform/database-management/docker-compose.yml', 'services:\\n  postgres: {}\\n')\n"
         "r = {'written': True}\n",
     )
@@ -195,7 +195,7 @@ def test_generated_writer_can_materialize_shared_postgres_compose(tmp_path):
 @TILT_REQUIRED
 def test_force_start_two_dependents_materializes_one_existing_platform_compose(tmp_path):
     """Exercise the real force path, including Compose generation and the ctx guard."""
-    project_config = tmp_path / ".tdk/project.json"
+    project_config = tmp_path / ".flisk/project.json"
     project_config.parent.mkdir()
     project_config.write_text('{"project":{"name":"shared-postgres-fixture"}}\n')
     (tmp_path / ".env").write_text("DB_PASSWORD=test-password\n")
@@ -208,7 +208,7 @@ def test_force_start_two_dependents_materializes_one_existing_platform_compose(t
         "first = force_start_shared_platform_postgres_once(ctx, feature_off, 'orders-api')\n"
         "second = force_start_shared_platform_postgres_once(ctx, feature_off, 'billing-api')\n"
         "r = {'first': first, 'second': second, 'registered': ctx.get('_shared_platform_postgres_force_started', False)}\n",
-        env={"TDK_PROJECT_ROOT": str(tmp_path)},
+        env={"FLISK_PROJECT_ROOT": str(tmp_path)},
     )
     assert result == {"first": True, "second": False, "registered": True}
     compose = tmp_path / "services/platform/database-management/docker-compose.yml"
@@ -250,7 +250,7 @@ def test_stack_registration_starts_postgres_only_for_selected_dependent(
     tmp_path, selected, billing_depends_on, should_start
 ):
     """A stack contains both siblings, but only a selected dependent can force start."""
-    project_config = tmp_path / ".tdk/project.json"
+    project_config = tmp_path / ".flisk/project.json"
     project_config.parent.mkdir()
     project_config.write_text('{"project":{"name":"selection-fixture"}}\n')
     (tmp_path / ".env").write_text("DB_PASSWORD=test-password\n")
@@ -268,7 +268,7 @@ def test_stack_registration_starts_postgres_only_for_selected_dependent(
         + "}\n"
         "register_compose_resources(resource_config, ctx, {'auto_init_apps': True}, manifest_state)\n"
         "r = {'started': ctx.get('_shared_platform_postgres_force_started', False)}\n",
-        env={"TDK_PROJECT_ROOT": str(tmp_path)},
+        env={"FLISK_PROJECT_ROOT": str(tmp_path)},
     )
     assert result["started"] is should_start
     assert (tmp_path / "services/platform/database-management/docker-compose.yml").exists() is should_start

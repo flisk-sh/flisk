@@ -166,12 +166,12 @@ if 'INFISICAL_SECRET' in entry: fail('unresolved Infisical placeholders must not
 `);
   });
 
-  it("leaves secrets to Infisical only when TDK_SECRET_PROVIDER=infisical", () => {
+  it("leaves secrets to Infisical only when FLISK_SECRET_PROVIDER=infisical", () => {
     expectPasses(
       `${load}${composeEntry(withManifest({ secrets: { required: ["STRIPE_KEY"] } }))}
 if 'STRIPE_KEY=' in entry: fail('with the infisical provider the secret must not be injected from the project .env')
 `,
-      { TDK_SECRET_PROVIDER: "infisical" },
+      { FLISK_SECRET_PROVIDER: "infisical" },
     );
   });
 
@@ -194,7 +194,7 @@ if hasattr(Utils, 'validate_infisical_environment'): fail('validate_infisical_en
 
 describe.skipIf(!hasTilt)("load_dotenv", { timeout: 40_000 }, () => {
   // Parsed in Starlark from the file itself, not by running `cat` through a shell.
-  const dotenvDir = (content: string, parent = "tdk-dotenv-") => {
+  const dotenvDir = (content: string, parent = "flisk-dotenv-") => {
     const dir = mkdtempSync(join(tmpdir(), parent));
     temporaryDirs.push(dir);
     writeFileSync(join(dir, ".env"), content);
@@ -212,41 +212,41 @@ def check(name, expected):
       [
         "# a comment",
         "",
-        "TDK_T_PLAIN=bar",
-        "export TDK_T_EXPORTED=baz",
-        'TDK_T_DOUBLE="hello world"',
-        "TDK_T_SINGLE='a literal $b'",
-        'TDK_T_INNER="say \\"hi\\""',
-        'TDK_T_EMPTY=""',
-        "TDK_T_EQUALS=a=b=c",
+        "FLISK_T_PLAIN=bar",
+        "export FLISK_T_EXPORTED=baz",
+        'FLISK_T_DOUBLE="hello world"',
+        "FLISK_T_SINGLE='a literal $b'",
+        'FLISK_T_INNER="say \\"hi\\""',
+        'FLISK_T_EMPTY=""',
+        "FLISK_T_EQUALS=a=b=c",
         "NOT_AN_ASSIGNMENT",
       ].join("\n"),
     );
     expectPasses(`${load(dir)}
-check('TDK_T_PLAIN', 'bar')
-check('TDK_T_EXPORTED', 'baz')
-if 'export TDK_T_EXPORTED' in os.environ: fail('an export prefix must not become part of the name')
-check('TDK_T_DOUBLE', 'hello world')
-check('TDK_T_SINGLE', 'a literal $b')
-check('TDK_T_INNER', 'say "hi"')
-check('TDK_T_EMPTY', '')
-check('TDK_T_EQUALS', 'a=b=c')
+check('FLISK_T_PLAIN', 'bar')
+check('FLISK_T_EXPORTED', 'baz')
+if 'export FLISK_T_EXPORTED' in os.environ: fail('an export prefix must not become part of the name')
+check('FLISK_T_DOUBLE', 'hello world')
+check('FLISK_T_SINGLE', 'a literal $b')
+check('FLISK_T_INNER', 'say "hi"')
+check('FLISK_T_EMPTY', '')
+check('FLISK_T_EQUALS', 'a=b=c')
 check('NOT_AN_ASSIGNMENT', '<unset>')
 `);
   });
 
   it("works when the project path contains a single quote", () => {
-    const dir = dotenvDir("TDK_T_QUOTED_PATH=found\n", "tdk-dot'env-");
+    const dir = dotenvDir("FLISK_T_QUOTED_PATH=found\n", "flisk-dot'env-");
     expectPasses(`${load(dir)}
-check('TDK_T_QUOTED_PATH', 'found')
+check('FLISK_T_QUOTED_PATH', 'found')
 `);
   });
 
   it("does nothing, without failing, when there is no .env", () => {
-    const dir = mkdtempSync(join(tmpdir(), "tdk-dotenv-none-"));
+    const dir = mkdtempSync(join(tmpdir(), "flisk-dotenv-none-"));
     temporaryDirs.push(dir);
     expectPasses(`${load(dir)}
-check('TDK_T_NOTHING', '<unset>')
+check('FLISK_T_NOTHING', '<unset>')
 `);
   });
 });
@@ -306,33 +306,33 @@ if 'AUTH_MODE=local-jwt' not in env_file or 'AUTH_MODE=local-jwt' not in entry: 
 const debugStar = star("topologies", "tilt", "common", "utils_debug.star");
 
 describe.skipIf(!hasTilt)("Starlark debug logging", () => {
-  const source = `load(${JSON.stringify(debugStar)}, 'debug_log')\ndebug_log('TDK_DEBUG_SENTINEL')\n`;
+  const source = `load(${JSON.stringify(debugStar)}, 'debug_log')\ndebug_log('FLISK_DEBUG_SENTINEL')\n`;
 
-  it("is silent when TDK_DEBUG is disabled and logs when set to 1", () => {
+  it("is silent when FLISK_DEBUG is disabled and logs when set to 1", () => {
     const normal = evaluateStarlark(debugStar, {
       args: source,
-      env: { TDK_DEBUG: "0", TILT_DEBUG: "0" },
+      env: { FLISK_DEBUG: "0", TILT_DEBUG: "0" },
       verbose: true,
     });
     expect(normal.status, normal.stderr).toBe(0);
-    expect(normal.stdout + normal.stderr).not.toContain("TDK_DEBUG_SENTINEL");
+    expect(normal.stdout + normal.stderr).not.toContain("FLISK_DEBUG_SENTINEL");
 
     const debug = evaluateStarlark(debugStar, {
       args: source,
-      env: { TDK_DEBUG: "1", TILT_DEBUG: "0" },
+      env: { FLISK_DEBUG: "1", TILT_DEBUG: "0" },
       verbose: true,
     });
     expect(debug.status, debug.stderr).toBe(0);
-    expect(debug.stdout + debug.stderr).toContain("TDK_DEBUG_SENTINEL");
+    expect(debug.stdout + debug.stderr).toContain("FLISK_DEBUG_SENTINEL");
   });
 
   it("continues to accept TILT_DEBUG as a legacy alias", () => {
     const debug = evaluateStarlark(debugStar, {
       args: source,
-      env: { TDK_DEBUG: "", TILT_DEBUG: "1" },
+      env: { FLISK_DEBUG: "", TILT_DEBUG: "1" },
       verbose: true,
     });
     expect(debug.status, debug.stderr).toBe(0);
-    expect(debug.stdout + debug.stderr).toContain("TDK_DEBUG_SENTINEL");
+    expect(debug.stdout + debug.stderr).toContain("FLISK_DEBUG_SENTINEL");
   });
 });

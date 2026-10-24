@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Runtime container footprint: single Bun process, cheap healthchecks, lean golden images.
@@ -158,7 +158,7 @@ def test_healthcheck_interval_is_configurable(tmp_path):
         tmp_path,
         "load('@DOCKER/config/healthcheck.star', 'dockerfile_healthcheck_flags', 'compose_healthcheck_timing')\n"
         "r = {'flags': dockerfile_healthcheck_flags(), 'timing': compose_healthcheck_timing()}\n",
-        env={"TDK_HEALTHCHECK_INTERVAL_SECONDS": "15"},
+        env={"FLISK_HEALTHCHECK_INTERVAL_SECONDS": "15"},
     )
     assert "--interval=15s" in r["flags"]
     assert "interval: 15s" in r["timing"]

@@ -50,19 +50,19 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
                         http: {
                             requested: portPlan?.requested.ingressHttp ?? 80,
                             chosen: portPlan?.ingressHttp ?? null,
-                            explicit: portPlan?.explicit.ingressHttp ?? Boolean(process.env.TDK_HTTP_PORT),
+                            explicit: portPlan?.explicit.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
                             reason: portPlan?.reason.ingressHttp ?? "port planning failed",
                         },
                         https: {
                             requested: portPlan?.requested.ingressHttps ?? 443,
                             chosen: portPlan?.ingressHttps ?? null,
-                            explicit: portPlan?.explicit.ingressHttps ?? Boolean(process.env.TDK_HTTPS_PORT),
+                            explicit: portPlan?.explicit.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
                             reason: portPlan?.reason.ingressHttps ?? "port planning failed",
                         },
                         postgres: {
                             requested: portPlan?.requested.postgres ?? 5432,
                             chosen: portPlan?.postgres ?? null,
-                            explicit: portPlan?.explicit.postgres ?? Boolean(process.env.TDK_POSTGRES_PORT),
+                            explicit: portPlan?.explicit.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
                             reason: portPlan?.reason.postgres ?? "port planning failed",
                         },
                     },

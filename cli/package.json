@@ -1,5 +1,5 @@
 {
-  "name": "tdk-cli-internal",
+  "name": "flisk-cli-internal",
   "private": true,
   "version": "1.3.207",
   "description": "Flisk CLI — start services on your machine.",
@@ -25,7 +25,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "flisk": "bin/tdk.js"
+    "flisk": "bin/flisk.js"
   },
   "files": [
     "dist",

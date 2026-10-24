@@ -91,7 +91,7 @@ vi.mock("../../utils/tilt-port-owner.js", async (importOriginal) => ({
  */
 function documentedExitCode(diagnostic: string): number {
   const contributing = readFileSync(
-    new URL("../../../../CONTRIBUTING.md", import.meta.url),
+    new URL("../../../../.github/CONTRIBUTING.md", import.meta.url),
     "utf-8",
   );
   const section = contributing.split("## Exit codes")[1];
@@ -137,14 +137,14 @@ describe("flisk up platform contract", () => {
 
   it("exits 1 on native Windows startup refusal and writes the diagnostic to stderr", async () => {
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
-    const allowNativeWindows = process.env.TDK_ALLOW_NATIVE_WINDOWS;
+    const allowNativeWindows = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
     const tiltPort = process.env.TILT_PORT;
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const { exit } = captureExit();
     try {
       Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
-      delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
+      delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
       delete process.env.TILT_PORT;
 
       await expect(upCommand.parseAsync([], { from: "user" })).rejects.toThrow("process.exit");
@@ -159,8 +159,8 @@ describe("flisk up platform contract", () => {
       expect(log).not.toHaveBeenCalled();
     } finally {
       if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
-      if (allowNativeWindows === undefined) delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
-      else process.env.TDK_ALLOW_NATIVE_WINDOWS = allowNativeWindows;
+      if (allowNativeWindows === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      else process.env.FLISK_ALLOW_NATIVE_WINDOWS = allowNativeWindows;
       if (tiltPort === undefined) delete process.env.TILT_PORT;
       else process.env.TILT_PORT = tiltPort;
       exit.mockRestore();
@@ -171,21 +171,21 @@ describe("flisk up platform contract", () => {
 
   it("documents the native Windows startup refusal under the exit code it returns", async () => {
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
-    const allowNativeWindows = process.env.TDK_ALLOW_NATIVE_WINDOWS;
+    const allowNativeWindows = process.env.FLISK_ALLOW_NATIVE_WINDOWS;
     const tiltPort = process.env.TILT_PORT;
     const { exit } = captureExit();
     let actual: number | undefined;
     try {
       Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
-      delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
+      delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
       delete process.env.TILT_PORT;
 
       await expect(upCommand.parseAsync([], { from: "user" })).rejects.toThrow("process.exit");
       actual = exit.mock.calls[0]?.[0] as number;
     } finally {
       if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
-      if (allowNativeWindows === undefined) delete process.env.TDK_ALLOW_NATIVE_WINDOWS;
-      else process.env.TDK_ALLOW_NATIVE_WINDOWS = allowNativeWindows;
+      if (allowNativeWindows === undefined) delete process.env.FLISK_ALLOW_NATIVE_WINDOWS;
+      else process.env.FLISK_ALLOW_NATIVE_WINDOWS = allowNativeWindows;
       if (tiltPort === undefined) delete process.env.TILT_PORT;
       else process.env.TILT_PORT = tiltPort;
       exit.mockRestore();
@@ -269,7 +269,7 @@ describe("Tilt force cleanup", () => {
 
 describe("flisk up drift gate", () => {
   beforeEach(() => {
-    vi.stubEnv("TDK_ALLOW_NATIVE_WINDOWS", "1");
+    vi.stubEnv("FLISK_ALLOW_NATIVE_WINDOWS", "1");
   });
 
   afterEach(() => {
@@ -401,7 +401,7 @@ describe("flisk up drift gate", () => {
   it("does not treat a changed service.json or stale master output as drift", () => {
     verdict(false, [
       "services/app/api/service.json: service.json changed since generated outputs were written (run flisk up)",
-      "Out of sync: .tdk/.tdk-out/spec.master (run 'flisk config regenerate')",
+      "Out of sync: .flisk/.flisk-out/spec.master (run 'flisk config regenerate')",
     ]);
     expect(driftReport("/project")).toBeNull();
   });
@@ -454,11 +454,11 @@ describe("enforceVersionFloor", () => {
       throw new Error(`exit ${code}`);
     }) as unknown as (code: number) => never;
   const write = (config: object) =>
-    writeFileSync(join(dir, ".tdk", "project.json"), JSON.stringify(config));
+    writeFileSync(join(dir, ".flisk", "project.json"), JSON.stringify(config));
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-up-version-"));
-    mkdirSync(join(dir, ".tdk"), { recursive: true });
+    dir = mkdtempSync(join(tmpdir(), "flisk-up-version-"));
+    mkdirSync(join(dir, ".flisk"), { recursive: true });
   });
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
@@ -466,14 +466,14 @@ describe("enforceVersionFloor", () => {
   });
 
   it("exits 1 with doctor's message when the CLI is older", () => {
-    write({ minTdkVersion: "1.3.80" });
+    write({ minFliskVersion: "1.3.80" });
     const e = exit();
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const onFail = vi.fn();
     expect(() => enforceVersionFloor(dir, { onFail }, "1.3.79", e)).toThrow("exit 1");
     expect(err).toHaveBeenCalledWith(
       expect.stringContaining(
-        "flisk 1.3.79 is older than the 1.3.80 this project requires (minTdkVersion)",
+        "flisk 1.3.79 is older than the 1.3.80 this project requires (minFliskVersion)",
       ),
     );
     expect(err).toHaveBeenCalledWith(expect.stringContaining("Run: flisk upgrade"));
@@ -481,14 +481,14 @@ describe("enforceVersionFloor", () => {
   });
 
   it("exits 1 on a malformed value", () => {
-    write({ minTdkVersion: "latest" });
+    write({ minFliskVersion: "latest" });
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => enforceVersionFloor(dir, {}, "1.3.80", exit())).toThrow("exit 1");
   });
 
-  it("passes at or above the floor and when no minTdkVersion is set", () => {
+  it("passes at or above the floor and when no minFliskVersion is set", () => {
     const e = exit();
-    write({ minTdkVersion: "1.3.80" });
+    write({ minFliskVersion: "1.3.80" });
     enforceVersionFloor(dir, {}, "1.3.80", e);
     enforceVersionFloor(dir, {}, "2.0.0", e);
     write({});
@@ -497,7 +497,7 @@ describe("enforceVersionFloor", () => {
   });
 
   it("--ignore-version warns and does not exit", () => {
-    write({ minTdkVersion: "9.9.9" });
+    write({ minFliskVersion: "9.9.9" });
     const e = exit();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     enforceVersionFloor(dir, { ignoreVersion: true }, "1.0.0", e);
@@ -688,7 +688,7 @@ describe("flisk up --env-file", () => {
   let originalCwd: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-up-env-file-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-up-env-file-"));
     // macOS resolves the temporary directory (/var -> /private/var), and the CLI resolves a
     // relative path against the current directory, so the project path is the resolved one.
     projectDir = realpathSync(dir);
@@ -696,12 +696,12 @@ describe("flisk up --env-file", () => {
     // A relative --env-file is resolved against the current directory, like Node.js and
     // `docker compose --env-file` resolve it.
     process.chdir(dir);
-    vi.stubEnv("TDK_ALLOW_NATIVE_WINDOWS", "1");
+    vi.stubEnv("FLISK_ALLOW_NATIVE_WINDOWS", "1");
     vi.mocked(findProjectRoot).mockReturnValue(projectDir);
     vi.mocked(requireProjectRoot).mockReturnValue(projectDir);
     // The command reads the project config before it starts anything.
-    mkdirSync(join(projectDir, ".tdk"), { recursive: true });
-    writeFileSync(join(projectDir, ".tdk", "project.json"), `${JSON.stringify(PROJECT_JSON)}\n`);
+    mkdirSync(join(projectDir, ".flisk"), { recursive: true });
+    writeFileSync(join(projectDir, ".flisk", "project.json"), `${JSON.stringify(PROJECT_JSON)}\n`);
     vi.mocked(verifyMasterConfigs).mockReturnValue({
       valid: true,
       errors: [],
@@ -753,7 +753,7 @@ describe("flisk up --env-file", () => {
   });
 
   it("refuses a file outside the project", () => {
-    const outside = mkdtempSync(join(tmpdir(), "tdk-up-env-outside-"));
+    const outside = mkdtempSync(join(tmpdir(), "flisk-up-env-outside-"));
     try {
       writeFileSync(join(outside, ".env"), COMPLETE_ENV);
       expect(() => selectRunEnvFile(projectDir, join(outside, ".env"))).toThrow(

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """The pinned Sablier Traefik plugin must actually load in the pinned Traefik image (#1235).
 
@@ -40,7 +40,7 @@ def _docker_ready() -> bool:
 @pytest.mark.skipif(not _docker_ready(), reason="Docker daemon not available")
 def test_pinned_sablier_plugin_loads_in_pinned_traefik():
     image, version = _pinned()
-    name = f"tdk-plugin-load-{uuid.uuid4().hex[:8]}"
+    name = f"flisk-plugin-load-{uuid.uuid4().hex[:8]}"
     try:
         subprocess.run(
             [

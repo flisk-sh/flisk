@@ -47,9 +47,9 @@ function globMatchesDir(patternSegments, dirSegments) {
     return (patternSegments.length === dirSegments.length &&
         patternSegments.every((segment, index) => segmentMatches(segment, dirSegments[index])));
 }
-/** `discovery.paths` from .tdk/project.json, or the generic default when unset/unreadable. */
+/** `discovery.paths` from .flisk/project.json, or the generic default when unset/unreadable. */
 export function readDiscoveryPaths(projectRoot) {
-    const configPath = join(projectRoot, ".tdk", PROJECT_JSON);
+    const configPath = join(projectRoot, ".flisk", PROJECT_JSON);
     if (!existsSync(configPath))
         return DEFAULT_DISCOVERY_PATHS;
     try {

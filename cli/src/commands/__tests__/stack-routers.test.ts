@@ -24,7 +24,7 @@ const composeStar = JSON.stringify(
 );
 
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for Starlark generator tests in CI.");
 }
 
@@ -38,7 +38,7 @@ afterEach(() => {
 
 /** Evaluates a Tiltfile. A failed `fail(...)` check makes tilt exit non-zero and puts the message in stderr. */
 function expectPasses(source: string) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-stack-routers-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-stack-routers-"));
   temporaryDirs.push(directory);
   const tiltfile = join(directory, "Tiltfile");
   writeFileSync(tiltfile, source);

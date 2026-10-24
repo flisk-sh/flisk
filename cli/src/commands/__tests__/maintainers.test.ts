@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { runMaintainersCheck } from "../maintainers.js";
 
 function check(table: string | null) {
-  const dir = mkdtempSync(join(tmpdir(), "tdk-maintainers-"));
+  const dir = mkdtempSync(join(tmpdir(), "flisk-maintainers-"));
   try {
     const file = join(dir, "MAINTAINERS.md");
     if (table !== null) writeFileSync(file, table);

@@ -4,7 +4,7 @@
 //
 // ink, react and chalk (plus their transitive deps, notably es-toolkit at
 // ~18 MB) are inlined so the npm package does not install them. commander and
-// handlebars stay external. dist/ itself is committed and untouched; bin/tdk.js
+// handlebars stay external. dist/ itself is committed and untouched; bin/flisk.js
 // prefers dist-bundle/ when it exists (only inside a packed/installed package).
 
 import { readFileSync, rmSync } from "node:fs";
@@ -49,7 +49,7 @@ await build({
   minify: true,
   external: ["commander", "handlebars", "react-devtools-core"],
   banner: {
-    js: "import{createRequire as __tdkRequire}from'node:module';const require=__tdkRequire(import.meta.url);",
+    js: "import{createRequire as __fliskRequire}from'node:module';const require=__fliskRequire(import.meta.url);",
   },
   logLevel: "warning",
 });

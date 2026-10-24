@@ -1,4 +1,4 @@
-/** `discovery.paths` from .tdk/project.json, or the generic default when unset/unreadable. */
+/** `discovery.paths` from .flisk/project.json, or the generic default when unset/unreadable. */
 export declare function readDiscoveryPaths(projectRoot: string): string[];
 /** Whether Tilt's discovery would find a service.json in `resourceDir` given `patterns`. */
 export declare function isPathDiscovered(projectRoot: string, resourceDir: string, patterns: string[]): boolean;

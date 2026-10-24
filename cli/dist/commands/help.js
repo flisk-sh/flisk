@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import pkg from "../../package.json" with { type: "json" };
-const TDK_BANNER = `
+const FLISK_BANNER = `
   ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Flisk CLI — start services on your machine.")}
 `;
 const COMMAND_GROUPS = [
@@ -107,7 +107,7 @@ function formatCommand(name, desc, alias, color) {
     return `  ${nameFormatted} ${descFormatted}${aliasFormatted}`;
 }
 export function showHelp() {
-    console.log(TDK_BANNER);
+    console.log(FLISK_BANNER);
     console.log(chalk.gray("\n  Local development inner loop; Flisk does not replace Helm for cluster deployments.\n"));
     console.log(chalk.bold.white("  Project → Phase → Stack → Resource\n"));
     console.log(chalk.gray("  Usage: flisk [command] [options]\n"));

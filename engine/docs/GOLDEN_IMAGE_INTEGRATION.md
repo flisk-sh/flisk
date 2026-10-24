@@ -2,7 +2,7 @@
 
 ## Overview
 
-The golden image workflow builds the heavy, rarely changing parts of every service image once, as a set of local base images, so a service build only adds its own code. The images are named `<project>-l1` to `<project>-l4-*` after the `project.name` in `.tdk/project.json` (`tdk-project` when there is none). For measured build times, see [Warm starts and build speed](#warm-starts-and-build-speed-local-development-only).
+The golden image workflow builds the heavy, rarely changing parts of every service image once, as a set of local base images, so a service build only adds its own code. The images are named `<project>-l1` to `<project>-l4-*` after the `project.name` in `.flisk/project.json` (`flisk-project` when there is none). For measured build times, see [Warm starts and build speed](#warm-starts-and-build-speed-local-development-only).
 
 ## Architecture Integration
 
@@ -49,7 +49,7 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
 
 **Key Functions**:
 - `_load_golden_image()` - returns `GoldenImage.build(...)`, which creates the `golden-layers-build` `local_resource`; returns `None` when `golden-image` is off
-- `_generate_golden_dockerfile()` - writes `.tdk/.tdk-out/golden-layers.Dockerfile` (through `write_file_if_changed`, so the file is only touched when its content changes)
+- `_generate_golden_dockerfile()` - writes `.flisk/.flisk-out/golden-layers.Dockerfile` (through `write_file_if_changed`, so the file is only touched when its content changes)
 
 ### 3. Orchestrator Integration (`engine/topologies/tilt/resources/orchestrator/`)
 
@@ -90,7 +90,7 @@ def L1_generate_os_base(base_image = None, maintainer = None, use_golden = True)
 
 ### 5. Configuration
 
-The feature is named `golden-image` and is **enabled by default** (`enabled_by_default: true` in `cli/src/utils/project-features.ts`). In `.tdk/project.json` it is the `optional_infra.golden_image` flag:
+The feature is named `golden-image` and is **enabled by default** (`enabled_by_default: true` in `cli/src/utils/project-features.ts`). In `.flisk/project.json` it is the `optional_infra.golden_image` flag:
 
 ```json
 {
@@ -104,7 +104,7 @@ The feature is named `golden-image` and is **enabled by default** (`enabled_by_d
 }
 ```
 
-Verdaccio is Premium and off by default; it requires `TDK_LICENSE_KEY` (see `project-features.ts`).
+Verdaccio is Premium and off by default; it requires `FLISK_LICENSE_KEY` (see `project-features.ts`).
 
 ### 6. Tiltfile Integration
 
@@ -141,13 +141,13 @@ service-backend-1, service-backend-2, ... (applications and migrators)
 
 1. **Tilt Startup**:
    - `Infra.load_all()` is called
-   - `_generate_golden_dockerfile()` writes `.tdk/.tdk-out/golden-layers.Dockerfile`
+   - `_generate_golden_dockerfile()` writes `.flisk/.flisk-out/golden-layers.Dockerfile`
    - `_load_golden_image()` registers a `local_resource` named `golden-layers-build`
 
 2. **Golden Image Build**:
    - Resource: `golden-layers-build`
    - Labels: `['infra.docker', 'golden-layers']`
-   - Trigger: when Tilt starts, and when `.tdk/.tdk-out/golden-layers.Dockerfile` changes (`deps=[...]`)
+   - Trigger: when Tilt starts, and when `.flisk/.flisk-out/golden-layers.Dockerfile` changes (`deps=[...]`)
    - Command: one `docker buildx bake` for all targets, or one `docker build --target <target>` per image when buildx is missing (see [Warm starts](#warm-starts-and-build-speed-local-development-only))
    - Result: eight local images, one per layer in `GOLDEN_LAYERS`: `<project>-l1`, `-l2`, `-l3-backend`, `-l3-frontend`, `-l4-backend`, `-l4-backend-node`, `-l4-frontend` and `-l4-migrator`, all tagged `:latest`
 
@@ -160,7 +160,7 @@ service-backend-1, service-backend-2, ... (applications and migrators)
 
 ### Enable/Disable
 
-**Via CLI** (writes `optional_infra.golden_image` in `.tdk/project.json`):
+**Via CLI** (writes `optional_infra.golden_image` in `.flisk/project.json`):
 ```bash
 flisk config disable-infra golden_image
 flisk config regenerate
@@ -177,15 +177,15 @@ Use `enable-infra` to turn it back on. The setting is for the whole project, not
 2. Click resource name
 3. Click "Trigger Update" button
 
-An unchanged Dockerfile skips the build; to force it, set `TDK_GOLDEN_REBUILD=1` (see below).
+An unchanged Dockerfile skips the build; to force it, set `FLISK_GOLDEN_REBUILD=1` (see below).
 
 **CLI**, one image (here L1) from the project root:
 ```bash
-docker build -f .tdk/.tdk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
+docker build -f .flisk/.flisk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
 ```
 
 **Automatic Rebuild**:
-- Triggered when `.tdk/.tdk-out/golden-layers.Dockerfile` changes
+- Triggered when `.flisk/.flisk-out/golden-layers.Dockerfile` changes
 - Tilt watches this file via `deps=[dockerfile_from_tiltfile]`
 
 ### Customize Golden Image
@@ -196,21 +196,21 @@ The Dockerfile is generated, so edits to it are lost the next time Tilt starts.
 ```bash
 vim engine/topologies/platform/docker/build/golden_image_dockerfile.star
 # Edit generate_golden_dockerfile()
-# Restart Tilt to regenerate .tdk/.tdk-out/golden-layers.Dockerfile
+# Restart Tilt to regenerate .flisk/.flisk-out/golden-layers.Dockerfile
 ```
 
 ## Warm starts and build speed (local development only)
 
 These settings change how `flisk up` builds images on your machine. They do not change the images that run, and they do not generate Kubernetes manifests.
 
-- **Golden images are skipped when unchanged.** Each golden image carries a `tdk.golden.hash` label, the hash of the generated golden Dockerfile. When every golden tag exists with the current hash, `golden-layers-build` exits with "Golden images are up to date" and builds nothing.
-- **Force a golden rebuild** with `TDK_GOLDEN_REBUILD=1 flisk up ...`.
+- **Golden images are skipped when unchanged.** Each golden image carries a `flisk.golden.hash` label, the hash of the generated golden Dockerfile. When every golden tag exists with the current hash, `golden-layers-build` exits with "Golden images are up to date" and builds nothing.
+- **Force a golden rebuild** with `FLISK_GOLDEN_REBUILD=1 flisk up ...`.
 - **Golden targets build in one `docker buildx bake`** (with `--load`). The filesystem entitlement is passed only on Buildx 0.19 or later. Without buildx, each target is built with `docker build`, labelled with the same hash.
-- **Parallel image builds** come from the Docker engine: Tilt's `max_parallel_updates` is set from the engine's CPU count (minus two) and memory (about 1.5 GiB per build), with a minimum of 3 and a maximum of 8. Set `TDK_MAX_PARALLEL_BUILDS=<n>` to choose the value. If `docker info` cannot be read, Tilt's default applies and the Tilt log says why.
+- **Parallel image builds** come from the Docker engine: Tilt's `max_parallel_updates` is set from the engine's CPU count (minus two) and memory (about 1.5 GiB per build), with a minimum of 3 and a maximum of 8. Set `FLISK_MAX_PARALLEL_BUILDS=<n>` to choose the value. If `docker info` cannot be read, Tilt's default applies and the Tilt log says why.
 - **Frontend type-checks run outside the image.** A frontend whose build script is `tsc --noEmit && vite build` builds with `bunx vite build` inside the image, and a non-blocking `<service>-typecheck` resource runs `tsc --noEmit` on the host. The resource needs the service's dependencies installed (`bun install`); without them it says so. A plain `tsc` (which emits output) and a custom Vite config keep the script's own build.
 - **Measure a start** with `node scripts/benchmark/tilt-build-durations.mjs --port <tilt port>`, which prints each resource's latest build time.
 
-**Measured on `tdk-restaurant-example`** (macOS 26.5.2, arm64, 8 CPUs; flisk 1.3.144): a cold start (all project images and build cache removed) takes 281 seconds to all eight containers healthy. Warm starts take 38 to 50 seconds to healthy, and the golden base build is skipped in about 2 seconds instead of rebuilding for 2 minutes. Full tables, the chart and the raw data are in [`benchmarks/results/tdk-up-warm-start-2026-10-11`](../../benchmarks/results/tdk-up-warm-start-2026-10-11/README.md). To measure your own project, see [`scripts/benchmark/README.md`](../../scripts/benchmark/README.md#tdk-up-warm-start-benchmark).
+**Measured on `tdk-restaurant-example`** (macOS 26.5.2, arm64, 8 CPUs; flisk 1.3.144): a cold start (all project images and build cache removed) takes 281 seconds to all eight containers healthy. Warm starts take 38 to 50 seconds to healthy, and the golden base build is skipped in about 2 seconds instead of rebuilding for 2 minutes. Full tables, the chart and the raw data are in [`docs/benchmarks/results/flisk-up-warm-start-2026-10-11`](../../docs/benchmarks/results/flisk-up-warm-start-2026-10-11/README.md). To measure your own project, see [`scripts/benchmark/README.md`](../../scripts/benchmark/README.md#flisk-up-warm-start-benchmark).
 
 ## File Structure
 
@@ -218,9 +218,9 @@ Generated in your project:
 
 ```
 <project>/
-├── .tdk/
+├── .flisk/
 │   ├── project.json                         # optional_infra.golden_image
-│   └── .tdk-out/
+│   └── .flisk-out/
 │       ├── Tiltfile                         # Generated from cli/templates/Tiltfile.hbs
 │       └── golden-layers.Dockerfile         # Generated base images (all layers)
 ```
@@ -263,7 +263,7 @@ docker image inspect <project>-l1:latest
 
 **Fix**: trigger `golden-layers-build` in the Tilt UI, or build one image by hand:
 ```bash
-docker build -f .tdk/.tdk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
+docker build -f .flisk/.flisk-out/golden-layers.Dockerfile --target l1_golden -t <project>-l1:latest .
 ```
 See [troubleshoot-l1.md](../../docs/troubleshoot-l1.md) for the L1 failures.
 
@@ -281,14 +281,14 @@ grep -rn "AS l1_os_base" services --include='Dockerfile.*.autogenerated'
 FROM <project>-l1:latest AS l1_os_base
 ```
 
-**If it says `FROM alpine:3.22 AS l1_os_base`**: the golden image is off. Check `optional_infra.golden_image` in `.tdk/project.json`, or look at the `use_golden` argument that reached `L1_generate_os_base`.
+**If it says `FROM alpine:3.22 AS l1_os_base`**: the golden image is off. Check `optional_infra.golden_image` in `.flisk/project.json`, or look at the `use_golden` argument that reached `L1_generate_os_base`.
 
 ### Golden Image Resource Missing
 
 **Symptoms**: `ctx.get('golden_image_resource')` returns None
 
 **Check**:
-1. Verify `optional_infra.golden_image` is `true` in `.tdk/project.json`
+1. Verify `optional_infra.golden_image` is `true` in `.flisk/project.json`
 2. Check the Tiltfile stores `GOLDEN_IMAGE_RESOURCE` in `TILT_CONTEXT` (`'golden_image_resource': GOLDEN_IMAGE_RESOURCE`)
 3. Restart Tilt
 

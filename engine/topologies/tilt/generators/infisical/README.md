@@ -354,7 +354,7 @@ print(result["deprecated"]) # False
 ## File Structure
 
 ```
-tdk-cli/engine/topologies/
+flisk-cli/engine/topologies/
 ├── tilt/generators/infisical/
 │   ├── index.star              # Master module export
 │   ├── secrets_generator.star  # Secret injection config

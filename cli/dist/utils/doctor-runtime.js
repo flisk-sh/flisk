@@ -27,7 +27,8 @@ export function shellQuote(value) {
     return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 function runHostCommand(exec, command, args, shellCommand, options) {
-    if (process.platform === "win32") {
+    // A supplied custom executor wins on every platform, including Windows.
+    if (process.platform === "win32" && exec === execSync) {
         return execFileSync(findOnPath(command) ?? command, args, {
             ...options,
             windowsHide: true,
@@ -74,7 +75,7 @@ export function parsePublishedPortHolders(dockerPsOutput, ports) {
 export function isOwnIngressContainer(containerName, projectPrefix) {
     const name = containerName.toLowerCase();
     const prefix = projectPrefix.toLowerCase();
-    // tdk_project_traefik, tdk_project-traefik-1, etc.
+    // flisk_project_traefik, flisk_project-traefik-1, etc.
     return name === `${prefix}_traefik` || name.startsWith(`${prefix}_traefik`);
 }
 export function findForeignIngressHolders(holders, projectPrefix) {
@@ -205,7 +206,7 @@ export function isRegistryRelatedBuildError(error) {
     return /ConnectionRefused downloading package manifest|Verdaccio|private registry|dependency install failed during ImageBuild|install-deps\.sh|bun install/i.test(error);
 }
 export function projectConfigEnablesVerdaccio(projectRoot = findProjectRoot() ?? process.cwd()) {
-    const projectJsonPath = join(projectRoot, ".tdk", PROJECT_JSON);
+    const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
     if (!existsSync(projectJsonPath))
         return false;
     try {

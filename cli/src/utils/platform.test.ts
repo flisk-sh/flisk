@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import {
   binaryAssetNameFor,
   executableName,
+  fliskArchFor,
+  fliskOsFor,
   pathLookups,
-  tdkArchFor,
-  tdkOsFor,
 } from "./platform.js";
 
 describe("platform mappings", () => {
@@ -21,9 +21,9 @@ describe("platform mappings", () => {
   });
 
   it("maps Node platform and architecture names", () => {
-    expect(tdkOsFor("win32")).toBe("windows");
-    expect(tdkArchFor("x64")).toBe("amd64");
-    expect(tdkOsFor("windows")).toBeNull();
+    expect(fliskOsFor("win32")).toBe("windows");
+    expect(fliskArchFor("x64")).toBe("amd64");
+    expect(fliskOsFor("windows")).toBeNull();
   });
 
   it("includes Windows executable suffixes for PATH lookup", () => {
@@ -31,6 +31,6 @@ describe("platform mappings", () => {
   });
 
   it("uses the native executable name for the current operating system", () => {
-    expect(executableName()).toBe(process.platform === "win32" ? "tdk.exe" : "flisk");
+    expect(executableName()).toBe(process.platform === "win32" ? "flisk.exe" : "flisk");
   });
 });

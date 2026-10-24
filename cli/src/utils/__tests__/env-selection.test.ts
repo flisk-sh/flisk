@@ -38,7 +38,7 @@ const COMPLETE_ENV = [
 ].join("\n");
 
 function projectRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), "tdk-env-selection-"));
+  const root = mkdtempSync(join(tmpdir(), "flisk-env-selection-"));
   dirs.push(root);
   return root;
 }
@@ -53,9 +53,9 @@ function writeEnv(root: string, name: string, content = COMPLETE_ENV): string {
 function vendoredEngine(root: string, content: string): void {
   const path = join(
     root,
-    ".tdk",
-    ".tdk-out",
-    "tdk-cli-ext",
+    ".flisk",
+    ".flisk-out",
+    "flisk-cli-ext",
     "engine",
     "topologies",
     "tilt",
@@ -88,7 +88,7 @@ describe("resolveEnvFilePath", () => {
 
   it("refuses a path outside the project", () => {
     const root = projectRoot();
-    const outside = mkdtempSync(join(tmpdir(), "tdk-env-outside-"));
+    const outside = mkdtempSync(join(tmpdir(), "flisk-env-outside-"));
     dirs.push(outside);
     writeFileSync(join(outside, ".env"), COMPLETE_ENV);
 
@@ -106,7 +106,7 @@ describe("resolveEnvFilePath", () => {
 
   it("refuses a symbolic link that points outside the project", () => {
     const root = projectRoot();
-    const outside = mkdtempSync(join(tmpdir(), "tdk-env-outside-"));
+    const outside = mkdtempSync(join(tmpdir(), "flisk-env-outside-"));
     dirs.push(outside);
     const target = join(outside, ".env");
     writeFileSync(target, COMPLETE_ENV);

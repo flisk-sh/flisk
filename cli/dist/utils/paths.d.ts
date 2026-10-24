@@ -1,9 +1,9 @@
 /**
  * Find the nearest enclosing Flisk project root by walking up from `startDir` until a
- * `.tdk/project.json` marker is found. Stops at the filesystem root without treating the
+ * `.flisk/project.json` marker is found. Stops at the filesystem root without treating the
  * root itself as a project.
  * @param startDir - Directory to start searching from (default: cwd)
- * @returns Absolute path of the project root, or null if no `.tdk/project.json` exists on any parent
+ * @returns Absolute path of the project root, or null if no `.flisk/project.json` exists on any parent
  */
 export declare function findProjectRoot(startDir?: string): string | null;
 /**

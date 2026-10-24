@@ -14,12 +14,12 @@ export const PROJECT_FEATURES = {
         dependsOn: [],
     },
     // Key/name must be the literal Tilt resource name (PlatformDockerConstants.VERDACCIO_RESOURCE_NAME
-    // in tdk-cli-extensions), since project.json's services list is copied verbatim into
+    // in flisk-cli-extensions), since project.json's services list is copied verbatim into
     // PRE_ALPHA_RESOURCES and matched against that name by should_enable(). "registry" would
     // silently fail to enable Verdaccio.
     verdaccio: {
         name: "verdaccio",
-        description: "Verdaccio npm registry for package management and local publishing (Premium - requires TDK_LICENSE_KEY)",
+        description: "Verdaccio npm registry for package management and local publishing (Premium - requires FLISK_LICENSE_KEY)",
         category: "premium",
         phase: "pre_alpha",
         enabled_by_default: false,

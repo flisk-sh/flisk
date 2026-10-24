@@ -1,6 +1,6 @@
 # Architecture: How Flisk Works End to End
 
-Flisk bridges high-level architectural intent and local container runtime orchestration. Instead of hand-crafting complex Docker Compose files or maintaining local Kubernetes manifests, developers declare services using simple `service.json` manifests alongside a `.tdk/project.json` project configuration. Flisk then compiles, coordinates, and manages the local runtime through [Tilt](https://tilt.dev).
+Flisk bridges high-level architectural intent and local container runtime orchestration. Instead of hand-crafting complex Docker Compose files or maintaining local Kubernetes manifests, developers declare services using simple `service.json` manifests alongside a `.flisk/project.json` project configuration. Flisk then compiles, coordinates, and manages the local runtime through [Tilt](https://tilt.dev).
 
 This document explains how Flisk's subsystems fit together, traces the data flow of a session from initialization to running containers, defines state boundaries, and serves as a roadmap for contributors making changes across the codebase.
 
@@ -8,7 +8,7 @@ This document explains how Flisk's subsystems fit together, traces the data flow
 
 ## 1. The Three Subsystems
 
-The codebase is organized into three distinct subsystems as defined in [CONTRIBUTING.md](../CONTRIBUTING.md):
+The codebase is organized into three distinct subsystems as defined in [CONTRIBUTING.md](../.github/CONTRIBUTING.md):
 
 ```
 flisk/
@@ -18,7 +18,7 @@ flisk/
 ```
 
 ### `cli/` — The TypeScript CLI
-- **What it is responsible for**: `cli/` provides the developer entry point. It parses CLI flags and subcommands via Commander, executes interactive prompts and TUI dashboards (using Ink), validates `project.json` and `service.json` manifests against JSON Schemas, manages deterministic port allocations across ranges, evaluates Handlebars templates to produce master configuration files in `.tdk/.tdk-out/`, vendors engine and discovery assets, and launches and supervises Tilt processes (`tilt up`, `tilt down`, readiness detection, and `flisk doctor` environment diagnostics).
+- **What it is responsible for**: `cli/` provides the developer entry point. It parses CLI flags and subcommands via Commander, executes interactive prompts and TUI dashboards (using Ink), validates `project.json` and `service.json` manifests against JSON Schemas, manages deterministic port allocations across ranges, evaluates Handlebars templates to produce master configuration files in `.flisk/.flisk-out/`, vendors engine and discovery assets, and launches and supervises Tilt processes (`tilt up`, `tilt down`, readiness detection, and `flisk doctor` environment diagnostics).
 - **What it must NOT do**: `cli/` must **not** make dynamic container orchestration decisions at runtime (such as watching source files for container live-updates, evaluating dependency DAGs, or triggering image rebuilds). It must **not** bypass Tilt to start containers directly for managed service resources, and it must **not** hardcode application-specific service topologies or business logic.
 
 ### `engine/` — The Starlark Runtime Framework
@@ -36,15 +36,15 @@ flisk/
 A typical Flisk session progresses through three distinct stages: project initialization (`flisk project`), service scaffolding (`flisk resource`), and runtime launch (`flisk up`).
 
 ### Step 1: `flisk project` (Project Initialization)
-1. **Manifest Creation**: Writes the root `.tdk/project.json` file defining project identity, release phases (`pre_alpha`, `alpha`, `beta`, `out_of_scope`), enabled stacks, optional infrastructure, and discovery paths.
-2. **Git Hygiene**: Calls `ensureGitignore()` (in [cli/src/utils/file-helpers.ts](../cli/src/utils/file-helpers.ts)) to append required gitignore patterns (`.env`, `.tdk/.tdk-out/`, `.tdk/.project-id`, `.tdk/smoke/`, `node_modules/`) so secrets and generated assets are never committed.
-3. **Master Config Generation**: Compiles Handlebars templates from [cli/templates/](../cli/templates/) through `generateMasterConfigs()` in [cli/src/generator/template-engine.ts](../cli/src/generator/template-engine.ts) and emits them into the gitignored `.tdk/.tdk-out/` directory:
+1. **Manifest Creation**: Writes the root `.flisk/project.json` file defining project identity, release phases (`pre_alpha`, `alpha`, `beta`, `out_of_scope`), enabled stacks, optional infrastructure, and discovery paths.
+2. **Git Hygiene**: Calls `ensureGitignore()` (in [cli/src/utils/file-helpers.ts](../cli/src/utils/file-helpers.ts)) to append required gitignore patterns (`.env`, `.flisk/.flisk-out/`, `.flisk/.project-id`, `.flisk/smoke/`, `node_modules/`) so secrets and generated assets are never committed.
+3. **Master Config Generation**: Compiles Handlebars templates from [cli/templates/](../cli/templates/) through `generateMasterConfigs()` in [cli/src/generator/template-engine.ts](../cli/src/generator/template-engine.ts) and emits them into the gitignored `.flisk/.flisk-out/` directory:
    - `Tiltfile`: The main entry point loaded by Tilt.
    - `TILT_TECH_STACK.star`: Technology standards, port ranges, and healthcheck routes.
    - `TILT_RESOURCE_DEFAULTS.star`: Defaults and conventions per resource type.
    - `spec.master`: Active phases and enabled stack declarations.
    - `.tiltignore`: Ignore rules copied to the project root so Tilt ignores non-runtime files.
-4. **Extension Vendoring**: Vendors a self-contained copy of `engine/`, `discovery/`, `specs/`, and `ext/` into `.tdk/.tdk-out/tdk-cli-ext/`, ensuring `flisk up` functions offline without external git dependencies.
+4. **Extension Vendoring**: Vendors a self-contained copy of `engine/`, `discovery/`, `specs/`, and `ext/` into `.flisk/.flisk-out/flisk-cli-ext/`, ensuring `flisk up` functions offline without external git dependencies.
 
 ### Step 2: `flisk resource` (Service Scaffolding)
 1. **Validation**: Validates the resource name and target stack (enforcing kebab-case conventions).
@@ -55,14 +55,14 @@ A typical Flisk session progresses through three distinct stages: project initia
 
 ### Step 3: `flisk up` (Runtime Execution)
 1. **Preflight & Drift Verification**: Verifies environment readiness (Docker running, WSL2 on Windows). `flisk up` runs the full runtime preflight; `flisk project` only checks the prerequisites that writing files needs, so project setup works without a Docker daemon or Tilt. Re-runs `generateMasterConfigs()` if manifests changed, and checks for manual edits to generated files to prevent drift.
-2. **Tilt Launch**: Spawns `tilt up` targeting the generated `.tdk/.tdk-out/Tiltfile`.
+2. **Tilt Launch**: Spawns `tilt up` targeting the generated `.flisk/.flisk-out/Tiltfile`.
 3. **Starlark Discovery & DAG Assembly**: Inside Tilt, `Tiltfile` imports `discovery/` from the vendored extension. `discovery/` traverses all paths matching `services/*/*/service.json`, synthesizes missing defaults, and builds the resource DAG.
 4. **Engine Orchestration**: `engine/` evaluates phase filters against `spec.master` via `should_enable()`. For each enabled resource:
    - Generates service runtime files under `services/<stack>/<resource>/.autogenerated/` (such as `nginx.autogenerated.conf`, `vite.config.*`, `tsconfig.autogenerated.json`, or generated Dockerfiles).
    - Registers Tilt build targets (`docker_build` with `live_update` sync mappings).
    - Launches shared platform infrastructure (Traefik reverse proxy on port 80/443, PostgreSQL database on port 15432).
 5. **Runtime Supervision**: Tilt builds images, boots containers in dependency order, forwards ports, wires Traefik routing rules, and launches the interactive Tilt web UI (default `http://localhost:10350`). The CLI monitors startup readiness and prints accessible service URLs.
-6. **Smoke Checks**: For services that declare a `smoke` block, `flisk up` requests the public URL it prints once Tilt reports readiness. Before the first response record is written, it makes sure the project `.gitignore` ignores `.tdk/smoke/` (through `ensureSmokeRecordsIgnored()` in [cli/src/utils/file-helpers.ts](../cli/src/utils/file-helpers.ts)), and it masks the project's own `.env` secret values out of every text it shows or stores.
+6. **Smoke Checks**: For services that declare a `smoke` block, `flisk up` requests the public URL it prints once Tilt reports readiness. Before the first response record is written, it makes sure the project `.gitignore` ignores `.flisk/smoke/` (through `ensureSmokeRecordsIgnored()` in [cli/src/utils/file-helpers.ts](../cli/src/utils/file-helpers.ts)), and it masks the project's own `.env` secret values out of every text it shows or stores.
 
 ---
 
@@ -81,20 +81,20 @@ flowchart TD
 
     subgraph FS ["Filesystem State"]
         subgraph Committed ["Committed Source Control"]
-            ProjJson[".tdk/project.json"]
+            ProjJson[".flisk/project.json"]
             SvcJson["services/*/*/service.json"]
             SrcCode["Application Source & Dockerfiles"]
             GitIgnore[".gitignore"]
         end
         subgraph Generated ["Generated & Gitignored"]
             DotEnv[".env (DB Secrets)"]
-            TdkOut[".tdk/.tdk-out/\n- Tiltfile\n- spec.master\n- TILT_*.star\n- tdk-cli-ext/"]
+            FliskOut[".flisk/.flisk-out/\n- Tiltfile\n- spec.master\n- TILT_*.star\n- flisk-cli-ext/"]
             SvcAuto["services/*/*/.autogenerated/\n- vite.config.*\n- tsconfig.*\n- nginx.conf"]
         end
     end
 
     subgraph Runtime ["Tilt & Engine Runtime (Starlark)"]
-        TiltExec["Tilt Process\n(tilt up .tdk/.tdk-out/Tiltfile)"]
+        TiltExec["Tilt Process\n(tilt up .flisk/.flisk-out/Tiltfile)"]
         Discovery["discovery/\n- Manifest Scanner\n- DAG Builder"]
         Engine["engine/\n- Phase Filter (should_enable)\n- Live-Update Mappings\n- Infra Loader"]
     end
@@ -114,7 +114,7 @@ flowchart TD
     CmdProject -->|Writes| ProjJson
     CmdProject -->|Updates| GitIgnore
     CmdProject -->|Compiles| GenConfigs
-    GenConfigs -->|Emits| TdkOut
+    GenConfigs -->|Emits| FliskOut
 
     CmdResource -->|Writes| SvcJson
     CmdResource -->|Scaffolds| SrcCode
@@ -125,7 +125,7 @@ flowchart TD
     CmdUp -->|Launches| TiltExec
 
     %% Runtime execution
-    TiltExec -->|Loads| TdkOut
+    TiltExec -->|Loads| FliskOut
     TiltExec -->|Runs| Discovery
     Discovery -->|Scans| SvcJson
     Discovery -->|Constructs DAG| Engine
@@ -146,15 +146,15 @@ Flisk maintains a strict boundary between what belongs in source control and wha
 
 | Artifact Path | Classification | Purpose | Why This Boundary Matters |
 | :--- | :--- | :--- | :--- |
-| `.tdk/project.json` | **Committed** | Project identity, enabled phases/stacks, discovery paths. | Shared team source of truth for repository architecture. |
+| `.flisk/project.json` | **Committed** | Project identity, enabled phases/stacks, discovery paths. | Shared team source of truth for repository architecture. |
 | `services/*/*/service.json` | **Committed** | Declarative service manifests (appType, port, dependencies, features). | Defines service contracts; checked in alongside code. |
 | Application source code (`src/`, `package.json`, `Dockerfile`) | **Committed** | Business logic, application packages, and custom build definitions. | Standard version-controlled project source. |
 | `.gitignore` | **Committed** | Git exclusion rules. | Maintained by `ensureGitignore()` to prevent accidental check-in of secrets or outputs. |
 | `.tiltignore` | **Committed** | Patterns ignored by Tilt file watches. | Prevents Tilt loops on logs, coverage, and cache artifacts. |
 | `.env` | **Generated / Gitignored** | Local environment variables and generated database credentials (`DB_PASSWORD`). | **Security boundary**: Contains auto-generated passwords; must never be committed. |
-| `.tdk/.tdk-out/` | **Generated / Gitignored** | Generated `Tiltfile`, `spec.master`, `TILT_*.star`, and vendored `tdk-cli-ext/`. | Derived entirely from `project.json` and CLI templates; rebuilt automatically. |
-| `.tdk/.project-id` | **Generated / Gitignored** | Ephemeral internal project identifier. | Local machine state. |
-| `.tdk/smoke/` | **Generated / Gitignored** | Output from `flisk up` smoke checks. | Ephemeral test artifacts. |
+| `.flisk/.flisk-out/` | **Generated / Gitignored** | Generated `Tiltfile`, `spec.master`, `TILT_*.star`, and vendored `flisk-cli-ext/`. | Derived entirely from `project.json` and CLI templates; rebuilt automatically. |
+| `.flisk/.project-id` | **Generated / Gitignored** | Ephemeral internal project identifier. | Local machine state. |
+| `.flisk/smoke/` | **Generated / Gitignored** | Output from `flisk up` smoke checks. | Ephemeral test artifacts. |
 | `services/*/*/.autogenerated/` | **Generated / Gitignored** | Nginx configs, dev/build Vite configs, container tsconfigs, and service snapshots. | Generated directly by Starlark engine during Tilt execution. Protected against manual edits by drift detection. |
 | `node_modules/` | **Gitignored** | Local dependency packages. | Standard package manager artifact. |
 

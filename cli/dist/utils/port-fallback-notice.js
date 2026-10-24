@@ -1,7 +1,7 @@
 const PORT_KEYS = [
-    { key: "ingressHttp", label: "HTTP", env: "TDK_HTTP_PORT" },
-    { key: "ingressHttps", label: "HTTPS", env: "TDK_HTTPS_PORT" },
-    { key: "postgres", label: "Postgres", env: "TDK_POSTGRES_PORT" },
+    { key: "ingressHttp", label: "HTTP", env: "FLISK_HTTP_PORT" },
+    { key: "ingressHttps", label: "HTTPS", env: "FLISK_HTTPS_PORT" },
+    { key: "postgres", label: "Postgres", env: "FLISK_POSTGRES_PORT" },
 ];
 /** One line per port Flisk moved off the one it wanted. Ports the user set explicitly are never listed. */
 export function formatPortFallbackNotice(plan) {

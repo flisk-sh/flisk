@@ -19,7 +19,7 @@ This document defines the coding standards and API conventions for the Flisk CLI
 ### Types and Classes
 | Category | Convention | Example |
 |----------|------------|---------|
-| Classes | PascalCase | `TdkError`, `TemplateEngine` |
+| Classes | PascalCase | `FliskError`, `TemplateEngine` |
 | Interfaces | PascalCase, descriptive | `DiscoveredResource`, `ResourceMetadata` |
 | Type aliases | PascalCase | `ResourceStatus`, `FileType` |
 | Factory objects | camelCase | `errorFactories` (not `Errors`) |
@@ -159,14 +159,14 @@ export function findProjectRoot(startDir: string = cwd()) {
 
 ## Error Handling
 
-### Use TdkError for CLI Errors
-All user-facing errors should use the `TdkError` class:
+### Use FliskError for CLI Errors
+All user-facing errors should use the `FliskError` class:
 
 ```typescript
-import { TdkError } from '../utils/errors.js';
+import { FliskError } from '../utils/errors.js';
 
 // ✅ Good
-throw new TdkError(
+throw new FliskError(
   'Resource not found',
   ['Check the resource name', 'Run flisk resources to list all'],
   1  // exit code
@@ -184,8 +184,8 @@ Use the `errorFactories` object for common errors:
 errorFactories.resourceNotFound(name).display();
 errorFactories.notInProject().display();
 
-// ❌ Avoid - Creating TdkError manually for common cases
-new TdkError(`Resource "${name}" not found`, [...]).display();
+// ❌ Avoid - Creating FliskError manually for common cases
+new FliskError(`Resource "${name}" not found`, [...]).display();
 ```
 
 ### Validation Results

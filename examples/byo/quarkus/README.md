@@ -27,7 +27,7 @@ VERIFY_WAIT_SECONDS=120 tests/e2e/resource-types/bring-your-own/verify-byo-examp
 Through a real `flisk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh quarkus /q/health
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh quarkus /q/health
 ```
 
 ## Register it in a Flisk project

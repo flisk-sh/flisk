@@ -22,7 +22,7 @@ VERIFY_WAIT_SECONDS=60 tests/e2e/resource-types/bring-your-own/verify-byo-exampl
 Then through a real `flisk up` and Traefik (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh actix-web /health
+VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh actix-web /health
 ```
 
 Observed: `PASS actix-web: GET /health -> 200 (ok)` and `PASS actix-web: through flisk up and Traefik, GET /api/<name>/health -> 200 (ok)`.

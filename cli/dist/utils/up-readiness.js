@@ -91,7 +91,7 @@ export function evaluateTiltReadiness(jsonText, deferred, expected) {
  * with an errored resource, or at the deadline. Sablier-deferred resources are excluded: they stay idle by design.
  */
 export async function waitForTiltResourcesReady(port, options = {}) {
-    const timeoutMs = options.timeoutMs ?? Number(process.env.TDK_UP_READY_TIMEOUT_MS ?? 900_000);
+    const timeoutMs = options.timeoutMs ?? Number(process.env.FLISK_UP_READY_TIMEOUT_MS ?? 900_000);
     const intervalMs = options.intervalMs ?? 2_000;
     const fetchJson = options.fetchJson ?? tiltGetUiResources;
     const deferred = options.deferred ?? getDeferredResourceNames();

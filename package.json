@@ -15,7 +15,7 @@
     "cli"
   ],
   "bin": {
-    "flisk": "cli/bin/tdk.js"
+    "flisk": "cli/bin/flisk.js"
   },
   "files": [
     "Tiltfile",
@@ -48,8 +48,8 @@
     "prepack": "node cli/scripts/bundle.mjs",
     "postpack": "rm -rf cli/dist-bundle",
     "prepare": "scripts/install-git-hooks.sh",
-    "cli": "cd cli && node bin/tdk.js",
-    "flisk": "cd cli && node bin/tdk.js"
+    "cli": "cd cli && node bin/flisk.js",
+    "flisk": "cd cli && node bin/flisk.js"
   },
   "keywords": [
     "flisk",
@@ -88,5 +88,27 @@
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "knip": {
+    "workspaces": {
+      "cli": {
+        "entry": [
+          "src/cli.ts"
+        ],
+        "project": [
+          "src/**/*.ts",
+          "src/**/*.tsx"
+        ],
+        "ignoreBinaries": [
+          "vi",
+          "colima",
+          "podman",
+          "killall",
+          "file",
+          "flisk",
+          "tilt"
+        ]
+      }
+    }
   }
 }

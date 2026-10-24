@@ -35,7 +35,7 @@ def deterministic_find(path, pattern):
     """
     # Always use | sort to ensure alphabetical ordering
     # This makes output invariant to filesystem ordering (ext4 vs APFS vs NTFS)
-    cmd = "find {} -type f -name '{}' 2>/dev/null | sort".format(path, pattern)
+    cmd = ["sh", "-c", 'find "$1" -type f -name "$2" 2>/dev/null | sort', "sh", path, pattern]
     result = str(local(cmd, quiet=True, echo_off=True)).strip()
     if result:
         return result.split('\n')

@@ -155,7 +155,7 @@ type ExistingServiceConfig = {
 /**
  * Parse an existing `service.json` manifest.
  *
- * Wraps JSON syntax errors in a `TdkError` that names the offending file, so a malformed manifest
+ * Wraps JSON syntax errors in a `FliskError` that names the offending file, so a malformed manifest
  * is reported as a CLI error instead of an unhandled `SyntaxError`. Only the JSON syntax is
  * checked here: the manifest fields themselves are not validated, and a syntactically valid file
  * is returned as-is, including unknown or missing fields.
@@ -163,7 +163,7 @@ type ExistingServiceConfig = {
  * @param content - The raw contents of the `service.json` file.
  * @param configPath - Path to the manifest, used in the error message.
  * @returns The parsed manifest.
- * @throws TdkError When the content is not valid JSON.
+ * @throws FliskError When the content is not valid JSON.
  */
 export declare function parseExistingServiceJson(content: string, configPath: string): ExistingServiceConfig;
 export declare const resourceCommand: Command;

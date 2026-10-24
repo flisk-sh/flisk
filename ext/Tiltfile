@@ -1,12 +1,12 @@
 # =============================================================================
-# 🎯 TDK-EXT - Extensions and IDE Components
+# 🎯 Flisk-EXT - Extensions and IDE Components
 # =============================================================================
-# This is the Tiltfile entry point for the tdk-ext repo.
+# This is the Tiltfile entry point for the flisk-ext repo.
 # It exports UI enhancements and IDE components.
 #
 # Usage:
-#   v1alpha1.extension_repo(name='tdk-ext', url='https://github.com/flisk-sh/flisk')
-#   load('ext://tdk-ext', 'get_ide_components_path', ...)
+#   v1alpha1.extension_repo(name='flisk-ext', url='https://github.com/flisk-sh/flisk')
+#   load('ext://flisk-ext', 'get_ide_components_path', ...)
 # =============================================================================
 
 # =============================================================================
@@ -63,4 +63,4 @@ IDE_PORTS = {
     'code_executor': 9768,
 }
 
-print("✅ TDK Extensions loaded: UI enhancements and IDE components")
+print("✅ Flisk Extensions loaded: UI enhancements and IDE components")

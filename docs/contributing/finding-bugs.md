@@ -9,7 +9,7 @@ You do not need to read the code to find a bug. Most Flisk bugs so far were foun
 Work in an empty directory, never in a project you care about.
 
 ```bash
-mkdir /tmp/tdk-bugs && cd /tmp/tdk-bugs
+mkdir /tmp/flisk-bugs && cd /tmp/flisk-bugs
 flisk --version
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
@@ -121,4 +121,4 @@ mkdir demo && cd demo && flisk project --yes
 
 Say what you checked and what you did not. "I could not run `flisk up` because Docker is not running here; the URL comes from `--dry-run`" is useful. A guess written as fact is not.
 
-You do not need the cause or the fix to report a bug. If you want to fix it yourself, comment `I'll take this` on the issue and follow the [CLI recipe](02-feature-recipes.md#change-a-cli-command). Security problems go to [SECURITY.md](../../SECURITY.md), not a public issue.
+You do not need the cause or the fix to report a bug. If you want to fix it yourself, comment `I'll take this` on the issue and follow the [CLI recipe](02-feature-recipes.md#change-a-cli-command). Security problems go to [SECURITY.md](../../.github/SECURITY.md), not a public issue.

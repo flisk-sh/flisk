@@ -16,17 +16,17 @@ import type { HostPortPlan } from "../host-port-plan.js";
 describe("saved host port plan", () => {
   let projectRoot = "";
   const originalEnv = {
-    http: process.env.TDK_HTTP_PORT,
-    https: process.env.TDK_HTTPS_PORT,
-    postgres: process.env.TDK_POSTGRES_PORT,
+    http: process.env.FLISK_HTTP_PORT,
+    https: process.env.FLISK_HTTPS_PORT,
+    postgres: process.env.FLISK_POSTGRES_PORT,
   };
 
   afterEach(() => {
     if (projectRoot) rmSync(projectRoot, { recursive: true, force: true });
     for (const [key, value] of [
-      ["TDK_HTTP_PORT", originalEnv.http],
-      ["TDK_HTTPS_PORT", originalEnv.https],
-      ["TDK_POSTGRES_PORT", originalEnv.postgres],
+      ["FLISK_HTTP_PORT", originalEnv.http],
+      ["FLISK_HTTPS_PORT", originalEnv.https],
+      ["FLISK_POSTGRES_PORT", originalEnv.postgres],
     ] as const) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
@@ -36,22 +36,22 @@ describe("saved host port plan", () => {
   it("recognizes published ports held by the current project's containers", () => {
     expect(
       isDockerPortOwnedByProject(
-        "tdk_example_traefik|0.0.0.0:8080->80/tcp, :::8080->80/tcp\ntdk_other_postgres|0.0.0.0:15432->5432/tcp",
-        "tdk_example",
+        "flisk_example_traefik|0.0.0.0:8080->80/tcp, :::8080->80/tcp\nflisk_other_postgres|0.0.0.0:15432->5432/tcp",
+        "flisk_example",
         8080,
       ),
     ).toBe(true);
     expect(
       isDockerPortOwnedByProject(
-        "tdk_other_postgres|0.0.0.0:15432->5432/tcp",
-        "tdk_example",
+        "flisk_other_postgres|0.0.0.0:15432->5432/tcp",
+        "flisk_example",
         15432,
       ),
     ).toBe(false);
   });
 
   it("persists and restores the chosen plan", () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-port-config-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-"));
     const plan: HostPortPlan = {
       ingressHttp: 8080,
       ingressHttps: 8443,
@@ -82,16 +82,16 @@ describe("saved host port plan", () => {
       },
     };
     exportHostPortPlan(plan);
-    expect(process.env.TDK_HTTP_PORT).toBe("8081");
-    expect(process.env.TDK_HTTPS_PORT).toBe("8444");
-    expect(process.env.TDK_POSTGRES_PORT).toBe("15433");
+    expect(process.env.FLISK_HTTP_PORT).toBe("8081");
+    expect(process.env.FLISK_HTTPS_PORT).toBe("8444");
+    expect(process.env.FLISK_POSTGRES_PORT).toBe("15433");
   });
 
   it("uses the saved plan without inspecting Docker for dry-run", async () => {
-    delete process.env.TDK_HTTP_PORT;
-    delete process.env.TDK_HTTPS_PORT;
-    delete process.env.TDK_POSTGRES_PORT;
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-port-config-dry-run-"));
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    delete process.env.FLISK_POSTGRES_PORT;
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-dry-run-"));
     const plan: HostPortPlan = {
       ingressHttp: 8082,
       ingressHttps: 8445,
@@ -110,10 +110,10 @@ describe("saved host port plan", () => {
   });
 
   it("moves a saved fallback plan back to ports 80 and 443 once they are free", async () => {
-    delete process.env.TDK_HTTP_PORT;
-    delete process.env.TDK_HTTPS_PORT;
-    delete process.env.TDK_POSTGRES_PORT;
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-port-config-preferred-"));
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    delete process.env.FLISK_POSTGRES_PORT;
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-preferred-"));
     writeSavedHostPortPlan(projectRoot, {
       ingressHttp: 8080,
       ingressHttps: 8443,

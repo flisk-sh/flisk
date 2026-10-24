@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Shared file utilities for Tilt IDE components
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Optional, List, Tuple
 
-# TDK CLI root directory (5 levels up from this file: ext/ide-components/shared/)
+# Flisk CLI root directory (5 levels up from this file: ext/ide-components/shared/)
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 MAX_FILE_SIZE = 1024 * 1024  # 1MB
 

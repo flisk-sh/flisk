@@ -6,11 +6,11 @@ set -euo pipefail
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 readonly FIXTURE_DIR="${REPO_ROOT}/tests/e2e/fixtures/byo-python-health"
 readonly SCHEMA="${REPO_ROOT}/engine/schemas/service-schema.json"
-readonly PROJECT_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/tdk-byo-python-boot"
+readonly PROJECT_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/flisk-byo-python-boot"
 readonly RESOURCE_DIR="${PROJECT_DIR}/services/shop/legacy"
-readonly CLI="${TDK_BIN:-tdk}"
+readonly CLI="${FLISK_BIN:-flisk}"
 readonly PROBE_SECONDS=180
-readonly HTTP_PORT="${TDK_HTTP_PORT:-8080}"
+readonly HTTP_PORT="${FLISK_HTTP_PORT:-8080}"
 
 cleanup() {
   local status=$?
@@ -44,7 +44,7 @@ mkdir -p "$PROJECT_DIR"
 cd "$PROJECT_DIR"
 
 # This job has Docker, Tilt, and the runner's 5432 conflict cleared, so use
-# the real initializer to generate .tdk/.tdk-out before starting the stack.
+# the real initializer to generate .flisk/.flisk-out before starting the stack.
 "$CLI" project --yes
 
 mkdir -p "$RESOURCE_DIR"
@@ -122,8 +122,8 @@ while :; do
   # BYO services use the backend project route (`/api/<resource-name>`),
   # which strips that prefix before forwarding to the container.
   candidates+=(
-    "http://api.tdk-byo-python-boot.localhost:${HTTP_PORT}/api/legacy/health"
-    "http://app.tdk-byo-python-boot.localhost:${HTTP_PORT}/legacy/health"
+    "http://api.flisk-byo-python-boot.localhost:${HTTP_PORT}/api/legacy/health"
+    "http://app.flisk-byo-python-boot.localhost:${HTTP_PORT}/legacy/health"
     "http://127.0.0.1:${HTTP_PORT}/api/legacy/health"
   )
   for url in "${candidates[@]}"; do

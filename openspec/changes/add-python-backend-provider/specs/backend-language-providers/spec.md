@@ -102,8 +102,8 @@ When database management is enabled for a stack, the database provisioner SHALL 
 #### Scenario: Stack database exists before the backend starts
 
 - **GIVEN** the `shop` stack enables database management
-- **WHEN** Flisk starts a database-backed backend whose `DATABASE_URL` targets `tdk_example_shop`
-- **THEN** `provision-db-shop` creates or verifies `tdk_example_shop` before the backend process starts
+- **WHEN** Flisk starts a database-backed backend whose `DATABASE_URL` targets `flisk_example_shop`
+- **THEN** `provision-db-shop` creates or verifies `flisk_example_shop` before the backend process starts
 - **AND** the backend resource depends on that provisioner and PostgreSQL
 - **AND** the API can connect to the configured database before serving requests
 

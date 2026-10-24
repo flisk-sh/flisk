@@ -23,7 +23,7 @@ export const projectsCommand = new Command("projects")
         throw errorFactories.notInProject();
       }
 
-      const outDir = join(projectRoot, ".tdk", ".tdk-out");
+      const outDir = join(projectRoot, ".flisk", ".flisk-out");
       const missing = MASTER_CONFIG_FILES.filter((file) => !existsSync(join(outDir, file)));
 
       if (options.json) {
