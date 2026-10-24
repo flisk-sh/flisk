@@ -522,14 +522,17 @@ describe("doctor JSON command", () => {
     expect(reportWithPassingAction.data.ready).toBe(true);
     expect(getDoctorExitCode(reportWithPassingAction)).toBe(0);
 
+    // A failed fix action is what flips `ready` in the command; this test pins the helper
+    // that decides it and the exit code a non-ready report maps to.
     const reportWithFailedAction = createDoctorReport([PASSING_CHECK], true);
     reportWithFailedAction.data.actions = [failedAction];
     expect(hasFailedActions(reportWithFailedAction.data.actions)).toBe(true);
-    if (hasFailedActions(reportWithFailedAction.data.actions)) {
-      reportWithFailedAction.data.ready = false;
-    }
-    expect(reportWithFailedAction.data.ready).toBe(false);
-    expect(getDoctorExitCode(reportWithFailedAction)).toBe(1);
+    expect(
+      getDoctorExitCode({
+        ...reportWithFailedAction,
+        data: { ...reportWithFailedAction.data, ready: false },
+      }),
+    ).toBe(1);
   });
 
   it("emits complete JSON output schema with port breakdown and mocked probe results", async () => {
