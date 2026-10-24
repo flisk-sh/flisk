@@ -115,7 +115,7 @@ def define_library_resource(ctx, name, path, labels, internal_deps=None, consume
     if consumer_paths:
         consumer_paths_str = ','.join(consumer_paths)
 
-    publish_cmd = './engine/scripts/build-and-publish-lib.sh "' + path + '" "' + registry + '" "' + pkg_name + '" "' + consumer_paths_str + '"'
+    publish_cmd = ['./engine/scripts/build-and-publish-lib.sh', path, registry, pkg_name, consumer_paths_str]
 
     # Sanitize name to remove invalid characters for Tilt resource names
     # e.g., "introvertic/ui" -> "introvertic-ui"

@@ -291,8 +291,7 @@ def _write_generated_file(file_path, content):
     dir_path = file_path.rsplit('/', 1)[0]
     if not dir_path:
         dir_path = '/'
-    safe_content = (expected + '\n').replace("'", "'\\''")
-    cmd = "mkdir -p '" + dir_path + "' && printf '%s' '" + safe_content + "' > '" + file_path + "'"
+    cmd = ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dir_path, expected + '\n', file_path]
     local(cmd, quiet=True, echo_off=True)
 
 def write_file_if_changed(file_path, content):

@@ -22,12 +22,12 @@ _vendored_tdk_path = config.main_dir + "/tdk-cli-ext"
 _use_local = False
 _local_tdk_path = ""
 
-if str(local("test -d " + _vendored_tdk_path + " && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
+if str(local(["sh", "-c", 'test -d "$1" && echo yes || echo no', "sh", _vendored_tdk_path], quiet=True, echo_off=True)).strip() == 'yes':
     _use_local = True
     _local_tdk_path = _vendored_tdk_path
 else:
     _env_tdk_path = os.environ.get('TDK_EXTENSION_PATH', '')
-    if len(_env_tdk_path) > 0 and str(local("test -d " + _env_tdk_path + " && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
+    if len(_env_tdk_path) > 0 and str(local(["sh", "-c", 'test -d "$1" && echo yes || echo no', "sh", _env_tdk_path], quiet=True, echo_off=True)).strip() == 'yes':
         _use_local = True
         _local_tdk_path = _env_tdk_path
 
@@ -337,7 +337,7 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
     if should_enable('database-management') or TILT_CONTEXT.get('_shared_platform_postgres_force_started', False):
         _ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres')
     _messaging_compose_path = PROJECT_ROOT + '/services/platform/messaging/docker-compose.yml'
-    if str(local("test -f '" + _messaging_compose_path + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
+    if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", _messaging_compose_path], quiet=True, echo_off=True)).strip() == 'yes':
         # infra-loader.star only creates these Tilt resources when this file
         # exists, so only add them here when they actually exist to add.
         _messaging_compose_doc = read_yaml(_messaging_compose_path, default={})
@@ -367,7 +367,7 @@ if _AUTO_DISCOVER_ENABLED:
     discovery_path = _local_tdk_path + "/discovery"
 
     daemon_script = discovery_path + '/resource_snapshot.py'
-    daemon_cmd = "cd " + config.main_dir + " && python3 \"" + daemon_script + "\" watch"
+    daemon_cmd = ["sh", "-c", 'cd "$1" && python3 "$2" watch', "sh", config.main_dir, daemon_script]
     
     local_resource('service-discovery-daemon',
         serve_cmd=daemon_cmd,

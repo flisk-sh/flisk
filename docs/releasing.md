@@ -7,7 +7,7 @@ The ops checklist for cutting a Flisk CLI release, repairing one that only half 
 1. [What a release publishes](#what-a-release-publishes)
 2. [The pipeline at a glance](#the-pipeline-at-a-glance)
 3. [Cutting a release](#cutting-a-release)
-4. [Verify a release](#verify-a-release)
+4. [Where to look](#where-to-look) and [verify a release](#verify-a-release)
 5. [Repair a half-finished release](#repair-a-half-finished-release)
 6. [Backfill GitHub Packages](#backfill-github-packages)
 7. [Unscoped npm package (flisk)](#unscoped-npm-package-flisk)
@@ -104,6 +104,13 @@ gh pr checks <number> --watch && gh pr review <number> --approve
 
 Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, which tags `v<version>` on the bump commit and publishes the checksums draft. It only publishes a draft that already exists; it never creates the release.
 
+## Where to look
+
+Two repositories carry a release per version, and both are linked from each other's notes:
+
+- [`flisk-sh/releases`](https://github.com/flisk-sh/releases/releases): the binaries, `checksums.txt`, signature and provenance. This is what `install.sh` downloads.
+- [`flisk-sh/flisk` releases](https://github.com/flisk-sh/flisk/releases): the signed checksums only, which is what Scorecard reads. Its notes link back to the binaries on `flisk-sh/releases`.
+
 ## Verify a release
 
 ```bash
@@ -148,6 +155,10 @@ See also the [maintainer checks for GitHub Packages](github-packages.md#maintain
 Case studies: 1.3.187 (bump push rejected, signing skipped), 1.3.206 (version already in `package.json`, so no bump PR ran — tag and draft published by hand), 1.3.207 (bump push rejected by the `release/*` ruleset at branch creation — ruleset relaxed, bump and tag done by hand; the signing steps had run after the bump step and were skipped, and the hand-made release carried an unsigned `checksums.txt`, which OpenSSF Scorecard flagged. The bump step now runs last, and `sign-release.yml` signs a version after the fact. 1.3.205 on `flisk-sh/releases` was also unsigned).
 
 Both repositories are scored: `flisk-sh/flisk` (checksums, signature, provenance) and `flisk-sh/releases` (the binaries, which have no workflows of their own). Every signing or provenance step has to attach its file to both.
+
+### Why provenance is missing on 1.3.205 and 1.3.207
+
+OpenSSF Scorecard's Signed-Releases check reads the last five releases of `flisk-sh/flisk` and wants a signature **and** provenance on each. A GitHub attestation is bound to the workflow run that created it, so it cannot be added after the fact. 1.3.205 and 1.3.207 were finished by hand (bump and tag) after the signing steps were skipped, so they have a signature (added later with `sign-release.yml`) but no `checksums.txt.intoto.jsonl`. The fix is forward only: every release cut by `release-binaries.yml` since the bump step moved last carries both files, and the two gaps leave the five-release window after five more releases. Do not hand-craft a provenance file to close them.
 
 ## Backfill GitHub Packages
 

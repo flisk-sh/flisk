@@ -83,7 +83,7 @@ def _env_file_if_exists(env_file):
     """.env is gitignored (no .env.example shipped) across every Flisk example repo, so a
     fresh clone must not hard-require it: docker_compose()'s env_file kwarg type-checks as
     path|string (rejects None), so only return a path when the file actually exists."""
-    exists = str(local("test -f '" + env_file + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes'
+    exists = str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", env_file], quiet=True, echo_off=True)).strip() == 'yes'
     return env_file if exists else None
 
 
@@ -104,7 +104,7 @@ def _build_infra_dependencies(resource_name, should_enable, ctx, has_backend=Fal
     if should_enable(PlatformDockerConstants.VERDACCIO_RESOURCE_NAME):
         project_root = ctx.get('project_root', '')
         verdaccio_compose = ((project_root.rstrip('/') + '/') if project_root else '') + 'docker-compose.verdaccio.yml'
-        if str(local("test -f '" + verdaccio_compose + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
+        if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", verdaccio_compose], quiet=True, echo_off=True)).strip() == 'yes':
             infra_deps.append(PlatformDockerConstants.VERDACCIO_RESOURCE_NAME)
     if should_enable('golden-image') and ctx.get('golden_image_resource'):
         infra_deps.append(ctx['golden_image_resource'])
@@ -442,14 +442,18 @@ def _register_deferred_image_prebuild(config, auto_init_apps):
     ignore_content = TypescriptBuilders.prebuild_dockerignore(dockerfile, project_root, config['res_path'])
     # BuildKit reads `<dockerfile>.dockerignore` for `-f <dockerfile>`; the
     # original Dockerfile already has a (denylist) one, hence the copy.
-    cmd = (
-        "cp '" + dockerfile + "' '" + prebuild_dockerfile + "'"
-        + " && printf '%s' '" + ignore_content + "' > '" + prebuild_dockerfile + ".dockerignore'"
-        + " && docker build --network host --target " + target
-        + " -f '" + prebuild_dockerfile + "'"
-        + " -t '" + _app_image_name(config['resource_name'], config['res_name']) + "'"
-        + " '" + (project_root or '.') + "'"
-    )
+    cmd = [
+        "sh", "-c",
+        'cp "$1" "$2" && printf "%s" "$3" > "$2.dockerignore"' +
+        ' && docker build --network host --target "$4" -f "$2" -t "$5" "$6"',
+        "sh",
+        dockerfile,
+        prebuild_dockerfile,
+        ignore_content,
+        target,
+        _app_image_name(config['resource_name'], config['res_name']),
+        project_root or '.',
+    ]
     local_resource(
         name=config['res_name'] + '-image',
         cmd=cmd,
@@ -494,23 +498,22 @@ def _register_run_only_resource(config, resource_path, compose_project_name, aut
         compose_file = root + '/' + compose_file
         port_override = root + '/' + port_override
         env_file = project_env_file(root)
-    compose_files = '-f ' + compose_file
-    if str(local("test -f '" + port_override + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
-        compose_files = compose_files + ' -f ' + port_override
+    compose_files = ['-f', compose_file]
+    if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", port_override], quiet=True, echo_off=True)).strip() == 'yes':
+        compose_files = compose_files + ['-f', port_override]
     # .env is gitignored (no .env.example shipped) across every Flisk example repo, so a
     # fresh clone must not hard-require it: only pass --env-file when it actually exists.
-    env_file_flag = ''
-    if str(local("test -f '" + env_file + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
-        env_file_flag = ' --env-file ' + env_file
+    env_file_flag = []
+    if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", env_file], quiet=True, echo_off=True)).strip() == 'yes':
+        env_file_flag = ['--env-file', env_file]
+    # Built as an argv list (extend, not `+`) so no argument is ever joined into shell text.
+    run_only_argv = ['docker', 'compose', '-p', compose_project_name]
+    run_only_argv.extend(compose_files)
+    run_only_argv.extend(env_file_flag)
+    run_only_argv.extend(['up', '-d', '--no-build', config['res_name']])
     local_resource(
         name=config['res_name'] + '-run-only',
-        cmd='docker compose -p '
-            + compose_project_name
-            + ' '
-            + compose_files
-            + env_file_flag
-            + ' up -d --no-build '
-            + config['res_name'],
+        cmd=run_only_argv,
         labels=config['labels'] + ['run-only'],
         # The run-only Compose command uses the image produced by the main
         # resource. Keep it behind that resource so --no-build cannot race
@@ -604,7 +607,12 @@ def _register_frontend_typecheck(res, service_dir, typecheck_cmd):
     """
     local_resource(
         name=res['name'] + '-typecheck',
-        cmd="cd '" + service_dir + "' && { bunx tsc --version >/dev/null 2>&1 || { echo 'typecheck needs host dependencies: run bun install in " + service_dir + "'; exit 1; }; } && " + typecheck_cmd,
+        # Fixed script, variable parts passed as argv ($1 = service dir, $2 = typecheck command), never spliced into the shell text.
+        cmd=[
+            'sh', '-c',
+            'cd "$1" && { bunx tsc --version >/dev/null 2>&1 || { echo "typecheck needs host dependencies: run bun install in $1"; exit 1; }; } && eval "$2"',
+            'sh', service_dir, typecheck_cmd,
+        ],
         deps=[service_dir + '/src', service_dir + '/tsconfig.json'],
         labels=['app.' + res['name'], 'typecheck'],
         # tsc --noEmit writes no files, so it can run alongside the image builds.
@@ -844,7 +852,7 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
         _docker_compose_app(compose_file, compose_project_name, env_file)
         port_override_rel = resource_path + '/' + OUTPUT.AUTOGENERATED_FOLDER + '/docker-compose.port-override.yml'
         port_override = project_root + '/' + port_override_rel if project_root else port_override_rel
-        if str(local("test -f '" + port_override + "' && echo yes || echo no", quiet=True, echo_off=True)).strip() == 'yes':
+        if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", port_override], quiet=True, echo_off=True)).strip() == 'yes':
             debug_log("COMPOSE: Applying port override {}".format(port_override))
             _docker_compose_app(port_override, compose_project_name, env_file)
     else:

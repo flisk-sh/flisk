@@ -34,7 +34,7 @@ load("../../platform/registries/verdaccio_loader.star", "load_verdaccio")
 
 def _file_exists(path):
     """Check if a file exists."""
-    result = str(local("test -f '{path}' && echo 'yes' || echo 'no'".format(path=path), quiet=True, echo_off=True)).strip()
+    result = str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path], quiet=True, echo_off=True)).strip()
     return result == 'yes'
 
 

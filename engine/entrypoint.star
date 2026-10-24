@@ -86,7 +86,7 @@ if _AUTO_DISCOVER_ENABLED:
     # Use unique name to avoid conflicts on reload
     local_resource(
         name="service-discovery-daemon-v2",
-        serve_cmd="cd {} && python3 discovery/resource_snapshot.py watch".format(os.getcwd()),
+        serve_cmd=["sh", "-c", 'cd "$1" && python3 discovery/resource_snapshot.py watch', "sh", os.getcwd()],
         deps=["services/product"],
         auto_init=True,
         labels=["infra", "discovery"],
