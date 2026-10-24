@@ -20,7 +20,7 @@ import pytest
 pytestmark = [pytest.mark.docker]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-STANDALONE = REPO_ROOT / "engine" / "topologies" / "platform" / "docker" / "compose" / "traefik_standalone.star"
+STANDALONE = REPO_ROOT / "runtime" / "engine" / "topologies" / "platform" / "docker" / "compose" / "traefik_standalone.star"
 
 
 def _pinned() -> tuple[str, str]:

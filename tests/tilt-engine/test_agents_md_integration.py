@@ -45,7 +45,7 @@ class MockFileWriter:
 
 def extract_template_from_generator() -> str:
     """Extract TEMPLATE_AGENTS_MD from the generator source."""
-    generator_path = PROJECT_ROOT / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
+    generator_path = PROJECT_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "generators" / "agents_md.star"
     content = generator_path.read_text()
     
     match = re.search(r'TEMPLATE_AGENTS_MD = """(.*?)"""', content, re.DOTALL)

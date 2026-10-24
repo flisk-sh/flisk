@@ -16,9 +16,15 @@ export function resolveExtensionDir(sourceRoot: string, name: string): string {
   return existsSync(nested) ? nested : join(sourceRoot, name);
 }
 
+// The extension entry point sits at runtime/Tiltfile in a source checkout and at the bundle
+// root in a packaged or vendored layout.
+export function resolveTiltfile(sourceRoot: string): string {
+  const nested = join(sourceRoot, NESTED_RUNTIME_DIR, "Tiltfile");
+  return existsSync(nested) ? nested : join(sourceRoot, "Tiltfile");
+}
+
 export function hasExtensionLayout(sourceRoot: string): boolean {
   return (
-    existsSync(join(sourceRoot, "Tiltfile")) &&
-    existsSync(resolveExtensionDir(sourceRoot, "engine"))
+    existsSync(resolveTiltfile(sourceRoot)) && existsSync(resolveExtensionDir(sourceRoot, "engine"))
   );
 }

@@ -14,3 +14,12 @@ runtime_src_dir() {
     echo "${root}/${name}"
   fi
 }
+
+runtime_tiltfile() {
+  local root="$1"
+  if [[ -f "${root}/runtime/Tiltfile" ]]; then
+    echo "${root}/runtime/Tiltfile"
+  else
+    echo "${root}/Tiltfile"
+  fi
+}

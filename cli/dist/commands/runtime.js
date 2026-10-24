@@ -4,7 +4,7 @@ import { statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { findCliAssetRoot, loadTemplate } from "../generator/template-engine.js";
-import { EXTENSION_DIRS, resolveExtensionDir } from "../utils/runtime-layout.js";
+import { EXTENSION_DIRS, resolveExtensionDir, resolveTiltfile } from "../utils/runtime-layout.js";
 const REQUIRED_ASSET_PATHS = [
     { path: "Tiltfile", directory: false },
     { path: "engine", directory: true },
@@ -39,7 +39,9 @@ export const runtimeCommand = new Command("runtime")
             try {
                 const stats = statSync(EXTENSION_NAMES.has(path)
                     ? resolveExtensionDir(assetRoot, path)
-                    : join(assetRoot, path));
+                    : path === "Tiltfile"
+                        ? resolveTiltfile(assetRoot)
+                        : join(assetRoot, path));
                 return directory ? !stats.isDirectory() : !stats.isFile();
             }
             catch {

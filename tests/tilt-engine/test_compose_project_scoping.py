@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.generator]
 TILT_REQUIRED = pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DOCKER_DIR = REPO_ROOT / "engine" / "topologies" / "platform" / "docker"
+DOCKER_DIR = REPO_ROOT / "runtime" / "engine" / "topologies" / "platform" / "docker"
 RESULT_MARKER = "Error in fail: RESULT"
 
 # The generated compose YAML is what Compose and Tilt actually run, so the image refs come from it.
@@ -116,7 +116,7 @@ def test_two_projects_get_distinct_infra_compose_projects(tmp_path):
 
 def test_every_infra_docker_compose_call_names_its_project():
     """Each infra docker_compose() call passes an infra name; a two-argument call falls back to the directory-named project."""
-    source = (REPO_ROOT / "engine" / "topologies" / "tilt" / "resources" / "infra-loader.star").read_text()
+    source = (REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "infra-loader.star").read_text()
     calls = [line.strip() for line in source.splitlines() if "_docker_compose(" in line and "def _docker_compose" not in line]
     assert calls, "no infra _docker_compose calls found; update this guard"
     for call in calls:

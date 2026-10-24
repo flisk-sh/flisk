@@ -74,8 +74,8 @@ GitHub 也會在你的 PR 描述末尾加上 **Grok**、**Claude** 和 **Codex**
 [PR 範本](../../../.github/pull_request_template.md)會要求你選取改動的領域，並展開每個領域的簡短說明。GitHub 也會根據變更的路徑加上對應的 `area:*` 標籤，並在你推送更新的 diff 時移除過時的領域標籤。標籤用來整理 PR；哪些自動化會執行，則由工作流程的路徑規則決定。
 
 - **每個 pull request：** [CI](../../../.github/workflows/ci.yml) 會執行 lint、typecheck、CLI 測試和套件冒煙檢查。部分額外的 CI 工作取決於改動了哪些檔案或儲存庫設定。
-- **執行階段檔案有變更：** 當 PR 修改了 `cli/`、`engine/` 或 `discovery/` 下的檔案，或修改了 `Tiltfile`、`package.json` 或該工作流程檔案時，Quickstart E2E 也會執行。
-- **框架範例：** 新增 Vue、React 或其他 provider 會改動 `cli/` 和 `engine/`，因此始終執行的 CI 和 Quickstart E2E 都會執行。
+- **執行階段檔案有變更：** 當 PR 修改了 `cli/`、`runtime/engine/` 或 `runtime/discovery/` 下的檔案，或修改了 `Tiltfile`、`package.json` 或該工作流程檔案時，Quickstart E2E 也會執行。
+- **框架範例：** 新增 Vue、React 或其他 provider 會改動 `cli/` 和 `runtime/engine/`，因此始終執行的 CI 和 Quickstart E2E 都會執行。
 - **僅文件改動：** 始終執行的 CI 仍會執行。除非 PR 同時修改了 Quickstart E2E 所列的路徑之一，否則 Quickstart E2E 不會執行。
 
 其他範例應用程式以及 100 個服務的夾具基準檢查，是依排程或手動請求執行，而非每個 PR 都執行。你可以在 `.github/workflows/` 中每個工作流程檔案的頂部查看其觸發路徑。

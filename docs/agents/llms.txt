@@ -38,8 +38,8 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 
 ## Key Schemas & Specifications
 
-- Service Schema: `engine/schemas/service-schema.json`
-- Project Schema: `engine/schemas/project-schema.json`
+- Service Schema: `runtime/engine/schemas/service-schema.json`
+- Project Schema: `runtime/engine/schemas/project-schema.json`
 - Machine-Readable Contracts: `docs/reference/machine-readable-cli.md`
 
 ## Documentation & Guides

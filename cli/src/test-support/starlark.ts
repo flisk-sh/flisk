@@ -50,7 +50,7 @@ export function tiltAvailable(): boolean {
 
 /** A path under the engine folder, for `load()` in a snippet. */
 export function engineFile(...segments: string[]): string {
-  return join(repoRoot, "engine", ...segments);
+  return join(repoRoot, "runtime", "engine", ...segments);
 }
 
 export interface StarlarkOptions {

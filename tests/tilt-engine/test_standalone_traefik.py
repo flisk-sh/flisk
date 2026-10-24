@@ -12,7 +12,7 @@ import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.generator]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-COMPOSE_DIR = REPO_ROOT / "engine" / "topologies" / "platform" / "docker" / "compose"
+COMPOSE_DIR = REPO_ROOT / "runtime" / "engine" / "topologies" / "platform" / "docker" / "compose"
 RESULT_MARKER = "Error in fail: RESULT"
 
 
@@ -33,7 +33,7 @@ def _run_starlark(tmp_path: Path, body: str) -> dict:
 def test_standalone_traefik_compose_generator_exists():
     source = (
         REPO_ROOT
-        / "engine"
+        / "runtime" / "engine"
         / "topologies"
         / "platform"
         / "docker"
@@ -47,7 +47,7 @@ def test_standalone_traefik_compose_generator_exists():
 def test_infra_loader_falls_back_to_standalone_traefik():
     source = (
         REPO_ROOT
-        / "engine"
+        / "runtime" / "engine"
         / "topologies"
         / "tilt"
         / "resources"
@@ -60,7 +60,7 @@ def test_infra_loader_falls_back_to_standalone_traefik():
 def test_project_router_uses_cli_api_path():
     source = (
         REPO_ROOT
-        / "engine"
+        / "runtime" / "engine"
         / "topologies"
         / "platform"
         / "docker"
@@ -80,7 +80,7 @@ def test_tiltfile_keeps_traefik_in_focus_mode():
 def _infra_loader_source() -> str:
     return (
         REPO_ROOT
-        / "engine"
+        / "runtime" / "engine"
         / "topologies"
         / "tilt"
         / "resources"
@@ -184,7 +184,7 @@ def test_wake_gateway_image_is_non_root_and_can_use_docker_socket():
     """Build the gateway image and run it the way the generated compose does
     (socket mounted, socket group added): it must not run as uid 0 and must be
     able to talk to the Docker daemon."""
-    context = REPO_ROOT / "engine" / "assets" / "docker" / "wake-gateway"
+    context = REPO_ROOT / "runtime" / "engine" / "assets" / "docker" / "wake-gateway"
     tag = "flisk-wake-gateway-nonroot-test:local"
     build = subprocess.run(["docker", "build", "-q", "-t", tag, str(context)], capture_output=True, text=True, timeout=900)
     assert build.returncode == 0, build.stderr[-3000:]

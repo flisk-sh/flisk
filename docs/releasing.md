@@ -83,7 +83,7 @@ Check the gate for any commit before dispatching:
 GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha <commit> --repo flisk-sh/flisk
 ```
 
-It accepts an **exact** candidate, or an **ancestor** candidate when no commit since changed a release input (`cli/**`, `engine/**`, `package.json`, `bun.lock`, `Tiltfile`, `discovery/**`, `specs/**`, `ext/**`, `scripts/release-binaries.sh`, `shared-platform-engineering/docker-templates/**`, `release-binaries.yml`).
+It accepts an **exact** candidate, or an **ancestor** candidate when no commit since changed a release input (`cli/**`, `runtime/engine/**`, `package.json`, `bun.lock`, `Tiltfile`, `runtime/discovery/**`, `runtime/specs/**`, `runtime/ext/**`, `scripts/release-binaries.sh`, `shared-platform-engineering/docker-templates/**`, `release-binaries.yml`).
 
 ### 3. Dispatch the release
 

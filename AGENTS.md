@@ -7,9 +7,9 @@ Flisk (Topology Development Kit) runs a local development inner loop for microse
 ## Repository Map
 
 - `cli/`: TypeScript CLI implementation (`flisk`), Ink-based terminal UI, command handlers, and precompiled bundle (`dist/`).
-- `engine/`: Tilt and Starlark topologies, generators, and infrastructure orchestration modules (`engine/topologies/`).
-- `discovery/`: Starlark-based service discovery, multi-root manifest scanning, and registry generation.
-- `ext/`: Tilt extensions, UI enhancements, and IDE components.
+- `runtime/engine/`: Tilt and Starlark topologies, generators, and infrastructure orchestration modules (`runtime/engine/topologies/`).
+- `runtime/discovery/`: Starlark-based service discovery, multi-root manifest scanning, and registry generation.
+- `runtime/ext/`: Tilt extensions, UI enhancements, and IDE components.
 - `platform/`: Shared platform service definitions and topology templates (`platform/services/`).
 - `docs/`: Architecture guides, tutorials, contributor documentation, and agent contracts (`docs/agents/`).
 - `scripts/`: Shell, Node.js, and Python maintenance, verification, benchmark, and release scripts.
@@ -20,9 +20,9 @@ Flisk (Topology Development Kit) runs a local development inner loop for microse
 Before modifying specific subsystems, read their dedicated guidance files:
 
 - Read `cli/AGENTS.md` before changing `cli/` for coding standards, naming conventions, export patterns, and `FliskError` usage.
-- Read `engine/AGENTS.md` before changing `engine/` for topology architecture, manifest-driven generation, golden image layering, and Tilt conventions.
-- Read `discovery/AGENTS.md` before changing `discovery/` for scan roots, manifest validation rules, and caching behavior.
-- Subsystem directories under `engine/topologies/platform/` (such as `docker/`, `net/`, `security/`, and `state/`) contain additional targeted `AGENTS.md` files.
+- Read `runtime/engine/AGENTS.md` before changing `runtime/engine/` for topology architecture, manifest-driven generation, golden image layering, and Tilt conventions.
+- Read `runtime/discovery/AGENTS.md` before changing `runtime/discovery/` for scan roots, manifest validation rules, and caching behavior.
+- Subsystem directories under `runtime/engine/topologies/platform/` (such as `docker/`, `net/`, `security/`, and `state/`) contain additional targeted `AGENTS.md` files.
 
 ## Common Commands
 

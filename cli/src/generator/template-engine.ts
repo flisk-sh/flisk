@@ -25,6 +25,7 @@ import {
   EXTENSION_DIRS,
   hasExtensionLayout,
   resolveExtensionDir,
+  resolveTiltfile,
 } from "../utils/runtime-layout.js";
 import {
   generatedFieldErrorsForFile,
@@ -838,7 +839,7 @@ async function vendorFliskExtension(
   if (!fs.existsSync(vendoredDir)) {
     fs.mkdirSync(vendoredDir, { recursive: true });
   }
-  fs.copyFileSync(path.join(sourceRoot, "Tiltfile"), path.join(vendoredDir, "Tiltfile"));
+  fs.copyFileSync(resolveTiltfile(sourceRoot), path.join(vendoredDir, "Tiltfile"));
   for (const dir of FLISK_EXTENSION_DIRS) {
     // A project vendored by an older Flisk already holds test files; cpSync only adds, so drop them.
     removeVendoredTestFiles(path.join(vendoredDir, dir));

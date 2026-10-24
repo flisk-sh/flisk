@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const orchestrator = join(repoRoot, "discovery/discovery_orchestrator.star");
+const orchestrator = join(repoRoot, "runtime/discovery/discovery_orchestrator.star");
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
 
 if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {

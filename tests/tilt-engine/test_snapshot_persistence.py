@@ -22,7 +22,7 @@ class TestSnapshotPersistence:
         THEN the file SHALL exist with valid JSON containing all service data
         """
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot
         
         original_dir = os.getcwd()
@@ -55,7 +55,7 @@ class TestSnapshotPersistence:
         THEN it SHALL return the previously saved service data
         """
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot, load_snapshot
         
         original_dir = os.getcwd()
@@ -82,7 +82,7 @@ class TestSnapshotPersistence:
         THEN it SHALL return an empty list without error
         """
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import load_snapshot
         
         original_dir = os.getcwd()
@@ -100,7 +100,7 @@ class TestSnapshotPersistence:
     def test_saving_creates_directory_structure(self, temp_dir):
         """Test that saving creates the .flisk/.flisk-out/snapshots directory if it doesn't exist."""
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot
         
         original_dir = os.getcwd()
@@ -118,7 +118,7 @@ class TestSnapshotPersistence:
     def test_loading_invalid_json_returns_empty(self, temp_dir):
         """Test that loading invalid JSON returns empty snapshot."""
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import load_snapshot
         
         original_dir = os.getcwd()
@@ -140,7 +140,7 @@ class TestSnapshotPersistence:
     def test_snapshot_includes_hashes(self, temp_dir):
         """Test that saved snapshot includes content hashes."""
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot
         
         # Create a service file to hash

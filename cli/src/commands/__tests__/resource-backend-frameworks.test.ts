@@ -171,7 +171,7 @@ describe("backend framework registry", () => {
 
   it("keeps the service schema open to every registered framework id", () => {
     const schema = JSON.parse(
-      readFileSync(join(repoRoot, "engine", "schemas", "service-schema.json"), "utf-8"),
+      readFileSync(join(repoRoot, "runtime", "engine", "schemas", "service-schema.json"), "utf-8"),
     );
     expect(schema.properties.framework.enum).toBeUndefined();
     const idPattern = new RegExp(schema.properties.framework.pattern);

@@ -62,7 +62,7 @@ e2e_main "$@"                # list | self-check | all | diagnostics | cleanup |
   "group": "resource-types",
   "suite": "agent",
   "description": "The agent resource on a live stack: ...",
-  "paths": ["cli/src/commands/agent.ts", "cli/src/mcp/**", "engine/**", "tests/e2e/resource-types/agent/**"],
+  "paths": ["cli/src/commands/agent.ts", "cli/src/mcp/**", "runtime/engine/**", "tests/e2e/resource-types/agent/**"],
   "cases": ["D1", "D2", "D3", "A1", "A2", "..."],
   "triggers": ["pr", "nightly", "release", "manual"],
   "timeoutMinutes": 30,

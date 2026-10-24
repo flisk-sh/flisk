@@ -21,14 +21,14 @@ pytestmark = [pytest.mark.generator]
 TILT_REQUIRED = pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ORCHESTRATOR_DIR = REPO_ROOT / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
+ORCHESTRATOR_DIR = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
 ORCHESTRATOR = ORCHESTRATOR_DIR / "apply_compose_resource_registration.star"
-SHARED_MODULE = REPO_ROOT / "engine" / "topologies" / "tilt" / "resources" / "shared-platform-postgres.star"
-INFRA_LOADER = REPO_ROOT / "engine" / "topologies" / "tilt" / "resources" / "infra-loader.star"
-UTILS = REPO_ROOT / "engine" / "topologies" / "tilt" / "common" / "utils.star"
-VALIDATORS = REPO_ROOT / "engine" / "topologies" / "tilt" / "generators" / "validators.star"
-INTEGRATION = REPO_ROOT / "engine" / "topologies" / "tilt" / "manifest" / "integration.star"
-MANIFEST_VALIDATOR = REPO_ROOT / "engine" / "topologies" / "tilt" / "manifest" / "validator.star"
+SHARED_MODULE = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "shared-platform-postgres.star"
+INFRA_LOADER = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "infra-loader.star"
+UTILS = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "common" / "utils.star"
+VALIDATORS = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "generators" / "validators.star"
+INTEGRATION = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "manifest" / "integration.star"
+MANIFEST_VALIDATOR = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "manifest" / "validator.star"
 RESULT_MARKER = "Error in fail: RESULT"
 
 

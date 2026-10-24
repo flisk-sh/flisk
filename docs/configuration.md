@@ -19,7 +19,7 @@ Here is valid JSON; the explanations are outside the file so it remains parseabl
 }
 ```
 
-`appName`, `appType`, `stack`, and `schemaVersion` are required. A backend also needs a port in the supported backend range. See the [authoritative service schema](../engine/schemas/service-schema.json). The `$schema` property is supported by the schema. `flisk doctor` checks local environment readiness and discovered service issues.
+`appName`, `appType`, `stack`, and `schemaVersion` are required. A backend also needs a port in the supported backend range. See the [authoritative service schema](../runtime/engine/schemas/service-schema.json). The `$schema` property is supported by the schema. `flisk doctor` checks local environment readiness and discovered service issues.
 
 ### `smoke`: check the public URL after `flisk up`
 
@@ -122,7 +122,7 @@ For VS Code, associate both filenames with their schema in workspace settings. T
 }
 ```
 
-The service schema is also in [`engine/schemas/service-schema.json`](../engine/schemas/service-schema.json), and the current project configuration schema is [`engine/schemas/project-schema.json`](../engine/schemas/project-schema.json). Run `flisk config verify` to check generated project files, validate discovered service manifests, and compare generated service files with their snapshots. It does not validate Helm values. `flisk doctor` checks local readiness and service concerns. See [generated service files](generated-files.md).
+The service schema is also in [`runtime/engine/schemas/service-schema.json`](../runtime/engine/schemas/service-schema.json), and the current project configuration schema is [`runtime/engine/schemas/project-schema.json`](../runtime/engine/schemas/project-schema.json). Run `flisk config verify` to check generated project files, validate discovered service manifests, and compare generated service files with their snapshots. It does not validate Helm values. `flisk doctor` checks local readiness and service concerns. See [generated service files](generated-files.md).
 
 ### Which diagnostic command should I run?
 
@@ -167,7 +167,7 @@ See the [machine-readable CLI reference](reference/machine-readable-cli.md) for 
 
 ### The service schema and how it is published
 
-`engine/schemas/service-schema.json` is the source of truth; the copy at `https://flisk.sh/schema.service.json` is a
+`runtime/engine/schemas/service-schema.json` is the source of truth; the copy at `https://flisk.sh/schema.service.json` is a
 deploy artifact for editors. It is only an editor hint. The CLI provider registries are the contract: the CLI rejects an unknown
 `framework` or `language` id before it writes a resource. So `framework` and `language` are open strings with an id pattern, their
 `examples` are a short hint rather than a list of every provider, and adding a provider never changes the schema.

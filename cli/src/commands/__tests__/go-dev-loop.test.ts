@@ -11,7 +11,7 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const languageDockerfile = join(
   repoRoot,
-  "engine/topologies/platform/docker/dockerfile/language_dockerfile.star",
+  "runtime/engine/topologies/platform/docker/dockerfile/language_dockerfile.star",
 );
 const hasTilt = tiltAvailable();
 
@@ -113,11 +113,13 @@ for lang in ['python', 'rust']:
 
 const read = (...parts: string[]) => readFileSync(join(repoRoot, ...parts), "utf-8");
 const registration = read(
-  "engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star",
+  "runtime/engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star",
 );
-const tsBuilder = read("engine/topologies/tilt/resources/orchestrator/builders/typescript.star");
+const tsBuilder = read(
+  "runtime/engine/topologies/tilt/resources/orchestrator/builders/typescript.star",
+);
 const manifestResource = read(
-  "engine/topologies/tilt/resources/orchestrator/generators/manifest_resource.star",
+  "runtime/engine/topologies/tilt/resources/orchestrator/generators/manifest_resource.star",
 );
 
 describe.skipIf(!hasTilt)("Go live reload switch", { timeout: 30_000 }, () => {

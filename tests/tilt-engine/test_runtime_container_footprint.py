@@ -23,7 +23,7 @@ pytestmark = [
     pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed"),
 ]
 
-DOCKER_DIR = Path(__file__).resolve().parents[2] / "engine" / "topologies" / "platform" / "docker"
+DOCKER_DIR = Path(__file__).resolve().parents[2] / "runtime" / "engine" / "topologies" / "platform" / "docker"
 RESULT_MARKER = "Error in fail: RESULT"
 
 

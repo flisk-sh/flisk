@@ -259,7 +259,7 @@ describe("checkSharedPlatformPostgres", () => {
     ]) {
       const destination = join(output, "flisk-cli-ext", relativePath);
       mkdirSync(join(destination, ".."), { recursive: true });
-      copyFileSync(join(repoRoot, relativePath), destination);
+      copyFileSync(join(repoRoot, "runtime", relativePath), destination);
     }
   }
 

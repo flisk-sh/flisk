@@ -8,7 +8,10 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const l4Layers = join(repoRoot, "engine/topologies/platform/docker/layers/l4_runtime_layers.star");
+const l4Layers = join(
+  repoRoot,
+  "runtime/engine/topologies/platform/docker/layers/l4_runtime_layers.star",
+);
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
 
 if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {

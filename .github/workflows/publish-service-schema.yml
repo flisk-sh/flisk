@@ -1,12 +1,12 @@
 name: 🗂️ Release | Publish service schema
 
-# engine/schemas/service-schema.json is the source of truth. The copy at
+# runtime/engine/schemas/service-schema.json is the source of truth. The copy at
 # https://flisk.sh/schema.service.json is a deploy artifact for editors,
 # refreshed here after a change lands on main.
 on:
   push:
     branches: [main]
-    paths: [engine/schemas/service-schema.json]
+    paths: [runtime/engine/schemas/service-schema.json]
   workflow_dispatch:
 
 permissions:
@@ -30,8 +30,8 @@ jobs:
             exit 0
           fi
           git clone --depth 1 "https://x-access-token:${PAGES_SYNC_TOKEN}@github.com/flisk-sh/website.git" pages
-          cp engine/schemas/service-schema.json pages/schema.service.json
-          cp engine/schemas/project-schema.json pages/project-schema.json
+          cp runtime/engine/schemas/service-schema.json pages/schema.service.json
+          cp runtime/engine/schemas/project-schema.json pages/project-schema.json
           cd pages
           if git diff --quiet; then
             echo "Published schema is already up to date"
@@ -50,7 +50,7 @@ jobs:
           import json, os, time, urllib.request
 
           url = "https://flisk.sh/schema.service.json"
-          main = json.load(open("engine/schemas/service-schema.json"))
+          main = json.load(open("runtime/engine/schemas/service-schema.json"))
           has_token = bool(os.environ.get("PAGES_SYNC_TOKEN"))
           # Pages needs a minute or two to redeploy after a push; without a token nothing was pushed, so do not wait.
           deadline = time.time() + (240 if has_token else 0)
@@ -66,7 +66,7 @@ jobs:
               time.sleep(20)
 
           project_url = "https://flisk.sh/project-schema.json"
-          project_main = json.load(open("engine/schemas/project-schema.json"))
+          project_main = json.load(open("runtime/engine/schemas/project-schema.json"))
           try:
               with urllib.request.urlopen(project_url, timeout=20) as response:
                   project_live = json.load(response)

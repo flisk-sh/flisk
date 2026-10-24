@@ -2,7 +2,7 @@
 
 Each Flisk resource is described by a `service.json` file in the resource directory. The file drives resource discovery, generated Tilt and Docker configuration, routing, dependency ordering, and editor assistance.
 
-The [service schema](../engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `flisk config verify` applies the manifest and generated-output checks described below, while `flisk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
+The [service schema](../runtime/engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `flisk config verify` applies the manifest and generated-output checks described below, while `flisk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
 
 ```text
 https://flisk.sh/schema.service.json
@@ -274,7 +274,7 @@ If an older manifest has `type` instead of `appType`, run the config migration f
 When adding or changing a manifest field, update all of these together:
 
 1. `cli/src/types/index.ts` for the TypeScript contract.
-2. `engine/schemas/service-schema.json` for editor validation and descriptions.
+2. `runtime/engine/schemas/service-schema.json` for editor validation and descriptions.
 3. `cli/src/utils/service-manifest.ts` when runtime validation, deprecation, or safety behavior changes.
 4. This reference and the short overview in [`cli/README.md`](../cli/README.md).
 

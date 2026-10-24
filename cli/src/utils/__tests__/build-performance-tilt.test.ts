@@ -11,9 +11,12 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const framePlan = join(
   repoRoot,
-  "engine/topologies/platform/docker/build/frontend_build_plan.star",
+  "runtime/engine/topologies/platform/docker/build/frontend_build_plan.star",
 );
-const concurrency = join(repoRoot, "engine/topologies/tilt/resources/build_concurrency.star");
+const concurrency = join(
+  repoRoot,
+  "runtime/engine/topologies/tilt/resources/build_concurrency.star",
+);
 const hasTilt = tiltAvailable();
 
 /** Runs a Tiltfile body in a scratch project and returns the JSON value it wrote to `out.json`. */

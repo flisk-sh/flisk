@@ -63,14 +63,14 @@ describe("the mcp resource type", () => {
 
   it("is accepted by the service schema, and the engine runs it as a backend", async () => {
     const schema = JSON.parse(
-      readFileSync(join(repoRoot, "engine", "schemas", "service-schema.json"), "utf-8"),
+      readFileSync(join(repoRoot, "runtime", "engine", "schemas", "service-schema.json"), "utf-8"),
     );
     expect(schema.properties.appType.enum).toContain("mcp");
 
     // Every backend code path in the engine keys off appType == 'backend', so an mcp manifest is normalised once, where
     // service.json is loaded. This pins that, because nothing else would notice it going missing until `flisk up`.
     const loader = readFileSync(
-      join(repoRoot, "engine", "topologies", "tilt", "manifest", "loader.star"),
+      join(repoRoot, "runtime", "engine", "topologies", "tilt", "manifest", "loader.star"),
       "utf-8",
     );
     expect(loader).toContain('manifest.get("appType") == "mcp"');
@@ -78,7 +78,7 @@ describe("the mcp resource type", () => {
     expect(loader).toContain('manifest["mcp"] = True');
 
     const constants = readFileSync(
-      join(repoRoot, "engine", "topologies", "tilt", "manifest", "constants.star"),
+      join(repoRoot, "runtime", "engine", "topologies", "tilt", "manifest", "constants.star"),
       "utf-8",
     );
     expect(constants).toMatch(/"mcp",\n\s+"bring-your-own"/);

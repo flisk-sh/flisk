@@ -13,21 +13,21 @@ The codebase is organized into three distinct subsystems as defined in [CONTRIBU
 ```
 flisk/
 ├── cli/           # TypeScript CLI (user interaction, validation, config generation)
-├── engine/        # Starlark runtime framework executed by Tilt (orchestration, containers, syncs)
-└── discovery/     # Starlark discovery framework (manifest scanning, DAG construction)
+├── runtime/engine/        # Starlark runtime framework executed by Tilt (orchestration, containers, syncs)
+└── runtime/discovery/     # Starlark discovery framework (manifest scanning, DAG construction)
 ```
 
 ### `cli/` — The TypeScript CLI
 - **What it is responsible for**: `cli/` provides the developer entry point. It parses CLI flags and subcommands via Commander, executes interactive prompts and TUI dashboards (using Ink), validates `project.json` and `service.json` manifests against JSON Schemas, manages deterministic port allocations across ranges, evaluates Handlebars templates to produce master configuration files in `.flisk/.flisk-out/`, vendors engine and discovery assets, and launches and supervises Tilt processes (`tilt up`, `tilt down`, readiness detection, and `flisk doctor` environment diagnostics).
 - **What it must NOT do**: `cli/` must **not** make dynamic container orchestration decisions at runtime (such as watching source files for container live-updates, evaluating dependency DAGs, or triggering image rebuilds). It must **not** bypass Tilt to start containers directly for managed service resources, and it must **not** hardcode application-specific service topologies or business logic.
 
-### `engine/` — The Starlark Runtime Framework
-- **What it is responsible for**: `engine/` is written in Starlark and executes directly inside Tilt when Tilt loads the generated `Tiltfile`. It translates the normalized resource models and project specifications into native Tilt API directives (`docker_build`, `custom_build`, `dc_resource`, `local_resource`, and `live_update`). It defines container lifecycles, healthcheck probes, entrypoints, live-update sync rules (reloading source files into containers without slow image rebuilds), Traefik reverse proxy routing, shared platform databases (such as PostgreSQL via `database-management`), wake-gateways, and phase-based enablement filters (`should_enable()`).
-- **What it must NOT do**: `engine/` must **not** parse command-line arguments, run interactive user prompts, modify committed user source files or manifests on disk, or perform ad-hoc filesystem scanning outside the discovery contract.
+### `runtime/engine/` — The Starlark Runtime Framework
+- **What it is responsible for**: `runtime/engine/` is written in Starlark and executes directly inside Tilt when Tilt loads the generated `Tiltfile`. It translates the normalized resource models and project specifications into native Tilt API directives (`docker_build`, `custom_build`, `dc_resource`, `local_resource`, and `live_update`). It defines container lifecycles, healthcheck probes, entrypoints, live-update sync rules (reloading source files into containers without slow image rebuilds), Traefik reverse proxy routing, shared platform databases (such as PostgreSQL via `database-management`), wake-gateways, and phase-based enablement filters (`should_enable()`).
+- **What it must NOT do**: `runtime/engine/` must **not** parse command-line arguments, run interactive user prompts, modify committed user source files or manifests on disk, or perform ad-hoc filesystem scanning outside the discovery contract.
 
-### `discovery/` — Manifest Scanning & Dependency Graph Construction
-- **What it is responsible for**: `discovery/` is a Starlark-based subsystem that scans project directories along configured discovery paths (by default `services/*/*`), parses discovered `service.json` files, validates them against platform rules, and synthesizes missing defaults (such as default sync directories, ports, and stack associations). It resolves inter-service dependencies (`dependsOn`) to construct a directed acyclic graph (DAG) and exports clean, immutable registry structures (`APP_RESOURCES`, `INFRA_RESOURCES_EXPORT`, `Registry`) for the engine to consume.
-- **What it must NOT do**: `discovery/` must **not** execute build commands, start containers, manage runtime process lifecycles, configure live-update sync rules, or mutate user files on disk.
+### `runtime/discovery/` — Manifest Scanning & Dependency Graph Construction
+- **What it is responsible for**: `runtime/discovery/` is a Starlark-based subsystem that scans project directories along configured discovery paths (by default `services/*/*`), parses discovered `service.json` files, validates them against platform rules, and synthesizes missing defaults (such as default sync directories, ports, and stack associations). It resolves inter-service dependencies (`dependsOn`) to construct a directed acyclic graph (DAG) and exports clean, immutable registry structures (`APP_RESOURCES`, `INFRA_RESOURCES_EXPORT`, `Registry`) for the engine to consume.
+- **What it must NOT do**: `runtime/discovery/` must **not** execute build commands, start containers, manage runtime process lifecycles, configure live-update sync rules, or mutate user files on disk.
 
 ---
 
@@ -44,7 +44,7 @@ A typical Flisk session progresses through three distinct stages: project initia
    - `TILT_RESOURCE_DEFAULTS.star`: Defaults and conventions per resource type.
    - `spec.master`: Active phases and enabled stack declarations.
    - `.tiltignore`: Ignore rules copied to the project root so Tilt ignores non-runtime files.
-4. **Extension Vendoring**: Vendors a self-contained copy of `engine/`, `discovery/`, `specs/`, and `ext/` into `.flisk/.flisk-out/flisk-cli-ext/`, ensuring `flisk up` functions offline without external git dependencies.
+4. **Extension Vendoring**: Vendors a self-contained copy of `runtime/engine/`, `runtime/discovery/`, `runtime/specs/`, and `runtime/ext/` into `.flisk/.flisk-out/flisk-cli-ext/`, ensuring `flisk up` functions offline without external git dependencies.
 
 ### Step 2: `flisk resource` (Service Scaffolding)
 1. **Validation**: Validates the resource name and target stack (enforcing kebab-case conventions).
@@ -56,8 +56,8 @@ A typical Flisk session progresses through three distinct stages: project initia
 ### Step 3: `flisk up` (Runtime Execution)
 1. **Preflight & Drift Verification**: Verifies environment readiness (Docker running, WSL2 on Windows). `flisk up` runs the full runtime preflight; `flisk project` only checks the prerequisites that writing files needs, so project setup works without a Docker daemon or Tilt. Re-runs `generateMasterConfigs()` if manifests changed, and checks for manual edits to generated files to prevent drift.
 2. **Tilt Launch**: Spawns `tilt up` targeting the generated `.flisk/.flisk-out/Tiltfile`.
-3. **Starlark Discovery & DAG Assembly**: Inside Tilt, `Tiltfile` imports `discovery/` from the vendored extension. `discovery/` traverses all paths matching `services/*/*/service.json`, synthesizes missing defaults, and builds the resource DAG.
-4. **Engine Orchestration**: `engine/` evaluates phase filters against `spec.master` via `should_enable()`. For each enabled resource:
+3. **Starlark Discovery & DAG Assembly**: Inside Tilt, `Tiltfile` imports `runtime/discovery/` from the vendored extension. `runtime/discovery/` traverses all paths matching `services/*/*/service.json`, synthesizes missing defaults, and builds the resource DAG.
+4. **Engine Orchestration**: `runtime/engine/` evaluates phase filters against `spec.master` via `should_enable()`. For each enabled resource:
    - Generates service runtime files under `services/<stack>/<resource>/.autogenerated/` (such as `nginx.autogenerated.conf`, `vite.config.*`, `tsconfig.autogenerated.json`, or generated Dockerfiles).
    - Registers Tilt build targets (`docker_build` with `live_update` sync mappings).
    - Launches shared platform infrastructure (Traefik reverse proxy on port 80/443, PostgreSQL database on port 15432).
@@ -169,14 +169,14 @@ Use this reference table to find the right files, tests, and documentation when 
 | What You Want to Change | Primary Code Locations | Tests & Verification | Documentation to Update |
 | :--- | :--- | :--- | :--- |
 | **New CLI command or option** | `cli/src/commands/<command>.ts`<br/>Register in `cli/src/cli.ts` | `cli/src/commands/__tests__/<command>.test.ts`<br/>`bun run test` | `cli/README.md`<br/>`docs/cheat-sheet.md` |
-| **New resource type** | `cli/src/types/index.ts` (`ResourceType`)<br/>`cli/src/commands/resource.ts`<br/>`engine/schemas/service-schema.json`<br/>`discovery/manifest/normalize.star` | `cli/src/commands/__tests__/resource.test.ts`<br/>`make test-shell`<br/>Add e2e suite in `tests/e2e/resource-types/` | `docs/service-json.md`<br/>`docs/layout.md` |
-| **New backend language provider** | `cli/src/backend-languages/<lang>.ts`<br/>Register in `cli/src/backend-languages/registry.ts`<br/>`engine/topologies/platform/docker/dockerfile/language_dockerfile.star`<br/>`engine/topologies/tilt/generators/validators.star` | Provider tests in `cli/src/backend-languages/__tests__/`<br/>`make test-ts`<br/>E2E test in `tests/e2e/resource-types/backend/` | `docs/backend-language-providers.md` |
-| **New frontend framework provider** | `cli/src/frontend-frameworks/<framework>.ts`<br/>Register in `cli/src/frontend-frameworks/registry.ts`<br/>`engine/topologies/tilt/generators/vite_config.star` | `cli/src/frontend-frameworks/__tests__/`<br/>`make test-ts` | `docs/frontend-framework-providers.md` |
+| **New resource type** | `cli/src/types/index.ts` (`ResourceType`)<br/>`cli/src/commands/resource.ts`<br/>`runtime/engine/schemas/service-schema.json`<br/>`runtime/discovery/manifest/normalize.star` | `cli/src/commands/__tests__/resource.test.ts`<br/>`make test-shell`<br/>Add e2e suite in `tests/e2e/resource-types/` | `docs/service-json.md`<br/>`docs/layout.md` |
+| **New backend language provider** | `cli/src/backend-languages/<lang>.ts`<br/>Register in `cli/src/backend-languages/registry.ts`<br/>`runtime/engine/topologies/platform/docker/dockerfile/language_dockerfile.star`<br/>`runtime/engine/topologies/tilt/generators/validators.star` | Provider tests in `cli/src/backend-languages/__tests__/`<br/>`make test-ts`<br/>E2E test in `tests/e2e/resource-types/backend/` | `docs/backend-language-providers.md` |
+| **New frontend framework provider** | `cli/src/frontend-frameworks/<framework>.ts`<br/>Register in `cli/src/frontend-frameworks/registry.ts`<br/>`runtime/engine/topologies/tilt/generators/vite_config.star` | `cli/src/frontend-frameworks/__tests__/`<br/>`make test-ts` | `docs/frontend-framework-providers.md` |
 | **Master config template or project template** | `cli/templates/<template>.hbs`<br/>`cli/src/generator/template-engine.ts`<br/>`cli/src/utils/project-templates.ts` | `cli/src/generator/__tests__/template-engine.test.ts`<br/>`bun run test` | `docs/configuration.md` |
 | **Doctor check or preflight rule** | `cli/src/utils/doctor-report.ts`<br/>`cli/src/utils/doctor-runtime.ts`<br/>`cli/src/commands/doctor.ts` | `cli/src/utils/__tests__/doctor-report.test.ts`<br/>`cli/src/commands/__tests__/doctor.test.ts` | `docs/reference/doctor-contract.md`<br/>`docs/troubleshooting.md` |
-| **Engine container orchestration or live-update** | `engine/topologies/tilt/resources/`<br/>`engine/topologies/platform/docker/`<br/>`engine/topologies/tilt/generators/` | Try with `tilt alpha tiltfile-result -f try.Tiltfile`<br/>`tests/tilt-engine/`<br/>`make test-python` | `docs/TOPOLOGY.md`<br/>`docs/generated-files.md` |
-| **Service discovery or manifest parsing** | `discovery/manifest/loading.star`<br/>`discovery/manifest/normalize.star`<br/>`discovery/discovery_orchestrator.star` | `cli/src/commands/__tests__/discovery-*.test.ts`<br/>`make test-shell` | `docs/service-json.md`<br/>`docs/configuration.md` |
-| **Shared infrastructure (Postgres, Traefik, etc.)** | `engine/topologies/tilt/resources/infra-loader.star`<br/>`engine/topologies/tilt/resources/databases.star`<br/>`engine/topologies/platform/docker/compose/` | `tests/tilt-engine/`<br/>E2E tests in `tests/e2e/` | `docs/FEATURES.md`<br/>`docs/data.md` |
+| **Engine container orchestration or live-update** | `runtime/engine/topologies/tilt/resources/`<br/>`runtime/engine/topologies/platform/docker/`<br/>`runtime/engine/topologies/tilt/generators/` | Try with `tilt alpha tiltfile-result -f try.Tiltfile`<br/>`tests/tilt-engine/`<br/>`make test-python` | `docs/TOPOLOGY.md`<br/>`docs/generated-files.md` |
+| **Service discovery or manifest parsing** | `runtime/discovery/manifest/loading.star`<br/>`runtime/discovery/manifest/normalize.star`<br/>`runtime/discovery/discovery_orchestrator.star` | `cli/src/commands/__tests__/discovery-*.test.ts`<br/>`make test-shell` | `docs/service-json.md`<br/>`docs/configuration.md` |
+| **Shared infrastructure (Postgres, Traefik, etc.)** | `runtime/engine/topologies/tilt/resources/infra-loader.star`<br/>`runtime/engine/topologies/tilt/resources/databases.star`<br/>`runtime/engine/topologies/platform/docker/compose/` | `tests/tilt-engine/`<br/>E2E tests in `tests/e2e/` | `docs/FEATURES.md`<br/>`docs/data.md` |
 
 ---
 

@@ -8,7 +8,15 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const converter = join(repoRoot, "engine", "topologies", "tilt", "manifest", "json_to_yaml.py");
+const converter = join(
+  repoRoot,
+  "runtime",
+  "engine",
+  "topologies",
+  "tilt",
+  "manifest",
+  "json_to_yaml.py",
+);
 
 const hasPyYaml = spawnSync("python3", ["-c", "import yaml"], { encoding: "utf-8" }).status === 0;
 if (process.env.FLISK_REQUIRE_TILT === "1" && !hasPyYaml) {

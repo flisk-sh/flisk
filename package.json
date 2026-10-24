@@ -18,13 +18,9 @@
     "flisk": "cli/bin/flisk.js"
   },
   "files": [
-    "Tiltfile",
-    "engine",
-    "!engine/docs",
-    "discovery",
-    "specs",
-    "ext",
-    "!ext/ide-components/code_executor",
+    "runtime",
+    "!runtime/engine/docs",
+    "!runtime/ext/ide-components/code_executor",
     "shared-platform-engineering/docker-templates",
     "examples/tdk-example",
     "cli/bin",

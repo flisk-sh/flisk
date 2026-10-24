@@ -18,7 +18,7 @@ import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.generator]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-STAR = REPO_ROOT / "engine" / "topologies" / "tilt" / "common" / "utils_docker_networks.star"
+STAR = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "common" / "utils_docker_networks.star"
 RESULT_MARKER = "Error in fail: RESULT"
 POOL_MSG = (
     "Error response from daemon: all predefined address pools have been fully subnetted"

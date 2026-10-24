@@ -18,9 +18,9 @@ pytestmark = [pytest.mark.generator]
 TILT_REQUIRED = pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-VALIDATOR = REPO_ROOT / "engine" / "topologies" / "tilt" / "manifest" / "validator.star"
-ORCHESTRATOR = REPO_ROOT / "engine" / "lifecycle" / "orchestrator.star"
-SCHEMA = REPO_ROOT / "engine" / "schemas" / "service-schema.json"
+VALIDATOR = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "manifest" / "validator.star"
+ORCHESTRATOR = REPO_ROOT / "runtime" / "engine" / "lifecycle" / "orchestrator.star"
+SCHEMA = REPO_ROOT / "runtime" / "engine" / "schemas" / "service-schema.json"
 RESULT_MARKER = "RESULT"
 
 

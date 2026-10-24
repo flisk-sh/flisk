@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { repoRoot, runFlisk } from "./project-e2e-helpers.js";
 
 const schema = JSON.parse(
-  readFileSync(join(repoRoot, "engine", "schemas", "project-schema.json"), "utf-8"),
+  readFileSync(join(repoRoot, "runtime", "engine", "schemas", "project-schema.json"), "utf-8"),
 );
 const validateProject = new Ajv({ allErrors: false, strict: false }).compile(schema);
 

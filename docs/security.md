@@ -37,7 +37,7 @@ Images defined by the engine, with the tag in the source:
 | `nginx` | `1.27-alpine` | Static frontend runtime |
 | `sablierapp/sablier` | `1.18.0` | Idle stop (premium) |
 
-Tags are version tags, not digests, so a registry could still move them. The golden layer images (`...-l1:latest` and similar) are built locally from these bases and are not pulled. Images for the optional features (monitoring, ELK, Debezium and others) and the generated `FROM` lines for Go, Rust, Python and Java were **not audited** here. Also not in the table: the scaffolded `Dockerfile` that `flisk up` does not build uses `oven/bun:1.2`, the bring-your-own placeholder `Dockerfile` uses `nginx:1.27-alpine`, and `engine/topologies/tilt/manifest/constants.star` names `node:20-alpine`; where that last one is used was not checked.
+Tags are version tags, not digests, so a registry could still move them. The golden layer images (`...-l1:latest` and similar) are built locally from these bases and are not pulled. Images for the optional features (monitoring, ELK, Debezium and others) and the generated `FROM` lines for Go, Rust, Python and Java were **not audited** here. Also not in the table: the scaffolded `Dockerfile` that `flisk up` does not build uses `oven/bun:1.2`, the bring-your-own placeholder `Dockerfile` uses `nginx:1.27-alpine`, and `runtime/engine/topologies/tilt/manifest/constants.star` names `node:20-alpine`; where that last one is used was not checked.
 
 ## Dependency advisories
 

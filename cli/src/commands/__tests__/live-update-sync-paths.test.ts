@@ -9,6 +9,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const registration = readFileSync(
   join(
     repoRoot,
+    "runtime",
     "engine",
     "topologies",
     "tilt",

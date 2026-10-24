@@ -75,7 +75,7 @@ class ConfigInspectorHandler(BaseIDEHandler):
                 })
         
         # Then discover from engine/topologies/
-        topologies_dir = PROJECT_ROOT / 'engine' / 'topologies'
+        topologies_dir = PROJECT_ROOT / 'runtime' / 'engine' / 'topologies'
         
         if topologies_dir.exists():
             for root, dirs, files in os.walk(topologies_dir):
