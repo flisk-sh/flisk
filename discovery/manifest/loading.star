@@ -26,7 +26,7 @@ def _check_prisma_folder(resource_path):
     Check if prisma/ directory exists in resource path (silent).
     Used to auto-detect has_migrator when not in features.
     """
-    check_cmd = "test -d '{path}/prisma' && echo 'yes' || echo 'no'".format(path=resource_path)
+    check_cmd = ["sh", "-c", 'test -d "$1/prisma" && echo yes || echo no', "sh", resource_path]
     result = str(local(check_cmd, quiet=True, echo_off=True)).strip()
     return result == 'yes'
 
@@ -255,9 +255,9 @@ def _apply_manifest_defaults(manifest, resource_path):
         # BUG FIX: Run check from project root since Tilt may run from .tdk/.tdk-out/
         project_root = os.environ.get('TDK_PROJECT_ROOT', '')
         if project_root:
-            dockerfile_exists = local("cd '{root}' && test -f '{path}' && echo 'yes' || echo 'no'".format(root=project_root, path=dockerfile_path), quiet=True, echo_off=True)
+            dockerfile_exists = local(["sh", "-c", 'cd "$1" && test -f "$2" && echo yes || echo no', "sh", project_root, dockerfile_path], quiet=True, echo_off=True)
         else:
-            dockerfile_exists = local("test -f '{path}' && echo 'yes' || echo 'no'".format(path=dockerfile_path), quiet=True, echo_off=True)
+            dockerfile_exists = local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", dockerfile_path], quiet=True, echo_off=True)
         if str(dockerfile_exists).strip() != 'yes':
             fail("""
 ❌ ═══════════════════════════════════════════════════════════════════
@@ -411,7 +411,7 @@ def get_manifest_filename(resource_path):
     """
     # Check for manifest file (service.json)
     manifest_path = resource_path + '/' + MANIFEST_FILENAME
-    if local("test -f '{path}' && echo 'yes' || echo 'no'".format(path=manifest_path), quiet=True, echo_off=True) == 'yes':
+    if local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", manifest_path], quiet=True, echo_off=True) == 'yes':
         return MANIFEST_FILENAME
     
     # Manifest not found - synthesis will be used

@@ -5,7 +5,7 @@
 # Dispatched by hand only: the setup needs a Windows runner and takes a while, and the old WSL2 smoke job was
 # flaky on setup-wsl's `wsl --update` and on the Ubuntu and Docker mirrors (#716, #717), so it does not run on
 # every pull request. The evidence the suite writes is the artifact an acceptance run links to.
-name: 🐧 Platforms WSL2 E2E
+name: 🪟 E2E | Platforms WSL2
 
 on:
   workflow_dispatch:

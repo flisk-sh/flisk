@@ -1,4 +1,4 @@
-name: 🚀 Release binaries and npm package
+name: 🚀 Release | Binaries and npm package
 
 on:
   workflow_dispatch:
@@ -362,13 +362,13 @@ jobs:
             gh release upload "v${VERSION}" --clobber checksums.txt checksums.txt.sigstore.json
           else
             gh release create "v${VERSION}" --draft --latest=false --title "v${VERSION}" \
-              --notes "Signed checksums for flisk ${VERSION}. The binaries are on https://github.com/flisk-sh/releases/releases/tag/v${VERSION} and the npm package is @flisk-sh/flisk@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/release-binaries.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
+              --notes "Signed checksums for flisk ${VERSION}. The binaries are on https://github.com/flisk-sh/releases/releases/tag/v${VERSION} (all releases: https://github.com/flisk-sh/releases) and the npm package is @flisk-sh/flisk@${VERSION}. Verify with: cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/flisk-sh/flisk/.github/workflows/(release-binaries|sign-release)\.yml@.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt" \
               checksums.txt checksums.txt.sigstore.json
           fi
 
       # SLSA build provenance for the checksums (a GitHub attestation tied to this workflow run), attached to the release as
-      # checksums.txt.intoto.jsonl. Untested until the next release runs: Scorecard's Signed-Releases check then needs
-      # provenance on the last five releases, so the score moves gradually. Like the signature, it can never block a release.
+      # checksums.txt.intoto.jsonl. Scorecard's Signed-Releases check needs provenance on the last five releases, so the score
+      # moves gradually: 1.3.205 and 1.3.207 shipped without it and age out of the window after five more releases. Like the signature, it can never block a release.
       - name: Attest build provenance for the checksums
         continue-on-error: true
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -379,12 +379,16 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TOKEN: ${{ secrets.BINARY_RELEASE_TOKEN }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
           gh attestation download checksums.txt --repo "$GITHUB_REPOSITORY"
           mv sha256:*.jsonl checksums.txt.intoto.jsonl
           gh release upload "v${VERSION}" --repo "$GITHUB_REPOSITORY" --clobber checksums.txt.intoto.jsonl
+          # flisk-sh/releases is a repository of its own that Scorecard can score, so the provenance goes next to the binaries too.
+          GH_TOKEN="$RELEASE_TOKEN" gh release upload "v${VERSION}" --repo flisk-sh/releases --clobber \
+            checksums.txt.intoto.jsonl || echo "::warning::Could not attach the provenance to the flisk-sh/releases release"
 
       # Keep main in step with what was published. A push made with
       # github.token doesn't trigger workflows, so this can't loop. This runs
@@ -505,9 +509,22 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
-      # Trusted publishing needs an npm CLI that speaks OIDC.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/npm-cli
+      # Trusted publishing needs an npm CLI that speaks OIDC. The npm version is pinned by the lockfile
+      # in .github/npm-cli (npm ci verifies its hashes); the installed copy is put first on PATH.
       - name: Update npm for trusted publishing
-        run: npm install --global npm@12.2.0 # zizmor: ignore[adhoc-packages] npm CLI is pinned for trusted publishing
+        env:
+          NPM_CLI_DIR: ${{ runner.temp }}/npm-cli
+        run: |
+          set -euo pipefail
+          mkdir -p "$NPM_CLI_DIR"
+          cp .github/npm-cli/package.json .github/npm-cli/package-lock.json "$NPM_CLI_DIR"/
+          (cd "$NPM_CLI_DIR" && npm ci --ignore-scripts --no-audit --fund=false)
+          echo "$NPM_CLI_DIR/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: Build the unscoped archive
         id: unscoped
@@ -605,5 +622,5 @@ jobs:
             gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
           else
             gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --latest=false --title "v${VERSION}" \
-              --notes "flisk ${VERSION}. Binaries: https://github.com/flisk-sh/releases/releases/tag/v${VERSION}"
+              --notes "flisk ${VERSION}. Binaries: https://github.com/flisk-sh/releases/releases/tag/v${VERSION} (all releases: https://github.com/flisk-sh/releases)"
           fi
