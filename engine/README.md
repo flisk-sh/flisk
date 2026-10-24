@@ -24,7 +24,7 @@ This directory contains the Flisk Landscape Tilt infrastructure framework - the 
 
 When you see `.tilt-engine/` in paths, know that this is framework code (not generated output).
 
-Generated/output files go in `.tdk/.tdk-out/` (which is gitignored).
+Generated/output files go in `.flisk/.flisk-out/` (which is gitignored).
 
 ## Learn More
 

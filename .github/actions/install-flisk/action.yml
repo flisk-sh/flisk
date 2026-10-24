@@ -22,25 +22,25 @@ runs:
     - name: Install the CLI
       shell: bash
       env:
-        TDK_VERSION: ${{ inputs.version }}
-        TDK_TARBALL: ${{ inputs.tarball }}
+        FLISK_VERSION: ${{ inputs.version }}
+        FLISK_TARBALL: ${{ inputs.tarball }}
       run: | # zizmor: ignore[adhoc-packages] the point is to test what users install
         set -euo pipefail
-        if [ -n "$TDK_TARBALL" ]; then
-          tgz="$(compgen -G "$TDK_TARBALL" | head -1 || true)"
+        if [ -n "$FLISK_TARBALL" ]; then
+          tgz="$(compgen -G "$FLISK_TARBALL" | head -1 || true)"
           if [ -z "$tgz" ]; then
-            echo "::error::no tarball matches $TDK_TARBALL"
+            echo "::error::no tarball matches $FLISK_TARBALL"
             exit 1
           fi
           scripts/e2e/retry-infra.sh "install the packed CLI" -- node scripts/install-global.mjs "$tgz"
-        elif [ "$TDK_VERSION" = "local" ]; then
+        elif [ "$FLISK_VERSION" = "local" ]; then
           scripts/e2e/retry-infra.sh "bun install" -- bun install --frozen-lockfile
           tarball="$(npm pack --silent | tail -1)"
           scripts/e2e/retry-infra.sh "install the packed CLI" -- node scripts/install-global.mjs "./$tarball"
         else
-          if [ "$TDK_VERSION" != "latest" ]; then
-            scripts/wait-for-npm-version.sh "@flisk-sh/flisk" "$TDK_VERSION"
+          if [ "$FLISK_VERSION" != "latest" ]; then
+            scripts/wait-for-npm-version.sh "@flisk-sh/flisk" "$FLISK_VERSION"
           fi
-          scripts/e2e/retry-infra.sh "install the published CLI" -- node scripts/install-global.mjs "@flisk-sh/flisk@${TDK_VERSION}"
+          scripts/e2e/retry-infra.sh "install the published CLI" -- node scripts/install-global.mjs "@flisk-sh/flisk@${FLISK_VERSION}"
         fi
         flisk --version

@@ -9,7 +9,7 @@
 | 変更内容 | 実行するチェック |
 |---|---|
 | CLI のコード、または生成される CLI の動作 | `bun run typecheck`、`bun run lint`、`bun run test` |
-| CLI のテストで使われるエンジン/Starlark の生成器 | `bun run typecheck`、`bun run lint`、`cd cli && TDK_REQUIRE_TILT=1 npm test` を実行してください。CI のテストジョブは Tilt をインストールし、このフラグを設定します。 |
+| CLI のテストで使われるエンジン/Starlark の生成器 | `bun run typecheck`、`bun run lint`、`cd cli && FLISK_REQUIRE_TILT=1 npm test` を実行してください。CI のテストジョブは Tilt をインストールし、このフラグを設定します。 |
 | Python エンジンのテスト領域 | 一度だけ `python3 -m pip install -r tests/requirements.txt` でテストパッケージをインストールし、関連するテストファイルを `pytest` で実行するか、そのスイートでは `make test-tilt-engine` を実行してください。一部のテストはクリーンなチェックアウトでも失敗します。どれがなぜ失敗するかは #700 を参照してください。これらの Python のチェックは `.github/workflows/ci.yml` では実行されません。 |
 | ドキュメントのみ | 変更したリンクとコマンドを確認する。ページを初めて読む人の目線で一度通して読む。 |
 

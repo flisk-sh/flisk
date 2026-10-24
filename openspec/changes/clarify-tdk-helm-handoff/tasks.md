@@ -23,7 +23,7 @@
 
 - [x] 4.1 Create `examples/one-backend/` with one authored service manifest, minimal app/project files, documented generation/setup/up commands, expected curl/health response, prerequisites, and cleanup.
 - [x] 4.2 Create `examples/one-backend-helm/values.yaml` and README using the same explicit backend image repository/tag and port, pinned chart version, matching docs/schema links, and lint/render instructions.
-- [x] 4.3 Add core editor/schema guidance for both `service.json` and `.tdk/project.json` using validated JSON/editor configuration; distinguish config verification from environment doctor checks.
+- [x] 4.3 Add core editor/schema guidance for both `service.json` and `.flisk/project.json` using validated JSON/editor configuration; distinguish config verification from environment doctor checks.
 - [x] 4.4 Link minimal examples and schemas from onboarding while retaining `flisk project example` and existing landscape examples.
 
 ## 5. Coordinate website and repository guidance

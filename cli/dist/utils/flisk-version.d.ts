@@ -1,8 +1,8 @@
 /**
- * A repo can pin the oldest CLI it works with: `"minTdkVersion": "1.3.80"` in .tdk/project.json.
+ * A repo can pin the oldest CLI it works with: `"minFliskVersion": "1.3.80"` in .flisk/project.json.
  * Shared by `flisk doctor` and `flisk up` so both say the same thing.
  */
-export type TdkVersionFloor = {
+export type FliskVersionFloor = {
     status: "none";
 } | {
     status: "ok";
@@ -17,4 +17,4 @@ export type TdkVersionFloor = {
     message: string;
     fix: string;
 };
-export declare function evaluateTdkVersionFloor(projectRoot: string, currentVersion: string): TdkVersionFloor;
+export declare function evaluateFliskVersionFloor(projectRoot: string, currentVersion: string): FliskVersionFloor;

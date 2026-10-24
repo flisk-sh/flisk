@@ -7,7 +7,7 @@ import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
- * when a new importer is published. `TDK_IMPORT_PACKAGE` overrides the package spec.
+ * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
 export const IMPORT_PACKAGE = "flisk-import@0.2.2";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
@@ -102,7 +102,7 @@ export function checkCoreVersion(currentVersion = getPackageVersion(), args = []
     return { ok: true };
 }
 export function importInvocation(args, env = process.env, platform = process.platform) {
-    const pkg = env.TDK_IMPORT_PACKAGE || IMPORT_PACKAGE;
+    const pkg = env.FLISK_IMPORT_PACKAGE || IMPORT_PACKAGE;
     return {
         command: platform === "win32" ? "npx.cmd" : "npx",
         args: ["--yes", pkg, ...args],

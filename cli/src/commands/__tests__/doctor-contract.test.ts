@@ -58,10 +58,10 @@ describe("doctor environment contract", () => {
     const root = mkdtempSync(join(tmpdir(), "flisk-doctor-bun-floor-"));
     const originalCwd = process.cwd();
     try {
-      mkdirSync(join(root, ".tdk"), { recursive: true });
+      mkdirSync(join(root, ".flisk"), { recursive: true });
       mkdirSync(join(root, "services", "api"), { recursive: true });
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: "test" } }),
       );
       writeFileSync(
@@ -85,9 +85,9 @@ describe("doctor environment contract", () => {
     const root = mkdtempSync(join(tmpdir(), "flisk-doctor-no-bun-"));
     const originalCwd = process.cwd();
     try {
-      mkdirSync(join(root, ".tdk"), { recursive: true });
+      mkdirSync(join(root, ".flisk"), { recursive: true });
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: "test" } }),
       );
       process.chdir(root);
@@ -108,12 +108,12 @@ describe("doctor environment contract", () => {
     expect(result.message).toContain("requires Linux containers");
   });
 
-  it("warns when TDK_BIND_ADDRESS exposes dev ports to the network (GHSA-3hj3-f39v-j2x5)", () => {
+  it("warns when FLISK_BIND_ADDRESS exposes dev ports to the network (GHSA-3hj3-f39v-j2x5)", () => {
     const unset = checkPublishedBindAddress({});
-    const loopback = checkPublishedBindAddress({ TDK_BIND_ADDRESS: "127.0.0.1" });
-    const lan = checkPublishedBindAddress({ TDK_BIND_ADDRESS: "192.168.1.20" });
-    const wildcard = checkPublishedBindAddress({ TDK_BIND_ADDRESS: "0.0.0.0" });
-    const wildcardStrict = checkPublishedBindAddress({ TDK_BIND_ADDRESS: "0.0.0.0" }, true);
+    const loopback = checkPublishedBindAddress({ FLISK_BIND_ADDRESS: "127.0.0.1" });
+    const lan = checkPublishedBindAddress({ FLISK_BIND_ADDRESS: "192.168.1.20" });
+    const wildcard = checkPublishedBindAddress({ FLISK_BIND_ADDRESS: "0.0.0.0" });
+    const wildcardStrict = checkPublishedBindAddress({ FLISK_BIND_ADDRESS: "0.0.0.0" }, true);
 
     expect(unset.didPass).toBe(true);
     expect(unset.message).toContain("127.0.0.1");
@@ -122,7 +122,7 @@ describe("doctor environment contract", () => {
     expect(wildcard.didPass).toBe(true);
     expect(wildcard.isWarning).toBe(true);
     expect(wildcard.message).toContain("reachable from other machines");
-    expect(wildcard.fix).toContain("Unset TDK_BIND_ADDRESS");
+    expect(wildcard.fix).toContain("Unset FLISK_BIND_ADDRESS");
     expect(wildcardStrict.didPass).toBe(false);
   });
 
@@ -135,16 +135,16 @@ describe("doctor environment contract", () => {
       "::0.0.0.0",
       "[::0.0.0.0]",
     ]) {
-      const result = checkPublishedBindAddress({ TDK_BIND_ADDRESS: address }, true);
+      const result = checkPublishedBindAddress({ FLISK_BIND_ADDRESS: address }, true);
       expect(result.didPass, address).toBe(false);
     }
-    expect(checkPublishedBindAddress({ TDK_BIND_ADDRESS: "::1" }).isWarning).toBeFalsy();
+    expect(checkPublishedBindAddress({ FLISK_BIND_ADDRESS: "::1" }).isWarning).toBeFalsy();
   });
 
   it("warns about /mnt/c and fails there only in strict WSL mode", () => {
-    const warning = checkWslProjectLocation("/mnt/c/Users/dev/tdk", false, true);
-    const strict = checkWslProjectLocation("/mnt/c/Users/dev/tdk", true, true);
-    const healthy = checkWslProjectLocation("/home/dev/tdk", true, true);
+    const warning = checkWslProjectLocation("/mnt/c/Users/dev/flisk", false, true);
+    const strict = checkWslProjectLocation("/mnt/c/Users/dev/flisk", true, true);
+    const healthy = checkWslProjectLocation("/home/dev/flisk", true, true);
 
     expect(warning.didPass).toBe(true);
     expect(warning.isWarning).toBe(true);
@@ -174,7 +174,7 @@ describe("doctor environment contract", () => {
   });
 
   it("puts Postgres port 5432 first in the host-port failure details", async () => {
-    const result = await checkHostPorts((() => "") as never, "tdk-project", async (port) =>
+    const result = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
       port === 80 || port === 5432 ? "in-use" : "free",
     );
 

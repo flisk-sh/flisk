@@ -23,8 +23,8 @@ mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))
 tilt_port=$((10400 + RANDOM % 500))
 # Vendor and run this checkout's engine, not a published one (the backgrounded `flisk up` needs it too).
-export TDK_EXTENSION_SOURCE="$root"
-flisk() { node "$root/cli/bin/tdk.js" "$@"; }
+export FLISK_EXTENSION_SOURCE="$root"
+flisk() { node "$root/cli/bin/flisk.js" "$@"; }
 
 cleanup() {
   # Anchored on the whole project name: golive123 must not match a concurrent run's golive1234.
@@ -39,7 +39,7 @@ trap cleanup EXIT
 cd "$work"
 git init -q .
 flisk project --yes >/dev/null 2>&1
-printf '\nTDK_HTTP_PORT=%s\nTDK_HTTPS_PORT=%s\nTDK_POSTGRES_PORT=%s\n' \
+printf '\nFLISK_HTTP_PORT=%s\nFLISK_HTTPS_PORT=%s\nFLISK_POSTGRES_PORT=%s\n' \
   "$http_port" "$((32000 + RANDOM % 2000))" "$((34000 + RANDOM % 2000))" >> .env
 flisk resource api --type backend --language go --stack "$proj" --yes >/dev/null
 svc="services/$proj/api"
@@ -58,7 +58,7 @@ open(path, "a").write("\n")
 PY
 
 started="$(date +%s)"
-TILT_PORT="$tilt_port" nohup node "$root/cli/bin/tdk.js" up "$proj" >"$work/up.log" 2>&1 &
+TILT_PORT="$tilt_port" nohup node "$root/cli/bin/flisk.js" up "$proj" >"$work/up.log" 2>&1 &
 
 route="/api/api/"
 health="/api/api/health"

@@ -9,8 +9,8 @@ Flisk has no telemetry or analytics ([project overview](project-overview.md#tele
 | Call | When | Goes to | Sends |
 | --- | --- | --- | --- |
 | `flisk upgrade` version check and download | Only when you run `flisk upgrade` | `api.github.com` releases, GitHub release assets, and on Windows `registry.npmjs.org` | An ordinary unauthenticated request. The binary and the bundled engine are checked against the release `checksums.txt` before the installed copy is replaced (`checksum mismatch` error path read in `upgrade.ts`). |
-| Premium extension fetch | Only when `TDK_LICENSE_KEY` is set and a premium feature is used | `TDK_PREMIUM_ENDPOINT`, default a Cloudflare Worker (`tdk-extension-dist.oranguman.workers.dev`) | The licence key as a bearer token, the resource name and a random per-project id stored in `.tdk/`. A bundle is cached under `~/.tdk/cache/`. |
-| `flisk doctor` service ping, and the `smoke` checks that `flisk up` runs for services that declare them | When services are running; `flisk doctor --no-ping` skips the ping | `<project>.localhost` (or `TDK_SERVICE_BASE_URL`) | A GET to each service's health endpoint. |
+| Premium extension fetch | Only when `FLISK_LICENSE_KEY` is set and a premium feature is used | `FLISK_PREMIUM_ENDPOINT`, default a Cloudflare Worker (`flisk-extension-dist.oranguman.workers.dev`) | The licence key as a bearer token, the resource name and a random per-project id stored in `.flisk/`. A bundle is cached under `~/.flisk/cache/`. |
+| `flisk doctor` service ping, and the `smoke` checks that `flisk up` runs for services that declare them | When services are running; `flisk doctor --no-ping` skips the ping | `<project>.localhost` (or `FLISK_SERVICE_BASE_URL`) | A GET to each service's health endpoint. |
 
 Without a licence key, and without running `flisk upgrade`, the CLI makes no outbound request of its own. There is no update check on startup.
 
@@ -20,8 +20,8 @@ Without a licence key, and without running `flisk upgrade`, the CLI makes no out
 
 - Secret values live in the gitignored project `.env`; `service.json` holds only their names. See [Environment, params and secrets](environment.md).
 - Generated files contain no secret values, and `DB_PASSWORD` and `JWT_SECRET` are generated per project, never shared between projects.
-- The smoke records under `.tdk/smoke/` hold response bodies with the project's own `.env` values masked, in the stored body, in the last-success copy, in the printed snippet and in the recorded URL. The masking covers the values in `.env` and nothing else, so it is not a secret scanner.
-- `TDK_SECRET_PROVIDER=infisical` leaves secrets to Infisical and injects nothing from `.env`.
+- The smoke records under `.flisk/smoke/` hold response bodies with the project's own `.env` values masked, in the stored body, in the last-success copy, in the printed snippet and in the recorded URL. The masking covers the values in `.env` and nothing else, so it is not a secret scanner.
+- `FLISK_SECRET_PROVIDER=infisical` leaves secrets to Infisical and injects nothing from `.env`.
 - **Not audited:** whether a secret can appear in Tilt UI output or container logs when an application prints its own environment.
 
 ## Images

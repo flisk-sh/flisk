@@ -23,14 +23,14 @@ A foundation application requires at least 3 maintainers from at least 2 employe
 
 ## License boundary and donation scope
 
-The core CLI is MIT-licensed (see [LICENSE](LICENSE)) and runs without `TDK_LICENSE_KEY`: `flisk up`, scaffold, Traefik, Postgres, and Tilt live update. See the [license matrix](docs/FEATURES.md#license-matrix).
+The core CLI is MIT-licensed (see [LICENSE](LICENSE)) and runs without `FLISK_LICENSE_KEY`: `flisk up`, scaffold, Traefik, Postgres, and Tilt live update. See the [license matrix](docs/FEATURES.md#license-matrix).
 
-A future foundation donation covers the MIT tree only. It does not include implementations downloaded with `TDK_LICENSE_KEY`. These are outside foundation scope until that code is committed under the MIT license:
+A future foundation donation covers the MIT tree only. It does not include implementations downloaded with `FLISK_LICENSE_KEY`. These are outside foundation scope until that code is committed under the MIT license:
 
 - Verdaccio
 - DDD scaffold
 - Sablier idle stop
-- any other path that downloads code with `TDK_LICENSE_KEY`
+- any other path that downloads code with `FLISK_LICENSE_KEY`
 
 ## Contributions
 

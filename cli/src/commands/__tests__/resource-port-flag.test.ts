@@ -17,10 +17,10 @@ describe("--port for every port-assigned resource type", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-port-flag-test-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-port-flag-test-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
     writeFileSync(
-      join(tempDir, ".tdk", "project.json"),
+      join(tempDir, ".flisk", "project.json"),
       JSON.stringify({
         version: "1.0.0",
         project: { name: "test", version: "1.0.0" },

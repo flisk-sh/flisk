@@ -67,7 +67,7 @@ describe("flisk runtime", () => {
     templateEngine.findCliAssetRoot.mockReset();
     templateEngine.loadTemplate.mockReset();
     process.exitCode = undefined;
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-runtime-assets-"));
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-runtime-assets-"));
   });
 
   afterEach(() => {

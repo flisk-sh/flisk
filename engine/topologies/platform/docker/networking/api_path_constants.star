@@ -164,17 +164,17 @@ def get_api_path_for_resource(resource_name):
 get_api_path_for_service = get_api_path_for_resource
 
 # Load project name for dynamic localhost domain
-# Use TDK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
 def _load_project_localhost():
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    project_json_path = '.tdk/project.json'
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = '.flisk/project.json'
     if project_root:
         project_json_path = project_root + '/' + project_json_path
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'tdk-project') + ".localhost"
-    return "tdk-project.localhost"
+        return _project_json.get('project', {}).get('name', 'flisk-project') + ".localhost"
+    return "flisk-project.localhost"
 
 _PROJECT_LOCALHOST = _load_project_localhost()
 

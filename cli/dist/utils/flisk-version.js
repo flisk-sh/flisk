@@ -7,25 +7,25 @@ function toParts(raw) {
     const match = raw.trim().match(/(\d+)\.(\d+)(?:\.(\d+))?/);
     return match ? [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)] : null;
 }
-function readMinTdkVersion(projectRoot) {
+function readMinFliskVersion(projectRoot) {
     try {
-        const parsed = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
-        return parsed?.minTdkVersion;
+        const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
+        return parsed?.minFliskVersion;
     }
     catch {
         return undefined;
     }
 }
-export function evaluateTdkVersionFloor(projectRoot, currentVersion) {
-    const minimum = readMinTdkVersion(projectRoot);
+export function evaluateFliskVersionFloor(projectRoot, currentVersion) {
+    const minimum = readMinFliskVersion(projectRoot);
     if (minimum === undefined)
         return { status: "none" };
     const required = typeof minimum === "string" ? toParts(minimum) : null;
     if (!required || !/^\d+\.\d+\.\d+$/.test(String(minimum).trim())) {
         return {
             status: "malformed",
-            message: `.tdk/project.json minTdkVersion ${JSON.stringify(minimum)} is not a version like "1.3.80"`,
-            fix: 'Set minTdkVersion to a MAJOR.MINOR.PATCH string, for example "1.3.80".',
+            message: `.flisk/project.json minFliskVersion ${JSON.stringify(minimum)} is not a version like "1.3.80"`,
+            fix: 'Set minFliskVersion to a MAJOR.MINOR.PATCH string, for example "1.3.80".',
         };
     }
     const current = toParts(currentVersion);
@@ -43,7 +43,7 @@ export function evaluateTdkVersionFloor(projectRoot, currentVersion) {
         return {
             status: "too-old",
             required: requiredText,
-            message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (minTdkVersion)`,
+            message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (minFliskVersion)`,
             fix: "Run: flisk upgrade",
         };
     }

@@ -2,7 +2,7 @@
 
 ### Requirement: Golden images are not rebuilt when unchanged
 
-`flisk up` SHALL skip building the golden layer images when every golden image tag exists locally and carries a `tdk.golden.hash` label equal to the hash of the current golden Dockerfile and its pinned base images. When any tag is missing or has a different hash, `flisk up` SHALL build all golden images and label each with the current hash.
+`flisk up` SHALL skip building the golden layer images when every golden image tag exists locally and carries a `flisk.golden.hash` label equal to the hash of the current golden Dockerfile and its pinned base images. When any tag is missing or has a different hash, `flisk up` SHALL build all golden images and label each with the current hash.
 
 #### Scenario: Warm start with unchanged golden Dockerfile
 - **WHEN** a user runs `flisk up` and all golden images exist with the current hash label
@@ -37,7 +37,7 @@ When golden images must be built, Flisk SHALL build all golden targets with a si
 
 ### Requirement: Image build concurrency matches the Docker engine
 
-The generated Tiltfile SHALL set Tilt's maximum parallel updates from the Docker engine's CPU count and memory, with a minimum of 3 and a maximum of 8. A `TDK_MAX_PARALLEL_BUILDS` environment variable SHALL override the computed value. If the engine's resources cannot be read, the Tiltfile SHALL leave Tilt's default in place and log why.
+The generated Tiltfile SHALL set Tilt's maximum parallel updates from the Docker engine's CPU count and memory, with a minimum of 3 and a maximum of 8. A `FLISK_MAX_PARALLEL_BUILDS` environment variable SHALL override the computed value. If the engine's resources cannot be read, the Tiltfile SHALL leave Tilt's default in place and log why.
 
 #### Scenario: Engine with spare capacity
 - **WHEN** the Docker engine reports enough CPUs and memory for more than 3 concurrent builds
@@ -45,7 +45,7 @@ The generated Tiltfile SHALL set Tilt's maximum parallel updates from the Docker
 - **AND** the Tiltfile log shows the chosen value and that it came from the engine
 
 #### Scenario: User override
-- **WHEN** `TDK_MAX_PARALLEL_BUILDS` is set to a positive integer
+- **WHEN** `FLISK_MAX_PARALLEL_BUILDS` is set to a positive integer
 - **THEN** Tilt uses that value as its maximum parallel updates
 
 #### Scenario: Engine resources unavailable

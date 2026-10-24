@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { TdkError } from "../utils/errors.js";
+import { FliskError } from "../utils/errors.js";
 import { customAgentRuntime } from "./custom.js";
 import {
   AGENT_DURABILITY_OPTIONS,
@@ -27,10 +27,10 @@ describe("agent runtime registry", () => {
       error = caught;
     }
 
-    expect(error).toBeInstanceOf(TdkError);
-    const tdkError = error as TdkError;
-    expect(tdkError.message).toBe('Unknown agent runtime "libfx". Supported runtimes: custom.');
-    expect(tdkError.suggestions).toEqual(["Use one of: custom", "Omit --runtime to use custom"]);
+    expect(error).toBeInstanceOf(FliskError);
+    const fliskError = error as FliskError;
+    expect(fliskError.message).toBe('Unknown agent runtime "libfx". Supported runtimes: custom.');
+    expect(fliskError.suggestions).toEqual(["Use one of: custom", "Omit --runtime to use custom"]);
   });
 });
 
@@ -51,9 +51,9 @@ describe("agent durability", () => {
       error = caught;
     }
 
-    expect(error).toBeInstanceOf(TdkError);
-    const tdkError = error as TdkError;
-    expect(tdkError.message).toBe('Unknown --durability "redis".');
-    expect(tdkError.suggestions).toEqual(["Use one of: files, postgres"]);
+    expect(error).toBeInstanceOf(FliskError);
+    const fliskError = error as FliskError;
+    expect(fliskError.message).toBe('Unknown --durability "redis".');
+    expect(fliskError.suggestions).toEqual(["Use one of: files, postgres"]);
   });
 });

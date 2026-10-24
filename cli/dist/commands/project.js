@@ -60,7 +60,7 @@ function syncDiscoveredStacksToPreAlpha(projectConfig, discoveredStacks) {
  * `flisk up` without re-running `flisk project`. Returns the stacks it enabled.
  */
 export function enableDiscoveredStacks(projectRoot, resources) {
-    const projectJsonPath = join(projectRoot, ".tdk", PROJECT_JSON);
+    const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
     if (!existsSync(projectJsonPath))
         return [];
     const projectConfig = readProjectConfig(projectRoot);
@@ -135,7 +135,7 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
             ]) {
                 const copiedPath = join(destination, file);
                 const contents = readFileSync(copiedPath, "utf-8");
-                writeFileSync(copiedPath, contents.replaceAll("tdk_example", projectSlug));
+                writeFileSync(copiedPath, contents.replaceAll("flisk_example", projectSlug));
             }
         }
         else {
@@ -241,10 +241,10 @@ export const projectCommand = addYesOption(new Command("project"))
                 showDetail(`Location: ${projectRoot}\n`, 0);
             }
         }
-        const tdkDir = join(projectRoot, ".tdk");
-        const projectJsonPath = join(tdkDir, PROJECT_JSON);
+        const fliskDir = join(projectRoot, ".flisk");
+        const projectJsonPath = join(fliskDir, PROJECT_JSON);
         if (options.check) {
-            const allFilesExist = MASTER_CONFIG_FILES.every((f) => existsSync(join(projectRoot, ".tdk", ".tdk-out", f)));
+            const allFilesExist = MASTER_CONFIG_FILES.every((f) => existsSync(join(projectRoot, ".flisk", ".flisk-out", f)));
             const projectJsonExists = existsSync(projectJsonPath);
             if (allFilesExist && projectJsonExists) {
                 const projectConfig = readProjectConfig(projectRoot);
@@ -256,10 +256,10 @@ export const projectCommand = addYesOption(new Command("project"))
             else {
                 console.log(chalk.yellow("⚠️  Project configuration incomplete:"));
                 if (!projectJsonExists)
-                    showDetail(".tdk/project.json (not found)", 3);
+                    showDetail(".flisk/project.json (not found)", 3);
                 if (!allFilesExist) {
-                    for (const f of MASTER_CONFIG_FILES.filter((f) => !existsSync(join(projectRoot, ".tdk/.tdk-out", f)))) {
-                        showDetail(`.tdk/.tdk-out/${f} (not found)`, 3);
+                    for (const f of MASTER_CONFIG_FILES.filter((f) => !existsSync(join(projectRoot, ".flisk/.flisk-out", f)))) {
+                        showDetail(`.flisk/.flisk-out/${f} (not found)`, 3);
                     }
                 }
                 showDetail("Run `flisk project` to create them.");
@@ -270,15 +270,15 @@ export const projectCommand = addYesOption(new Command("project"))
             showCommandHeader("Project Configuration");
             showDetail(`Project root: ${projectRoot}\n`, 0);
         }
-        if (!existsSync(tdkDir)) {
-            ensureDirectory(tdkDir);
+        if (!existsSync(fliskDir)) {
+            ensureDirectory(fliskDir);
             if (!quiet)
-                showSuccess("Created: .tdk/ directory");
+                showSuccess("Created: .flisk/ directory");
         }
         const projectJsonExists = existsSync(projectJsonPath);
         if (projectJsonExists && !options.force) {
             if (!quiet)
-                showSuccess(".tdk/project.json exists");
+                showSuccess(".flisk/project.json exists");
             const rawProjectConfig = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
             const projectConfig = readProjectConfig(projectRoot);
             const discoveredStacks = discoverExistingServiceStacks(projectRoot);
@@ -309,7 +309,7 @@ export const projectCommand = addYesOption(new Command("project"))
             }
             if (!quiet) {
                 console.log(chalk.green("\n✅ Project configuration regenerated!"));
-                showDetail("\nGenerated in .tdk/.tdk-out/:", 0);
+                showDetail("\nGenerated in .flisk/.flisk-out/:", 0);
                 for (const file of MASTER_CONFIG_FILES) {
                     showDetail(`- ${file}`);
                 }
@@ -320,7 +320,7 @@ export const projectCommand = addYesOption(new Command("project"))
             return;
         }
         if (projectJsonExists && options.force && !options.yes) {
-            console.log(chalk.red("\n⚠️  WARNING: --force will overwrite .tdk/project.json!"));
+            console.log(chalk.red("\n⚠️  WARNING: --force will overwrite .flisk/project.json!"));
             const confirm = await promptConfirm({
                 message: "This will reset your project configuration. Continue?",
                 initial: false,
@@ -411,7 +411,7 @@ export const projectCommand = addYesOption(new Command("project"))
             showStep("\n📂 Service discovery");
             showDetail("What: folder patterns Flisk scans for a service.json in each match.");
             showDetail("Where: type one or more globs, comma-separated.");
-            showDetail("How: saved as discovery.paths in .tdk/project.json - editable later.");
+            showDetail("How: saved as discovery.paths in .flisk/project.json - editable later.");
             showDetail(`Example: ${DEFAULT_PROJECT_JSON.discovery.paths.join(", ")}\n`);
             const discoveryPaths = await promptText({
                 message: "Folders to scan:",
@@ -445,7 +445,7 @@ export const projectCommand = addYesOption(new Command("project"))
             showStep("\n📋 Creating project configuration...\n");
         writeJsonFile(projectJsonPath, projectConfig);
         if (!quiet) {
-            showSuccess("Created: .tdk/project.json");
+            showSuccess("Created: .flisk/project.json");
             showDetail(`→ Project: ${projectConfig.project.name}`);
             showStep("\n📋 Generating master configuration files...\n");
         }
@@ -483,21 +483,21 @@ export const projectCommand = addYesOption(new Command("project"))
         }
         if (!quiet) {
             console.log(chalk.green("\n✅ Project configuration complete!"));
-            showDetail("\nGenerated files in .tdk/.tdk-out/:", 0);
+            showDetail("\nGenerated files in .flisk/.flisk-out/:", 0);
             for (const file of MASTER_CONFIG_FILES) {
                 showDetail(`- ${file}`);
             }
             showDetail("\nEnvironment configuration:", 0);
             showDetail("- .env (contains all required variables)");
             showDetail("\nSource file:", 0);
-            showDetail("- .tdk/project.json (edit this to change project structure)");
+            showDetail("- .flisk/project.json (edit this to change project structure)");
             showDetail("\nNext steps:", 0);
             showDetail("1. flisk resource api --type backend --stack app   # scaffold a service");
             showDetail("2. flisk up app                                     # start it");
             showDetail("\nRuntime readiness:", 0);
             for (const line of runtimeNextSteps)
                 showDetail(line, 0);
-            showDetail("\nAfter editing .tdk/project.json, run `flisk config regenerate`.", 0);
+            showDetail("\nAfter editing .flisk/project.json, run `flisk config regenerate`.", 0);
         }
     });
 });

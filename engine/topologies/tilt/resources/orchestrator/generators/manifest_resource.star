@@ -493,7 +493,7 @@ def _generate_yaml_manifest(resource_path, manifest, write_file):
     
     # Generate YAML using the json_to_yaml.py converter
     # NOTE: Path relative to Flisk CLI installation root (where this file is located)
-    # json_to_yaml.py is in engine/topologies/tilt/manifest/ relative to tdk-cli root
+    # json_to_yaml.py is in engine/topologies/tilt/manifest/ relative to flisk-cli root
     converter_path = "engine/topologies/tilt/manifest/json_to_yaml.py"
     yaml_content = str(local(["python3", converter_path, json_path], quiet=True)).strip()
     write_file(yaml_path, yaml_content)

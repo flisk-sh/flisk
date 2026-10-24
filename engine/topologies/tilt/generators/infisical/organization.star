@@ -19,19 +19,19 @@
 # =============================================================================
 
 # Load project name for dynamic defaults
-# Use TDK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
 def _load_project_names():
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    project_json_path = '.tdk/project.json'
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = '.flisk/project.json'
     if project_root:
         project_json_path = project_root + '/' + project_json_path
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        _PROJECT_NAME = _project_json.get('project', {}).get('name', 'tdk-project')
+        _PROJECT_NAME = _project_json.get('project', {}).get('name', 'flisk-project')
         _PROJECT_NAME_DISPLAY = _PROJECT_NAME.replace('-', ' ').title()
         return _PROJECT_NAME, _PROJECT_NAME_DISPLAY
-    return 'tdk-project', 'Tdk Project'
+    return 'flisk-project', 'Flisk Project'
 
 _PROJECT_NAME, _PROJECT_NAME_DISPLAY = _load_project_names()
 
@@ -447,7 +447,7 @@ def _generate_organization_config(org_name=None, project_name=None, env_names=No
     Generate complete organization configuration.
 
     Args:
-        org_name: Organization name (default: from project.json or 'tdk-project')
+        org_name: Organization name (default: from project.json or 'flisk-project')
         project_name: Project name (default: {org_name}-secrets)
         env_names: List of environments (default: [dev, staging, prod])
         resource_names: List of services to create folders for

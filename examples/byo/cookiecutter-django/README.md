@@ -12,7 +12,7 @@ Celery, no mail catcher, no frontend pipeline), generated at build time and run 
 - **Flisk does not create the database for a bring-your-own service**, so `ensure_db.py` creates it if missing and waits for
   Postgres, then `manage.py migrate` runs. If either fails the container exits, so a `200` means the database and
   migrations worked.
-- `config/settings/tdk.py` extends the generated `local` settings with `ALLOWED_HOSTS = ["*"]`. The generated `local.py` only
+- `config/settings/flisk.py` extends the generated `local` settings with `ALLOWED_HOSTS = ["*"]`. The generated `local.py` only
   allows `localhost`, `0.0.0.0` and `127.0.0.1`, while Traefik sends `Host: api.<project>.localhost`. (The example was only
   run with the override, so the exact failure without it was not observed.)
 - The app serves Django's development server (`runserver --noreload`), which is for local use only, and the secret key is
@@ -28,7 +28,7 @@ Instead run a real `flisk up` and expect `200` through Traefik. The first build 
 dependencies and can take several minutes:
 
 ```bash
-VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh cookiecutter-django /
+VERIFY_WAIT_SECONDS=600 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh cookiecutter-django /
 ```
 
 ## Register it in a Flisk project

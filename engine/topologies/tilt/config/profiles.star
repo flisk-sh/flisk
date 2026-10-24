@@ -137,13 +137,13 @@ def get_all_needed_services(targets, skip_frontend = False):
 
 def _load_focus_lists():
     """Load focus lists from project spec.master directly."""
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
     if not project_root:
         return ([], [], [])
     
     # Load from spec.master
     spec_paths = [
-        project_root + "/.tdk/.tdk-out/spec.master",
+        project_root + "/.flisk/.flisk-out/spec.master",
         project_root + "/spec.master",
     ]
     

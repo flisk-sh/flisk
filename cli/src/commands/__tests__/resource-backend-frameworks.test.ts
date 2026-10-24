@@ -16,7 +16,7 @@ import {
 import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
 interface CliResult {
   status: number;
@@ -29,7 +29,7 @@ function flisk(args: string[], cwd: string, input = "y\n"): Promise<CliResult> {
     const child = execFile(
       process.execPath,
       [cliBin, ...args],
-      { cwd, encoding: "utf-8", env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot } },
+      { cwd, encoding: "utf-8", env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot } },
       (error, stdout, stderr) => {
         const status = error ? (typeof error.code === "number" ? error.code : 1) : 0;
         resolve({ status, stdout, stderr });
@@ -230,10 +230,10 @@ describe.concurrent("flisk resource --framework on a backend", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-backend-framework-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-backend-framework-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
-      env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
+      env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
     });
   }, 15000);
 

@@ -221,7 +221,7 @@ jobs:
         working-directory: cli
         run: bun run test:coverage
         env:
-          TDK_REQUIRE_TILT: '1'
+          FLISK_REQUIRE_TILT: '1'
       - name: Check shell verification script syntax
         working-directory: .
         run: make test-shell

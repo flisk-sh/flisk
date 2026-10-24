@@ -110,7 +110,7 @@ describe("flisk logs --json", () => {
       errors: [
         {
           code: "COMMAND_FAILED",
-          message: "Could not find project root (no .tdk/project.json found)",
+          message: "Could not find project root (no .flisk/project.json found)",
           suggestions: [
             "Run this from within a Flisk project",
             "Run `flisk project --yes` to initialize a new project",
@@ -137,7 +137,9 @@ describe("flisk logs --json", () => {
     }
 
     expect(code).toBe(1);
-    expect(errors.join("\n")).toContain("Could not find project root (no .tdk/project.json found)");
+    expect(errors.join("\n")).toContain(
+      "Could not find project root (no .flisk/project.json found)",
+    );
     expect(errors.join("\n")).toContain("Run this from within a Flisk project");
     expect(errors.join("\n")).toContain("Run `flisk project --yes` to initialize a new project");
     expect(tilt.isTiltAvailable).not.toHaveBeenCalled();

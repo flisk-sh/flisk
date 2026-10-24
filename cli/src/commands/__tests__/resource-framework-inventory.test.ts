@@ -15,7 +15,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
  * run: an in-process parse keeps the previous run's `--type` source.
  */
 function flisk(args: readonly string[]) {
-  return runFlisk(args, { cwd: repoRoot, env: { TDK_EXTENSION_SOURCE: repoRoot } });
+  return runFlisk(args, { cwd: repoRoot, env: { FLISK_EXTENSION_SOURCE: repoRoot } });
 }
 
 /** The listing is tab separated, one framework per row. */

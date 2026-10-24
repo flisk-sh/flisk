@@ -41,7 +41,7 @@ The `bring-your-own` type is the one for a service that already has a Dockerfile
 
 ## What Flisk generates
 
-Nothing in your service folders is a compose file. The generated files live in `.tdk/.tdk-out/`, and each one starts with a header that says it is generated:
+Nothing in your service folders is a compose file. The generated files live in `.flisk/.flisk-out/`, and each one starts with a header that says it is generated:
 
 ```bash
 flisk up shop --dry-run
@@ -49,7 +49,7 @@ flisk up shop --dry-run
 
 The dry run lists the services it would start, their URLs, and the exact Tilt command. Nothing starts. The `Would run:` line is the answer to "what is it actually doing?", and [the next post](02-local-stack-for-ai-agents.md) and [the third one](03-tilt-without-tiltfile.md) go into it.
 
-Compose still appears, for the stack's infrastructure. In the one-backend example, the only compose file Flisk writes is `services/platform/database-management/docker-compose.yml`, which runs Postgres. Its header reads `SYSTEM-GENERATED - DO NOT EDIT`, and it is regenerated from `.tdk/project.json`.
+Compose still appears, for the stack's infrastructure. In the one-backend example, the only compose file Flisk writes is `services/platform/database-management/docker-compose.yml`, which runs Postgres. Its header reads `SYSTEM-GENERATED - DO NOT EDIT`, and it is regenerated from `.flisk/project.json`.
 
 ## Where you got stuck
 

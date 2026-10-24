@@ -56,10 +56,10 @@ describe("behavioral flag contract: --force vs --yes", () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-force-yes-behavior-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-force-yes-behavior-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
     writeFileSync(
-      join(tempDir, ".tdk", "project.json"),
+      join(tempDir, ".flisk", "project.json"),
       JSON.stringify({ project: { name: "test-app", version: "1.0.0" } }),
     );
     process.chdir(tempDir);
@@ -107,7 +107,7 @@ describe("behavioral flag contract: --force vs --yes", () => {
     const output = log.mock.calls.flat().join("\n");
     expect(output).toContain("Using default configuration (non-interactive mode)");
 
-    const rewritten = JSON.parse(readFileSync(join(tempDir, ".tdk", "project.json"), "utf-8"));
+    const rewritten = JSON.parse(readFileSync(join(tempDir, ".flisk", "project.json"), "utf-8"));
     expect(rewritten).toMatchObject({
       project: {
         name: expect.any(String),

@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { PROJECT_JSON } from "./constants.js";
 
 /**
- * A repo can pin the oldest CLI it works with: `"minTdkVersion": "1.3.80"` in .tdk/project.json.
+ * A repo can pin the oldest CLI it works with: `"minFliskVersion": "1.3.80"` in .flisk/project.json.
  * Shared by `flisk doctor` and `flisk up` so both say the same thing.
  */
-export type TdkVersionFloor =
+export type FliskVersionFloor =
   | { status: "none" }
   | { status: "ok"; required: string }
   | { status: "too-old"; required: string; message: string; fix: string }
@@ -19,28 +19,28 @@ function toParts(raw: string): number[] | null {
   return match ? [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)] : null;
 }
 
-function readMinTdkVersion(projectRoot: string): unknown {
+function readMinFliskVersion(projectRoot: string): unknown {
   try {
-    const parsed = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
-    return parsed?.minTdkVersion;
+    const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
+    return parsed?.minFliskVersion;
   } catch {
     return undefined;
   }
 }
 
-export function evaluateTdkVersionFloor(
+export function evaluateFliskVersionFloor(
   projectRoot: string,
   currentVersion: string,
-): TdkVersionFloor {
-  const minimum = readMinTdkVersion(projectRoot);
+): FliskVersionFloor {
+  const minimum = readMinFliskVersion(projectRoot);
   if (minimum === undefined) return { status: "none" };
 
   const required = typeof minimum === "string" ? toParts(minimum) : null;
   if (!required || !/^\d+\.\d+\.\d+$/.test(String(minimum).trim())) {
     return {
       status: "malformed",
-      message: `.tdk/project.json minTdkVersion ${JSON.stringify(minimum)} is not a version like "1.3.80"`,
-      fix: 'Set minTdkVersion to a MAJOR.MINOR.PATCH string, for example "1.3.80".',
+      message: `.flisk/project.json minFliskVersion ${JSON.stringify(minimum)} is not a version like "1.3.80"`,
+      fix: 'Set minFliskVersion to a MAJOR.MINOR.PATCH string, for example "1.3.80".',
     };
   }
 
@@ -59,7 +59,7 @@ export function evaluateTdkVersionFloor(
     return {
       status: "too-old",
       required: requiredText,
-      message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (minTdkVersion)`,
+      message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (minFliskVersion)`,
       fix: "Run: flisk upgrade",
     };
   }

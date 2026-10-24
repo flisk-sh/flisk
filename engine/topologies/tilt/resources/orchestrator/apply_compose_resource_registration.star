@@ -226,7 +226,7 @@ def resource_defers_start(manifest):
     """True when a manifest opts into `sablier.enable` + `sablier.deferStart`
     AND the licensed sablier module is actually active.
 
-    deferStart stays behind the same TDK_LICENSE_KEY gate as the rest of
+    deferStart stays behind the same FLISK_LICENSE_KEY gate as the rest of
     `sablier` (an explicit product decision, not just the opt-in manifest
     flag): the free-tier stub's sablier_middleware_suffix() always reports
     `enabled=False` regardless of what the manifest says, so checking through
@@ -310,7 +310,7 @@ def _register_replicas(config, auto_init_apps):
 def _live_update_sync_source(project_root, full_res_path, sync_path):
     """Local path Tilt watches for a live-update sync.
 
-    Tilt resolves sync() local paths against the Tiltfile directory (.tdk/.tdk-out), not
+    Tilt resolves sync() local paths against the Tiltfile directory (.flisk/.flisk-out), not
     the docker_build context, so a project-relative path never matches the changed files
     and every edit falls back to a full image rebuild ("Found file(s) not matching any
     sync"). Anchor it at the project root, like the Dockerfile and build context.
@@ -335,7 +335,7 @@ def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', la
         return []
 
     if go_live_reload:
-        # Opted-in Go development loop: sync the sources into the development image, where the tdk-go-watch script rebuilds and restarts.
+        # Opted-in Go development loop: sync the sources into the development image, where the flisk-go-watch script rebuilds and restarts.
         # Dependency and Dockerfile changes cannot be picked up by a restart, so they fall back to a full image rebuild.
         source_dir = _live_update_sync_source(project_root, full_res_path, '')
         return [

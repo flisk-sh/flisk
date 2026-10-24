@@ -28,8 +28,8 @@ Ctrl+C during generation, Docker startup, Tilt startup, or shutdown SHALL leave 
 - **THEN** a following `flisk config verify` does not see a half-written generated file
 
 ### Requirement: Selected ports match doctor
-When Flisk falls back from a requested host port, human output SHALL print the requested port, the occupant when known, and the chosen port. The chosen port SHALL match `data.ports` in `flisk doctor --json`. Existing `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, and `TDK_POSTGRES_PORT` overrides SHALL stay in effect.
+When Flisk falls back from a requested host port, human output SHALL print the requested port, the occupant when known, and the chosen port. The chosen port SHALL match `data.ports` in `flisk doctor --json`. Existing `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT`, and `FLISK_POSTGRES_PORT` overrides SHALL stay in effect.
 
 #### Scenario: HTTP port is taken
 - **WHEN** the requested HTTP port is in use and Flisk selects another
-- **THEN** human output names the requested port, the chosen port, and `TDK_HTTP_PORT`, and doctor JSON `data.ports.http.chosen` is that chosen port
+- **THEN** human output names the requested port, the chosen port, and `FLISK_HTTP_PORT`, and doctor JSON `data.ports.http.chosen` is that chosen port

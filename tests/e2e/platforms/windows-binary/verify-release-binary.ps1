@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 # The Windows release candidate (WB1 in run.sh; moved verbatim from the windows-smoke job of .github/workflows/release-binaries.yml,
 # #1300). Run from the repository root with release-dist/ holding the candidate and VERSION set.
@@ -31,23 +31,23 @@ foreach ($asset in @("tdk-windows-amd64.exe", "tdk-cli-engine.tar.gz")) {
   }
 }
 
-$exePath = Join-Path $releaseDir "tdk.exe"
+$exePath = Join-Path $releaseDir "flisk.exe"
 Copy-Item -LiteralPath (Join-Path $releaseDir "tdk-windows-amd64.exe") -Destination $exePath
 tar -xzf (Join-Path $releaseDir "tdk-cli-engine.tar.gz") -C $releaseDir
 if ($LASTEXITCODE -ne 0) { throw "Engine archive extraction failed" }
 
 $actualVersion = (& $exePath --version).Trim()
-if ($LASTEXITCODE -ne 0) { throw "tdk.exe --version failed" }
+if ($LASTEXITCODE -ne 0) { throw "flisk.exe --version failed" }
 if ($actualVersion -ne $env:VERSION) {
   throw "Version mismatch: expected $env:VERSION, got $actualVersion"
 }
 
 $runtimeJson = & $exePath runtime --check-assets --json
-if ($LASTEXITCODE -ne 0) { throw "tdk.exe runtime --check-assets failed: $runtimeJson" }
+if ($LASTEXITCODE -ne 0) { throw "flisk.exe runtime --check-assets failed: $runtimeJson" }
 $runtime = $runtimeJson | ConvertFrom-Json
 if (!$runtime.ok) { throw "Runtime asset check failed: $runtimeJson" }
 
-$expectedRoot = (Resolve-Path -LiteralPath (Join-Path $releaseDir "tdk-cli")).Path.TrimEnd("\\")
+$expectedRoot = (Resolve-Path -LiteralPath (Join-Path $releaseDir "flisk-cli")).Path.TrimEnd("\\")
 $actualRoot = (Resolve-Path -LiteralPath $runtime.assetRoot).Path.TrimEnd("\\")
 if (![string]::Equals($actualRoot, $expectedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
   throw "Expected adjacent engine root '$expectedRoot', got '$actualRoot'"

@@ -51,7 +51,7 @@ function determineDefaultDomain() {
     if (projectRoot) {
         const projectConfig = readProjectConfig(projectRoot);
         const projectName = projectConfig.project?.name;
-        if (projectName && projectName !== "tdk-project") {
+        if (projectName && projectName !== "flisk-project") {
             return `${projectName}.localhost`;
         }
     }
@@ -289,7 +289,7 @@ export const networksCommand = new Command("networks")
             const projectConfig = readProjectConfig(projectRoot);
             const projectName = projectConfig.project.name;
             console.log(chalk.yellow("💡 Tip: Set custom domain with:"));
-            console.log(chalk.cyan(`   export TDK_PUBLIC_HOST=${projectName}.localhost`));
+            console.log(chalk.cyan(`   export FLISK_PUBLIC_HOST=${projectName}.localhost`));
         }
         console.log();
     };

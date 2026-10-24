@@ -47,7 +47,7 @@ describe("formatPortFallbackNotice", () => {
       expect(formatPortFallbackNotice(plan)).toEqual([]);
     });
 
-    it("formats notice for HTTP fallback with TDK_HTTP_PORT and flisk up instruction", () => {
+    it("formats notice for HTTP fallback with FLISK_HTTP_PORT and flisk up instruction", () => {
       const plan = createSyntheticPlan({
         ingressHttp: 8081,
         reason: {
@@ -57,11 +57,11 @@ describe("formatPortFallbackNotice", () => {
         },
       });
       expect(formatPortFallbackNotice(plan)).toEqual([
-        "HTTP: wanted 80, using 8081 (selected from fallback range 8080-8180). To force 80: TDK_HTTP_PORT=80 flisk up",
+        "HTTP: wanted 80, using 8081 (selected from fallback range 8080-8180). To force 80: FLISK_HTTP_PORT=80 flisk up",
       ]);
     });
 
-    it("formats notice for HTTPS fallback with TDK_HTTPS_PORT and flisk up instruction", () => {
+    it("formats notice for HTTPS fallback with FLISK_HTTPS_PORT and flisk up instruction", () => {
       const plan = createSyntheticPlan({
         ingressHttps: 8443,
         reason: {
@@ -71,11 +71,11 @@ describe("formatPortFallbackNotice", () => {
         },
       });
       expect(formatPortFallbackNotice(plan)).toEqual([
-        "HTTPS: wanted 443, using 8443 (selected from fallback range 8443-8543). To force 443: TDK_HTTPS_PORT=443 flisk up",
+        "HTTPS: wanted 443, using 8443 (selected from fallback range 8443-8543). To force 443: FLISK_HTTPS_PORT=443 flisk up",
       ]);
     });
 
-    it("formats notice for Postgres fallback with TDK_POSTGRES_PORT and flisk up instruction", () => {
+    it("formats notice for Postgres fallback with FLISK_POSTGRES_PORT and flisk up instruction", () => {
       const plan = createSyntheticPlan({
         postgres: 15432,
         reason: {
@@ -85,7 +85,7 @@ describe("formatPortFallbackNotice", () => {
         },
       });
       expect(formatPortFallbackNotice(plan)).toEqual([
-        "Postgres: wanted 5432, using 15432 (selected from fallback range 15432-15532). To force 5432: TDK_POSTGRES_PORT=5432 flisk up",
+        "Postgres: wanted 5432, using 15432 (selected from fallback range 15432-15532). To force 5432: FLISK_POSTGRES_PORT=5432 flisk up",
       ]);
     });
 
@@ -156,7 +156,7 @@ describe("formatPortFallbackNotice", () => {
         },
       });
       expect(formatPortFallbackNotice(plan)).toEqual([
-        "HTTP: wanted 3000, using 3001 (port occupied by local development server). To force 3000: TDK_HTTP_PORT=3000 flisk up",
+        "HTTP: wanted 3000, using 3001 (port occupied by local development server). To force 3000: FLISK_HTTP_PORT=3000 flisk up",
       ]);
     });
   });
@@ -169,7 +169,7 @@ describe("formatPortFallbackNotice", () => {
       });
       const http = formatPortFallbackNotice(plan).find((line) => line.startsWith("HTTP:"));
       expect(http).toBe(
-        "HTTP: wanted 80, using 8081 (selected from fallback range 8080-8180). To force 80: TDK_HTTP_PORT=80 flisk up",
+        "HTTP: wanted 80, using 8081 (selected from fallback range 8080-8180). To force 80: FLISK_HTTP_PORT=80 flisk up",
       );
     });
 
@@ -194,7 +194,7 @@ describe("formatPortFallbackNotice", () => {
 
     it("stays silent for ports the user set explicitly", async () => {
       const plan = await createHostPortPlan({
-        env: { TDK_HTTP_PORT: "9000", TDK_HTTPS_PORT: "9443", TDK_POSTGRES_PORT: "9432" },
+        env: { FLISK_HTTP_PORT: "9000", FLISK_HTTPS_PORT: "9443", FLISK_POSTGRES_PORT: "9432" },
         isAvailable: free,
       });
       expect(formatPortFallbackNotice(plan)).toEqual([]);
@@ -220,9 +220,9 @@ describe("formatPortFallbackNotice", () => {
       expect(formatPortFallbackNotice(plan)).toEqual([]);
     });
 
-    it("suppresses notice for postgres when TDK_POSTGRES_PORT is explicitly set", async () => {
+    it("suppresses notice for postgres when FLISK_POSTGRES_PORT is explicitly set", async () => {
       const plan = await createHostPortPlan({
-        env: { TDK_POSTGRES_PORT: "5432" },
+        env: { FLISK_POSTGRES_PORT: "5432" },
         isAvailable: privilegedBusy,
       });
       const lines = formatPortFallbackNotice(plan);

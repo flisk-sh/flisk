@@ -13,12 +13,12 @@ if [ "$#" -eq 1 ]; then
   mkdir -p "$1"
   work_dir="$(cd "$1" && pwd)"
 else
-  work_dir="$(mktemp -d -t tdk-wsl2-smoke.XXXXXX)"
+  work_dir="$(mktemp -d -t flisk-wsl2-smoke.XXXXXX)"
   remove_work_dir=true
 fi
 
 project_dir="$work_dir/tdk-example"
-tdk_pid=""
+flisk_pid=""
 
 cleanup() {
   status=$?
@@ -27,8 +27,8 @@ cleanup() {
     echo "WSL2 smoke failed; flisk up output:" >&2
     tail -120 "$project_dir/up.log" >&2 || true
   fi
-  if [ -n "$tdk_pid" ]; then
-    kill "$tdk_pid" 2>/dev/null || true
+  if [ -n "$flisk_pid" ]; then
+    kill "$flisk_pid" 2>/dev/null || true
   fi
   if [ -d "$project_dir" ]; then
     (cd "$project_dir" && flisk down >/dev/null 2>&1) || true
@@ -55,10 +55,10 @@ fi
 flisk config verify
 
 flisk up shop >up.log 2>&1 &
-tdk_pid=$!
+flisk_pid=$!
 for _ in $(seq 1 75); do
   if grep -q 'Running tilt up' up.log; then break; fi
-  if ! kill -0 "$tdk_pid" 2>/dev/null; then
+  if ! kill -0 "$flisk_pid" 2>/dev/null; then
     cat up.log
     echo "flisk up exited before Tilt started" >&2
     exit 1
@@ -108,8 +108,8 @@ check_routed_response 'Worker readiness via Traefik' "$api/worker-ready" '"ready
 check_routed_response 'Orders app via Traefik' "$app" '<title>Flisk Orders</title>'
 
 curl -fsS -X POST "$api" -H 'content-type: application/json' \
-  -d '{"item":"WSL2 smoke test"}' -o "${TMPDIR:-/tmp}/tdk-wsl2-order.json"
-order_id="$(node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).order.id))' "${TMPDIR:-/tmp}/tdk-wsl2-order.json")"
+  -d '{"item":"WSL2 smoke test"}' -o "${TMPDIR:-/tmp}/flisk-wsl2-order.json"
+order_id="$(node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).order.id))' "${TMPDIR:-/tmp}/flisk-wsl2-order.json")"
 echo "Created order $order_id through Traefik"
 
 observed=false

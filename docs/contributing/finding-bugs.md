@@ -9,7 +9,7 @@ You do not need to read the code to find a bug. Most Flisk bugs so far were foun
 Work in an empty directory, never in a project you care about.
 
 ```bash
-mkdir /tmp/tdk-bugs && cd /tmp/tdk-bugs
+mkdir /tmp/flisk-bugs && cd /tmp/flisk-bugs
 flisk --version
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes

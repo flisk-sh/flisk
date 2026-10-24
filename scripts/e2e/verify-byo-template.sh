@@ -34,7 +34,7 @@ trap cleanup EXIT
 cd "$work"
 git init -q .
 flisk project --yes >/dev/null
-printf '\nTDK_HTTP_PORT=%s\nTDK_HTTPS_PORT=%s\nTDK_POSTGRES_PORT=%s\n' \
+printf '\nFLISK_HTTP_PORT=%s\nFLISK_HTTPS_PORT=%s\nFLISK_POSTGRES_PORT=%s\n' \
   "$http_port" "$((32000 + RANDOM % 2000))" "$((34000 + RANDOM % 2000))" >> .env
 mkdir -p "services/app/$proj"
 # Copy the image inputs only: the template's service.json names its own app and stack, and `flisk resource` writes this project's.

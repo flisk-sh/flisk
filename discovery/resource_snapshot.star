@@ -7,7 +7,7 @@
 # =============================================================================
 
 # Python script path (relative to Tiltfile)
-_SNAPSHOT_SCRIPT = ".tdk/.tdk-out/snapshots/resource_snapshot.py"
+_SNAPSHOT_SCRIPT = ".flisk/.flisk-out/snapshots/resource_snapshot.py"
 
 def _run_snapshot_command(cmd):
     """Run a snapshot command via Python script."""
@@ -124,7 +124,7 @@ def get_current_resources(scan_roots=["services/product"]):
 def snapshot_exists():
     """Check if snapshot file exists."""
     result = local(
-        "test -f .tdk/.tdk-out/snapshots/resource-snapshot.json && echo 'yes' || echo 'no'",
+        "test -f .flisk/.flisk-out/snapshots/resource-snapshot.json && echo 'yes' || echo 'no'",
         quiet=True,
         echo_off=True
     )
@@ -133,7 +133,7 @@ def snapshot_exists():
 # Get the path to the resource snapshot file
 def get_resource_snapshot_path():
     """Return the path to the resource snapshot JSON file."""
-    return ".tdk/.tdk-out/snapshots/resource-snapshot.json"
+    return ".flisk/.flisk-out/snapshots/resource-snapshot.json"
 
 # Export public API
 ResourceSnapshot = struct(

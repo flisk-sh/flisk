@@ -114,7 +114,7 @@ and a check command:
 ```bash
 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh fastify          # health path /health
 scripts/sync-byo-templates.sh vue && tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-vue /   # synced template; Vite apps answer on /
-tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/   # needs a database: real flisk up
+tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh full-stack-fastapi-template /api/v1/utils/health-check/   # needs a database: real flisk up
 VERIFY_WAIT_SECONDS=120 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-mastra /health   # slow starters
 ```
 

@@ -7,7 +7,7 @@
 # 2. Or update service.json
 #
 # Generation Source: GoldenImage.generate_layered_dockerfile()
-# Service: tdk-project-l1-l4
+# Service: flisk-project-l1-l4
 # Type: GOLDEN LAYERED IMAGES | L1-L4 Pre-built Layers
 ###############################################################################
 
@@ -15,14 +15,14 @@
 # 🏗️ GOLDEN LAYERED IMAGES - Multi-Stage Base Images
 # =============================================================================
 # This Dockerfile builds 8 golden images:
-#   - tdk-project-l1:latest - OS base + Bun runtime
-#   - tdk-project-l2:latest - Dependencies installed
-#   - tdk-project-l3-backend:latest - Backend and migrator build tools (Prisma, no Infisical CLI)
-#   - tdk-project-l3-frontend:latest - Frontend build tools (no Prisma)
-#   - tdk-project-l4-backend:latest - Backend production runtime (Bun)
-#   - tdk-project-l4-backend-node:latest - Backend production runtime (Node.js)
-#   - tdk-project-l4-frontend:latest - Frontend production runtime (Nginx)
-#   - tdk-project-l4-migrator:latest - Migrator production runtime
+#   - flisk-project-l1:latest - OS base + Bun runtime
+#   - flisk-project-l2:latest - Dependencies installed
+#   - flisk-project-l3-backend:latest - Backend and migrator build tools (Prisma, no Infisical CLI)
+#   - flisk-project-l3-frontend:latest - Frontend build tools (no Prisma)
+#   - flisk-project-l4-backend:latest - Backend production runtime (Bun)
+#   - flisk-project-l4-backend-node:latest - Backend production runtime (Node.js)
+#   - flisk-project-l4-frontend:latest - Frontend production runtime (Nginx)
+#   - flisk-project-l4-migrator:latest - Migrator production runtime
 #
 # Migrators build on l3-backend: a separate l3-migrator stage installed the same Prisma
 # and produced identical layers under a second image name.
@@ -41,7 +41,7 @@
 # =============================================================================
 FROM oven/bun:1.3.11-alpine@sha256:7ed9f74c326d1c260abe247ac423ccbf5ac92af62bb442d515d1f92f21e8ea9b AS l1_golden
 
-LABEL layer="l1"       description="OS base with runtime environment"       maintainer="tdk-project"
+LABEL layer="l1"       description="OS base with runtime environment"       maintainer="flisk-project"
 
 # System dependencies for all services
 RUN apk add --no-cache     ca-certificates     tzdata     curl     file     bash     openssl
@@ -60,7 +60,7 @@ WORKDIR /app
 # =============================================================================
 FROM l1_golden AS l2_golden
 
-LABEL layer="l2"       description="Base with common dependencies installed"       maintainer="tdk-project"
+LABEL layer="l2"       description="Base with common dependencies installed"       maintainer="flisk-project"
 
 # Install minimal debugging tools (removed: vim, python3, make, g++ = -67MB)
 RUN apk add --no-cache     curl     netcat-openbsd     jq     bind-tools
@@ -77,7 +77,7 @@ RUN echo "Bun version: $(bun --version)"
 # =============================================================================
 FROM l2_golden AS l3_backend_golden
 
-LABEL layer="l3-backend"       description="Backend build tools with Prisma"       maintainer="tdk-project"
+LABEL layer="l3-backend"       description="Backend build tools with Prisma"       maintainer="flisk-project"
 
 # Install Prisma CLI globally (pinned for deterministic builds)
 RUN bun add -g prisma@7.5.0 @prisma/client@7.5.0
@@ -97,7 +97,7 @@ RUN echo "Prisma version: $(bunx prisma --version | head -1)"
 # =============================================================================
 FROM l2_golden AS l3_frontend_golden
 
-LABEL layer="l3-frontend"       description="Frontend build tools without Prisma"       maintainer="tdk-project"
+LABEL layer="l3-frontend"       description="Frontend build tools without Prisma"       maintainer="flisk-project"
 
 # Frontend doesn't need Prisma, just verify Bun
 RUN echo "Bun version: $(bun --version)"
@@ -108,7 +108,7 @@ RUN echo "Bun version: $(bun --version)"
 # =============================================================================
 FROM l1_golden AS l4_backend_bun
 
-LABEL layer="l4-backend-bun"       description="Backend production runtime (Bun)"       maintainer="tdk-project"
+LABEL layer="l4-backend-bun"       description="Backend production runtime (Bun)"       maintainer="flisk-project"
 
 ENV NODE_ENV=production
 
@@ -133,7 +133,7 @@ WORKDIR /app
 # =============================================================================
 FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS l4_backend_node
 
-LABEL layer="l4-backend-node"       description="Backend production runtime (Node.js - lightweight)"       maintainer="tdk-project"
+LABEL layer="l4-backend-node"       description="Backend production runtime (Node.js - lightweight)"       maintainer="flisk-project"
 
 ENV NODE_ENV=production
 
@@ -163,7 +163,7 @@ FROM l4_backend_bun AS l4_backend_golden
 # =============================================================================
 FROM nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS l4_frontend_golden
 
-LABEL layer="l4-frontend"       description="Frontend production runtime with Nginx"       maintainer="tdk-project"
+LABEL layer="l4-frontend"       description="Frontend production runtime with Nginx"       maintainer="flisk-project"
 
 ENV NODE_ENV=production
 
@@ -181,7 +181,7 @@ WORKDIR /usr/share/nginx/html
 # =============================================================================
 FROM l1_golden AS l4_migrator_golden
 
-LABEL layer="l4-migrator"       description="Migrator runtime with Prisma"       maintainer="tdk-project"
+LABEL layer="l4-migrator"       description="Migrator runtime with Prisma"       maintainer="flisk-project"
 
 ENV NODE_ENV=production
 

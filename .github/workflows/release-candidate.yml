@@ -147,7 +147,7 @@ jobs:
 
       - name: Run the quickstart cases (Q1-Q4)
         env:
-          TDK_VERSION: ${{ needs.package.outputs.version }}
+          FLISK_VERSION: ${{ needs.package.outputs.version }}
         run: tests/e2e/journeys/quickstart/run.sh Q1 Q2 Q3 Q4
 
       - name: Diagnostics on failure
@@ -228,7 +228,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-candidate-${{ matrix.label }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
+          path: ${{ runner.temp }}/flisk-e2e/${{ matrix.suite }}/artifacts
           if-no-files-found: warn
           retention-days: 14
 

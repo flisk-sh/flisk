@@ -37,7 +37,7 @@ def provision_database(resource_name, db_name=None):
     
     Args:
         resource_name: Service name (e.g., 'users', 'orders')
-        db_name: Optional custom database name (defaults to TDK_{resource_name})
+        db_name: Optional custom database name (defaults to FLISK_{resource_name})
     
     Returns:
         local_resource for the database provisioning task

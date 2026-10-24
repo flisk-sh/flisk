@@ -12,7 +12,7 @@ The repositories below are audit candidates, not yet-confirmed consumers. The su
 | `tdk-user-management` | https://github.com/flisk-sh/tdk-user-management | Enterprise identity / SCIM / OIDC example | `devDependency` if genuine use is confirmed |
 | `tdk-ecommerce-example` | https://github.com/flisk-sh/tdk-ecommerce-example | Vue + Hono storefront example | `devDependency` if genuine use is confirmed |
 | `tdk-erp-system` | https://github.com/flisk-sh/tdk-erp-system | 100-service scale fixture | `devDependency` if genuine use is confirmed |
-| `tdk-cli-starter` | https://github.com/flisk-sh/tdk-cli-starter | Cloud-dev starter / template | `devDependency` if genuine use is confirmed |
+| `flisk-cli-starter` | https://github.com/flisk-sh/flisk-cli-starter | Cloud-dev starter / template | `devDependency` if genuine use is confirmed |
 | `create-flisk` | https://github.com/flisk-sh/create-flisk | Landing page / create-app style starter | `devDependency` if genuine use is confirmed |
 | `tdk-agent-stack` | https://github.com/flisk-sh/tdk-agent-stack | AI agent + MCP + Postgres + NATS template | `devDependency` if genuine use is confirmed |
 | `tdk-auth-queue-email-example` | https://github.com/flisk-sh/tdk-auth-queue-email-example | OIDC + NATS + Mailpit example | `devDependency` if genuine use is confirmed |
@@ -28,11 +28,11 @@ Secondary audit-only candidates, generally expected not to need a package declar
 - `flisk-sh/website` / `flisk.sh` — docs and install site
 - `tdk-demo-animation` — walkthrough assets
 - `flisk-sh/releases` — binary releases only
-- `tdk-service-definitions` — `service.json` registry
-- `flisk-import` / `tdk-app` — related tools; audit if they invoke the CLI as a package
+- `flisk-service-definitions` — `service.json` registry
+- `flisk-import` / `flisk-app` — related tools; audit if they invoke the CLI as a package
 
 - [x] 1.1 Audit the primary candidate repositories listed above; record URL, activity, ecosystem, manifest, lockfile, actual CLI usage, and disposition. Include additional public examples, starters, templates, and fixtures discovered under `flisk-sh`. (Snapshot recorded in `design.md`.)
-- [x] 1.2 For each candidate, verify whether its workflow genuinely installs or uses `@flisk-sh/flisk` and identify the appropriate dependency role. (Only `tdk-cli-starter` currently declares the package; other README-documented Flisk usage requires a separately installed CLI and has no repo-local core dependency.)
+- [x] 1.2 For each candidate, verify whether its workflow genuinely installs or uses `@flisk-sh/flisk` and identify the appropriate dependency role. (Only `flisk-cli-starter` currently declares the package; other README-documented Flisk usage requires a separately installed CLI and has no repo-local core dependency.)
 - [x] 1.3 Open repository-specific PRs for the confirmed Flisk CLI project workflows, adding the appropriate development dependency and lockfile. Twelve PRs are listed in tracking issue #1716; all twelve consumer PRs have merged as of 20 October 2026.
 - [x] 1.4 Record exclusions and non-Node, binary-only, documentation-only, and CLI-in-Compose exceptions with reasons; do not add manifests solely to influence GitHub's count. (See audit snapshot in `design.md`.)
 
@@ -44,7 +44,7 @@ Secondary audit-only candidates, generally expected not to need a package declar
 ## 3. Update genuine consumers
 
 - [x] 3.1 Add the CLI to the appropriate development dependency section in the 12 confirmed project-local workflows. Each declaration is pinned to published version `1.3.186`; see tracking issue #1716.
-- [x] 3.2 Update each consumer repository's lockfile using its existing package manager (npm for `tdk-cli-starter`, Bun for the other 11).
+- [x] 3.2 Update each consumer repository's lockfile using its existing package manager (npm for `flisk-cli-starter`, Bun for the other 11).
 - [x] 3.3 For non-Node repositories, document the chosen integration or the reason no npm declaration is appropriate. (See audit snapshot in `design.md`.)
 - [x] 3.4 Review each repository change against its README setup and local CLI scripts; verify the manifest/lockfile version match and run `git diff --check` in each checkout.
 

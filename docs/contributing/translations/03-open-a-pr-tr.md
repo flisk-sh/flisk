@@ -9,7 +9,7 @@ Bir komut aksini belirtmedikçe kontrolleri depo kökünden çalıştırın.
 | Değişiklik | Çalıştırılacak kontroller |
 |---|---|
 | CLI kodu veya üretilen CLI davranışı | `bun run typecheck`, `bun run lint`, `bun run test` |
-| CLI testlerinde kullanılan engine/Starlark üreticisi | `bun run typecheck`, `bun run lint` ve `cd cli && TDK_REQUIRE_TILT=1 npm test` çalıştırın. CI test işi Tilt'i kurar ve bu bayrağı ayarlar. |
+| CLI testlerinde kullanılan engine/Starlark üreticisi | `bun run typecheck`, `bun run lint` ve `cd cli && FLISK_REQUIRE_TILT=1 npm test` çalıştırın. CI test işi Tilt'i kurar ve bu bayrağı ayarlar. |
 | Python engine test alanı | Test bağımlılıklarını bir kez `python3 -m pip install -r tests/requirements.txt` ile kurun, ardından ilgili test dosyasını `pytest` ile veya bu test grubu için `make test-tilt-engine` ile çalıştırın. Bazı testler temiz bir checkout'ta da başarısız olabilir; hangileri ve neden olduğu için #700'e bakın. Bu Python kontrolleri `.github/workflows/ci.yml` tarafından çalıştırılmaz. |
 | Yalnızca dokümantasyon | Değiştirdiğiniz bağlantıları ve komutları kontrol edin; sayfayı yeni başlayan biri gibi bir kez baştan sona okuyun. |
 

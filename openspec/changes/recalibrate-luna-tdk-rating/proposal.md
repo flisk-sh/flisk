@@ -15,7 +15,7 @@ Luna's rating of Flisk CLI must answer two different questions without confusing
 ## Capabilities
 
 ### New Capabilities
-- `luna-tdk-rating`: Luna gives evidence-grounded Job-fit and Adoptability ratings for Flisk CLI using the prescribed axes, formula, exclusions, and report format.
+- `luna-flisk-rating`: Luna gives evidence-grounded Job-fit and Adoptability ratings for Flisk CLI using the prescribed axes, formula, exclusions, and report format.
 
 ### Modified Capabilities
 - None.

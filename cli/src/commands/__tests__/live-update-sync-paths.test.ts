@@ -19,7 +19,7 @@ const registration = readFileSync(
   "utf-8",
 );
 
-// Tilt resolves sync() local paths against the Tiltfile directory (.tdk/.tdk-out), not the
+// Tilt resolves sync() local paths against the Tiltfile directory (.flisk/.flisk-out), not the
 // docker_build context. A project-relative path never matches the changed files, so every
 // edit fell back to a full rebuild ("Found file(s) not matching any sync").
 it("anchors live-update sync sources at the project root", () => {

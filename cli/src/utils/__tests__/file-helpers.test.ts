@@ -21,7 +21,7 @@ import {
 let root = "";
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-file-helpers-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-file-helpers-"));
 });
 
 afterEach(() => {
@@ -269,18 +269,18 @@ describe("file helpers", () => {
 
       expect(added).toEqual([
         ".env",
-        ".tdk/.tdk-out/",
-        ".tdk/.project-id",
-        ".tdk/smoke/",
+        ".flisk/.flisk-out/",
+        ".flisk/.project-id",
+        ".flisk/smoke/",
         "node_modules/",
       ]);
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
       expect(content).toContain("# Flisk (generated files and secrets)\n");
       expect(content).toContain(".env\n");
-      expect(content).toContain(".tdk/.tdk-out/\n");
-      expect(content).toContain(".tdk/.project-id\n");
-      expect(content).toContain(".tdk/smoke/\n");
+      expect(content).toContain(".flisk/.flisk-out/\n");
+      expect(content).toContain(".flisk/.project-id\n");
+      expect(content).toContain(".flisk/smoke/\n");
       expect(content).toContain("node_modules/\n");
     });
 
@@ -288,7 +288,12 @@ describe("file helpers", () => {
       writeFileSync(join(root, ".gitignore"), "dist\n.env");
       const added = ensureGitignore(root);
 
-      expect(added).toEqual([".tdk/.tdk-out/", ".tdk/.project-id", ".tdk/smoke/", "node_modules/"]);
+      expect(added).toEqual([
+        ".flisk/.flisk-out/",
+        ".flisk/.project-id",
+        ".flisk/smoke/",
+        "node_modules/",
+      ]);
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
       expect(content.startsWith("dist\n.env\n\n# Flisk (generated files and secrets)\n")).toBe(
@@ -308,7 +313,7 @@ describe("file helpers", () => {
     it("recognizes entries regardless of trailing slash presence", () => {
       writeFileSync(
         join(root, ".gitignore"),
-        ".env\n.tdk/.tdk-out\n.tdk/.project-id\n.tdk/smoke\nnode_modules\n",
+        ".env\n.flisk/.flisk-out\n.flisk/.project-id\n.flisk/smoke\nnode_modules\n",
       );
 
       const added = ensureGitignore(root);
@@ -319,17 +324,17 @@ describe("file helpers", () => {
       writeFileSync(join(root, ".gitignore"), "dist\r\n.env\r\nnode_modules/\r\n");
 
       const added = ensureGitignore(root);
-      expect(added).toEqual([".tdk/.tdk-out/", ".tdk/.project-id", ".tdk/smoke/"]);
+      expect(added).toEqual([".flisk/.flisk-out/", ".flisk/.project-id", ".flisk/smoke/"]);
     });
 
     it("handles whitespace around entries and duplicate lines in existing .gitignore", () => {
       writeFileSync(
         join(root, ".gitignore"),
-        "  .env  \n.env\n\t.tdk/.project-id\t\n\n# Comments\n",
+        "  .env  \n.env\n\t.flisk/.project-id\t\n\n# Comments\n",
       );
 
       const added = ensureGitignore(root);
-      expect(added).toEqual([".tdk/.tdk-out/", ".tdk/smoke/", "node_modules/"]);
+      expect(added).toEqual([".flisk/.flisk-out/", ".flisk/smoke/", "node_modules/"]);
     });
 
     it("does not treat .env.local as .env", () => {
@@ -369,12 +374,12 @@ describe("file helpers", () => {
       expect(existsSync(join(root, ".gitignore"))).toBe(false);
     });
 
-    it("ensures .tdk/smoke/ in .gitignore inside a git worktree", () => {
+    it("ensures .flisk/smoke/ in .gitignore inside a git worktree", () => {
       mkdirSync(join(root, ".git"));
       expect(ensureSmokeRecordsIgnored(root)).toBeUndefined();
 
       const content = readFileSync(join(root, ".gitignore"), "utf-8");
-      expect(content).toContain(".tdk/smoke/");
+      expect(content).toContain(".flisk/smoke/");
     });
 
     it("catches write errors and returns warning message", () => {
@@ -383,7 +388,7 @@ describe("file helpers", () => {
 
       const warning = ensureSmokeRecordsIgnored(root);
       expect(warning).toBeDefined();
-      expect(warning).toContain("Could not add .tdk/smoke/ to");
+      expect(warning).toContain("Could not add .flisk/smoke/ to");
       expect(warning).toContain("Git may track the smoke response records.");
     });
   });

@@ -223,11 +223,11 @@ ENV GOFLAGS=-buildvcs=false CGO_ENABLED=0
 # Prime the build cache inside the image (a cache mount would not be kept), so the first edit recompiles only what changed.
 # Same flags as the watcher's builds (and CGO off like the production stage), so the primed binary and cache match every later one.
 RUN go build -ldflags='-s -w' -o /tmp/app .
-COPY --chmod=755 <<'TDK_GO_DEV_WATCH' /usr/local/bin/tdk-go-watch
+COPY --chmod=755 <<'FLISK_GO_DEV_WATCH' /usr/local/bin/flisk-go-watch
 {watch_script}
-TDK_GO_DEV_WATCH
+FLISK_GO_DEV_WATCH
 EXPOSE {port}
-CMD ["tdk-go-watch"]
+CMD ["flisk-go-watch"]
 """
 
 def generate_language_dockerfile(res_path, language, port = BASE_PORT_BACKEND, dev = False):

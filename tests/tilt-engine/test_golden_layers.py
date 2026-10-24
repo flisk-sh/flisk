@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Golden layer set: one image per distinct stage, no duplicate images.
@@ -39,7 +39,7 @@ def run_starlark(tmp_path: Path, body: str) -> dict:
         capture_output=True,
         text=True,
         cwd=tmp_path,
-        env={**os.environ, "TDK_PROJECT_ROOT": str(tmp_path)},
+        env={**os.environ, "FLISK_PROJECT_ROOT": str(tmp_path)},
         timeout=180,
     )
     output = proc.stdout + proc.stderr

@@ -1,6 +1,6 @@
 ## Context
 
-`flisk up` registers one Tilt `local_resource`, `golden-layers-build`, that builds the project's shared base images (L1 OS, L2 dependencies, L3 build tools, L4 runtimes) from `.tdk/.tdk-out/golden-layers.Dockerfile`. Every service `docker_build` lists it as a resource dependency. Its command is nine `docker build -f ... --target <stage> -t <prefix>-<layer>:latest` calls joined with `&&`, so even a fully cached run pays nine CLI invocations, context loads and image exports (~21s measured).
+`flisk up` registers one Tilt `local_resource`, `golden-layers-build`, that builds the project's shared base images (L1 OS, L2 dependencies, L3 build tools, L4 runtimes) from `.flisk/.flisk-out/golden-layers.Dockerfile`. Every service `docker_build` lists it as a resource dependency. Its command is nine `docker build -f ... --target <stage> -t <prefix>-<layer>:latest` calls joined with `&&`, so even a fully cached run pays nine CLI invocations, context loads and image exports (~21s measured).
 
 The generated Tiltfile never calls `update_settings`, so Tilt's default concurrency applies. In the measured run three backends started together and kitchen-worker started only when kitchen-api finished.
 
@@ -38,7 +38,7 @@ Measured timeline (2026-10-10, restaurant example, warm cache except for regener
 
 ### Skip golden builds by content hash
 
-The `golden-layers-build` command computes a SHA-256 of the golden Dockerfile plus the base-image references it pins, then checks with `docker image inspect` that every golden tag exists and carries the label `tdk.golden.hash=<hash>`. If all match, it prints that the golden images are up to date and exits 0. Otherwise it builds and applies the label to every target.
+The `golden-layers-build` command computes a SHA-256 of the golden Dockerfile plus the base-image references it pins, then checks with `docker image inspect` that every golden tag exists and carries the label `flisk.golden.hash=<hash>`. If all match, it prints that the golden images are up to date and exits 0. Otherwise it builds and applies the label to every target.
 
 The label is applied at build time (bake `labels` attribute or `--label`), not written into the Dockerfile, because the hash covers the Dockerfile itself.
 
@@ -56,7 +56,7 @@ Alternative considered: run the existing `docker build` calls in the background 
 
 ### Derive Tilt build concurrency from the Docker engine
 
-The generated Tiltfile calls `update_settings(max_parallel_updates=N)`. `N` is computed at Tiltfile load from `docker info` (`NCPU`, `MemTotal`): `N = clamp(min(NCPU - 2, floor(MemTotal / 1.5 GiB)), 3, 8)`. The `TDK_MAX_PARALLEL_BUILDS` environment variable overrides it (no project setting). If `docker info` fails, `N` stays at Tilt's default and the Tiltfile logs why.
+The generated Tiltfile calls `update_settings(max_parallel_updates=N)`. `N` is computed at Tiltfile load from `docker info` (`NCPU`, `MemTotal`): `N = clamp(min(NCPU - 2, floor(MemTotal / 1.5 GiB)), 3, 8)`. The `FLISK_MAX_PARALLEL_BUILDS` environment variable overrides it (no project setting). If `docker info` fails, `N` stays at Tilt's default and the Tiltfile logs why.
 
 Using the engine's numbers instead of the host's matters on macOS, where the Docker VM usually has fewer CPUs and much less memory than the host.
 

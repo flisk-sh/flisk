@@ -20,7 +20,7 @@ import { join } from "node:path";
  * implementation - available by default on macOS and Linux.
  */
 export function extractTarball(data: Buffer, destDir: string): void {
-  const tempDir = mkdtempSync(join(tmpdir(), "tdk-ext-"));
+  const tempDir = mkdtempSync(join(tmpdir(), "flisk-ext-"));
   const tmpFile = join(tempDir, "bundle.tar.gz");
   writeFileSync(tmpFile, data);
   mkdirSync(destDir, { recursive: true });

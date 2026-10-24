@@ -21,7 +21,7 @@
 ## Understand Flisk
 
 - [Project overview and repository map](project-overview.md)
-- [How flisk up works](how-tdk-up-works.md): lifecycle, port planning, focus filtering, and shutdown
+- [How flisk up works](how-flisk-up-works.md): lifecycle, port planning, focus filtering, and shutdown
 - [Architecture](ARCHITECTURE.md): how flisk, the engine, and discovery fit together
 - [Features](FEATURES.md)
 - [Topology](TOPOLOGY.md)
@@ -44,7 +44,7 @@
 - [Leaving Flisk](leaving-flisk.md): what `flisk eject` really does, what stays usable without Flisk, what you lose
 - [Local data: reset, seed, snapshot](data.md): where Postgres data lives and how to reset it
 - [Testing webhooks locally](local-webhooks.md): a proposed recipe for replaying duplicate, retried and tampered provider deliveries without the provider
-- [Upgrading and version pinning](upgrading.md): `minTdkVersion`, installing a specific version, what is versioned
+- [Upgrading and version pinning](upgrading.md): `minFliskVersion`, installing a specific version, what is versioned
 - [Security: network calls, secrets and supply chain](security.md): what Flisk sends, where secrets live, image tags and release checks
 - [Smoke check](smoke.md): `flisk up` checks a service through the URL it prints
 - [Agent hosts](agent-hosts.md): Dev Containers, Codespaces and WebContainers, and what `flisk doctor` reports for them

@@ -53,9 +53,9 @@ function globMatchesDir(patternSegments: string[], dirSegments: string[]): boole
   );
 }
 
-/** `discovery.paths` from .tdk/project.json, or the generic default when unset/unreadable. */
+/** `discovery.paths` from .flisk/project.json, or the generic default when unset/unreadable. */
 export function readDiscoveryPaths(projectRoot: string): string[] {
-  const configPath = join(projectRoot, ".tdk", PROJECT_JSON);
+  const configPath = join(projectRoot, ".flisk", PROJECT_JSON);
   if (!existsSync(configPath)) return DEFAULT_DISCOVERY_PATHS;
 
   try {

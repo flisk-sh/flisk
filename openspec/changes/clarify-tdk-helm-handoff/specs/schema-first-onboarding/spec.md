@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: Configuration documentation starts with manifests
-Website configuration documentation SHALL show an annotated, syntactically valid `service.json` before generator details, link its authoritative schema, and explain required fields using the real runtime contract. JSON annotations SHALL be external explanatory text rather than invalid JSON comments. Documentation SHALL distinguish `flisk config verify` (checking generated project files against `.tdk/project.json`) from `flisk doctor` (local environment readiness and service checks), and SHALL NOT claim either validates production Helm values or that `config verify` lints `service.json`.
+Website configuration documentation SHALL show an annotated, syntactically valid `service.json` before generator details, link its authoritative schema, and explain required fields using the real runtime contract. JSON annotations SHALL be external explanatory text rather than invalid JSON comments. Documentation SHALL distinguish `flisk config verify` (checking generated project files against `.flisk/project.json`) from `flisk doctor` (local environment readiness and service checks), and SHALL NOT claim either validates production Helm values or that `config verify` lints `service.json`.
 
 #### Scenario: User reads configuration documentation
 - **WHEN** a user opens the configuration page
 - **THEN** they see the manifest, field explanations, and schema before generator internals and can identify the appropriate validation command
 
 ### Requirement: Editor schema instructions support both manifests
-Documentation SHALL provide verified schema/editor associations for `service.json` and `.tdk/project.json` using supported `$schema` values or equivalent editor configuration. Examples SHALL be accepted by existing validators and SHALL NOT change required schema versions, required fields, or unknown-field preservation behavior. If an in-file hint is unsupported, documentation SHALL use an editor association instead.
+Documentation SHALL provide verified schema/editor associations for `service.json` and `.flisk/project.json` using supported `$schema` values or equivalent editor configuration. Examples SHALL be accepted by existing validators and SHALL NOT change required schema versions, required fields, or unknown-field preservation behavior. If an in-file hint is unsupported, documentation SHALL use an editor association instead.
 
 #### Scenario: User enables JSON schema completion
 - **WHEN** a user follows the documented editor configuration for either manifest

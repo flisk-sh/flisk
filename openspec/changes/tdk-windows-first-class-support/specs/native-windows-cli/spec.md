@@ -22,7 +22,7 @@ The CLI and generated landscape MUST start without requiring host ports 80, 443,
 - **THEN** `flisk networks` and successful `flisk up` output include a numeric loopback URL with the selected ingress port
 
 ### Requirement: Native platform and architecture mapping
-The CLI SHALL recognize `process.platform === "win32"` as Windows and `process.arch === "x64"` as AMD64, while keeping Linux and macOS mappings unchanged. Windows ARM64 SHALL be unsupported in v1. The executable name SHALL be `tdk.exe` on Windows and `flisk` on Unix. Platform paths SHALL use `node:path` APIs.
+The CLI SHALL recognize `process.platform === "win32"` as Windows and `process.arch === "x64"` as AMD64, while keeping Linux and macOS mappings unchanged. Windows ARM64 SHALL be unsupported in v1. The executable name SHALL be `flisk.exe` on Windows and `flisk` on Unix. Platform paths SHALL use `node:path` APIs.
 
 #### Scenario: Windows AMD64 release asset
 - **WHEN** the platform is `win32` and architecture is `x64`
@@ -59,7 +59,7 @@ CLI child processes SHALL be launched with explicit executable paths and argumen
 - **THEN** it invokes the resolved Docker executable through an argument-safe file execution API
 
 ### Requirement: Windows upgrade installation detection
-The upgrade command SHALL use the shared asset mapping and Windows-compatible file operations. A compiled `tdk.exe` process SHALL upgrade the executable identified by `process.execPath`; an npm-installed `node.exe` entry point SHALL print `use npm install -g @flisk-sh/flisk@latest` and exit successfully. Other installation forms SHALL fail with a clear message. Windows engine extraction SHALL target `join(dirname(tdkExePath), "tdk-cli")`; dry run SHALL print `tdk-windows-amd64.exe`.
+The upgrade command SHALL use the shared asset mapping and Windows-compatible file operations. A compiled `flisk.exe` process SHALL upgrade the executable identified by `process.execPath`; an npm-installed `node.exe` entry point SHALL print `use npm install -g @flisk-sh/flisk@latest` and exit successfully. Other installation forms SHALL fail with a clear message. Windows engine extraction SHALL target `join(dirname(fliskExePath), "flisk-cli")`; dry run SHALL print `tdk-windows-amd64.exe`.
 
 #### Scenario: Dry run reports the Windows artifact
 - **WHEN** a Windows AMD64 user runs `flisk upgrade --dry-run`
@@ -89,7 +89,7 @@ The upgrade command SHALL use the shared asset mapping and Windows-compatible fi
 - **THEN** doctor warns that generated services need Bun while continuing other checks
 
 ### Requirement: Windows port and DNS diagnostics
-On Windows doctor SHALL retain a working Node address-bind probe for ports 80, 443, and 5432. When ownership details are needed, it SHALL query listening connections with `powershell.exe` and `Get-NetTCPConnection`; it SHALL inspect Hyper-V excluded TCP ranges with `netsh interface ipv4 show excludedportrange protocol=tcp`. An excluded-range collision SHALL warn that Windows reserved the port for Hyper-V/WSL and give the specified remediation. If IIS / World Wide Web Publishing listens on port 80, doctor SHALL identify it by name. Doctor SHALL resolve `tdk.localhost` and a sample host such as `example.tdk.localhost` and report the exact DNS failure message when they do not resolve to loopback. It SHALL recommend Docker Desktop project-drive file sharing and warn, without changing global settings, when `core.autocrlf` is true.
+On Windows doctor SHALL retain a working Node address-bind probe for ports 80, 443, and 5432. When ownership details are needed, it SHALL query listening connections with `powershell.exe` and `Get-NetTCPConnection`; it SHALL inspect Hyper-V excluded TCP ranges with `netsh interface ipv4 show excludedportrange protocol=tcp`. An excluded-range collision SHALL warn that Windows reserved the port for Hyper-V/WSL and give the specified remediation. If IIS / World Wide Web Publishing listens on port 80, doctor SHALL identify it by name. Doctor SHALL resolve `flisk.localhost` and a sample host such as `example.flisk.localhost` and report the exact DNS failure message when they do not resolve to loopback. It SHALL recommend Docker Desktop project-drive file sharing and warn, without changing global settings, when `core.autocrlf` is true.
 
 #### Scenario: Hyper-V excludes a required port
 - **WHEN** port 80, 443, or 5432 falls in a reported excluded range

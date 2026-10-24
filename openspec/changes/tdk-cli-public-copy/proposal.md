@@ -19,7 +19,7 @@ Public pages and repository descriptions must consistently explain Flisk CLI's j
 - Renaming repositories or `@flisk-sh/flisk`.
 - Positioning Flisk CLI as a production deployment tool, a hand-maintained Compose file, or a Kubernetes-on-machine product.
 - Changing CLI behavior, Premium pricing, or production deployment workflows.
-- Reopening `codex/tdk-cli-public-copy`, which has no common ancestor with `main`.
+- Reopening `codex/flisk-cli-public-copy`, which has no common ancestor with `main`.
 
 ## Canonical copy
 

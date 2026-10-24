@@ -107,7 +107,7 @@ export function parsePublishedPortHolders(
 export function isOwnIngressContainer(containerName: string, projectPrefix: string): boolean {
   const name = containerName.toLowerCase();
   const prefix = projectPrefix.toLowerCase();
-  // tdk_project_traefik, tdk_project-traefik-1, etc.
+  // flisk_project_traefik, flisk_project-traefik-1, etc.
   return name === `${prefix}_traefik` || name.startsWith(`${prefix}_traefik`);
 }
 
@@ -297,7 +297,7 @@ export function isRegistryRelatedBuildError(error: string): boolean {
 export function projectConfigEnablesVerdaccio(
   projectRoot: string = findProjectRoot() ?? process.cwd(),
 ): boolean {
-  const projectJsonPath = join(projectRoot, ".tdk", PROJECT_JSON);
+  const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
   if (!existsSync(projectJsonPath)) return false;
   try {
     const parsed = JSON.parse(readFileSync(projectJsonPath, "utf-8")) as {

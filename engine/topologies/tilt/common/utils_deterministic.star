@@ -8,7 +8,7 @@
 # =============================================================================
 #
 # Usage:
-#   load('ext://tdk-cli', 'deterministic_find', 'deterministic_local')
+#   load('ext://flisk-cli', 'deterministic_find', 'deterministic_local')
 #
 #   files = deterministic_find('./services', 'service.json')
 #   result = deterministic_local('bun install')

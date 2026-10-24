@@ -5,11 +5,11 @@
 # Times `flisk up` on a Flisk project: one cold run (built images and build cache removed first) and
 # N warm runs. A run is timed until every Tilt resource is idle and the expected containers are
 # healthy, or until 30 minutes pass. Every run records an outcome; a run that could not establish
-# its starting state is recorded as failed and is not timed. scripts/benchmark/summarize-tdk-up.mjs
+# its starting state is recorded as failed and is not timed. scripts/benchmark/summarize-flisk-up.mjs
 # turns the run directory into the tables and chart in benchmarks/results/.
 #
 # Usage:
-#   scripts/benchmark/tdk-up-warm-start.sh --project <dir> --out <dir> [--cold-runs 1] [--warm-runs 3]
+#   scripts/benchmark/flisk-up-warm-start.sh --project <dir> --out <dir> [--cold-runs 1] [--warm-runs 3]
 #                                          [--port 10350] [--healthy 8] [--sample-vm]
 #
 # --cold-runs 0 skips the cold run. --sample-vm records the Docker VM processes' memory every 3 seconds
@@ -53,9 +53,9 @@ here="$(cd "$(dirname "$0")" && pwd)"
 expected=""
 durations="$here/tilt-build-durations.mjs"
 project="$(cd "$project" && pwd)"
-# Container and image names come from the project's name in .tdk/project.json, not from its directory name:
+# Container and image names come from the project's name in .flisk/project.json, not from its directory name:
 # a checkout into "restaurant" still runs as "tdk-restaurant-example". Fall back to the directory name.
-slug="$(jq -r '.project.name // empty' "$project/.tdk/project.json" 2>/dev/null || true)"
+slug="$(jq -r '.project.name // empty' "$project/.flisk/project.json" 2>/dev/null || true)"
 [ -n "$slug" ] || slug="$(basename "$project")"
 slug_us="$(printf '%s' "$slug" | tr '-' '_')"
 slug_re="$(printf '%s' "$slug" | sed 's/[][\.*^$+?(){}|/-]/\\&/g')"
@@ -70,7 +70,7 @@ preflight() {
   echo "tilt: $(tilt version 2>/dev/null | head -1 || echo MISSING)"
   echo "docker: $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo MISSING)"
   docker info >/dev/null 2>&1 || { echo "FAIL: docker daemon not responding" >&2; exit 1; }
-  [ -f "$project/.tdk/project.json" ] || { echo "FAIL: missing $project/.tdk/project.json" >&2; exit 1; }
+  [ -f "$project/.flisk/project.json" ] || { echo "FAIL: missing $project/.flisk/project.json" >&2; exit 1; }
   [ -d "$project/services" ] || { echo "FAIL: missing $project/services" >&2; exit 1; }
   expected_containers > "$expected"
   expected_count=$(wc -l < "$expected" | tr -d ' ')
@@ -244,5 +244,5 @@ while [ "$i" -le "$warm_runs" ]; do
 done
 (cd "$project" && flisk down > "$out/final-down.log" 2>&1) || true
 
-node "$here/summarize-tdk-up.mjs" "$out" || true
+node "$here/summarize-flisk-up.mjs" "$out" || true
 exit "$failed"

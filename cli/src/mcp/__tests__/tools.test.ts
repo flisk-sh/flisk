@@ -14,9 +14,9 @@ import {
   buildLogsArgs,
   buildUpArgs,
   cliInvocation,
-  createTdkTools,
+  createFliskTools,
   defaultUpDeps,
-  runTdkCli,
+  runFliskCli,
   startUp,
   toToolResult,
   type UpDeps,
@@ -155,21 +155,21 @@ describe("argument building", () => {
 
 describe("cliInvocation", () => {
   it("re-runs a script with its interpreter", () => {
-    expect(cliInvocation("/usr/bin/node", "/opt/tdk/bin/tdk.js", () => true)).toEqual([
+    expect(cliInvocation("/usr/bin/node", "/opt/flisk/bin/flisk.js", () => true)).toEqual([
       "/usr/bin/node",
-      "/opt/tdk/bin/tdk.js",
+      "/opt/flisk/bin/flisk.js",
     ]);
   });
   it("runs a compiled binary alone, because its argv[1] is a virtual path", () => {
-    expect(cliInvocation("/usr/local/bin/tdk", "/$bunfs/root/tdk", () => false)).toEqual([
-      "/usr/local/bin/tdk",
+    expect(cliInvocation("/usr/local/bin/flisk", "/$bunfs/root/flisk", () => false)).toEqual([
+      "/usr/local/bin/flisk",
     ]);
-    expect(cliInvocation("C:\\tdk.exe", "B:\\~BUN\\root\\tdk.exe", () => false)).toEqual([
-      "C:\\tdk.exe",
+    expect(cliInvocation("C:\\flisk.exe", "B:\\~BUN\\root\\flisk.exe", () => false)).toEqual([
+      "C:\\flisk.exe",
     ]);
   });
   it("falls back to the executable when there is no script", () => {
-    expect(cliInvocation("/usr/local/bin/tdk", "")).toEqual(["/usr/local/bin/tdk"]);
+    expect(cliInvocation("/usr/local/bin/flisk", "")).toEqual(["/usr/local/bin/flisk"]);
   });
 });
 
@@ -182,11 +182,11 @@ function fakeChild() {
   });
 }
 
-describe("runTdkCli", () => {
+describe("runFliskCli", () => {
   it("collects output and the exit code", async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child);
-    const pending = runTdkCli(["status", "--json"], { cwd: "/work", timeoutMs: 5000 });
+    const pending = runFliskCli(["status", "--json"], { cwd: "/work", timeoutMs: 5000 });
     child.stdout.emit("data", Buffer.from('{"ok":true}'));
     child.stderr.emit("data", Buffer.from("warn"));
     child.emit("close", 0);
@@ -205,7 +205,7 @@ describe("runTdkCli", () => {
   it("rejects when the child cannot start", async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child);
-    const pending = runTdkCli([], {});
+    const pending = runFliskCli([], {});
     child.emit("error", new Error("spawn failed"));
     await expect(pending).rejects.toThrow("spawn failed");
   });
@@ -213,7 +213,7 @@ describe("runTdkCli", () => {
 
 describe("defaultUpDeps", () => {
   it("reads missing logs as empty and names a temp log", async () => {
-    expect(defaultUpDeps.readLog(join(tmpdir(), `tdk-missing-${Date.now()}.log`))).toBe("");
+    expect(defaultUpDeps.readLog(join(tmpdir(), `flisk-missing-${Date.now()}.log`))).toBe("");
     expect(defaultUpDeps.logFile()).toContain("flisk-mcp-up-");
     expect(defaultUpDeps.now()).toBeGreaterThan(0);
     await expect(defaultUpDeps.sleep(0)).resolves.toBeUndefined();
@@ -341,7 +341,7 @@ describe("startUp", () => {
 
 describe("tool list", () => {
   it("exposes tools with object schemas and no streaming logs", () => {
-    const tools = createTdkTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     expect(tools.map((t) => t.name)).toEqual([
       "doctor",
       "up",
@@ -362,7 +362,7 @@ describe("tool list", () => {
   });
   it("routes a tool to its command and project directory", async () => {
     const seen: { args: string[]; cwd?: string }[] = [];
-    const tools = createTdkTools(async (args, options) => {
+    const tools = createFliskTools(async (args, options) => {
       seen.push({ args, cwd: options?.cwd });
       return { exitCode: 0, stdout: '{"schemaVersion":1,"data":[],"errors":[]}', stderr: "" };
     });
@@ -401,7 +401,7 @@ describe("tool list", () => {
     });
   });
   it("rejects invalid tool arguments before running the CLI", async () => {
-    const tools = createTdkTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     await expect(
       tools.find((t) => t.name === "restart_resource")?.handler({ resource: "-x" }),
     ).rejects.toThrow("resource must be a name");
@@ -418,7 +418,7 @@ describe("tool list", () => {
 
   it("runs the up handler through the injected dependencies", async () => {
     const { deps } = fakeUp({ logs: ['{"schemaVersion":1,"data":{"ok":true},"errors":[]}'] });
-    const tools = createTdkTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }), deps);
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }), deps);
     const result = await tools.find((t) => t.name === "up")?.handler({ waitSeconds: 0 });
     expect(result?.isError).toBe(false);
   });
@@ -426,7 +426,7 @@ describe("tool list", () => {
   it("keeps docs/agents/llms.txt and docs/agents/llms-full.txt in sync with MCP tools and CLI commands", async () => {
     const toolsSource = readFileSync(resolve(testDir, "../tools.ts"), "utf-8");
     const sourceToolNames = [...toolsSource.matchAll(/^\s*name:\s*"([^"]+)"/gm)].map((m) => m[1]);
-    const runtimeToolNames = createTdkTools(async () => ({
+    const runtimeToolNames = createFliskTools(async () => ({
       exitCode: 0,
       stdout: "",
       stderr: "",

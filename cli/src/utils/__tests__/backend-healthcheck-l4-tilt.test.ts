@@ -11,7 +11,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const l4Layers = join(repoRoot, "engine/topologies/platform/docker/layers/l4_runtime_layers.star");
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
 
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for the backend HEALTHCHECK Starlark tests in CI.");
 }
 
@@ -25,7 +25,7 @@ afterEach(() => {
  * (manifest_resource.star calls Docker.backend with `manifest` but no `port`) and returns its HEALTHCHECK instruction.
  */
 function renderHealthcheck(manifest: Record<string, unknown>) {
-  const project = mkdtempSync(join(tmpdir(), "tdk-l4-healthcheck-"));
+  const project = mkdtempSync(join(tmpdir(), "flisk-l4-healthcheck-"));
   dirs.push(project);
   mkdirSync(join(project, "services/app/api"), { recursive: true });
   writeFileSync(
@@ -44,7 +44,7 @@ local('cat > ' + ${JSON.stringify(JSON.stringify(out))}, quiet = True, stdin = s
   const result = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", join(project, "Tiltfile")], {
     cwd: project,
     encoding: "utf-8",
-    env: { ...process.env, TDK_PROJECT_ROOT: project },
+    env: { ...process.env, FLISK_PROJECT_ROOT: project },
     timeout: 30_000,
   });
   const stage = result.status === 0 ? readFileSync(out, "utf-8") : "";

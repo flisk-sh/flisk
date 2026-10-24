@@ -5,7 +5,7 @@
 load('./golden_image_constants.star', 'GOLDEN_DOCKERFILE', 'GOLDEN_IMAGE_PREFIX', 'GOLDEN_LAYERS', 'LEGACY_GOLDEN_IMAGES')
 
 # Label that records which golden Dockerfile an image was built from.
-GOLDEN_HASH_LABEL = 'tdk.golden.hash'
+GOLDEN_HASH_LABEL = 'flisk.golden.hash'
 
 # Shell template for the golden build. Placeholders (@@...@@) are replaced in
 # build_golden_layers(); plain `$VAR` references are expanded by the shell.
@@ -17,7 +17,7 @@ ROOT="$(cd "$ROOT_REL" && pwd)"
 HASH="$(cat "$DF" | (sha256sum 2>/dev/null || shasum -a 256) | cut -c1-64)"
 IMAGES="@@IMAGES@@"
 
-if [ -z "$TDK_GOLDEN_REBUILD" ]; then
+if [ -z "$FLISK_GOLDEN_REBUILD" ]; then
   fresh=1
   for img in $IMAGES; do
     [ "$(docker image inspect -f '{{index .Config.Labels "@@HASH_LABEL@@"}}' "$img" 2>/dev/null)" = "$HASH" ] || fresh=0
@@ -74,14 +74,14 @@ def build_golden_layers(project_root='.'):
 
     project_root: path back to the project root from wherever
     local_resource cmds actually run (the Tiltfile's own directory,
-    .tdk/.tdk-out/ - not the project root), e.g. '../../'. GOLDEN_DOCKERFILE
+    .flisk/.flisk-out/ - not the project root), e.g. '../../'. GOLDEN_DOCKERFILE
     is itself project-root-relative, so it must be prefixed with this to
     resolve correctly - passing project_root='.' (the default) only works
     when the Tiltfile happens to live at the project root.
 
     The build is skipped when every golden image already exists with a
-    `tdk.golden.hash` label matching the current Dockerfile. Set
-    TDK_GOLDEN_REBUILD=1 to force a rebuild. Otherwise all targets are built
+    `flisk.golden.hash` label matching the current Dockerfile. Set
+    FLISK_GOLDEN_REBUILD=1 to force a rebuild. Otherwise all targets are built
     with one `docker buildx bake`, falling back to serial `docker build` when
     buildx is not installed.
     """

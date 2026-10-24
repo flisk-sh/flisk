@@ -64,13 +64,13 @@ async function runStatus(args: string[] = []): Promise<string> {
 
 describe("flisk status", () => {
   const originalCwd = process.cwd();
-  const originalExtensionSource = process.env.TDK_EXTENSION_SOURCE;
+  const originalExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
   let projectRoot = "";
 
   beforeAll(async () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-status-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-status-"));
     process.chdir(projectRoot);
-    process.env.TDK_EXTENSION_SOURCE = repoRoot;
+    process.env.FLISK_EXTENSION_SOURCE = repoRoot;
 
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -90,9 +90,9 @@ describe("flisk status", () => {
   afterAll(() => {
     process.chdir(originalCwd);
     if (originalExtensionSource === undefined) {
-      delete process.env.TDK_EXTENSION_SOURCE;
+      delete process.env.FLISK_EXTENSION_SOURCE;
     } else {
-      process.env.TDK_EXTENSION_SOURCE = originalExtensionSource;
+      process.env.FLISK_EXTENSION_SOURCE = originalExtensionSource;
     }
     if (projectRoot.startsWith(tmpdir())) {
       rmSync(projectRoot, { recursive: true, force: true });
@@ -190,10 +190,10 @@ describe("flisk status", () => {
   });
 
   it("reports an empty project without stack lines", async () => {
-    const emptyRoot = mkdtempSync(join(tmpdir(), "tdk-status-empty-"));
+    const emptyRoot = mkdtempSync(join(tmpdir(), "flisk-status-empty-"));
     try {
-      mkdirSync(join(emptyRoot, ".tdk"));
-      writeFileSync(join(emptyRoot, ".tdk", "project.json"), "{}");
+      mkdirSync(join(emptyRoot, ".flisk"));
+      writeFileSync(join(emptyRoot, ".flisk", "project.json"), "{}");
       process.chdir(emptyRoot);
 
       const output = await runStatus(["--verbose"]);
@@ -320,7 +320,7 @@ describe("flisk status", () => {
   });
 
   it("fails on the missing project before printing any status line", async () => {
-    const outside = mkdtempSync(join(tmpdir(), "tdk-status-outside-"));
+    const outside = mkdtempSync(join(tmpdir(), "flisk-status-outside-"));
     process.chdir(outside);
     clearDiscoveryCache();
     const lines: string[] = [];

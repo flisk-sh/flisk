@@ -10,5 +10,5 @@ dependsOn:
   - database-management
 runtime: docker
 traefik:
-  host: traefik.tdk-project.localhost
+  host: traefik.flisk-project.localhost
   pathPrefix: /dashboard

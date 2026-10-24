@@ -247,7 +247,7 @@ jobs:
             echo "::error::Expected package version $VERSION, got $PKG_VERSION"
             exit 1
           fi
-          PACK_DIR="$RUNNER_TEMP/tdk-cli-package"
+          PACK_DIR="$RUNNER_TEMP/flisk-cli-package"
           mkdir -p "$PACK_DIR"
           npm pack --pack-destination "$PACK_DIR"
           TARBALL=$(find "$PACK_DIR" -maxdepth 1 -name '*.tgz' -print -quit)
@@ -259,7 +259,7 @@ jobs:
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          name: flisk-cli-package-${{ needs.build.outputs.version }}
           path: ${{ steps.package.outputs.tarball }}
           if-no-files-found: error
           retention-days: 30
@@ -453,7 +453,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          name: flisk-cli-package-${{ needs.build.outputs.version }}
           path: package
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -500,7 +500,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: tdk-cli-package-${{ needs.build.outputs.version }}
+          name: flisk-cli-package-${{ needs.build.outputs.version }}
           path: package
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7

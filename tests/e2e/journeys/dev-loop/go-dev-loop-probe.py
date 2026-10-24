@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-"""Drive the Go development loop of a running `tdk up` project and check what it does (#369).
+"""Drive the Go development loop of a running `flisk up` project and check what it does (#369).
 
 Called by tests/e2e/journeys/dev-loop/go-dev-loop.sh. It edits main.go, polls the service through Traefik every 25 ms, reads Tilt's own log, and exits 1
 if an acceptance check fails:
@@ -149,12 +149,12 @@ def rebuild_times() -> list[tuple[str, float]]:
             continue
         t = datetime.datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.timezone.utc).timestamp()
         t += float("0." + m.group(2))
-        if "[tdk] change detected" in m.group(3):
+        if "[flisk] change detected" in m.group(3):
             started = t
-        elif started is not None and "[tdk] rebuilt and restarted" in m.group(3):
+        elif started is not None and "[flisk] rebuilt and restarted" in m.group(3):
             cycles.append(("ok", t - started))
             started = None
-        elif started is not None and "[tdk] build failed" in m.group(3):
+        elif started is not None and "[flisk] build failed" in m.group(3):
             cycles.append(("failed", t - started))
             started = None
     return cycles
@@ -213,13 +213,13 @@ try:
     # A broken edit: the compiler error reaches Tilt's log and the last good build keeps serving.
     good_version = version
     # A package-level reference to a name that does not exist fails to compile whatever the service looks like.
-    broken = set_version(original, "9.9.9") + "\nvar _ = undefinedHandlerForTdkProbe\n"
+    broken = set_version(original, "9.9.9") + "\nvar _ = undefinedHandlerForFliskProbe\n"
     t_broken = write_source(broken)
     deadline = time.time() + 40
-    while time.time() < deadline and "undefinedHandlerForTdkProbe" not in tilt_log():
+    while time.time() < deadline and "undefinedHandlerForFliskProbe" not in tilt_log():
         time.sleep(0.5)
     log = tilt_log()
-    if "undefinedHandlerForTdkProbe" not in log:
+    if "undefinedHandlerForFliskProbe" not in log:
         failures.append("the compiler error never appeared in Tilt's log")
     time.sleep(2.0)
     # Every sample from the broken edit on, not just the last few: an app that was stopped and restarted would have recovered by now.
@@ -232,9 +232,9 @@ try:
         failures.append(f"after the broken edit the service did not keep serving {good_version}: last answers {still[-3:]}")
     if any(s == "200 9.9.9" for _, s in samples):
         failures.append("the broken edit was served")
-    print(f"broken edit: compiler error in Tilt log: {'undefinedHandlerForTdkProbe' in log}; still serving {good_version}: {bool(still) and still[-1] == f'200 {good_version}'}")
+    print(f"broken edit: compiler error in Tilt log: {'undefinedHandlerForFliskProbe' in log}; still serving {good_version}: {bool(still) and still[-1] == f'200 {good_version}'}")
     for line in log.splitlines():
-        if "undefinedHandlerForTdkProbe" in line or "build failed" in line:
+        if "undefinedHandlerForFliskProbe" in line or "build failed" in line:
             print(f"  tilt log: {line.strip()}")
 
     # Recovery: the next valid edit restarts the service.
@@ -253,7 +253,7 @@ try:
     before_dep = identity()
     t_dep = time.time()
     with open(go_mod, "w") as f:
-        f.write(go_mod_text + "\n// tdk-probe: dependency file changed\n")
+        f.write(go_mod_text + "\n// flisk-probe: dependency file changed\n")
     write_source(set_version(original, "4.0.0"))
     dep_took = wait_served(t_dep, "4.0.0", 300.0)
     after_dep = identity()

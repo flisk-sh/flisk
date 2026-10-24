@@ -12,7 +12,7 @@
 - **THEN** the host kind is `local`
 
 ### Requirement: canUp has one definition
-`data.host.canUp` SHALL be false when the host kind cannot run the stack (WebContainer; native Windows without `TDK_ALLOW_NATIVE_WINDOWS=1`) or when no container runtime is reachable, and true otherwise. Host kind is informational for every other kind. `flisk up` SHALL refuse exactly when `canUp` would be false, and no other rule SHALL be added.
+`data.host.canUp` SHALL be false when the host kind cannot run the stack (WebContainer; native Windows without `FLISK_ALLOW_NATIVE_WINDOWS=1`) or when no container runtime is reachable, and true otherwise. Host kind is informational for every other kind. `flisk up` SHALL refuse exactly when `canUp` would be false, and no other rule SHALL be added.
 
 #### Scenario: Container runtime is down on a machine
 - **WHEN** doctor finds no reachable container runtime on a local host

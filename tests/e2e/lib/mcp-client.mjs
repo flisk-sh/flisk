@@ -17,7 +17,7 @@ if (argv[0] === "--cwd") {
 const calls = JSON.parse(readFileSync(argv[0], "utf8"));
 const RESPONSE_TIMEOUT_MS = 90_000;
 
-const child = spawn(process.env.TDK_BIN ?? "flisk", ["mcp"], { cwd, stdio: ["pipe", "pipe", "inherit"] });
+const child = spawn(process.env.FLISK_BIN ?? "flisk", ["mcp"], { cwd, stdio: ["pipe", "pipe", "inherit"] });
 const pending = new Map();
 let nextId = 1;
 let exited = false;

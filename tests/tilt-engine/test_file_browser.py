@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Tests for file browser component.
@@ -41,12 +41,12 @@ class TestFileBrowser:
     def test_subdirectory_navigation(self, temp_dir):
         """
         Scenario: Subdirectory navigation
-        WHEN a user requests `GET /?path=.tdk/.tdk-out` from the file browser
+        WHEN a user requests `GET /?path=.flisk/.flisk-out` from the file browser
         THEN it SHALL return HTML with the subdirectory listing
         AND breadcrumb links SHALL allow navigation to parent directories
         """
         # Create nested structure
-        nested_dir = temp_dir / ".tdk" / ".tdk-out" / "snapshots"
+        nested_dir = temp_dir / ".flisk" / ".flisk-out" / "snapshots"
         nested_dir.mkdir(parents=True)
         (nested_dir / "file.txt").write_text("content")
         

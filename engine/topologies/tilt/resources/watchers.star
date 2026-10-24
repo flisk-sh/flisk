@@ -8,7 +8,7 @@
 # =============================================================================
 #
 # This module sets up watchers for package.json files across all services.
-# When a developer runs `bun add @tdk/x`, the watcher triggers
+# When a developer runs `bun add @flisk/x`, the watcher triggers
 # automatic regeneration of TSConfig and Vite configurations.
 #
 # Usage:
@@ -23,7 +23,7 @@ def setup_package_json_watchers(services, should_enable):
     """
     Set up file watchers for package.json across all services.
     
-    When package.json changes (e.g., via `bun add @tdk/x`),
+    When package.json changes (e.g., via `bun add @flisk/x`),
     Tilt will automatically trigger config regeneration.
     
     Args:
@@ -58,7 +58,7 @@ def setup_package_json_watchers(services, should_enable):
     if watched_paths:
         print("📦 ═══════════════════════════════════════════════════════════════")
         print("📦  AUTOMATIC BRIDGE: Watching " + str(len(watched_paths)) + " package.json files")
-        print("📦  When you 'bun add @tdk/x', configs auto-regenerate!")
+        print("📦  When you 'bun add @flisk/x', configs auto-regenerate!")
         print("📦 ═══════════════════════════════════════════════════════════════")
     
     return watched_paths
@@ -89,14 +89,14 @@ def setup_utility_resources():
     )
     
     local_resource('prune-images',
-        cmd='./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f',
+        cmd='./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f',
         resource_deps=[],
         labels=['dev.maintenance'],
         auto_init=False
     )
 
     local_resource('memory-optimizer',
-        cmd='./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/mac-m1-resource-monitor.sh && ./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f && docker builder prune -af --filter "until=24h"',
+        cmd='./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/mac-m1-resource-monitor.sh && ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 0 --force && docker image prune -f && docker builder prune -af --filter "until=24h"',
         resource_deps=[],
         labels=['dev.maintenance', 'mac-m1'],
         auto_init=False
@@ -123,7 +123,7 @@ def setup_utility_resources():
                 fi
                 # Tilt tags every build as tilt-<hash>, so superseded builds stay tagged
                 # and are never dangling. Keep the newest 2 per service; running images are skipped.
-                ./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 2 --force >/dev/null 2>&1 || true
+                ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-tilt-images.sh --keep 2 --force >/dev/null 2>&1 || true
                 sleep 300
             done
         ''',
@@ -137,7 +137,7 @@ def setup_utility_resources():
         serve_cmd='''
             echo "🧹 Migrator image cleanup started (every 45s)"
             while true; do
-                ./.tdk/.tdk-out/tdk-cli-ext/engine/assets/scripts/cleanup-completed-migrator-images.sh || true
+                ./.flisk/.flisk-out/flisk-cli-ext/engine/assets/scripts/cleanup-completed-migrator-images.sh || true
                 sleep 45
             done
         ''',
@@ -157,13 +157,13 @@ echo "🔄  SDK: engine/ directory structure"
 echo "🔄 ═══════════════════════════════════════════════════════════════"
 echo ""
 echo "🚀 AUTOMATIC BRIDGE - HOW IT WORKS:"
-echo "   1. bun add @tdk/auth"
+echo "   1. bun add @flisk/auth"
 echo "   2. Tilt watches package.json"
 echo "   3. TSConfig/Vite/Manifest auto-update"
 echo ""
 echo "🎯 CONVENTION OVER CONFIGURATION:"
-echo "   @tdk/platform-x → shared-platform-engineering/platform-x/src"
-echo "   @tdk/product-x  → shared-product-engineering/product-x/src"
+echo "   @flisk/platform-x → shared-platform-engineering/platform-x/src"
+echo "   @flisk/product-x  → shared-product-engineering/product-x/src"
 echo ""
 echo "🔄 ═══════════════════════════════════════════════════════════════"
 ''',
@@ -176,7 +176,7 @@ def setup_cron_resources():
     """Set up cron job resources that run periodically."""
     # Initialize status tracking
     local_resource('cron-status-init',
-        cmd='./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh init',
+        cmd='./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh init',
         labels=['dev.quality', 'cron', 'setup'],
         auto_init=True,
     )
@@ -185,7 +185,7 @@ def setup_cron_resources():
     local_resource('cron-lint',
         serve_cmd='''
             echo "🧹 Cron lint started (every 60s) - auto-fixing issues..."
-            ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
+            ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
             while true; do
                 start_time=$(date +%s)
 
@@ -203,18 +203,18 @@ def setup_cron_resources():
                 fi
 
                 echo "$(date +%H:%M:%S) 🧹 Running lint..."
-                ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
+                ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint running
 
                 if bun biome lint --write . 2>&1; then
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ✅ Lint complete (${duration}s)"
-                    ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint success "${duration}s"
+                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint success "${duration}s"
                 else
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ⚠️  Lint found issues (${duration}s)"
-                    ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint failure "${duration}s"
+                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-lint failure "${duration}s"
                 fi
 
                 echo "$(date +%H:%M:%S) 😴 Sleeping 60s..."
@@ -230,7 +230,7 @@ def setup_cron_resources():
     local_resource('cron-format',
         serve_cmd='''
             echo "🎨 Cron format started (every 60s) - auto-fixing formatting..."
-            ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
+            ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
             while true; do
                 start_time=$(date +%s)
 
@@ -248,18 +248,18 @@ def setup_cron_resources():
                 fi
 
                 echo "$(date +%H:%M:%S) 🎨 Running format..."
-                ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
+                ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format running
 
                 if bun biome check --write . && bun biome format --write . 2>&1; then
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ✅ Format complete (${duration}s)"
-                    ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format success "${duration}s"
+                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format success "${duration}s"
                 else
                     end_time=$(date +%s)
                     duration=$((end_time - start_time))
                     echo "$(date +%H:%M:%S) ⚠️  Format had issues (${duration}s)"
-                    ./.tdk/.tdk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format failure "${duration}s"
+                    ./.flisk/.flisk-out/ext/ui-enhancements/cron-status-tracker.sh update cron-format failure "${duration}s"
                 fi
 
                 echo "$(date +%H:%M:%S) 😴 Sleeping 60s..."
@@ -273,7 +273,7 @@ def setup_cron_resources():
 
     # Status HTTP server for cron jobs
     local_resource('cron-jobs-status-server',
-        serve_cmd='./.tdk/.tdk-out/ext/ui-enhancements/cron-status-server.sh',
+        serve_cmd='./.flisk/.flisk-out/ext/ui-enhancements/cron-status-server.sh',
         resource_deps=['cron-status-init'],
         labels=['dev.quality', 'cron', 'api'],
         auto_init=True,

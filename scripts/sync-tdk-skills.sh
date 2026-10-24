@@ -4,7 +4,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source_repo="${TDK_SKILLS_REPO:-$(cd "$repo_root/.." && pwd)/tdk-skills}"
+source_repo="${FLISK_SKILLS_REPO:-$(cd "$repo_root/.." && pwd)/tdk-skills}"
 
 if [[ ! -f "$source_repo/.claude-plugin/marketplace.json" ]]; then
   echo "Missing Flisk skills source repo: $source_repo" >&2
@@ -23,8 +23,8 @@ fi
 
 mkdir -p "$repo_root/.claude-plugin" "$repo_root/.claude/skills" "$repo_root/.agents/skills"
 cp "$source_repo/.claude-plugin/marketplace.json" "$repo_root/.claude-plugin/marketplace.json"
-rm -rf "$repo_root/.claude-plugin/tdk-cli"
-cp -R "$source_repo/plugins/tdk-cli/.claude-plugin" "$repo_root/.claude-plugin/tdk-cli"
+rm -rf "$repo_root/.claude-plugin/flisk-cli"
+cp -R "$source_repo/plugins/flisk-cli/.claude-plugin" "$repo_root/.claude-plugin/flisk-cli"
 for dir in "$repo_root"/.claude/skills/*/; do
   name="$(basename "$dir")"
   [[ " ${local_skills[*]-} " == *" $name "* ]] || rm -rf "$dir"

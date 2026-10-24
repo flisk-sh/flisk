@@ -9,8 +9,8 @@ features:
 healthCheck: True
 healthCheckPath: /api/v1/health
 params:
-  BASE_URL: http://identity.backend.tdk-project.local
-  EMAIL_FROM: noreply@tdk-project.local
+  BASE_URL: http://identity.backend.flisk-project.local
+  EMAIL_FROM: noreply@flisk-project.local
   UPSTASH_REDIS_REST_URL: http://redis:6379
 path: identity-management-backend
 playwright: True

@@ -261,7 +261,7 @@ Rather than reinventing test patterns from scratch, reference these canonical, h
 
   let workDir: string;
   beforeEach(() => {
-    workDir = mkdtempSync(join(tmpdir(), "tdk-completion-"));
+    workDir = mkdtempSync(join(tmpdir(), "flisk-completion-"));
     home.dir = join(workDir, "home");
     mkdirSync(home.dir, { recursive: true });
   });
@@ -272,8 +272,8 @@ Rather than reinventing test patterns from scratch, reference these canonical, h
 
   it("installs the bash script under ~/.bash_completion.d and prints the source line", async () => {
     const { stdout } = await runCompletion(["bash", "--install"]);
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
-    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _tdk_completions flisk");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
+    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _flisk_completions flisk");
     expect(stdout).toContain("Installed bash completion to:");
   });
   ```
@@ -306,7 +306,7 @@ Rather than reinventing test patterns from scratch, reference these canonical, h
 - **Reference**: [`cli/src/commands/__tests__/error-handling.test.ts`](../../cli/src/commands/__tests__/error-handling.test.ts) (in-process unit error tests) and [`cli/src/commands/__tests__/project-root-errors.test.ts`](../../cli/src/commands/__tests__/project-root-errors.test.ts) (subprocess CLI entrypoint test)
 - **Why this pattern is valuable**:
   - Pure unit error tests (`error-handling.test.ts`) assert typed exceptions, rejection reasons, and input validation in sub-millisecond execution without spawning processes.
-  - As an explicit documented exception, CLI process tests (`project-root-errors.test.ts`) use `spawnSync` on the compiled `tdk.js` binary to assert that unhandled exceptions do not leak raw stack traces to the user and that consistent human-readable errors and exit codes (exit 1) are returned across commands outside a project root.
+  - As an explicit documented exception, CLI process tests (`project-root-errors.test.ts`) use `spawnSync` on the compiled `flisk.js` binary to assert that unhandled exceptions do not leak raw stack traces to the user and that consistent human-readable errors and exit codes (exit 1) are returned across commands outside a project root.
 - **Key pattern snippet**:
   ```ts
   // In-process unit error validation:

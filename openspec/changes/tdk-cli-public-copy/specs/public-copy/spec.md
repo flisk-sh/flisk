@@ -38,4 +38,4 @@ For a deploy misread, reply: `This is not a production deploy. flisk up starts s
 For a Compose misread, reply: `Not a Compose file you maintain. One service.json per service, then flisk up. If Compose already works for you, skip Flisk CLI.` Do not explain Tilt in either reply.
 
 ### Requirement: Preserve shipped work
-The homepage H1/subhead and `/waiting` calculator placement, core public-copy changes in #203, and README SVG restoration in #205 SHALL remain intact. `codex/tdk-cli-public-copy` SHALL NOT be reused because it has no common ancestor with `main`.
+The homepage H1/subhead and `/waiting` calculator placement, core public-copy changes in #203, and README SVG restoration in #205 SHALL remain intact. `codex/flisk-cli-public-copy` SHALL NOT be reused because it has no common ancestor with `main`.

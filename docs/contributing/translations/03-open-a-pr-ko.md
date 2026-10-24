@@ -9,7 +9,7 @@
 | 변경 | 실행할 검사 |
 |---|---|
 | CLI 코드 또는 생성되는 CLI 동작 | `bun run typecheck`, `bun run lint`, `bun run test` |
-| CLI 테스트에서 사용하는 엔진/Starlark 생성기 | `bun run typecheck`, `bun run lint`, `cd cli && TDK_REQUIRE_TILT=1 npm test`를 실행하세요. CI 테스트 작업은 Tilt를 설치하고 이 플래그를 설정합니다. |
+| CLI 테스트에서 사용하는 엔진/Starlark 생성기 | `bun run typecheck`, `bun run lint`, `cd cli && FLISK_REQUIRE_TILT=1 npm test`를 실행하세요. CI 테스트 작업은 Tilt를 설치하고 이 플래그를 설정합니다. |
 | Python 엔진 테스트 영역 | 한 번 `python3 -m pip install -r tests/requirements.txt`로 테스트 패키지를 설치한 뒤, 관련 테스트 파일을 `pytest`로 실행하거나 해당 스위트에서는 `make test-tilt-engine`을 실행하세요. 일부 테스트는 깨끗한 체크아웃에서도 실패합니다. 어떤 테스트가 왜 실패하는지는 #700을 보세요. 이 Python 검사는 `.github/workflows/ci.yml`에서 실행되지 않습니다. |
 | 문서만 변경 | 바꾼 링크와 명령을 확인하세요. 초보자의 시선으로 페이지를 한 번 읽어보세요. |
 

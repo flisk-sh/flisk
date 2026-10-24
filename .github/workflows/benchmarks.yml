@@ -65,11 +65,11 @@ jobs:
         run: | # zizmor: ignore[github-env] adds a fixed directory under RUNNER_TEMP; no input from the triggering run reaches it
           bun install --frozen-lockfile
           (cd cli && npm run build)
-          chmod +x cli/bin/tdk.js
-          # The package's bin entry is tdk.js; expose it as `flisk`, the name every later step runs.
-          mkdir -p "$RUNNER_TEMP/tdk-bin"
-          ln -sf "$GITHUB_WORKSPACE/cli/bin/tdk.js" "$RUNNER_TEMP/tdk-bin/tdk"
-          echo "$RUNNER_TEMP/tdk-bin" >> "$GITHUB_PATH"
+          chmod +x cli/bin/flisk.js
+          # The package's bin entry is flisk.js; expose it as `flisk`, the name every later step runs.
+          mkdir -p "$RUNNER_TEMP/flisk-bin"
+          ln -sf "$GITHUB_WORKSPACE/cli/bin/flisk.js" "$RUNNER_TEMP/flisk-bin/flisk"
+          echo "$RUNNER_TEMP/flisk-bin" >> "$GITHUB_PATH"
 
       - name: Install Tilt
         uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
@@ -82,12 +82,12 @@ jobs:
 
       - name: Generate the restaurant project (B1)
         env:
-          TDK_EXTENSION_SOURCE: ${{ github.workspace }}
+          FLISK_EXTENSION_SOURCE: ${{ github.workspace }}
         run: tests/e2e/scale/benchmarks/run.sh B1
 
       - name: Cold and warm starts (B2)
         env:
-          TDK_EXTENSION_SOURCE: ${{ github.workspace }}
+          FLISK_EXTENSION_SOURCE: ${{ github.workspace }}
           COLD_RUNS: ${{ inputs.cold_runs || '1' }}
           WARM_RUNS: ${{ inputs.warm_runs || '1' }}
         run: tests/e2e/scale/benchmarks/run.sh B2

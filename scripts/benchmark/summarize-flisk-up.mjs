@@ -2,16 +2,16 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-// Turns a run directory written by scripts/benchmark/tdk-up-warm-start.sh into summary.md, summary.json and span.svg.
+// Turns a run directory written by scripts/benchmark/flisk-up-warm-start.sh into summary.md, summary.json and span.svg.
 //
-// Usage: node scripts/benchmark/summarize-tdk-up.mjs <run-directory>
+// Usage: node scripts/benchmark/summarize-flisk-up.mjs <run-directory>
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const dir = process.argv[2];
 if (!dir || !existsSync(dir)) {
-	console.error("Usage: node scripts/benchmark/summarize-tdk-up.mjs <run-directory>");
+	console.error("Usage: node scripts/benchmark/summarize-flisk-up.mjs <run-directory>");
 	process.exit(2);
 }
 

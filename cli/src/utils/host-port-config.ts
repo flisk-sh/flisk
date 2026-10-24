@@ -11,7 +11,7 @@ import {
   PREFERRED_HOST_PORTS,
 } from "./host-port-plan.js";
 
-const CONFIG_PATH = join(".tdk", ".tdk-out", "host-ports.json");
+const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
 
 export function isDockerPortOwnedByProject(
   dockerPs: string,
@@ -53,21 +53,21 @@ export function readSavedHostPortPlan(projectRoot: string): HostPortPlan | null 
 
 export function writeSavedHostPortPlan(projectRoot: string, plan: HostPortPlan): void {
   const path = join(projectRoot, CONFIG_PATH);
-  mkdirSync(join(projectRoot, ".tdk", ".tdk-out"), { recursive: true });
+  mkdirSync(join(projectRoot, ".flisk", ".flisk-out"), { recursive: true });
   writeFileSync(path, `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf-8", mode: 0o600 });
 }
 
 export function exportHostPortPlan(plan: HostPortPlan): void {
-  process.env.TDK_HTTP_PORT = String(plan.ingressHttp);
-  process.env.TDK_HTTPS_PORT = String(plan.ingressHttps);
-  process.env.TDK_POSTGRES_PORT = String(plan.postgres);
+  process.env.FLISK_HTTP_PORT = String(plan.ingressHttp);
+  process.env.FLISK_HTTPS_PORT = String(plan.ingressHttps);
+  process.env.FLISK_POSTGRES_PORT = String(plan.postgres);
 }
 
 const COMPOSE_WORKING_DIR_LABEL = "com.docker.compose.project.working_dir";
 
 /**
  * True when a container whose Compose working directory is inside this project publishes the port. A container-name prefix is not
- * enough: tdk_shop_ also matches the containers of a different project called tdk-shop-extra. Compose records the directory each
+ * enough: flisk_shop_ also matches the containers of a different project called flisk-shop-extra. Compose records the directory each
  * project was started from, so that identifies the project exactly. Containers without the label never count.
  */
 export function isPortHeldByProjectContainers(
@@ -122,7 +122,7 @@ export async function getHostPortPlan(
   options: { inspectDocker?: boolean; isPortFree?: (port: number) => Promise<boolean> } = {},
 ): Promise<HostPortPlan> {
   const saved = readSavedHostPortPlan(projectRoot);
-  const hasOverride = ["TDK_HTTP_PORT", "TDK_HTTPS_PORT", "TDK_POSTGRES_PORT"].some(
+  const hasOverride = ["FLISK_HTTP_PORT", "FLISK_HTTPS_PORT", "FLISK_POSTGRES_PORT"].some(
     (key) => process.env[key],
   );
   // Dry-run must not call Docker. A saved plan is the best representation of
@@ -130,12 +130,12 @@ export async function getHostPortPlan(
   if (options.inspectDocker === false && saved && !hasOverride) return saved;
   let prefix = "";
   try {
-    const project = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
-    prefix = String(project?.project?.name ?? "tdk-project")
+    const project = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
+    prefix = String(project?.project?.name ?? "flisk-project")
       .replace(/-/g, "_")
       .toLowerCase();
   } catch {
-    prefix = "tdk_project";
+    prefix = "flisk_project";
   }
   let dockerPs = "";
   if (options.inspectDocker !== false) {

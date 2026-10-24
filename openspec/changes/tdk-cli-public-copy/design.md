@@ -31,7 +31,7 @@ The free MIT CLI is the product. Premium costs $19 per developer per month for e
 
 ## Repository About copy
 
-Use the exact lines from the supplied organization spec for `flisk-sh`, `flisk`, `flisk-sh/website`, `flisk.sh`, `tdk-example`, `tdk-erp-system`, `tdk-saas-starter`, `tdk-restaurant-example`, `tdk-user-management`, `tdk-auth-queue-email-example`, `tdk-ecommerce-example`, `tdk-docker-compose-example`, `flisk-sh/releases`, `tdk-labs`, `tdk-demo-animation`, `create-flisk`, `awesome-tdk-framework`, `tdk-skills`, and `tdk-discovery`. The archived `tdk-discovery` About field cannot be changed while the repository is archived.
+Use the exact lines from the supplied organization spec for `flisk-sh`, `flisk`, `flisk-sh/website`, `flisk.sh`, `tdk-example`, `tdk-erp-system`, `tdk-saas-starter`, `tdk-restaurant-example`, `tdk-user-management`, `tdk-auth-queue-email-example`, `tdk-ecommerce-example`, `tdk-docker-compose-example`, `flisk-sh/releases`, `tdk-labs`, `tdk-demo-animation`, `create-flisk`, `awesome-tdk-framework`, `tdk-skills`, and `flisk-discovery`. The archived `flisk-discovery` About field cannot be changed while the repository is archived.
 
 ## Scope replies
 
@@ -42,4 +42,4 @@ Stop after that; do not explain Tilt in these replies.
 
 ## Existing shipped work
 
-Keep the shipped homepage H1/subhead, the calculator's `/waiting` placement, core public copy from #203, and the restored README SVG from #205. Never reopen `codex/tdk-cli-public-copy`; that branch has no common ancestor with `main`.
+Keep the shipped homepage H1/subhead, the calculator's `/waiting` placement, core public copy from #203, and the restored README SVG from #205. Never reopen `codex/flisk-cli-public-copy`; that branch has no common ancestor with `main`.

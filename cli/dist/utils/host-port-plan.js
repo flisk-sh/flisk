@@ -8,9 +8,9 @@ export const DEFAULT_HOST_PORT_RANGES = {
     postgres: { start: 15432, end: 15532 },
 };
 const ENV_KEYS = {
-    ingressHttp: "TDK_HTTP_PORT",
-    ingressHttps: "TDK_HTTPS_PORT",
-    postgres: "TDK_POSTGRES_PORT",
+    ingressHttp: "FLISK_HTTP_PORT",
+    ingressHttps: "FLISK_HTTPS_PORT",
+    postgres: "FLISK_POSTGRES_PORT",
 };
 const REQUESTED_PORTS = { ingressHttp: 80, ingressHttps: 443, postgres: 5432 };
 // Tried before the fallback range so routed URLs need no port. Postgres keeps

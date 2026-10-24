@@ -1,5 +1,5 @@
 {
-  "name": "tdk-fuzz",
+  "name": "flisk-fuzz",
   "private": true,
   "description": "Property-based (fuzz) tests for parsers that read untrusted service.json input. Run: bun install && bun run fuzz",
   "type": "module",

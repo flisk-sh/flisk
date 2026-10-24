@@ -54,7 +54,7 @@ For a service-specific runtime image, use a bring-your-own resource that names y
 
 ## Regenerate and verify
 
-`flisk project` creates the project configuration. `flisk config regenerate` regenerates the master project files from `.tdk/project.json` and the standards bundled with the installed CLI. It does not read version pins from `TILT_TECH_STACK.star`. Editing that generated file does not change a dependency or image version; `flisk config verify` reports the edit as drift, and regeneration restores the generated value.
+`flisk project` creates the project configuration. `flisk config regenerate` regenerates the master project files from `.flisk/project.json` and the standards bundled with the installed CLI. It does not read version pins from `TILT_TECH_STACK.star`. Editing that generated file does not change a dependency or image version; `flisk config verify` reports the edit as drift, and regeneration restores the generated value.
 
 Regeneration writes project files but does not start Docker, run Tilt, or restart an already running service. The command implementation is in [config.ts](../cli/src/commands/config.ts). Run `flisk up` when you are ready for Tilt to apply project or service changes; affected resources may then be rebuilt or restarted.
 

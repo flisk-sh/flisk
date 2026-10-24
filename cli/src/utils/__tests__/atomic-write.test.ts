@@ -32,7 +32,7 @@ vi.mock("node:fs", async (importOriginal) => {
 
 let dir: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "tdk-atomic-"));
+  dir = mkdtempSync(join(tmpdir(), "flisk-atomic-"));
 });
 afterEach(() => {
   renameFailure.fail = false;

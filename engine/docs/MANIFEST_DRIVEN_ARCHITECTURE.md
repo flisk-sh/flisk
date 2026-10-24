@@ -203,7 +203,7 @@ package.json   ─┼─→ {service}-config-gen ───→ {service} (Docker)
 Infrastructure (independent, no runtime dependency between them):
   golden-image (L1-L4, build-cache optimization only)
   postgres (database-management)  - Free, on by default
-  verdaccio (npm registry)        - Premium, requires TDK_LICENSE_KEY
+  verdaccio (npm registry)        - Premium, requires FLISK_LICENSE_KEY
 
 Per-Service:
   manifest.json → {service}-config-gen → {service} (Docker)
@@ -250,7 +250,7 @@ Time: <1 second
 ### Check Config-Gen Resources Exist
 
 ```bash
-cd /workspace/tdk-project
+cd /workspace/flisk-project
 tilt get uiresources | grep config-gen
 
 # Expected output:

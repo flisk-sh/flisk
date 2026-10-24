@@ -47,8 +47,8 @@ test-results/
 
 # Generated reports
 .jscpd-report/
-.tdk/.tdk-out/
-.tdk/smoke/
+.flisk/.flisk-out/
+.flisk/smoke/
 
 release-dist-*/
 

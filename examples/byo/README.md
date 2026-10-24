@@ -31,7 +31,7 @@ An app that needs Flisk's own Postgres cannot run alone either. Check it through
 Postgres and `DATABASE_URL`:
 
 ```bash
-tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/
+tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh full-stack-fastapi-template /api/v1/utils/health-check/
 ```
 
 Every folder has its own `README.md` with its stack, notes and the exact check command, so adding an

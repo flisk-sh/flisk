@@ -141,7 +141,7 @@ export async function waitForTiltResourcesReady(
     isStalled?: (jsonText: string) => boolean;
   } = {},
 ): Promise<ReadinessResult> {
-  const timeoutMs = options.timeoutMs ?? Number(process.env.TDK_UP_READY_TIMEOUT_MS ?? 900_000);
+  const timeoutMs = options.timeoutMs ?? Number(process.env.FLISK_UP_READY_TIMEOUT_MS ?? 900_000);
   const intervalMs = options.intervalMs ?? 2_000;
   const fetchJson = options.fetchJson ?? tiltGetUiResources;
   const deferred = options.deferred ?? getDeferredResourceNames();

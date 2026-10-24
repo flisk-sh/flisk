@@ -689,7 +689,7 @@
 			"job": "license",
 			"tier": "gate",
 			"required": false,
-			"reason": "Checks TDK_LICENSE_KEY for the cold-start journey; never runs on pull requests (#1298)",
+			"reason": "Checks FLISK_LICENSE_KEY for the cold-start journey; never runs on pull requests (#1298)",
 			"owner": "maintainers"
 		},
 		{

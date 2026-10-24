@@ -26,7 +26,7 @@ export function isSharedPlatformPostgresDependency(name) {
 }
 function readProjectJson(projectRoot) {
     try {
-        return JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
+        return JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
     }
     catch {
         return undefined;
@@ -67,14 +67,14 @@ function parseStarlarkStringList(source, name) {
     }
 }
 function tiltfileAlwaysEnabledInfra(projectRoot) {
-    const path = join(projectRoot, ".tdk", ".tdk-out", "Tiltfile");
+    const path = join(projectRoot, ".flisk", ".flisk-out", "Tiltfile");
     const text = readTextIfExists(path);
     if (!text)
         return undefined;
     return parseStarlarkStringList(text, "ALWAYS_ENABLED_INFRA");
 }
 function specMasterHasDatabaseManagement(projectRoot) {
-    const path = join(projectRoot, ".tdk", ".tdk-out", "spec.master");
+    const path = join(projectRoot, ".flisk", ".flisk-out", "spec.master");
     const text = readTextIfExists(path);
     if (text === undefined)
         return undefined;
@@ -82,11 +82,11 @@ function specMasterHasDatabaseManagement(projectRoot) {
     return /"database-management"\s*:\s*True/.test(text);
 }
 function generatedDefaultFocusEnablesDatabaseManagement(projectRoot) {
-    const output = join(projectRoot, ".tdk", ".tdk-out");
+    const output = join(projectRoot, ".flisk", ".flisk-out");
     const tiltfile = readTextIfExists(join(output, "Tiltfile"));
     const spec = readTextIfExists(join(output, "spec.master"));
-    const config = readTextIfExists(join(output, "tdk-cli-ext", "discovery", "config.star"));
-    const profiles = readTextIfExists(join(output, "tdk-cli-ext", "engine", "topologies", "tilt", "config", "profiles.star"));
+    const config = readTextIfExists(join(output, "flisk-cli-ext", "discovery", "config.star"));
+    const profiles = readTextIfExists(join(output, "flisk-cli-ext", "engine", "topologies", "tilt", "config", "profiles.star"));
     if (!tiltfile || !spec || !config || !profiles)
         return false;
     const preAlpha = spec.match(/PRE_ALPHA_RESOURCES\s*=\s*\{([^}]*)\}/)?.[1];

@@ -9,10 +9,10 @@
 # Unlike verify-byo-example.sh, which runs the image alone, this gives the service Flisk's DATABASE_URL
 # and Postgres, so it is the check for apps that need a database.
 #
-# Usage: tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh <name> [health-path]     (default health path /health)
+# Usage: tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh <name> [health-path]     (default health path /health)
 set -euo pipefail
 
-name="${1:?usage: verify-byo-tdk.sh <name> [health-path]}"
+name="${1:?usage: verify-byo-flisk.sh <name> [health-path]}"
 health="${2:-/health}"
 root="$(cd "$(dirname "$0")/../../../.." && pwd)"
 src="$root/examples/byo/$name"
@@ -25,7 +25,7 @@ proj="${base:0:$((24 - ${#pid}))}$pid"
 work="$(mktemp -d)/$proj"
 mkdir -p "$work"
 http_port=$((30000 + RANDOM % 2000))
-flisk() { command "${TDK_BIN:-tdk}" "$@"; }
+flisk() { command "${FLISK_BIN:-flisk}" "$@"; }
 
 cleanup() {
   pkill -f "tilt up.*$proj" >/dev/null 2>&1 || true
@@ -41,14 +41,14 @@ trap cleanup EXIT
 cd "$work"
 git init -q .
 flisk project --yes >/dev/null
-printf '\nTDK_HTTP_PORT=%s\nTDK_HTTPS_PORT=%s\nTDK_POSTGRES_PORT=%s\n' \
+printf '\nFLISK_HTTP_PORT=%s\nFLISK_HTTPS_PORT=%s\nFLISK_POSTGRES_PORT=%s\n' \
   "$http_port" "$((32000 + RANDOM % 2000))" "$((34000 + RANDOM % 2000))" >> .env
 mkdir -p "services/app/$proj"
 cp -R "$src/." "services/app/$proj/"
 rm -f "services/app/$proj/README.md"
 (cd "services/app/$proj" && flisk resource "$proj" --type bring-your-own --stack app \
   --register-existing --dockerfile ./Dockerfile --health-path "$health" --yes >/dev/null)
-nohup "${TDK_BIN:-tdk}" up app >"$work/up.log" 2>&1 &
+nohup "${FLISK_BIN:-flisk}" up app >"$work/up.log" 2>&1 &
 
 url="http://127.0.0.1:$http_port/api/$proj$health"
 status=000

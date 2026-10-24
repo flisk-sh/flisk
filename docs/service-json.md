@@ -241,7 +241,7 @@ The two manifests above pass the service schema and `flisk config verify` (no ma
 | `nats` | object; optional | services using NATS | Custom `queueGroup` and `subjects`. Flisk generates NATS configuration when `nats` is enabled in `featuresEnabled`. |
 | `databaseName` | string; generated from the stack by default | database-backed services | Overrides the generated database name. |
 | `playwright` | boolean; defaults to `false` | generated frontend/services | Requests a generated Playwright configuration when enabled. |
-| `sablier` | object; disabled unless enabled | licensed services | On-demand scaling. Options are `enable`, `deferStart`, `group`, and `sessionDuration`. This is a Premium feature and requires `TDK_LICENSE_KEY`; it is not available merely by adding the JSON block. |
+| `sablier` | object; disabled unless enabled | licensed services | On-demand scaling. Options are `enable`, `deferStart`, `group`, and `sessionDuration`. This is a Premium feature and requires `FLISK_LICENSE_KEY`; it is not available merely by adding the JSON block. |
 | `name` | string; legacy/generated metadata | existing manifests | Retained for compatibility with older generated manifests. Prefer `appName` for the resource identity. |
 
 Do not add `jwtSecret` or other secret values to `service.json`. Flisk ignores `jwtSecret` and reports that it must be removed; put secret names in `secrets` and values in the project’s ignored `.env` or the configured provider.

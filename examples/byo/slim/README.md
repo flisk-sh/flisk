@@ -23,7 +23,7 @@ VERIFY_WAIT_SECONDS=60 tests/e2e/resource-types/bring-your-own/verify-byo-exampl
 Then through a real `flisk up` and Traefik (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh slim /
+VERIFY_WAIT_SECONDS=900 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh slim /
 ```
 
 Observed: `PASS slim: GET / -> 200 (Hello world!)` and `PASS slim: through flisk up and Traefik, GET /api/<name>/ -> 200 (Hello world!)`.

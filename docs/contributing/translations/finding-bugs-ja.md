@@ -9,7 +9,7 @@
 大切なプロジェクトではなく、空のディレクトリで作業してください。
 
 ```bash
-mkdir /tmp/tdk-bugs && cd /tmp/tdk-bugs
+mkdir /tmp/flisk-bugs && cd /tmp/flisk-bugs
 flisk --version
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes

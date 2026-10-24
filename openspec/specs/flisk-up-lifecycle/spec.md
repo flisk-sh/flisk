@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: Native Windows startup is refused by default
-On native Windows, `flisk up` SHALL refuse to start Docker or Tilt unless `TDK_ALLOW_NATIVE_WINDOWS=1` is set. Without the escape hatch it SHALL exit 1 and include a doctor hint. The escape hatch is unsupported and SHALL NOT change the documented platform contract.
+On native Windows, `flisk up` SHALL refuse to start Docker or Tilt unless `FLISK_ALLOW_NATIVE_WINDOWS=1` is set. Without the escape hatch it SHALL exit 1 and include a doctor hint. The escape hatch is unsupported and SHALL NOT change the documented platform contract.
 
 #### Scenario: Native Windows startup without escape hatch
-- **WHEN** `flisk up` runs on native Windows without `TDK_ALLOW_NATIVE_WINDOWS=1`
+- **WHEN** `flisk up` runs on native Windows without `FLISK_ALLOW_NATIVE_WINDOWS=1`
 - **THEN** it starts neither Docker nor Tilt, prints an error with a doctor hint, and exits 1
 
 ### Requirement: Force mode stops Tilt on the configured port

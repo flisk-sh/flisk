@@ -11,7 +11,7 @@ import { TemplateEngine } from "../template-engine.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for the generated tech stack Starlark tests in CI.");
 }
 
@@ -35,7 +35,7 @@ const temporaryDirs: string[] = [];
  * it on stderr when the Tiltfile fails.
  */
 function validate(configLiteral: string, strict: boolean, field: "errors" | "warnings"): string {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-tech-stack-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-tech-stack-"));
   temporaryDirs.push(directory);
   const engine = new TemplateEngine(join(repoRoot, "cli", "templates"));
   writeFileSync(

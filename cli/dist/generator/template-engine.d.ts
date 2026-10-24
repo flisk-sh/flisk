@@ -51,11 +51,11 @@ export declare class TemplateEngine {
     generateAll(projectConfig: ProjectConfig): Record<GeneratedFileName, string>;
 }
 export declare function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string;
-/** The project has no .tdk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
+/** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
 export declare class ProjectConfigNotFoundError extends Error {
 }
 /**
- * Reads, parses, and normalizes `.tdk/project.json` from the given project root.
+ * Reads, parses, and normalizes `.flisk/project.json` from the given project root.
  *
  * The file is read directly instead of being existence-checked first: `fs.existsSync` swallows
  * filesystem errors and reports an inaccessible config as missing, which hides the real reason.

@@ -35,7 +35,7 @@ describe("broken project: bad service.json", () => {
     );
     expect(result.stderr).toMatch(/invalid JSON/);
     // Nothing was generated and no Tilt was started for the project.
-    expect(existsSync(join(root, ".tdk", ".tdk-out"))).toBe(false);
+    expect(existsSync(join(root, ".flisk", ".flisk-out"))).toBe(false);
   });
 });
 

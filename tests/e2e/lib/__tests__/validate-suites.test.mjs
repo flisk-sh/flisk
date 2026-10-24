@@ -60,7 +60,7 @@ test("shape problems are each named", () => {
 });
 
 test("secrets and scale suites never run on pull requests", () => {
-  assert.match(checkSuiteJson({ ...good, needsSecrets: ["TDK_LICENSE_KEY"] }, "resource-types", "demo").join(), /needs secrets must not run on pr/);
+  assert.match(checkSuiteJson({ ...good, needsSecrets: ["FLISK_LICENSE_KEY"] }, "resource-types", "demo").join(), /needs secrets must not run on pr/);
   assert.match(checkSuiteJson({ ...good, group: "scale" }, "scale", "demo").join(), /scale suites must not run on pr/);
 });
 

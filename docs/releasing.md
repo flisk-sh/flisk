@@ -199,7 +199,7 @@ Or in the npm UI: open the `flisk` package → **Settings → Trusted Publisher 
 | `npm ERR! code EOTP` | An empty `NPM_TOKEN` was exported; npm tried token auth instead of OIDC | Never export an empty `NODE_AUTH_TOKEN`; the workflow only exports it when the secret exists |
 | `404 Not Found - PUT .../flisk` | The unscoped package does not exist on npm | [Unscoped npm package](#unscoped-npm-package-flisk) |
 | Workflow red but npm and `flisk-sh/releases` are live | A post-publication step failed (bump push, signing) | [Repair a half-finished release](#repair-a-half-finished-release) |
-| GitHub Packages verify: `bin/tdk: No such file or directory` | Pre-rebrand releases link `bin/tdk`, newer ones link `bin/flisk` | The backfill workflow accepts both names |
+| GitHub Packages verify: `bin/flisk: No such file or directory` | Pre-rebrand releases link `bin/flisk`, newer ones link `bin/flisk` | The backfill workflow accepts both names |
 | Tag exists but `package.json` on it is one version behind | Tag pointed at the pre-bump commit | Tags must point at the version-bump commit (`tag-bumped-release` does this; fix by re-tagging the bump commit) |
 
 ## Settings and secrets

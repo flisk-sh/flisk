@@ -12,7 +12,7 @@ The release pipeline SHALL produce `tdk-windows-amd64.exe` from Bun's `bun-windo
 - **THEN** the file is non-empty and begins with the PE `MZ` signature
 
 ### Requirement: PowerShell Windows installer
-The website repository SHALL provide `install.ps1` for native Windows AMD64. It SHALL reject unsupported Windows ARM64, download the latest Windows executable, engine archive, and checksums, verify the executable SHA-256 against its checksum entry, install to `TDK_INSTALL_DIR` or `%LOCALAPPDATA%\flisk\bin`, place the engine in the adjacent `tdk-cli` folder, and add the install directory to user PATH only when missing. It SHALL handle tar implementations without `--strip-components` through temporary extraction and flattening. It SHALL not require Administrator rights for the default install and SHALL print the installed path/version and new-terminal instruction.
+The website repository SHALL provide `install.ps1` for native Windows AMD64. It SHALL reject unsupported Windows ARM64, download the latest Windows executable, engine archive, and checksums, verify the executable SHA-256 against its checksum entry, install to `FLISK_INSTALL_DIR` or `%LOCALAPPDATA%\flisk\bin`, place the engine in the adjacent `flisk-cli` folder, and add the install directory to user PATH only when missing. It SHALL handle tar implementations without `--strip-components` through temporary extraction and flattening. It SHALL not require Administrator rights for the default install and SHALL print the installed path/version and new-terminal instruction.
 
 #### Scenario: Checksum mismatch fails installation
 - **WHEN** the downloaded executable hash differs from `checksums.txt`
@@ -24,7 +24,7 @@ The website repository SHALL provide `install.ps1` for native Windows AMD64. It 
 
 #### Scenario: Older tar lacks strip-components
 - **WHEN** engine extraction does not support `--strip-components`
-- **THEN** the installer extracts to a temporary directory and moves the inner files into `tdk-cli` without an extra nested folder
+- **THEN** the installer extracts to a temporary directory and moves the inner files into `flisk-cli` without an extra nested folder
 
 ### Requirement: Windows installation documentation
 Installation instructions SHALL document both `irm https://flisk.sh/install.ps1 | iex` and the safe two-step PowerShell download/run flow, plus manual Windows download/extraction commands. Platform wording SHALL consistently state `Supported platforms: macOS, Linux, and Windows 10/11 (AMD64). Windows uses Docker Desktop Linux containers. WSL2 Ubuntu works as Linux.` All locations that currently call Windows untested and are named in the change plan SHALL be updated. The Windows problems page SHALL cover only Docker Desktop stopped/Windows containers, ports or Hyper-V exclusions, `*.localhost` DNS, and project-drive file sharing.

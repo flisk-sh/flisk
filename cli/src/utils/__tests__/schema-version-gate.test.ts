@@ -22,7 +22,7 @@ function service(name: string, extra: Record<string, unknown>, stack = "app") {
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-schema-gate-"));
+  root = mkdtempSync(join(tmpdir(), "flisk-schema-gate-"));
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 

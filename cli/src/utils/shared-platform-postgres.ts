@@ -59,7 +59,7 @@ export interface SharedPlatformPostgresEvaluation {
 
 function readProjectJson(projectRoot: string): Record<string, unknown> | undefined {
   try {
-    return JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
+    return JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
   } catch {
     return undefined;
   }
@@ -100,14 +100,14 @@ function parseStarlarkStringList(source: string, name: string): string[] | undef
 }
 
 function tiltfileAlwaysEnabledInfra(projectRoot: string): string[] | undefined {
-  const path = join(projectRoot, ".tdk", ".tdk-out", "Tiltfile");
+  const path = join(projectRoot, ".flisk", ".flisk-out", "Tiltfile");
   const text = readTextIfExists(path);
   if (!text) return undefined;
   return parseStarlarkStringList(text, "ALWAYS_ENABLED_INFRA");
 }
 
 function specMasterHasDatabaseManagement(projectRoot: string): boolean | undefined {
-  const path = join(projectRoot, ".tdk", ".tdk-out", "spec.master");
+  const path = join(projectRoot, ".flisk", ".flisk-out", "spec.master");
   const text = readTextIfExists(path);
   if (text === undefined) return undefined;
   // PRE_ALPHA/DEFAULTS style: "database-management": True
@@ -115,12 +115,12 @@ function specMasterHasDatabaseManagement(projectRoot: string): boolean | undefin
 }
 
 function generatedDefaultFocusEnablesDatabaseManagement(projectRoot: string): boolean {
-  const output = join(projectRoot, ".tdk", ".tdk-out");
+  const output = join(projectRoot, ".flisk", ".flisk-out");
   const tiltfile = readTextIfExists(join(output, "Tiltfile"));
   const spec = readTextIfExists(join(output, "spec.master"));
-  const config = readTextIfExists(join(output, "tdk-cli-ext", "discovery", "config.star"));
+  const config = readTextIfExists(join(output, "flisk-cli-ext", "discovery", "config.star"));
   const profiles = readTextIfExists(
-    join(output, "tdk-cli-ext", "engine", "topologies", "tilt", "config", "profiles.star"),
+    join(output, "flisk-cli-ext", "engine", "topologies", "tilt", "config", "profiles.star"),
   );
   if (!tiltfile || !spec || !config || !profiles) return false;
 

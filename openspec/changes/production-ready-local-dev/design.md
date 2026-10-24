@@ -6,11 +6,11 @@ Three existing commands are not the same operation:
 
 | Command | Reads | Writes | Does not do |
 | --- | --- | --- | --- |
-| `flisk config regenerate` | `.tdk/project.json` | generated master files | edit `service.json`, import a repo |
+| `flisk config regenerate` | `.flisk/project.json` | generated master files | edit `service.json`, import a repo |
 | `flisk config migrate` | `service.json` | `schemaVersion` on those files | rewrite Docker or Tilt files |
 | `flisk import` | a directory, via `flisk-import` | whatever `flisk-import` writes | call regenerate or migrate |
 
-`flisk config verify` compares generated files with `.tdk/project.json`. Its fix line is `flisk config regenerate`. Doctor already returns `schemaVersion: 1`, `data.ready`, `data.checks`, and `errors`. Exit codes are 0 ready, 1 blocking, 2 usage or internal.
+`flisk config verify` compares generated files with `.flisk/project.json`. Its fix line is `flisk config regenerate`. Doctor already returns `schemaVersion: 1`, `data.ready`, `data.checks`, and `errors`. Exit codes are 0 ready, 1 blocking, 2 usage or internal.
 
 ## Goals / Non-Goals
 

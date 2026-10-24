@@ -20,7 +20,7 @@ export declare const MIN_BUN_VERSION: readonly [1, 2, 0];
 export declare function versionMeetsMinimum(raw: string, minimum: readonly number[]): boolean;
 export declare function checkWslProjectLocation(projectPath: string, strict: boolean, isWsl?: boolean): CheckResult;
 /**
- * Dev ports (Traefik, Postgres) bind to 127.0.0.1 by default. TDK_BIND_ADDRESS
+ * Dev ports (Traefik, Postgres) bind to 127.0.0.1 by default. FLISK_BIND_ADDRESS
  * opts in to another address; a wildcard exposes them to every machine on the
  * network (GHSA-3hj3-f39v-j2x5).
  */
@@ -60,11 +60,11 @@ export declare namespace checkDockerOperatingSystem {
 }
 export declare function checkBun(exec?: ExecAsync): Promise<CheckResult>;
 /**
- * A repo can pin the oldest CLI it works with: `"minTdkVersion": "1.3.80"` in
- * .tdk/project.json. An older `flisk` fails here, so a team sees one clear line
+ * A repo can pin the oldest CLI it works with: `"minFliskVersion": "1.3.80"` in
+ * .flisk/project.json. An older `flisk` fails here, so a team sees one clear line
  * instead of a half-working `flisk up`.
  */
-export declare function checkTdkVersion(currentVersion?: string): CheckResult;
+export declare function checkFliskVersion(currentVersion?: string): CheckResult;
 /**
  * Tilt only builds resources under `discovery.paths`, but the CLI finds every service.json,
  * so a resource outside them is listed and given a URL by `flisk up` yet never started.

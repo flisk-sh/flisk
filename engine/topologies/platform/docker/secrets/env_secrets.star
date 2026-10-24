@@ -9,7 +9,7 @@
 # Docker Compose's own `${NAME}` interpolation, so nothing secret is ever written to a generated, committed file. A required secret
 # uses `${NAME:?message}`, so Compose refuses to start the service when the name is missing; an optional one defaults to empty.
 #
-# `TDK_SECRET_PROVIDER=infisical` leaves the names to Infisical instead, and nothing is injected here.
+# `FLISK_SECRET_PROVIDER=infisical` leaves the names to Infisical instead, and nothing is injected here.
 # =============================================================================
 
 DEFAULT_SECRET_PROVIDER = 'env-file'
@@ -20,7 +20,7 @@ _NAME_REST = _NAME_FIRST + '0123456789'
 
 def get_secret_provider():
     """The selected provider: `env-file` (default) or `infisical`."""
-    provider = str(os.environ.get('TDK_SECRET_PROVIDER', '')).strip().lower()
+    provider = str(os.environ.get('FLISK_SECRET_PROVIDER', '')).strip().lower()
     return provider if provider else DEFAULT_SECRET_PROVIDER
 
 

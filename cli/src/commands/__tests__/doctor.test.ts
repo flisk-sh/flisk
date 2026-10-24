@@ -29,11 +29,11 @@ import {
 import {
   checkDockerCompose,
   checkDockerVersions,
+  checkFliskVersion,
   checkFrontendDockerPreflight,
   checkGeneratedProjectRuntimeAssets,
   checkResourceDiscovery,
   checkStarlarkLoadExports,
-  checkTdkVersion,
   checkTypeScriptTypeDependencies,
   DOCTOR_FIXES,
   doctorCommand,
@@ -64,8 +64,8 @@ vi.mock("../../utils/windows-doctor.js", () => ({
     name: "Windows ports and DNS",
     didPass: false,
     message:
-      "⚠️ Windows reserved port 80 for Hyper-V/WSL. Fix: disable the conflicting Windows feature or change Flisk ports in project config.\nWindows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.\ngit core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.\nDocker Desktop Settings → Resources → File sharing must include this project directory.",
-    fix: "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.",
+      "⚠️ Windows reserved port 80 for Hyper-V/WSL. Fix: disable the conflicting Windows feature or change Flisk ports in project config.\nWindows did not resolve *.flisk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.\ngit core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.\nDocker Desktop Settings → Resources → File sharing must include this project directory.",
+    fix: "Windows did not resolve *.flisk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.",
   })),
 }));
 
@@ -95,10 +95,10 @@ describe("doctor exact guidance", () => {
   });
 
   it("uses exact remediation copy for ports 80 and 5432", async () => {
-    const port80 = await checkHostPorts((() => "") as never, "tdk-project", async (port) =>
+    const port80 = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
       port === 80 ? "in-use" : "free",
     );
-    const port5432 = await checkHostPorts((() => "") as never, "tdk-project", async (port) =>
+    const port5432 = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
       port === 5432 ? "in-use" : "free",
     );
 
@@ -238,10 +238,10 @@ describe("doctor frontend Docker preflight", () => {
   });
 
   it("fails when generated Starlark loads a private exported symbol", () => {
-    const outDir = join(testDir, ".tdk", ".tdk-out");
-    const extDir = join(outDir, "tdk-cli-ext", "engine");
+    const outDir = join(testDir, ".flisk", ".flisk-out");
+    const extDir = join(outDir, "flisk-cli-ext", "engine");
     mkdirSync(extDir, { recursive: true });
-    writeFileSync(join(outDir, "Tiltfile"), 'load("./tdk-cli-ext/engine/bad.star", "Bad")\n');
+    writeFileSync(join(outDir, "Tiltfile"), 'load("./flisk-cli-ext/engine/bad.star", "Bad")\n');
     writeFileSync(
       join(extDir, "sablier_container_cycle.star"),
       "_sablier_middleware_suffix = 'x'\n",
@@ -265,12 +265,12 @@ describe("doctor frontend Docker preflight", () => {
   });
 
   it("fails when generated Starlark loads a missing relative file", () => {
-    const outDir = join(testDir, ".tdk", ".tdk-out");
-    const extDir = join(outDir, "tdk-cli-ext", "discovery");
+    const outDir = join(testDir, ".flisk", ".flisk-out");
+    const extDir = join(outDir, "flisk-cli-ext", "discovery");
     mkdirSync(extDir, { recursive: true });
     writeFileSync(
       join(outDir, "Tiltfile"),
-      'load("./tdk-cli-ext/discovery/daemon.star", "Daemon")\n',
+      'load("./flisk-cli-ext/discovery/daemon.star", "Daemon")\n',
     );
     writeFileSync(join(extDir, "daemon.star"), 'load("./resource_registry.star", "CacheOps")\n');
 
@@ -282,7 +282,7 @@ describe("doctor frontend Docker preflight", () => {
   });
 
   it("passes when generated Starlark only uses private local aliases", () => {
-    const extDir = join(testDir, ".tdk", ".tdk-out", "tdk-cli-ext", "engine");
+    const extDir = join(testDir, ".flisk", ".flisk-out", "flisk-cli-ext", "engine");
     mkdirSync(extDir, { recursive: true });
     writeFileSync(join(extDir, "public.star"), "Docker = struct()\n");
     writeFileSync(join(extDir, "good.star"), 'load("./public.star", _Docker = "Docker")\n');
@@ -303,9 +303,9 @@ describe("doctor generated runtime asset preflight", () => {
       tmpdir(),
       `flisk-doctor-runtime-assets-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
-    mkdirSync(join(testDir, ".tdk"), { recursive: true });
+    mkdirSync(join(testDir, ".flisk"), { recursive: true });
     writeFileSync(
-      join(testDir, ".tdk", "project.json"),
+      join(testDir, ".flisk", "project.json"),
       JSON.stringify({
         version: "1.0",
         project: { name: "asset-check", version: "1.0.0" },
@@ -602,29 +602,29 @@ describe("doctor TypeScript type dependency check", () => {
 describe("doctor ingress + tilt runtime checks", () => {
   it("detects a foreign Traefik holding host port 80", () => {
     const dockerPs = [
-      "tdk_saas_starter_traefik\t0.0.0.0:80->80/tcp,:::80->80/tcp,0.0.0.0:8080->8080/tcp",
-      "tdk_project_postgres\t0.0.0.0:5432->5432/tcp",
+      "flisk_saas_starter_traefik\t0.0.0.0:80->80/tcp,:::80->80/tcp,0.0.0.0:8080->8080/tcp",
+      "flisk_project_postgres\t0.0.0.0:5432->5432/tcp",
     ].join("\n");
 
     const holders = parsePublishedPortHolders(dockerPs, [80, 443]);
     expect(holders).toHaveLength(1);
-    expect(holders[0]?.name).toBe("tdk_saas_starter_traefik");
+    expect(holders[0]?.name).toBe("flisk_saas_starter_traefik");
     expect(holders[0]?.publishedPorts).toContain(80);
 
-    const foreign = findForeignIngressHolders(holders, "tdk_project");
+    const foreign = findForeignIngressHolders(holders, "flisk_project");
     expect(foreign).toHaveLength(1);
 
-    const result = checkIngressPorts((() => dockerPs) as never, "tdk-project");
+    const result = checkIngressPorts((() => dockerPs) as never, "flisk-project");
     expect(result.didPass).toBe(false);
-    expect(result.message).toContain("tdk_saas_starter_traefik");
+    expect(result.message).toContain("flisk_saas_starter_traefik");
     expect(result.fix).toContain("docker stop");
   });
 
   it("passes when this project's Traefik owns the ingress ports", () => {
-    const dockerPs = "tdk_project_traefik\t0.0.0.0:80->80/tcp,:::80->80/tcp,0.0.0.0:443->443/tcp";
-    const result = checkIngressPorts((() => dockerPs) as never, "tdk-project");
+    const dockerPs = "flisk_project_traefik\t0.0.0.0:80->80/tcp,:::80->80/tcp,0.0.0.0:443->443/tcp";
+    const result = checkIngressPorts((() => dockerPs) as never, "flisk-project");
     expect(result.didPass).toBe(true);
-    expect(result.message).toContain("tdk_project_traefik");
+    expect(result.message).toContain("flisk_project_traefik");
   });
 
   it("fails doctor when Tilt reports Traefik update errors that block apps", () => {
@@ -944,9 +944,9 @@ describe("doctor ingress + tilt runtime checks", () => {
       tmpdir(),
       `flisk-doctor-registry-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
-    mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
+    mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
     writeFileSync(
-      join(projectRoot, ".tdk", "project.json"),
+      join(projectRoot, ".flisk", "project.json"),
       JSON.stringify({
         project: { name: "demo" },
         optional_infra: { verdaccio: true },
@@ -978,9 +978,9 @@ describe("doctor ingress + tilt runtime checks", () => {
       tmpdir(),
       `flisk-doctor-registry-ok-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
-    mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
+    mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
     writeFileSync(
-      join(projectRoot, ".tdk", "project.json"),
+      join(projectRoot, ".flisk", "project.json"),
       JSON.stringify({
         project: { name: "demo" },
         optional_infra: { verdaccio: true },
@@ -990,7 +990,7 @@ describe("doctor ingress + tilt runtime checks", () => {
 
     const execUp = ((command: string) => {
       if (command.startsWith("docker ps")) {
-        return "tdk-project-verdaccio\n";
+        return "flisk-project-verdaccio\n";
       }
       if (command.includes("curl")) {
         return "200";
@@ -1013,9 +1013,9 @@ describe("doctor private registry check without a Verdaccio license", () => {
       tmpdir(),
       `flisk-doctor-registry-unlicensed-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
-    mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
+    mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
     writeFileSync(
-      join(projectRoot, ".tdk", "project.json"),
+      join(projectRoot, ".flisk", "project.json"),
       JSON.stringify({
         project: { name: "demo" },
         optional_infra: { verdaccio: true },
@@ -1107,10 +1107,10 @@ describe("doctor resource discovery", () => {
       tmpdir(),
       `flisk-doctor-discovery-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
-    mkdirSync(join(testDir, ".tdk"), { recursive: true });
+    mkdirSync(join(testDir, ".flisk"), { recursive: true });
     writeFileSync(join(testDir, "Tiltfile"), "");
     writeFileSync(
-      join(testDir, ".tdk", "project.json"),
+      join(testDir, ".flisk", "project.json"),
       JSON.stringify({ discovery: { paths: ["services/*/*"] } }),
     );
     process.chdir(testDir);
@@ -1157,7 +1157,7 @@ describe("doctor Flisk version pin", () => {
       tmpdir(),
       `flisk-doctor-version-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     );
-    mkdirSync(join(testDir, ".tdk"), { recursive: true });
+    mkdirSync(join(testDir, ".flisk"), { recursive: true });
     writeFileSync(join(testDir, "Tiltfile"), "");
     process.chdir(testDir);
   });
@@ -1168,25 +1168,25 @@ describe("doctor Flisk version pin", () => {
   });
 
   function writeProject(config: object) {
-    writeFileSync(join(testDir, ".tdk", "project.json"), JSON.stringify(config));
+    writeFileSync(join(testDir, ".flisk", "project.json"), JSON.stringify(config));
   }
 
-  it("skips when the project sets no minTdkVersion", () => {
+  it("skips when the project sets no minFliskVersion", () => {
     writeProject({});
-    const result = checkTdkVersion("1.3.80");
+    const result = checkFliskVersion("1.3.80");
     expect(result.didPass).toBe(true);
     expect(result.isSkipped).toBe(true);
   });
 
   it("passes when the CLI is at or above the minimum", () => {
-    writeProject({ minTdkVersion: "1.3.80" });
-    expect(checkTdkVersion("1.3.80").didPass).toBe(true);
-    expect(checkTdkVersion("1.4.0").didPass).toBe(true);
+    writeProject({ minFliskVersion: "1.3.80" });
+    expect(checkFliskVersion("1.3.80").didPass).toBe(true);
+    expect(checkFliskVersion("1.4.0").didPass).toBe(true);
   });
 
   it("fails and says to upgrade when the CLI is older", () => {
-    writeProject({ minTdkVersion: "1.3.80" });
-    const result = checkTdkVersion("1.3.79");
+    writeProject({ minFliskVersion: "1.3.80" });
+    const result = checkFliskVersion("1.3.79");
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("1.3.79");
     expect(result.message).toContain("1.3.80");
@@ -1194,10 +1194,10 @@ describe("doctor Flisk version pin", () => {
   });
 
   it("fails on a value that is not MAJOR.MINOR.PATCH", () => {
-    writeProject({ minTdkVersion: "latest" });
-    const result = checkTdkVersion("1.3.80");
+    writeProject({ minFliskVersion: "latest" });
+    const result = checkFliskVersion("1.3.80");
     expect(result.didPass).toBe(false);
-    expect(result.message).toContain("minTdkVersion");
+    expect(result.message).toContain("minFliskVersion");
   });
 });
 
@@ -1519,9 +1519,9 @@ describe("doctor --all, sections, and summary", () => {
     const { exit } = captureExit();
 
     try {
-      mkdirSync(join(root, ".tdk"), { recursive: true });
+      mkdirSync(join(root, ".flisk"), { recursive: true });
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: "doctor-all-test" } }),
       );
       process.chdir(root);
@@ -1598,9 +1598,9 @@ describe("doctor --all, sections, and summary", () => {
     const { exit } = captureExit();
 
     try {
-      mkdirSync(join(root, ".tdk"), { recursive: true });
+      mkdirSync(join(root, ".flisk"), { recursive: true });
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: "doctor-json-all" } }),
       );
       process.chdir(root);
@@ -1701,9 +1701,9 @@ describe("doctor --all, sections, and summary", () => {
     const { exit } = captureExit();
 
     try {
-      mkdirSync(join(root, ".tdk"), { recursive: true });
+      mkdirSync(join(root, ".flisk"), { recursive: true });
       writeFileSync(
-        join(root, ".tdk", "project.json"),
+        join(root, ".flisk", "project.json"),
         JSON.stringify({ project: { name: "doctor-plain-test" } }),
       );
       process.chdir(root);
@@ -1760,7 +1760,7 @@ describe("doctor native Windows diagnostics", () => {
       const text = log.mock.calls.map((call) => String(call[0])).join("\n");
       expect(text).toContain(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(text).toContain("Windows containers");
-      expect(text).toContain("tdk.localhost");
+      expect(text).toContain("flisk.localhost");
       expect(text).toContain("core.autocrlf");
       expect(text).toContain("Hyper-V");
     } finally {

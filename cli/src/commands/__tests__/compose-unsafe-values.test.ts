@@ -16,7 +16,7 @@ const traefikStar = JSON.stringify(
 );
 
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for Starlark generator tests in CI.");
 }
 
@@ -29,7 +29,7 @@ afterEach(() => {
 
 /** Evaluates a Tiltfile. A failed `fail(...)` makes tilt exit non-zero and puts the message in stderr. */
 function runTiltfile(source: string): SpawnSyncReturns<string> {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-unsafe-values-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-unsafe-values-"));
   temporaryDirs.push(directory);
   const tiltfile = join(directory, "Tiltfile");
   writeFileSync(tiltfile, source);
@@ -67,7 +67,7 @@ describe.skipIf(!hasTilt)(
       ["traefik.pathPrefix", `{'traefik': {'pathPrefix': '/api${BAD}'}}`],
       ["traefik.healthCheck", `{'traefik': {'pathPrefix': '/api', 'healthCheck': '/h${BAD}'}}`],
       ["nats.queueGroup", `{'nats': {'queueGroup': 'g${BAD}'}}`],
-      ["databaseName", `{'databaseName': 'TDK_x${BAD}'}`],
+      ["databaseName", `{'databaseName': 'FLISK_x${BAD}'}`],
       ["stack", `{'stack': 'shop${BAD}'}`],
       ["image", `{'appType': 'bring-your-own', 'image': 'app${BAD}'}`],
       ["dockerfile", `{'appType': 'bring-your-own', 'dockerfile': 'Dockerfile${BAD}'}`],

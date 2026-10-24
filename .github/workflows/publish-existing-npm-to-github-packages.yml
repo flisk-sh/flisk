@@ -126,11 +126,11 @@ jobs:
           fi
           # Run the verified tarball through npm exec in a fresh cache. Scorecard flags `npm install <tarball>` as an
           # unpinned npmCommand, but the tarball was already checked against TARBALL_INTEGRITY above.
-          # The rebrand renamed the published bin from tdk to flisk; a pre-rebrand version being
-          # backfilled still exposes tdk, so accept either.
+          # The rebrand renamed the published bin from flisk to flisk; a pre-rebrand version being
+          # backfilled still exposes flisk, so accept either.
           export npm_config_cache="$PREFIX/npm-cache"
           if INSTALLED_VERSION=$(npm exec --yes --package="$TARBALL" -- flisk --version 2>/dev/null); then :
-          else INSTALLED_VERSION=$(npm exec --yes --package="$TARBALL" -- tdk --version); fi
+          else INSTALLED_VERSION=$(npm exec --yes --package="$TARBALL" -- flisk --version); fi
           if [ "$INSTALLED_VERSION" != "$VERSION" ]; then
             echo "::error::Expected flisk --version $VERSION, got $INSTALLED_VERSION"
             exit 1

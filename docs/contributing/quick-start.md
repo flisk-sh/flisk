@@ -43,18 +43,18 @@ npm --prefix cli run build
 ## 6. Try your build
 
 ```bash
-node cli/bin/tdk.js --help
+node cli/bin/flisk.js --help
 ```
 
 ## 7. Check your machine
 
 ```bash
-node cli/bin/tdk.js doctor
+node cli/bin/flisk.js doctor
 ```
 
 `doctor` reports whether Docker, Tilt, and the other runtime pieces are ready. It changes nothing. Failures for Docker or Tilt are fine if you only work on the CLI.
 
-`node cli/bin/tdk.js demo` is the full one-command demo, not a preview: it clones the demo project into `~/.flisk/flisk-demo`, installs `flisk` globally, and starts the stack. Run it only once Docker and Tilt are set up.
+`node cli/bin/flisk.js demo` is the full one-command demo, not a preview: it clones the demo project into `~/.flisk/flisk-demo`, installs `flisk` globally, and starts the stack. Run it only once Docker and Tilt are set up.
 
 ## 8. Make a change
 

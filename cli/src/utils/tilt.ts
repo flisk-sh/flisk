@@ -74,7 +74,7 @@ export function getTiltfilePath(): string {
     throw errorFactories.notInProject();
   }
 
-  return join(projectRoot, ".tdk", ".tdk-out", "Tiltfile");
+  return join(projectRoot, ".flisk", ".flisk-out", "Tiltfile");
 }
 
 function addTiltfilePath(args: string[]): void {

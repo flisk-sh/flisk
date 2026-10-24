@@ -9,11 +9,11 @@ import { captureExit } from "../../test-support/index.js";
 import { checkPrismaConsistency } from "../../utils/doctor-wiring.js";
 import {
   errorFactories,
+  FliskError,
   requireProjectRoot,
   runCommand,
   showError,
   showErrorAndExit,
-  TdkError,
 } from "../../utils/errors.js";
 import { evaluateSharedPlatformPostgres } from "../../utils/shared-platform-postgres.js";
 import {
@@ -151,7 +151,7 @@ describe("error handling", () => {
       expectExit(2);
     });
 
-    it("routes unexpected and TdkError failures in runCommand through showError", async () => {
+    it("routes unexpected and FliskError failures in runCommand through showError", async () => {
       const stderr: string[] = [];
       vi.spyOn(console, "error").mockImplementation((...args) => {
         stderr.push(args.map(String).join(" "));
@@ -160,10 +160,10 @@ describe("error handling", () => {
 
       await expect(
         runCommand(async () => {
-          throw new Error(".tdk/project.json not found");
+          throw new Error(".flisk/project.json not found");
         }),
       ).rejects.toThrow("process.exit");
-      expect(stderr[0]).toContain("❌ .tdk/project.json not found");
+      expect(stderr[0]).toContain("❌ .flisk/project.json not found");
       expect(exit).toHaveBeenCalledWith(1);
 
       stderr.length = 0;
@@ -180,7 +180,7 @@ describe("error handling", () => {
       exit.mockClear();
       await expect(
         runCommand(async () => {
-          throw new TdkError("Custom failure", ["Try 'flisk doctor'"], 1);
+          throw new FliskError("Custom failure", ["Try 'flisk doctor'"], 1);
         }),
       ).rejects.toThrow("process.exit");
       expect(stderr[0]).toContain("❌ Custom failure");
@@ -242,12 +242,12 @@ describe("error handling", () => {
     });
 
     it("emits version floor errors with message and fix combined into a single diagnostic", () => {
-      const tempDir = mkdtempSync(join(tmpdir(), "tdk-version-test-"));
+      const tempDir = mkdtempSync(join(tmpdir(), "flisk-version-test-"));
       try {
-        mkdirSync(join(tempDir, ".tdk"), { recursive: true });
+        mkdirSync(join(tempDir, ".flisk"), { recursive: true });
         writeFileSync(
-          join(tempDir, ".tdk", "project.json"),
-          JSON.stringify({ minTdkVersion: "2.0.0" }),
+          join(tempDir, ".flisk", "project.json"),
+          JSON.stringify({ minFliskVersion: "2.0.0" }),
           "utf-8",
         );
 
@@ -304,7 +304,7 @@ describe("error handling", () => {
     });
 
     it("routes config consistency diagnostics to stderr and never to stdout", async () => {
-      const tempDir = mkdtempSync(join(tmpdir(), "tdk-config-verify-"));
+      const tempDir = mkdtempSync(join(tmpdir(), "flisk-config-verify-"));
       try {
         vi.mocked(requireProjectRoot).mockReturnValue(tempDir);
         vi.mocked(verifyMasterConfigs).mockReturnValue({

@@ -11,7 +11,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const converter = join(repoRoot, "engine", "topologies", "tilt", "manifest", "json_to_yaml.py");
 
 const hasPyYaml = spawnSync("python3", ["-c", "import yaml"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasPyYaml) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasPyYaml) {
   throw new Error("python3 with PyYAML is required for the manifest YAML converter tests in CI.");
 }
 
@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 function convert(manifest: Record<string, unknown>) {
-  const dir = mkdtempSync(join(tmpdir(), "tdk-manifest-yaml-"));
+  const dir = mkdtempSync(join(tmpdir(), "flisk-manifest-yaml-"));
   dirs.push(dir);
   const file = join(dir, "service.json");
   writeFileSync(file, JSON.stringify(manifest));

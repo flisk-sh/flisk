@@ -50,8 +50,8 @@ vi.mock("../../utils/windows-doctor.js", () => ({
     name: "Windows ports and DNS",
     didPass: false,
     message:
-      "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.\nAdd these lines to C:\\Windows\\System32\\drivers\\etc\\hosts (Administrator Notepad):\n127.0.0.1 tdk.localhost\n127.0.0.1 example.tdk.localhost\ngit core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.\nDocker Desktop Settings → Resources → File sharing must include this project directory.",
-    fix: "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.",
+      "Windows did not resolve *.flisk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.\nAdd these lines to C:\\Windows\\System32\\drivers\\etc\\hosts (Administrator Notepad):\n127.0.0.1 flisk.localhost\n127.0.0.1 example.flisk.localhost\ngit core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.\nDocker Desktop Settings → Resources → File sharing must include this project directory.",
+    fix: "Windows did not resolve *.flisk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.",
   })),
 }));
 
@@ -146,7 +146,7 @@ describe("doctor JSON command", () => {
         "Windows ports and DNS",
       ]);
       expect(report.data.checks[2].message).toContain("Windows containers");
-      expect(report.data.checks[3].message).toContain("tdk.localhost");
+      expect(report.data.checks[3].message).toContain("flisk.localhost");
       expect(report.data.checks[3].message).toContain("core.autocrlf");
       expect(report.data.host).toMatchObject({ kind: "native-windows", canUp: false });
       expect(report.errors).toEqual([]);

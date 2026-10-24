@@ -54,7 +54,7 @@ export function getTiltfilePath() {
     if (!projectRoot) {
         throw errorFactories.notInProject();
     }
-    return join(projectRoot, ".tdk", ".tdk-out", "Tiltfile");
+    return join(projectRoot, ".flisk", ".flisk-out", "Tiltfile");
 }
 function addTiltfilePath(args) {
     const tiltfilePath = getTiltfilePath();

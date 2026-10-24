@@ -84,7 +84,7 @@ jobs:
           cd tdk-example
           tail -160 up.log 2>/dev/null || true
           docker ps -a --format 'table {{.Names}}\t{{.Status}}' || true
-          docker logs tdk_example_nats 2>&1 | tail -200 || true
+          docker logs flisk_example_nats 2>&1 | tail -200 || true
 
       - name: Stop example
         if: always()

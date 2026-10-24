@@ -91,7 +91,7 @@ def load_manifest(resource_path, persist_to_disk=False):
     manifest_path = None
     
     # Prepend project root to relative paths for correct resolution
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
     if project_root and not resource_path.startswith('/'):
         base_path = project_root + '/' + resource_path
     else:
@@ -252,8 +252,8 @@ def _apply_manifest_defaults(manifest, resource_path):
             dockerfile_path = resource_path + '/' + build_context + '/' + custom_dockerfile
         else:
             dockerfile_path = resource_path + '/' + custom_dockerfile
-        # BUG FIX: Run check from project root since Tilt may run from .tdk/.tdk-out/
-        project_root = os.environ.get('TDK_PROJECT_ROOT', '')
+        # BUG FIX: Run check from project root since Tilt may run from .flisk/.flisk-out/
+        project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
         if project_root:
             dockerfile_exists = local(["sh", "-c", 'cd "$1" && test -f "$2" && echo yes || echo no', "sh", project_root, dockerfile_path], quiet=True, echo_off=True)
         else:

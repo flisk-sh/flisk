@@ -19,7 +19,7 @@ VERIFY_WAIT_SECONDS=180 tests/e2e/resource-types/bring-your-own/verify-byo-examp
 Through a real `flisk up` and Traefik (needs Docker, Tilt and a built CLI), (the first run also builds Flisk's shared base images, so allow several minutes on a cold Docker cache):
 
 ```bash
-VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh angular-cli /
+VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh angular-cli /
 ```
 
 ## Register it in a Flisk project

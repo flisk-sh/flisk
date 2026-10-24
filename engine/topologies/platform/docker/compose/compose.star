@@ -31,17 +31,17 @@ load("../constants.star", "PlatformDockerConstants")
 load("../config/healthcheck.star", "DOCKER_HEALTHCHECK", "compose_healthcheck_timing")
 
 # Load project name for dynamic host naming
-# Use TDK_PROJECT_ROOT env var set by Tilt, fallback to current directory
+# Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
 def _load_project_name():
-    project_root = os.environ.get('TDK_PROJECT_ROOT', '')
-    project_json_path = '.tdk/project.json'
+    project_root = os.environ.get('FLISK_PROJECT_ROOT', '')
+    project_json_path = '.flisk/project.json'
     if project_root:
         project_json_path = project_root + '/' + project_json_path
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'tdk-project')
-    return 'tdk-project'
+        return _project_json.get('project', {}).get('name', 'flisk-project')
+    return 'flisk-project'
 
 _PROJECT_NAME = _load_project_name()
 
@@ -201,7 +201,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     auth_config = AuthConfig.from_manifest(manifest)
     
     auth_env = AuthConfig.generate_docker_compose_auth_env(auth_config)
-    # secrets.required / secrets.optional, read from the project .env by Compose (empty with TDK_SECRET_PROVIDER=infisical)
+    # secrets.required / secrets.optional, read from the project .env by Compose (empty with FLISK_SECRET_PROVIDER=infisical)
     secrets_env = get_secret_environment_lines(manifest, res_name)
     
     byo_image = reject_unsafe_value(manifest.get('image'), 'image') if manifest else None
@@ -272,7 +272,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     # No HTTP server means no HTTP probe. Disable explicitly: the image HEALTHCHECK would otherwise probe a port nothing listens on.
     no_http_healthcheck_section = NO_HTTP_HEALTHCHECK if (is_worker or health_path == None) else ""
     # Backends with a health path get it in the env, so the shared golden image's HEALTHCHECK can probe it.
-    health_env = "      - TDK_HEALTH_PATH={}\n".format(health_path) if health_path else ""
+    health_env = "      - FLISK_HEALTH_PATH={}\n".format(health_path) if health_path else ""
     # An agent with files durability keeps its session checkpoints in a named volume. The volume is declared at the top of the
     # generated file (generate_app_compose_from_entries reads the marker line below), so flisk down keeps it.
     agent_env = ""
@@ -282,8 +282,8 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         agent_env = "      - AGENT_DURABILITY={}\n".format(agent_durability)
         if agent_durability == 'files':
             agent_volume = res_name + '-agent-state'
-            agent_env += "      - AGENT_STATE_DIR=/var/lib/tdk-agent\n"
-            agent_volume_section = "    # tdk-agent-volume: {vol}\n    volumes:\n      - {vol}:/var/lib/tdk-agent\n".format(vol=agent_volume)
+            agent_env += "      - AGENT_STATE_DIR=/var/lib/flisk-agent\n"
+            agent_volume_section = "    # flisk-agent-volume: {vol}\n    volumes:\n      - {vol}:/var/lib/flisk-agent\n".format(vol=agent_volume)
 
     if is_worker or is_proxy_disabled_byo:
         traefik_labels = '      - "traefik.enable=false"'
@@ -526,12 +526,12 @@ services:
 """.format(port_anchors=port_anchors)
 
     # Named volumes used by services (agent session state) must be declared at the top level. Services mark them with a
-    # "# tdk-agent-volume: <name>" line, so the declaration follows the services without a separate registry.
+    # "# flisk-agent-volume: <name>" line, so the declaration follows the services without a separate registry.
     volume_names = []
     for entry in resource_entries:
         for line in entry.split("\n"):
-            if line.strip().startswith("# tdk-agent-volume: "):
-                name = line.strip()[len("# tdk-agent-volume: "):]
+            if line.strip().startswith("# flisk-agent-volume: "):
+                name = line.strip()[len("# flisk-agent-volume: "):]
                 # Replicas of one agent repeat the marker; Compose rejects a duplicate key under volumes:.
                 if name not in volume_names:
                     volume_names.append(name)

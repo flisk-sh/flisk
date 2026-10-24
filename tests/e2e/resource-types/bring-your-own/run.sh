@@ -47,7 +47,7 @@ BY1() {
   sync_if_template "${args%% *}"
   run_verify verify-byo-example.sh "BY1 example runs alone and answers its health route with 200"
 }
-BY2() { run_verify verify-byo-tdk.sh "BY2 through flisk up and Traefik, with Flisk's Postgres and DATABASE_URL"; }
+BY2() { run_verify verify-byo-flisk.sh "BY2 through flisk up and Traefik, with Flisk's Postgres and DATABASE_URL"; }
 BY3() { run_verify verify-byo-job.sh "BY3 one-shot job exits 0 and its query returns the expected row"; }
 BY4() { run_verify verify-byo-pair.sh "BY4 dependency and app round trip through flisk up and Traefik"; }
 # Both Python cases validate service.json with the ajv CLI. Install it from scripts/ajv-cli when the runner does not have it

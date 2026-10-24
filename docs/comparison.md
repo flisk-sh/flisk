@@ -64,8 +64,8 @@ Each of these tools addresses distinct stages and philosophies of local developm
 
 ### Migration between Flisk and Plain Tilt
 
-- **From Plain Tilt to Flisk:** Developers translate custom `Tiltfile` resources into Flisk `service.json` files and remove custom Starlark scripts, allowing Flisk to generate `.tdk/.tdk-out/Tiltfile`.
-- **From Flisk to Plain Tilt:** Running `flisk eject` documents how to invoke Tilt directly against Flisk's generated Starlark output via `tilt up -f .tdk/.tdk-out/Tiltfile -- --focus=<stack>`. Alternatively, developers can copy the generated `Tiltfile` to the project root and maintain the Starlark configuration directly (see [Leaving Flisk](leaving-flisk.md)).
+- **From Plain Tilt to Flisk:** Developers translate custom `Tiltfile` resources into Flisk `service.json` files and remove custom Starlark scripts, allowing Flisk to generate `.flisk/.flisk-out/Tiltfile`.
+- **From Flisk to Plain Tilt:** Running `flisk eject` documents how to invoke Tilt directly against Flisk's generated Starlark output via `tilt up -f .flisk/.flisk-out/Tiltfile -- --focus=<stack>`. Alternatively, developers can copy the generated `Tiltfile` to the project root and maintain the Starlark configuration directly (see [Leaving Flisk](leaving-flisk.md)).
 
 ## Flisk vs Skaffold
 

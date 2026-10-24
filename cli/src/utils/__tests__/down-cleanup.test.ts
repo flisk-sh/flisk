@@ -3,15 +3,15 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   findProjectTiltUpPids,
+  fliskNetworkOwner,
+  fliskNetworkPrefixes,
   projectNetworkNames,
   pruneProjectNetworks,
   stopProjectTiltUp,
-  tdkNetworkOwner,
-  tdkNetworkPrefixes,
   waitForTiltUpExit,
 } from "../down-cleanup.js";
 
-const TILTFILE = "/work/shop/.tdk/.tdk-out/Tiltfile";
+const TILTFILE = "/work/shop/.flisk/.flisk-out/Tiltfile";
 
 describe("projectNetworkNames", () => {
   it("prefixes the engine's network names with the underscored project name", () => {
@@ -35,7 +35,7 @@ describe("projectNetworkNames", () => {
   });
 });
 
-describe("tdkNetworkPrefixes", () => {
+describe("fliskNetworkPrefixes", () => {
   it("extracts unique project prefixes from traefik-public and traefik-private networks", () => {
     const networks = [
       "shop_traefik-public",
@@ -45,41 +45,41 @@ describe("tdkNetworkPrefixes", () => {
       "bridge",
       "host",
     ];
-    const prefixes = tdkNetworkPrefixes(networks);
+    const prefixes = fliskNetworkPrefixes(networks);
     expect(prefixes).toEqual(new Set(["shop", "billing_system"]));
   });
 
   it("returns an empty set when no traefik networks are present", () => {
     const networks = ["backend", "database", "redis_network", "none"];
-    expect(tdkNetworkPrefixes(networks)).toEqual(new Set());
-    expect(tdkNetworkPrefixes([])).toEqual(new Set());
+    expect(fliskNetworkPrefixes(networks)).toEqual(new Set());
+    expect(fliskNetworkPrefixes([])).toEqual(new Set());
   });
 
   it("ignores traefik network names that lack a leading underscore delimiter", () => {
     const networks = ["traefik-public", "traefik-private"];
-    expect(tdkNetworkPrefixes(networks)).toEqual(new Set());
+    expect(fliskNetworkPrefixes(networks)).toEqual(new Set());
   });
 });
 
-describe("tdkNetworkOwner", () => {
+describe("fliskNetworkOwner", () => {
   const prefixes = new Set(["shop", "billing"]);
 
   it("returns the project prefix for networks matching known project suffixes", () => {
-    expect(tdkNetworkOwner("shop_backend", prefixes)).toBe("shop");
-    expect(tdkNetworkOwner("shop_database", prefixes)).toBe("shop");
-    expect(tdkNetworkOwner("shop_traefik-public", prefixes)).toBe("shop");
-    expect(tdkNetworkOwner("shop_traefik-private", prefixes)).toBe("shop");
-    expect(tdkNetworkOwner("billing_proxy", prefixes)).toBe("billing");
-    expect(tdkNetworkOwner("billing_infisical-network", prefixes)).toBe("billing");
-    expect(tdkNetworkOwner("billing_verdaccio-network", prefixes)).toBe("billing");
+    expect(fliskNetworkOwner("shop_backend", prefixes)).toBe("shop");
+    expect(fliskNetworkOwner("shop_database", prefixes)).toBe("shop");
+    expect(fliskNetworkOwner("shop_traefik-public", prefixes)).toBe("shop");
+    expect(fliskNetworkOwner("shop_traefik-private", prefixes)).toBe("shop");
+    expect(fliskNetworkOwner("billing_proxy", prefixes)).toBe("billing");
+    expect(fliskNetworkOwner("billing_infisical-network", prefixes)).toBe("billing");
+    expect(fliskNetworkOwner("billing_verdaccio-network", prefixes)).toBe("billing");
   });
 
   it("returns null when the suffix is unknown or prefix is not in the set", () => {
-    expect(tdkNetworkOwner("unknown_backend", prefixes)).toBeNull();
-    expect(tdkNetworkOwner("shop_custom-network", prefixes)).toBeNull();
-    expect(tdkNetworkOwner("shop_redis", prefixes)).toBeNull();
-    expect(tdkNetworkOwner("bridge", prefixes)).toBeNull();
-    expect(tdkNetworkOwner("", prefixes)).toBeNull();
+    expect(fliskNetworkOwner("unknown_backend", prefixes)).toBeNull();
+    expect(fliskNetworkOwner("shop_custom-network", prefixes)).toBeNull();
+    expect(fliskNetworkOwner("shop_redis", prefixes)).toBeNull();
+    expect(fliskNetworkOwner("bridge", prefixes)).toBeNull();
+    expect(fliskNetworkOwner("", prefixes)).toBeNull();
   });
 });
 
@@ -150,7 +150,7 @@ describe("pruneProjectNetworks", () => {
 describe("findProjectTiltUpPids and stopProjectTiltUp", () => {
   const ps = [
     `  100 /opt/homebrew/bin/tilt up -f ${TILTFILE} -- --focus=shop`,
-    `  101 /opt/homebrew/bin/tilt up -f /work/other/.tdk/.tdk-out/Tiltfile`,
+    `  101 /opt/homebrew/bin/tilt up -f /work/other/.flisk/.flisk-out/Tiltfile`,
     `  102 /opt/homebrew/bin/tilt down -f ${TILTFILE}`,
     `  103 /opt/homebrew/bin/tilt up -f ${TILTFILE}-copy`,
     `  104 vim ${TILTFILE}`,

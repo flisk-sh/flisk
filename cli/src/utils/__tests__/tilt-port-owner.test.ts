@@ -18,7 +18,7 @@ afterEach(() => {
   execFileSyncMock.mockReset();
 });
 
-const TILT = "tilt up -f /work/other/.tdk/.tdk-out/Tiltfile";
+const TILT = "tilt up -f /work/other/.flisk/.flisk-out/Tiltfile";
 
 function runner(map: Record<string, string>) {
   return (command: string, args: string[]) => {

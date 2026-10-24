@@ -23,7 +23,7 @@ export declare function ensureGitignore(projectRoot: string): string[];
  */
 export declare function isInsideGitWorkTree(startPath: string): boolean;
 /**
- * Makes sure the smoke records cannot be committed by accident: the project .gitignore must ignore `.tdk/smoke/` before
+ * Makes sure the smoke records cannot be committed by accident: the project .gitignore must ignore `.flisk/smoke/` before
  * `flisk up` writes a record. Only meaningful inside a git working tree, so nothing is written outside one. Returns the
  * warning to show when the entry could not be ensured, and undefined when it is.
  */

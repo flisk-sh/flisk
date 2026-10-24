@@ -19,7 +19,7 @@ An unchanged rebuild of kitchen-api with a warm cache takes 11s, so most of the 
 
 ### New Capabilities
 
-- `tdk-up-build-performance`: How `flisk up` schedules and skips image builds so a warm start does only the work that changed.
+- `flisk-up-build-performance`: How `flisk up` schedules and skips image builds so a warm start does only the work that changed.
 
 ### Modified Capabilities
 

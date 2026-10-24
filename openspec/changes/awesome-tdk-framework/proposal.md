@@ -14,7 +14,7 @@ Flisk resources are spread across organization repositories, documentation, exam
 ## Capabilities
 
 ### New Capabilities
-- `tdk-resource-landscape`: A minimal public catalog organized in README, with a dedicated contribution guide.
+- `flisk-resource-landscape`: A minimal public catalog organized in README, with a dedicated contribution guide.
 
 ### Modified Capabilities
 

@@ -35,7 +35,7 @@ const num = (value) => (typeof value === "number" && Number.isFinite(value) ? va
 const fmt = (value, digits = 1) => (num(value) === null ? "n/a" : Number(value).toFixed(digits));
 const readJson = (path) => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null);
 
-// One run: a summary.json written by summarize-tdk-up.mjs.
+// One run: a summary.json written by summarize-flisk-up.mjs.
 function loadRun(dir, label) {
 	const summary = readJson(join(dir, "summary.json"));
 	if (!summary) return null;
@@ -44,17 +44,17 @@ function loadRun(dir, label) {
 
 const current = loadRun(resolve(values.run), "This run");
 if (!current) {
-	console.error(`No summary.json in ${values.run}; run summarize-tdk-up.mjs first.`);
+	console.error(`No summary.json in ${values.run}; run summarize-flisk-up.mjs first.`);
 	process.exit(1);
 }
 
-// Committed history: every published tdk-up-warm-start-* folder, oldest first.
+// Committed history: every published flisk-up-warm-start-* folder, oldest first.
 const historyDir = resolve(values.history);
 const history = existsSync(historyDir)
 	? readdirSync(historyDir)
-			.filter((name) => name.startsWith("tdk-up-warm-start-"))
+			.filter((name) => name.startsWith("flisk-up-warm-start-"))
 			.sort()
-			.map((name) => loadRun(join(historyDir, name), name.replace("tdk-up-warm-start-", "")))
+			.map((name) => loadRun(join(historyDir, name), name.replace("flisk-up-warm-start-", "")))
 			.filter(Boolean)
 	: [];
 
@@ -209,7 +209,7 @@ footer a { color: var(--accent); }
 <section id="t-env" role="tabpanel" aria-labelledby="b-env" hidden>${envTab}</section>
 </main>
 <footer>
-Source: <a href="https://github.com/flisk-sh/flisk/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/tdk-up-warm-start.sh</code> · raw data in <a href="https://github.com/flisk-sh/flisk/tree/main/benchmarks/results">benchmarks/results</a>
+Source: <a href="https://github.com/flisk-sh/flisk/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/flisk-up-warm-start.sh</code> · raw data in <a href="https://github.com/flisk-sh/flisk/tree/main/benchmarks/results">benchmarks/results</a>
 </footer>
 <script>
 (function () {

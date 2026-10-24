@@ -18,7 +18,7 @@
 - [x] 3.1 Update `cli/src/commands/doctor.ts`, `cli/src/utils/doctor-runtime.ts`, and `cli/src/utils/doctor-wiring.ts` to find Docker, Tilt, Bun, and npm-only Node using `findOnPath` and retain existing version gates.
 - [x] 3.2 Add Windows Docker daemon-running and Linux-container-mode checks with the exact specified next-step messages.
 - [x] 3.3 Keep the Node port bind test; add PowerShell listener ownership and netsh excluded-range diagnostics, including IIS naming and Hyper-V/WSL guidance.
-- [x] 3.4 Add Windows DNS checks for `tdk.localhost` and a sample host, exact hosts-file guidance, project-drive file-sharing guidance, and a non-mutating `core.autocrlf` warning.
+- [x] 3.4 Add Windows DNS checks for `flisk.localhost` and a sample host, exact hosts-file guidance, project-drive file-sharing guidance, and a non-mutating `core.autocrlf` warning.
 - [x] 3.5 Update Windows `flisk networks` output to include hostname and numeric loopback URLs while preserving Unix routing defaults.
 - [x] 3.6 Review generated Compose/Tilt/templates for Windows-host assumptions; retain Linux containers and project-relative mounts, avoid host-side chmod, and preserve existing port overrides.
 

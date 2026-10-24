@@ -24,7 +24,7 @@ tests/e2e/resource-types/bring-your-own/verify-byo-example.sh django /
 Through a real `flisk up` and Traefik (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh django /
+VERIFY_WAIT_SECONDS=300 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh django /
 ```
 
 ## Register it in a Flisk project

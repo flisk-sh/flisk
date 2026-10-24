@@ -463,7 +463,7 @@ describe("flag contract: -y/--yes and --force convention", () => {
 
 describe("flag contract: unknown flag handling", () => {
   it("rejects unknown flags with error and non-zero exit code", () => {
-    const dir = createTempDir("tdk-unknown-flag-");
+    const dir = createTempDir("flisk-unknown-flag-");
     try {
       const res = runFlisk(["status", "--nonexistent-flag-test"], { cwd: dir });
       expect(res.status).toBe(1);

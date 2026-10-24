@@ -7,11 +7,11 @@
   },
   "devDependencies": {
     "nitropack": "^2.10.0",
-    "node-forge": "file:vendor/node-forge-1.4.1-tdk.1.tgz",
-    "braces": "file:vendor/braces-3.0.4-tdk.1.tgz"
+    "node-forge": "file:vendor/node-forge-1.4.1-flisk.1.tgz",
+    "braces": "file:vendor/braces-3.0.4-flisk.1.tgz"
   },
   "overrides": {
-    "node-forge": "file:vendor/node-forge-1.4.1-tdk.1.tgz",
-    "braces": "file:vendor/braces-3.0.4-tdk.1.tgz"
+    "node-forge": "file:vendor/node-forge-1.4.1-flisk.1.tgz",
+    "braces": "file:vendor/braces-3.0.4-flisk.1.tgz"
   }
 }

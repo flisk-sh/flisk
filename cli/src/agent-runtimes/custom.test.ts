@@ -121,13 +121,13 @@ describe("postgres durability template", () => {
       "process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/postgres'",
     );
     expect(index).toContain("new Client({ connectionString: DATABASE_URL })");
-    expect(index).toContain("CREATE TABLE IF NOT EXISTS tdk_agent_sessions");
+    expect(index).toContain("CREATE TABLE IF NOT EXISTS flisk_agent_sessions");
     expect(index).toContain("session_id VARCHAR(128) PRIMARY KEY");
     expect(index).toContain("ON CONFLICT (session_id) DO UPDATE");
   });
 
   it("loads a saved session and upserts messages as JSON", () => {
-    expect(index).toContain("SELECT messages FROM tdk_agent_sessions WHERE session_id = $1");
+    expect(index).toContain("SELECT messages FROM flisk_agent_sessions WHERE session_id = $1");
     expect(index).toContain("return { sessionId, messages: res.rows[0].messages };");
     expect(index).toContain("JSON.stringify(checkpoint.messages)");
   });

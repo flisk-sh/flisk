@@ -29,9 +29,9 @@ export declare function enforceDriftGate(projectRoot: string, options: {
     resources?: DiscoveredResource[];
 }, exit?: (code: number) => never): void;
 /**
- * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minTdkVersion` in
- * .tdk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
- * `ignoreVersion` skips the check and says so. No minTdkVersion means no check.
+ * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minFliskVersion` in
+ * .flisk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
+ * `ignoreVersion` skips the check and says so. No minFliskVersion means no check.
  */
 export declare function enforceVersionFloor(projectRoot: string, options: {
     ignoreVersion?: boolean;
@@ -47,7 +47,7 @@ export declare function waitForTiltUnlessStartupFailed<T>(tiltRun: Promise<T>, s
  * file is resolved, read and checked before anything is written or started. Without the option the
  * project `.env` stays the env file of the run, exactly as before.
  *
- * @throws TdkError when the file cannot be used; the run stops before it starts
+ * @throws FliskError when the file cannot be used; the run stops before it starts
  */
 export declare function selectRunEnvFile(projectRoot: string | null, requested: string | undefined): SelectedEnvFile | undefined;
 export declare const upCommand: Command;
