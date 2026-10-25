@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -71,7 +71,8 @@ describe("findProjectRoot", () => {
       mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
       writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
 
-      expect(findProjectRoot()).toBe(tmpDir);
+      // process.cwd() reports the resolved path, which differs from tmpDir on macOS (/var -> /private/var).
+      expect(findProjectRoot()).toBe(realpathSync(tmpDir));
     } finally {
       process.chdir(originalCwd);
     }
