@@ -437,8 +437,8 @@ jobs:
         run: |
           mkdir example-project && cd example-project
           flisk project example --yes
-          test -f tdk-example/Tiltfile
-          test -f tdk-example/TILT_TECH_STACK.star
+          test -f flisk-example/Tiltfile
+          test -f flisk-example/TILT_TECH_STACK.star
           echo "✅ Installed package copies the bundled example"
 
   npm-package-smoke:

@@ -170,7 +170,7 @@ describe("flisk project without a local runtime", () => {
   it("clones a starter template while Docker is stopped and Tilt is missing", async () => {
     await runProject({ check: false, force: false, yes: true }, "example");
 
-    expect(existsSync(join(root, "tdk-example", "services"))).toBe(true);
+    expect(existsSync(join(root, "flisk-example", "services"))).toBe(true);
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
