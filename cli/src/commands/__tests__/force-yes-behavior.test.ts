@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -56,7 +56,8 @@ describe("behavioral flag contract: --force vs --yes", () => {
   const originalCwd = process.cwd();
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "flisk-force-yes-behavior-"));
+    // realpath: on macOS tmpdir() is under /var, a symlink to /private/var, and process.cwd() reports the latter.
+    tempDir = realpathSync(mkdtempSync(join(tmpdir(), "flisk-force-yes-behavior-")));
     mkdirSync(join(tempDir, ".flisk"), { recursive: true });
     writeFileSync(
       join(tempDir, ".flisk", "project.json"),
