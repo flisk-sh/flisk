@@ -1,10 +1,10 @@
-export type TdkOs = "linux" | "darwin" | "windows";
-export type TdkArch = "amd64" | "arm64";
+export type FliskOs = "linux" | "darwin" | "windows";
+export type FliskArch = "amd64" | "arm64";
 export declare function isWindows(): boolean;
-export declare function tdkOsFor(platformName: string): TdkOs | null;
-export declare function tdkOs(): TdkOs | null;
-export declare function tdkArchFor(architecture: string): TdkArch | null;
-export declare function tdkArch(): TdkArch | null;
+export declare function fliskOsFor(platformName: string): FliskOs | null;
+export declare function fliskOs(): FliskOs | null;
+export declare function fliskArchFor(architecture: string): FliskArch | null;
+export declare function fliskArch(): FliskArch | null;
 export declare function binaryAssetNameFor(platformName: string, architecture: string): string | null;
 export declare function binaryAssetName(): string | null;
 export declare function executableName(): string;

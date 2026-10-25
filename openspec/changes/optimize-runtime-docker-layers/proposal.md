@@ -39,6 +39,6 @@ Nothing here is breaking for service code. Services that relied on hugo being pr
   - `engine/topologies/platform/docker/build/golden_image_dockerfile.star`: hugo removal, healthcheck interval, migrator healthcheck.
   - `engine/topologies/platform/docker/compose/compose.star`: compose healthcheck (lines 141, 264) reads the shared config; `init: true`.
 - **CLI:** `cli/src/commands/doctor.ts` gets a Docker Engine / Compose minimum-version check.
-- **Generated projects:** every project needs `flisk project --yes` (re-vendoring `.tdk/.tdk-out/tdk-cli-ext/`) and a golden image rebuild to pick up the change. Existing images keep working until then.
+- **Generated projects:** every project needs `flisk project --yes` (re-vendoring `.flisk/.flisk-out/flisk-cli-ext/`) and a golden image rebuild to pick up the change. Existing images keep working until then.
 - **Behaviour:** after a failure, Docker marks a container unhealthy up to about 20 s later than today. Tilt readiness and dependency ordering still use the start period.
 - **Tests:** starlark and generated-Dockerfile snapshot tests covering these files need updating.

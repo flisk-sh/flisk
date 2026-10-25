@@ -12,9 +12,9 @@ const client = fileURLToPath(new URL("../mcp-client.mjs", import.meta.url));
 const dir = mkdtempSync(path.join(tmpdir(), "mcp-client-"));
 
 // A fake `flisk` whose `mcp` subcommand answers JSON-RPC lines: initialize, tools/list, and tools/call echoing the arguments.
-const fakeTdk = path.join(dir, "flisk");
+const fakeFlisk = path.join(dir, "flisk");
 writeFileSync(
-  fakeTdk,
+  fakeFlisk,
   `#!/usr/bin/env node
 const rl = require("node:readline").createInterface({ input: process.stdin });
 const reply = (id, result) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\\n");
@@ -27,12 +27,12 @@ rl.on("line", (line) => {
 });
 `,
 );
-chmodSync(fakeTdk, 0o755);
+chmodSync(fakeFlisk, 0o755);
 
 const run = (calls, extra = []) => {
   const callsFile = path.join(dir, `calls-${Math.random()}.json`);
   writeFileSync(callsFile, JSON.stringify(calls));
-  return spawnSync(process.execPath, [client, ...extra, callsFile], { encoding: "utf8", env: { ...process.env, TDK_BIN: fakeTdk } });
+  return spawnSync(process.execPath, [client, ...extra, callsFile], { encoding: "utf8", env: { ...process.env, FLISK_BIN: fakeFlisk } });
 };
 
 test("runs initialize, tools/list and each call in order", () => {

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Golden layer set: one image per distinct stage, no duplicate images.
@@ -26,7 +26,7 @@ pytestmark = [
     pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed"),
 ]
 
-DOCKER_DIR = Path(__file__).resolve().parents[2] / "engine" / "topologies" / "platform" / "docker"
+DOCKER_DIR = Path(__file__).resolve().parents[2] / "runtime" / "engine" / "topologies" / "platform" / "docker"
 RESULT_MARKER = "Error in fail: RESULT"
 
 
@@ -39,7 +39,7 @@ def run_starlark(tmp_path: Path, body: str) -> dict:
         capture_output=True,
         text=True,
         cwd=tmp_path,
-        env={**os.environ, "TDK_PROJECT_ROOT": str(tmp_path)},
+        env={**os.environ, "FLISK_PROJECT_ROOT": str(tmp_path)},
         timeout=180,
     )
     output = proc.stdout + proc.stderr

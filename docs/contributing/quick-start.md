@@ -2,6 +2,10 @@
 
 From a fresh clone to your first passing test run and pull request in about five minutes. For the full walkthrough, see [Get ready to make a change](01-first-change.md).
 
+## Say hello first
+
+Join the [Flisk Discord](https://discord.gg/Sjhb3tnq3) and tell us what you would like to work on. A maintainer will help you choose a first task and answer questions while you set up.
+
 ## 1. Prerequisites
 
 - [Git](https://git-scm.com/)
@@ -43,22 +47,22 @@ npm --prefix cli run build
 ## 6. Try your build
 
 ```bash
-node cli/bin/tdk.js --help
+node cli/bin/flisk.js --help
 ```
 
 ## 7. Check your machine
 
 ```bash
-node cli/bin/tdk.js doctor
+node cli/bin/flisk.js doctor
 ```
 
 `doctor` reports whether Docker, Tilt, and the other runtime pieces are ready. It changes nothing. Failures for Docker or Tilt are fine if you only work on the CLI.
 
-`node cli/bin/tdk.js demo` is the full one-command demo, not a preview: it clones the demo project into `~/.flisk/flisk-demo`, installs `flisk` globally, and starts the stack. Run it only once Docker and Tilt are set up.
+`node cli/bin/flisk.js demo` is the full one-command demo, not a preview: it clones the demo project into `~/.flisk/flisk-demo`, installs `flisk` globally, and starts the stack. Run it only once Docker and Tilt are set up.
 
 ## 8. Make a change
 
-Edit a file, then rerun the checks from steps 3 to 5. Commit with a [DCO](../../CONTRIBUTING.md) sign-off:
+Edit a file, then rerun the checks from steps 3 to 5. Commit with a [DCO](../../.github/CONTRIBUTING.md) sign-off:
 
 ```bash
 git add path/to/your/files

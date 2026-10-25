@@ -12,8 +12,14 @@ Check one (needs Docker; builds the image, runs it with `PORT=4000`, expects HTT
 
 ```bash
 tests/e2e/resource-types/bring-your-own/verify-byo-example.sh fastify          # health path /health
-tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-vue /     # Vite apps answer on /
+scripts/sync-byo-templates.sh vue && tests/e2e/resource-types/bring-your-own/verify-byo-example.sh create-vue /   # synced template; Vite apps answer on /
 ```
+
+`create-vue`, `create-next-app`, `create-adonisjs`, `create-analog` and `create-bati` live in their own repositories,
+[flisk-template-vue](https://github.com/flisk-sh/flisk-template-vue), [flisk-template-next-app](https://github.com/flisk-sh/flisk-template-next-app),
+[flisk-template-adonisjs](https://github.com/flisk-sh/flisk-template-adonisjs), [flisk-template-analog](https://github.com/flisk-sh/flisk-template-analog)
+and [flisk-template-bati](https://github.com/flisk-sh/flisk-template-bati), each with its own `verify` and `flisk up` `e2e` checks. [`templates.json`](templates.json) pins each one to a release tag, and `scripts/sync-byo-templates.sh` copies it
+here; the copies are git-ignored. Change a template in its repository, then bump its tag in `templates.json`.
 
 An app that needs another resource (a database server, for example [turso-app](turso-app/README.md) with [turso](turso/README.md))
 cannot run alone. Check the pair in one project, through a real `flisk up`:
@@ -26,7 +32,7 @@ An app that needs Flisk's own Postgres cannot run alone either. Check it through
 Postgres and `DATABASE_URL`:
 
 ```bash
-tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh full-stack-fastapi-template /api/v1/utils/health-check/
+tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh full-stack-fastapi-template /api/v1/utils/health-check/
 ```
 
 Every folder has its own `README.md` with its stack, notes and the exact check command, so adding an

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import "./utils/env-compat-init.js";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
@@ -32,7 +33,7 @@ if (templateArg) {
     // Native Windows cannot boot a stack, so the one-command flow refuses before it clones a
     // template, installs the CLI globally or writes into the home directory.
     const { nativeWindowsStackRefusal } = await import("./utils/native-windows.js");
-    const platformRefusal = nativeWindowsStackRefusal(process.platform, process.env.TDK_ALLOW_NATIVE_WINDOWS);
+    const platformRefusal = nativeWindowsStackRefusal(process.platform, process.env.FLISK_ALLOW_NATIVE_WINDOWS);
     if (platformRefusal) {
         console.error(chalk.red(`❌ ${platformRefusal}`));
         console.error(chalk.gray("   Run it from Ubuntu in WSL2. Guide: docs/wsl2.md"));
@@ -71,7 +72,7 @@ if (templateArg) {
     // dependency install are skipped, so the recording starts on the interesting part.
     let reused = false;
     if (fixedDir && existsSync(destination)) {
-        if (!existsSync(join(destination, ".tdk", "project.json"))) {
+        if (!existsSync(join(destination, ".flisk", "project.json"))) {
             console.log(chalk.yellow(`${destination} already exists and is not a Flisk project.`));
             console.log(chalk.gray("  Remove it, or use --project <dir> to put the demo somewhere else."));
             process.exit(1);
@@ -230,7 +231,7 @@ if (templateArg) {
     const first = await pickReadyFrontend(targets, 30_000);
     if (first)
         await openUrl(first.url);
-    const generated = countFiles(join(destination, ".tdk"));
+    const generated = countFiles(join(destination, ".flisk"));
     const wired = countFiles(destination, ["node_modules", ".git"]);
     stage.update({ subtitle: `${templateArg} starter \u00b7 ${countLabel(wired, "file")} wired` });
     stage.finish({

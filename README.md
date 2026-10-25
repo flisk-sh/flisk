@@ -1,34 +1,122 @@
 <div align="center">
 
-# Flisk CLI — generate and run your whole tech stack without the setup pain
+# Flisk: your whole stack, running locally with one command
 
-Go from an empty folder to a running tech stack with one command. Built for agents.
+Ask your AI agent for an app, or type four commands yourself.<br />Flisk sets up the containers, database, routing, and secrets, wires them together, and keeps them in sync as you change things.
 
-<img src="https://raw.githubusercontent.com/flisk-sh/.github/main/profile/header-green.svg" alt="Flisk: your whole stack, running locally with one command." width="100%">
+<img src="https://raw.githubusercontent.com/flisk-sh/.github/main/profile/header-flisk.svg" alt="Flisk: your whole stack, running locally with one command." width="100%">
 
+[![Flisk Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/Sjhb3tnq3)
+[![npm version](https://img.shields.io/npm/v/@flisk-sh/flisk.svg?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![npm weekly downloads](https://img.shields.io/npm/dw/@flisk-sh/flisk?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![GitHub stars](https://img.shields.io/github/stars/flisk-sh/flisk?style=flat&logo=github)](https://github.com/flisk-sh/flisk/stargazers) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[![Flisk Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/JG6r33HVB)
-[![npm version](https://img.shields.io/npm/v/@flisk-sh/flisk.svg?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![npm weekly downloads](https://img.shields.io/npm/dw/@flisk-sh/flisk?style=flat&color=blue)](https://www.npmjs.com/package/@flisk-sh/flisk) [![unpacked size](https://img.shields.io/npm/unpacked-size/@flisk-sh/flisk)](https://packagephobia.com/result?p=@flisk-sh/flisk) [![install size](https://badgen.net/packagephobia/install/@flisk-sh/flisk)](https://packagephobia.com/result?p=@flisk-sh/flisk) [![GitHub stars](https://img.shields.io/github/stars/flisk-sh/flisk?style=flat&logo=github)](https://github.com/flisk-sh/flisk/stargazers) [![OSS Insight](https://img.shields.io/badge/OSS%20Insight-analytics-blue)](https://ossinsight.io/analyze/flisk-sh/flisk) [![X followers: 1,605](https://img.shields.io/badge/X%20followers-1%2C605-1DA1F2?style=flat&logo=x&logoColor=white)](https://x.com/brookservers)
-[![Journeys E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-journeys.yml) [![ERP fixture scale E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-scale-full.yml/badge.svg)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-scale-full.yml) [![Example apps E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-real-apps.yml) [![CodeQL](https://github.com/flisk-sh/flisk/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/flisk-sh/flisk/security/code-scanning) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/flisk-sh/flisk/badge)](https://scorecard.dev/viewer/?uri=github.com/flisk-sh/flisk) [![Known Vulnerabilities](https://snyk.io/test/github/flisk-sh/flisk/badge.svg)](https://snyk.io/test/github/flisk-sh/flisk) [![Socket Badge](https://badge.socket.dev/npm/package/@flisk-sh/flisk/latest)](https://socket.dev/npm/package/@flisk-sh/flisk/overview)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-[![ERP backends healthy](https://img.shields.io/badge/ERP%20backends%20healthy-100%2F100-brightgreen)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP time to all healthy](https://img.shields.io/badge/ERP%20time%20to%20all%20healthy-524s-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP frontends answering](https://img.shields.io/badge/ERP%20frontends%20answering-7%2F7-brightgreen)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP running containers](https://img.shields.io/badge/ERP%20running%20containers-109-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP memory used](https://img.shields.io/badge/ERP%20memory%20used-1736%20MiB-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471)
-[![Test coverage](https://raw.githubusercontent.com/flisk-sh/flisk/main/docs/assets/coverage.svg)](https://github.com/flisk-sh/flisk/blob/main/docs/assets/coverage.svg)
-
-<sub>ERP fixture scale run on a clean GitHub-hosted runner (4 vCPU, 15 GB RAM), snapshot from [run 39160719471](https://github.com/flisk-sh/flisk/actions/runs/39160719471). The live status is in the ERP fixture scale E2E badge above.</sub>
-
-<a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/daily?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
 <a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/weekly?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
+
+<img src="docs/assets/demo-ai.svg" alt="An AI coding agent builds a small online shop with Flisk and runs it locally" width="900" />
+
+<sub>An illustrative agent session. The Flisk commands, and the service list and URLs Flisk prints, come from a real run. Copy the prompt from <a href="#with-your-ai-agent">Try it</a>.</sub>
+
+</div>
+
+## Trusted by
+
+<table align="center">
+  <tr><td align="center" valign="middle"><a href="https://www.linkedin.com/company/lekast/"><img src="docs/assets/trusted-by/lekast.png" alt="Lekast" height="64"></a></td><td align="center" valign="middle"><a href="https://medium.com/@mfin.services"><img src="docs/assets/trusted-by/mfin-services.png" alt="MFin Services" height="64"></a></td><td align="center" valign="middle"><a href="https://www.linkedin.com/company/makeofferio"><img src="docs/assets/trusted-by/makeoffer.png" alt="MakeOffer" height="64"></a></td><td align="center" valign="middle"><a href="https://redmoon.digital/"><img src="docs/assets/trusted-by/redmoon-digital.png" alt="RedMoon.Digital" height="64"></a></td></tr>
+</table>
+
+<p align="center"><sub>Teams that run <code>flisk up</code> on their own code, listed with their consent. <a href="docs/project/ADOPTERS.md">See all adopters</a> or <a href="https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml">add yours</a>.</sub></p>
+
+## Try it
+
+### With your AI agent
+
+Install Flisk, then paste a prompt into your coding agent. Claude Code, Codex, Cursor, GitHub Copilot, and any other agent that can run commands will work. Every block below has a copy button.
+
+```bash
+npm install -g @flisk-sh/flisk
+```
+
+**The prompt from the demo:**
+
+```text
+Build me a small online shop with a storefront and an orders API, and run it on my laptop with Flisk.
+```
+
+Your agent creates the project, adds each part, and starts it. If something is missing on your computer, `flisk doctor` tells it what to fix.
+
+<details>
+<summary>More prompts to copy</summary>
+
+**Add a service to a project you already have**
+
+```text
+Use Flisk to add a backend service called payments-api to my shop stack, then start the stack and give me the URLs.
+```
+
+**Build an AI agent with tools and a database**
+
+```text
+Use Flisk to scaffold an AI agent, an MCP tools server, and a database in one stack called shop, then start it and tell me how to talk to the agent.
+```
+
+**Something is not working**
+
+```text
+Run flisk doctor, explain every problem in plain words, and fix what you can. Then start my stack with flisk up.
+```
+
+**See what is running**
+
+```text
+Use flisk status to tell me which services are running, which are unhealthy, and what URL each one has.
+```
+
+**Stop everything**
+
+```text
+Stop my Flisk stack with flisk down and confirm nothing is left running.
+```
+
+</details>
+
+<details>
+<summary>Connect your agent to Flisk as an MCP server</summary>
+
+Add this to your agent's MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "flisk": { "command": "flisk", "args": ["mcp"] }
+  }
+}
+```
+
+The agent can then start the stack, check status, restart a service, and read agent sessions through Flisk tools instead of shell commands. See [use Flisk with your AI agent](#use-flisk-with-your-ai-agent).
+
+</details>
+
+### In your terminal
+
 <p align="center">
-  <a href="https://www.bestpractices.dev/projects/15310">
-    <img src="https://www.bestpractices.dev/assets/openssf_bestpracticesbadge-a908f4124737f3d6b2c5abc82756bd2a435cff474b45615ce469746c31a4288c.svg" alt="OpenSSF Best Practices" height="80" align="middle" style="vertical-align: middle" />
-  </a>
-  <a href="https://www.bestpractices.dev/projects/15310">
-    <img src="https://img.shields.io/badge/OpenSSF%20Silver-95%25-yellow" alt="OpenSSF Silver: 95%" height="40" align="middle" style="vertical-align: middle" />
-  </a>
+<img src="docs/assets/demo-cli.svg" alt="Four flisk commands create a project, an API, and a website, then start them" width="900" />
 </p>
 
-<br />
+```bash
+npm install -g @flisk-sh/flisk
+mkdir my-shop && cd my-shop
+flisk project --yes
+flisk resource orders-api --type backend --stack shop --yes
+flisk resource shop-web --type frontend --stack shop --yes
+flisk up shop
+```
+
+You get an orders API and a storefront behind one local gateway, with Postgres and live reload. You need Docker, [Tilt](https://docs.tilt.dev/install.html), Node.js 22.12+, and [Bun](https://bun.sh/) 1.2+; `flisk doctor` checks your machine. Prefer to answer questions instead? `npm init create-microservices my-project` asks what to create. See the [quick start](#quick-start) for every option.
+
+<div align="center">
+
+<p><strong><a href="#quick-start">Quick start</a> · <a href="#why-flisk-cli">Why Flisk</a> · <a href="#examples">Examples</a> · <a href="#installation">Installation</a> · <a href="#faq">FAQ</a> · <a href="#docs">Documentation</a></strong></p>
+
+[Website](https://flisk.sh/) · [Quickstart](https://flisk.sh/docs/quickstart/) · [Examples](https://flisk.sh/docs/examples/) · [Awesome Flisk](https://github.com/flisk-sh/awesome-tdk-framework) · [Demo](https://flisk-sh.github.io/flisk-demo-animation/) · [Report a bug](https://github.com/flisk-sh/flisk/issues)
 
 <a id="readme-languages"></a>
 
@@ -38,9 +126,30 @@ English | [简体中文](docs/README-zh_cn.md) | [繁體中文](docs/README-zh_t
 
 </p>
 
-<br />
+<details>
+<summary>Test, scale, and security status</summary>
 
-[Website](https://flisk.sh/) · [Quickstart](https://flisk.sh/docs/quickstart/) · [Examples](https://flisk.sh/docs/examples/) · [Awesome Flisk](https://github.com/flisk-sh/awesome-tdk-framework) · [Demo](https://flisk-sh.github.io/tdk-demo-animation/) · [Report a bug](https://github.com/flisk-sh/flisk/issues)
+[![Journeys E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-journeys.yml/badge.svg)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-journeys.yml) [![ERP fixture scale E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-scale-full.yml/badge.svg)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-scale-full.yml) [![Example apps E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-real-apps.yml/badge.svg?branch=main)](https://github.com/flisk-sh/flisk/actions/workflows/e2e-real-apps.yml) [![CodeQL](https://github.com/flisk-sh/flisk/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/flisk-sh/flisk/security/code-scanning) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/flisk-sh/flisk/badge)](https://scorecard.dev/viewer/?uri=github.com/flisk-sh/flisk) [![Known Vulnerabilities](https://snyk.io/test/github/flisk-sh/flisk/badge.svg)](https://snyk.io/test/github/flisk-sh/flisk) [![Socket Badge](https://badge.socket.dev/npm/package/@flisk-sh/flisk/latest)](https://socket.dev/npm/package/@flisk-sh/flisk/overview)
+
+[![ERP backends healthy](https://img.shields.io/badge/ERP%20backends%20healthy-100%2F100-brightgreen)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP time to all healthy](https://img.shields.io/badge/ERP%20time%20to%20all%20healthy-524s-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP frontends answering](https://img.shields.io/badge/ERP%20frontends%20answering-7%2F7-brightgreen)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP running containers](https://img.shields.io/badge/ERP%20running%20containers-109-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471) [![ERP memory used](https://img.shields.io/badge/ERP%20memory%20used-1736%20MiB-blue)](https://github.com/flisk-sh/flisk/actions/runs/39160719471)
+[![Test coverage](https://raw.githubusercontent.com/flisk-sh/flisk/main/docs/assets/coverage.svg)](https://github.com/flisk-sh/flisk/blob/main/docs/assets/coverage.svg)
+
+<sub>ERP fixture scale run on a clean GitHub-hosted runner (4 vCPU, 15 GB RAM), snapshot from [run 39160719471](https://github.com/flisk-sh/flisk/actions/runs/39160719471). The live status is in the ERP fixture scale E2E badge above.</sub>
+
+[![unpacked size](https://img.shields.io/npm/unpacked-size/@flisk-sh/flisk)](https://packagephobia.com/result?p=@flisk-sh/flisk) [![install size](https://badgen.net/packagephobia/install/@flisk-sh/flisk)](https://packagephobia.com/result?p=@flisk-sh/flisk) [![OSS Insight](https://img.shields.io/badge/OSS%20Insight-analytics-blue)](https://ossinsight.io/analyze/flisk-sh/flisk) [![X followers: 1,605](https://img.shields.io/badge/X%20followers-1%2C605-1DA1F2?style=flat&logo=x&logoColor=white)](https://x.com/brookservers)
+
+<a href="https://trendshift.io/repositories/266432?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-266432" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/266432/daily?language=Starlark" alt="flisk-sh%2Fflisk | Trendshift" width="250" height="55"/></a>
+
+<p align="center">
+  <a href="https://www.bestpractices.dev/projects/15310">
+    <img src="https://www.bestpractices.dev/assets/openssf_bestpracticesbadge-a908f4124737f3d6b2c5abc82756bd2a435cff474b45615ce469746c31a4288c.svg" alt="OpenSSF Best Practices" height="80" align="middle" style="vertical-align: middle" />
+  </a>
+  <a href="https://www.bestpractices.dev/projects/15310">
+    <img src="https://img.shields.io/badge/OpenSSF%20Silver-95%25-yellow" alt="OpenSSF Silver: 95%" height="40" align="middle" style="vertical-align: middle" />
+  </a>
+</p>
+
+</details>
 
 </div>
 
@@ -52,46 +161,46 @@ LLMs are brilliant at writing application logic, but notoriously terrible at mai
 
 ## Build your app in one click
 
-Fastest way (recommended): open the [Flisk starter](https://github.com/flisk-sh/tdk-cli-starter) in a ready-to-use environment.
+Fastest way (recommended): open the [Flisk starter](https://github.com/flisk-sh/flisk-cli-starter) in a ready-to-use environment.
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://v0.dev/?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-v0.svg" alt="Build app with v0" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://gitpod.io/#https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-gitpod.svg" alt="Build app with Gitpod" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://lovable.dev/#prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-lovable.svg" alt="Build app with Lovable" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://bolt.new/?prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-bolt.svg" alt="Build app with Bolt.new" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="vscode://vscode.git/clone?url=https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-vscode.svg" alt="Build app with VS Code" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://github.com/codespaces/new/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-codespaces.svg" alt="Build app with Codespaces" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://v0.dev/?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-v0.svg" alt="Build app with v0" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://gitpod.io/#https://github.com/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-gitpod.svg" alt="Build app with Gitpod" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://lovable.dev/#prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-lovable.svg" alt="Build app with Lovable" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://bolt.new/?prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-bolt.svg" alt="Build app with Bolt.new" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="vscode://vscode.git/clone?url=https://github.com/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-vscode.svg" alt="Build app with VS Code" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://github.com/codespaces/new/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-codespaces.svg" alt="Build app with Codespaces" height="32"></a></td></tr>
 </table>
 
 <details>
 <summary>More build tools (6)</summary>
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://replit.com/github/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-replit.svg" alt="Build app with Replit" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://devpod.sh/open#https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-devpod.svg" alt="Build app with DevPod" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://stackblitz.com/github/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-stackblitz.svg" alt="Build app with StackBlitz" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://codesandbox.io/p/github/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-codesandbox.svg" alt="Build app with CodeSandbox" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-dev-containers.svg" alt="Build app with Dev Containers" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://studio.firebase.google.com/import?url=https://github.com/flisk-sh/tdk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/build-firebase-studio.svg" alt="Build app with Firebase Studio" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://replit.com/github/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-replit.svg" alt="Build app with Replit" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://devpod.sh/open#https://github.com/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-devpod.svg" alt="Build app with DevPod" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://stackblitz.com/github/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-stackblitz.svg" alt="Build app with StackBlitz" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://codesandbox.io/p/github/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-codesandbox.svg" alt="Build app with CodeSandbox" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-dev-containers.svg" alt="Build app with Dev Containers" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://studio.firebase.google.com/import?url=https://github.com/flisk-sh/flisk-cli-starter"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/build-firebase-studio.svg" alt="Build app with Firebase Studio" height="32"></a></td></tr>
 </table>
 
 </details>
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://grok.com/?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/ai-grok.svg" alt="Build app with Grok" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/ai-claude.svg" alt="Build app with Claude" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://chatgpt.com/?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/ai-chatgpt.svg" alt="Build app with ChatGPT" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://grok.com/?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/ai-grok.svg" alt="Build app with Grok" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/ai-claude.svg" alt="Build app with Claude" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://chatgpt.com/?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/ai-chatgpt.svg" alt="Build app with ChatGPT" height="32"></a></td></tr>
 </table>
 
 ### Deploy
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20AWS.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-aws.svg" alt="Deploy to AWS" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Azure.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-azure.svg" alt="Deploy to Azure" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Vercel.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-vercel.svg" alt="Deploy to Vercel" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Netlify.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-netlify.svg" alt="Deploy to Netlify" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Heroku.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-heroku.svg" alt="Deploy to Heroku" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Railway.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-railway.svg" alt="Deploy to Railway" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Cloudflare.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-cloudflare.svg" alt="Deploy to Cloudflare" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20DigitalOcean.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-digitalocean.svg" alt="Deploy to DigitalOcean" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Google%20Cloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-google-cloud.svg" alt="Deploy to Google Cloud" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20AWS.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-aws.svg" alt="Deploy to AWS" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Azure.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-azure.svg" alt="Deploy to Azure" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Vercel.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-vercel.svg" alt="Deploy to Vercel" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Netlify.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-netlify.svg" alt="Deploy to Netlify" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Heroku.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-heroku.svg" alt="Deploy to Heroku" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Railway.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-railway.svg" alt="Deploy to Railway" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Cloudflare.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-cloudflare.svg" alt="Deploy to Cloudflare" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20DigitalOcean.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-digitalocean.svg" alt="Deploy to DigitalOcean" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Google%20Cloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-google-cloud.svg" alt="Deploy to Google Cloud" height="32"></a></td></tr>
 </table>
 
 <details>
 <summary>More clouds and hosts (18)</summary>
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20SSH.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-ssh.svg" alt="Deploy to SSH" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Civo.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-civo.svg" alt="Deploy to Civo" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Flow.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-flow.svg" alt="Deploy to Flow" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Vultr.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-vultr.svg" alt="Deploy to Vultr" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Fly.io.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-flyio.svg" alt="Deploy to Fly.io" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Linode.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-linode.svg" alt="Deploy to Linode" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Render.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-render.svg" alt="Deploy to Render" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Docker.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-docker.svg" alt="Deploy to Docker" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Hetzner.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-hetzner.svg" alt="Deploy to Hetzner" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Cloudbit.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-cloudbit.svg" alt="Deploy to Cloudbit" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Exoscale.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-exoscale.svg" alt="Deploy to Exoscale" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Scaleway.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-scaleway.svg" alt="Deploy to Scaleway" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Multipass.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-multipass.svg" alt="Deploy to Multipass" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20OVHcloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-ovhcloud.svg" alt="Deploy to OVHcloud" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20IBM%20Cloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-ibm-cloud.svg" alt="Deploy to IBM Cloud" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Kubernetes.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-kubernetes.svg" alt="Deploy to Kubernetes" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Oracle%20Cloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-oracle-cloud.svg" alt="Deploy to Oracle Cloud" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20OpenTelekomCloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/deploy-opentelekomcloud.svg" alt="Deploy to OpenTelekomCloud" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20SSH.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-ssh.svg" alt="Deploy to SSH" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Civo.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-civo.svg" alt="Deploy to Civo" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Flow.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-flow.svg" alt="Deploy to Flow" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Vultr.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-vultr.svg" alt="Deploy to Vultr" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Fly.io.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-flyio.svg" alt="Deploy to Fly.io" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Linode.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-linode.svg" alt="Deploy to Linode" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Render.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-render.svg" alt="Deploy to Render" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Docker.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-docker.svg" alt="Deploy to Docker" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Hetzner.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-hetzner.svg" alt="Deploy to Hetzner" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Cloudbit.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-cloudbit.svg" alt="Deploy to Cloudbit" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Exoscale.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-exoscale.svg" alt="Deploy to Exoscale" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Scaleway.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-scaleway.svg" alt="Deploy to Scaleway" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Multipass.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-multipass.svg" alt="Deploy to Multipass" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20OVHcloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-ovhcloud.svg" alt="Deploy to OVHcloud" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20IBM%20Cloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-ibm-cloud.svg" alt="Deploy to IBM Cloud" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Kubernetes.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-kubernetes.svg" alt="Deploy to Kubernetes" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20Oracle%20Cloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-oracle-cloud.svg" alt="Deploy to Oracle Cloud" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://claude.ai/new?q=Deploy%20the%20app%20I%20built%20with%20the%20Flisk%20CLI%20to%20OpenTelekomCloud.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/deploy-opentelekomcloud.svg" alt="Deploy to OpenTelekomCloud" height="32"></a></td></tr>
 </table>
 
 </details>
@@ -99,23 +208,24 @@ Fastest way (recommended): open the [Flisk starter](https://github.com/flisk-sh/
 ### Build app with your AI agent
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://app.devin.ai/?prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/devin.svg" alt="Build app with Devin" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="codex://new?prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/codex.svg" alt="Build app with Codex" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="cursor://anysphere.cursor-deeplink/prompt?text=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/cursor.svg" alt="Build app with Cursor" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://windsurf.com"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/windsurf.svg" alt="Build app with Windsurf" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="claude://code/new?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Ftdk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/claude-code.svg" alt="Build app with Claude Code" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://github.com/features/copilot"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/github-copilot.svg" alt="Build app with GitHub Copilot" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://app.devin.ai/?prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/devin.svg" alt="Build app with Devin" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="codex://new?prompt=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/codex.svg" alt="Build app with Codex" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="cursor://anysphere.cursor-deeplink/prompt?text=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/cursor.svg" alt="Build app with Cursor" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://windsurf.com"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/windsurf.svg" alt="Build app with Windsurf" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="claude://code/new?q=Build%20an%20app%20with%20the%20Flisk%20CLI.%20Read%20the%20setup%20guide%20at%20https%3A%2F%2Fgithub.com%2Fflisk-sh%2Fflisk-cli-starter%20and%20walk%20me%20through%20it%20step%20by%20step."><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/claude-code.svg" alt="Build app with Claude Code" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://github.com/features/copilot"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/github-copilot.svg" alt="Build app with GitHub Copilot" height="32"></a></td></tr>
 </table>
 
 <details>
 <summary>More agents (7)</summary>
 
 <table align="center">
-  <tr><td align="center" valign="middle" width="33%"><a href="https://zed.dev"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/zed.svg" alt="Build app with Zed" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://aider.chat/"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/aider.svg" alt="Build app with Aider" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://coder.com"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/coder.svg" alt="Build app with Coder" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://github.com/google-gemini/gemini-cli"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/gemini-cli.svg" alt="Build app with Gemini CLI" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://antigravity.google/"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/antigravity.svg" alt="Build app with Antigravity" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://codeanywhere.com"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/codeanywhere.svg" alt="Build app with Codeanywhere" height="32"></a></td></tr>
-  <tr><td align="center" valign="middle" width="33%"><a href="https://www.augmentcode.com"><img src="https://raw.githubusercontent.com/flisk-sh/tdk-cli-starter/main/.github/buttons/augment-code.svg" alt="Build app with Augment Code" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://zed.dev"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/zed.svg" alt="Build app with Zed" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://aider.chat/"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/aider.svg" alt="Build app with Aider" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://coder.com"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/coder.svg" alt="Build app with Coder" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://github.com/google-gemini/gemini-cli"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/gemini-cli.svg" alt="Build app with Gemini CLI" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://antigravity.google/"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/antigravity.svg" alt="Build app with Antigravity" height="32"></a></td><td align="center" valign="middle" width="33%"><a href="https://codeanywhere.com"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/codeanywhere.svg" alt="Build app with Codeanywhere" height="32"></a></td></tr>
+  <tr><td align="center" valign="middle" width="33%"><a href="https://www.augmentcode.com"><img src="https://raw.githubusercontent.com/flisk-sh/flisk-cli-starter/main/.github/buttons/augment-code.svg" alt="Build app with Augment Code" height="32"></a></td></tr>
 </table>
 
 </details>
 
-### ⚡ Zero-Config Local Stacks in About 14 Seconds
-No vendor lock-in. No tedious plumbing. Run a single command to natively orchestrate **72 different integration tiers** including:
+### ⚡ A running stack in about 14 seconds
+
+On a one-backend quickstart with warm image layers, `flisk up` reaches a healthy API in 12.8 to 13.8 seconds ([timing notes](docs/benchmarks/quickstart-timing.md)). An 8-service stack settles in 32 to 42 seconds warm and about 4.5 minutes on its first cold build ([benchmark](docs/benchmarks/results/tdk-up-warm-start-2026-10-11/summary.md)). No vendor lock-in and no hand-written plumbing. Flisk works with:
 * **Runtimes & Frameworks:** Bun, Node, Python, Go, Rust, React, Vue, Svelte, Elysia, Fastify, NestJS
 * **Databases & Tooling:** Prisma, Drizzle, Atlas, Dbmate
 * **Messaging & Gateway:** NATS, Traefik
@@ -134,11 +244,11 @@ flisk up shop
 Agents get durable checkpoint volumes that survive `flisk down`, sticky session routing via `x-session-id`, graceful SIGTERM drain during hot reloads, a Docker health check on `/health`, and application-level readiness checks on `/ready`. See the [AI agents guide](docs/agents/ai-agents.md) and [honest comparison with agent frameworks](docs/compare-honest.md#ai-agent-frameworks-and-workflow-engines-libfx-langgraph-mastra-vercel-workflows-temporal).
 
 
-Flisk CLI — start services on your machine. It is not a deploy and not a Compose file: define each service in `service.json`, then run `flisk up`. No Kubernetes is needed on the machine.
+**What Flisk is:** a local development runtime. Define each service in `service.json` and run `flisk up`. Docker runs the containers, Tilt live-updates them while you code, and Flisk writes the configuration both use. No local Kubernetes is needed.
 
-Stability: 1.x local dev. Write `service.json`; Flisk generates the local runtime files. See [what Flisk writes](docs/generated-files.md) and how to check for drift. Core CLI is MIT and needs no key. Premium is optional.
+**What Flisk is not:** a deploy tool or a Compose file. Production deployment stays with Helm, Argo CD, or Kustomize.
 
-Docker runs the containers. Tilt watches services and live-updates containers while you code. Flisk CLI writes the configuration Tilt uses. Production deployment stays with Helm, Argo CD, or Kustomize.
+Stability: 1.x. The core CLI is MIT and needs no key; Premium is optional. See [what Flisk writes](docs/generated-files.md) and how to check for drift.
 
 
 > [!IMPORTANT]
@@ -146,12 +256,6 @@ Docker runs the containers. Tilt watches services and live-updates containers wh
 > [`@flisk-sh/flisk`](https://www.npmjs.com/package/@flisk-sh/flisk) npm package, or the
 > [official website](https://flisk.sh/). Follow the installation links from these official sources.
 > A similar repository name or copied README does not establish that a download is official.
-
-<p align="center"><strong><a href="#quick-start">Quick start</a> · <a href="#why-tdk-cli">Why Flisk</a> · <a href="#examples">Examples</a> · <a href="#installation">Installation</a> · <a href="#faq">FAQ</a> · <a href="#docs">Documentation</a></strong></p>
-
-If Flisk helps you run your local stack, a ⭐ on [this repo](https://github.com/flisk-sh/flisk) helps other developers find it.
-
-`flisk ui` opens an interactive terminal dashboard for inspecting running services. Move with `↑/↓` or `j/k`, search with `/`, and press `1`–`5` to jump between tabs. See [docs/ui.md](docs/ui.md) for every key binding.
 
 ## Why Flisk CLI?
 
@@ -178,6 +282,22 @@ See the [detailed tool comparison](docs/comparison.md) for architectural tradeof
 
 Production deployment stays with your own tools (Helm, Argo CD, or Kustomize).
 
+### Everything is wired together, and stays in sync
+
+You do not connect services by hand. Flisk derives each connection from the same `service.json` files and regenerates it when they change.
+
+| When you... | Flisk updates |
+| --- | --- |
+| Add a service with `flisk resource` | It is discovered automatically and its stack is enabled on the next `flisk up`. It gets an image build, a Compose entry, gateway routes, a health check, and its own `.autogenerated/` files. |
+| Edit a `service.json` (port, `dependsOn`, features) | The Dockerfile, Compose entry, Traefik labels, and nginx config are regenerated on the next `flisk up`. A hand edit to a generated file is caught as drift before anything starts. |
+| Edit your code | Tilt live-updates the running container. No rebuild step. |
+| Add a backend route | Frontends already point at the API through generated `VITE_API_URL`, `env.ts`, and `api-client.ts`, built from the same hostnames the gateway routes. |
+| Add a database or a second backend | `DATABASE_URL` and the other connection settings are injected into each service's environment. No copying of passwords or hostnames. |
+| Run on a project with an older or missing `.env` | Missing secrets such as `JWT_SECRET` are generated without overwriting your values. |
+| Declare `dependsOn` | Services start in health-checked order. |
+
+See [how `flisk up` works](docs/how-flisk-up-works.md) for the full startup sequence.
+
 ## What you can do with Flisk
 
 | You want to | Flisk does | Command |
@@ -193,14 +313,14 @@ Production deployment stays with your own tools (Helm, Argo CD, or Kustomize).
 
 ## Who uses Flisk
 
-Teams that run `flisk up` on their own code (listed with their consent in [ADOPTERS.md](ADOPTERS.md)):
+Teams that run `flisk up` on their own code (listed with their consent in [ADOPTERS.md](docs/project/ADOPTERS.md)):
 
 - [Lekast](https://www.linkedin.com/company/lekast/), Flisk 1.3.178
 - [mfin.services](https://medium.com/@mfin.services), Flisk 1.3.140
 - [MakeOffer](https://www.linkedin.com/company/makeofferio), Flisk 1.3.180
 - [Red Moon Digital](https://redmoon.digital/), Flisk 1.3.81
 
-Using Flisk too? [Tell us](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) or [add a row to ADOPTERS.md](ADOPTERS.md).
+Using Flisk too? [Tell us](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) or [add a row to ADOPTERS.md](docs/project/ADOPTERS.md).
 
 If Flisk saves you time, a ⭐ on [this repo](https://github.com/flisk-sh/flisk) helps other developers find it.
 
@@ -266,46 +386,120 @@ flisk up shop
 curl http://api.shop.localhost/api/orders/health
 ```
 
-`flisk up` prints the host ports it chose. It uses port 80 when it is free, so URLs carry no port. Otherwise it picks one from 8080-8180, and the URLs it prints include that port (on Linux and WSL2 a non-root user cannot check port 80, so the range is used there). Use the URL `flisk up` prints, or set `TDK_HTTP_PORT`. A resource named `orders-api` is served at `/api/orders` (a trailing `-api` is dropped); `flisk up` prints the exact URLs.
+`flisk up` prints the host ports it chose. It uses port 80 when it is free, so URLs carry no port. Otherwise it picks one from 8080-8180, and the URLs it prints include that port (on Linux and WSL2 a non-root user cannot check port 80, so the range is used there). Use the URL `flisk up` prints, or set `FLISK_HTTP_PORT`. A resource named `orders-api` is served at `/api/orders` (a trailing `-api` is dropped); `flisk up` prints the exact URLs.
 
-<p align="center">
-<img src="docs/assets/demo.svg" alt="Flisk scaffolding a backend and a frontend, then listing the stack" width="900" />
-<br /><br />
-<em>Scaffolding a backend and frontend, then listing the stack.</em>
-</p>
+### What Flisk writes for you
 
-### What Flisk writes for a frontend
-
-You maintain `service.json`; Flisk generates the local runtime files. A frontend such as `services/store/storefront-web` has files like these after generation:
+You write one `service.json` per service. For the two-service shop above, Flisk writes the rest at three levels: the project, the stack, and each service.
 
 ```text
-services/store/storefront-web/
-├── service.json                         # your service definition
-└── .autogenerated/                     # Flisk writes these files
-    ├── nginx.autogenerated.conf        # serves the build and routes API requests
-    ├── Dockerfile.app.autogenerated     # local app image
-    ├── .env.frontend.autogenerated      # local frontend environment
-    ├── vite.config.frontend.autogenerated.ts
-    ├── tsconfig.autogenerated.json
-    └── api-client.ts                    # generated API client
+my-shop/
+├── .env                                              # generated DB_PASSWORD and JWT_SECRET
+├── .flisk/
+│   ├── project.json                                  # project settings (yours to edit)
+│   └── .flisk-out/                                   # PROJECT LEVEL
+│       ├── Tiltfile                                  # what Tilt runs
+│       ├── docker-compose.traefik.yml                # local gateway, bound to 127.0.0.1
+│       ├── golden-layers.Dockerfile                  # shared base image layers
+│       ├── TILT_TECH_STACK.star                      # tech stack settings
+│       ├── TILT_RESOURCE_DEFAULTS.star               # service defaults
+│       ├── spec.master                               # project spec by stack
+│       └── flisk-cli-ext/                            # pinned copy of the Flisk engine
+├── shared-platform-engineering/
+│   └── docker-templates/                             # container entrypoint scripts
+└── services/
+    ├── platform/database-management/
+    │   └── docker-compose.yml                        # Postgres 16
+    └── shop/
+        ├── .autogenerated/                           # STACK LEVEL
+        │   └── docker-compose.app.autogenerated.yml  # every service in the stack
+        ├── orders-api/
+        │   ├── service.json                          # you write this
+        │   └── .autogenerated/                       # SERVICE LEVEL: 14 files
+        └── shop-web/
+            ├── service.json                          # you write this
+            └── .autogenerated/                       # SERVICE LEVEL: 18 files
 ```
 
-You do not need to write the nginx config, Dockerfile, or a `docker-compose.yml` for this local stack. `flisk up` uses Docker and Tilt to start it. The [generated-files guide](docs/generated-files.md) lists the other outputs and explains how regeneration and drift checks work.
+The stack's Compose file is the part you would otherwise write by hand. For these two services it holds the image builds, environment, 33 Traefik routing labels, four networks, health checks, and CPU and memory limits. An excerpt:
 
-<p align="center">
-<img src="docs/assets/tdk-cli-top-9-uses.jpg" alt="Top 9 places to use Flisk CLI" width="900" />
-</p>
+```yaml
+orders-api:
+  environment:
+    - DATABASE_URL=postgresql://my_shop:${DB_PASSWORD}@my_shop_postgres:5432/my_shop_shop?schema=public
+    - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is not set. Run `flisk up` ...}
+  labels:
+    - "traefik.http.routers.orders-api-project.rule=Host(`api.my-shop.localhost`) && PathPrefix(`/api/orders`)"
+    - "traefik.http.middlewares.orders-api-strip-prefix-project.stripprefix.prefixes=/api/orders"
+    - "traefik.http.services.orders-api.loadbalancer.healthcheck.path=/health"
+  healthcheck:
+    test: ["CMD", "curl", "-f", "--max-time", "5", "http://localhost:4000/health"]
+```
+
+Secrets come from the project `.env` by default: `flisk project` generates a random database password and JWT secret, and `.env` is added to `.gitignore`. Set `FLISK_SECRET_PROVIDER=infisical` to read secrets from [Infisical](https://infisical.com/) instead ([environment](docs/environment.md)).
+
+<details>
+<summary>Every file in each service's <code>.autogenerated/</code> folder</summary>
+
+```text
+shop-web/.autogenerated/
+├── Dockerfile.app.autogenerated               # app image
+├── Dockerfile.app.autogenerated.dockerignore  # build context
+├── nginx.autogenerated.conf                   # serves the build, routes API requests
+├── vite.config.frontend.autogenerated.ts      # dev server
+├── vite.config.build.autogenerated.ts         # production build
+├── tsconfig.autogenerated.json                # TypeScript, host
+├── tsconfig.docker.autogenerated.json         # TypeScript, container
+├── .npmrc.autogenerated                       # package registry, host
+├── .npmrc.docker.autogenerated                # package registry, container
+├── bunfig.autogenerated.toml                  # Bun settings, host
+├── bunfig.docker.autogenerated.toml           # Bun settings, container
+├── .env.frontend.autogenerated                # frontend environment
+├── env.ts                                     # API URL for your imports
+├── api-client.ts                              # client for the frontend's API route
+├── api-index.ts                               # re-exports the client and URL
+├── service.yaml                               # Tilt's projection of service.json
+├── validation-report.autogenerated.json       # preflight validation result
+├── AGENTS.md                                  # tells coding agents not to edit here
+└── .flisk-contract/                           # snapshots for drift checks
+```
+
+```text
+orders-api/.autogenerated/
+├── Dockerfile.app.autogenerated               # app image
+├── Dockerfile.app.autogenerated.dockerignore  # build context
+├── vite.config.backend.autogenerated.ts       # server build
+├── prisma.config.autogenerated.ts             # database client
+├── tsconfig.autogenerated.json                # TypeScript, host
+├── tsconfig.docker.autogenerated.json         # TypeScript, container
+├── .npmrc.autogenerated                       # package registry, host
+├── .npmrc.docker.autogenerated                # package registry, container
+├── bunfig.autogenerated.toml                  # Bun settings, host
+├── bunfig.docker.autogenerated.toml           # Bun settings, container
+├── .env.backend.autogenerated                 # backend environment
+├── service.yaml                               # Tilt's projection of service.json
+├── validation-report.autogenerated.json       # preflight validation result
+├── AGENTS.md                                  # tells coding agents not to edit here
+└── .flisk-contract/                           # snapshots for drift checks
+```
+
+A stack with a database migrator also gets `docker-compose.migrator.autogenerated.yml` in the stack folder, and the migrator gets its own `Dockerfile.migrator.autogenerated`.
+
+</details>
+
+You never write an nginx config, a Dockerfile, a Compose file, or Traefik labels for this stack. `flisk up` regenerates these files when `service.json` changes and refuses to start if one was edited by hand. Python, Go, and Rust services, and optional features such as Playwright, get their own sets; the [generated-files guide](docs/generated-files.md) lists them and explains the drift checks.
 
 If Helm, Compose, or your existing Tilt setup already gives you a working local environment, keep using it. Flisk CLI is for engineers managing several services who want a clear local service contract and one command to start the stack.
 
-See [how Flisk compares to alternative dev tools](docs/comparison.md), [how Flisk CLI works alongside Helm](https://flisk.sh/docs/with-helm/), the [service schema](engine/schemas/service-schema.json), and the [project configuration schema](engine/schemas/project-schema.json).
+See [how Flisk compares to alternative dev tools](docs/comparison.md), [how Flisk CLI works alongside Helm](https://flisk.sh/docs/with-helm/), the [service schema](runtime/engine/schemas/service-schema.json), and the [project configuration schema](runtime/engine/schemas/project-schema.json).
 
 ## Terminal UI
 
 Use `flisk ui` to inspect stacks and resources. Arrow keys or `j`/`k` move the
 selection; `g`/`G` or Home/End jump to the first/last item, and PageUp/PageDown
 move one visible page. `/` searches; navigation letters remain search text
-while searching. The selected row stays visible when the terminal is resized.
+while searching. Press `1`–`5` to jump between tabs. The selected row stays
+visible when the terminal is resized. See [docs/ui.md](docs/ui.md) for every key binding.
 
 ## Update Flisk
 
@@ -355,10 +549,11 @@ Public npm is the recommended default. To install through GitHub Packages instea
 - You do not want `service.json` manifests and generated local configuration.
 
 ## Troubleshooting
-Set `TDK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug logs in Tilt output.
+Set `FLISK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug logs in Tilt output.
 
 ## Docs
 
+- [Flisk 101: a 13-lab course for beginners](docs/101/README.md)
 - [CLI command cheat sheet](cli/README.md#cheat-sheet)
 - [Mega cheat sheet: every command and flag](docs/cheat-sheet.md)
 - [Documentation index](docs/README.md)
@@ -392,9 +587,9 @@ Set `TDK_DEBUG=1` before running `flisk up --verbose` to include Starlark debug 
 
 ## History
 
-Flisk development began on 21 April 2026. The archived, read-only [flisk-sh/tdk](https://github.com/flisk-sh/tdk)
-repository records its [first commit](https://github.com/flisk-sh/tdk/commit/1714637637196ed54cbfa18534230a782c05ab36)
-("Initial commit: Flisk specs, generators, CLI, and standards") from that day. A separate `tdk-cli` history spanning 21 April to
+Flisk development began on 21 April 2026. The archived, read-only [flisk-sh/flisk](https://github.com/flisk-sh/flisk)
+repository records its [first commit](https://github.com/flisk-sh/flisk/commit/1714637637196ed54cbfa18534230a782c05ab36)
+("Initial commit: Flisk specs, generators, CLI, and standards") from that day. A separate `flisk-cli` history spanning 21 April to
 18 September 2026 was [imported into this repository](https://github.com/flisk-sh/flisk/pull/670) as 306 filtered
 commits. Those commits are now ancestors of `main`; the import did not change the source tree.
 
@@ -403,7 +598,7 @@ published on 21 September 2026. Those dates describe the current repository and 
 
 ## Requirements and support
 
-For the local runtime, install Docker (Desktop, OrbStack, or Colima; Engine 25+, Compose 2.20.2+) and [Tilt](https://docs.tilt.dev/install.html). Bun 1.2+ is used by the default generated services. Flisk selects host ports from bounded fallback ranges for HTTP, HTTPS, and Postgres; set `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, or `TDK_POSTGRES_PORT` to override them. Dev ports listen on `127.0.0.1` only, so other machines on your network cannot reach them. Set `TDK_BIND_ADDRESS` (for example `0.0.0.0`, to test from a phone) to change that; `flisk doctor` warns when it is a wildcard address. Flisk supports macOS, Linux, and Windows through WSL2 Ubuntu; native Windows supports CLI inspection only. Run `flisk doctor` to check local readiness (supports `--no-ping` to skip service health checks and `--ping-timeout <ms>`). See [WSL2 setup](docs/wsl2.md).
+For the local runtime, install Docker (Desktop, OrbStack, or Colima; Engine 25+, Compose 2.20.2+) and [Tilt](https://docs.tilt.dev/install.html). Bun 1.2+ is used by the default generated services. Flisk selects host ports from bounded fallback ranges for HTTP, HTTPS, and Postgres; set `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT`, or `FLISK_POSTGRES_PORT` to override them. Dev ports listen on `127.0.0.1` only, so other machines on your network cannot reach them. Set `FLISK_BIND_ADDRESS` (for example `0.0.0.0`, to test from a phone) to change that; `flisk doctor` warns when it is a wildcard address. Flisk supports macOS, Linux, and Windows through WSL2 Ubuntu; native Windows supports CLI inspection only. Run `flisk doctor` to check local readiness (supports `--no-ping` to skip service health checks and `--ping-timeout <ms>`). See [WSL2 setup](docs/wsl2.md).
 
 On native Windows, `flisk --version`, `flisk doctor`, and `flisk up --dry-run` are inspect-only commands. `flisk up` exits 1 with “Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.”
 
@@ -477,8 +672,66 @@ Then run `flisk doctor` and retry the same task. If the problem persists, [open 
 
 ## Contributing and license
 
-Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [contributor guide](docs/contributing/README.md). For the project structure, see the [architecture and repository map](docs/project-overview.md). To review pull requests, see [Review a pull request](docs/contributing/04-review-a-pr.md). Report security issues using [SECURITY.md](SECURITY.md).
+Contributions are welcome. **First step: [say hello on Discord](https://discord.gg/Sjhb3tnq3)**, tell us what you want to work on, and we will point you to a good first task. Then start with [CONTRIBUTING.md](.github/CONTRIBUTING.md) and the [contributor guide](docs/contributing/README.md). For the project structure, see the [architecture and repository map](docs/project-overview.md). To review pull requests, see [Review a pull request](docs/contributing/04-review-a-pr.md). Report security issues using [SECURITY.md](.github/SECURITY.md).
 
-Flisk is MIT-licensed; see [LICENSE](LICENSE). The [license boundary](GOVERNANCE.md#license-boundary-and-donation-scope) says which code is MIT and which is downloaded with a key.
+### Contributors
 
-Project governance: [GOVERNANCE.md](GOVERNANCE.md), [MAINTAINERS.md](MAINTAINERS.md), [ADOPTERS.md](ADOPTERS.md).
+Thank you to everyone who has shipped code, docs, and fixes to Flisk since July 2026. Every merged change makes the local stack better for the next developer.
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/kburym"><img src="https://github.com/kburym.png?size=80" width="64" alt="kburym" /><br /><sub><b>kburym</b></sub></a></td>
+    <td align="center"><a href="https://github.com/odykyi"><img src="https://github.com/odykyi.png?size=80" width="64" alt="odykyi" /><br /><sub><b>odykyi</b></sub></a></td>
+    <td align="center"><a href="https://github.com/sb123sb123"><img src="https://github.com/sb123sb123.png?size=80" width="64" alt="sb123sb123" /><br /><sub><b>sb123sb123</b></sub></a></td>
+    <td align="center"><a href="https://github.com/AK-Lmn"><img src="https://github.com/AK-Lmn.png?size=80" width="64" alt="AK-Lmn" /><br /><sub><b>AK-Lmn</b></sub></a></td>
+    <td align="center"><a href="https://github.com/yoreva-01"><img src="https://github.com/yoreva-01.png?size=80" width="64" alt="yoreva-01" /><br /><sub><b>yoreva-01</b></sub></a></td>
+    <td align="center"><a href="https://github.com/minutechreview"><img src="https://github.com/minutechreview.png?size=80" width="64" alt="minutechreview" /><br /><sub><b>minutechreview</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/Delfi2007"><img src="https://github.com/Delfi2007.png?size=80" width="64" alt="Delfi2007" /><br /><sub><b>Delfi2007</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Ghifariezra"><img src="https://github.com/Ghifariezra.png?size=80" width="64" alt="Ghifariezra" /><br /><sub><b>Ghifariezra</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Huang-404-Q"><img src="https://github.com/Huang-404-Q.png?size=80" width="64" alt="Huang-404-Q" /><br /><sub><b>Huang-404-Q</b></sub></a></td>
+    <td align="center"><a href="https://github.com/dbdefault"><img src="https://github.com/dbdefault.png?size=80" width="64" alt="dbdefault" /><br /><sub><b>dbdefault</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Rohith-Saran"><img src="https://github.com/Rohith-Saran.png?size=80" width="64" alt="Rohith-Saran" /><br /><sub><b>Rohith-Saran</b></sub></a></td>
+    <td align="center"><a href="https://github.com/aazminu"><img src="https://github.com/aazminu.png?size=80" width="64" alt="aazminu" /><br /><sub><b>aazminu</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/xiehuanyi"><img src="https://github.com/xiehuanyi.png?size=80" width="64" alt="xiehuanyi" /><br /><sub><b>xiehuanyi</b></sub></a></td>
+    <td align="center"><a href="https://github.com/NimoCao"><img src="https://github.com/NimoCao.png?size=80" width="64" alt="NimoCao" /><br /><sub><b>NimoCao</b></sub></a></td>
+    <td align="center"><a href="https://github.com/rahul05ranjan"><img src="https://github.com/rahul05ranjan.png?size=80" width="64" alt="rahul05ranjan" /><br /><sub><b>rahul05ranjan</b></sub></a></td>
+    <td align="center"><a href="https://github.com/krishna2707"><img src="https://github.com/krishna2707.png?size=80" width="64" alt="krishna2707" /><br /><sub><b>krishna2707</b></sub></a></td>
+    <td align="center"><a href="https://github.com/arxh80"><img src="https://github.com/arxh80.png?size=80" width="64" alt="arxh80" /><br /><sub><b>arxh80</b></sub></a></td>
+    <td align="center"><a href="https://github.com/tnalbant"><img src="https://github.com/tnalbant.png?size=80" width="64" alt="tnalbant" /><br /><sub><b>tnalbant</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/sunny-kavixo"><img src="https://github.com/sunny-kavixo.png?size=80" width="64" alt="sunny-kavixo" /><br /><sub><b>sunny-kavixo</b></sub></a></td>
+    <td align="center"><a href="https://github.com/sohammkk"><img src="https://github.com/sohammkk.png?size=80" width="64" alt="sohammkk" /><br /><sub><b>sohammkk</b></sub></a></td>
+    <td align="center"><a href="https://github.com/sinhaananya812-star"><img src="https://github.com/sinhaananya812-star.png?size=80" width="64" alt="sinhaananya812-star" /><br /><sub><b>sinhaananya812-star</b></sub></a></td>
+    <td align="center"><a href="https://github.com/jay23606"><img src="https://github.com/jay23606.png?size=80" width="64" alt="jay23606" /><br /><sub><b>jay23606</b></sub></a></td>
+    <td align="center"><a href="https://github.com/floatyserve"><img src="https://github.com/floatyserve.png?size=80" width="64" alt="floatyserve" /><br /><sub><b>floatyserve</b></sub></a></td>
+    <td align="center"><a href="https://github.com/eddyflores100-lang"><img src="https://github.com/eddyflores100-lang.png?size=80" width="64" alt="eddyflores100-lang" /><br /><sub><b>eddyflores100-lang</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/denisvmedia"><img src="https://github.com/denisvmedia.png?size=80" width="64" alt="denisvmedia" /><br /><sub><b>denisvmedia</b></sub></a></td>
+    <td align="center"><a href="https://github.com/amritkang165"><img src="https://github.com/amritkang165.png?size=80" width="64" alt="amritkang165" /><br /><sub><b>amritkang165</b></sub></a></td>
+    <td align="center"><a href="https://github.com/airdropia"><img src="https://github.com/airdropia.png?size=80" width="64" alt="airdropia" /><br /><sub><b>airdropia</b></sub></a></td>
+    <td align="center"><a href="https://github.com/adity982"><img src="https://github.com/adity982.png?size=80" width="64" alt="adity982" /><br /><sub><b>adity982</b></sub></a></td>
+    <td align="center"><a href="https://github.com/YuuGR1337"><img src="https://github.com/YuuGR1337.png?size=80" width="64" alt="YuuGR1337" /><br /><sub><b>YuuGR1337</b></sub></a></td>
+    <td align="center"><a href="https://github.com/WilsonSoetomo"><img src="https://github.com/WilsonSoetomo.png?size=80" width="64" alt="WilsonSoetomo" /><br /><sub><b>WilsonSoetomo</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/Vignesh2662006"><img src="https://github.com/Vignesh2662006.png?size=80" width="64" alt="Vignesh2662006" /><br /><sub><b>Vignesh2662006</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Samueldavidddsc"><img src="https://github.com/Samueldavidddsc.png?size=80" width="64" alt="Samueldavidddsc" /><br /><sub><b>Samueldavidddsc</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Murphyvon"><img src="https://github.com/Murphyvon.png?size=80" width="64" alt="Murphyvon" /><br /><sub><b>Murphyvon</b></sub></a></td>
+    <td align="center"><a href="https://github.com/KeuqS"><img src="https://github.com/KeuqS.png?size=80" width="64" alt="KeuqS" /><br /><sub><b>KeuqS</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Golden007-prog"><img src="https://github.com/Golden007-prog.png?size=80" width="64" alt="Golden007-prog" /><br /><sub><b>Golden007-prog</b></sub></a></td>
+    <td align="center"><a href="https://github.com/GeoCeff"><img src="https://github.com/GeoCeff.png?size=80" width="64" alt="GeoCeff" /><br /><sub><b>GeoCeff</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/Enard52"><img src="https://github.com/Enard52.png?size=80" width="64" alt="Enard52" /><br /><sub><b>Enard52</b></sub></a></td>
+  </tr>
+</table>
+
+Flisk is MIT-licensed; see [LICENSE](LICENSE). The [license boundary](docs/project/GOVERNANCE.md#license-boundary-and-donation-scope) says which code is MIT and which is downloaded with a key.
+
+Project governance: [GOVERNANCE.md](docs/project/GOVERNANCE.md), [MAINTAINERS.md](docs/project/MAINTAINERS.md), [ADOPTERS.md](docs/project/ADOPTERS.md).

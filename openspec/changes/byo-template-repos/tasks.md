@@ -5,15 +5,15 @@
 
 ## 1. Skeleton and shared workflow
 
-- [ ] 1.1 Create `flisk-sh/flisk-template-skeleton` as a GitHub template repository with `Dockerfile`, `README.md`, `template.json` (placeholders), `LICENSE`, `CONTRIBUTING.md`, `CODEOWNERS`, issue forms and a pull request template.
+- [ ] 1.1 Create `flisk-sh/flisk-template-skeleton` as a GitHub template repository with `Dockerfile`, `README.md`, `service.json` (placeholders), `LICENSE`, `CONTRIBUTING.md`, `CODEOWNERS`, issue forms and a pull request template.
 - [ ] 1.2 Write `byo-template.schema.json` and the skeleton check that fails on `REPLACE_ME`.
 - [ ] 1.3 Write the reusable `verify-template.yml` workflow and `verify-byo-template.sh` (build, run with `PORT=4000`, require HTTP 200, upload log, clean up what it created).
-- [ ] 1.4 Add the checks for unpinned `FROM`, non-root user and README/`template.json` agreement.
+- [ ] 1.4 Add the checks for unpinned `FROM`, non-root user and README/`service.json` agreement.
 - [ ] 1.5 Verify the skeleton passes its own workflow.
 
 ## 2. Split the first three templates
 
-- [ ] 2.1 Run `git filter-repo --subdirectory-filter examples/byo/create-vue` on a fresh clone; add `template.json`, `LICENSE`, `CONTRIBUTING.md`, workflow and issue forms; push to `flisk-sh/flisk-template-vue`; tag `v1.0.0`.
+- [ ] 2.1 Run `git filter-repo --subdirectory-filter examples/byo/create-vue` on a fresh clone; add `service.json`, `LICENSE`, `CONTRIBUTING.md`, workflow and issue forms; push to `flisk-sh/flisk-template-vue`; tag `v1.0.0`.
 - [ ] 2.2 Repeat for `create-hono` (`oven/bun:1` base) and `create-astro`.
 - [ ] 2.3 Confirm each repository's verify workflow passes and paste the run links in the pull request.
 - [ ] 2.4 Seed two `good first issue` issues and the topics `flisk`, `template`, `docker` and the framework name in each.
@@ -38,10 +38,12 @@
 - [ ] 4.4 For each, add the registry entry and delete the source folder in the same pull request as its passing BY1 leg.
 - [ ] 4.5 Confirm `suite.json` has one BY1 matrix job per template.
 
-## 5. Through-Flisk check
+## 5. e2e through flisk up for every template
 
-- [ ] 5.1 Extend `verify-byo-tdk.sh` usage (or add a case) so one template (`vue`) is registered, brought up with `flisk up` and requested through Traefik.
-- [ ] 5.2 The report states the URL and status code it observed and says "container-only" for standalone checks.
+- [ ] 5.1 Add the reusable `.github/workflows/byo-template-e2e.yml` and `scripts/e2e/verify-byo-template.sh` to this repository.
+- [ ] 5.2 Add `.github/workflows/e2e.yml` to every template repository, pinned to a commit of this repository on `main`.
+- [ ] 5.3 Require `verify` and `e2e` in branch protection on every template repository's `main`.
+- [ ] 5.4 The report states the route and status code it observed and says "container-only" for standalone checks.
 
 ## 6. Scaffolder package
 

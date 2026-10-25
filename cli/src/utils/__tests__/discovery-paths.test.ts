@@ -10,7 +10,7 @@ describe("discovery paths", () => {
   let root: string;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-discovery-"));
+    root = mkdtempSync(join(tmpdir(), "flisk-discovery-"));
   });
 
   afterEach(() => {
@@ -18,13 +18,13 @@ describe("discovery paths", () => {
   });
 
   function writeProjectJson(paths: unknown) {
-    mkdirSync(join(root, ".tdk"), { recursive: true });
-    writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ discovery: { paths } }));
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify({ discovery: { paths } }));
   }
 
   function writeRawProjectJson(content: string) {
-    mkdirSync(join(root, ".tdk"), { recursive: true });
-    writeFileSync(join(root, ".tdk", "project.json"), content);
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(join(root, ".flisk", "project.json"), content);
   }
 
   describe("readDiscoveryPaths", () => {

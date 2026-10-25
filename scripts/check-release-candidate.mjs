@@ -15,12 +15,7 @@ export const RELEASE_INPUTS = [
   "bun.lock",
   "cli/**",
   "scripts/release-binaries.sh",
-  "Tiltfile",
-  "engine/**",
-  "discovery/**",
-  "specs/**",
-  "ext/**",
-  "shared-platform-engineering/docker-templates/**",
+  "runtime/**",
 ];
 
 // GitHub's compare API returns at most this many files. A list at the cap may be cut short, so it cannot prove anything.

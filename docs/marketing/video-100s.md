@@ -15,7 +15,7 @@ Checked against `bun src/cli.ts <cmd> --help` in `cli/` at `origin/main` (CLI 1.
 | `flisk up one-backend --dry-run` | `--dry-run`: shows what would start without starting | `flisk up --help` |
 | `curl --fail http://api.one-backend.localhost/api/api-backend/health` | Route from the example README; expected body `{"status":"ok"}` | example README |
 | `flisk config verify` | `flisk config verify [--json]`. Exits 1 when the check fails (`--json` returns the same result as an envelope) | `flisk config verify --help`, `cli/src/commands/config.ts` |
-| `flisk config regenerate` | `flisk config regenerate [--dry-run]`; regenerates the 4 master config files from `.tdk/project.json` | `flisk config regenerate --help` |
+| `flisk config regenerate` | `flisk config regenerate [--dry-run]`; regenerates the 4 master config files from `.flisk/project.json` | `flisk config regenerate --help` |
 | `flisk up one-backend` (after a hand edit) | Exits with code 2 (`DRIFT_EXIT_CODE`), names the edited files, and suggests `flisk config regenerate` or `--ignore-drift` | `cli/src/commands/up.ts` (`enforceDriftGate`) |
 | `flisk ui` | `flisk ui\|interactive [--no-animations] [--high-contrast]`. Interactive terminal UI | `flisk ui --help` |
 | `flisk mcp` | Runs a Model Context Protocol server over stdio for coding agents | `flisk --help`, `cli/README.md` |
@@ -58,7 +58,7 @@ The `flisk` on the default PATH may be an older release than `origin/main`. Re-c
 
 > "Hand-edit a generated file, and Flisk stops the stack."
 
-- On screen: edit a generated file under `.tdk/.tdk-out/`, then run `flisk config verify`. It reports the mismatch and exits 1. The exact message for a generated service file is not confirmed here; check the output on the recording machine before showing it.
+- On screen: edit a generated file under `.flisk/.flisk-out/`, then run `flisk config verify`. It reports the mismatch and exits 1. The exact message for a generated service file is not confirmed here; check the output on the recording machine before showing it.
 - Then `flisk up one-backend`: exit code 2, names the edited file, and suggests `flisk config regenerate`.
 - Then `flisk config regenerate` restores the file.
 - Commands: `flisk config verify`, `flisk up one-backend`, `flisk config regenerate`.

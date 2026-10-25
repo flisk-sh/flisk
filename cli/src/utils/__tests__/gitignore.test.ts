@@ -13,16 +13,16 @@ import {
 describe("ensureGitignore", () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-gitignore-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-gitignore-"));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
   it("creates .gitignore with .env and generated output", () => {
     expect(ensureGitignore(dir)).toEqual([
       ".env",
-      ".tdk/.tdk-out/",
-      ".tdk/.project-id",
-      ".tdk/smoke/",
+      ".flisk/.flisk-out/",
+      ".flisk/.project-id",
+      ".flisk/smoke/",
       "node_modules/",
     ]);
     expect(readFileSync(join(dir, ".gitignore"), "utf-8")).toContain(".env\n");
@@ -32,9 +32,9 @@ describe("ensureGitignore", () => {
     writeFileSync(join(dir, ".gitignore"), "node_modules\ndist");
     expect(ensureGitignore(dir)).toEqual([
       ".env",
-      ".tdk/.tdk-out/",
-      ".tdk/.project-id",
-      ".tdk/smoke/",
+      ".flisk/.flisk-out/",
+      ".flisk/.project-id",
+      ".flisk/smoke/",
     ]);
     const content = readFileSync(join(dir, ".gitignore"), "utf-8");
     expect(content.startsWith("node_modules\ndist\n")).toBe(true);
@@ -47,12 +47,19 @@ describe("ensureGitignore", () => {
 
   it("handles CRLF line breaks in existing .gitignore", () => {
     writeFileSync(join(dir, ".gitignore"), "dist\r\n.env\r\nnode_modules\r\n");
-    expect(ensureGitignore(dir)).toEqual([".tdk/.tdk-out/", ".tdk/.project-id", ".tdk/smoke/"]);
+    expect(ensureGitignore(dir)).toEqual([
+      ".flisk/.flisk-out/",
+      ".flisk/.project-id",
+      ".flisk/smoke/",
+    ]);
   });
 
   it("handles padded whitespace and duplicate entries in existing .gitignore", () => {
-    writeFileSync(join(dir, ".gitignore"), "  .env  \n.env\n\t.tdk/.project-id\t\nnode_modules/\n");
-    expect(ensureGitignore(dir)).toEqual([".tdk/.tdk-out/", ".tdk/smoke/"]);
+    writeFileSync(
+      join(dir, ".gitignore"),
+      "  .env  \n.env\n\t.flisk/.project-id\t\nnode_modules/\n",
+    );
+    expect(ensureGitignore(dir)).toEqual([".flisk/.flisk-out/", ".flisk/smoke/"]);
   });
 
   it("does not mistake .env.example or .env.local for .env", () => {
@@ -65,7 +72,7 @@ describe("ensureGitignore", () => {
 describe("isInsideGitWorkTree", () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-git-tree-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-git-tree-"));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -94,14 +101,14 @@ describe("isInsideGitWorkTree", () => {
 describe("ensureSmokeRecordsIgnored", () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "tdk-smoke-ignore-"));
+    dir = mkdtempSync(join(tmpdir(), "flisk-smoke-ignore-"));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
   it("adds the ignore entry in a git working tree", () => {
     mkdirSync(join(dir, ".git"));
     expect(ensureSmokeRecordsIgnored(dir)).toBeUndefined();
-    expect(readFileSync(join(dir, ".gitignore"), "utf-8")).toContain(".tdk/smoke/");
+    expect(readFileSync(join(dir, ".gitignore"), "utf-8")).toContain(".flisk/smoke/");
   });
 
   it("writes nothing outside a git working tree", () => {

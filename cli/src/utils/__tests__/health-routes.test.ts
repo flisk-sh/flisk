@@ -28,10 +28,10 @@ describe("checkHealthRoutes", () => {
   }
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-health-routes-"));
-    mkdirSync(join(root, ".tdk"), { recursive: true });
+    root = mkdtempSync(join(tmpdir(), "flisk-health-routes-"));
+    mkdirSync(join(root, ".flisk"), { recursive: true });
     writeFileSync(
-      join(root, ".tdk", "project.json"),
+      join(root, ".flisk", "project.json"),
       JSON.stringify({ project: { name: "shop" } }),
     );
   });
@@ -270,7 +270,7 @@ describe("resolveHealthPaths", () => {
 describe("findMissingHealthRoutes", () => {
   let tempDir: string;
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-missing-health-"));
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-missing-health-"));
   });
   afterEach(() => {
     rmSync(tempDir, { recursive: true, force: true });

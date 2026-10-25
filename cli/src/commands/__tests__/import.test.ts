@@ -50,8 +50,8 @@ describe("flisk import", () => {
     expect(importCommand.description()).not.toMatch(/procfile|dockerfile|package\.json/i);
   });
 
-  it("honours TDK_IMPORT_PACKAGE and uses npx.cmd on Windows", () => {
-    const inv = importInvocation(["."], { TDK_IMPORT_PACKAGE: "flisk-import@1" }, "win32");
+  it("honours FLISK_IMPORT_PACKAGE and uses npx.cmd on Windows", () => {
+    const inv = importInvocation(["."], { FLISK_IMPORT_PACKAGE: "flisk-import@1" }, "win32");
     expect(inv.command).toBe("npx.cmd");
     expect(inv.args).toEqual(["--yes", "flisk-import@1", "."]);
     expect(inv.shell).toBe(true);

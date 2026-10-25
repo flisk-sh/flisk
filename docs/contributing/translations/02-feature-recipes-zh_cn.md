@@ -23,8 +23,8 @@
 
 把现有代码当作地图来使用：
 
-1. 从 `engine/topologies/tilt/resources/infra-loader.star` 开始，了解共享基础设施如何被加载和注册。
-2. 查看 `engine/topologies/tilt/resources/databases.star` 中的数据库生命周期示例，以及 `engine/topologies/platform/docker/compose/` 中的 Compose 生成代码。
+1. 从 `runtime/engine/topologies/tilt/resources/infra-loader.star` 开始，了解共享基础设施如何被加载和注册。
+2. 查看 `runtime/engine/topologies/tilt/resources/databases.star` 中的数据库生命周期示例，以及 `runtime/engine/topologies/platform/docker/compose/` 中的 Compose 生成代码。
 3. 找到相关的功能或 manifest 设置，并沿着它找到验证和启用的位置。用 `rg` 搜索设置名称。
 4. 跟踪完整的生命周期：配置、生成的文件、启动顺序、健康/就绪状态、环境变量或机密、关闭/清理，以及工具被禁用时会发生什么。
 5. 为你修改的行为添加检查。CLI 和 Starlark 生成器的测试位于 `cli/src/commands/__tests__/`，Python 引擎测试位于 `tests/tilt-engine/`。
@@ -37,7 +37,7 @@
 只要安装了 Tilt，就可以运行任何引擎函数并查看其输出。在仓库根目录创建 `try.Tiltfile`（该文件被 git 忽略）：
 
 ```python
-load("engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
+load("runtime/engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
 
 manifest = {"appType": "backend", "stack": "shop", "port": 4000, "appName": "orders-api"}
 resource = {"name": "orders-api", "_resource_path": "services/shop/orders-api"}
@@ -55,14 +55,14 @@ tilt alpha tiltfile-result -f try.Tiltfile
 
 ## 修改引擎或服务发现
 
-1. 对于 Tilt 资源编排，从 `engine/topologies/tilt/resources/` 开始。
-2. 对于 Docker、网络或持久化状态，从 `engine/topologies/platform/` 开始。
-3. 对于 manifest 扫描和依赖图，从 `discovery/` 开始。
+1. 对于 Tilt 资源编排，从 `runtime/engine/topologies/tilt/resources/` 开始。
+2. 对于 Docker、网络或持久化状态，从 `runtime/engine/topologies/platform/` 开始。
+3. 对于 manifest 扫描和依赖图，从 `runtime/discovery/` 开始。
 4. 搜索受影响的输出文件或 manifest 字段，找到其生成器和测试。CLI 测试包含 Starlark 生成器检查。
 5. 检查现有的 manifest 和生成的项目是否仍然正常工作。行为改变时，更新 schema、示例或 CLI 文档。
 6. 如果改动涉及契约或多个模块，请先编写 [OpenSpec 提案](01-first-change-zh_cn.md#何时编写变更提案)。
 
-`engine/AGENTS.md` 以及其他 `AGENTS.md` 文件是面向智能体的工作笔记。它们有助于解释本地代码，但在把它们当作产品文档使用之前，请先对照当前源码和测试检查其路径和建议。
+`runtime/engine/AGENTS.md` 以及其他 `AGENTS.md` 文件是面向智能体的工作笔记。它们有助于解释本地代码，但在把它们当作产品文档使用之前，请先对照当前源码和测试检查其路径和建议。
 
 ## 修改文档
 

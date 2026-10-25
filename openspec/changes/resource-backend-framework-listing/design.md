@@ -49,11 +49,11 @@ code.
 
 ### 5. The listing is tested through the real binary
 
-The inventory is a CLI contract, so the test spawns `cli/bin/tdk.js` and reads the tab separated output.
+The inventory is a CLI contract, so the test spawns `cli/bin/flisk.js` and reads the tab separated output.
 A spawned process also avoids the commander state that an in-process `parseAsync` keeps between runs,
 where a `--type` from an earlier case would still be set for a later one.
 
-The test uses the shared `runTdk` helper from `cli/src/test-support`, so the binary runs without color and
+The test uses the shared `runFlisk` helper from `cli/src/test-support`, so the binary runs without color and
 the exit status is always a real one. The expectations are derived from the registries: the verification
 column from the frontend registry, the label from the backend framework registry, so a new provider does
 not break the test.

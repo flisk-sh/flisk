@@ -21,7 +21,7 @@ A missing `schemaVersion` SHALL be fixed only by `flisk config migrate`. That co
 - **THEN** Flisk does not write `schemaVersion` and tells the user to run `flisk config migrate`
 
 ### Requirement: Native Windows stays inspection-only
-Native Windows SHALL remain documented as inspection-only. This change SHALL NOT start Docker or Tilt on native Windows except the existing unsupported `TDK_ALLOW_NATIVE_WINDOWS=1` escape hatch.
+Native Windows SHALL remain documented as inspection-only. This change SHALL NOT start Docker or Tilt on native Windows except the existing unsupported `FLISK_ALLOW_NATIVE_WINDOWS=1` escape hatch.
 
 #### Scenario: Native Windows doctor
 - **WHEN** `flisk doctor` runs on native Windows

@@ -29,7 +29,7 @@ import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.j
 import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import {
   applyDoctorFixes,
-  checkDuplicateTdkInstalls,
+  checkDuplicateFliskInstalls,
   type DoctorAction,
   hasFailedActions,
   planDoctorFixes,
@@ -69,6 +69,7 @@ import {
 } from "../utils/doctor-wiring.js";
 import { validateEnvFile } from "../utils/env-validator.js";
 import { type ExecAsync, execAsync, isExecTimeout } from "../utils/exec-async.js";
+import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
 import { getHostPortPlan, resolveRuntimeIngressPort } from "../utils/host-port-config.js";
 import { createHostPortPlan, type HostPortPlan } from "../utils/host-port-plan.js";
@@ -99,7 +100,6 @@ import {
   runSmokePlans,
   safeSmokeDeps,
 } from "../utils/smoke.js";
-import { evaluateTdkVersionFloor } from "../utils/tdk-version.js";
 import { findOnPath } from "../utils/which.js";
 import {
   checkWindowsDockerMode,
@@ -188,7 +188,7 @@ function isWildcardBindAddress(value: string): boolean {
 }
 
 /**
- * Dev ports (Traefik, Postgres) bind to 127.0.0.1 by default. TDK_BIND_ADDRESS
+ * Dev ports (Traefik, Postgres) bind to 127.0.0.1 by default. FLISK_BIND_ADDRESS
  * opts in to another address; a wildcard exposes them to every machine on the
  * network (GHSA-3hj3-f39v-j2x5).
  */
@@ -196,7 +196,7 @@ export function checkPublishedBindAddress(
   env: NodeJS.ProcessEnv = process.env,
   strict = false,
 ): CheckResult {
-  const bindAddress = (env.TDK_BIND_ADDRESS ?? "").trim();
+  const bindAddress = (env.FLISK_BIND_ADDRESS ?? "").trim();
   if (!isWildcardBindAddress(bindAddress)) {
     return {
       name: "Dev Port Bind Address",
@@ -210,8 +210,8 @@ export function checkPublishedBindAddress(
     name: "Dev Port Bind Address",
     didPass: !strict,
     isWarning: !strict,
-    message: `TDK_BIND_ADDRESS is ${bindAddress}: Traefik and Postgres are reachable from other machines on the network.`,
-    fix: "Unset TDK_BIND_ADDRESS to keep dev ports on 127.0.0.1. Keep it only when you test from another device on purpose.",
+    message: `FLISK_BIND_ADDRESS is ${bindAddress}: Traefik and Postgres are reachable from other machines on the network.`,
+    fix: "Unset FLISK_BIND_ADDRESS to keep dev ports on 127.0.0.1. Keep it only when you test from another device on purpose.",
   };
 }
 
@@ -727,11 +727,11 @@ function checkEnvironmentVariables(): CheckResult {
 }
 
 function checkMasterConfigs(): CheckResult {
-  // `flisk project` writes generated master configs to .tdk/.tdk-out/, not the
+  // `flisk project` writes generated master configs to .flisk/.flisk-out/, not the
   // project root, so look there (and walk up to find the project root, same
   // as every other command that reads project state).
   const projectRoot = findProjectRoot() ?? process.cwd();
-  const outDir = join(projectRoot, ".tdk", ".tdk-out");
+  const outDir = join(projectRoot, ".flisk", ".flisk-out");
 
   const missing = MASTER_CONFIG_FILES.filter((file) => !existsSync(join(outDir, file)));
 
@@ -752,11 +752,11 @@ function checkMasterConfigs(): CheckResult {
 }
 
 /**
- * A repo can pin the oldest CLI it works with: `"minTdkVersion": "1.3.80"` in
- * .tdk/project.json. An older `flisk` fails here, so a team sees one clear line
+ * A repo can pin the oldest CLI it works with: `"minFliskVersion": "1.3.80"` in
+ * .flisk/project.json. An older `flisk` fails here, so a team sees one clear line
  * instead of a half-working `flisk up`.
  */
-export function checkTdkVersion(currentVersion: string = getPackageVersion()): CheckResult {
+export function checkFliskVersion(currentVersion: string = getPackageVersion()): CheckResult {
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
     return {
@@ -767,13 +767,13 @@ export function checkTdkVersion(currentVersion: string = getPackageVersion()): C
     };
   }
 
-  const floor = evaluateTdkVersionFloor(projectRoot, currentVersion);
+  const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
   if (floor.status === "none") {
     return {
       name: "Flisk version",
       didPass: true,
       isSkipped: true,
-      message: `flisk ${currentVersion} (no minTdkVersion in .tdk/project.json)`,
+      message: `flisk ${currentVersion} (no minFliskVersion in .flisk/project.json)`,
     };
   }
   if (floor.status === "malformed" || floor.status === "too-old") {
@@ -782,7 +782,7 @@ export function checkTdkVersion(currentVersion: string = getPackageVersion()): C
   return {
     name: "Flisk version",
     didPass: true,
-    message: `flisk ${currentVersion} meets minTdkVersion ${floor.required}`,
+    message: `flisk ${currentVersion} meets minFliskVersion ${floor.required}`,
   };
 }
 
@@ -812,7 +812,72 @@ export function checkResourceDiscovery(): CheckResult {
     name: "Resource Discovery",
     didPass: false,
     message: `${formatCount(stranded.length, "resource")} outside discovery.paths ${JSON.stringify(patterns)}: ${list}. \`flisk up\` will not start them`,
-    fix: "Move each under services/<stack>/<name>, or add a matching pattern to discovery.paths in .tdk/project.json and run: flisk config regenerate",
+    fix: "Move each under services/<stack>/<name>, or add a matching pattern to discovery.paths in .flisk/project.json and run: flisk config regenerate",
+  };
+}
+
+/**
+ * `.autogenerated/` is written by `flisk up`, so a resource without it has simply not been generated yet.
+ * That is a warning, not a failure: `flisk doctor` is also run before the first `flisk up`.
+ */
+/** Regular files under `.autogenerated/`, nested ones included, without the `.flisk-contract` bookkeeping directory. */
+function listGeneratedFiles(root: string): string[] {
+  const files: string[] = [];
+  const collect = (dir: string, relativeDir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (relativeDir === "" && entry.name === ".flisk-contract") continue;
+      const relativeFile = relativeDir === "" ? entry.name : `${relativeDir}/${entry.name}`;
+      if (entry.isDirectory()) collect(join(dir, entry.name), relativeFile);
+      else if (entry.isFile()) files.push(relativeFile);
+    }
+  };
+  collect(root, "");
+  return files.sort();
+}
+
+export function checkGeneratedFiles(strict = false): CheckResult {
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  const resources = discoverResourcesFromRoot(projectRoot).filter(
+    (resource) => (resource.config?.appType ?? resource.type) !== "library",
+  );
+
+  if (resources.length === 0) {
+    return {
+      name: "Generated Files",
+      didPass: true,
+      isSkipped: true,
+      message: "No resources to check",
+    };
+  }
+
+  const lines: string[] = [];
+  const missing: string[] = [];
+  for (const resource of resources) {
+    const label = normalize(relative(projectRoot, resource.path));
+    const dir = join(resource.path, AUTOGENERATED_DIR);
+    const files = existsSync(dir) ? listGeneratedFiles(dir) : [];
+    if (files.length === 0) {
+      missing.push(label);
+      lines.push(`${label}: no ${AUTOGENERATED_DIR}/ files`);
+    } else {
+      lines.push(`${label}: ${files.join(", ")}`);
+    }
+  }
+
+  if (missing.length === 0) {
+    return {
+      name: "Generated Files",
+      didPass: true,
+      message: `${formatCount(resources.length, "resource")} with generated files:\n    ${lines.join("\n    ")}`,
+    };
+  }
+
+  return {
+    name: "Generated Files",
+    didPass: false,
+    isWarning: !strict,
+    message: `${missing.length} of ${formatCount(resources.length, "resource")} not generated yet:\n    ${lines.join("\n    ")}`,
+    fix: "Run `flisk up` to generate them (it needs Docker, Compose and Tilt). `flisk config verify` checks the project-level files only.",
   };
 }
 
@@ -1647,7 +1712,7 @@ export const doctorCommand = new Command("doctor")
               name: "Host Ports",
               didPass: false,
               message: portPlanError ?? "Could not select host ports",
-              fix: "Set TDK_HTTP_PORT, TDK_HTTPS_PORT, or TDK_POSTGRES_PORT to available host ports.",
+              fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
             },
       () =>
         hostPortPlan
@@ -1672,12 +1737,13 @@ export const doctorCommand = new Command("doctor")
       () => checkPublishedBindAddress(process.env, options.strict),
       // Each project needs several networks; a full address pool fails `flisk up` late.
       requiresContainerRuntime("Docker Network Pool", () => checkDockerNetworkCapacity()),
-      () => checkDuplicateTdkInstalls(),
+      () => checkDuplicateFliskInstalls(),
     ];
     const projectChecks: Array<() => CheckResult | Promise<CheckResult>> = [
-      () => checkTdkVersion(),
+      () => checkFliskVersion(),
       checkMasterConfigs,
       checkGeneratedProjectRuntimeAssets,
+      () => checkGeneratedFiles(options.strict),
       checkStarlarkLoadExports,
       checkStartupScripts,
       // A backend without its health route never turns healthy; Traefik 404s it.

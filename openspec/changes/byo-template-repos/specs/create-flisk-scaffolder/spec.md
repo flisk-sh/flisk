@@ -34,7 +34,7 @@ When run in a terminal without `--template`, the scaffolder SHALL show a picker 
 
 ### Requirement: List and inspect
 
-`--list` SHALL print one row per template: `id`, `label`, `port`, `healthPath`, `upstream`, tab separated, in registry order, and exit 0. `--show <id>` SHALL print that template's `template.json` and its repository URL. Both SHALL work without network access to the template repositories by reading the registry shipped in the package.
+`--list` SHALL print one row per template: `id`, `label`, `port`, `healthCheckPath`, `upstream`, tab separated, in registry order, and exit 0. `--show <id>` SHALL print that template's `service.json` and its repository URL. Both SHALL work without network access to the template repositories by reading the registry shipped in the package.
 
 #### Scenario: List output
 
@@ -64,13 +64,19 @@ The scaffolder SHALL fetch the template files for a release from the package its
 
 ### Requirement: Registers through the Flisk CLI
 
-After writing files, the scaffolder SHALL run the `flisk resource <name> --type bring-your-own --dockerfile ./Dockerfile --stack <stack> --yes` command through the installed `flisk` binary. It SHALL NOT write `service.json`, Compose, Tilt or Traefik files itself. When `flisk` is not installed, it SHALL write the template files only, print the exact command to run later, and exit 0 with a notice, not an error.
+After writing files, the scaffolder SHALL run `flisk resource <name> --type bring-your-own --dockerfile ./Dockerfile --stack <stack> --yes` through the installed `flisk` binary. It SHALL copy the template's `Dockerfile` and `README.md` but not its `service.json`, and SHALL NOT write `service.json`, Compose, Tilt or Traefik files itself. Without `flisk` it SHALL write the template files only, print the command to run later, and exit 0 with a notice.
 
 #### Scenario: Flisk is installed
 
 - **WHEN** `flisk` is on `PATH` and the scaffolder runs for `vue`
 - **THEN** `flisk resource` is invoked with `--type bring-your-own` and the template's `Dockerfile`
 - **AND** the generated `service.json` is produced by Flisk, not the scaffolder
+
+#### Scenario: Template service.json is read, not copied
+
+- **WHEN** the scaffolder writes the `vue` template into a project
+- **THEN** the project directory has the template's `Dockerfile` and `README.md`
+- **AND** the template's `service.json` is not copied; its `port`, `healthCheckPath` and `dockerfile` become `flisk resource` options
 
 #### Scenario: Flisk is missing
 
@@ -84,6 +90,12 @@ After writing files, the scaffolder SHALL run the `flisk resource <name> --type 
 - **WHEN** `flisk resource` exits non-zero
 - **THEN** the scaffolder exits non-zero with the same message
 - **AND** the files it wrote are left in place so the user can retry by hand
+
+#### Scenario: Command comes from service.json
+
+- **WHEN** the scaffolder registers a template
+- **THEN** it derives the `flisk resource` command from the template's `service.json` (`stack`, `port`, `healthCheckPath`, `dockerfile`)
+- **AND** it does not read a `resourceCommand` field, because no template carries one
 
 ### Requirement: Resource naming
 

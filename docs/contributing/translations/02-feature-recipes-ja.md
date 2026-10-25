@@ -23,8 +23,8 @@
 
 既存のコードを地図として使ってください。
 
-1. `engine/topologies/tilt/resources/infra-loader.star` から、共有インフラがどう読み込まれ、登録されるかを確認する。
-2. データベースのライフサイクルの例として `engine/topologies/tilt/resources/databases.star` を、Compose の生成として `engine/topologies/platform/docker/compose/` を見る。
+1. `runtime/engine/topologies/tilt/resources/infra-loader.star` から、共有インフラがどう読み込まれ、登録されるかを確認する。
+2. データベースのライフサイクルの例として `runtime/engine/topologies/tilt/resources/databases.star` を、Compose の生成として `runtime/engine/topologies/platform/docker/compose/` を見る。
 3. 関連する機能や manifest の設定を見つけ、それが検証され、有効になる場所まで追う。`rg` で設定名を検索してください。
 4. 設定、生成されるファイル、起動順序、ヘルス・readiness、環境変数やシークレット、シャットダウンとクリーンアップ、ツールを無効にしたときの動作まで、ライフサイクル全体を追う。
 5. 変更した動作のチェックを追加する。CLI と Starlark の生成器のテストは `cli/src/commands/__tests__/` にあり、Python エンジンのテストは `tests/tilt-engine/` にあります。
@@ -37,7 +37,7 @@
 Tilt だけがインストールされていれば、どのエンジン関数でも実行して出力を確認できます。リポジトリのルートで `try.Tiltfile` を作成してください（git の管理対象外です）。
 
 ```python
-load("engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
+load("runtime/engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
 
 manifest = {"appType": "backend", "stack": "shop", "port": 4000, "appName": "orders-api"}
 resource = {"name": "orders-api", "_resource_path": "services/shop/orders-api"}
@@ -55,14 +55,14 @@ tilt alpha tiltfile-result -f try.Tiltfile
 
 ## エンジンやサービス検出を変更する
 
-1. Tilt のリソースのオーケストレーションは `engine/topologies/tilt/resources/` から始める。
-2. Docker、ネットワーキング、永続化された状態は `engine/topologies/platform/` から始める。
-3. manifest のスキャンと依存グラフは `discovery/` から始める。
+1. Tilt のリソースのオーケストレーションは `runtime/engine/topologies/tilt/resources/` から始める。
+2. Docker、ネットワーキング、永続化された状態は `runtime/engine/topologies/platform/` から始める。
+3. manifest のスキャンと依存グラフは `runtime/discovery/` から始める。
 4. 影響を受ける出力ファイルや manifest のフィールドを検索して、その生成器とテストを見つける。CLI のテストには Starlark の生成器のチェックが含まれています。
 5. 既存の manifest と生成されたプロジェクトがまだ動くかを確認する。動作が変わったら、スキーマ、例、CLI のドキュメントを更新する。
 6. 変更が契約や複数のモジュールにまたがる場合は、先に [OpenSpec の提案](01-first-change-ja.md#変更提案を書くべきとき)を書く。
 
-`engine/AGENTS.md` などの `AGENTS.md` ファイルは、エージェント向けの作業メモです。ローカルのコードを説明する助けにはなりますが、プロダクトのドキュメントとして使う前に、そのパスとアドバイスを現在のソースとテストで確認してください。
+`runtime/engine/AGENTS.md` などの `AGENTS.md` ファイルは、エージェント向けの作業メモです。ローカルのコードを説明する助けにはなりますが、プロダクトのドキュメントとして使う前に、そのパスとアドバイスを現在のソースとテストで確認してください。
 
 ## ドキュメントを変更する
 

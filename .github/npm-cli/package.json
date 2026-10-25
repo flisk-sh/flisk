@@ -2,6 +2,6 @@
   "name": "npm-cli-pin",
   "private": true,
   "dependencies": {
-    "npm": "12.2.0"
+    "npm": "12.2.1"
   }
 }

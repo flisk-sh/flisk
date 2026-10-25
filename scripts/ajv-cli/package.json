@@ -1,5 +1,5 @@
 {
-  "name": "tdk-e2e-ajv-cli",
+  "name": "flisk-e2e-ajv-cli",
   "private": true,
   "version": "1.0.0",
   "devDependencies": {

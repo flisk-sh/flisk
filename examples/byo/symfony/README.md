@@ -25,7 +25,7 @@ tests/e2e/resource-types/bring-your-own/verify-byo-example.sh symfony
 Through a real `flisk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh symfony /health
+VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh symfony /health
 ```
 
 ## Register it in a Flisk project

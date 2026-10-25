@@ -43,7 +43,7 @@ describe("flisk completion --install and --output", () => {
   let previousPsModulePath: string | undefined;
 
   beforeEach(() => {
-    workDir = mkdtempSync(join(tmpdir(), "tdk-completion-"));
+    workDir = mkdtempSync(join(tmpdir(), "flisk-completion-"));
     home.dir = join(workDir, "home");
     mkdirSync(home.dir, { recursive: true });
     previousShell = process.env.SHELL;
@@ -78,7 +78,7 @@ describe("flisk completion --install and --output", () => {
     const { stdout } = await runCompletion(["bash", "--install"]);
 
     const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
-    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _tdk_completions flisk");
+    expect(readFileSync(installPath, "utf-8")).toContain("complete -F _flisk_completions flisk");
     expect(stdout).toContain("Installed bash completion to:");
     expect(stdout).toContain(installPath);
     expect(stdout).toContain("source ~/.bash_completion.d/flisk-completion.bash");

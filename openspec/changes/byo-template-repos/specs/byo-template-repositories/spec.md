@@ -19,7 +19,7 @@ Each of the twelve wrappers in `examples/byo/` SHALL live in its own repository 
 
 ### Requirement: Template repository contents
 
-A template repository SHALL contain, at its root: a `Dockerfile`, a `README.md`, a `template.json` manifest, a `LICENSE`, a `CONTRIBUTING.md`, a `.github/workflows/verify.yml` and a `.github/ISSUE_TEMPLATE/` directory. It SHALL NOT contain scaffolded application source. The scaffolder runs at image build time, so the repository stays in step with upstream instead of freezing a copy of it.
+A template repository SHALL contain, at its root: a `Dockerfile`, a `README.md`, a `service.json` manifest, a `LICENSE`, a `CONTRIBUTING.md`, a `.github/workflows/verify.yml` and a `.github/ISSUE_TEMPLATE/` directory. It SHALL NOT contain scaffolded application source. The scaffolder runs at image build time, so the repository stays in step with upstream instead of freezing a copy of it.
 
 #### Scenario: Repository has no scaffolded source
 
@@ -29,41 +29,41 @@ A template repository SHALL contain, at its root: a `Dockerfile`, a `README.md`,
 
 #### Scenario: Missing required file fails the skeleton check
 
-- **WHEN** a template repository has no `template.json`
+- **WHEN** a template repository has no `service.json`
 - **THEN** the repository skeleton check fails and names the missing file
 
 ### Requirement: Template manifest
 
-Each template repository SHALL describe itself in `template.json` with these fields: `id`, `label`, `upstream` (the scaffolder command, for example `npm create vue@latest`), `port` (the default), `healthPath`, `stack` (a short description), `notes`, and `resourceCommand` (the exact `flisk resource` command, with `<name>` as the placeholder). `template.json` SHALL validate against the JSON Schema `byo-template.schema.json`, published in the scaffolder repository.
+Each template repository SHALL describe itself in `service.json`, a valid Flisk service manifest with `schemaVersion` 1, `appName`, `appType` `bring-your-own`, `stack`, `port`, `healthCheckPath` and `dockerfile`, plus a `template` object with `id`, `label`, `upstream`, `description` and `notes`. It SHALL validate against `engine/schemas/service-schema.json`, and the `template` object SHALL validate against the JSON Schema `byo-template.schema.json`, published in the scaffolder repository.
 
 #### Scenario: Manifest names the health path
 
-- **WHEN** `template.json` for `vue` is read
-- **THEN** `healthPath` is `/`
+- **WHEN** `service.json` for `vue` is read
+- **THEN** `healthCheckPath` is `/`
 - **AND** `port` is `3000`
 
 #### Scenario: Manifest and README disagree
 
-- **WHEN** a pull request changes `template.json` `port` but not the `README.md` check command
+- **WHEN** a pull request changes `service.json` `port` but not the `README.md` check command
 - **THEN** the verify workflow fails and prints both values
 
 ### Requirement: README agrees with the manifest
 
-The `README.md` SHALL NOT state a port, health path or command that differs from `template.json`. It SHALL be generated from the manifest or checked against it in CI.
+The `README.md` SHALL NOT state a port, health path or command that differs from `service.json`. It SHALL be generated from the manifest or checked against it in CI.
 
 #### Scenario: README repeats the manifest port
 
-- **WHEN** the README check command names port `3000` and `template.json` says `3000`
+- **WHEN** the README check command names port `3000` and `service.json` says `3000`
 - **THEN** the check passes
 
 ### Requirement: Container contract compliance
 
-Every template's image SHALL meet the container contract in `docs/byo.md`: the process reads `PORT` (falling back to the template default), binds `0.0.0.0`, answers HTTP 200 on `healthPath`, and runs as a non-root user. The base image SHALL be pinned by digest. A `HEALTHCHECK` SHALL be present unless the base image makes one impossible, in which case the README SHALL say why.
+Every template's image SHALL meet the container contract in `docs/byo.md`: the process reads `PORT` (falling back to the template default), binds `0.0.0.0`, answers HTTP 200 on `healthCheckPath`, and runs as a non-root user. The base image SHALL be pinned by digest. A `HEALTHCHECK` SHALL be present unless the base image makes one impossible, in which case the README SHALL say why.
 
 #### Scenario: Image answers on the assigned port
 
 - **WHEN** the image is run with `PORT=4000`
-- **THEN** an HTTP request to `http://127.0.0.1:4000<healthPath>` returns status 200 within the start window
+- **THEN** an HTTP request to `http://127.0.0.1:4000<healthCheckPath>` returns status 200 within the start window
 
 #### Scenario: Image runs as non-root
 

@@ -26,7 +26,7 @@ The CLI is advertised as runnable with `npx @flisk-sh/flisk`, but a cold invocat
 
 ## Impact
 
-- CLI executable and command dispatch: `cli/bin/tdk.js`, `cli/src/cli.ts`, `cli/src/commands/doctor.ts`, and the start points of `project` and `up`.
+- CLI executable and command dispatch: `cli/bin/flisk.js`, `cli/src/cli.ts`, `cli/src/commands/doctor.ts`, and the start points of `project` and `up`.
 - New utility and focused unit tests: `cli/src/utils/cold-preflight.ts` and `cli/src/utils/cold-preflight.test.ts`.
 - Root and CLI documentation: `README.md` and `cli/README.md`.
 - Existing doctor runtime checks should be reused; project-specific NATS and Prisma checks must remain conditional on project configuration.

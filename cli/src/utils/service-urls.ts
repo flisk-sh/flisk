@@ -29,14 +29,14 @@ export function getProjectName(): string {
 export function getProjectNameFor(root: string | null): string {
   if (root) {
     try {
-      const content = readFileSync(join(root, ".tdk", PROJECT_JSON), "utf-8");
+      const content = readFileSync(join(root, ".flisk", PROJECT_JSON), "utf-8");
       const parsed = JSON.parse(content);
       if (parsed?.project?.name) {
         return parsed.project.name;
       }
     } catch {}
   }
-  return "tdk-project";
+  return "flisk-project";
 }
 
 export function resolveSubdomainBases(
@@ -45,7 +45,7 @@ export function resolveSubdomainBases(
 ): { appBase: string; apiBase: string } {
   const projectName = getProjectNameFor(projectRoot ?? findProjectRoot());
   const raw =
-    process.env.TDK_SERVICE_BASE_URL ??
+    process.env.FLISK_SERVICE_BASE_URL ??
     `http://${projectName}.localhost${ingressPort ? `:${ingressPort}` : ""}`;
   try {
     const u = new URL(raw.includes("://") ? raw : `http://${raw}`);

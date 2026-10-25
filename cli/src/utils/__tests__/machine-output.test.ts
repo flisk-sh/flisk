@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
-import { TdkError } from "../errors.js";
+import { FliskError } from "../errors.js";
 import {
   createMachineEnvelope,
   isMachineOutputEnvelope,
@@ -134,8 +134,8 @@ describe("isMachineOutputEnvelope", () => {
 });
 
 describe("toMachineError", () => {
-  it("converts TdkError with suggestions to COMMAND_FAILED code", () => {
-    const error = new TdkError("Command invalid", ["Use --force", "Re-run init"], 3);
+  it("converts FliskError with suggestions to COMMAND_FAILED code", () => {
+    const error = new FliskError("Command invalid", ["Use --force", "Re-run init"], 3);
     const result = toMachineError(error);
     expect(result).toEqual({
       error: {
@@ -147,8 +147,8 @@ describe("toMachineError", () => {
     });
   });
 
-  it("converts TdkError without suggestions to COMMAND_FAILED code without suggestions key", () => {
-    const error = new TdkError("Simple failure", [], 1);
+  it("converts FliskError without suggestions to COMMAND_FAILED code without suggestions key", () => {
+    const error = new FliskError("Simple failure", [], 1);
     const result = toMachineError(error);
     expect(result).toEqual({
       error: {
@@ -200,7 +200,7 @@ describe("writeMachineError", () => {
       throw new Error("process.exit called");
     }) as unknown as (code?: string | number | null | undefined) => never);
 
-    const error = new TdkError("Missing config", ["Run flisk init"], 1);
+    const error = new FliskError("Missing config", ["Run flisk init"], 1);
 
     expect(() => writeMachineError(error)).toThrow("process.exit called");
 

@@ -1,7 +1,7 @@
 {
-  "name": "tdk-cli-internal",
+  "name": "flisk-cli-internal",
   "private": true,
-  "version": "1.3.207",
+  "version": "1.4.2",
   "description": "Flisk CLI — start services on your machine.",
   "keywords": [
     "flisk",
@@ -25,7 +25,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "flisk": "bin/tdk.js"
+    "flisk": "bin/flisk.js"
   },
   "files": [
     "dist",
@@ -45,8 +45,8 @@
     "build": "tsc && node scripts/bundle.mjs",
     "build:watch": "tsc --watch",
     "check:dist": "npm run build && ../scripts/check-cli-dist.sh",
-    "lint": "biome check .",
-    "lint:fix": "biome check . --write",
+    "lint": "biome check . ../tests/generated ../tests/runtime-layout",
+    "lint:fix": "biome check . ../tests/generated ../tests/runtime-layout --write",
     "typecheck": "tsc --project tsconfig.typecheck.json",
     "clean": "rm -rf dist",
     "dev": "bun run build:watch",

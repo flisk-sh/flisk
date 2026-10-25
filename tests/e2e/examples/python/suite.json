@@ -5,8 +5,8 @@
   "paths": [
     "cli/src/backend-languages/**",
     "cli/src/commands/resource.ts",
-    "engine/topologies/platform/docker/dockerfile/**",
-    "engine/topologies/tilt/resources/orchestrator/**",
+    "runtime/engine/topologies/platform/docker/dockerfile/**",
+    "runtime/engine/topologies/tilt/resources/orchestrator/**",
     "examples/one-backend-python/**",
     "scripts/install-global.mjs",
     "tests/e2e/lib/**",

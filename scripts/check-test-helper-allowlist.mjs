@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 // Helpers that live in cli/src/test-support. A name here is a duplicate when a test file declares it.
 export const HELPERS = [
   "runFlisk",
-  "runTdk",
+  "runFlisk",
   "runCli",
   "createProject",
   "createTempProject",
@@ -27,7 +27,7 @@ export const HELPERS = [
   "cliBin",
 ];
 // The test-support export to import instead, where the names differ.
-const SHARED = { runTdk: "runFlisk", cliBin: "fliskBin", evaluate: "evaluateStarlark", resource: "makeResource" };
+const SHARED = { runFlisk: "runFlisk", cliBin: "fliskBin", evaluate: "evaluateStarlark", resource: "makeResource" };
 export const ALLOWLIST = "cli/test-helper-allowlist.txt";
 const TEST_DIR = "cli/src";
 

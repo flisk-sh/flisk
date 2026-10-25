@@ -1,0 +1,58 @@
+# =============================================================================
+# 🎯 Flisk-DISCOVERY - Service Discovery Plugin
+# =============================================================================
+# This is the Tiltfile entry point for the flisk-discovery repo.
+# It exports manifest loading, registry, and auto-discovery daemon.
+#
+# Usage:
+#   v1alpha1.extension_repo(name='flisk-discovery', url='https://github.com/flisk-sh/flisk')
+#   load('ext://flisk-discovery', 'get_discovery_path', 'run_daemon', ...)
+# =============================================================================
+
+# Constants
+load('./constants.star',
+    _MANIFEST_FILENAME='MANIFEST_FILENAME',
+    _MANIFEST_FILENAME_YAML='MANIFEST_FILENAME_YAML',
+    _RESOURCES_ROOT='RESOURCES_ROOT',
+    _DISCOVERY_SCAN_ROOTS='DISCOVERY_SCAN_ROOTS',
+    _SCAN_ROOT_PATTERNS='SCAN_ROOT_PATTERNS'
+)
+
+# Discovery modules
+load('./discovery_orchestrator.star', _initialize_discovery='initialize_discovery')
+load('./discovery_daemon.star', _run_discovery_daemon='run_discovery_daemon')
+load('./resource_snapshot.star', _get_resource_snapshot_path='get_resource_snapshot_path')
+
+# =============================================================================
+# RE-EXPORTS
+# =============================================================================
+
+# Constants
+MANIFEST_FILENAME = _MANIFEST_FILENAME
+MANIFEST_FILENAME_YAML = _MANIFEST_FILENAME_YAML
+RESOURCES_ROOT = _RESOURCES_ROOT
+DISCOVERY_SCAN_ROOTS = _DISCOVERY_SCAN_ROOTS
+SCAN_ROOT_PATTERNS = _SCAN_ROOT_PATTERNS
+
+# Functions
+initialize_discovery = _initialize_discovery
+run_discovery_daemon = _run_discovery_daemon
+get_resource_snapshot_path = _get_resource_snapshot_path
+
+# =============================================================================
+# UTILITIES
+# =============================================================================
+
+def get_discovery_path():
+    """Return the path to the discovery module."""
+    return '.'
+
+def get_resource_snapshot_script():
+    """Return the path to the service snapshot script."""
+    return './resource_snapshot.py'
+
+def get_daemon_command():
+    """Return the command to run the discovery daemon."""
+    return 'python3 ./resource_snapshot.py daemon'
+
+print("✅ Flisk Discovery loaded: manifest scanning and auto-discovery")

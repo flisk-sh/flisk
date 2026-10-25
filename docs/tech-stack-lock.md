@@ -36,7 +36,7 @@ Flisk renders the file from `PLATFORM_STANDARDS.tech` in the CLI and uses it as 
 
 The generated `Tiltfile` passes `runtime`, `bundler`, `orm`, and `messaging` from its `TECH_STACK` map to `assert_tech_stack`. The map and the expected strings are both rendered from the same platform standards, so this only detects when the two generated copies drift (for example, after editing one side); it does not check installed package or image versions. The template also defines optional validation warnings for `linting` and `testing` when a caller supplies values that differ from the standards.
 
-The discovery helper reads `RUNTIME` and `MESSAGING` only in `generate_manifest_template`, where they seed `runtime` and `featuresEnabled` in a generated manifest; `_load_and_normalize` does not apply them as defaults to discovered `service.json` files. `language` and `web_framework` are exported labels only. `PLATFORM_STANDARDS.tech` also contains `database: postgresql`, but the `TILT_TECH_STACK.star` template does not render that property, so it is absent from the generated file. See the [Tiltfile template](../cli/templates/Tiltfile.hbs) and [manifest normalizer](../discovery/manifest/normalize.star) for those consumers. None of the rendered labels represents a package constraint or container tag.
+The discovery helper reads `RUNTIME` and `MESSAGING` only in `generate_manifest_template`, where they seed `runtime` and `featuresEnabled` in a generated manifest; `_load_and_normalize` does not apply them as defaults to discovered `service.json` files. `language` and `web_framework` are exported labels only. `PLATFORM_STANDARDS.tech` also contains `database: postgresql`, but the `TILT_TECH_STACK.star` template does not render that property, so it is absent from the generated file. See the [Tiltfile template](../cli/templates/Tiltfile.hbs) and [manifest normalizer](../runtime/discovery/manifest/normalize.star) for those consumers. None of the rendered labels represents a package constraint or container tag.
 
 ## Where versions live
 
@@ -54,7 +54,7 @@ For a service-specific runtime image, use a bring-your-own resource that names y
 
 ## Regenerate and verify
 
-`flisk project` creates the project configuration. `flisk config regenerate` regenerates the master project files from `.tdk/project.json` and the standards bundled with the installed CLI. It does not read version pins from `TILT_TECH_STACK.star`. Editing that generated file does not change a dependency or image version; `flisk config verify` reports the edit as drift, and regeneration restores the generated value.
+`flisk project` creates the project configuration. `flisk config regenerate` regenerates the master project files from `.flisk/project.json` and the standards bundled with the installed CLI. It does not read version pins from `TILT_TECH_STACK.star`. Editing that generated file does not change a dependency or image version; `flisk config verify` reports the edit as drift, and regeneration restores the generated value.
 
 Regeneration writes project files but does not start Docker, run Tilt, or restart an already running service. The command implementation is in [config.ts](../cli/src/commands/config.ts). Run `flisk up` when you are ready for Tilt to apply project or service changes; affected resources may then be rebuilt or restarted.
 

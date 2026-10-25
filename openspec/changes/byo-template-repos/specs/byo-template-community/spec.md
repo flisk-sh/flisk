@@ -2,7 +2,7 @@
 
 ### Requirement: Contributing a template guide
 
-The repository SHALL document how to add a new template in `docs/contributing/` and link it from `CONTRIBUTING.md` and `docs/contributing/02-feature-recipes.md`. The guide SHALL cover: choosing an upstream scaffolder, finding its non-interactive flags, writing the `Dockerfile` to the container contract, filling `template.json`, running the verify script, asking for a repository, and getting a registry entry merged. Every command in the guide SHALL be one the author ran.
+The repository SHALL document how to add a new template in `docs/contributing/` and link it from `CONTRIBUTING.md` and `docs/contributing/02-feature-recipes.md`. The guide SHALL cover: choosing an upstream scaffolder, finding its non-interactive flags, writing the `Dockerfile` to the container contract, filling `service.json`, running the verify script, asking for a repository, and getting a registry entry merged. Every command in the guide SHALL be one the author ran.
 
 #### Scenario: Guide is reachable
 
@@ -16,7 +16,7 @@ The repository SHALL document how to add a new template in `docs/contributing/` 
 
 ### Requirement: Template repository skeleton
 
-The project SHALL publish a template repository skeleton (a GitHub template repository, `flisk-sh/flisk-template-skeleton`) with the required files, a placeholder `template.json`, the verify workflow, issue forms, a pull request template and a CONTRIBUTING pointer. Creating a new template SHALL be one click on "Use this template" plus filling the placeholders.
+The project SHALL publish a template repository skeleton (a GitHub template repository, `flisk-sh/flisk-template-skeleton`) with the required files, a placeholder `service.json`, the verify workflow, issue forms, a pull request template and a CONTRIBUTING pointer. Creating a new template SHALL be one click on "Use this template" plus filling the placeholders.
 
 #### Scenario: Skeleton passes its own check
 

@@ -2,7 +2,7 @@
 
 Each Flisk resource is described by a `service.json` file in the resource directory. The file drives resource discovery, generated Tilt and Docker configuration, routing, dependency ordering, and editor assistance.
 
-The [service schema](../engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `flisk config verify` applies the manifest and generated-output checks described below, while `flisk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
+The [service schema](../runtime/engine/schemas/service-schema.json) is the source of truth for JSON types and editor validation. The CLI is authoritative at runtime: `flisk config verify` applies the manifest and generated-output checks described below, while `flisk doctor` performs environment, readiness, and discovery-time safety checks. The published schema URL is:
 
 ```text
 https://flisk.sh/schema.service.json
@@ -241,7 +241,7 @@ The two manifests above pass the service schema and `flisk config verify` (no ma
 | `nats` | object; optional | services using NATS | Custom `queueGroup` and `subjects`. Flisk generates NATS configuration when `nats` is enabled in `featuresEnabled`. |
 | `databaseName` | string; generated from the stack by default | database-backed services | Overrides the generated database name. |
 | `playwright` | boolean; defaults to `false` | generated frontend/services | Requests a generated Playwright configuration when enabled. |
-| `sablier` | object; disabled unless enabled | licensed services | On-demand scaling. Options are `enable`, `deferStart`, `group`, and `sessionDuration`. This is a Premium feature and requires `TDK_LICENSE_KEY`; it is not available merely by adding the JSON block. |
+| `sablier` | object; disabled unless enabled | licensed services | On-demand scaling. Options are `enable`, `deferStart`, `group`, and `sessionDuration`. This is a Premium feature and requires `FLISK_LICENSE_KEY`; it is not available merely by adding the JSON block. |
 | `name` | string; legacy/generated metadata | existing manifests | Retained for compatibility with older generated manifests. Prefer `appName` for the resource identity. |
 
 Do not add `jwtSecret` or other secret values to `service.json`. Flisk ignores `jwtSecret` and reports that it must be removed; put secret names in `secrets` and values in the project’s ignored `.env` or the configured provider.
@@ -274,7 +274,7 @@ If an older manifest has `type` instead of `appType`, run the config migration f
 When adding or changing a manifest field, update all of these together:
 
 1. `cli/src/types/index.ts` for the TypeScript contract.
-2. `engine/schemas/service-schema.json` for editor validation and descriptions.
+2. `runtime/engine/schemas/service-schema.json` for editor validation and descriptions.
 3. `cli/src/utils/service-manifest.ts` when runtime validation, deprecation, or safety behavior changes.
 4. This reference and the short overview in [`cli/README.md`](../cli/README.md).
 

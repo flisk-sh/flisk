@@ -78,6 +78,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
+        with:
+          config: ./.github/_typos.toml
 
   lint:
     name: 🛡️ Lint
@@ -221,7 +223,7 @@ jobs:
         working-directory: cli
         run: bun run test:coverage
         env:
-          TDK_REQUIRE_TILT: '1'
+          FLISK_REQUIRE_TILT: '1'
       - name: Check shell verification script syntax
         working-directory: .
         run: make test-shell
@@ -367,6 +369,13 @@ jobs:
           mkdir -p "$RUNNER_TEMP/cli-tarball"
           npm pack --pack-destination "$RUNNER_TEMP/cli-tarball"
 
+      # This tarball is what npm users install. Fail if it ships test files (1.4.0 did) or paths
+      # outside the allowlist, misses a required runtime path, or loses "type": "module",
+      # "engines.node" or its bin target.
+      - name: Check the npm package contents
+        run: |
+          node scripts/check-npm-package.mjs --tarball "$(compgen -G "$RUNNER_TEMP/cli-tarball/*.tgz" | head -1)"
+
       - name: Upload the CLI tarball
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -421,6 +430,102 @@ jobs:
           printf 'y\n' | flisk resource orders-api --type backend --stack shop
           test -f services/shop/orders-api/service.json
           echo "✅ Installed package scaffolds a project and a resource"
+
+      # examples/tdk-example ships in the package for this command; fail if it stops working.
+      - name: Copy the bundled example
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir example-project && cd example-project
+          flisk project example --yes
+          test -f tdk-example/Tiltfile
+          test -f tdk-example/TILT_TECH_STACK.star
+          echo "✅ Installed package copies the bundled example"
+
+  npm-package-smoke:
+    name: 📦 Published npm Package Smoke Test
+    runs-on: ubuntu-26.04
+    needs: [changes]
+    # Skip on docs-only PRs; a skipped job still satisfies required checks.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # The installed CLI's cold start needs Bun on PATH (the check fails without it).
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.12
+
+      # The pin lives in .github/npm-package-smoke/package-lock.json; npm ci installs exactly that tree.
+      - name: Install the pinned package from npm
+        run: |
+          npm ci --prefix .github/npm-package-smoke --ignore-scripts --no-audit --no-fund
+
+      - name: Verify the installed version
+        run: |
+          pinned="$(node -p "require('./.github/npm-package-smoke/package.json').dependencies['@flisk-sh/flisk']")"
+          # flisk --version prints the bare version on stdout (notices go to stderr); compare it whole,
+          # so a pin of 1.4.0 does not accept 11.4.0.
+          installed="$(./.github/npm-package-smoke/node_modules/.bin/flisk --version | tail -n 1 | tr -d '[:space:]')"
+          echo "Pinned: ${pinned}  Installed: ${installed}"
+          if [ "${installed}" != "${pinned}" ]; then
+            echo "::error::flisk --version (${installed}) does not match pinned ${pinned}"
+            exit 1
+          fi
+
+      # Registry sites such as bundlephobia size the package from its main entry. Fail when the
+      # installed package has no main, or when main names a file the tarball does not ship.
+      - name: Check the installed package has a shipped main entry
+        run: |
+          node -e '
+            const path = require("node:path");
+            const dir = path.resolve(".github/npm-package-smoke/node_modules/@flisk-sh/flisk");
+            const manifest = require(path.join(dir, "package.json"));
+            if (!manifest.main) {
+              console.error("::error::@flisk-sh/flisk has no main entry in package.json");
+              process.exit(1);
+            }
+            require("node:fs").statSync(path.join(dir, manifest.main));
+            console.log("main: " + manifest.main);
+          '
+
+      # Releases publish with --provenance from release-binaries.yml. Fail if the pinned
+      # version lacks an SLSA provenance attestation on the registry.
+      - name: Check the published version has provenance
+        run: |
+          pinned="$(node -p "require('./.github/npm-package-smoke/package.json').dependencies['@flisk-sh/flisk']")"
+          predicate="$(npm view "@flisk-sh/flisk@${pinned}" dist.attestations.provenance.predicateType)"
+          if [ "${predicate}" != "https://slsa.dev/provenance/v1" ]; then
+            echo "::error::@flisk-sh/flisk@${pinned} has no SLSA provenance on npm (got '${predicate}')"
+            exit 1
+          fi
+          echo "@flisk-sh/flisk@${pinned} provenance: ${predicate}"
+
+  # Audits the contents of the pinned version already on npm (what npmx.dev shows) with the
+  # same checks the package job runs on this branch's tarball. No pull request can change a
+  # published tarball, so this job is not in the summary gate: it stays red, visibly, until a
+  # fixed release is published and the pin in .github/npm-package-smoke moves to it.
+  npm-registry-audit:
+    name: 🔎 Published npm Package Audit
+    runs-on: ubuntu-26.04
+    needs: [changes]
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22.12
+
+      - name: Check the published tarball contents
+        run: |
+          pinned="$(node -p "require('./.github/npm-package-smoke/package.json').dependencies['@flisk-sh/flisk']")"
+          npm pack "@flisk-sh/flisk@${pinned}" --pack-destination "${RUNNER_TEMP}" --silent
+          node scripts/check-npm-package.mjs --tarball "${RUNNER_TEMP}/flisk-sh-flisk-${pinned}.tgz"
 
   secret-scan:
     name: 🔑 Secret Scan
@@ -504,7 +609,7 @@ jobs:
     # script below.
     timeout-minutes: 35
     if: always()
-    needs: [lint, spellcheck, typecheck, test, package, package-smoke, secret-scan, dependency-review, workflow-audit]
+    needs: [lint, spellcheck, typecheck, test, package, package-smoke, npm-package-smoke, secret-scan, dependency-review, workflow-audit]
     permissions:
       contents: read
       checks: read # reads the e2e gates' check runs on the head commit

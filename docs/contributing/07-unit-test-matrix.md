@@ -111,7 +111,7 @@ The folder is excluded from the build and from the npm package.
 
 Coverage is measured per area, not globally. Each leg writes its coverage data, the final job merges it, and the gate compares each area with its recorded baseline in [`cli/coverage-baseline.json`](../../cli/coverage-baseline.json). An area is one of: command implementations, validation, discovery, stack and project handling, install and update.
 
-For details on how the coverage ratchet script works, how to raise baselines when adding tests, and where CI reports coverage summaries, see [Coverage baseline and the ratchet process in CONTRIBUTING.md](../../CONTRIBUTING.md#coverage-baseline-and-the-ratchet-process).
+For details on how the coverage ratchet script works, how to raise baselines when adding tests, and where CI reports coverage summaries, see [Coverage baseline and the ratchet process in CONTRIBUTING.md](../../.github/CONTRIBUTING.md#coverage-baseline-and-the-ratchet-process).
 
 ## Check it locally
 

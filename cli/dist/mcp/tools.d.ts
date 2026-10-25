@@ -1,10 +1,10 @@
 import { type ChildProcess } from "node:child_process";
 import type { McpTool, McpToolResult } from "./server.js";
-export type RunTdk = (args: string[], options?: {
+export type RunFlisk = (args: string[], options?: {
     timeoutMs?: number;
     cwd?: string;
-}) => Promise<TdkRun>;
-export interface TdkRun {
+}) => Promise<FliskRun>;
+export interface FliskRun {
     exitCode: number | null;
     stdout: string;
     stderr: string;
@@ -15,9 +15,9 @@ export interface TdkRun {
  */
 export declare function cliInvocation(execPath?: string, script?: string | undefined, fileExists?: (path: string) => boolean): string[];
 /** Runs this same CLI (`flisk <args>`) so every tool behaves exactly like its command. */
-export declare const runTdkCli: RunTdk;
+export declare const runFliskCli: RunFlisk;
 /** Turn a command's `--json` stdout into a tool result. A parseable envelope with errors, or `ok: false`, is an error result. */
-export declare function toToolResult(run: TdkRun): McpToolResult;
+export declare function toToolResult(run: FliskRun): McpToolResult;
 export interface UpDeps {
     /** Starts `flisk up` detached, with output going to a log file. */
     spawnUp: (args: string[], logFile: string, cwd?: string) => ChildProcess;
@@ -35,4 +35,4 @@ export declare function buildUpArgs(args: Record<string, unknown>): string[];
  */
 export declare function startUp(args: Record<string, unknown>, deps?: UpDeps): Promise<McpToolResult>;
 export declare function buildLogsArgs(args: Record<string, unknown>): string[];
-export declare function createTdkTools(run?: RunTdk, up?: UpDeps): McpTool[];
+export declare function createFliskTools(run?: RunFlisk, up?: UpDeps): McpTool[];

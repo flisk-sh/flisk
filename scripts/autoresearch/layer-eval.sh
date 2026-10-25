@@ -7,19 +7,19 @@
 # feature tests, then prints one summary block.
 set -uo pipefail
 CORE="$(cd "$(dirname "$0")/../.." && pwd)"
-ERP="${TDK_BENCH_PROJECT:-$CORE/../tdk-erp-system}"
+ERP="${FLISK_BENCH_PROJECT:-$CORE/../tdk-erp-system}"
 SAMPLE="${LAYER_EVAL_SAMPLE:-20}"
-TDK_CLI="${TDK_CLI:-$CORE/cli/bin/tdk.js}"
-PREFIX="$(python3 -c "import json;print(json.load(open('$ERP/.tdk/project.json'))['project']['name'])")"
+FLISK_CLI="${FLISK_CLI:-$CORE/cli/bin/flisk.js}"
+PREFIX="$(python3 -c "import json;print(json.load(open('$ERP/.flisk/project.json'))['project']['name'])")"
 t() { date +%s; }
 
 cd "$ERP" || exit 1
-TDK_EXTENSION_SOURCE="$CORE" node "$TDK_CLI" project --yes >/dev/null 2>&1 || { echo "status: crash (flisk project)"; exit 1; }
-tilt alpha tiltfile-result -f .tdk/.tdk-out/Tiltfile >/dev/null 2>&1 || { echo "status: crash (Tiltfile evaluation)"; exit 1; }
+FLISK_EXTENSION_SOURCE="$CORE" node "$FLISK_CLI" project --yes >/dev/null 2>&1 || { echo "status: crash (flisk project)"; exit 1; }
+tilt alpha tiltfile-result -f .flisk/.flisk-out/Tiltfile >/dev/null 2>&1 || { echo "status: crash (Tiltfile evaluation)"; exit 1; }
 
 s=$(t)
 for target in l1_golden:l1 l2_golden:l2 l3_backend_golden:l3-backend l3_frontend_golden:l3-frontend l4_backend_bun:l4-backend l4_frontend_golden:l4-frontend; do
-  docker build -q -f .tdk/.tdk-out/golden-layers.Dockerfile --target "${target%%:*}" -t "$PREFIX-${target##*:}:latest" . >/dev/null 2>&1 \
+  docker build -q -f .flisk/.flisk-out/golden-layers.Dockerfile --target "${target%%:*}" -t "$PREFIX-${target##*:}:latest" . >/dev/null 2>&1 \
     || { echo "status: crash (golden ${target%%:*})"; exit 1; }
 done
 golden_build_s=$(( $(t) - s ))
@@ -42,7 +42,7 @@ fi
 result="$(python3 - "$marker" <<'PY'
 import glob, os, sys
 marker_ns = os.stat(sys.argv[1]).st_mtime_ns
-paths = [p for p in glob.glob("benchmarks/results/container-scale-*.json")
+paths = [p for p in glob.glob("docs/benchmarks/results/container-scale-*.json")
          if os.stat(p).st_mtime_ns > marker_ns]
 if not paths:
     sys.exit(1)

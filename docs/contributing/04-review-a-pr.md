@@ -21,18 +21,18 @@ Read these before you review. They take about an hour in total, and you only do 
 
 **How we work**
 
-- [ ] [Contributing](../../CONTRIBUTING.md): labels, issue claims, and DCO sign-off.
+- [ ] [Contributing](../../.github/CONTRIBUTING.md): labels, issue claims, and DCO sign-off.
 - [ ] [1. Get ready to make a change](01-first-change.md): when a change needs an OpenSpec proposal.
 - [ ] [2. Recipes for each kind of change](02-feature-recipes.md): where code lives and which checks each change needs.
 - [ ] [3. Open a pull request](03-open-a-pr.md): what a good PR has, including before-and-after evidence.
 
 **Rules everyone follows**
 
-- [ ] [Code of Conduct](../../CODE_OF_CONDUCT.md): how we talk to each other in reviews.
-- [ ] [Security policy](../../SECURITY.md): report security problems privately, never in a PR comment.
-- [ ] [Governance](../../GOVERNANCE.md) and [Maintainers](../../MAINTAINERS.md): who decides and who merges.
+- [ ] [Code of Conduct](../../.github/CODE_OF_CONDUCT.md): how we talk to each other in reviews.
+- [ ] [Security policy](../../.github/SECURITY.md): report security problems privately, never in a PR comment.
+- [ ] [Governance](../project/GOVERNANCE.md) and [Maintainers](../project/MAINTAINERS.md): who decides and who merges.
 
-Then try it once: run the [quick setup](../../CONTRIBUTING.md#quick-setup) so you can check out a PR and run its checks yourself.
+Then try it once: run the [quick setup](../../.github/CONTRIBUTING.md#quick-setup) so you can check out a PR and run its checks yourself.
 
 ## The short version
 
@@ -95,6 +95,24 @@ The first answer is a summary. Ask follow-ups to get a more useful review:
 ### Merge conflict buttons
 
 If a PR conflicts with `main`, the [AI conflict buttons workflow](../../.github/workflows/ai-conflict-buttons.yml) posts one comment on the PR with **Resolve conflict** buttons for Grok, Claude, and Codex. These give the AI step-by-step instructions to merge `main` into the branch and push the fix. If the AI cannot push to that branch (for example, a fork you do not own), the instructions tell it to push a `fix/<PR number>-conflict` branch instead and open a replacement PR. If the original PR says `Fixes #N`, the replacement says it too. Check the result like any other change, and comment on the original PR with a link to the replacement. When the conflict is gone, the same comment changes to say so and the buttons disappear.
+
+## Review with Codex
+
+The **Codex** button opens ChatGPT with the review message filled in. The chat may not be able to open the PR link, for example if it cannot reach GitHub. If it cannot read the diff, use the local checkout below.
+
+1. Click **Codex** on the PR and sign in to ChatGPT if asked.
+2. Ask it to list the files that changed, then open each one from the diff.
+3. Ask for the points it is sure about, with the file and line. Check each one in **Files changed** before you agree.
+
+If you already use the Codex CLI, you can review a local checkout instead, so the AI reads the real files:
+
+```bash
+gh pr checkout 123
+```
+
+Then start Codex in that folder and give it the same message, with your own question at the end. Ask it to run nothing that changes state (no installs, pushes, or deletes), and to read the diff against `main`.
+
+Codex answers in your account, just like the other buttons. Do not paste anything from the PR's private context, such as a security report or a private URL, into the chat.
 
 ## What to look at
 
@@ -170,7 +188,7 @@ Requesting changes is not the same as closing. Only maintainers close PRs, usual
 - Label small things as `nit:` or `optional:` so the author knows they do not block the merge.
 - Review the code, not the person.
 
-Follow the [Code of Conduct](../../CODE_OF_CONDUCT.md) in every comment.
+Follow the [Code of Conduct](../../.github/CODE_OF_CONDUCT.md) in every comment.
 
 ## From the terminal (optional)
 
@@ -196,4 +214,4 @@ gh pr review 123 --request-changes --body "The new flag is never passed to the g
 
 - Anyone can comment, approve, or request changes. Every review helps maintainers decide faster.
 - You cannot approve your own PR.
-- Only [maintainers](../../MAINTAINERS.md) merge. Before merging, they check the reviews and that the required checks pass.
+- Only [maintainers](../project/MAINTAINERS.md) merge. Before merging, they check the reviews and that the required checks pass.

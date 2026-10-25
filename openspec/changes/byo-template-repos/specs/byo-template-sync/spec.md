@@ -2,7 +2,7 @@
 
 ### Requirement: Registry is the single pin
 
-`examples/byo/templates.json` SHALL list every template that is synced from its own repository. Each entry SHALL have `id`, `folder` (the directory under `examples/byo/`), `repository` (`flisk-sh/flisk-template-<id>`), `tag` (the pinned release), `healthPath` and `port`. No other file in this repository SHALL hold a template version. The file SHALL validate against a JSON Schema committed beside it.
+`examples/byo/templates.json` SHALL list every template that is synced from its own repository. Each entry SHALL have `id`, `folder` (the directory under `examples/byo/`), `repository` (`flisk-sh/flisk-template-<id>`), `tag` (the pinned release), `healthCheckPath` and `port`. No other file in this repository SHALL hold a template version. The file SHALL validate against a JSON Schema committed beside it.
 
 #### Scenario: Entry for vue
 
@@ -36,7 +36,7 @@ The sync script SHALL write each template to `examples/byo/<folder>/` using the 
 
 ### Requirement: Sync script
 
-`scripts/sync-byo-templates.sh` SHALL read `templates.json`, and for each entry (or the ids named on the command line) clone `https://github.com/<repository>.git` at the pinned `tag` with `--depth 1 --branch <tag>` into a temporary directory, verify that the checkout's `template.json` `id` equals the entry's `id`, and replace `examples/byo/<folder>/` with the checkout contents minus `.git`. It SHALL print the resolved commit SHA for each template.
+`scripts/sync-byo-templates.sh` SHALL read `templates.json`, and for each entry (or the ids named on the command line) clone `https://github.com/<repository>.git` at the pinned `tag` with `--depth 1 --branch <tag>` into a temporary directory, verify that the checkout's `service.json` `template.id` equals the entry's `id`, and replace `examples/byo/<folder>/` with the checkout contents minus `.git`. It SHALL print the resolved commit SHA for each template.
 
 #### Scenario: Script never escalates
 
@@ -57,7 +57,7 @@ The sync script SHALL write each template to `examples/byo/<folder>/` using the 
 
 #### Scenario: Id mismatch is refused
 
-- **WHEN** the cloned `template.json` has `id` `nuxt` but the entry is `vue`
+- **WHEN** the cloned `service.json` has `template.id` `nuxt` but the entry is `vue`
 - **THEN** the script exits non-zero without writing the folder
 
 #### Scenario: Offline run fails fast

@@ -41,7 +41,7 @@ jobs:
           additional-packages: ca-certificates curl git xz-utils unzip jq
 
       # Each step runs one case of tests/e2e/platforms/wsl2/run.sh (suite.json, run.sh) in the distro. WS1 copies the
-      # checkout to /root/tdk-ci, and the later cases build and smoke-test that copy.
+      # checkout to /root/flisk-ci, and the later cases build and smoke-test that copy.
       - name: Record and require a real WSL2 kernel
         shell: wsl-bash {0}
         run: tests/e2e/platforms/wsl2/run.sh WS1

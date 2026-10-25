@@ -20,7 +20,7 @@ Command data:
 - `resources`: `resources` with stable service name, stack, type, port, and manifest path.
 - `stacks`: `stacks` with `name` and `resourceCount`. `--services` adds `services` (service names; its length equals `resourceCount`), and `--verbose` adds `description`; `--services` alone does not include `description`. A project with no stacks returns `stacks: []`. Outside a project it emits the same envelope as `resources --json` (`data: null`, one `errors` entry, exit 2).
 - `networks`: `services` with stable service name, stack, base path, URL, optional Windows loopback URL, service port, and reachability state (`running`, `stopped`, or `unknown`). An empty list means no discovered resource currently has a routable base path.
-- `projects`: `projectRoot` (the absolute path of the project), `configured` (`true` when all master configuration files exist), `missingFiles` (the master files that are missing from `.tdk/.tdk-out`; empty when `configured` is `true`), `resources` (the number of discovered resources, not their names), `stacks` (the stack names) and `unassignedResources` (the number of resources that do not belong to a stack). Use `flisk resources --json` or `flisk stacks --json` when you need the names and details. `flisk info --json` is an alias. See the example below.
+- `projects`: `projectRoot` (the absolute path of the project), `configured` (`true` when all master configuration files exist), `missingFiles` (the master files that are missing from `.flisk/.flisk-out`; empty when `configured` is `true`), `resources` (the number of discovered resources, not their names), `stacks` (the stack names) and `unassignedResources` (the number of resources that do not belong to a stack). Use `flisk resources --json` or `flisk stacks --json` when you need the names and details. `flisk info --json` is an alias. See the example below.
 - `doctor`: `ready`, `inProject`, ordered `checks`, and a `ports` plan with `http`, `https`, and `postgres` entries. Each port entry contains canonical `requested`, selected `chosen`, `explicit`, and `reason` fields. Doctor is read-only and does not persist the plan, unless `--fix` is given (see [doctor-contract.md](doctor-contract.md)). Structured `errors` cover usage/internal failures. Check entries preserve `name`, `didPass`, `message`, optional `fix`, `isWarning`, and `isSkipped`. `isSkipped` indicates that a check could not run meaningfully; skipped checks are non-blocking, even when `didPass` is `false`.
 - `up`: `ok` (`true` when all expected resources are built and running), `stack` (the stack name argument, or `null`), `services` (the started service names), optional `requested` and `dependencies` (when `--only` is used), and `tiltUrl` (`http://localhost:<port>`). `flisk up --json` emits one JSON object once startup reaches its ready state while Tilt continues running in the background. On timeout or resource failure, `data.ok` is `false` with `data.tiltUrl` and `data.failures` (a list of affected resources, each with `name` and `message`), and `errors[].code` is `UP_TIMEOUT` or `UP_RESOURCE_FAILED`. On smoke-check failure, `data.ok` is `false`, `errors[].code` is `UP_SMOKE_FAILED`, and Tilt is stopped. Hand-edited generated file drift (`DRIFT_DETECTED`, `DRIFT_EXIT_CODE = 2`) and unknown `--only` service names (`UNKNOWN_SERVICE`) exit with code `2`, while `flisk config verify` exits `1` for drift; other startup, preflight, and host/platform refusals (including native Windows startup refusal) exit with code `1`. Parsers should read the failure category from `errors[].code` and the affected resources from `data.failures`. See the examples below.
 - `up --dry-run`: `ok`, `dryRun` (`true`), `stack` (the stack name argument, or `null`), `services` (the services the run would start, in discovery order) and `command` (the `tilt up` command line that would run). With `--only`, it also has `requested` (the names you passed) and `declaredDependencies` (services pulled in because a requested service lists them in `dependsOn`). See the example below.
@@ -85,7 +85,7 @@ Example output for `flisk projects --json` in a configured project with a `shop`
 }
 ```
 
-The master configuration files are `TILT_TECH_STACK.star`, `TILT_RESOURCE_DEFAULTS.star` and `spec.master`, which `flisk project` generates in `.tdk/.tdk-out`. In a project that has not been configured yet, `configured` is `false` and `missingFiles` lists the files that are not there. `resources` and `stacks` are still filled in from the `service.json` files that were discovered, so an unconfigured project looks like this:
+The master configuration files are `TILT_TECH_STACK.star`, `TILT_RESOURCE_DEFAULTS.star` and `spec.master`, which `flisk project` generates in `.flisk/.flisk-out`. In a project that has not been configured yet, `configured` is `false` and `missingFiles` lists the files that are not there. `resources` and `stacks` are still filled in from the `service.json` files that were discovered, so an unconfigured project looks like this:
 
 ```json
 {
@@ -113,7 +113,7 @@ Outside a project, `flisk projects --json` (with or without `--check`) prints `d
   "errors": [
     {
       "code": "COMMAND_FAILED",
-      "message": "Could not find project root (no .tdk/project.json found)",
+      "message": "Could not find project root (no .flisk/project.json found)",
       "suggestions": [
         "Run this from within a Flisk project",
         "Run `flisk project --yes` to initialize a new project"
@@ -179,7 +179,7 @@ Success means startup reached the command's ready state: every expected non-defe
 
 With `--only`, the readiness guarantee applies to the requested services only (excluding any that are deferred). Dependency services appear in `services` and `dependencies` because Tilt enabled them, but they are not checked for readiness, so a dependency that is still starting or has failed does not change `ok`. Consumers that need a dependency to be ready must check it themselves.
 
-If one or more resources fail to start or the readiness timeout expires (`TDK_UP_READY_TIMEOUT_MS`, default 15 minutes), `data.ok` is `false` with `data.tiltUrl` and `data.failures`, and `errors` reports `UP_RESOURCE_FAILED` or `UP_TIMEOUT`:
+If one or more resources fail to start or the readiness timeout expires (`FLISK_UP_READY_TIMEOUT_MS`, default 15 minutes), `data.ok` is `false` with `data.tiltUrl` and `data.failures`, and `errors` reports `UP_RESOURCE_FAILED` or `UP_TIMEOUT`:
 
 ```json
 {

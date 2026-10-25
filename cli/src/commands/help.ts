@@ -3,7 +3,7 @@
 import chalk from "chalk";
 import pkg from "../../package.json" with { type: "json" };
 
-const TDK_BANNER = `
+const FLISK_BANNER = `
   ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Flisk CLI — start services on your machine.")}
 `;
 
@@ -119,7 +119,7 @@ function formatCommand(
 }
 
 export function showHelp(): void {
-  console.log(TDK_BANNER);
+  console.log(FLISK_BANNER);
 
   console.log(
     chalk.gray(

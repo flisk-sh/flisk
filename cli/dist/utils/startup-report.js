@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { parseTiltResourceFailures, summarizeTiltBuildError } from "./doctor-runtime.js";
-import { portConflictFix } from "./port-conflict-fix.js";
+import { conflictPort, portConflictFix } from "./port-conflict-fix.js";
 import { effectiveRuntimeStatus, isTiltResourcePending } from "./tilt-resource-state.js";
 import { onlyEnabledResources } from "./up-readiness.js";
 export function transitiveDependencies(name, dependsOn) {
@@ -52,11 +52,12 @@ export function isStartupStalled(jsonText, dependsOn, deferred = new Set()) {
     const report = buildStartupReport(jsonText, dependsOn, deferred);
     return report.failed.length > 0 && report.starting.length === 0;
 }
-export function formatStartupReport(report, timedOut) {
+export function formatStartupReport(report, timedOut, occupantOf) {
     const lines = [];
     for (const { name, message } of report.failed) {
         lines.push(`✗ ${name} failed: ${message}`);
-        const fix = portConflictFix(message);
+        const port = conflictPort(message);
+        const fix = portConflictFix(message, port !== null && occupantOf ? occupantOf(port) : null);
         if (fix)
             lines.push(`  ${fix}`);
     }

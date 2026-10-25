@@ -95,7 +95,7 @@ jobs:
       # the frontend dependencies, then flisk up and require the real routes. This leg's routes come from the matrix.
       - name: Install Flisk from npm
         env:
-          TDK_VERSION: ${{ inputs.version || 'latest' }}
+          FLISK_VERSION: ${{ inputs.version || 'latest' }}
         run: tests/e2e/examples/real-apps/run.sh A1 # zizmor: ignore[adhoc-packages] the point is to test what users install
 
       - name: Set up the project and check it with flisk doctor

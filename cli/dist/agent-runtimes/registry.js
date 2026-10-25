@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { TdkError } from "../utils/errors.js";
+import { FliskError } from "../utils/errors.js";
 import { customAgentRuntime } from "./custom.js";
 /**
  * Agent runtimes an `agent` resource can be scaffolded with. No runtime is privileged: each is a scaffold plus the
@@ -16,7 +16,7 @@ export function resolveAgentRuntime(runtimeId) {
     const provider = AGENT_RUNTIMES[id];
     if (!provider) {
         const supported = Object.keys(AGENT_RUNTIMES).join(", ");
-        throw new TdkError(`Unknown agent runtime "${id}". Supported runtimes: ${supported}.`, [
+        throw new FliskError(`Unknown agent runtime "${id}". Supported runtimes: ${supported}.`, [
             `Use one of: ${supported}`,
             `Omit --runtime to use ${DEFAULT_AGENT_RUNTIME}`,
         ]);
@@ -26,7 +26,7 @@ export function resolveAgentRuntime(runtimeId) {
 export function resolveAgentDurability(value) {
     const durability = value ?? "files";
     if (!AGENT_DURABILITY_OPTIONS.includes(durability)) {
-        throw new TdkError(`Unknown --durability "${durability}".`, [
+        throw new FliskError(`Unknown --durability "${durability}".`, [
             `Use one of: ${AGENT_DURABILITY_OPTIONS.join(", ")}`,
         ]);
     }

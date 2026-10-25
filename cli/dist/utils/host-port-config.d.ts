@@ -5,7 +5,7 @@ export declare function writeSavedHostPortPlan(projectRoot: string, plan: HostPo
 export declare function exportHostPortPlan(plan: HostPortPlan): void;
 /**
  * True when a container whose Compose working directory is inside this project publishes the port. A container-name prefix is not
- * enough: tdk_shop_ also matches the containers of a different project called tdk-shop-extra. Compose records the directory each
+ * enough: flisk_shop_ also matches the containers of a different project called flisk-shop-extra. Compose records the directory each
  * project was started from, so that identifies the project exactly. Containers without the label never count.
  */
 export declare function isPortHeldByProjectContainers(dockerPs: string, projectRoot: string, port: number): boolean;

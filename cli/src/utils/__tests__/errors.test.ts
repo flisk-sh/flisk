@@ -5,6 +5,7 @@ import { captureExit } from "../../test-support/index.js";
 import { getContainerRuntimeStatus } from "../docker.js";
 import {
   errorFactories,
+  FliskError,
   getErrorMessage,
   handleTiltFailure,
   logVerbose,
@@ -13,7 +14,6 @@ import {
   runCommand,
   showError,
   showErrorAndExit,
-  TdkError,
   withTiltCheck,
 } from "../errors.js";
 import { toMachineError } from "../machine-output.js";
@@ -106,7 +106,7 @@ describe("not-found error suggestions", () => {
     vi.restoreAllMocks();
   });
 
-  it("formats showError, showErrorAndExit, and TdkError through the unified prefix", () => {
+  it("formats showError, showErrorAndExit, and FliskError through the unified prefix", () => {
     const lines: string[] = [];
     vi.spyOn(console, "error").mockImplementation((...args) => {
       lines.push(args.map(String).join(" "));
@@ -126,8 +126,8 @@ describe("not-found error suggestions", () => {
     expectExit(2);
 
     lines.length = 0;
-    const tdkErr = new TdkError("Domain failure", ["Run flisk doctor"], 1);
-    expect(() => tdkErr.exit()).toThrow("process.exit");
+    const fliskErr = new FliskError("Domain failure", ["Run flisk doctor"], 1);
+    expect(() => fliskErr.exit()).toThrow("process.exit");
     expect(lines[0]).toContain("❌ Domain failure");
     expect(lines.join("\n")).toContain("→ Run flisk doctor");
   });
@@ -169,7 +169,7 @@ describe("not-found error suggestions", () => {
 describe("getErrorMessage and logVerbose", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.TDK_VERBOSE;
+    delete process.env.FLISK_VERBOSE;
   });
 
   it("returns the message of an Error and stringifies anything else", () => {
@@ -178,14 +178,14 @@ describe("getErrorMessage and logVerbose", () => {
     expect(getErrorMessage(42)).toBe("42");
   });
 
-  it("logs nothing unless TDK_VERBOSE is set", () => {
+  it("logs nothing unless FLISK_VERBOSE is set", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     logVerbose("checking runtime");
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("logs the message when TDK_VERBOSE is set", () => {
-    process.env.TDK_VERBOSE = "1";
+  it("logs the message when FLISK_VERBOSE is set", () => {
+    process.env.FLISK_VERBOSE = "1";
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     logVerbose("checking runtime");
     expect(warn).toHaveBeenCalledTimes(1);
@@ -193,30 +193,30 @@ describe("getErrorMessage and logVerbose", () => {
   });
 
   it("appends the error message when an error is given", () => {
-    process.env.TDK_VERBOSE = "1";
+    process.env.FLISK_VERBOSE = "1";
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     logVerbose("probe failed", new Error("ENOENT"));
     expect(String(warn.mock.calls[0][0])).toContain("probe failed: ENOENT");
   });
 });
 
-describe("TdkError", () => {
+describe("FliskError", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it("defaults to no suggestions and exit code 1", () => {
-    const error = new TdkError("bad input");
+    const error = new FliskError("bad input");
 
     expect(error).toBeInstanceOf(Error);
-    expect(error.name).toBe("TdkError");
+    expect(error.name).toBe("FliskError");
     expect(error.message).toBe("bad input");
     expect(error.suggestions).toEqual([]);
     expect(error.exitCode).toBe(1);
   });
 
   it("keeps the given suggestions and exit code", () => {
-    const error = new TdkError("bad input", ["try again"], 3);
+    const error = new FliskError("bad input", ["try again"], 3);
 
     expect(error.suggestions).toEqual(["try again"]);
     expect(error.exitCode).toBe(3);
@@ -226,7 +226,7 @@ describe("TdkError", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = mockExit();
 
-    new TdkError("Thing broke", ["Fix A", "Fix B"]).display();
+    new FliskError("Thing broke", ["Fix A", "Fix B"]).display();
 
     const output = errorOutput(err);
     expect(output).toContain("❌ Thing broke");
@@ -239,7 +239,7 @@ describe("TdkError", () => {
   it("display omits the suggestions header when there are none", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    new TdkError("Thing broke").display();
+    new FliskError("Thing broke").display();
 
     const output = errorOutput(err);
     expect(output).toContain("❌ Thing broke");
@@ -250,7 +250,7 @@ describe("TdkError", () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = mockExit();
 
-    expect(() => new TdkError("Thing broke", ["Fix A"], 4).exit()).toThrow("process.exit(4)");
+    expect(() => new FliskError("Thing broke", ["Fix A"], 4).exit()).toThrow("process.exit(4)");
 
     expect(errorOutput(err)).toContain("→ Fix A");
     expect(exit).toHaveBeenCalledWith(4);
@@ -266,7 +266,7 @@ describe("runCommand", () => {
     await expect(runCommand(async () => "ok")).resolves.toBe("ok");
   });
 
-  it("exits with the TdkError's exit code and shows its suggestions", async () => {
+  it("exits with the FliskError's exit code and shows its suggestions", async () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = mockExit();
 

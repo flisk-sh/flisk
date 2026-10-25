@@ -104,7 +104,7 @@ export const downCommand = addYesOption(new Command("down"))
       if (!options.json) console.log(chalk.blue("Stopping all tilt resources..."));
 
       if (options.verbose && !options.json) {
-        console.log(chalk.gray("Running: tilt down -f .tdk/.tdk-out/Tiltfile"));
+        console.log(chalk.gray("Running: tilt down -f .flisk/.flisk-out/Tiltfile"));
       }
 
       const result = await runTilt("down", tiltArgs, {

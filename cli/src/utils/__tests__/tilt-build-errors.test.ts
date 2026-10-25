@@ -18,7 +18,7 @@ describe("summarizeTiltBuildError: missing golden base images", () => {
     ["shop-l4-backend:latest", "shop-l4-backend"],
     ["shop-l4-backend-node:latest", "shop-l4-backend-node"],
     ["my-erp-system-l3-frontend:latest", "my-erp-system-l3-frontend"],
-    ["tdk-project-l1:latest", "tdk-project-l1"],
+    ["flisk-project-l1:latest", "flisk-project-l1"],
   ])("names %s and explains the golden layers were missing", (image, name) => {
     const summary = summarizeTiltBuildError(pullDenied(image));
     expect(summary).toContain(`base image ${name} was missing when this build started`);
@@ -65,27 +65,27 @@ describe("summarizeTiltBuildError: private registry / ConnectionRefused", () => 
 
   it("deduplicates and lists multiple unique packages up to 4", () => {
     const raw = [
-      "ConnectionRefused downloading package manifest @tdk/pkg-a",
-      "ConnectionRefused downloading package manifest @tdk/pkg-b",
-      "ConnectionRefused downloading package manifest @tdk/pkg-a",
-      "ConnectionRefused downloading package manifest @tdk/pkg-c",
+      "ConnectionRefused downloading package manifest @flisk/pkg-a",
+      "ConnectionRefused downloading package manifest @flisk/pkg-b",
+      "ConnectionRefused downloading package manifest @flisk/pkg-a",
+      "ConnectionRefused downloading package manifest @flisk/pkg-c",
     ].join("\n");
     const summary = summarizeTiltBuildError(raw);
-    expect(summary).toContain("@tdk/pkg-a, @tdk/pkg-b, @tdk/pkg-c");
+    expect(summary).toContain("@flisk/pkg-a, @flisk/pkg-b, @flisk/pkg-c");
     expect(summary).not.toContain("more");
   });
 
   it("truncates with count when more than 4 unique packages are refused", () => {
     const raw = [
-      "ConnectionRefused downloading package manifest @tdk/pkg-1",
-      "ConnectionRefused downloading package manifest @tdk/pkg-2",
-      "ConnectionRefused downloading package manifest @tdk/pkg-3",
-      "ConnectionRefused downloading package manifest @tdk/pkg-4",
-      "ConnectionRefused downloading package manifest @tdk/pkg-5",
-      "ConnectionRefused downloading package manifest @tdk/pkg-6",
+      "ConnectionRefused downloading package manifest @flisk/pkg-1",
+      "ConnectionRefused downloading package manifest @flisk/pkg-2",
+      "ConnectionRefused downloading package manifest @flisk/pkg-3",
+      "ConnectionRefused downloading package manifest @flisk/pkg-4",
+      "ConnectionRefused downloading package manifest @flisk/pkg-5",
+      "ConnectionRefused downloading package manifest @flisk/pkg-6",
     ].join("\n");
     const summary = summarizeTiltBuildError(raw);
-    expect(summary).toContain("@tdk/pkg-1, @tdk/pkg-2, @tdk/pkg-3, @tdk/pkg-4 (+2 more)");
+    expect(summary).toContain("@flisk/pkg-1, @flisk/pkg-2, @flisk/pkg-3, @flisk/pkg-4 (+2 more)");
   });
 });
 
@@ -198,7 +198,7 @@ describe("summarizeTiltBuildError: compile and generic fallbacks", () => {
 describe("isRegistryRelatedBuildError", () => {
   it("returns true for matching registry error patterns", () => {
     expect(
-      isRegistryRelatedBuildError("ConnectionRefused downloading package manifest @tdk/foo"),
+      isRegistryRelatedBuildError("ConnectionRefused downloading package manifest @flisk/foo"),
     ).toBe(true);
     expect(isRegistryRelatedBuildError("Verdaccio (:4873) is down or unreachable")).toBe(true);
     expect(isRegistryRelatedBuildError("private registry error")).toBe(true);

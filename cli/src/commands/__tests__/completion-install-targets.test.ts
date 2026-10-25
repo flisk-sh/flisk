@@ -105,7 +105,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
 
     expect(stderr).toContain("Using bash completion");
     const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
-    expect(fsStore.files.get(installPath)).toContain("complete -F _tdk_completions flisk");
+    expect(fsStore.files.get(installPath)).toContain("complete -F _flisk_completions flisk");
   });
 
   it("lets the --shell option pick the install target", async () => {
@@ -123,7 +123,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     await runCompletion(["bash", "--install"]);
     const first = fsStore.files.get(installPath);
     expect(first).toBeDefined();
-    expect(first).toContain("complete -F _tdk_completions flisk");
+    expect(first).toContain("complete -F _flisk_completions flisk");
 
     await runCompletion(["bash", "--install"]);
 
@@ -193,7 +193,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     const stale = [
       "# my profile",
       "# FLISK-CLI-COMPLETION-START",
-      "Register-ArgumentCompleter -Native -CommandName tdk-old",
+      "Register-ArgumentCompleter -Native -CommandName flisk-old",
       "# FLISK-CLI-COMPLETION-END",
       "# footer",
       "",
@@ -205,7 +205,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     const written = fsStore.files.get(installPath);
     expect(written).toContain("# my profile");
     expect(written).toContain("# footer");
-    expect(written).not.toContain("tdk-old");
+    expect(written).not.toContain("flisk-old");
     expect(written).toContain("Register-ArgumentCompleter -Native -CommandName flisk");
     expect(written?.match(/# FLISK-CLI-COMPLETION-START/g)).toHaveLength(1);
     expect(written?.match(/# FLISK-CLI-COMPLETION-END/g)).toHaveLength(1);

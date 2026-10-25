@@ -50,7 +50,7 @@ describe("createTempProject", () => {
       files: { "notes/readme.txt": "hi" },
     });
 
-    expect(JSON.parse(fs.readFileSync(path.join(root, ".tdk", "project.json"), "utf-8"))).toEqual(
+    expect(JSON.parse(fs.readFileSync(path.join(root, ".flisk", "project.json"), "utf-8"))).toEqual(
       {},
     );
     expect(
@@ -62,13 +62,13 @@ describe("createTempProject", () => {
     expect(fs.readFileSync(path.join(root, "services/broken/service.json"), "utf-8")).toBe(
       "{invalid\n",
     );
-    expect(fs.readFileSync(path.join(root, ".tdk/.tdk-out/spec.master"), "utf-8")).toBe("");
+    expect(fs.readFileSync(path.join(root, ".flisk/.flisk-out/spec.master"), "utf-8")).toBe("");
     expect(fs.readFileSync(path.join(root, "notes/readme.txt"), "utf-8")).toBe("hi");
   });
 
-  it("omits the .tdk folder when projectJson is null, so flisk finds no project", () => {
+  it("omits the .flisk folder when projectJson is null, so flisk finds no project", () => {
     const root = createTempProject({ projectJson: null });
-    expect(fs.existsSync(path.join(root, ".tdk"))).toBe(false);
+    expect(fs.existsSync(path.join(root, ".flisk"))).toBe(false);
     const result = runFlisk(["stacks", "--json"], { cwd: root });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Could not find project root");

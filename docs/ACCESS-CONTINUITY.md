@@ -4,7 +4,7 @@ This page says how the project keeps going if one maintainer cannot continue. Th
 
 ## Who holds access today
 
-The people with merge rights are listed in [MAINTAINERS.md](../MAINTAINERS.md). Access to each system is held as follows:
+The people with merge rights are listed in [MAINTAINERS.md](project/MAINTAINERS.md). Access to each system is held as follows:
 
 | System | What it is used for | Who can act | How the second maintainer gets access |
 | --- | --- | --- | --- |

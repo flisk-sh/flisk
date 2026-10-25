@@ -13,7 +13,7 @@ Contributing to Flisk is a small adventure. Pick an island, finish quests, and r
 1. **Pick an island** below. Each island has a head issue with a checklist of quests.
 2. **Pick a quest** that matches your rank. Every issue carries a `rank:` label.
 3. **Comment "I would like this one"** (or "I'll take this") on the issue; a bot assigns you so nobody works on it twice. Questions are welcome there.
-4. **Open a PR** (see [CONTRIBUTING.md](../../CONTRIBUTING.md)). When it merges, the dot on the map fills in.
+4. **Open a PR** (see [CONTRIBUTING.md](../../.github/CONTRIBUTING.md)). When it merges, the dot on the map fills in.
 
 ## Ranks
 

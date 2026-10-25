@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Tests for snapshot persistence functionality.
@@ -18,11 +18,11 @@ class TestSnapshotPersistence:
     def test_saving_snapshot_creates_file(self, temp_dir):
         """
         Scenario: Saving snapshot creates file
-        WHEN a snapshot is saved to `.tdk/.tdk-out/snapshots/resource-snapshot.json`
+        WHEN a snapshot is saved to `.flisk/.flisk-out/snapshots/resource-snapshot.json`
         THEN the file SHALL exist with valid JSON containing all service data
         """
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot
         
         original_dir = os.getcwd()
@@ -35,7 +35,7 @@ class TestSnapshotPersistence:
             ]
             save_snapshot(services)
             
-            snapshot_file = Path(".tdk/.tdk-out/snapshots/resource-snapshot.json")
+            snapshot_file = Path(".flisk/.flisk-out/snapshots/resource-snapshot.json")
             assert snapshot_file.exists(), "Snapshot file should be created"
             
             # Verify content
@@ -51,11 +51,11 @@ class TestSnapshotPersistence:
     def test_loading_snapshot_reads_file(self, temp_dir):
         """
         Scenario: Loading snapshot reads file
-        WHEN a snapshot is loaded from an existing `.tdk/.tdk-out/snapshots/resource-snapshot.json`
+        WHEN a snapshot is loaded from an existing `.flisk/.flisk-out/snapshots/resource-snapshot.json`
         THEN it SHALL return the previously saved service data
         """
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot, load_snapshot
         
         original_dir = os.getcwd()
@@ -78,11 +78,11 @@ class TestSnapshotPersistence:
     def test_loading_missing_snapshot(self, temp_dir):
         """
         Scenario: Loading missing snapshot
-        WHEN a snapshot is loaded from a non-existent `.tdk/.tdk-out/snapshots/resource-snapshot.json`
+        WHEN a snapshot is loaded from a non-existent `.flisk/.flisk-out/snapshots/resource-snapshot.json`
         THEN it SHALL return an empty list without error
         """
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import load_snapshot
         
         original_dir = os.getcwd()
@@ -98,9 +98,9 @@ class TestSnapshotPersistence:
             os.chdir(original_dir)
     
     def test_saving_creates_directory_structure(self, temp_dir):
-        """Test that saving creates the .tdk/.tdk-out/snapshots directory if it doesn't exist."""
+        """Test that saving creates the .flisk/.flisk-out/snapshots directory if it doesn't exist."""
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot
         
         original_dir = os.getcwd()
@@ -110,15 +110,15 @@ class TestSnapshotPersistence:
             services = ["services/test/service.json"]
             save_snapshot(services)
             
-            assert Path(".tdk/.tdk-out/snapshots").exists(), ".tdk/.tdk-out/snapshots directory should be created"
-            assert Path(".tdk/.tdk-out/snapshots").is_dir(), ".tdk/.tdk-out/snapshots should be a directory"
+            assert Path(".flisk/.flisk-out/snapshots").exists(), ".flisk/.flisk-out/snapshots directory should be created"
+            assert Path(".flisk/.flisk-out/snapshots").is_dir(), ".flisk/.flisk-out/snapshots should be a directory"
         finally:
             os.chdir(original_dir)
     
     def test_loading_invalid_json_returns_empty(self, temp_dir):
         """Test that loading invalid JSON returns empty snapshot."""
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import load_snapshot
         
         original_dir = os.getcwd()
@@ -140,7 +140,7 @@ class TestSnapshotPersistence:
     def test_snapshot_includes_hashes(self, temp_dir):
         """Test that saved snapshot includes content hashes."""
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot
         
         # Create a service file to hash
@@ -155,7 +155,7 @@ class TestSnapshotPersistence:
             services = ["services/test/service.json"]
             save_snapshot(services, include_hashes=True)
             
-            with open(".tdk/.tdk-out/snapshots/resource-snapshot.json") as f:
+            with open(".flisk/.flisk-out/snapshots/resource-snapshot.json") as f:
                 data = json.load(f)
                 
             assert "resource_hashes" in data

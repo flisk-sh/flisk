@@ -8,6 +8,7 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const apiPaths = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "platform",

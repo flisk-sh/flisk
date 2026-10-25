@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Copyright (c) 2026 Flisk Landscape contributors
+# SPDX-License-Identifier: MIT
+#
+# Resolves a Flisk Tilt extension directory (engine, discovery, specs, ext) in a
+# checkout. Prefers runtime/<name> and falls back to the flat <name> layout, the
+# same order as cli/src/utils/runtime-layout.ts.
+
+runtime_src_dir() {
+  local root="$1" name="$2"
+  if [[ -d "${root}/runtime/${name}" ]]; then
+    echo "${root}/runtime/${name}"
+  else
+    echo "${root}/${name}"
+  fi
+}
+
+runtime_shared_platform_dir() {
+  local root="$1"
+  if [[ -d "${root}/runtime/shared-platform-engineering" ]]; then
+    echo "${root}/runtime/shared-platform-engineering"
+  else
+    echo "${root}/shared-platform-engineering"
+  fi
+}
+
+runtime_tiltfile() {
+  local root="$1"
+  if [[ -f "${root}/runtime/Tiltfile" ]]; then
+    echo "${root}/runtime/Tiltfile"
+  else
+    echo "${root}/Tiltfile"
+  fi
+}

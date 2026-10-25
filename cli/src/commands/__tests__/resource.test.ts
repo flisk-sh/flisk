@@ -40,7 +40,7 @@ import {
   resolveFrontendFramework,
 } from "../../frontend-frameworks/registry.js";
 import { CREATABLE_RESOURCE_TYPES, isCreatableResourceType } from "../../types/index.js";
-import { TdkError } from "../../utils/errors.js";
+import { FliskError } from "../../utils/errors.js";
 import { discoverResourcesFromRoot } from "../../utils/services.js";
 import { KEBAB_CASE_REGEX } from "../../utils/validation.js";
 
@@ -276,7 +276,7 @@ describe("resource command", () => {
       const hasBun = spawnSync("bun", ["--version"], { encoding: "utf-8" }).status === 0;
       if (!hasBun) return;
 
-      const dir = mkdtempSync(join(tmpdir(), "tdk-frontend-guard-"));
+      const dir = mkdtempSync(join(tmpdir(), "flisk-frontend-guard-"));
       try {
         let stderr = "";
         try {
@@ -381,7 +381,7 @@ describe("resource command", () => {
       expect(() => getFrontendFramework("__proto__")).toThrow(/Unknown frontend framework/);
       expect(getFrontendFramework("React").id).toBe("react");
       expect(getFrontendFramework(" VUE ").id).toBe("vue");
-      expect(() => getFrontendFramework("angular")).toThrow(TdkError);
+      expect(() => getFrontendFramework("angular")).toThrow(FliskError);
       expect(() => getFrontendFramework("")).toThrow(/Unknown frontend framework/);
     });
 
@@ -577,7 +577,7 @@ describe("resource command", () => {
 
   describe("legacy frontend service metadata", () => {
     it("discovers a frontend without framework without rewriting service.json", () => {
-      const projectRoot = mkdtempSync(join(tmpdir(), "tdk-legacy-frontend-"));
+      const projectRoot = mkdtempSync(join(tmpdir(), "flisk-legacy-frontend-"));
       try {
         const serviceDir = join(projectRoot, "apps", "legacy-web");
         mkdirSync(serviceDir, { recursive: true });
@@ -756,7 +756,7 @@ describe("service.json schema", () => {
   it("keeps framework open to every registered frontend provider", () => {
     const schemaPath = join(
       dirname(fileURLToPath(import.meta.url)),
-      "../../../../engine/schemas/service-schema.json",
+      "../../../../runtime/engine/schemas/service-schema.json",
     );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
 
@@ -795,7 +795,7 @@ describe("parseResourceType", () => {
   });
 
   it("rejects an unknown type with the supported list instead of prompting", () => {
-    expect(() => parseResourceType("bogus")).toThrow(TdkError);
+    expect(() => parseResourceType("bogus")).toThrow(FliskError);
     expect(() => parseResourceType("bogus")).toThrow(
       /Unknown resource type "bogus"\. Supported types: backend, frontend/,
     );
@@ -803,12 +803,12 @@ describe("parseResourceType", () => {
   });
 });
 
-const resourceCliPath = join(dirname(fileURLToPath(import.meta.url)), "../../../bin/tdk.js");
+const resourceCliPath = join(dirname(fileURLToPath(import.meta.url)), "../../../bin/flisk.js");
 
 function createResourceProject(): string {
-  const projectRoot = mkdtempSync(join(tmpdir(), "tdk-resource-cli-"));
-  mkdirSync(join(projectRoot, ".tdk"), { recursive: true });
-  writeFileSync(join(projectRoot, ".tdk", "project.json"), "{}\n");
+  const projectRoot = mkdtempSync(join(tmpdir(), "flisk-resource-cli-"));
+  mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
+  writeFileSync(join(projectRoot, ".flisk", "project.json"), "{}\n");
   return projectRoot;
 }
 
@@ -1035,10 +1035,10 @@ describe("resource command non-interactive mode", () => {
     }
   });
 
-  it("wraps a malformed service.json in a TdkError naming the file during registration", () => {
+  it("wraps a malformed service.json in a FliskError naming the file during registration", () => {
     expect(() =>
       parseExistingServiceJson('{"appName": "broken",', "/tmp/services/main/broken/service.json"),
-    ).toThrow(TdkError);
+    ).toThrow(FliskError);
     expect(() =>
       parseExistingServiceJson('{"appName": "broken",', "/tmp/services/main/broken/service.json"),
     ).toThrow(/Could not parse service\.json at \/tmp\/services\/main\/broken\/service\.json:/);

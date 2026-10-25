@@ -41,11 +41,11 @@ describe("flisk config verify --json", () => {
       errors: [],
     });
     expect(report.data.errors).toContain(
-      "Missing file: .tdk/.tdk-out/Tiltfile (run 'flisk config regenerate')",
+      "Missing file: .flisk/.flisk-out/Tiltfile (run 'flisk config regenerate')",
     );
     expect(
       report.data.diffs.find((diff: { file: string }) => diff.file.endsWith("Tiltfile"))?.diff,
-    ).toContain("+++ b/.tdk/.tdk-out/Tiltfile");
+    ).toContain("+++ b/.flisk/.flisk-out/Tiltfile");
   }, 120_000);
 
   it("emits a structured INTERNAL error and exits 2 for invalid project JSON", () => {

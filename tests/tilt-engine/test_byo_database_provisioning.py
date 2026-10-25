@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Bring-your-own resources receive DATABASE_URL (docs/byo.md), so their stack database must be provisioned like a
@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.generator]
 TILT_REQUIRED = pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ORCHESTRATOR_DIR = REPO_ROOT / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
+ORCHESTRATOR_DIR = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "resources" / "orchestrator"
 APPLY = ORCHESTRATOR_DIR / "apply.star"
 RESULT_MARKER = "Error in fail: RESULT"
 

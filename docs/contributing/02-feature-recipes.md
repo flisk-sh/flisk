@@ -22,8 +22,8 @@ First decide what you are adding:
 
 Use the existing code as a map:
 
-1. Start with `engine/topologies/tilt/resources/infra-loader.star` to see how shared infrastructure is loaded and registered.
-2. Look at `engine/topologies/tilt/resources/databases.star` for the database lifecycle example and `engine/topologies/platform/docker/compose/` for Compose generation.
+1. Start with `runtime/engine/topologies/tilt/resources/infra-loader.star` to see how shared infrastructure is loaded and registered.
+2. Look at `runtime/engine/topologies/tilt/resources/databases.star` for the database lifecycle example and `runtime/engine/topologies/platform/docker/compose/` for Compose generation.
 3. Find the related feature or manifest setting and follow it to where it is validated and enabled. Search for the setting name with `rg`.
 4. Trace the full lifecycle: configuration, generated files, startup order, health/readiness, environment or secrets, shutdown/cleanup, and what happens when the tool is disabled.
 5. Add checks for the behavior you changed. CLI and Starlark generator tests live under `cli/src/commands/__tests__/`; the Python engine tests are under `tests/tilt-engine/`.
@@ -37,7 +37,7 @@ Do not assume a new tool needs every file above. Follow the current implementati
 You can run any engine function and look at its output with only Tilt installed. From the repository root, create `try.Tiltfile` (it is git-ignored):
 
 ```python
-load("engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
+load("runtime/engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
 
 manifest = {"appType": "backend", "stack": "shop", "port": 4000, "appName": "orders-api"}
 resource = {"name": "orders-api", "_resource_path": "services/shop/orders-api"}
@@ -55,15 +55,15 @@ The generated Compose entry is printed after `Error in fail: OUTPUT`. Paths in `
 
 ## Change the engine or service discovery
 
-1. For Tilt resource orchestration, begin in `engine/topologies/tilt/resources/`.
-2. For Docker, networking, or persisted state, begin in `engine/topologies/platform/`.
-3. For manifest scanning and dependency graphs, begin in `discovery/`.
+1. For Tilt resource orchestration, begin in `runtime/engine/topologies/tilt/resources/`.
+2. For Docker, networking, or persisted state, begin in `runtime/engine/topologies/platform/`.
+3. For manifest scanning and dependency graphs, begin in `runtime/discovery/`.
 4. Search for the affected output file or manifest field to find its generator and tests. The CLI tests include Starlark generator checks.
 5. Check whether existing manifests and generated projects still work. Update schema, examples, or CLI docs when their behavior changes.
 6. If the change spans contracts or several modules, write an [OpenSpec proposal](01-first-change.md#when-to-write-a-change-proposal) first.
 7. **E2E:** engine and discovery changes reach every stack. Run the affected suites with `make test-e2e`, and add a case for the behavior you changed. See [Write an e2e test](05-write-e2e.md).
 
-`engine/AGENTS.md` and other `AGENTS.md` files are agent-specific working notes. They can help explain local code, but check their paths and advice against current source and tests before using them as product documentation.
+`runtime/engine/AGENTS.md` and other `AGENTS.md` files are agent-specific working notes. They can help explain local code, but check their paths and advice against current source and tests before using them as product documentation.
 
 ## Change documentation
 

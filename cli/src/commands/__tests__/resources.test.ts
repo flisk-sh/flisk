@@ -28,9 +28,9 @@ describe("resources command", () => {
   function setupProject(
     resources: Array<{ name: string; type: string; stack?: string; port?: number }>,
   ) {
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
     writeFileSync(
-      join(tempDir, ".tdk", "project.json"),
+      join(tempDir, ".flisk", "project.json"),
       JSON.stringify({
         version: "1.0.0",
         project: { name: "test-proj", version: "1.0.0" },
@@ -91,7 +91,7 @@ describe("resources command", () => {
     expect(envelope.schemaVersion).toBe(1);
     expect(envelope.errors[0]?.code).toBe("COMMAND_FAILED");
     expect(envelope.errors[0]?.message).toContain(
-      "Could not find project root (no .tdk/project.json found)",
+      "Could not find project root (no .flisk/project.json found)",
     );
     errorSpy.mockRestore();
     logSpy.mockRestore();

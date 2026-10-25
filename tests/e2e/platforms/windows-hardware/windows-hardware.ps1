@@ -222,7 +222,7 @@ function Get-PeSignature {
 }
 
 function Get-ReleaseLayout {
-  # The published layout: tdk.exe with the tdk-cli engine directory beside it, the way install.ps1 leaves it.
+  # The published layout: tdk.exe with the flisk-cli engine directory beside it, the way install.ps1 leaves it.
   $tag = Get-ReleaseTag
   $exeAsset = Get-ReleaseAsset $tag 'tdk-windows-amd64.exe'
   $engineAsset = Get-ReleaseAsset $tag 'tdk-cli-engine.tar.gz'
@@ -230,12 +230,12 @@ function Get-ReleaseLayout {
   $dir = Join-Path $script:WorkDir 'release'
   $exe = Join-Path $dir 'tdk.exe'
   Copy-Item -LiteralPath $exeAsset -Destination $exe -Force
-  $engine = Join-Path $dir 'tdk-cli'
+  $engine = Join-Path $dir 'flisk-cli'
   if (-not (Test-Path -LiteralPath (Join-Path $engine 'shared-platform-engineering'))) {
     & (Get-TarPath) -xzf $engineAsset -C $dir
     if ($LASTEXITCODE -ne 0) { throw "tar could not extract $engineAsset" }
   }
-  if (-not (Test-Path -LiteralPath $engine)) { throw 'the engine archive did not contain tdk-cli' }
+  if (-not (Test-Path -LiteralPath $engine)) { throw 'the engine archive did not contain flisk-cli' }
   return @{ Tag = $tag; Exe = $exe; Engine = $engine; Checksums = $checksums }
 }
 
@@ -425,9 +425,9 @@ function Invoke-Wh2 {
 
   $exe = Join-Path $installDir 'tdk.exe'
   if (-not (Test-Path -LiteralPath $exe)) { throw "the installer did not place tdk.exe in $installDir" }
-  $engine = Join-Path $installDir 'tdk-cli'
+  $engine = Join-Path $installDir 'flisk-cli'
   if (-not (Test-Path -LiteralPath (Join-Path $engine 'shared-platform-engineering'))) {
-    throw 'the installer did not unpack the tdk-cli engine next to tdk.exe'
+    throw 'the installer did not unpack the flisk-cli engine next to tdk.exe'
   }
   $pathEntries = @(([string]$result.UserPathAfter) -split ';' | Where-Object { $_ })
   $onPath = @($pathEntries | Where-Object { $_.TrimEnd('\') -ieq $installDir.TrimEnd('\') }).Count -gt 0
@@ -486,8 +486,8 @@ function Invoke-Wh3 {
   if (-not $report.ok) { throw "the bundled runtime assets are incomplete: $($assets.StdOut)" }
   $assetRoot = [string]$report.assetRoot
   if (-not $assetRoot) { throw 'tdk.exe runtime --check-assets --json printed no assetRoot' }
-  # The engine sits in the tdk-cli directory next to the exe, the way install.ps1 leaves it.
-  $expectedRoot = (Resolve-Path -LiteralPath (Join-Path (Split-Path -Parent $exe) 'tdk-cli')).Path
+  # The engine sits in the flisk-cli directory next to the exe, the way install.ps1 leaves it.
+  $expectedRoot = (Resolve-Path -LiteralPath (Join-Path (Split-Path -Parent $exe) 'flisk-cli')).Path
   $actualRoot = (Resolve-Path -LiteralPath $assetRoot).Path
   if (-not [string]::Equals($actualRoot, $expectedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "the engine root is $actualRoot, but it must sit next to the exe in $expectedRoot"
@@ -578,9 +578,9 @@ function Invoke-Wh5 {
   New-Item -ItemType Directory -Force -Path $installDir | Out-Null
   $spacedExe = Join-Path $installDir 'tdk.exe'
   Copy-Item -LiteralPath $exe -Destination $spacedExe -Force
-  $sourceEngine = Join-Path (Split-Path -Parent $exe) 'tdk-cli'
+  $sourceEngine = Join-Path (Split-Path -Parent $exe) 'flisk-cli'
   if (Test-Path -LiteralPath $sourceEngine) {
-    $engine = Join-Path $installDir 'tdk-cli'
+    $engine = Join-Path $installDir 'flisk-cli'
     if (Test-Path -LiteralPath $engine) { Remove-Item -Recurse -Force -LiteralPath $engine }
     Copy-Item -LiteralPath $sourceEngine -Destination $engine -Recurse -Force
   }

@@ -53,10 +53,10 @@ The example pins the official `oci://ghcr.io/bjw-s-labs/helm/app-template` chart
 
 ```bash
 helm pull oci://ghcr.io/bjw-s-labs/helm/app-template \
-  --version 5.2.1 --untar --untardir /tmp/tdk-helm-example
-helm lint /tmp/tdk-helm-example/app-template \
+  --version 5.2.1 --untar --untardir /tmp/flisk-helm-example
+helm lint /tmp/flisk-helm-example/app-template \
   --values examples/one-backend-helm/values.yaml
-helm template api /tmp/tdk-helm-example/app-template \
+helm template api /tmp/flisk-helm-example/app-template \
   --values examples/one-backend-helm/values.yaml
 ```
 
@@ -64,4 +64,4 @@ The example intentionally leaves replicas, probes, ingress, PVCs, resources, sec
 
 ## Keep writing Helm values by hand
 
-There is no Helm export command in this workflow. Write chart values using the schema and documentation for your pinned chart release. The example is a starting point for understanding the handoff, not a supported production chart. `flisk config verify` checks generated project files against `.tdk/project.json`; it does not lint `service.json` or Helm values. `flisk doctor` checks local environment readiness and service issues, not production chart configuration.
+There is no Helm export command in this workflow. Write chart values using the schema and documentation for your pinned chart release. The example is a starting point for understanding the handoff, not a supported production chart. `flisk config verify` checks generated project files against `.flisk/project.json`; it does not lint `service.json` or Helm values. `flisk doctor` checks local environment readiness and service issues, not production chart configuration.

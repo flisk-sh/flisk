@@ -6,7 +6,7 @@
     "cli/src/commands/resource.ts",
     "cli/src/commands/agent.ts",
     "cli/src/commands/restart.ts",
-    "engine/**",
+    "runtime/engine/**",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/common.sh",
     "tests/e2e/resource-types/combined/**",

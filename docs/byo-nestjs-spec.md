@@ -20,7 +20,7 @@ Refactor examples/byo/nestjs into a conventional NestJS 10 application while pre
 ## Acceptance criteria for the implementation
 
 1. tests/e2e/resource-types/bring-your-own/verify-byo-example.sh nestjs builds the container and gets HTTP 200 from /health.
-2. tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh nestjs /health gets HTTP 200 through flisk up at the NestJS resource route, with the path prefix stripped as documented.
+2. tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh nestjs /health gets HTTP 200 through flisk up at the NestJS resource route, with the path prefix stripped as documented.
 3. The app still reads the assigned PORT, binds 0.0.0.0, preserves /orders, and starts successfully when Flisk supplies DATABASE_URL without opening a database connection.
 4. The Docker build uses Nest CLI output and the runtime image starts the compiled entry point with production dependencies only.
 5. The per-folder README keeps its existing format and documents the commands actually run.

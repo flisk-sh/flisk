@@ -12,7 +12,7 @@ Stability: 1.x local dev. Generated files are a contract; verify with `flisk con
 | Verdaccio, DDD scaffold, Sablier idle stop | no | key |
 | Playwright, C4, AGENTS.md | free if generated in-repo | only if the implementation is downloaded with a key |
 
-Core stays free. Premium is a separate key for the extras above; no key required to run `flisk up`. See the [license boundary and donation scope](../GOVERNANCE.md#license-boundary-and-donation-scope) for which code is MIT and which is downloaded with a key.
+Core stays free. Premium is a separate key for the extras above; no key required to run `flisk up`. See the [license boundary and donation scope](project/GOVERNANCE.md#license-boundary-and-donation-scope) for which code is MIT and which is downloaded with a key.
 
 ## Overview
 
@@ -25,7 +25,7 @@ Flisk has two levels of feature control:
 
 ## Project-Level Features
 
-Project-level features are configured in `.tdk/project.json` and control infrastructure services.
+Project-level features are configured in `.flisk/project.json` and control infrastructure services.
 
 ### CORE Features (Pre-Enabled)
 
@@ -42,25 +42,25 @@ These are always enabled in the `pre_alpha` stack:
 - **Purpose**: Primary relational database for data persistence
 - **Default**: ✅ Enabled
 - **Service Name**: `database-management`
-- **Container port**: 5432; host port is selected at startup (`TDK_POSTGRES_PORT` overrides it).
+- **Container port**: 5432; host port is selected at startup (`FLISK_POSTGRES_PORT` overrides it).
 - **Database**: `app_dev` (default)
 - **Configuration**: Backend services use `DATABASE_URL` env var
 
 ### PREMIUM Features (Requires License Key)
 
-Enable these with a premium license key set via `export TDK_LICENSE_KEY=<key>`:
+Enable these with a premium license key set via `export FLISK_LICENSE_KEY=<key>`:
 
 #### `verdaccio` (Verdaccio)
 - **Purpose**: Local npm registry for package management and publishing
 - **Default**: ❌ Disabled (Premium feature)
 - **Service Name**: `verdaccio`
 - **Port**: 4873
-- **License**: Premium (requires `TDK_LICENSE_KEY` environment variable)
+- **License**: Premium (requires `FLISK_LICENSE_KEY` environment variable)
 - **Configuration**: Services use this for `npm install` and `bun install` when enabled
 
 ### OPTIONAL Features (Disabled by Default)
 
-Enable these in `.tdk/project.json` under `optional_infra`:
+Enable these in `.flisk/project.json` under `optional_infra`:
 
 ```json
 {
@@ -95,14 +95,14 @@ Enable these in `.tdk/project.json` under `optional_infra`:
 
 ### Enable/Disable
 
-To enable optional or premium features, edit `.tdk/project.json`:
+To enable optional or premium features, edit `.flisk/project.json`:
 
 ```bash
-# Edit .tdk/project.json
+# Edit .flisk/project.json
 {
   "optional_infra": {
     "monitoring": true,    # Optional feature (Free)
-    "verdaccio": true      # Premium feature (requires TDK_LICENSE_KEY)
+    "verdaccio": true      # Premium feature (requires FLISK_LICENSE_KEY)
   }
 }
 
@@ -113,7 +113,7 @@ flisk config regenerate
 **For Premium Features:** Set your license key before running `flisk up`:
 
 ```bash
-export TDK_LICENSE_KEY=<your-premium-key>
+export FLISK_LICENSE_KEY=<your-premium-key>
 flisk up
 ```
 
@@ -176,7 +176,7 @@ Default features for backend services (appType: "backend", "worker", "migrator")
 #### `ddd` (Premium)
 - **Generates**: Domain-driven design folders and backend path aliases
 - **Purpose**: Scaffolds `domain`, `application`, `infrastructure`, and `presentation` layers
-- **License**: Premium (requires `TDK_LICENSE_KEY` with the `ddd` resource grant)
+- **License**: Premium (requires `FLISK_LICENSE_KEY` with the `ddd` resource grant)
 - **Usage**: `flisk resource add <name> --type backend --ddd`
 
 ### Enable/Disable Features

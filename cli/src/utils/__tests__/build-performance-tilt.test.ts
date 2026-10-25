@@ -11,9 +11,12 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const framePlan = join(
   repoRoot,
-  "engine/topologies/platform/docker/build/frontend_build_plan.star",
+  "runtime/engine/topologies/platform/docker/build/frontend_build_plan.star",
 );
-const concurrency = join(repoRoot, "engine/topologies/tilt/resources/build_concurrency.star");
+const concurrency = join(
+  repoRoot,
+  "runtime/engine/topologies/tilt/resources/build_concurrency.star",
+);
 const hasTilt = tiltAvailable();
 
 /** Runs a Tiltfile body in a scratch project and returns the JSON value it wrote to `out.json`. */
@@ -239,8 +242,8 @@ describe("Tilt build concurrency wiring", () => {
   // so these checks pin the source they depend on.
   const source = readFileSync(concurrency, "utf-8");
 
-  it("reads TDK_MAX_PARALLEL_BUILDS first and accepts only a positive integer", () => {
-    expect(source).toContain("os.environ.get('TDK_MAX_PARALLEL_BUILDS'");
+  it("reads FLISK_MAX_PARALLEL_BUILDS first and accepts only a positive integer", () => {
+    expect(source).toContain("os.environ.get('FLISK_MAX_PARALLEL_BUILDS'");
     expect(source).toContain("_is_positive_int(override)");
   });
 

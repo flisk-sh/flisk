@@ -1,6 +1,6 @@
 {
   "name": "@flisk-sh/flisk",
-  "version": "1.3.207",
+  "version": "1.4.2",
   "description": "Flisk CLI — start services on your machine.",
   "homepage": "https://flisk.sh",
   "repository": {
@@ -11,25 +11,31 @@
     "url": "https://github.com/flisk-sh/flisk/issues"
   },
   "private": false,
+  "type": "module",
+  "main": "./cli/dist/types/index.js",
   "workspaces": [
     "cli"
   ],
   "bin": {
-    "flisk": "cli/bin/tdk.js"
+    "flisk": "cli/bin/flisk.js"
   },
   "files": [
-    "Tiltfile",
-    "engine",
-    "!engine/docs",
-    "discovery",
-    "specs",
-    "ext",
-    "!ext/ide-components/code_executor",
-    "shared-platform-engineering/docker-templates",
+    "runtime",
+    "!runtime/engine/docs",
+    "!runtime/ext/ide-components/code_executor",
+    "!runtime/**/__tests__/**",
+    "!runtime/**/tests/**",
+    "!runtime/**/*.test.*",
+    "!runtime/**/*.spec.*",
+    "!runtime/**/test_*.py",
+    "!runtime/**/*_test.py",
     "examples/tdk-example",
     "cli/bin",
     "cli/dist/**/*.js",
     "cli/dist-bundle/**/*.js",
+    "!cli/dist/**/__tests__/**",
+    "!cli/dist/**/*.test.js",
+    "!cli/dist/**/*.spec.js",
     "cli/templates",
     "cli/package.json",
     "cli/shared-platform-engineering/docker-templates",
@@ -48,8 +54,8 @@
     "prepack": "node cli/scripts/bundle.mjs",
     "postpack": "rm -rf cli/dist-bundle",
     "prepare": "scripts/install-git-hooks.sh",
-    "cli": "cd cli && node bin/tdk.js",
-    "flisk": "cd cli && node bin/tdk.js"
+    "cli": "cd cli && node bin/flisk.js",
+    "flisk": "cd cli && node bin/flisk.js"
   },
   "keywords": [
     "flisk",
@@ -88,5 +94,27 @@
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "knip": {
+    "workspaces": {
+      "cli": {
+        "entry": [
+          "src/cli.ts"
+        ],
+        "project": [
+          "src/**/*.ts",
+          "src/**/*.tsx"
+        ],
+        "ignoreBinaries": [
+          "vi",
+          "colima",
+          "podman",
+          "killall",
+          "file",
+          "flisk",
+          "tilt"
+        ]
+      }
+    }
   }
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Tests for discovery daemon polling behavior.
@@ -104,7 +104,7 @@ class TestDaemonPolling:
         async def mock_scan_cycle():
             # Simulate scanning
             import sys
-            sys.path.insert(0, str(Path("discovery").resolve()))
+            sys.path.insert(0, str(Path("runtime/discovery").resolve()))
             from resource_snapshot import get_current_services
             
             services = get_current_services(str(services_dir))

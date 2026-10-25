@@ -31,10 +31,10 @@ describe("flisk eject", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "tdk-eject-test-"));
-    mkdirSync(join(tempDir, ".tdk"), { recursive: true });
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-eject-test-"));
+    mkdirSync(join(tempDir, ".flisk"), { recursive: true });
     writeFileSync(
-      join(tempDir, ".tdk", "project.json"),
+      join(tempDir, ".flisk", "project.json"),
       JSON.stringify({
         version: "1.0.0",
         project: { name: "test", version: "1.0.0" },
@@ -54,9 +54,9 @@ describe("flisk eject", () => {
         discovery: { paths: ["services/**"] },
       }),
     );
-    mkdirSync(join(tempDir, ".tdk", ".tdk-out"), { recursive: true });
-    writeFileSync(join(tempDir, ".tdk", ".tdk-out", "Tiltfile"), "# generated\n");
-    writeFileSync(join(tempDir, ".tdk", ".tdk-out", "docker-compose.yml"), "services: {}\n");
+    mkdirSync(join(tempDir, ".flisk", ".flisk-out"), { recursive: true });
+    writeFileSync(join(tempDir, ".flisk", ".flisk-out", "Tiltfile"), "# generated\n");
+    writeFileSync(join(tempDir, ".flisk", ".flisk-out", "docker-compose.yml"), "services: {}\n");
     process.chdir(tempDir);
   });
 
@@ -79,7 +79,7 @@ describe("flisk eject", () => {
 
     const dryRunOutput = output.join("\n");
     expect(dryRunOutput).toContain("Generated files, left where they are (git-ignored):");
-    expect(dryRunOutput).toContain(join(".tdk", ".tdk-out", "Tiltfile"));
+    expect(dryRunOutput).toContain(join(".flisk", ".flisk-out", "Tiltfile"));
     expect(dryRunOutput).toContain(
       "Root Tiltfile, left where it is (not generated, not git-ignored):\n  Tiltfile\nFiles written:",
     );
@@ -101,14 +101,14 @@ describe("flisk eject", () => {
     expect(readFileSync(join(tempDir, "EJECTED.md"), "utf-8")).toBe(EJECTED_CONTENT);
     expect(output).toEqual([
       "Wrote EJECTED.md. Nothing was copied, moved or generated.",
-      "Generated files stay in .tdk/.tdk-out/ (git-ignored) and still need Flisk inputs.",
-      "Run from the project root: tilt up -f .tdk/.tdk-out/Tiltfile -- --focus=<stack>",
+      "Generated files stay in .flisk/.flisk-out/ (git-ignored) and still need Flisk inputs.",
+      "Run from the project root: tilt up -f .flisk/.flisk-out/Tiltfile -- --focus=<stack>",
       "Replace <stack> with a stack name under services/, or omit --focus to use the Tiltfile's default phase.",
       "Read EJECTED.md",
     ]);
     // `flisk up` passes this exact file to Tilt; there is no Tiltfile at the project root.
-    expect(TILTFILE_RELATIVE_PATH).toBe(".tdk/.tdk-out/Tiltfile");
-    expect(TILT_UP_COMMAND).toContain("-f .tdk/.tdk-out/Tiltfile");
+    expect(TILTFILE_RELATIVE_PATH).toBe(".flisk/.flisk-out/Tiltfile");
+    expect(TILT_UP_COMMAND).toContain("-f .flisk/.flisk-out/Tiltfile");
     expect(existsSync(join(tempDir, "Tiltfile"))).toBe(false);
   });
 
@@ -147,7 +147,7 @@ describe("flisk eject", () => {
   });
 
   it("requires a Flisk project", async () => {
-    rmSync(join(tempDir, ".tdk", "project.json"));
+    rmSync(join(tempDir, ".flisk", "project.json"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const { expectExit } = captureExit();
     try {
@@ -155,7 +155,7 @@ describe("flisk eject", () => {
         ejectCommand.parseAsync(["node", "flisk", "--dry-run"], { from: "node" }),
       ).rejects.toThrow("process.exit");
       const output = error.mock.calls.flat().join("\n");
-      expect(output).toContain("Could not find project root (no .tdk/project.json found)");
+      expect(output).toContain("Could not find project root (no .flisk/project.json found)");
       expect(output).toContain("Run this from within a Flisk project");
       expect(output).toContain("Run `flisk project --yes` to initialize a new project");
       expectExit(1);
@@ -165,7 +165,7 @@ describe("flisk eject", () => {
   });
 
   it("fails with an informative error when generated Tilt files are missing", async () => {
-    rmSync(join(tempDir, ".tdk", ".tdk-out", "Tiltfile"));
+    rmSync(join(tempDir, ".flisk", ".flisk-out", "Tiltfile"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const { expectExit } = captureExit();
     try {

@@ -30,7 +30,7 @@
 - [x] 5.1 Keep the historical frontend listing (exit 0) when `--language` is given without an explicit `--type`, and add a regression test for it.
 - [x] 5.2 Name the requested `--language` in the printed command, so a copied row scaffolds the language the listing was asked about.
 - [x] 5.3 Name the language in the compatibility cell (`compatible with bun`).
-- [x] 5.4 Catch only the expected `TdkError` in `compatibleLanguages`, so an unexpected error surfaces instead of shrinking the language column.
+- [x] 5.4 Catch only the expected `FliskError` in `compatibleLanguages`, so an unexpected error surfaces instead of shrinking the language column.
 - [x] 5.5 Derive the frontend verification column from the registry in the test.
-- [x] 5.6 Use the shared `runTdk` helper in the inventory test.
+- [x] 5.6 Use the shared `runFlisk` helper in the inventory test.
 - [x] 5.7 Move the listing block in `docs/backend-language-providers.md` so the file table stays next to its intro.

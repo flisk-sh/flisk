@@ -102,7 +102,7 @@ export function readyNextStep(
   const workspace = suggestedWorkspace(env);
   return (
     `Next: mkdir -p ${workspace} && cd ${workspace} && ${CLI_COMMAND} project --yes\n` +
-    `(${CLI_COMMAND} project writes .tdk/ and the master configs into the current folder, ` +
+    `(${CLI_COMMAND} project writes .flisk/ and the master configs into the current folder, ` +
     `so it starts clean in a folder of its own. Or clone a starter: ${CLI_COMMAND} project example)`
   );
 }

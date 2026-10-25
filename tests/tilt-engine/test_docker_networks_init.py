@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """init-networks must fail with Docker's own message when a network cannot be created.
 
@@ -18,7 +18,7 @@ import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.generator]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-STAR = REPO_ROOT / "engine" / "topologies" / "tilt" / "common" / "utils_docker_networks.star"
+STAR = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "common" / "utils_docker_networks.star"
 RESULT_MARKER = "Error in fail: RESULT"
 POOL_MSG = (
     "Error response from daemon: all predefined address pools have been fully subnetted"

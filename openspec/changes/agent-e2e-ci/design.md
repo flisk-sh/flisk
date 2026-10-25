@@ -19,14 +19,14 @@ Assertions live in a script (`scripts/agent-e2e.sh` plus small Node helpers for 
 The first CI run showed the agent's port is not published on the host (`hostPort: null`), so the original `127.0.0.1:<port>/session` call could never work on a real stack. The CLI now uses the route `flisk status` reports as `url`, resolved via `buildServicePorts` and the host port plan. `*.localhost` is dialed as loopback with a `Host` header. Traefik 502/503/504 and plain-text 404 map to `AGENT_NOT_RUNNING`.
 
 ### Error-path fixtures
-- Timeout and stalled body: a Node stub standing in for the ingress (the CLI is pointed at it with `TDK_SERVICE_BASE_URL`) after the real container is stopped. One accepts and never replies; one sends headers then stalls the body. Elapsed time is measured and asserted within 9-15s.
+- Timeout and stalled body: a Node stub standing in for the ingress (the CLI is pointed at it with `FLISK_SERVICE_BASE_URL`) after the real container is stopped. One accepts and never replies; one sends headers then stalls the body. Elapsed time is measured and asserted within 9-15s.
 - `AGENT_REQUEST_FAILED`: stub returning 400/500 with `{"error": "..."}`; assert status and text appear in the message.
 - `TILT_NOT_RUNNING` after `flisk down`; `TILT_TRIGGER_FAILED` via `flisk restart no-such-resource --json`.
 
 ### Decision: `flisk agent sessions` without `--session-id`
 Options: (a) require `--session-id`, (b) list sessions when omitted.
 
-Chosen: **(a) require it.** The runtime contract (`GET /session` keyed by `x-session-id`) has no list endpoint and this change must not alter the runtime contract (out of scope). Option (b) would need a new endpoint on every agent runtime. With (a) the CLI fails fast with a usage error and a hint, instead of a confusing `AGENT_REQUEST_FAILED` 400 from the agent. The check runs before any network call, after resource validation so `UNKNOWN_RESOURCE`/`NOT_AN_AGENT` keep their precedence. Error code: `SESSION_ID_REQUIRED` (JSON envelope; human mode prints a TdkError with the usage hint). MCP `get_agent_sessions` makes `sessionId` required in its input schema.
+Chosen: **(a) require it.** The runtime contract (`GET /session` keyed by `x-session-id`) has no list endpoint and this change must not alter the runtime contract (out of scope). Option (b) would need a new endpoint on every agent runtime. With (a) the CLI fails fast with a usage error and a hint, instead of a confusing `AGENT_REQUEST_FAILED` 400 from the agent. The check runs before any network call, after resource validation so `UNKNOWN_RESOURCE`/`NOT_AN_AGENT` keep their precedence. Error code: `SESSION_ID_REQUIRED` (JSON envelope; human mode prints a FliskError with the usage hint). MCP `get_agent_sessions` makes `sessionId` required in its input schema.
 
 This is a user-visible CLI behavior change; flagging for maintainer confirmation before implementation.
 

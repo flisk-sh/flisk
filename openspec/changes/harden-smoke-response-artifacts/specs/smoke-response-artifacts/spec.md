@@ -27,12 +27,12 @@ After a smoke step receives a response, `flisk up` MUST write a record containin
 
 ### Requirement: Smoke response artifacts are ignored before they are written
 
-Before `flisk up` writes a smoke response artifact, the CLI MUST ensure that `.tdk/smoke/` is ignored by the project's `.gitignore`, regardless of how the project or its `smoke` configuration was created. This applies only when the project is inside a git working tree; outside one there is nothing to protect and the CLI MUST NOT create a `.gitignore`. If the ignore entry cannot be ensured, the CLI MUST warn the user before writing artifacts and MUST NOT claim that the directory is git-ignored.
+Before `flisk up` writes a smoke response artifact, the CLI MUST ensure that `.flisk/smoke/` is ignored by the project's `.gitignore`, regardless of how the project or its `smoke` configuration was created. This applies only when the project is inside a git working tree; outside one there is nothing to protect and the CLI MUST NOT create a `.gitignore`. If the ignore entry cannot be ensured, the CLI MUST warn the user before writing artifacts and MUST NOT claim that the directory is git-ignored.
 
 #### Scenario: Smoke configuration was added without `flisk project`
 
-- **WHEN** `flisk up` is about to write a smoke response artifact in a git working tree whose `.gitignore` does not ignore `.tdk/smoke/`
-- **THEN** the CLI adds `.tdk/smoke/` to the project `.gitignore` before writing the artifact
+- **WHEN** `flisk up` is about to write a smoke response artifact in a git working tree whose `.gitignore` does not ignore `.flisk/smoke/`
+- **THEN** the CLI adds `.flisk/smoke/` to the project `.gitignore` before writing the artifact
 
 #### Scenario: The project is not inside a git working tree
 
@@ -43,14 +43,14 @@ Before `flisk up` writes a smoke response artifact, the CLI MUST ensure that `.t
 
 #### Scenario: Ignore setup fails
 
-- **WHEN** the CLI cannot add or verify the `.tdk/smoke/` ignore entry
+- **WHEN** the CLI cannot add or verify the `.flisk/smoke/` ignore entry
 - **THEN** it emits a clear warning before writing artifacts
 - **AND** the warning explains that Git may track the response records
 
 #### Scenario: Example project is checked out
 
 - **WHEN** a user checks out `examples/tdk-example`
-- **THEN** its `.gitignore` ignores `.tdk/smoke/`
+- **THEN** its `.gitignore` ignores `.flisk/smoke/`
 
 ### Requirement: Smoke text sinks redact known project secrets
 
@@ -107,7 +107,7 @@ The smoke and configuration documentation MUST explain the local artifact locati
 #### Scenario: User consults smoke documentation
 
 - **WHEN** a user reads `docs/smoke.md` or `docs/configuration.md`
-- **THEN** the documentation identifies `.tdk/smoke/` as the local record location
+- **THEN** the documentation identifies `.flisk/smoke/` as the local record location
 - **AND** explains that records survive `flisk down` until deleted or overwritten
 - **AND** provides a manual cleanup command
 - **AND** explains that only secrets covered by the shared redaction helper are redacted, and that a project without a readable `.env` has nothing to redact
