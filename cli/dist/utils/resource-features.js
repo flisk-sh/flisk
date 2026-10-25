@@ -160,15 +160,15 @@ export const RESOURCE_FEATURES = {
 /**
  * Get default features for a resource type
  */
-export function getDefaultFeaturesForResourceType(appType) {
+export function getDefaultFeaturesForResourceType(resourceType) {
     // bring-your-own doesn't generate application code, so no features
-    if (appType === BRING_YOUR_OWN_TYPE) {
+    if (resourceType === BRING_YOUR_OWN_TYPE) {
         return [];
     }
     const defaults = [];
     for (const [key, feature] of Object.entries(RESOURCE_FEATURES)) {
         if (feature.enabled_by_default &&
-            feature.applies_to.includes(appType) &&
+            feature.applies_to.includes(resourceType) &&
             // Only include if it's something users control via features array
             ["api-client", "env-config", "api-index", "prisma"].includes(key)) {
             defaults.push(key);
@@ -179,6 +179,6 @@ export function getDefaultFeaturesForResourceType(appType) {
 /**
  * Get all generators for a resource type (for documentation)
  */
-export function getGeneratorsForResourceType(appType) {
-    return Object.values(RESOURCE_FEATURES).filter((f) => f.applies_to.includes(appType));
+export function getGeneratorsForResourceType(resourceType) {
+    return Object.values(RESOURCE_FEATURES).filter((f) => f.applies_to.includes(resourceType));
 }

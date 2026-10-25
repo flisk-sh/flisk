@@ -3,11 +3,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { ResourceType } from "../../types/index.js";
 import {
   getDefaultFeaturesForResourceType,
   getGeneratorsForResourceType,
   RESOURCE_FEATURES,
-  type ResourceType,
 } from "../resource-features.js";
 
 describe("resource-features", () => {
