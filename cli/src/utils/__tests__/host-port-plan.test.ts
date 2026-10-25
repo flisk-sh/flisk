@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { createServer } from "node:net";
 import { describe, expect, it } from "vitest";
+import { FliskError } from "../errors.js";
 import {
   createHostPortPlan,
   formatHostPortPlan,
@@ -12,6 +13,14 @@ import {
 import { resolveSubdomainBases } from "../service-urls.js";
 
 describe("createHostPortPlan", () => {
+  it("throws FliskError with suggestions on invalid port or exhausted ranges", async () => {
+    await expect(
+      createHostPortPlan({ env: { FLISK_HTTP_PORT: "70000" }, isAvailable: async () => true }),
+    ).rejects.toSatisfy((err: unknown) => {
+      return err instanceof FliskError && err.suggestions.length > 0;
+    });
+  });
+
   it("chooses bounded fallback ports when defaults are occupied", async () => {
     const plan = await createHostPortPlan({
       env: {},

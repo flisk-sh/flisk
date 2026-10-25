@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
+import { FliskError } from "./errors.js";
 
 type CommandRunner = (command: string, args: string[]) => string;
 type CommandError = Error & { status?: number; code?: string; stderr?: Buffer | string };
@@ -24,7 +25,11 @@ export function findTiltProcessIdsOnPort(
         .map(Number)
         .filter((pid) => Number.isInteger(pid) && pid > 0);
     } catch {
-      throw new Error(`Unable to inspect Tilt listeners on port ${port} with PowerShell.`);
+      throw new FliskError(
+        `Unable to inspect Tilt listeners on port ${port} with PowerShell.`,
+        ["Ensure PowerShell is available and accessible"],
+        1,
+      );
     }
   }
 
@@ -38,9 +43,10 @@ export function findTiltProcessIdsOnPort(
     const commandErr = err as CommandError;
     const stderr = commandErr.stderr?.toString().trim();
     if (commandErr?.status === 1 && !stderr) return [];
-    throw new Error(
+    throw new FliskError(
       `Unable to inspect listeners on port ${port}. Install lsof or resolve the lsof error before using --force.`,
-      { cause: commandErr },
+      ["Install lsof or verify permissions before running with --force"],
+      1,
     );
   }
 
@@ -49,7 +55,11 @@ export function findTiltProcessIdsOnPort(
       const name = commandRunner("ps", ["-p", String(pid), "-o", "comm="]).trim();
       return name.split(/[\\/]/).at(-1) === "tilt";
     } catch (err) {
-      throw new Error(`Unable to identify the process listening on port ${port}.`, { cause: err });
+      throw new FliskError(
+        `Unable to identify the process listening on port ${port}.`,
+        ["Check process inspection permissions"],
+        1,
+      );
     }
   });
 }
