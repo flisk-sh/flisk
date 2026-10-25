@@ -21,6 +21,7 @@ You do not need to understand the whole repository. Pick one small change, follo
 | Try Flisk or an example and tell us what happened, no code needed | [Try it and report](try-and-report.md) |
 | Find and report bugs, no code needed | [Finding bugs](finding-bugs.md) |
 | Review someone else's pull request | [Review a PR](04-review-a-pr.md) |
+| Learn the Grok uses in Flisk: live demos, review and spec buttons, and more | [AI buttons use cases](ai-buttons-use-cases.md) |
 
 ## The whole process
 
