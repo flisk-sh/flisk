@@ -33,9 +33,9 @@ describe("PROJECT_TEMPLATES", () => {
     expect(PROJECT_TEMPLATES.demo.fixedDir).toBe("flisk-demo");
   });
 
-  it("points ecommerce at tdk-ecommerce-example", () => {
+  it("points ecommerce at flisk-ecommerce-example", () => {
     expect(PROJECT_TEMPLATES.ecommerce.repo).toBe(
-      "https://github.com/flisk-sh/tdk-ecommerce-example.git",
+      "https://github.com/flisk-sh/flisk-ecommerce-example.git",
     );
   });
 
