@@ -61,7 +61,7 @@ export function readDiscoveryPaths(projectRoot) {
             return paths;
     }
     catch (error) {
-        reason = error instanceof Error ? error.message : String(error);
+        reason = String(error);
     }
     console.warn(`Ignoring discovery configuration in ${configPath}: ${reason}; using default paths: ${DEFAULT_DISCOVERY_PATHS.join(", ")}`);
     return DEFAULT_DISCOVERY_PATHS;
