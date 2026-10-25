@@ -53,12 +53,13 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // the CLI tests itself with (`5.0.5`), so the `vitest` line of the scaffolded package.json is the only byte that differs.
 // It was re-captured a seventh time for the frontend starter wiring: the Hono `src/index.ts` now allows CORS from the
 // *.localhost frontend origins (hono/cors), so the browser can call /health from the starter page. That is the only file that differs.
+// The test scaffold now emits a TODO instead of an always-passing assertion; only the test-file hash changes.
 const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "068f15a55176c3960bae240a370244f1976879f126fddb01920c3eca3af5dd89",
   "package.json": "2ee050e7c1cb741d02b26b05261c15631602d25ddf261a2c305ffdbde5b184e5",
   "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "9c9980af5c618eff11f7afa21fdf716856200e26acdbf31bb842e88fd98d7f79",
-  "tests/orders-api.test.ts": "a4946ac3123eb4bee78d7b84304cad8b7c36d4268688e3c878da2aaa11ef98ab",
+  "tests/orders-api.test.ts": "acbe72a5661b26a5f26a3a3cd3372a7139b90daab19da88f587fe0e5bd815620",
   "tsconfig.json": "c0503e8c2d9e7cb0b77a1e0eaea674f4ee03f3182ff9f5429b9bb7ba0fabee41",
 };
 

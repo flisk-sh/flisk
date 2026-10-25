@@ -225,12 +225,10 @@ describe("resource scaffold templates", () => {
     it("interpolates the generated test name", () => {
       expect(getTestTemplate("catalog")).toBe(
         [
-          "import { describe, it, expect } from 'vitest';",
+          "import { describe, it } from 'vitest';",
           "",
           "describe('catalog', () => {",
-          "  it('should pass a basic test', () => {",
-          "    expect(true).toBe(true);",
-          "  });",
+          "  it.todo('add a real test for catalog');",
           "});",
           "",
         ].join("\n"),
@@ -240,15 +238,15 @@ describe("resource scaffold templates", () => {
     it("handles kebab-case and path-like resource names", () => {
       const template = getTestTemplate("services/order-processor");
       expect(template).toContain("describe('services/order-processor'");
-      expect(template).toContain("expect(true).toBe(true);");
+      expect(template).toContain("it.todo('add a real test for services/order-processor');");
     });
 
     it("handles names with dots, namespaces, and numerical suffixes", () => {
       const template = getTestTemplate("org.company.billing-service-v3");
       expect(template).toContain("describe('org.company.billing-service-v3'");
-      expect(template).toContain("import { describe, it, expect } from 'vitest';");
-      expect(template).toContain("it('should pass a basic test', () => {");
-      expect(template).toContain("expect(true).toBe(true);");
+      expect(template).toContain("import { describe, it } from 'vitest';");
+      expect(template).toContain("it.todo('add a real test for org.company.billing-service-v3');");
+      expect(template).not.toContain("expect(true).toBe(true)");
     });
   });
 });
