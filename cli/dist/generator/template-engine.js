@@ -34,11 +34,13 @@ export function loadTemplate(filename) {
     const triedPaths = [];
     for (const templateDir of templateDirs) {
         const templatePath = path.join(templateDir, filename);
-        triedPaths.push(templatePath);
         try {
             return fs.readFileSync(templatePath, "utf-8");
         }
-        catch (_error) { }
+        catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            triedPaths.push(`${templatePath} (${reason})`);
+        }
     }
     throw new Error(`Failed to load template ${filename} from any of these paths: ${triedPaths.join(", ")}`);
 }

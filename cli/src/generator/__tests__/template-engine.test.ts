@@ -653,6 +653,17 @@ describe("template-engine", () => {
       expect(() => loadTemplate("non-existent.hbs")).toThrow("Failed to load template");
     });
 
+    it("includes the read error for each attempted location when a template is missing", () => {
+      expect(() => loadTemplate("non-existent.hbs")).toThrow(/ENOENT/);
+    });
+
+    it.skipIf(process.platform === "win32")(
+      "reports a directory read error instead of only listing attempted paths",
+      () => {
+        expect(() => loadTemplate(".")).toThrow(/EISDIR/);
+      },
+    );
+
     describe("executable-relative fallback (compiled binary layout)", () => {
       let fakeExecDir: string;
       let originalExecPath: string;

@@ -59,10 +59,12 @@ export function loadTemplate(filename: string): string {
   const triedPaths: string[] = [];
   for (const templateDir of templateDirs) {
     const templatePath = path.join(templateDir, filename);
-    triedPaths.push(templatePath);
     try {
       return fs.readFileSync(templatePath, "utf-8");
-    } catch (_error) {}
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      triedPaths.push(`${templatePath} (${reason})`);
+    }
   }
 
   throw new Error(
