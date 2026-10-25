@@ -30,6 +30,7 @@ export type PreflightResult = {
 export declare function nodeTooOld(version: string): boolean;
 /** Requires a Docker engine and Compose version check to complete successfully. */
 export declare function requireVerifiedDockerVersions(result: CheckResult): CheckResult;
+export declare function usesPrisma(projectRoot: string): boolean;
 export declare function runColdPreflight(opts?: {
     cwd?: string;
     scope?: PreflightScope;

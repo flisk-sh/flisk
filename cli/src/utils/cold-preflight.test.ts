@@ -1,12 +1,16 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   formatColdPreflight,
   nodeTooOld,
   type PreflightItem,
   type PreflightResult,
   requireVerifiedDockerVersions,
+  usesPrisma,
 } from "./cold-preflight.js";
 
 function result(items: PreflightItem[], inProject = false): PreflightResult {
@@ -84,5 +88,53 @@ describe("cold preflight", () => {
       result([{ id: "tilt", ok: false, message: "Tilt CLI not found" }]),
     );
     expect(output).not.toContain("prisma");
+  });
+
+  describe("usesPrisma", () => {
+    let tmp: string;
+
+    beforeEach(() => {
+      tmp = mkdtempSync(join(tmpdir(), "flisk-cold-preflight-"));
+    });
+
+    afterEach(() => {
+      rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it("returns true for a project whose service declares Prisma", () => {
+      const serviceDir = join(tmp, "services", "api");
+      mkdirSync(serviceDir, { recursive: true });
+      writeFileSync(
+        join(serviceDir, "service.json"),
+        JSON.stringify({
+          appName: "api",
+          appType: "backend",
+          featuresEnabled: ["prisma"],
+        }),
+      );
+      expect(usesPrisma(tmp)).toBe(true);
+    });
+
+    it("returns false for a project whose service does not declare Prisma", () => {
+      const serviceDir = join(tmp, "services", "api");
+      mkdirSync(serviceDir, { recursive: true });
+      writeFileSync(
+        join(serviceDir, "service.json"),
+        JSON.stringify({
+          appName: "api",
+          appType: "backend",
+          featuresEnabled: ["messaging"],
+        }),
+      );
+      expect(usesPrisma(tmp)).toBe(false);
+    });
+
+    it("returns false for a project without services", () => {
+      expect(usesPrisma(tmp)).toBe(false);
+    });
+
+    it("returns false when resource discovery throws an error", () => {
+      expect(usesPrisma(join(tmp, "non-existent-directory"))).toBe(false);
+    });
   });
 });

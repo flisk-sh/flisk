@@ -108,7 +108,7 @@ export function requireVerifiedDockerVersions(result: CheckResult): CheckResult 
   };
 }
 
-function usesPrisma(projectRoot: string): boolean {
+export function usesPrisma(projectRoot: string): boolean {
   try {
     return discoverResourcesFromRoot(projectRoot).some((resource) => {
       return resource.config?.featuresEnabled?.includes("prisma") ?? false;

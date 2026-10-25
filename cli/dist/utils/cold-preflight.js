@@ -61,7 +61,7 @@ export function requireVerifiedDockerVersions(result) {
         fix: result.fix ?? "Start Docker and ensure Docker Engine 25+ and Compose 2.20.2+ are installed.",
     };
 }
-function usesPrisma(projectRoot) {
+export function usesPrisma(projectRoot) {
     try {
         return discoverResourcesFromRoot(projectRoot).some((resource) => {
             return resource.config?.featuresEnabled?.includes("prisma") ?? false;
