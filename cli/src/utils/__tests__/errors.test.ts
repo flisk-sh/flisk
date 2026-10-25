@@ -319,6 +319,19 @@ describe("runCommand", () => {
     expect(exit).toHaveBeenCalledWith(1);
   });
 
+  it("rethrows ProcessExitError instead of formatting it as a command failure", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockExit();
+
+    await expect(
+      runCommand(async () => {
+        throw new ProcessExitError(3);
+      }),
+    ).rejects.toThrow("process.exit(3)");
+
+    expect(err).not.toHaveBeenCalled();
+  });
+
   it("handles an ordinary Error with the process.exit message as a normal failure", async () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = mockExit();
