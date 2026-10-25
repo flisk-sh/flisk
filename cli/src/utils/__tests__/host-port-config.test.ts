@@ -141,4 +141,31 @@ describe("saved host port plan", () => {
     });
     expect([kept.ingressHttp, kept.ingressHttps]).toEqual([8080, 8443]);
   });
+
+  it("discards the saved plan when one of its ports is no longer free", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    delete process.env.FLISK_POSTGRES_PORT;
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-occupied-"));
+    writeSavedHostPortPlan(projectRoot, {
+      ingressHttp: 8080,
+      ingressHttps: 8443,
+      postgres: 15432,
+      requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: {
+        ingressHttp: "selected from fallback range 8080-8180",
+        ingressHttps: "selected from fallback range 8443-8543",
+        postgres: "selected from fallback range 15432-15532",
+      },
+    });
+
+    const plan = await getHostPortPlan(projectRoot, {
+      isPortFree: async (port) => port !== 15432,
+    });
+
+    expect(plan.ingressHttp).not.toBe(8080);
+    expect(plan.postgres).not.toBe(15432);
+    expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([80, 443, 15433]);
+  });
 });
