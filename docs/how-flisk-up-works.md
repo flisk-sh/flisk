@@ -77,7 +77,7 @@ Before booting containers, `flisk up` prints the public URLs where services will
   - Base URL: `apiBase`.
   - Path: Taken from `service.json`'s `apiPath` property (defaults to `/api/<service-name>` stripped of any `-api` suffix).
   - Sablier Deferred Tag: If a backend has Sablier cold-start deferral enabled (`sablier.enable: true`, `sablier.deferStart: true`), Flisk prints:
-    ```
+    ```text
     - orders-api: http://localhost:80/api/orders/health (deferred — starts on first request)
     ```
 - Run `flisk networks` anytime to view the complete Traefik routing table across all running services.
@@ -95,7 +95,7 @@ The Traefik proxy and PostgreSQL database bind to standard host ports:
 - PostgreSQL: Preferred `5432` or `15432` (fallback range: `15432–15532`).
 
 `getHostPortPlan()` probes these ports on `127.0.0.1`. If port 80 is occupied (for example, by Apache or another local tool), Flisk automatically falls back to port `8080` and informs the developer:
-```
+```text
 Using fallback port 8080 for HTTP ingress (preferred port 80 is in use)
 ```
 These can be explicitly overridden via environment variables: `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT`, and `FLISK_POSTGRES_PORT`.
@@ -122,7 +122,7 @@ Tilt provides a web dashboard to monitor builds, logs, and container statuses:
 
 Once all preflight gates pass, Flisk launches Tilt and tracks startup progress:
 
-```
+```text
 Starting 4 services from all stacks...
 Running tilt up...
 Using Tiltfile: .flisk/.flisk-out/Tiltfile
@@ -132,7 +132,7 @@ Using Tiltfile: .flisk/.flisk-out/Tiltfile
 1. **Tilt UI Polling**: `waitForTiltUi()` polls the Tilt web port until the HTTP endpoint responds (up to 30 seconds).
 2. **Resource Build Tracking**: Once the UI responds, `waitForTiltResourcesReady()` monitors the build and run state of every declared service.
 3. **Startup Stalled Reporting**: If a resource fails to build or crashes during startup, Flisk diagnoses blocked downstream dependencies:
-   ```
+   ```text
    orders-api failed: Docker build exited with code 1
    Blocked dependencies:
      - orders-worker (waiting on orders-api)

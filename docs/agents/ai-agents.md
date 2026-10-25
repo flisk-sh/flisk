@@ -124,7 +124,7 @@ The agent boots only after Postgres and NATS pass their readiness gates, receive
 
 Traefik serves as the unified local gateway for your entire agent topology:
 
-```
+```text
                           +--------------------------+
                           |     Traefik Gateway      |
                           |   (*.localhost:80/8080)  |

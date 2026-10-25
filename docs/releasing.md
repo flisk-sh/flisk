@@ -31,7 +31,7 @@ The version is picked by the workflow, not by a file: the highest of `package.js
 
 `release-binaries.yml` runs on a push to `main` that touches `package.json` or `cli/package.json`, or on `workflow_dispatch`.
 
-```
+```text
 build ──► windows-binary ──► publish ──► publish-github-packages
                          │            └─► publish-unscoped-npm
                          │

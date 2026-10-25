@@ -12,7 +12,7 @@ Display Traefik-routed URLs for all services in a clean, modern CLI format.
 - Status indicators (emoji) for quick scanning
 
 ### 2. Layout
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │  🌐  TRAEFIK NETWORKS                                    │
 │  Domain: {project}.localhost                             │

@@ -10,7 +10,7 @@ This document explains how Flisk's subsystems fit together, traces the data flow
 
 The codebase is organized into three distinct subsystems as defined in [CONTRIBUTING.md](../.github/CONTRIBUTING.md):
 
-```
+```text
 flisk/
 ├── cli/           # TypeScript CLI (user interaction, validation, config generation)
 ├── runtime/engine/        # Starlark runtime framework executed by Tilt (orchestration, containers, syncs)

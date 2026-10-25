@@ -32,7 +32,7 @@ With a clean project, the check passes:
 flisk config verify
 ```
 
-```
+```text
 ✅ All files are in sync!
 ```
 
@@ -45,7 +45,7 @@ flisk config verify
 
 The check fails and exits with status 1. It prints a diff and tells you the fix:
 
-```
+```text
 Run `flisk config regenerate` to fix generated files.
 ```
 

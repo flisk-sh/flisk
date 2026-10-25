@@ -28,7 +28,7 @@ L2 isolates slow, network-bound package downloads and disk-heavy dependency tree
 
 Docker builds use a content-addressable cache. Each instruction in a Dockerfile creates a layer keyed on the hash of the instruction and its inputs:
 
-```
+```text
 [L1: Base Image] (oven/bun:1.3.11-alpine)
        ↓
 [L2: ARG CACHE_BUSTER]               <-- Cache-busting input for forced reinstalls
