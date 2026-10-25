@@ -25,23 +25,27 @@ This document defines the coding standards and API conventions for the Flisk CLI
 | Factory objects | camelCase | `errorFactories` (not `Errors`) |
 
 ### Boolean Properties
-Use prefixes for clarity:
-- `is-*` for state: `isEnabled`, `isAvailable`
-- `has-*` for possession: `hasDockerfile`, `hasTiltfile`
-- `can-*` for capability: `canReload`
-- `did-*` for past actions: `didPass`, `didComplete`
+Use a camelCase prefix for clarity:
+- `is*` for state: `isEnabled`, `isAvailable`
+- `has*` for possession: `hasDockerfile`, `hasTiltfile`
+- `can*` for capability: `canReload`
+- `did*` for past actions: `didPass`, `didComplete`
 
 **Examples:**
 ```typescript
 // ✅ Good
 interface CheckResult {
   didPass: boolean;
-  hasFix: boolean;
-  isCritical: boolean;
+  isSkipped?: boolean;
+  isWarning?: boolean;
 }
 
-// ❌ Avoid - These naming patterns create ambiguity
-//    Use the patterns shown in the "Good" example above
+// ❌ Avoid - No prefix, so it is unclear the value is a boolean
+interface CheckResult {
+  passed: boolean;
+  skipped?: boolean;
+  warning?: boolean;
+}
 ```
 
 ---
@@ -271,21 +275,22 @@ src/
 - Commands: `[command-name].ts` (e.g., `resource.ts`)
 - Utilities: `[category].ts` (e.g., `services.ts`, `tilt.ts`)
 - Components: `[ComponentName].tsx` (PascalCase)
-- Tests: `[filename].test.ts` alongside source files
+- Tests: `__tests__/[filename].test.ts` next to the source files
 
 ---
 
 ## Testing
 
 ### Test Location
-Place tests alongside source files:
+Place tests in a `__tests__/` folder next to the source they cover. A few older tests still sit beside their source file; follow the folder pattern for new tests:
 
 ```
 commands/
 ├── resource.ts
-├── resource.test.ts
 ├── stack.ts
-└── stack.test.ts
+└── __tests__/
+    ├── resource.test.ts
+    └── stack-routers.test.ts
 ```
 
 ### Test Naming
@@ -381,8 +386,6 @@ function doSomething(): Result<Resource, string> {
 
 ## Resources
 
-- Full assessment: `API_HARMONIZATION_ASSESSMENT.md`
-- Implementation report: `API_HARMONIZATION_REPORT.md`
 - Type definitions: `cli/src/types/index.ts`
 
 ---
