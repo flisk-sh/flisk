@@ -92,7 +92,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
     const result = runCli(cwd, ["project", "saas", "--yes"]);
 
     expect(result).toContain("Cloned");
-    expect(existsSync(join(cwd, "tdk-saas-starter", "services"))).toBe(true);
+    expect(existsSync(join(cwd, "flisk-saas-starter", "services"))).toBe(true);
 
     // Verify all 4 saas services exist with valid service.json
     const services = [
@@ -103,7 +103,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
     ];
 
     for (const svc of services) {
-      const path = join(cwd, "tdk-saas-starter", svc);
+      const path = join(cwd, "flisk-saas-starter", svc);
       expect(existsSync(path)).toBe(true);
       const content = readFileSync(path, "utf-8");
       const manifest = JSON.parse(content);
@@ -127,7 +127,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
     // Clone
     runCli(cwd, ["project", "saas", "--yes"]);
 
-    const starterRoot = join(cwd, "tdk-saas-starter");
+    const starterRoot = join(cwd, "flisk-saas-starter");
     writeTestEnvFile(starterRoot);
 
     // Generate project config
@@ -154,7 +154,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
 
     runCli(cwd, ["project", "saas", "--yes"]);
 
-    const starterRoot = join(cwd, "tdk-saas-starter");
+    const starterRoot = join(cwd, "flisk-saas-starter");
     writeTestEnvFile(starterRoot);
 
     runCli(starterRoot, ["project", "--yes"], { FLISK_EXTENSION_SOURCE: EXTENSION_SOURCE });
@@ -182,7 +182,7 @@ describe.skipIf(!EXTENSION_SOURCE_AVAILABLE)("saas-starter cloning and discovery
 
     runCli(cwd, ["project", "saas", "--yes"]);
 
-    const starterRoot = join(cwd, "tdk-saas-starter");
+    const starterRoot = join(cwd, "flisk-saas-starter");
     writeTestEnvFile(starterRoot);
 
     runCli(starterRoot, ["project", "--yes"], { FLISK_EXTENSION_SOURCE: EXTENSION_SOURCE });

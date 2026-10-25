@@ -17,7 +17,7 @@ else
   remove_work_dir=true
 fi
 
-project_dir="$work_dir/tdk-example"
+project_dir="$work_dir/flisk-example"
 flisk_pid=""
 
 cleanup() {
@@ -71,8 +71,8 @@ if ! grep -q 'Running tilt up' up.log; then
   exit 1
 fi
 
-api="http://api.tdk-example.localhost:$ingress_port/api/orders"
-app="http://app.tdk-example.localhost:$ingress_port/orders-app/"
+api="http://api.flisk-example.localhost:$ingress_port/api/orders"
+app="http://app.flisk-example.localhost:$ingress_port/orders-app/"
 routes_ready=false
 for _ in $(seq 1 90); do
   if curl -fsS "$api/health" >/dev/null 2>&1 && curl -fsS "$api/worker-ready" >/dev/null 2>&1 && curl -fsS "$app" >/dev/null 2>&1; then

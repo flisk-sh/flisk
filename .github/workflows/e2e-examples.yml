@@ -80,8 +80,8 @@ jobs:
       - name: Diagnostics on failure
         if: failure() || cancelled()
         run: |
-          if [ ! -d tdk-example ]; then exit 0; fi
-          cd tdk-example
+          if [ ! -d flisk-example ]; then exit 0; fi
+          cd flisk-example
           tail -160 up.log 2>/dev/null || true
           docker ps -a --format 'table {{.Names}}\t{{.Status}}' || true
           docker logs flisk_example_nats 2>&1 | tail -200 || true
@@ -89,7 +89,7 @@ jobs:
       - name: Stop example
         if: always()
         run: |
-          if [ -d tdk-example ]; then
-            cd tdk-example
+          if [ -d flisk-example ]; then
+            cd flisk-example
             flisk down || true
           fi
