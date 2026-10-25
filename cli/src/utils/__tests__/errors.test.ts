@@ -102,6 +102,30 @@ describe("not-found error suggestions", () => {
     });
   });
 
+  it("reports an existing directory with relocation guidance", () => {
+    const error = errorFactories.directoryExists("/work/app");
+
+    expect(error).toBeInstanceOf(FliskError);
+    expect(error.message).toBe("Directory already exists: /work/app");
+    expect(error.suggestions).toEqual([
+      "Use `--path` to specify a different location",
+      "Remove the existing directory if no longer needed",
+    ]);
+    expect(error.exitCode).toBe(1);
+  });
+
+  it("reports an invalid path with containment guidance", () => {
+    const error = errorFactories.invalidPath("../outside");
+
+    expect(error).toBeInstanceOf(FliskError);
+    expect(error.message).toBe("Invalid path: ../outside");
+    expect(error.suggestions).toEqual([
+      "Path must be within the project directory",
+      'Path cannot contain special characters like <>:"|?*',
+    ]);
+    expect(error.exitCode).toBe(1);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
