@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { chooseResourcePath, isPathDiscovered, readDiscoveryPaths } from "../discovery-paths.js";
 
 describe("discovery paths", () => {
@@ -14,6 +14,7 @@ describe("discovery paths", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     rmSync(root, { recursive: true, force: true });
   });
 
@@ -34,7 +35,29 @@ describe("discovery paths", () => {
 
     it("falls back to services/*/* when project.json is malformed JSON", () => {
       writeRawProjectJson("{ invalid-json syntax");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       expect(readDiscoveryPaths(root)).toEqual(["services/*/*"]);
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]?.[0]).toContain(join(root, ".flisk", "project.json"));
+      expect(warn.mock.calls[0]?.[0]).toContain("services/*/*");
+    });
+
+    it("warns when configured discovery paths have an invalid type", () => {
+      writeProjectJson(["services/*/*", 42]);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      expect(readDiscoveryPaths(root)).toEqual(["services/*/*"]);
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]?.[0]).toContain("array of strings");
+      expect(warn.mock.calls[0]?.[0]).toContain("services/*/*");
+    });
+
+    it("does not warn for a missing file or a valid discovery configuration", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      expect(readDiscoveryPaths(root)).toEqual(["services/*/*"]);
+      writeProjectJson(["apps/*"]);
+      expect(readDiscoveryPaths(root)).toEqual(["apps/*"]);
+      expect(warn).not.toHaveBeenCalled();
     });
 
     it("falls back to services/*/* when discovery key is missing or not an object", () => {
