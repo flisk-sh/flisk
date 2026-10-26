@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTempDir } from "../../test-support/temp-project.js";
 
 const dirs = vi.hoisted(() => ({ home: "", cwd: "" }));
+const stackMocks = vi.hoisted(() => ({ runStackQuiet: vi.fn() }));
 
 vi.mock("node:os", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:os")>();
@@ -58,11 +59,7 @@ vi.mock("../../utils/one-command.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/one-command.js")>()),
   initializeProject: vi.fn(async () => ({ ok: true, output: "" })),
   installServiceDependencies: vi.fn(async () => []),
-  runStackQuiet: vi.fn(async () => ({
-    ok: true,
-    raw: "",
-    data: { tiltUrl: "http://localhost:10350" },
-  })),
+  runStackQuiet: stackMocks.runStackQuiet,
 }));
 
 vi.mock("../../utils/stack-progress.js", async (importOriginal) => ({
@@ -119,9 +116,15 @@ describe("flisk demo fixed directory", () => {
     demoDir = join(dirs.home, ".flisk", "flisk-demo");
 
     vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
       throw new ExitSignal(code);
     }) as never);
+    stackMocks.runStackQuiet.mockResolvedValue({
+      ok: true,
+      raw: "",
+      data: { tiltUrl: "http://localhost:10350" },
+    });
   });
 
   afterEach(() => {
@@ -165,4 +168,56 @@ describe("flisk demo fixed directory", () => {
       expect(existsSync(join(dirs.home, ".flisk"))).toBe(false);
     },
   );
+
+  it("uses the first failed machine check and writes the stack output to a log", async () => {
+    const raw = [
+      "PASS Docker is running",
+      "  FAIL Docker Compose is not available",
+      "  FAIL Tilt is not installed",
+    ].join("\n");
+    stackMocks.runStackQuiet.mockResolvedValue({
+      ok: false,
+      raw,
+      error: "The stack stopped before it was ready.",
+    });
+
+    expect(await runDemoCli("demo")).toBe(1);
+
+    const output = vi
+      .mocked(process.stderr.write)
+      .mock.calls.map(([chunk]) => String(chunk))
+      .join("");
+    expect(output).toContain("Docker Compose is not available");
+    expect(output).not.toContain("Tilt is not installed");
+
+    const logDir = join(dirs.home, ".flisk", "logs");
+    const [logName] = readdirSync(logDir);
+    expect(logName).toBeDefined();
+    expect(readFileSync(join(logDir, logName as string), "utf8")).toContain(
+      `--- stack ---\n${raw}`,
+    );
+  });
+
+  it.each([
+    {
+      description: "all machine checks pass",
+      raw: "PASS Docker is running\nPASS Tilt is installed",
+      error: "The stack stopped before it was ready.",
+    },
+    {
+      description: "stack output is missing",
+      raw: undefined,
+      error: "Unable to start the stack",
+    },
+  ])("falls back to the stack error when $description", async ({ raw, error }) => {
+    stackMocks.runStackQuiet.mockResolvedValue({ ok: false, raw, error });
+
+    expect(await runDemoCli("demo")).toBe(1);
+
+    const output = vi
+      .mocked(process.stderr.write)
+      .mock.calls.map(([chunk]) => String(chunk))
+      .join("");
+    expect(output).toContain(error);
+  });
 });
