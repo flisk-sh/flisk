@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTempProject, parseEnvelope, runCommandInProcess } from "../../test-support/index.js";
+import { findProjectRoot } from "../../utils/paths.js";
 import { configCommand } from "../config.js";
 
 beforeEach(() => {
@@ -25,6 +26,11 @@ vi.mock("node:child_process", async (importOriginal) => ({
   ...(await importOriginal<typeof import("node:child_process")>()),
   spawnSync: vi.fn(() => ({ status: 0 })),
 }));
+
+vi.mock("../../utils/paths.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/paths.js")>();
+  return { ...actual, findProjectRoot: vi.fn(actual.findProjectRoot) };
+});
 
 describe("config command", () => {
   describe("project config structure", () => {
@@ -479,7 +485,9 @@ describe("config enable-infra and disable-infra", () => {
     const result = await runCommandInProcess(configCommand, ["enable-infra", "kafka"], root);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Invalid service. Must be one of: monitoring");
+    expect(result.stderr).toContain(
+      "Invalid service. Must be one of: monitoring, elk, debezium, golden_image, verdaccio",
+    );
     expect(fs.readFileSync(path.join(root, ".flisk", "project.json"))).toEqual(before);
   });
 
@@ -546,6 +554,17 @@ describe("config edit", () => {
       stdio: "inherit",
     });
     expect(spawnSync).not.toHaveBeenCalledWith("frobnicate", expect.anything(), expect.anything());
+  });
+
+  it("exits 1 when project.json is missing without launching an editor", async () => {
+    const root = createTempProject({ projectJson: null });
+    vi.mocked(findProjectRoot).mockReturnValueOnce(root);
+
+    const result = await runCommandInProcess(configCommand, ["edit"], root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(".flisk/project.json not found");
+    expect(spawnSync).not.toHaveBeenCalled();
   });
 
   it("exits 1 outside a project without launching an editor", async () => {
