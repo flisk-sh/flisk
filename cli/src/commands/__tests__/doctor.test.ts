@@ -1096,6 +1096,15 @@ describe("doctor Docker version check", () => {
     expect(result.didPass).toBe(true);
     expect(result.isSkipped).toBe(true);
   });
+
+  it("skips when the Docker runtime reports an unknown version", async () => {
+    const result = await checkDockerVersions(async () => "unknown");
+
+    expect(result.didPass).toBe(true);
+    expect(result.isSkipped).toBe(true);
+    expect(result.message).toContain('engine "unknown", compose "unknown"');
+    expect(result.message).toContain("skipped version check");
+  });
 });
 
 describe("doctor resource discovery", () => {
