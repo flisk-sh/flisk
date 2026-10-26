@@ -19,6 +19,7 @@ import {
   checkResourcePackageJson,
   checkServiceUrlPorts,
   checkSharedPlatformPostgres,
+  checkSharedStackRoutes,
   checkTiltInstances,
   parseTiltProcesses,
 } from "../doctor-wiring.js";
@@ -206,6 +207,22 @@ describe("checkFrontendBackendUrls", () => {
       },
     );
     expect(checkFrontendBackendUrls(root).didPass).toBe(true);
+  });
+});
+
+describe("checkSharedStackRoutes", () => {
+  it("reports sibling backends that lose the shared stack route", () => {
+    resource("store", "catalog-api", { appType: "backend", port: 4300 });
+    resource("store", "orders-api", { appType: "backend", port: 4400 });
+
+    const result = checkSharedStackRoutes(root);
+
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain(
+      'stack "store": catalog-api, orders-api lose the shared /api/store-management route',
+    );
+    expect(result.message).toContain("they are routed at /api/<name> only");
   });
 });
 
