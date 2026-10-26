@@ -995,11 +995,7 @@ describe("template-engine", () => {
       const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-packaged-exec-"));
       const packagedRoot = path.join(fakeExecDir, "flisk-cli");
       const runtimeRoot = path.join(packagedRoot, "runtime");
-      const runtimeDir = path.join(
-        runtimeRoot,
-        "shared-platform-engineering",
-        "docker-templates",
-      );
+      const runtimeDir = path.join(runtimeRoot, "shared-platform-engineering", "docker-templates");
       const oldExecPath = process.execPath;
       const oldExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
       const originalExistsSync = fsState.actualExistsSync;
@@ -1064,7 +1060,10 @@ describe("template-engine", () => {
           ),
         ).toContain("echo install-deps.sh");
         expect(
-          fs.readFileSync(path.join(generatedDir, "flisk-cli-ext", "engine", "marker.star"), "utf-8"),
+          fs.readFileSync(
+            path.join(generatedDir, "flisk-cli-ext", "engine", "marker.star"),
+            "utf-8",
+          ),
         ).toBe("packaged engine\n");
       } finally {
         fsState.existsSync.mockImplementation(originalExistsSync);
