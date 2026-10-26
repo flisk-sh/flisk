@@ -2,6 +2,16 @@
 // SPDX-License-Identifier: MIT
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  spawn: vi.fn(),
+}));
+
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  spawn: (...args: unknown[]) => mocks.spawn(...args),
+}));
+
 import {
   buildForwardedImportArgs,
   checkCoreVersion,
@@ -174,22 +184,19 @@ describe("flisk import", () => {
         importCommand.setOptionValue("force", false);
 
         const { calls, spawnFn } = fakeSpawn({ code: 0 });
-        const argsParsed: string[] = [];
-        const optsParsed: { yes?: boolean; force?: boolean } = {};
+        mocks.spawn.mockImplementation(spawnFn);
+        const prevExitCode = process.exitCode;
 
-        // Parse using commander instance to extract args and options
-        const testCmd = importCommand.action(async (args, options) => {
-          argsParsed.push(...args);
-          Object.assign(optsParsed, options);
-          const forwarded = buildForwardedImportArgs(args, options);
-          await runImport(forwarded, spawnFn, () => "1.3.183");
-        });
+        try {
+          await importCommand.parseAsync(["node", "flisk", ...commandArgs], { from: "node" });
 
-        await testCmd.parseAsync(["node", "flisk", ...commandArgs], { from: "node" });
-
-        expect(calls).toHaveLength(1);
-        const spawnedArgs = calls[0]?.[1] as string[];
-        expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
+          expect(calls).toHaveLength(1);
+          const spawnedArgs = calls[0]?.[1] as string[];
+          expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
+        } finally {
+          mocks.spawn.mockReset();
+          process.exitCode = prevExitCode;
+        }
       },
     );
   });
@@ -330,9 +337,13 @@ describe("flisk import", () => {
 
       // Prerelease identifiers comparison
       expect(compareSemver("1.0.0-alpha", "1.0.0-beta")).toBe(-1);
+      expect(compareSemver("1.0.0-beta", "1.0.0-alpha")).toBe(1);
       expect(compareSemver("1.0.0-1", "1.0.0-2")).toBe(-1);
+      expect(compareSemver("1.0.0-2", "1.0.0-1")).toBe(1);
       expect(compareSemver("1.0.0-1", "1.0.0-alpha")).toBe(-1); // numeric has lower precedence than string
+      expect(compareSemver("1.0.0-alpha", "1.0.0-1")).toBe(1); // string has higher precedence than numeric
       expect(compareSemver("1.0.0-alpha.1", "1.0.0-alpha")).toBe(1);
+      expect(compareSemver("1.0.0-alpha", "1.0.0-alpha.1")).toBe(-1); // fewer prerelease components has lower precedence
 
       // Invalid inputs return null
       expect(compareSemver("invalid", "1.0.0")).toBeNull();
