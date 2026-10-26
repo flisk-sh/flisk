@@ -1,7 +1,7 @@
 # smoke-response-artifacts Specification
 
 ## Purpose
-Smoke checks retain the status and response body of every step under `.tdk/smoke/`, and CI publishes that record, so a later regression can be compared with the last response that passed.
+Smoke checks retain the status and response body of every step under `.flisk/smoke/`, and CI publishes that record, so a later regression can be compared with the last response that passed.
 
 ## Requirements
 ### Requirement: Each smoke step retains status and body

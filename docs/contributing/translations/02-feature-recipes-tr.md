@@ -23,8 +23,8 @@ Frontend framework'leri için özel [frontend provider rehberini](../../frontend
 
 Mevcut kodu bir harita gibi kullanın:
 
-1. Paylaşılan altyapının nasıl yüklenip kaydedildiğini görmek için `engine/topologies/tilt/resources/infra-loader.star` dosyasından başlayın.
-2. Veritabanı yaşam döngüsü örneği için `engine/topologies/tilt/resources/databases.star` dosyasına, Compose üretimi için `engine/topologies/platform/docker/compose/` klasörüne bakın.
+1. Paylaşılan altyapının nasıl yüklenip kaydedildiğini görmek için `runtime/engine/topologies/tilt/resources/infra-loader.star` dosyasından başlayın.
+2. Veritabanı yaşam döngüsü örneği için `runtime/engine/topologies/tilt/resources/databases.star` dosyasına, Compose üretimi için `runtime/engine/topologies/platform/docker/compose/` klasörüne bakın.
 3. İlgili özelliği veya manifest ayarını bulun ve doğrulandığı ve etkinleştirildiği yere kadar izleyin. Ayar adını `rg` ile arayın.
 4. Yapılandırmayı, üretilen dosyaları, başlatma sırasını, sağlık/hazır olma durumunu, ortam değişkenlerini ve sırları, kapatma ve temizliği ve aracın devre dışı bırakıldığındaki davranışı kapsayan tüm yaşam döngüsünü izleyin.
 5. Değiştirdiğiniz davranış için kontroller ekleyin. CLI ve Starlark üretici testleri `cli/src/commands/__tests__/` altında, Python engine testleri ise `tests/tilt-engine/` altındadır.
@@ -37,7 +37,7 @@ Yeni bir aracın yukarıdaki dosyaların tamamına ihtiyacı olduğunu varsaymay
 Yalnızca Tilt kuruluyken herhangi bir engine fonksiyonunu çalıştırıp çıktısına bakabilirsiniz. Depo kökünde `try.Tiltfile` dosyasını oluşturun (git bu dosyayı yok sayar):
 
 ```python
-load("engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
+load("runtime/engine/topologies/platform/docker/compose/compose.star", "generate_backend_compose_entry")
 
 manifest = {"appType": "backend", "stack": "shop", "port": 4000, "appName": "orders-api"}
 resource = {"name": "orders-api", "_resource_path": "services/shop/orders-api"}
@@ -55,14 +55,14 @@ tilt alpha tiltfile-result -f try.Tiltfile
 
 ## Engine veya servis keşfini değiştirmek
 
-1. Tilt kaynak orkestrasyonu için `engine/topologies/tilt/resources/` klasöründen başlayın.
-2. Docker, ağ oluşturma veya kalıcı durum için `engine/topologies/platform/` klasöründen başlayın.
-3. Manifest tarama ve bağımlılık grafikleri için `discovery/` klasöründen başlayın.
+1. Tilt kaynak orkestrasyonu için `runtime/engine/topologies/tilt/resources/` klasöründen başlayın.
+2. Docker, ağ oluşturma veya kalıcı durum için `runtime/engine/topologies/platform/` klasöründen başlayın.
+3. Manifest tarama ve bağımlılık grafikleri için `runtime/discovery/` klasöründen başlayın.
 4. Etkilenen çıktı dosyasını veya manifest alanını arayarak üreticisini ve testlerini bulun. CLI testleri Starlark üretici kontrollerini içerir.
 5. Mevcut manifestlerin ve üretilmiş projelerin hâlâ çalışıp çalışmadığını kontrol edin. Davranış değiştiğinde şemayı, örnekleri veya CLI belgelerini güncelleyin.
 6. Değişiklik sözleşmeleri veya birden fazla modülü etkiliyorsa önce bir [OpenSpec önerisi](01-first-change-tr.md) yazın.
 
-`engine/AGENTS.md` ve diğer `AGENTS.md` dosyaları ajanlara yönelik çalışma notlarıdır. Yerel kodu açıklamaya yardımcı olabilirler, ancak ürün dokümantasyonu olarak kullanmadan önce yollarını ve önerilerini güncel kaynak kod ve testlere göre kontrol edin.
+`runtime/engine/AGENTS.md` ve diğer `AGENTS.md` dosyaları ajanlara yönelik çalışma notlarıdır. Yerel kodu açıklamaya yardımcı olabilirler, ancak ürün dokümantasyonu olarak kullanmadan önce yollarını ve önerilerini güncel kaynak kod ve testlere göre kontrol edin.
 
 ## Dokümantasyonu değiştirmek
 

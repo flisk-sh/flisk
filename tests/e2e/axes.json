@@ -158,6 +158,9 @@
 				},
 				"tanstack-router": {
 					"leg": "resource-types/frontend"
+				},
+				"next": {
+					"leg": "resource-types/frontend"
 				}
 			},
 			"interactions": []

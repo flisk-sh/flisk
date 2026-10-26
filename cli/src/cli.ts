@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import "./utils/env-compat-init.js";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
@@ -14,6 +15,7 @@ import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
+import { stopDemoStack } from "./utils/demo-reset.js";
 import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
 import { bareTemplateArg } from "./utils/project-templates.js";
@@ -41,7 +43,7 @@ if (templateArg) {
   const { nativeWindowsStackRefusal } = await import("./utils/native-windows.js");
   const platformRefusal = nativeWindowsStackRefusal(
     process.platform,
-    process.env.TDK_ALLOW_NATIVE_WINDOWS,
+    process.env.FLISK_ALLOW_NATIVE_WINDOWS,
   );
   if (platformRefusal) {
     console.error(chalk.red(`❌ ${platformRefusal}`));
@@ -81,11 +83,13 @@ if (templateArg) {
   }
   const destination = isAbsolute(targetName) ? targetName : resolve(cwd(), targetName);
 
+  console.log(chalk.gray(`📁 Demo folder: ${destination}`));
+
   // Reusing an existing checkout is what keeps a second take free: the clone and the
   // dependency install are skipped, so the recording starts on the interesting part.
   let reused = false;
   if (fixedDir && existsSync(destination)) {
-    if (!existsSync(join(destination, ".tdk", "project.json"))) {
+    if (!existsSync(join(destination, ".flisk", "project.json"))) {
       console.log(chalk.yellow(`${destination} already exists and is not a Flisk project.`));
       console.log(
         chalk.gray("  Remove it, or use --project <dir> to put the demo somewhere else."),
@@ -100,6 +104,15 @@ if (templateArg) {
       console.log(chalk.gray(`The demo is already running: ${running.url}`));
       await openUrl(running.url);
       process.exit(0);
+    }
+
+    // Take the old stack down before its folder goes, so a Traefik left behind does not keep port 80.
+    try {
+      stopDemoStack(destination);
+    } catch (error) {
+      console.log(
+        chalk.yellow(`Could not stop the previous demo stack: ${(error as Error).message}`),
+      );
     }
 
     if (keep) {
@@ -286,7 +299,7 @@ if (templateArg) {
   const first = await pickReadyFrontend(targets, 30_000);
   if (first) await openUrl(first.url);
 
-  const generated = countFiles(join(destination, ".tdk"));
+  const generated = countFiles(join(destination, ".flisk"));
   const wired = countFiles(destination, ["node_modules", ".git"]);
   stage.update({ subtitle: `${templateArg} starter \u00b7 ${countLabel(wired, "file")} wired` });
   stage.finish({

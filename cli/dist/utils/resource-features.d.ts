@@ -7,8 +7,7 @@
  * Frontend services: api-client, env-config, api-index (enabled by default)
  * Backend services: prisma (enabled by default)
  */
-import type { ResourceType as ImportResourceType } from "../types/index.js";
-export type ResourceType = ImportResourceType;
+import type { ResourceType } from "../types/index.js";
 export interface ResourceFeature {
     name: string;
     description: string;
@@ -22,8 +21,8 @@ export declare const RESOURCE_FEATURES: Record<string, ResourceFeature>;
 /**
  * Get default features for a resource type
  */
-export declare function getDefaultFeaturesForResourceType(appType: ResourceType): string[];
+export declare function getDefaultFeaturesForResourceType(resourceType: ResourceType): string[];
 /**
  * Get all generators for a resource type (for documentation)
  */
-export declare function getGeneratorsForResourceType(appType: ResourceType): ResourceFeature[];
+export declare function getGeneratorsForResourceType(resourceType: ResourceType): ResourceFeature[];

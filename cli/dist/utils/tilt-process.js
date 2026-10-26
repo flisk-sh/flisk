@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
+import { FliskError } from "./errors.js";
 const run = (command, args) => execFileSync(command, args, { encoding: "utf-8", stdio: "pipe", windowsHide: true });
 /** Refuse to target arbitrary listeners: only stop a Tilt process on the requested UI port. */
 export function findTiltProcessIdsOnPort(port, platform = process.platform, commandRunner = run) {
@@ -15,7 +16,7 @@ export function findTiltProcessIdsOnPort(port, platform = process.platform, comm
                 .filter((pid) => Number.isInteger(pid) && pid > 0);
         }
         catch {
-            throw new Error(`Unable to inspect Tilt listeners on port ${port} with PowerShell.`);
+            throw new FliskError(`Unable to inspect Tilt listeners on port ${port} with PowerShell.`, ["Ensure PowerShell is available and accessible"], 1);
         }
     }
     let pids;
@@ -30,7 +31,7 @@ export function findTiltProcessIdsOnPort(port, platform = process.platform, comm
         const stderr = commandErr.stderr?.toString().trim();
         if (commandErr?.status === 1 && !stderr)
             return [];
-        throw new Error(`Unable to inspect listeners on port ${port}. Install lsof or resolve the lsof error before using --force.`, { cause: commandErr });
+        throw new FliskError(`Unable to inspect listeners on port ${port}. Install lsof or resolve the lsof error before using --force.`, ["Install lsof or verify permissions before running with --force"], 1);
     }
     return pids.filter((pid) => {
         try {
@@ -38,7 +39,7 @@ export function findTiltProcessIdsOnPort(port, platform = process.platform, comm
             return name.split(/[\\/]/).at(-1) === "tilt";
         }
         catch (err) {
-            throw new Error(`Unable to identify the process listening on port ${port}.`, { cause: err });
+            throw new FliskError(`Unable to identify the process listening on port ${port}.`, ["Check process inspection permissions"], 1);
         }
     });
 }

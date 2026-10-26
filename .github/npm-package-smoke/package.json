@@ -1,0 +1,8 @@
+{
+  "name": "flisk-npm-package-smoke",
+  "private": true,
+  "description": "Pins the published @flisk-sh/flisk package that the npm-package-smoke CI job installs. Bump the version here with npm, not in the workflow.",
+  "dependencies": {
+    "@flisk-sh/flisk": "1.4.2"
+  }
+}

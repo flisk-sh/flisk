@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { BackendFrameworkProvider } from "../backend-frameworks/types.js";
-import { TdkError } from "../utils/errors.js";
+import { FliskError } from "../utils/errors.js";
 import { customAgentRuntime } from "./custom.js";
 
 /**
@@ -22,7 +22,7 @@ export function resolveAgentRuntime(runtimeId?: string): BackendFrameworkProvide
   const provider = AGENT_RUNTIMES[id];
   if (!provider) {
     const supported = Object.keys(AGENT_RUNTIMES).join(", ");
-    throw new TdkError(`Unknown agent runtime "${id}". Supported runtimes: ${supported}.`, [
+    throw new FliskError(`Unknown agent runtime "${id}". Supported runtimes: ${supported}.`, [
       `Use one of: ${supported}`,
       `Omit --runtime to use ${DEFAULT_AGENT_RUNTIME}`,
     ]);
@@ -33,7 +33,7 @@ export function resolveAgentRuntime(runtimeId?: string): BackendFrameworkProvide
 export function resolveAgentDurability(value?: string): AgentDurability {
   const durability = value ?? "files";
   if (!(AGENT_DURABILITY_OPTIONS as readonly string[]).includes(durability)) {
-    throw new TdkError(`Unknown --durability "${durability}".`, [
+    throw new FliskError(`Unknown --durability "${durability}".`, [
       `Use one of: ${AGENT_DURABILITY_OPTIONS.join(", ")}`,
     ]);
   }

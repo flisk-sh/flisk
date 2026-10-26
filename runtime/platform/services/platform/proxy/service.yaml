@@ -1,0 +1,14 @@
+appName: proxy
+appType: infra
+stack: platform
+port: 80
+description: Traefik reverse proxy with dynamic routing
+features:
+  - traefik
+healthCheck: False
+dependsOn:
+  - database-management
+runtime: docker
+traefik:
+  host: traefik.flisk-project.localhost
+  pathPrefix: /dashboard

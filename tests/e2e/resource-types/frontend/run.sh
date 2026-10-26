@@ -62,4 +62,14 @@ F2() { # flisk up, the route answers 200 through Traefik, and the module script 
   echo "PASS $FRAMEWORK: module script $result"
 }
 
+F3() { # flisk config verify passes for the scaffolded frontend (generated-project consistency, see docs/frontend-framework-providers.md)
+  log "F3 flisk config verify passes for the $FRAMEWORK frontend"
+  # Runs on its own too: scaffold first when F1 has not run in this scratch project.
+  [ -f "$DIR/.flisk/project.json" ] || common_scaffold frontend "$RES" --framework "$FRAMEWORK" --stack "$STACK" --yes
+  run config-verify config verify
+  [ "$RC" -eq 0 ] || die "flisk config verify exited $RC for $FRAMEWORK: $(tail -5 "$OUT/config-verify.out" "$OUT/config-verify.err" 2>/dev/null)"
+  grep -q "All files are in sync" "$OUT/config-verify.out" || die "flisk config verify did not report the project in sync"
+  echo "PASS $FRAMEWORK: flisk config verify is in sync"
+}
+
 e2e_main "$@"

@@ -10,17 +10,17 @@ Questions a team lead usually asks before moving client projects onto a new tool
 
 ## Can we try it without changing the client's repository?
 
-**Partly answered; the Gap is a mode with no Flisk files in the repository.** In a repository that already had a `package.json`, `Tiltfile`, `.tiltignore`, `docker-compose.yml` and `Dockerfile`, `flisk project --yes` left them byte-for-byte unchanged, appended four lines to `.gitignore`, and added `.tdk/project.json`, `services/platform/database-management/docker-compose.yml` and `shared-platform-engineering/docker-templates/`. [Gradual adoption](gradual-adoption.md) has the full list, what to commit and how to take it out again; the [adoption guide](adopt-flisk.md) says to run `git status` and read what changed. There is still no documented mode that keeps all Flisk files outside the repository ([#504](https://github.com/flisk-sh/flisk/issues/504)).
+**Partly answered; the Gap is a mode with no Flisk files in the repository.** In a repository that already had a `package.json`, `Tiltfile`, `.tiltignore`, `docker-compose.yml` and `Dockerfile`, `flisk project --yes` left them byte-for-byte unchanged, appended four lines to `.gitignore`, and added `.flisk/project.json`, `services/platform/database-management/docker-compose.yml` and `shared-platform-engineering/docker-templates/`. [Gradual adoption](gradual-adoption.md) has the full list, what to commit and how to take it out again; the [adoption guide](adopt-flisk.md) says to run `git status` and read what changed. There is still no documented mode that keeps all Flisk files outside the repository ([#504](https://github.com/flisk-sh/flisk/issues/504)).
 
 ## What if the project stops being maintained?
 
-- There are two maintainers from two companies ([MAINTAINERS.md](../MAINTAINERS.md)); the project has no foundation or funding commitment. Governance is in [GOVERNANCE.md](../GOVERNANCE.md).
+- There are two maintainers from two companies ([MAINTAINERS.md](project/MAINTAINERS.md)); the project has no foundation or funding commitment. Governance is in [GOVERNANCE.md](project/GOVERNANCE.md).
 - Core is MIT, so you can fork it.
 - **Answered in part:** [Leaving Flisk](leaving-flisk.md) says what `flisk eject` does (it only writes an `EJECTED.md` note), which generated files exist and what they need from Flisk, and what you lose. [Gradual adoption](gradual-adoption.md#taking-it-out-again) lists what to delete. There is still no command that produces plain Compose; moving to Compose or Helm is manual, and your `service.json` files are Flisk-specific.
 
 ## Licence: can we use it on client projects?
 
-Core is MIT and needs no key. Premium is optional and adds Verdaccio, DDD scaffolding and Sablier idle stop. See the [licence matrix](FEATURES.md#license-matrix) and the [licence boundary](../GOVERNANCE.md#license-boundary-and-donation-scope). Check it against your client contracts yourself; this page is not legal advice.
+Core is MIT and needs no key. Premium is optional and adds Verdaccio, DDD scaffolding and Sablier idle stop. See the [licence matrix](FEATURES.md#license-matrix) and the [licence boundary](project/GOVERNANCE.md#license-boundary-and-donation-scope). Check it against your client contracts yourself; this page is not legal advice.
 
 ## Windows machines
 
@@ -36,7 +36,7 @@ Ubuntu on WSL2 with Docker Desktop is supported ([WSL2 guide](wsl2.md)). Native 
 
 ## Ports and running two stacks at once
 
-Flisk asks for ingress ports 80 and 443 first, so routed URLs carry no port. If they are taken, or on Linux and WSL2 where a non-root user cannot check them, Flisk picks the next free ports from bounded ranges (ingress 8080 to 8180, HTTPS 8443 to 8543, Postgres 15432 to 15532, read from `host-port-plan.ts`) and prints them in `flisk up` and `flisk networks`. With the defaults, each project needs one Postgres port from 15432 to 15532, so that range of 101 ports caps the number of projects at 101, fewer if other programs already use ports in it. HTTP and HTTPS use 80 and 443 first and take a port from their own ranges (101 ports each) only when 80 or 443 is not usable, which is the case on Linux and WSL2 for non-root users. The next project fails with `No available host port in <range> for <service>`, see [Troubleshooting](troubleshooting.md). The ranges cannot be changed; set `TDK_HTTP_PORT`, `TDK_HTTPS_PORT` or `TDK_POSTGRES_PORT` to give a project fixed ports. A project with a fixed port takes none from that range. The limit comes from the port planner, checked with a stubbed port probe in `host-port-plan.test.ts`; running that many projects with real containers is **not tested**, and what a machine can sustain is **not measured** (see the next answer) ([#509](https://github.com/flisk-sh/flisk/issues/509)).
+Flisk asks for ingress ports 80 and 443 first, so routed URLs carry no port. If they are taken, or on Linux and WSL2 where a non-root user cannot check them, Flisk picks the next free ports from bounded ranges (ingress 8080 to 8180, HTTPS 8443 to 8543, Postgres 15432 to 15532, read from `host-port-plan.ts`) and prints them in `flisk up` and `flisk networks`. With the defaults, each project needs one Postgres port from 15432 to 15532, so that range of 101 ports caps the number of projects at 101, fewer if other programs already use ports in it. HTTP and HTTPS use 80 and 443 first and take a port from their own ranges (101 ports each) only when 80 or 443 is not usable, which is the case on Linux and WSL2 for non-root users. The next project fails with `No available host port in <range> for <service>`, see [Troubleshooting](troubleshooting.md). The ranges cannot be changed; set `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT` or `FLISK_POSTGRES_PORT` to give a project fixed ports. A project with a fixed port takes none from that range. The limit comes from the port planner, checked with a stubbed port probe in `host-port-plan.test.ts`; running that many projects with real containers is **not tested**, and what a machine can sustain is **not measured** (see the next answer) ([#509](https://github.com/flisk-sh/flisk/issues/509)).
 
 ## RAM and CPU on a 16 GB machine
 
@@ -48,7 +48,7 @@ The [adoption guide](adopt-flisk.md) is the one-page path: `flisk doctor`, `flis
 
 ## CI
 
-`flisk config verify` checks that generated project files match `.tdk/project.json` and runs in CI ([`e2e-examples.yml`](../.github/workflows/e2e-examples.yml)). The [quickstart workflow](../.github/workflows/e2e-journeys.yml) runs a real `flisk up` on a GitHub-hosted runner, so it works on one. The [scope page](scope.md#local-only-or-also-staging-and-ci) says what CI is and is not for. A copy-paste workflow for your own repository is in [Running Flisk in CI](ci.md); its `flisk up` job has not been run on GitHub.
+`flisk config verify` checks that generated project files match `.flisk/project.json` and runs in CI ([`e2e-examples.yml`](../.github/workflows/e2e-examples.yml)). The [quickstart workflow](../.github/workflows/e2e-journeys.yml) runs a real `flisk up` on a GitHub-hosted runner, so it works on one. The [scope page](scope.md#local-only-or-also-staging-and-ci) says what CI is and is not for. A copy-paste workflow for your own repository is in [Running Flisk in CI](ci.md); its `flisk up` job has not been run on GitHub.
 
 ## Where are the other answers?
 
@@ -61,4 +61,4 @@ The [adoption guide](adopt-flisk.md) is the one-page path: `flisk doctor`, `flis
 
 ## Support and response time
 
-Questions are public issues; we aim to reply within one working day. There is no paid support contract. Premium is a feature key, not an SLA. What the history actually shows, who maintains the project and what premium covers are in [SUPPORT.md](../SUPPORT.md).
+Questions are public issues; we aim to reply within one working day. There is no paid support contract. Premium is a feature key, not an SLA. What the history actually shows, who maintains the project and what premium covers are in [SUPPORT.md](../.github/SUPPORT.md).

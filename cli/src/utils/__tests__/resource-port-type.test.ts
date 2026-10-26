@@ -11,9 +11,9 @@ describe("discoverResourcesFromRoot port and type", () => {
   let root = "";
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "tdk-resource-port-type-"));
-    mkdirSync(join(root, ".tdk"), { recursive: true });
-    writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify({ version: "2" }));
+    root = mkdtempSync(join(tmpdir(), "flisk-resource-port-type-"));
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
   });
 
   afterEach(() => {

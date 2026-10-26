@@ -29,7 +29,7 @@ export function projectNetworkNames(projectName: string): string[] {
  * `backend` also occur in non-Flisk compose projects, so a prefix counts only if it has a Traefik network, which
  * only Flisk creates.
  */
-export function tdkNetworkPrefixes(networkNames: string[]): Set<string> {
+export function fliskNetworkPrefixes(networkNames: string[]): Set<string> {
   const prefixes = new Set<string>();
   for (const name of networkNames) {
     for (const marker of ["traefik-public", "traefik-private"]) {
@@ -40,7 +40,7 @@ export function tdkNetworkPrefixes(networkNames: string[]): Set<string> {
 }
 
 /** The Flisk project prefix a network belongs to (`umami` for `umami_backend`), or null. */
-export function tdkNetworkOwner(name: string, prefixes: Set<string>): string | null {
+export function fliskNetworkOwner(name: string, prefixes: Set<string>): string | null {
   for (const suffix of PROJECT_NETWORK_SUFFIXES) {
     if (name.endsWith(`_${suffix}`)) {
       const prefix = name.slice(0, -(suffix.length + 1));

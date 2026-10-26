@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flisk brand sheet</title>
+<style>
+  :root {
+    --flisk-signal: #61f0d3;
+    --flisk-ink: #f4f7f6;
+    --flisk-slate: #e4ebe9;
+    --flisk-mist: #5b5b63;
+    --flisk-paper: #0c1417;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --flisk-ink: #0c1417;
+      --flisk-slate: #1b2a30;
+      --flisk-mist: #71717a;
+      --flisk-paper: #f4f7f6;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --flisk-ink: #0c1417;
+    --flisk-slate: #1b2a30;
+    --flisk-mist: #71717a;
+    --flisk-paper: #f4f7f6;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--flisk-ink);
+    color: var(--flisk-paper);
+    font: 400 16px/1.6 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 32px;
+  }
+  main { max-width: 960px; margin: 0 auto; display: grid; gap: 48px; }
+  h1, h2 { font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(32px, 6vw, 56px); line-height: 1.05; }
+  h2 { font-size: 22px; margin-bottom: 16px; }
+  .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--flisk-mist); }
+  p { margin: 0; max-width: 65ch; }
+  code, .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+  .hero { display: grid; gap: 16px; }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .swatch { border-radius: 8px; overflow: hidden; background: var(--flisk-slate); }
+  .chip { height: 96px; }
+  .swatch div.meta { padding: 12px; display: grid; gap: 2px; font-size: 14px; }
+  .type { display: grid; gap: 12px; }
+  .term {
+    background: var(--flisk-slate);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    font: 14px/1.7 "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  .term .ok { color: var(--flisk-signal); }
+  .term .dim { color: var(--flisk-mist); }
+  .mark-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
+  .mark-box { background: var(--flisk-slate); border-radius: 8px; padding: 24px; display: grid; place-items: center; }
+  .wordmark { font-weight: 600; font-size: 40px; letter-spacing: -0.02em; }
+  .wordmark span { color: var(--flisk-signal); }
+  .voice { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .voice p { padding: 16px; background: var(--flisk-slate); border-radius: 8px; }
+  @media (prefers-reduced-motion: no-preference) { .term .ok { transition: color .2s; } }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <span class="label">Flisk brand sheet</span>
+    <h1>Your whole stack, running with one command.</h1>
+    <p>Flisk turns an empty folder into a running local stack. This sheet covers the colors, type and mark used across the README, docs and CLI.</p>
+  </section>
+
+  <section>
+    <h2>Mark and wordmark</h2>
+    <div class="mark-row">
+      <div class="mark-box">
+        <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="Flisk mark">
+          <line x1="16" y1="36" x2="56" y2="36" stroke="currentColor" stroke-width="3" opacity="0.5"/>
+          <circle cx="16" cy="36" r="7" fill="currentColor"/>
+          <circle cx="36" cy="18" r="7" fill="currentColor" opacity="0.7"/>
+          <circle cx="56" cy="36" r="7" fill="#61f0d3"/>
+        </svg>
+      </div>
+      <div class="wordmark">flisk<span>.</span></div>
+    </div>
+    <p class="label" style="margin-top:12px">Nodes are services. The teal node is the one that is running.</p>
+  </section>
+
+  <section>
+    <h2>Color</h2>
+    <div class="swatches">
+      <div class="swatch"><div class="chip" style="background:#61f0d3"></div><div class="meta"><strong>Signal</strong><span class="mono">#61f0d3</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#0c1417"></div><div class="meta"><strong>Ink</strong><span class="mono">#0c1417</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#1b2a30"></div><div class="meta"><strong>Slate</strong><span class="mono">#1b2a30</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#71717a"></div><div class="meta"><strong>Mist</strong><span class="mono">#71717a</span></div></div>
+      <div class="swatch"><div class="chip" style="background:#f4f7f6"></div><div class="meta"><strong>Paper</strong><span class="mono">#f4f7f6</span></div></div>
+    </div>
+    <p style="margin-top:12px">Signal is the only accent. Text on signal is always Ink.</p>
+  </section>
+
+  <section class="type">
+    <h2>Typography</h2>
+    <p style="font-size:28px;font-weight:600">IBM Plex Sans, semibold for headings.</p>
+    <p>Body text is IBM Plex Sans regular at 16px with 1.6 line height, kept near 65 characters per line.</p>
+    <p class="mono">JetBrains Mono for commands: flisk up</p>
+  </section>
+
+  <section>
+    <h2>Terminal</h2>
+    <div class="term" role="img" aria-label="Example flisk up output">
+<span class="dim">$</span> flisk up
+<span class="ok">✓</span> postgres       running
+<span class="ok">✓</span> api            running
+<span class="ok">✓</span> web            running
+<span class="dim">stack ready in 14s</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Voice</h2>
+    <div class="voice">
+      <p><strong>Say:</strong> "Run flisk up. Your services start."</p>
+      <p><strong>Avoid:</strong> "Seamlessly orchestrate your revolutionary stack."</p>
+      <p><strong>Errors:</strong> "Docker is not running. Start it, then run flisk doctor."</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -10,11 +10,11 @@ import type { ColimaStatus } from "../colima.js";
 import {
   anyTiltAnswers,
   applyDoctorFixes,
-  checkDuplicateTdkInstalls,
+  checkDuplicateFliskInstalls,
   createDockerFixDeps,
   type DockerNetwork,
   type DoctorFixDeps,
-  findTdkInstalls,
+  findFliskInstalls,
   hasFailedActions,
   parseElapsed,
   planDoctorFixes,
@@ -70,24 +70,24 @@ describe("planDoctorFixes", () => {
   it("plans unused networks of this project and leftover probes", async () => {
     const { deps } = fakeDocker([
       net("it_ai_search_backend"),
-      net("tdk_doctor_probe_111"),
+      net("flisk_doctor_probe_111"),
       net("bridge"),
     ]);
     const plan = await planDoctorFixes("it-ai-search", deps);
     expect(plan.map((a) => [a.id, a.scope, a.status])).toEqual([
       ["remove-network:it_ai_search_backend", "project", "planned"],
-      ["remove-network:tdk_doctor_probe_111", "probe", "planned"],
+      ["remove-network:flisk_doctor_probe_111", "probe", "planned"],
     ]);
     expect(plan[0]?.command).toBe("docker network rm it_ai_search_backend");
   });
 
   it("never plans another project's networks", async () => {
-    const { deps } = fakeDocker([net("umami_backend"), net("tdk_restaurant_example_database")]);
+    const { deps } = fakeDocker([net("umami_backend"), net("flisk_restaurant_example_database")]);
     expect(await planDoctorFixes("it-ai-search", deps)).toEqual([]);
   });
 
   it("skips project networks while Tilt runs, but still plans probes", async () => {
-    const { deps } = fakeDocker([net("it_ai_search_backend"), net("tdk_doctor_probe_5")]);
+    const { deps } = fakeDocker([net("it_ai_search_backend"), net("flisk_doctor_probe_5")]);
     const plan = await planDoctorFixes("it-ai-search", deps, { tiltPids: [7] });
     expect(plan.map((a) => [a.scope, a.status])).toEqual([
       ["project", "skipped"],
@@ -104,15 +104,15 @@ describe("planDoctorFixes", () => {
   });
 
   it("skips the probe of a process that is still running", async () => {
-    const { deps } = fakeDocker([net("tdk_doctor_probe_42"), net("tdk_doctor_probe_43")], [42]);
+    const { deps } = fakeDocker([net("flisk_doctor_probe_42"), net("flisk_doctor_probe_43")], [42]);
     const plan = await planDoctorFixes(undefined, deps);
     expect(plan.map((a) => a.status)).toEqual(["skipped", "planned"]);
   });
 
   it("only plans probes outside a project", async () => {
-    const { deps } = fakeDocker([net("it_ai_search_backend"), net("tdk_doctor_probe_7")]);
+    const { deps } = fakeDocker([net("it_ai_search_backend"), net("flisk_doctor_probe_7")]);
     const plan = await planDoctorFixes(undefined, deps);
-    expect(plan.map((a) => a.id)).toEqual(["remove-network:tdk_doctor_probe_7"]);
+    expect(plan.map((a) => a.id)).toEqual(["remove-network:flisk_doctor_probe_7"]);
   });
 });
 
@@ -210,61 +210,63 @@ describe("applyDoctorFixes", () => {
   });
 });
 
-describe("checkDuplicateTdkInstalls", () => {
+describe("checkDuplicateFliskInstalls", () => {
   it("passes with zero or one install", async () => {
-    expect((await checkDuplicateTdkInstalls([])).didPass).toBe(true);
-    const result = await checkDuplicateTdkInstalls([{ path: "/usr/bin/tdk", version: "1.3.155" }]);
+    expect((await checkDuplicateFliskInstalls([])).didPass).toBe(true);
+    const result = await checkDuplicateFliskInstalls([
+      { path: "/usr/bin/flisk", version: "1.3.155" },
+    ]);
     expect(result.didPass).toBe(true);
   });
 
   it("warns with both paths and versions when installs differ", async () => {
-    const result = await checkDuplicateTdkInstalls([
-      { path: "/opt/bin/tdk", version: "1.3.155" },
-      { path: "/usr/local/bin/tdk", version: "1.3.144" },
+    const result = await checkDuplicateFliskInstalls([
+      { path: "/opt/bin/flisk", version: "1.3.155" },
+      { path: "/usr/local/bin/flisk", version: "1.3.144" },
     ]);
     expect(result.didPass).toBe(false);
     expect(result.isWarning).toBe(true);
-    expect(result.message).toContain("/usr/local/bin/tdk (1.3.144)");
+    expect(result.message).toContain("/usr/local/bin/flisk (1.3.144)");
     expect(result.message).toContain("different versions");
   });
 
   it("warns without mentioning different versions when versions match", async () => {
-    const result = await checkDuplicateTdkInstalls([
-      { path: "/opt/bin/tdk", version: "1.3.155" },
-      { path: "/usr/local/bin/tdk", version: "1.3.155" },
+    const result = await checkDuplicateFliskInstalls([
+      { path: "/opt/bin/flisk", version: "1.3.155" },
+      { path: "/usr/local/bin/flisk", version: "1.3.155" },
     ]);
     expect(result.didPass).toBe(false);
     expect(result.isWarning).toBe(true);
     expect(result.message).not.toContain("different versions");
     expect(result.message).toContain(
-      "2 flisk installs on PATH: /opt/bin/tdk (1.3.155), /usr/local/bin/tdk (1.3.155)",
+      "2 flisk installs on PATH: /opt/bin/flisk (1.3.155), /usr/local/bin/flisk (1.3.155)",
     );
   });
 
   it("formats unknown versions gracefully", async () => {
-    const result = await checkDuplicateTdkInstalls([
-      { path: "/opt/bin/tdk", version: null },
-      { path: "/usr/local/bin/tdk", version: "1.3.155" },
+    const result = await checkDuplicateFliskInstalls([
+      { path: "/opt/bin/flisk", version: null },
+      { path: "/usr/local/bin/flisk", version: "1.3.155" },
     ]);
-    expect(result.message).toContain("/opt/bin/tdk (version unknown)");
+    expect(result.message).toContain("/opt/bin/flisk (version unknown)");
   });
 
   it("checks installs using system default when no installs are passed", async () => {
-    const result = await checkDuplicateTdkInstalls();
+    const result = await checkDuplicateFliskInstalls();
     expect(result.name).toBe("Flisk installs");
     expect(typeof result.didPass).toBe("boolean");
   });
 });
 
-describe("findTdkInstalls", () => {
+describe("findFliskInstalls", () => {
   it("returns empty list for empty path list", async () => {
-    expect(await findTdkInstalls([])).toEqual([]);
+    expect(await findFliskInstalls([])).toEqual([]);
   });
 
   it("deduplicates symlinks resolving to the same binary path", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "find-tdk-"));
-    const bin = join(dir, "tdk-bin");
-    const link = join(dir, "tdk-link");
+    const dir = mkdtempSync(join(tmpdir(), "find-flisk-"));
+    const bin = join(dir, "flisk-bin");
+    const link = join(dir, "flisk-link");
     writeFileSync(bin, "#!/bin/sh\n");
     try {
       symlinkSync(bin, link);
@@ -272,18 +274,18 @@ describe("findTdkInstalls", () => {
       // Windows without developer mode/symlink privileges falls through gracefully
       return;
     }
-    const installs = await findTdkInstalls([link, bin], async () => "1.0.0");
+    const installs = await findFliskInstalls([link, bin], async () => "1.0.0");
     expect(installs).toEqual([{ path: link, version: "1.0.0" }]);
   });
 
   it("keeps unresolvable paths and reads their versions", async () => {
-    const installs = await findTdkInstalls(
-      ["/nonexistent/tdk-a", "/nonexistent/tdk-b"],
+    const installs = await findFliskInstalls(
+      ["/nonexistent/flisk-a", "/nonexistent/flisk-b"],
       async (p) => (p.endsWith("a") ? "1.0.0" : null),
     );
     expect(installs).toEqual([
-      { path: "/nonexistent/tdk-a", version: "1.0.0" },
-      { path: "/nonexistent/tdk-b", version: null },
+      { path: "/nonexistent/flisk-a", version: "1.0.0" },
+      { path: "/nonexistent/flisk-b", version: null },
     ]);
   });
 });
@@ -293,10 +295,10 @@ describe("createDockerFixDeps", () => {
     const calls: string[][] = [];
     const deps = createDockerFixDeps(async (args) => {
       calls.push(args);
-      if (args[1] === "ls") return "bridge\nit_ai_search_backend\ntdk_doctor_probe_1\n";
+      if (args[1] === "ls") return "bridge\nit_ai_search_backend\nflisk_doctor_probe_1\n";
       const name = args.at(-1);
-      if (name === "tdk_doctor_probe_1") {
-        throw new Error("Error response from daemon: network tdk_doctor_probe_1 not found");
+      if (name === "flisk_doctor_probe_1") {
+        throw new Error("Error response from daemon: network flisk_doctor_probe_1 not found");
       }
       return name === "bridge" ? "2\n" : "0\n";
     });
@@ -392,8 +394,8 @@ describe("projectTiltPids", () => {
     const link = join(base, "link");
     symlinkSync(real, link);
     const launched = new Map([
-      [join(link, ".tdk", ".tdk-out", "Tiltfile"), [11]],
-      [join(real, ".tdk", ".tdk-out", "Tiltfile"), [12]],
+      [join(link, ".flisk", ".flisk-out", "Tiltfile"), [11]],
+      [join(real, ".flisk", ".flisk-out", "Tiltfile"), [12]],
     ]);
     const find = (path: string) => launched.get(path) ?? [];
     expect(projectTiltPids(link, find).sort()).toEqual([11, 12]);

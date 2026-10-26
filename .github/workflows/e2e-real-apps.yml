@@ -1,5 +1,5 @@
 # Nightly real-apps run (carried over from examples-e2e.yml at the #1302 cutover, so the nightly coverage is not lost).
-# Boots the two real example apps (tdk-saas-starter, tdk-restaurant-example)
+# Boots the two real example apps (flisk-saas-starter, flisk-restaurant-example)
 # on a clean GitHub-hosted runner with the published CLI, then requires their
 # actual routes to answer, not only /health: JSON from the business endpoints
 # and an HTML page from each frontend. It backs the claim that Flisk runs a real
@@ -7,7 +7,7 @@
 #
 # Manual and daily (04:00 UTC). Separate from the ERP scale test on purpose: different
 # size, different timeout, and "healthy" means something else here.
-name: 🍽️ Real example apps (nightly)
+name: 🏗️ E2E | Real example apps (nightly)
 
 on:
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repo: tdk-saas-starter
+          - repo: flisk-saas-starter
             # "pattern|path": the backend whose health URL matches pattern must
             # answer path with 2xx and valid JSON.
             api_checks: |
@@ -95,7 +95,7 @@ jobs:
       # the frontend dependencies, then flisk up and require the real routes. This leg's routes come from the matrix.
       - name: Install Flisk from npm
         env:
-          TDK_VERSION: ${{ inputs.version || 'latest' }}
+          FLISK_VERSION: ${{ inputs.version || 'latest' }}
         run: tests/e2e/examples/real-apps/run.sh A1 # zizmor: ignore[adhoc-packages] the point is to test what users install
 
       - name: Set up the project and check it with flisk doctor

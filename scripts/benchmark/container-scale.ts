@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
 const REPO_ROOT = resolve(import.meta.dir, "..", "..");
-const PREFIX = "tdkbench-";
+const PREFIX = "fliskbench-";
 
 interface Options {
   mode: "compose" | "synthetic";
@@ -43,7 +43,7 @@ function parseArgs(): Options {
   const tiers = get("--tiers", "5,10,20,50,80,100").split(",").map(Number).filter((n) => n > 0);
   return {
     mode: args.includes("--synthetic") ? "synthetic" : "compose",
-    project: resolve(get("--project", process.env.TDK_BENCH_PROJECT ?? join(REPO_ROOT, "..", "tdk-erp-system"))),
+    project: resolve(get("--project", process.env.FLISK_BENCH_PROJECT ?? join(REPO_ROOT, "..", "tdk-erp-system"))),
     tiers,
     gate: Number(get("--gate", String(Math.max(...tiers)))),
     timeoutSeconds: Number(get("--timeout", "240")),
@@ -120,9 +120,9 @@ function shQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-// The project name as written in .tdk/project.json (hyphens kept): the Compose project and container names use it.
+// The project name as written in .flisk/project.json (hyphens kept): the Compose project and container names use it.
 function rawProjectName(project: string): string {
-  const pj = join(project, ".tdk", "project.json");
+  const pj = join(project, ".flisk", "project.json");
   return String(existsSync(pj) ? JSON.parse(readFileSync(pj, "utf-8")).project?.name : basename(project));
 }
 
@@ -301,7 +301,7 @@ function startInfra(project: string, root: string): string[] {
   const envFile = join(root, ".env");
   const infra = [
     { container: `${project}_postgres`, file: join(root, "services", "platform", "database-management", "docker-compose.yml") },
-    { container: `${project}_traefik`, file: join(root, ".tdk", ".tdk-out", "docker-compose.traefik.yml") },
+    { container: `${project}_traefik`, file: join(root, ".flisk", ".flisk-out", "docker-compose.traefik.yml") },
   ];
   for (const { container, file } of infra) {
     if (shOk(`docker ps -q --filter name=^${container}$`)) continue;
@@ -352,15 +352,15 @@ function runTierCompose(n: number, services: Service[], opts: Options, project: 
   // forever even after the real process has finished. Shelling out one blocking
   // spawnSync (with the stack commands backgrounded and `wait`ed inside the shell)
   // avoids that: the parent shell, not our JS, is what waits for real completion.
-  // Paths travel as environment variables ("$TDK_BENCH_P0" ...), never spliced into the script text.
+  // Paths travel as environment variables ("$FLISK_BENCH_P0" ...), never spliced into the script text.
   const launchEnv: Record<string, string> = { ...process.env } as Record<string, string>;
   const launchScript = [...byStack]
     .map(([stack, svcs], i) => {
       const [, name, , file, , envFile] = composeArgs(opts.project, stack);
-      launchEnv[`TDK_BENCH_N${i}`] = name ?? "";
-      launchEnv[`TDK_BENCH_F${i}`] = file ?? "";
-      launchEnv[`TDK_BENCH_E${i}`] = envFile ?? "";
-      return `docker compose -p "$TDK_BENCH_N${i}" -f "$TDK_BENCH_F${i}" --env-file "$TDK_BENCH_E${i}" up -d --no-build ${svcs.join(" ")} &`;
+      launchEnv[`FLISK_BENCH_N${i}`] = name ?? "";
+      launchEnv[`FLISK_BENCH_F${i}`] = file ?? "";
+      launchEnv[`FLISK_BENCH_E${i}`] = envFile ?? "";
+      return `docker compose -p "$FLISK_BENCH_N${i}" -f "$FLISK_BENCH_F${i}" --env-file "$FLISK_BENCH_E${i}" up -d --no-build ${svcs.join(" ")} &`;
     })
     .join("\n") + "\nwait\n";
   const t0 = performance.now();
@@ -526,7 +526,7 @@ function main(): void {
   const passed = checks.length > 0 && checks.every(([, ok]) => ok);
   for (const container of startedInfra) shOk(`docker stop ${container}`);
 
-  const outDir = join(REPO_ROOT, "benchmarks", "results");
+  const outDir = join(REPO_ROOT, "docs", "benchmarks", "results");
   mkdirSync(outDir, { recursive: true });
   const outFile = join(outDir, `container-scale-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   writeFileSync(

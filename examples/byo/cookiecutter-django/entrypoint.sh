@@ -3,7 +3,7 @@
 set -eu
 # Flisk's DATABASE_URL ends in a Prisma-style ?schema=public that PostgreSQL drivers do not accept as a parameter, so strip it.
 export DATABASE_URL="${DATABASE_URL%%\?*}"
-export DJANGO_SETTINGS_MODULE=config.settings.tdk
+export DJANGO_SETTINGS_MODULE=config.settings.flisk
 export DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-$(python -c 'import secrets; print(secrets.token_urlsafe(32))')}"
 
 python /ensure_db.py

@@ -34,13 +34,13 @@ export const PROJECT_FEATURES: Record<string, ProjectFeature> = {
   },
 
   // Key/name must be the literal Tilt resource name (PlatformDockerConstants.VERDACCIO_RESOURCE_NAME
-  // in tdk-cli-extensions), since project.json's services list is copied verbatim into
+  // in flisk-cli-extensions), since project.json's services list is copied verbatim into
   // PRE_ALPHA_RESOURCES and matched against that name by should_enable(). "registry" would
   // silently fail to enable Verdaccio.
   verdaccio: {
     name: "verdaccio",
     description:
-      "Verdaccio npm registry for package management and local publishing (Premium - requires TDK_LICENSE_KEY)",
+      "Verdaccio npm registry for package management and local publishing (Premium - requires FLISK_LICENSE_KEY)",
     category: "premium",
     phase: "pre_alpha",
     enabled_by_default: false,
@@ -97,25 +97,13 @@ export const PROJECT_FEATURES: Record<string, ProjectFeature> = {
 };
 
 /**
- * Get all enabled project features
+ * Get all enabled project features: those on by default plus those switched
+ * on in `optional_infra`. Each feature appears once, in `PROJECT_FEATURES`
+ * order. Names that are not features are ignored, and `false` does not turn
+ * off a feature that is on by default.
  */
 export function getEnabledProjectFeatures(optional_infra?: Record<string, boolean>): string[] {
-  const enabled: string[] = [];
-
-  for (const [key, feature] of Object.entries(PROJECT_FEATURES)) {
-    if (feature.enabled_by_default) {
-      enabled.push(key);
-    }
-  }
-
-  // Add optional features if enabled
-  if (optional_infra) {
-    for (const [key, isEnabled] of Object.entries(optional_infra)) {
-      if (isEnabled && PROJECT_FEATURES[key]) {
-        enabled.push(key);
-      }
-    }
-  }
-
-  return enabled;
+  return Object.entries(PROJECT_FEATURES)
+    .filter(([key, feature]) => feature.enabled_by_default || optional_infra?.[key] === true)
+    .map(([key]) => key);
 }

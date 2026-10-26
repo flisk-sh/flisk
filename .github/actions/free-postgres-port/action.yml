@@ -27,7 +27,11 @@ runs:
         for attempt in 1 2 3 4 5 6; do
           sudo pkill -KILL -f 'postgres' 2>/dev/null || true
           for port in $PORTS; do sudo fuser -k "$port/tcp" 2>/dev/null || true; done
-          sleep 5
+          # Poll for up to 5 s instead of sleeping the whole time: the ports are usually free within a second of the kill.
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            [ -z "$(busy_ports)" ] && break
+            sleep 0.5
+          done
           busy="$(busy_ports)"
           [ -z "$busy" ] && break
           echo "attempt $attempt: still busy: $busy"

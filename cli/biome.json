@@ -29,7 +29,7 @@
             "patterns": [
               {
                 "group": ["@flisk-sh/*-backend", "@flisk-sh/*-frontend"],
-                "message": "❌ tdk-cli is a leaf dev tool: it must never import a service package. See BOUNDARIES.md §4-5."
+                "message": "❌ flisk-cli is a leaf dev tool: it must never import a service package. See BOUNDARIES.md §4-5."
               }
             ]
           }

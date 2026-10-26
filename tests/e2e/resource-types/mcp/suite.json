@@ -5,7 +5,7 @@
   "paths": [
     "cli/src/backend-frameworks/mcp.ts",
     "cli/src/commands/resource.ts",
-    "engine/**",
+    "runtime/engine/**",
     "tests/e2e/lib/**",
     "tests/e2e/resource-types/common.sh",
     "tests/e2e/resource-types/mcp/**",

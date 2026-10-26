@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { captureExit } from "../../test-support/index.js";
 import { errorFactories } from "../../utils/errors.js";
 
 const tilt = vi.hoisted(() => ({
@@ -8,9 +9,21 @@ const tilt = vi.hoisted(() => ({
   runTilt: vi.fn(),
 }));
 const paths = vi.hoisted(() => ({ findProjectRoot: vi.fn() }));
+const secretMock = vi.hoisted(() => ({
+  envSecretValues: vi.fn((): string[] => []),
+}));
+
 vi.mock("../../utils/tilt.js", () => ({ ...tilt, getTiltfilePath: () => "Tiltfile" }));
 vi.mock("../../utils/paths.js", () => paths);
+vi.mock("../../utils/secret-redaction.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/secret-redaction.js")>();
+  return {
+    ...actual,
+    envSecretValues: secretMock.envSecretValues,
+  };
+});
 
+import { EnvUnreadableError } from "../../utils/secret-redaction.js";
 import { logsCommand } from "../logs.js";
 
 const ok = (stdout: string) => ({ exitCode: 0, stdout, stderr: "" });
@@ -56,13 +69,32 @@ beforeEach(() => {
   tilt.isTiltAvailable.mockResolvedValue(true);
   tilt.isTiltAvailable.mockClear();
   tilt.runTilt.mockReset();
+  secretMock.envSecretValues.mockReturnValue([]);
+  delete process.env.TILT_PORT;
 });
+
 afterEach(() => {
   vi.restoreAllMocks();
   for (const option of ["service", "since", "port", "tail"])
     logsCommand.setOptionValue(option, undefined);
   logsCommand.setOptionValue("tail", "200");
   logsCommand.setOptionValue("json", false);
+  delete process.env.TILT_PORT;
+});
+
+describe("flisk logs argument errors", () => {
+  it("tells the user to pass a service with --service when given a positional name", async () => {
+    const stderr: string[] = [];
+    logsCommand.configureOutput({ writeErr: (text) => stderr.push(text) });
+    const { exit } = captureExit();
+    try {
+      await expect(logsCommand.parseAsync(["orders-api"], { from: "user" })).rejects.toThrow();
+    } finally {
+      logsCommand.configureOutput({ writeErr: (text) => process.stderr.write(text) });
+      exit.mockRestore();
+    }
+    expect(stderr.join("")).toContain("flisk logs --service <name>");
+  });
 });
 
 describe("flisk logs --json", () => {
@@ -94,7 +126,7 @@ describe("flisk logs --json", () => {
       errors: [
         {
           code: "COMMAND_FAILED",
-          message: "Could not find project root (no .tdk/project.json found)",
+          message: "Could not find project root (no .flisk/project.json found)",
           suggestions: [
             "Run this from within a Flisk project",
             "Run `flisk project --yes` to initialize a new project",
@@ -121,7 +153,9 @@ describe("flisk logs --json", () => {
     }
 
     expect(code).toBe(1);
-    expect(errors.join("\n")).toContain("Could not find project root (no .tdk/project.json found)");
+    expect(errors.join("\n")).toContain(
+      "Could not find project root (no .flisk/project.json found)",
+    );
     expect(errors.join("\n")).toContain("Run this from within a Flisk project");
     expect(errors.join("\n")).toContain("Run `flisk project --yes` to initialize a new project");
     expect(tilt.isTiltAvailable).not.toHaveBeenCalled();
@@ -185,6 +219,7 @@ describe("flisk logs --json", () => {
     expect(envelope.errors[0]).toMatchObject({ code: "UNKNOWN_SERVICE" });
     expect(envelope.errors[0].suggestions).toBeUndefined();
   });
+
   it("reports a missing Tilt binary", async () => {
     tilt.isTiltAvailable.mockResolvedValue(false);
     const { envelope, code } = await run();
@@ -224,5 +259,110 @@ describe("flisk logs --json", () => {
     expect(code).toBe(2);
     expect(envelope.errors[0].code).toBe("USAGE");
     expect(tilt.runTilt).not.toHaveBeenCalled();
+  });
+
+  it("streams logs directly to stdout with secret redaction in text mode", async () => {
+    secretMock.envSecretValues.mockReturnValue(["super-secret-token-1234"]);
+    tilt.runTilt.mockResolvedValueOnce(
+      ok("connecting to database with token super-secret-token-1234 successfully\n"),
+    );
+
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await logsCommand.parseAsync([], { from: "user" });
+
+    expect(stdoutSpy).toHaveBeenCalledWith(
+      "connecting to database with token [REDACTED] successfully\n",
+    );
+  });
+
+  it("redacts secrets from JSON envelope output", async () => {
+    secretMock.envSecretValues.mockReturnValue(["super-secret-password-xyz"]);
+    tilt.runTilt.mockResolvedValueOnce(
+      ok(`${logLine("database password is super-secret-password-xyz")}\n`),
+    );
+
+    const { envelope } = await run();
+    expect(JSON.stringify(envelope)).not.toContain("super-secret-password-xyz");
+    expect(JSON.stringify(envelope)).toContain("[REDACTED]");
+  });
+
+  it("reports ENV_UNREADABLE error in JSON mode when envSecretValues throws EnvUnreadableError", async () => {
+    secretMock.envSecretValues.mockImplementation(() => {
+      throw new EnvUnreadableError("/project/.env", "permission denied (EACCES)");
+    });
+
+    const { envelope, code } = await run();
+    expect(code).toBe(1);
+    expect(envelope.errors[0]).toMatchObject({
+      code: "ENV_UNREADABLE",
+      message: "Could not read /project/.env: permission denied (EACCES)",
+      suggestions: ["Fix the read permission on .env, or move it out of the project"],
+    });
+  });
+
+  it("reports ENV_UNREADABLE error in text mode when envSecretValues throws EnvUnreadableError", async () => {
+    secretMock.envSecretValues.mockImplementation(() => {
+      throw new EnvUnreadableError("/project/.env", "permission denied (EACCES)");
+    });
+
+    let code: number | null = null;
+    exit.mockImplementation(((c: number) => {
+      code ??= c;
+      throw new Error("exit");
+    }) as never);
+
+    try {
+      await logsCommand.parseAsync([], { from: "user" });
+    } catch {}
+
+    expect(code).toBe(1);
+    expect(errors.join("\n")).toContain("Could not read /project/.env: permission denied");
+    expect(errors.join("\n")).toContain(
+      "Fix the read permission on .env, or move it out of the project",
+    );
+  });
+
+  it("passes custom --port flag to tilt logs command", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(""));
+    await run("--port", "12345");
+    const args = tilt.runTilt.mock.calls[0]?.[1] as string[];
+    expect(args).toEqual(expect.arrayContaining(["--port", "12345"]));
+  });
+
+  it("uses TILT_PORT environment variable when --port is not supplied", async () => {
+    process.env.TILT_PORT = "9999";
+    tilt.runTilt.mockResolvedValueOnce(ok(""));
+    await run();
+    const args = tilt.runTilt.mock.calls[0]?.[1] as string[];
+    expect(args).toEqual(expect.arrayContaining(["--port", "9999"]));
+  });
+
+  it("falls back to standard Tilt UI port (10350) when no port specified", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(""));
+    await run();
+    const args = tilt.runTilt.mock.calls[0]?.[1] as string[];
+    expect(args).toEqual(expect.arrayContaining(["--port", "10350"]));
+  });
+
+  it("passes --since parameter to tilt logs command", async () => {
+    tilt.runTilt.mockResolvedValueOnce(ok(""));
+    await run("--since", "45s");
+    const args = tilt.runTilt.mock.calls[0]?.[1] as string[];
+    expect(args).toEqual(expect.arrayContaining(["--since", "45s"]));
+  });
+
+  it("tolerates tiltResourceNames listing failure and continues to fetch logs", async () => {
+    // When runTilt("get", ["uiresources"...]) returns exitCode 1, tiltResourceNames returns null
+    tilt.runTilt
+      .mockResolvedValueOnce({ exitCode: 1, stdout: "", stderr: "not found" })
+      .mockResolvedValueOnce(ok(`${logLine("log from svc")}\n`));
+
+    const { envelope, code } = await run("-s", "api");
+    expect(code).toBeNull();
+    expect(envelope.data).toMatchObject({
+      services: ["api"],
+      lines: [{ resource: "api", text: "log from svc" }],
+    });
   });
 });

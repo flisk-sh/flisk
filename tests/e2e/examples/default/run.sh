@@ -55,7 +55,7 @@ D4() { # boot, health check, and prove the routed worker write path
     cd "$DIR"
     set -euo pipefail
     flisk up shop > up.log 2>&1 &
-    tdk_pid=$!
+    flisk_pid=$!
     cleanup() {
       status=$?
       if [ "$status" -ne 0 ]; then
@@ -63,10 +63,10 @@ D4() { # boot, health check, and prove the routed worker write path
         tail -160 up.log 2>/dev/null || true
         jq '{errors, ports: .data.ports}' doctor.json 2>/dev/null || true
         docker ps -a --format 'table {{.Names}}\t{{.Status}}' || true
-        docker logs tdk_example_nats 2>&1 | tail -200 || true
+        docker logs flisk_example_nats 2>&1 | tail -200 || true
         tilt get uiresources -o json 2>&1 | jq -r '.items[] | "\(.metadata.name): update=\(.status.updateStatus // "-") runtime=\(.status.runtimeStatus // "-") error=\((.status.buildHistory // [] | map(.error // empty) | first) // "-")"' || true
       fi
-      kill "$tdk_pid" 2>/dev/null || true
+      kill "$flisk_pid" 2>/dev/null || true
       flisk down >/dev/null 2>&1 || true
       return "$status"
     }
@@ -74,7 +74,7 @@ D4() { # boot, health check, and prove the routed worker write path
 
     for _ in $(seq 1 75); do
       if grep -q 'Running tilt up' up.log; then break; fi
-      if ! kill -0 "$tdk_pid" 2>/dev/null; then tail -120 up.log; exit 1; fi
+      if ! kill -0 "$flisk_pid" 2>/dev/null; then tail -120 up.log; exit 1; fi
       sleep 2
     done
     if ! grep -q 'Running tilt up' up.log; then tail -120 up.log; exit 1; fi
@@ -112,7 +112,7 @@ D4() { # boot, health check, and prove the routed worker write path
     done
     if [ "$observed" != true ]; then
       echo "Worker did not observe order $order_id" >&2
-      docker logs tdk_example_nats || true
+      docker logs flisk_example_nats || true
       tail -120 up.log
       exit 1
     fi

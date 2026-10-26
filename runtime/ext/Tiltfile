@@ -1,0 +1,66 @@
+# =============================================================================
+# 🎯 Flisk-EXT - Extensions and IDE Components
+# =============================================================================
+# This is the Tiltfile entry point for the flisk-ext repo.
+# It exports UI enhancements and IDE components.
+#
+# Usage:
+#   v1alpha1.extension_repo(name='flisk-ext', url='https://github.com/flisk-sh/flisk')
+#   load('ext://flisk-ext', 'get_ide_components_path', ...)
+# =============================================================================
+
+# =============================================================================
+# UI ENHANCEMENTS (simplified for repos-only)
+# =============================================================================
+def load_ui_enhancements(config):
+    """
+    Load UI enhancements configuration.
+    Simplified version for pure extension loading.
+    """
+    enable_tooltips = config.get('enable_tooltips', True)
+    enable_icons = config.get('enable_icons', True)
+    enable_help_panel = config.get('enable_help_panel', True)
+    enable_cron_jobs_tab = config.get('enable_cron_jobs_tab', True)
+    
+
+    print("   - Tooltips: " + ("enabled" if enable_tooltips else "disabled"))
+    print("   - Icons: " + ("enabled" if enable_icons else "disabled"))
+    print("   - Help Panel: " + ("enabled" if enable_help_panel else "disabled"))
+    print("   - Cron Jobs Tab: " + ("enabled" if enable_cron_jobs_tab else "disabled"))
+
+# =============================================================================
+# IDE COMPONENTS PATHS
+# =============================================================================
+
+def get_ide_components_path():
+    """Return the path to IDE components."""
+    return './ide-components'
+
+def get_file_browser_script():
+    """Return the path to file browser server script."""
+    return './ide-components/file_browser/server.py'
+
+def get_code_viewer_script():
+    """Return the path to code viewer server script."""
+    return './ide-components/code_viewer/server.py'
+
+def get_config_inspector_script():
+    """Return the path to config inspector server script."""
+    return './ide-components/config_inspector/server.py'
+
+def get_code_executor_script():
+    """Return the path to code executor server script."""
+    return './ide-components/code_executor/server.py'
+
+# =============================================================================
+# PORTS
+# =============================================================================
+
+IDE_PORTS = {
+    'file_browser': 9765,
+    'code_viewer': 9766,
+    'config_inspector': 9767,
+    'code_executor': 9768,
+}
+
+print("✅ Flisk Extensions loaded: UI enhancements and IDE components")

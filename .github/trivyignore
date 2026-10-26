@@ -1,0 +1,9 @@
+# Accepted findings, reviewed in the PR that added them. Remove each line once npm ships a bundled dependency that fixes it.
+#
+# undici 6.29.0 and ip-address 10.7.2 are bundled inside npm 12.2.1 (the latest npm), pinned in .github/npm-cli/package-lock.json.
+# The fixes are in undici 6.29.1 and ip-address 10.7.4, which no npm release carries yet, and a bundled dependency cannot be
+# overridden from a lockfile. The npm CLI only runs inside the release workflow to publish the package with OIDC, against
+# registry.npmjs.org. It is not shipped to users and does not run on user input. All three advisories are denial of service.
+CVE-2026-109869 exp:2026-12-01
+CVE-2026-109924 exp:2026-12-01
+CVE-2026-111997 exp:2026-12-01

@@ -18,7 +18,7 @@
 
 ### Modified Capabilities
 
-- `tdk-up-lifecycle`: Starting a stack still requires the local runtime, and the readiness gate keeps reporting actionable fixes.
+- `flisk-up-lifecycle`: Starting a stack still requires the local runtime, and the readiness gate keeps reporting actionable fixes.
 
 ## Non-goals
 

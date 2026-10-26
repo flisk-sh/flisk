@@ -7,7 +7,7 @@
     "cli/src/commands/restart.ts",
     "cli/src/mcp/**",
     "cli/src/agent-runtimes/**",
-    "engine/**",
+    "runtime/engine/**",
     ".claude/skills/**",
     "scripts/sync-tdk-skills.sh",
     "tests/e2e/lib/**",

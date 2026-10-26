@@ -60,7 +60,7 @@ run of the same project; the Tilt log shows `[cached]` on the build steps.
 
 Run 1:
 
-```
+```text
    orders-api │ 🚀 orders-api running on http://localhost:4000
    orders-api │ 📊 Health check: http://localhost:4000/health
    orders-api │ 
@@ -74,7 +74,7 @@ Stop: flisk down
 
 Run 2:
 
-```
+```text
    orders-api │      Step 1 - 2.30s (Building Dockerfile: [shop_shop_orders-api:dev])
    orders-api │      Step 2 - 1.01s (Deploying)
    orders-api │      DONE IN: 3.33s 

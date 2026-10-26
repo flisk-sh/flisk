@@ -55,6 +55,15 @@ export const statusCommand = new Command("status")
         // The same look at Tilt feeds readiness and each service's state, so `flisk status` and `flisk ui` cannot disagree.
         let serviceStates = null;
         const tiltPort = getTiltPollingPort(process.env.TILT_PORT);
+        // Port plan is best effort; service URLs are shown in both JSON and terminal output.
+        let portPlan = null;
+        try {
+            const root = findProjectRoot();
+            portPlan = root ? await getHostPortPlan(root, { inspectDocker: false }) : null;
+        }
+        catch {
+            // Port planning failed; service URLs will be omitted from terminal output.
+        }
         if (tiltAvailable) {
             const text = await tiltGetUiResources(tiltPort);
             // `tilt get` has no -f flag; resources come from the running Tilt's API on its port, the same source as readiness.
@@ -89,14 +98,6 @@ export const statusCommand = new Command("status")
             }
         }
         if (options.json) {
-            let portPlan = null;
-            try {
-                const root = findProjectRoot();
-                portPlan = root ? await getHostPortPlan(root, { inspectDocker: false }) : null;
-            }
-            catch {
-                // Port planning is best effort; stack ports then list only the Tilt UI.
-            }
             const errors = queryError ? [{ code: "TILT_STATUS_UNAVAILABLE", message: queryError }] : [];
             const data = {
                 tilt: {
@@ -178,8 +179,16 @@ export const statusCommand = new Command("status")
                     : state.status === "error"
                         ? chalk.red("✗")
                         : chalk.yellow("…");
-                showDetail(`${mark} ${resource.name}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`);
+                const ports = buildServicePorts(resource, portPlan?.ingressHttp);
+                const urlPart = ports.url ? ` → ${ports.url}` : "";
+                showDetail(`${mark} ${resource.name}${urlPart}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`);
             }
+        }
+        else if (discovery.resources.length > 0) {
+            // Without a running Tilt, no service state can be read. Say so instead of printing nothing.
+            console.log();
+            console.log(chalk.bold("Services:"));
+            showDetail(`unknown: no Tilt answers on port ${tiltPort}, so nothing is confirmed running. Start with: flisk up`);
         }
         if (options.tilt && tiltAvailable) {
             console.log();

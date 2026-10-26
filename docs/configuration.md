@@ -1,6 +1,6 @@
 # Configuration and editor schemas
 
-Flisk has two JSON files with different jobs: each service's `service.json` describes that service, and `.tdk/project.json` configures the local project and its stack phases. The schemas help editors provide completion; Flisk's CLI behavior remains authoritative.
+Flisk has two JSON files with different jobs: each service's `service.json` describes that service, and `.flisk/project.json` configures the local project and its stack phases. The schemas help editors provide completion; Flisk's CLI behavior remains authoritative.
 
 ## `service.json`
 
@@ -19,7 +19,7 @@ Here is valid JSON; the explanations are outside the file so it remains parseabl
 }
 ```
 
-`appName`, `appType`, `stack`, and `schemaVersion` are required. A backend also needs a port in the supported backend range. See the [authoritative service schema](../engine/schemas/service-schema.json). The `$schema` property is supported by the schema. `flisk doctor` checks local environment readiness and discovered service issues.
+`appName`, `appType`, `stack`, and `schemaVersion` are required. A backend also needs a port in the supported backend range. See the [authoritative service schema](../runtime/engine/schemas/service-schema.json). The `$schema` property is supported by the schema. `flisk doctor` checks local environment readiness and discovered service issues.
 
 ### `smoke`: check the public URL after `flisk up`
 
@@ -43,16 +43,16 @@ Here is valid JSON; the explanations are outside the file so it remains parseabl
 - Before the first step, `flisk up` polls `GET <public URL><healthCheckPath>` (default `/health` for backend and `mcp` services; none for frontends and bring-your-own without `healthCheckPath`, which is the setting for a service that is not HTTP) until something other than a connection error, 404 or a 5xx answers, so a write is never the first request to reach a service that is still building or migrating. The wait has its own `timeoutSeconds` budget, and the steps then get a fresh one. If the service never answers, the first step runs anyway and reports the failure.
 - A 404, 502, 503 or 504 means the route is not up yet and is retried for `timeoutSeconds` (default 60). A thrown error is retried for GET, HEAD and OPTIONS; for a write (POST, PUT, ...) only when the error proves the request was never sent (connection refused, DNS failure), never after a timeout or reset, which may have reached the service. Any other wrong status fails at once, so a write is never repeated.
 - A failed step stops Tilt, prints the service, step, URL, method, status and a body snippet, and makes `flisk up` exit non-zero. The containers are left running for inspection; `flisk down` removes them.
-- Every step that ran leaves a record under `.tdk/smoke/<service>/<step-slug>/` (`<step-slug>` is the lowercased step name, or `step-N` when unnamed). `latest.json` holds the service, step, method, public URL, expected and actual status, `truncated`, the byte length and the body file name; `body.txt` holds the response body, capped at 64 KiB (`truncated: true` when the cap cut it). A step that got no response (after retries) writes `latest.json` with `status: null` and the error code, and no body file. When a step passes, `last-success.json` and `last-success-body.txt` are replaced with that response; a failure never touches them, so a later regression can be compared with the last good response (`diff last-success-body.txt body.txt`). The failure line ends with `(record: <path to latest.json>)`. Before the first record is written, `flisk up` makes sure the project `.gitignore` ignores `.tdk/smoke/`, and warns when it cannot; Git ignore does not untrack files that were added before. `flisk down` leaves the records, and nothing is uploaded from your machine; `rm -rf .tdk/smoke/` removes them. Bodies are masked before they are stored or shown: the secret values of the project's `.env` are replaced with `[REDACTED]` in the stored body, in the last-success copy, in the printed snippet, and in the recorded URL and error. That is not a secret scanner: it covers the values the `.env` holds and nothing else, and a project without a `.env` has nothing to mask. When the `.env` exists but cannot be read, the values are unknown, so the runner withholds the body and the URL and keeps only the safe metadata instead of storing unmasked text. Request headers and cookies are not stored.
+- Every step that ran leaves a record under `.flisk/smoke/<service>/<step-slug>/` (`<step-slug>` is the lowercased step name, or `step-N` when unnamed). `latest.json` holds the service, step, method, public URL, expected and actual status, `truncated`, the byte length and the body file name; `body.txt` holds the response body, capped at 64 KiB (`truncated: true` when the cap cut it). A step that got no response (after retries) writes `latest.json` with `status: null` and the error code, and no body file. When a step passes, `last-success.json` and `last-success-body.txt` are replaced with that response; a failure never touches them, so a later regression can be compared with the last good response (`diff last-success-body.txt body.txt`). The failure line ends with `(record: <path to latest.json>)`. Before the first record is written, `flisk up` makes sure the project `.gitignore` ignores `.flisk/smoke/`, and warns when it cannot; Git ignore does not untrack files that were added before. `flisk down` leaves the records, and nothing is uploaded from your machine; `rm -rf .flisk/smoke/` removes them. Bodies are masked before they are stored or shown: the secret values of the project's `.env` are replaced with `[REDACTED]` in the stored body, in the last-success copy, in the printed snippet, and in the recorded URL and error. That is not a secret scanner: it covers the values the `.env` holds and nothing else, and a project without a `.env` has nothing to mask. When the `.env` exists but cannot be read, the values are unknown, so the runner withholds the body and the URL and keeps only the safe metadata instead of storing unmasked text. Request headers and cookies are not stored.
 - No `smoke` block, no check: existing projects behave as before. Workers and bring-your-own services with `exposeViaProxy: false` have no public route and are skipped. `flisk doctor` reports a malformed block, and `flisk up` reports one as a failed smoke check instead of crashing.
 
-Not covered: a browser test (HTTP only), proving which database answered (a read-back of the written id catches a wrong store, not which one), a Traefik `pathPrefix` override (the check uses the `apiPath` or `basePath` route that `flisk up` prints), and `--dry-run` (nothing is started, so nothing is checked). The ingress port is the one `flisk up` selected (`TDK_HTTP_PORT` or the fallback range).
+Not covered: a browser test (HTTP only), proving which database answered (a read-back of the written id catches a wrong store, not which one), a Traefik `pathPrefix` override (the check uses the `apiPath` or `basePath` route that `flisk up` prints), and `--dry-run` (nothing is started, so nothing is checked). The ingress port is the one `flisk up` selected (`FLISK_HTTP_PORT` or the fallback range).
 
 `tests/e2e/journeys/smoke/verify-smoke.sh` checks both outcomes through a real `flisk up`.
 
 A short drawing of the pass and fail paths: [Smoke check](smoke.md).
 
-## `.tdk/project.json`
+## `.flisk/project.json`
 
 `flisk project` creates this file. Here is a minimal valid one; the explanations are outside the file so it remains parseable:
 
@@ -115,14 +115,14 @@ For VS Code, associate both filenames with their schema in workspace settings. T
       "url": "https://flisk.sh/schema.service.json"
     },
     {
-      "fileMatch": ["/.tdk/project.json"],
+      "fileMatch": ["/.flisk/project.json"],
       "url": "https://flisk.sh/project-schema.json"
     }
   ]
 }
 ```
 
-The service schema is also in [`engine/schemas/service-schema.json`](../engine/schemas/service-schema.json), and the current project configuration schema is [`engine/schemas/project-schema.json`](../engine/schemas/project-schema.json). Run `flisk config verify` to check generated project files, validate discovered service manifests, and compare generated service files with their snapshots. It does not validate Helm values. `flisk doctor` checks local readiness and service concerns. See [generated service files](generated-files.md).
+The service schema is also in [`runtime/engine/schemas/service-schema.json`](../runtime/engine/schemas/service-schema.json), and the current project configuration schema is [`runtime/engine/schemas/project-schema.json`](../runtime/engine/schemas/project-schema.json). Run `flisk config verify` to check generated project files, validate discovered service manifests, and compare generated service files with their snapshots. It does not validate Helm values. `flisk doctor` checks local readiness and service concerns. See [generated service files](generated-files.md).
 
 ### Which diagnostic command should I run?
 
@@ -167,7 +167,7 @@ See the [machine-readable CLI reference](reference/machine-readable-cli.md) for 
 
 ### The service schema and how it is published
 
-`engine/schemas/service-schema.json` is the source of truth; the copy at `https://flisk.sh/schema.service.json` is a
+`runtime/engine/schemas/service-schema.json` is the source of truth; the copy at `https://flisk.sh/schema.service.json` is a
 deploy artifact for editors. It is only an editor hint. The CLI provider registries are the contract: the CLI rejects an unknown
 `framework` or `language` id before it writes a resource. So `framework` and `language` are open strings with an id pattern, their
 `examples` are a short hint rather than a list of every provider, and adding a provider never changes the schema.

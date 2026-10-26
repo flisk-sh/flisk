@@ -9,6 +9,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const registration = readFileSync(
   join(
     repoRoot,
+    "runtime",
     "engine",
     "topologies",
     "tilt",
@@ -19,7 +20,7 @@ const registration = readFileSync(
   "utf-8",
 );
 
-// Tilt resolves sync() local paths against the Tiltfile directory (.tdk/.tdk-out), not the
+// Tilt resolves sync() local paths against the Tiltfile directory (.flisk/.flisk-out), not the
 // docker_build context. A project-relative path never matches the changed files, so every
 // edit fell back to a full rebuild ("Found file(s) not matching any sync").
 it("anchors live-update sync sources at the project root", () => {
@@ -34,10 +35,13 @@ it("anchors live-update sync sources at the project root", () => {
 
 it("passes the project root and language to the live-update rules by keyword", () => {
   expect(registration).toContain(
-    "def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False)",
+    "def _build_live_update_rules(res_path, full_res_path, syncs, project_root='', language='bun', go_live_reload=False, node_frontend=False)",
   );
   expect(registration).toContain("project_root=config.get('project_root', ''),");
   expect(registration).toContain("language=config.get('manifest', {}).get('language', 'bun'),");
+  expect(registration).toContain(
+    "node_frontend=Docker.is_next_frontend(config.get('manifest', {})),",
+  );
 });
 
 it("gives Rust, and Go without dev.liveReload, no live-update rules, so Tilt rebuilds the image on change", () => {
@@ -67,9 +71,9 @@ it("does not sync the Bun/npm registry config for Node backends", () => {
   );
 });
 
-it("skips bun install step for Python and Node backends", () => {
+it("skips bun install step for Python, Node backends and Next.js frontends (a Node image)", () => {
   expect(registration).toContain(
-    "if language == 'python' or language == 'node':\n        return live_update_rules",
+    "if language == 'python' or language == 'node' or node_frontend:\n        return live_update_rules",
   );
 });
 

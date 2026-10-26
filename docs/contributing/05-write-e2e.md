@@ -62,7 +62,7 @@ e2e_main "$@"                # list | self-check | all | diagnostics | cleanup |
   "group": "resource-types",
   "suite": "agent",
   "description": "The agent resource on a live stack: ...",
-  "paths": ["cli/src/commands/agent.ts", "cli/src/mcp/**", "engine/**", "tests/e2e/resource-types/agent/**"],
+  "paths": ["cli/src/commands/agent.ts", "cli/src/mcp/**", "runtime/engine/**", "tests/e2e/resource-types/agent/**"],
   "cases": ["D1", "D2", "D3", "A1", "A2", "..."],
   "triggers": ["pr", "nightly", "release", "manual"],
   "timeoutMinutes": 30,
@@ -88,7 +88,7 @@ These rules come from real failures in the agent suite. Each one cost a red CI r
 
 Most suites boot a stack. A `platforms` suite checks a host environment instead, so it has no stack, no ports and no project: it runs the CLI on the machine and asserts what it does there.
 
-[`tests/e2e/platforms/windows-hardware`](../../tests/e2e/platforms/windows-hardware/) is the worked example. It runs the **published** `tdk-windows-amd64.exe` on a real Windows 11 AMD64 machine: the release checksums, the official PowerShell installer, the version and the bundled engine, the native-Windows refusal contract, and the host differences a GitHub-hosted runner cannot show (a path with a space, PATH lookup, a path longer than 260 characters).
+[`tests/e2e/platforms/windows-hardware`](../../tests/e2e/platforms/windows-hardware/) is the worked example. It runs the **published** `flisk-windows-amd64.exe` on a real Windows 11 AMD64 machine: the release checksums, the official PowerShell installer, the version and the bundled engine, the native-Windows refusal contract, and the host differences a GitHub-hosted runner cannot show (a path with a space, PATH lookup, a path longer than 260 characters).
 
 Two things make it different from the other suites:
 
@@ -111,7 +111,7 @@ The findings report the suite writes (host facts, one row per case, the SHA-256 
 | `start_stack`, `wait_status_url` | `flisk up` in the background, then wait until the resource is routed |
 | `running_container`, `wait_restarted` | find a resource's container, and wait for a replaced one after a restart |
 | `traefik_request`, `traefik_request_ok` | curl a resource's Traefik route; the `_ok` form fails on non-2xx |
-| `with_stub`, `stop_stub` | stand-in server (`stub.mjs`: hang, stall, status, json) behind `TDK_SERVICE_BASE_URL` |
+| `with_stub`, `stop_stub` | stand-in server (`stub.mjs`: hang, stall, status, json) behind `FLISK_SERVICE_BASE_URL` |
 | `mcp_session`, `mcp_structured` | one `flisk mcp` stdio session through `mcp-client.mjs` |
 | `e2e_diagnostics`, `e2e_cleanup` | failure artifacts; remove the scratch stack, volumes, networks and folder |
 
@@ -142,7 +142,7 @@ tests/e2e/resource-types/agent/run.sh A4
 tests/e2e/resource-types/agent/run.sh cleanup
 ```
 
-Without `CASES`, `make test-e2e` runs every case in order, collects diagnostics on failure and cleans up either way. Scratch state goes to `$E2E_ROOT/<suite>` (default `$TMPDIR/tdk-e2e`), and `$OUT/<name>.out` holds each command's output.
+Without `CASES`, `make test-e2e` runs every case in order, collects diagnostics on failure and cleans up either way. Scratch state goes to `$E2E_ROOT/<suite>` (default `$TMPDIR/flisk-e2e`), and `$OUT/<name>.out` holds each command's output.
 
 ## How CI runs it
 

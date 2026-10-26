@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="540" viewBox="0 0 900 540" role="img" aria-label="Four flisk commands create a project, an API, and a website, then start them">
+<title>Four flisk commands create a project, an API, and a website, then start them</title>
+<style>
+@keyframes a0{0%,1.67%{opacity:0}2.78%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a0{opacity:0;animation:a0 18s linear infinite}
+@keyframes c1{0%,3.89%{transform:translateX(0);opacity:1;animation-timing-function:steps(19,end)}10.56%{transform:translateX(162.3px);opacity:1}12.22%,100%{transform:translateX(162.3px);opacity:0}}
+.c1{animation:c1 18s linear infinite}
+@keyframes a2{0%,3.89%{opacity:0}5.00%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a2{opacity:0;animation:a2 18s linear infinite}
+@keyframes a3{0%,12.78%{opacity:0}13.89%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a3{opacity:0;animation:a3 18s linear infinite}
+@keyframes a4{0%,13.89%{opacity:0}15.00%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a4{opacity:0;animation:a4 18s linear infinite}
+@keyframes a5{0%,15.00%{opacity:0}16.11%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a5{opacity:0;animation:a5 18s linear infinite}
+@keyframes a6{0%,19.44%{opacity:0}20.56%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a6{opacity:0;animation:a6 18s linear infinite}
+@keyframes c7{0%,21.11%{transform:translateX(0);opacity:1;animation-timing-function:steps(59,end)}33.33%{transform:translateX(503.9px);opacity:1}35.00%,100%{transform:translateX(503.9px);opacity:0}}
+.c7{animation:c7 18s linear infinite}
+@keyframes a8{0%,21.11%{opacity:0}22.22%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a8{opacity:0;animation:a8 18s linear infinite}
+@keyframes a9{0%,35.00%{opacity:0}36.11%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a9{opacity:0;animation:a9 18s linear infinite}
+@keyframes a10{0%,38.89%{opacity:0}40.00%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a10{opacity:0;animation:a10 18s linear infinite}
+@keyframes c11{0%,40.56%{transform:translateX(0);opacity:1;animation-timing-function:steps(58,end)}52.22%{transform:translateX(495.3px);opacity:1}53.89%,100%{transform:translateX(495.3px);opacity:0}}
+.c11{animation:c11 18s linear infinite}
+@keyframes a12{0%,40.56%{opacity:0}41.67%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a12{opacity:0;animation:a12 18s linear infinite}
+@keyframes a13{0%,53.89%{opacity:0}55.00%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a13{opacity:0;animation:a13 18s linear infinite}
+@keyframes a14{0%,57.78%{opacity:0}58.89%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a14{opacity:0;animation:a14 18s linear infinite}
+@keyframes c15{0%,59.44%{transform:translateX(0);opacity:1;animation-timing-function:steps(13,end)}63.33%{transform:translateX(111.0px);opacity:1}65.00%,100%{transform:translateX(111.0px);opacity:0}}
+.c15{animation:c15 18s linear infinite}
+@keyframes a16{0%,59.44%{opacity:0}60.56%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a16{opacity:0;animation:a16 18s linear infinite}
+@keyframes a17{0%,65.56%{opacity:0}66.67%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a17{opacity:0;animation:a17 18s linear infinite}
+@keyframes a18{0%,67.22%{opacity:0}68.33%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a18{opacity:0;animation:a18 18s linear infinite}
+@keyframes a19{0%,68.33%{opacity:0}69.44%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a19{opacity:0;animation:a19 18s linear infinite}
+@keyframes a20{0%,69.44%{opacity:0}70.56%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a20{opacity:0;animation:a20 18s linear infinite}
+@keyframes a21{0%,70.56%{opacity:0}71.67%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a21{opacity:0;animation:a21 18s linear infinite}
+@keyframes a22{0%,75.56%{opacity:0}76.67%,96.67%{opacity:1}97.78%,100%{opacity:0}}
+.a22{opacity:0;animation:a22 18s linear infinite}
+@media (prefers-reduced-motion: reduce){.anim{animation:none!important;opacity:1!important}.cover,.transient{display:none}}
+</style>
+<rect x="0.5" y="0.5" width="899" height="539" rx="12" fill="#0c1417" stroke="#26383f"/>
+<path d="M0.5 36 V12.5 a12 12 0 0 1 12 -12 H887.5 a12 12 0 0 1 12 12 V36 Z" fill="#1b2a30"/>
+<line x1="0.5" y1="36" x2="899.5" y2="36" stroke="#26383f"/>
+<circle cx="20" cy="18" r="5" fill="#26383f"/>
+<circle cx="38" cy="18" r="5" fill="#26383f"/>
+<circle cx="56" cy="18" r="5" fill="#26383f"/>
+<text x="450" y="22.5" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9aa6aa">Terminal  ·  ~/my-shop</text>
+<g class="anim a0"><text x="28" y="68" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#62737a" xml:space="preserve"># 1. Start a project</text></g>
+<g class="anim a2"><text x="28" y="90" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#61f0d3" xml:space="preserve">~/my-shop</text><text x="104.86" y="90" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve"> $ </text><text x="130.5" y="90" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#f4f7f6" xml:space="preserve">flisk project --yes</text><clipPath id="kc1"><rect x="128.5" y="75.3" width="767.5" height="20.3"/></clipPath><g clip-path="url(#kc1)"><g class="cover c1"><rect x="129.5" y="75.3" width="190.3" height="20.3" fill="#0c1417"/><rect x="130.5" y="75.3" width="8.5" height="20.3" fill="#61f0d3" opacity="0.85"/></g></g></g>
+<g class="anim a3"><text x="28" y="112" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve">✓ Created: .flisk/project.json</text></g>
+<g class="anim a4"><text x="28" y="134" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve">✓ Created: .env (the defaults work as-is)</text></g>
+<g class="anim a5"><text x="28" y="156" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#f4f7f6" xml:space="preserve">✅ Project configuration complete!</text></g>
+<g class="anim a6"><text x="28" y="188" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#62737a" xml:space="preserve"># 2. Add an API</text></g>
+<g class="anim a8"><text x="28" y="210" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#61f0d3" xml:space="preserve">~/my-shop</text><text x="104.86" y="210" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve"> $ </text><text x="130.5" y="210" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#f4f7f6" xml:space="preserve">flisk resource orders-api --type backend --stack shop --yes</text><clipPath id="kc7"><rect x="128.5" y="195.3" width="767.5" height="20.3"/></clipPath><g clip-path="url(#kc7)"><g class="cover c7"><rect x="129.5" y="195.3" width="531.9" height="20.3" fill="#0c1417"/><rect x="130.5" y="195.3" width="8.5" height="20.3" fill="#61f0d3" opacity="0.85"/></g></g></g>
+<g class="anim a9"><text x="28" y="232" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#f4f7f6" xml:space="preserve">✅ Resource created successfully!</text></g>
+<g class="anim a10"><text x="28" y="264" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#62737a" xml:space="preserve"># 3. Add a website</text></g>
+<g class="anim a12"><text x="28" y="286" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#61f0d3" xml:space="preserve">~/my-shop</text><text x="104.86" y="286" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve"> $ </text><text x="130.5" y="286" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#f4f7f6" xml:space="preserve">flisk resource shop-web --type frontend --stack shop --yes</text><clipPath id="kc11"><rect x="128.5" y="271.3" width="767.5" height="20.3"/></clipPath><g clip-path="url(#kc11)"><g class="cover c11"><rect x="129.5" y="271.3" width="523.3" height="20.3" fill="#0c1417"/><rect x="130.5" y="271.3" width="8.5" height="20.3" fill="#61f0d3" opacity="0.85"/></g></g></g>
+<g class="anim a13"><text x="28" y="308" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#f4f7f6" xml:space="preserve">✅ Resource created successfully!</text></g>
+<g class="anim a14"><text x="28" y="340" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#62737a" xml:space="preserve"># 4. Run it all</text></g>
+<g class="anim a16"><text x="28" y="362" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#61f0d3" xml:space="preserve">~/my-shop</text><text x="104.86" y="362" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve"> $ </text><text x="130.5" y="362" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#f4f7f6" xml:space="preserve">flisk up shop</text><clipPath id="kc15"><rect x="128.5" y="347.3" width="767.5" height="20.3"/></clipPath><g clip-path="url(#kc15)"><g class="cover c15"><rect x="129.5" y="347.3" width="139.0" height="20.3" fill="#0c1417"/><rect x="130.5" y="347.3" width="8.5" height="20.3" fill="#61f0d3" opacity="0.85"/></g></g></g>
+<g class="anim a17"><text x="28" y="384" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve">Starting 2 services from stack &quot;shop&quot;...</text></g>
+<g class="anim a18"><text x="28" y="406" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve">🌍 Frontend URLs:</text></g>
+<g class="anim a19"><text x="28" y="428" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#61f0d3" xml:space="preserve">  - shop-web: http://app.my-shop.localhost/shop-web/health</text></g>
+<g class="anim a20"><text x="28" y="450" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa6aa" xml:space="preserve">🔧 Backend API URLs:</text></g>
+<g class="anim a21"><text x="28" y="472" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#61f0d3" xml:space="preserve">  - orders-api: http://api.my-shop.localhost/api/orders/health</text></g>
+<g class="anim a22"><text x="28" y="504" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#62737a" xml:space="preserve"># You wrote no Dockerfile, Compose file, routing, or secrets. Flisk did.</text></g>
+</svg>

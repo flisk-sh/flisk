@@ -257,5 +257,54 @@ describe("url-actions", () => {
       );
       expect(success).toBe(false);
     });
+
+    it("resolves false on stdin error", async () => {
+      const mockStdin = Object.assign(new EventEmitter(), {
+        write: vi.fn(),
+        end: vi.fn(),
+      });
+      const mockChild = Object.assign(new EventEmitter(), {
+        stdin: mockStdin,
+      });
+
+      const mockSpawn = vi.fn().mockImplementation(() => {
+        setTimeout(() => mockStdin.emit("error", new Error("EPIPE")), 5);
+        return mockChild;
+      });
+
+      const success = await copyToClipboard(
+        "http://localhost:3000",
+        "linux",
+        mockSpawn as unknown as SpawnFunction,
+      );
+      expect(success).toBe(false);
+    });
+
+    it("resolves false when stdin is not available", async () => {
+      const mockChild = Object.assign(new EventEmitter(), {
+        stdin: null,
+      });
+      const mockSpawn = vi.fn().mockReturnValue(mockChild);
+
+      const success = await copyToClipboard(
+        "http://localhost:3000",
+        "linux",
+        mockSpawn as unknown as SpawnFunction,
+      );
+      expect(success).toBe(false);
+    });
+
+    it("resolves false if spawn throws synchronously", async () => {
+      const mockSpawn = vi.fn().mockImplementation(() => {
+        throw new Error("spawn ENOENT");
+      });
+
+      const success = await copyToClipboard(
+        "http://localhost:3000",
+        "linux",
+        mockSpawn as unknown as SpawnFunction,
+      );
+      expect(success).toBe(false);
+    });
   });
 });

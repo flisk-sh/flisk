@@ -30,8 +30,13 @@ app.get('/health/db', async (c) => {
 `
     : "";
   return `import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 ${drizzleImports}
 const app = new Hono();
+
+// The frontend runs on its own *.localhost origin (app.<project>.localhost), so the browser needs CORS to call this API.
+const LOCAL_FRONTEND_ORIGIN = /^https?:\\/\\/([a-z0-9-]+\\.)+localhost(:\\d+)?$/;
+app.use('*', cors({ origin: (origin) => (LOCAL_FRONTEND_ORIGIN.test(origin) ? origin : undefined) }));
 
 // Health check endpoint (required by TILT_RESOURCE_DEFAULTS.star)
 app.get('/health', (c) => {

@@ -1,8 +1,10 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "rootDir": "..",
+    "paths": { "vitest": ["./node_modules/vitest"] }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../tests/generated/**/*", "../tests/runtime-layout/**/*"],
   "exclude": ["node_modules", "dist"]
 }

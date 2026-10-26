@@ -53,15 +53,22 @@ function globMatchesDir(patternSegments: string[], dirSegments: string[]): boole
   );
 }
 
-/** `discovery.paths` from .tdk/project.json, or the generic default when unset/unreadable. */
+/** `discovery.paths` from .flisk/project.json, or the generic default when unset/unreadable. */
 export function readDiscoveryPaths(projectRoot: string): string[] {
-  const configPath = join(projectRoot, ".tdk", PROJECT_JSON);
+  const configPath = join(projectRoot, ".flisk", PROJECT_JSON);
   if (!existsSync(configPath)) return DEFAULT_DISCOVERY_PATHS;
 
+  let reason = "discovery.paths must be an array of strings";
   try {
     const paths = JSON.parse(readFileSync(configPath, "utf-8"))?.discovery?.paths;
+    if (paths === undefined) return DEFAULT_DISCOVERY_PATHS;
     if (Array.isArray(paths) && paths.every((p) => typeof p === "string")) return paths;
-  } catch {}
+  } catch (error) {
+    reason = String(error);
+  }
+  console.warn(
+    `Ignoring discovery configuration in ${configPath}: ${reason}; using default paths: ${DEFAULT_DISCOVERY_PATHS.join(", ")}`,
+  );
   return DEFAULT_DISCOVERY_PATHS;
 }
 

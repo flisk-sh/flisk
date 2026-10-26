@@ -23,18 +23,18 @@ Gönderdiğiniz incelemeden sorumlu olan AI değil, sizsiniz.
 
 **Nasıl çalışıyoruz**
 
-- [ ] [Katkı rehberi](../../../CONTRIBUTING.md): etiketler, issue sahipliği ve DCO imzası.
+- [ ] [Katkı rehberi](../../../.github/CONTRIBUTING.md): etiketler, issue sahipliği ve DCO imzası.
 - [ ] [1. Değişikliğe hazırlanın](01-first-change-tr.md): bir değişikliğin ne zaman OpenSpec önerisi gerektirdiği.
 - [ ] [2. Değişiklik türüne göre rehberler](02-feature-recipes-tr.md): kodun nerede olduğu ve her değişikliğin hangi kontrolleri gerektirdiği.
 - [ ] [3. Pull request açın](03-open-a-pr-tr.md): iyi bir PR'da neler olması gerektiği; önce-sonra kanıtı dahil.
 
 **Herkesin uyduğu kurallar**
 
-- [ ] [Davranış kuralları](../../../CODE_OF_CONDUCT.md): incelemelerde birbirimizle nasıl konuştuğumuz.
-- [ ] [Güvenlik politikası](../../../SECURITY.md): güvenlik sorunlarını özel olarak bildirin, asla PR yorumunda bildirmeyin.
-- [ ] [Yönetişim](../../../GOVERNANCE.md) ve [Bakımcılar](../../../MAINTAINERS.md): kimin karar verdiği ve kimin birleştirdiği.
+- [ ] [Davranış kuralları](../../../.github/CODE_OF_CONDUCT.md): incelemelerde birbirimizle nasıl konuştuğumuz.
+- [ ] [Güvenlik politikası](../../../.github/SECURITY.md): güvenlik sorunlarını özel olarak bildirin, asla PR yorumunda bildirmeyin.
+- [ ] [Yönetişim](../../project/GOVERNANCE.md) ve [Bakımcılar](../../project/MAINTAINERS.md): kimin karar verdiği ve kimin birleştirdiği.
 
-Sonra bir kez deneyin: [hızlı kurulumu](../../../CONTRIBUTING.md#quick-setup) çalıştırın; böylece bir PR'ı checkout edip kontrollerini kendiniz çalıştırabilirsiniz.
+Sonra bir kez deneyin: [hızlı kurulumu](../../../.github/CONTRIBUTING.md#quick-setup) çalıştırın; böylece bir PR'ı checkout edip kontrollerini kendiniz çalıştırabilirsiniz.
 
 ## Kısa özet
 
@@ -170,7 +170,7 @@ Değişiklik istemek, kapatmakla aynı şey değildir. PR'ları yalnızca bakım
 - Küçük şeyleri `nit:` veya `optional:` ile etiketleyin; yazarın birleştirmeyi engellemediğini bilmesi için.
 - Kişiyi değil, kodu inceleyin.
 
-Her yorumda [Davranış kurallarına](../../../CODE_OF_CONDUCT.md) uyun.
+Her yorumda [Davranış kurallarına](../../../.github/CODE_OF_CONDUCT.md) uyun.
 
 ## Terminalden (isteğe bağlı)
 
@@ -196,4 +196,4 @@ gh pr review 123 --request-changes --body "The new flag is never passed to the g
 
 - Herkes yorum yapabilir, onaylayabilir veya değişiklik isteyebilir. Her inceleme bakımcıların daha hızlı karar vermesine yardımcı olur.
 - Kendi PR'nızı onaylayamazsınız.
-- Yalnızca [bakımcılar](../../../MAINTAINERS.md) birleştirir. Birleştirmeden önce incelemeleri ve gerekli kontrollerin geçtiğini doğrularlar.
+- Yalnızca [bakımcılar](../../project/MAINTAINERS.md) birleştirir. Birleştirmeden önce incelemeleri ve gerekli kontrollerin geçtiğini doğrularlar.

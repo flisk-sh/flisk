@@ -1,8 +1,8 @@
 # Flisk에 기여하기
 
-[English](../../../CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | [繁體中文](CONTRIBUTING-zh_tw.md) | [日本語](CONTRIBUTING-ja.md) | 한국어
+[English](../../../.github/CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | [繁體中文](CONTRIBUTING-zh_tw.md) | [日本語](CONTRIBUTING-ja.md) | 한국어
 
-> 이 페이지는 [CONTRIBUTING.md](../../../CONTRIBUTING.md)의 번역입니다. 내용이 다르면 영어 버전이 기준입니다. 링크된 가이드는 현재 영어로만 제공됩니다.
+> 이 페이지는 [CONTRIBUTING.md](../../../.github/CONTRIBUTING.md)의 번역입니다. 내용이 다르면 영어 버전이 기준입니다. 링크된 가이드는 현재 영어로만 제공됩니다.
 
 환영합니다! 작은 수정도 큰 기능도 모두 도움이 됩니다. 먼저 짧은 [기여자 가이드](../README.md)부터 시작하세요. 바꿀 내용을 찾고, 수정하고, 확인하고, pull request를 여는 과정을 차례로 안내합니다.
 
@@ -86,16 +86,16 @@ bun run typecheck && bun run lint && bun run test   # 약 1분; 무엇이든 바
 
 ## 커밋에 서명하기
 
-모든 커밋에는 [Developer Certificate of Origin](../../../DCO) 서명이 필요합니다. `git commit -s`로 추가하면 `Signed-off-by: Your Name <you@example.com>`이 붙습니다. 기존 커밋을 고치려면 `git rebase --signoff origin/main`을 실행하고 브랜치를 force-push하세요. 이 줄이 없는 커밋이 있으면 pull request 검사가 실패합니다.
+모든 커밋에는 [Developer Certificate of Origin](../../project/DCO) 서명이 필요합니다. `git commit -s`로 추가하면 `Signed-off-by: Your Name <you@example.com>`이 붙습니다. 기존 커밋을 고치려면 `git rebase --signoff origin/main`을 실행하고 브랜치를 force-push하세요. 이 줄이 없는 커밋이 있으면 pull request 검사가 실패합니다.
 
 ## 도입 팀 목록에 팀 추가하기
 
-여러분의 저장소에서 Flisk를 사용하고 있나요? 두 가지 방법으로 [ADOPTERS.md](../../../ADOPTERS.md)에 등록할 수 있습니다. [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) 이슈 양식을 열거나, pull request로 표에 행을 추가하세요. [What counts](../../../ADOPTERS.md#what-counts)에서 무엇을 링크해야 하는지, 무엇이 해당하지 않는지 설명합니다.
+여러분의 저장소에서 Flisk를 사용하고 있나요? 두 가지 방법으로 [ADOPTERS.md](../../project/ADOPTERS.md)에 등록할 수 있습니다. [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) 이슈 양식을 열거나, pull request로 표에 행을 추가하세요. [What counts](../../project/ADOPTERS.md#what-counts)에서 무엇을 링크해야 하는지, 무엇이 해당하지 않는지 설명합니다.
 
 ## 거버넌스
 
-결정 방식과 메인테이너 추가 방법은 [GOVERNANCE.md](../../../GOVERNANCE.md), 병합 권한이 있는 사람은 [MAINTAINERS.md](../../../MAINTAINERS.md), Flisk를 사용하는 팀은 [ADOPTERS.md](../../../ADOPTERS.md)를 참고하세요.
+결정 방식과 메인테이너 추가 방법은 [GOVERNANCE.md](../../project/GOVERNANCE.md), 병합 권한이 있는 사람은 [MAINTAINERS.md](../../project/MAINTAINERS.md), Flisk를 사용하는 팀은 [ADOPTERS.md](../../project/ADOPTERS.md)를 참고하세요.
 
 ## 친절하게
 
-참여함으로써 [행동 강령](../../../CODE_OF_CONDUCT.md)을 따르는 데 동의하게 됩니다. 보안 문제는 공개 이슈가 아니라 [SECURITY.md](../../../SECURITY.md)에 따라 비공개로 보고해 주세요.
+참여함으로써 [행동 강령](../../../.github/CODE_OF_CONDUCT.md)을 따르는 데 동의하게 됩니다. 보안 문제는 공개 이슈가 아니라 [SECURITY.md](../../../.github/SECURITY.md)에 따라 비공개로 보고해 주세요.

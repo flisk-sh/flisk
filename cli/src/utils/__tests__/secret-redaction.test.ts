@@ -18,7 +18,7 @@ import {
 const dirs: string[] = [];
 
 function projectWithEnv(content: string | undefined): string {
-  const root = mkdtempSync(join(tmpdir(), "tdk-redact-"));
+  const root = mkdtempSync(join(tmpdir(), "flisk-redact-"));
   dirs.push(root);
   if (content !== undefined) writeFileSync(join(root, ".env"), content);
   return root;

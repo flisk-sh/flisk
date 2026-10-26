@@ -1,4 +1,4 @@
-# The real fastapi/full-stack-fastapi-template backend, cloned at build time and run with TDK's DATABASE_URL.
+# The real fastapi/full-stack-fastapi-template backend, cloned at build time and run with Flisk's DATABASE_URL.
 FROM python:3.14@sha256:1eb6b7d4b76454b1de8317863ac3213b678c337b27e604a4e3fb70bddbb2bad7
 ENV PYTHONUNBUFFERED=1
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/

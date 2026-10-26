@@ -194,7 +194,7 @@ const projectJson = (name = "config-boundaries", optionalInfra: Record<string, b
 const serviceFile = (root: string, dir: string) => path.join(root, "services", dir, "service.json");
 
 const readProjectJson = (root: string) =>
-  JSON.parse(fs.readFileSync(path.join(root, ".tdk", "project.json"), "utf-8")) as {
+  JSON.parse(fs.readFileSync(path.join(root, ".flisk", "project.json"), "utf-8")) as {
     optional_infra: Record<string, boolean>;
   };
 
@@ -206,9 +206,12 @@ describe("config regenerate --dry-run", () => {
 
     expect(result.status).toBeUndefined();
     expect(result.stdout).toContain("Dry run - comparing current files");
-    expect(result.stdout.match(/Status: NEW/g)).toHaveLength(3);
+    // Now grouped by category; should show NEW for each group's files (actual master config files)
+    expect(result.stdout).toContain("📁 TILT_TECH_STACK.star");
+    expect(result.stdout).toContain("📁 TILT_RESOURCE_DEFAULTS.star");
+    expect(result.stdout).toContain("📁 spec.master");
     expect(result.stdout).toContain("Run without --dry-run to apply these changes.");
-    expect(fs.existsSync(path.join(root, ".tdk", ".tdk-out"))).toBe(false);
+    expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out"))).toBe(false);
   });
 
   it("shows line counts and the first changed line for stale files, and truncates long lines", async () => {
@@ -224,16 +227,17 @@ describe("config regenerate --dry-run", () => {
     const result = await runCommandInProcess(configCommand, ["regenerate", "--dry-run"], root);
 
     expect(result.status).toBeUndefined();
-    expect(result.stdout).toContain("Status: MODIFIED");
-    // The stale spec.master has fewer lines than the generated file, so the count goes up.
-    expect(result.stdout).toMatch(/Lines: 2 → \d+ \(\+\d+\)/);
-    // The stale tech stack has more lines, so the count goes down.
-    expect(result.stdout).toMatch(/Lines: 300 → \d+ \(-\d+\)/);
-    expect(result.stdout).toContain("First change around line 1:");
+    // New grouped output shows modifications for actual master config files
+    expect(result.stdout).toContain("📝 TILT_TECH_STACK.star");
+    expect(result.stdout).toContain("📝 spec.master");
+    // Line count changes
+    expect(result.stdout).toMatch(/Lines: \+\d+/);
+    expect(result.stdout).toMatch(/Lines: -\d+/);
+    // The diff output shows context around changes
     expect(result.stdout).toContain(`- ${"x".repeat(60)}...`);
     expect(result.stdout).toContain("Run without --dry-run to apply these changes.");
     // Dry run never touches the stale files.
-    expect(fs.readFileSync(path.join(root, ".tdk", ".tdk-out", "spec.master"), "utf-8")).toBe(
+    expect(fs.readFileSync(path.join(root, ".flisk", ".flisk-out", "spec.master"), "utf-8")).toBe(
       "stale\n",
     );
   });
@@ -245,7 +249,9 @@ describe("config regenerate --dry-run", () => {
     const result = await runCommandInProcess(configCommand, ["regenerate", "--dry-run"], root);
 
     expect(result.status).toBeUndefined();
-    expect(result.stdout.match(/Status: No changes/g)).toHaveLength(3);
+    // New grouped output shows "all up to date" for each group
+    expect(result.stdout).toContain("✅ 📋 Core orchestration — all up to date");
+    expect(result.stdout).toContain("✅ 📦 Project spec — all up to date");
     expect(result.stdout).toContain("All files are already up to date!");
   });
 
@@ -269,7 +275,7 @@ describe("config regenerate", () => {
     expect(result.status).toBeUndefined();
     expect(result.stdout).toContain("Regenerating master configuration files");
     expect(result.stdout).toContain("Configuration regenerated!");
-    expect(fs.existsSync(path.join(root, ".tdk", ".tdk-out", "spec.master"))).toBe(true);
+    expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out", "spec.master"))).toBe(true);
   });
 
   it("exits 1 with the project-root error outside a project", async () => {
@@ -290,7 +296,7 @@ describe("config verify", () => {
 
     expect(result.status).toBe(1);
     expect(result.stdout).toContain("Configuration issues found:");
-    expect(result.stdout).toContain("Missing file: .tdk/.tdk-out/spec.master");
+    expect(result.stdout).toContain("Missing file: .flisk/.flisk-out/spec.master");
     expect(result.stdout).toContain("Run `flisk config regenerate` to fix generated files.");
     expect(result.stdout).not.toContain("flisk config migrate");
   });
@@ -468,29 +474,29 @@ describe("config enable-infra and disable-infra", () => {
 
   it("rejects an unknown service name before reading the project", async () => {
     const root = createTempProject({ projectJson: projectJson() });
-    const before = fs.readFileSync(path.join(root, ".tdk", "project.json"));
+    const before = fs.readFileSync(path.join(root, ".flisk", "project.json"));
 
     const result = await runCommandInProcess(configCommand, ["enable-infra", "kafka"], root);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Invalid service. Must be one of: monitoring");
-    expect(fs.readFileSync(path.join(root, ".tdk", "project.json"))).toEqual(before);
+    expect(fs.readFileSync(path.join(root, ".flisk", "project.json"))).toEqual(before);
   });
 
   it("refuses to enable verdaccio without a license and leaves project.json unchanged", async () => {
-    vi.stubEnv("TDK_LICENSE_KEY", "");
+    vi.stubEnv("FLISK_LICENSE_KEY", "");
     const root = createTempProject({ projectJson: projectJson() });
-    const before = fs.readFileSync(path.join(root, ".tdk", "project.json"));
+    const before = fs.readFileSync(path.join(root, ".flisk", "project.json"));
 
     const result = await runCommandInProcess(configCommand, ["enable-infra", "verdaccio"], root);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Verdaccio is a Premium feature");
-    expect(fs.readFileSync(path.join(root, ".tdk", "project.json"))).toEqual(before);
+    expect(fs.readFileSync(path.join(root, ".flisk", "project.json"))).toEqual(before);
   });
 
   it("lets verdaccio be disabled without a license", async () => {
-    vi.stubEnv("TDK_LICENSE_KEY", "");
+    vi.stubEnv("FLISK_LICENSE_KEY", "");
     const root = createTempProject({
       projectJson: projectJson("config-boundaries", { verdaccio: true }),
     });
@@ -521,7 +527,7 @@ describe("config edit", () => {
     expect(result.status).toBeUndefined();
     expect(spawnSync).toHaveBeenCalledWith(
       "code",
-      ["--wait", path.join(root, ".tdk", "project.json")],
+      ["--wait", path.join(root, ".flisk", "project.json")],
       { stdio: "inherit" },
     );
     expect(result.stdout).toContain("Editor closed.");
@@ -536,7 +542,7 @@ describe("config edit", () => {
     expect(result.stderr).toContain(
       "Warning: Unknown editor \"/opt/bin/frobnicate\". Using 'vi' instead.",
     );
-    expect(spawnSync).toHaveBeenCalledWith("vi", [path.join(root, ".tdk", "project.json")], {
+    expect(spawnSync).toHaveBeenCalledWith("vi", [path.join(root, ".flisk", "project.json")], {
       stdio: "inherit",
     });
     expect(spawnSync).not.toHaveBeenCalledWith("frobnicate", expect.anything(), expect.anything());

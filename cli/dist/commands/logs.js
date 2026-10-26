@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { Command } from "commander";
 import { STANDARD_PORTS } from "../utils/constants.js";
-import { errorFactories, runCommand, showErrorAndExit, TdkError } from "../utils/errors.js";
+import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
@@ -27,6 +27,7 @@ async function tiltResourceNames(port) {
 }
 export const logsCommand = new Command("logs")
     .description("Print a bounded snapshot of recent logs from the running stack")
+    .showHelpAfterError("\nService names are not positional. Use: flisk logs --service <name>")
     .option("-s, --service <names...>", "Only these services (Tilt resource names)")
     .option("--tail <n>", "Number of most recent lines to return", String(DEFAULT_LOG_TAIL))
     .option("--since <duration>", "Only logs newer than this duration, for example 30s, 5m, 1h")
@@ -49,7 +50,7 @@ export const logsCommand = new Command("logs")
             process.exit(exitCode);
         }
         if (redactedSuggestions.length > 0) {
-            return new TdkError(message, redactedSuggestions, exitCode).exit();
+            return new FliskError(message, redactedSuggestions, exitCode).exit();
         }
         return showErrorAndExit(message, exitCode);
     };

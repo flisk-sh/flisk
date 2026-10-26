@@ -2,6 +2,10 @@
 
 Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/package/@flisk-sh/flisk?activeTab=versions) and the [binary releases](https://github.com/flisk-sh/releases/releases).
 
+## 1.4.3 (2026-10-25)
+
+- `flisk init` is now an alias of `flisk project`. It accepts the same template names and flags.
+
 ## 1.3.195 (2026-10-21)
 
 - `flisk demo` and `flisk restaurant` now clone the demo template into a fixed directory (`~/.flisk/flisk-demo/`) instead of creating `tdk-restaurant-example-N` directories in the current workspace. Previous runs are cleaned up automatically. The `restaurant` template still creates a named directory in the current folder when used explicitly.

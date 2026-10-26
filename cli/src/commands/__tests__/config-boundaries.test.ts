@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { importInvocation } from "../import.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const flisk = path.join(repoRoot, "cli", "bin", "tdk.js");
+const flisk = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 function projectJson(): string {
   return JSON.stringify({
@@ -33,9 +33,9 @@ function projectJson(): string {
 }
 
 function writeProject(root: string, service: Record<string, unknown>): string {
-  fs.mkdirSync(path.join(root, ".tdk"), { recursive: true });
+  fs.mkdirSync(path.join(root, ".flisk"), { recursive: true });
   fs.mkdirSync(path.join(root, "services", "api"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".tdk", "project.json"), projectJson());
+  fs.writeFileSync(path.join(root, ".flisk", "project.json"), projectJson());
   const servicePath = path.join(root, "services", "api", "service.json");
   fs.writeFileSync(servicePath, `${JSON.stringify(service, null, 2)}\n`);
   return servicePath;
@@ -53,7 +53,7 @@ describe("config command boundaries", () => {
   let baseRoot = "";
 
   beforeAll(() => {
-    baseRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-boundaries-base-"));
+    baseRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-boundaries-base-"));
     writeProject(baseRoot, baseService);
     expect(run(baseRoot, ["config", "regenerate"]).status).toBe(0);
   }, 120_000);
@@ -70,7 +70,7 @@ describe("config command boundaries", () => {
   }
 
   it("regenerate rewrites generated files and leaves service.json byte-identical", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-regen-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-regen-"));
     const service = { appName: "api", appType: "api", stack: "core", extra: true };
     const servicePath = writeProject(root, service);
     const before = fs.readFileSync(servicePath);
@@ -78,32 +78,32 @@ describe("config command boundaries", () => {
       const result = run(root, ["config", "regenerate"]);
       expect(result.status, result.stderr).toBe(0);
       expect(fs.readFileSync(servicePath)).toEqual(before);
-      expect(fs.existsSync(path.join(root, ".tdk", ".tdk-out", "Tiltfile"))).toBe(true);
+      expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out", "Tiltfile"))).toBe(true);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
   }, 120_000);
 
   it("regenerate --dry-run writes nothing", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-regen-dry-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-regen-dry-"));
     writeProject(root, { appName: "api", appType: "api", stack: "core" });
     try {
       const result = run(root, ["config", "regenerate", "--dry-run"]);
       expect(result.status, result.stderr).toBe(0);
-      expect(fs.existsSync(path.join(root, ".tdk", ".tdk-out", "Tiltfile"))).toBe(false);
+      expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out", "Tiltfile"))).toBe(false);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
   }, 120_000);
 
   it("a second regenerate is byte-identical and verify exits 0", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-regen-stable-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-regen-stable-"));
     writeProject(root, { appName: "api", appType: "api", stack: "core", schemaVersion: 1 });
     try {
       expect(run(root, ["config", "regenerate"]).status).toBe(0);
-      const first = fs.readFileSync(path.join(root, ".tdk", ".tdk-out", "Tiltfile"));
+      const first = fs.readFileSync(path.join(root, ".flisk", ".flisk-out", "Tiltfile"));
       expect(run(root, ["config", "regenerate"]).status).toBe(0);
-      expect(fs.readFileSync(path.join(root, ".tdk", ".tdk-out", "Tiltfile"))).toEqual(first);
+      expect(fs.readFileSync(path.join(root, ".flisk", ".flisk-out", "Tiltfile"))).toEqual(first);
       const verify = run(root, ["config", "verify"]);
       expect(verify.status, verify.stdout + verify.stderr).toBe(0);
       expect(verify.stdout).toContain("in sync");
@@ -113,7 +113,7 @@ describe("config command boundaries", () => {
   }, 120_000);
 
   it("verify points a missing schemaVersion at migrate, not regenerate", () => {
-    const root = copyBase("tdk-verify-schema-");
+    const root = copyBase("flisk-verify-schema-");
     try {
       const verify = run(root, ["config", "verify"]);
       expect(verify.status).toBe(1);
@@ -125,10 +125,10 @@ describe("config command boundaries", () => {
   }, 120_000);
 
   it("migrate writes schemaVersion and does not rewrite generated files", () => {
-    const root = copyBase("tdk-migrate-");
+    const root = copyBase("flisk-migrate-");
     const servicePath = path.join(root, "services", "api", "service.json");
     try {
-      const generated = fs.readFileSync(path.join(root, ".tdk", ".tdk-out", "Tiltfile"));
+      const generated = fs.readFileSync(path.join(root, ".flisk", ".flisk-out", "Tiltfile"));
       const result = run(root, ["config", "migrate"]);
       expect(result.status, result.stderr).toBe(0);
       const migrated = JSON.parse(fs.readFileSync(servicePath, "utf-8")) as {
@@ -137,7 +137,9 @@ describe("config command boundaries", () => {
       };
       expect(migrated.schemaVersion).toBe(1);
       expect(migrated.extra).toBe(true);
-      expect(fs.readFileSync(path.join(root, ".tdk", ".tdk-out", "Tiltfile"))).toEqual(generated);
+      expect(fs.readFileSync(path.join(root, ".flisk", ".flisk-out", "Tiltfile"))).toEqual(
+        generated,
+      );
       const again = fs.readFileSync(servicePath);
       expect(run(root, ["config", "migrate"]).status).toBe(0);
       expect(fs.readFileSync(servicePath)).toEqual(again);
@@ -147,7 +149,7 @@ describe("config command boundaries", () => {
   }, 120_000);
 
   it("migrate refuses an unsupported schemaVersion without writing", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-migrate-bad-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-migrate-bad-"));
     const servicePath = writeProject(root, {
       appName: "api",
       appType: "api",

@@ -5,6 +5,8 @@ node_modules/
 # npm is not the package manager here (bun.lock is); a stray package-lock.json
 # would pin another platform's optional binaries and break the Windows E2E job.
 package-lock.json
+# The one lockfile that is wanted: it pins the npm CLI that release-binaries.yml installs for trusted publishing.
+!.github/npm-cli/package-lock.json
 
 # Build output
 cli/dist/
@@ -47,10 +49,18 @@ test-results/
 
 # Generated reports
 .jscpd-report/
-.tdk/.tdk-out/
-.tdk/smoke/
+.flisk/.flisk-out/
+.flisk/smoke/
 
 release-dist-*/
 
 # scratch file for trying Starlark changes (docs/contributing/02-feature-recipes.md)
 /try.Tiltfile
+
+# Bring-your-own templates synced from their own repositories by scripts/sync-byo-templates.sh (examples/byo/templates.json, #1965)
+/examples/byo/create-vue/
+/examples/byo/create-next-app/
+/examples/byo/create-adonisjs/
+/examples/byo/create-analog/
+/examples/byo/create-bati/
+/examples/byo/.sync-*

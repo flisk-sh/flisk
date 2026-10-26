@@ -5,17 +5,17 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { BACKEND_FRAMEWORKS } from "../../backend-frameworks/registry.js";
 import { FRONTEND_FRAMEWORKS, listFrontendFrameworks } from "../../frontend-frameworks/registry.js";
-import { runTdk } from "../../test-support/index.js";
+import { runFlisk } from "../../test-support/index.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 /**
- * The inventory is a CLI contract, so the test runs the real binary through the shared `runTdk`
+ * The inventory is a CLI contract, so the test runs the real binary through the shared `runFlisk`
  * helper (no color, a real exit status). A spawned process also keeps commander's option state per
  * run: an in-process parse keeps the previous run's `--type` source.
  */
 function flisk(args: readonly string[]) {
-  return runTdk(args, { cwd: repoRoot, env: { TDK_EXTENSION_SOURCE: repoRoot } });
+  return runFlisk(args, { cwd: repoRoot, env: { FLISK_EXTENSION_SOURCE: repoRoot } });
 }
 
 /** The listing is tab separated, one framework per row. */
@@ -37,7 +37,8 @@ describe("flisk resource --frameworks", () => {
     const verified = new Map(listFrontendFrameworks().map((entry) => [entry.id, entry.verified]));
     for (const row of listed) {
       expect(row).toHaveLength(5);
-      expect(row[2]).toBe("vite-spa");
+      // Next.js is the one server provider; every other registered framework is a Vite SPA.
+      expect(row[2]).toBe(row[0] === "next" ? "server" : "vite-spa");
       // The verification comes from the registry, so an unverified provider does not break the test.
       expect(row[3]).toBe(verified.get(row[0]) ? "verified" : "unverified");
       expect(row[4]).toBe(`flisk resource <name> --type frontend --framework ${row[0]}`);

@@ -1,0 +1,492 @@
+# Copyright (c) 2026 Flisk Landscape contributors
+# SPDX-License-Identifier: MIT
+load("../engine/topologies/tilt/manifest/parser.star", "extract_stack_from_path")
+load("../engine/topologies/tilt/manifest/loader.star", "ManifestLoader")
+load("./manifest/loading.star", "get_default_syncs_for_type")
+
+# Out of scope stacks - defined locally for unified repo
+OUT_OF_SCOPE_STACKS = ["warehouse", "logistics", "accounting"]
+
+load("./manifest/constants.star", "MANIFEST_FILENAME", "MANIFEST_FILENAME_YAML")
+
+# Service defaults - inlined for unified repo
+def get_default_port(app_type):
+    if app_type == "frontend":
+        return 3000
+    return 4000
+
+BASE_PORT_FRONTEND = 3000
+BASE_PORT_BACKEND = 4000
+
+# Phase 1: Use json_manifest_scanner for manifest discovery (enables Phase 2 multi-source discovery)
+load("./json_manifest_scanner.star", "discover_json_manifests")
+load("./constants.star", 
+     "RESOURCES_ROOT",
+     "DISCOVERY_SCAN_ROOTS",
+     "SCAN_ROOT_PATTERNS",
+     "MAX_SCAN_TIMEOUT_MS",
+     "MAX_MANIFESTS_PER_ROOT")
+
+# Phase 1.5: Validation integration for stability
+load("./validation.star", "validate")
+
+# Phase 2: Root overlap validation (prevents duplicate scanning from misconfiguration)
+def _validate_scan_roots(roots):
+    """Ensure no root is a subdirectory of another."""
+    sorted_roots = sorted(roots, key=len)
+    for i, root in enumerate(sorted_roots):
+        for other in sorted_roots[i+1:]:
+            root_normalized = root.rstrip("/") + "/"
+            other_normalized = other.rstrip("/") + "/"
+            if other_normalized.startswith(root_normalized):
+                print("⚠️  Warning: {} is subdirectory of {}".format(other, root))
+
+def _to_project_relative_path(path, project_root):
+    """Return path relative to project_root (supports ../ out-of-tree siblings).
+
+    Absolute find() results used to be "normalized" by stripping a leading '/',
+    which turned `/private/var/.../platform/verdaccio` into a fake in-repo path
+    `private/var/.../platform/verdaccio` and broke Docker COPY checksums.
+    """
+    if not path:
+        return path
+    root = project_root if project_root else os.environ.get("FLISK_PROJECT_ROOT", ".")
+    # Already project-relative (including ../sibling/...)
+    if not path.startswith("/"):
+        return path
+    cmd = [
+        "python3",
+        "-c",
+        "import os, sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])))",
+        path,
+        root,
+    ]
+    relative = str(local(cmd, quiet=True, echo_off=True)).strip()
+    if relative:
+        return relative
+    # Fallback: strip project_root prefix if present
+    root_prefix = root.rstrip("/") + "/"
+    if path.startswith(root_prefix):
+        return path[len(root_prefix):]
+    return path.lstrip("/")
+
+# Built-in functions available in Tilt (no load needed)
+# read_json, local are built-in
+
+# Define locally since parser.star exports this as private
+def _determine_app_type(manifest, resource_path):
+    """
+    Determine app type from manifest or service path.
+    """
+    # Check if manifest has explicit appType
+    if manifest.get("appType") in ["frontend", "backend", "library", "migrator", "sdk", "worker", "infra", "bring-your-own"]:
+        return manifest["appType"]
+    
+    # Extract from path
+    dir_name = resource_path.split("/")[-1] if resource_path else ""
+    
+    if dir_name.endswith("-frontend"):
+        return "frontend"
+    if dir_name.endswith("-backend"):
+        return "backend"
+    if dir_name.endswith("-migrator"):
+        return "migrator"
+    if dir_name.endswith("-sdk"):
+        return "sdk"
+    
+    # Default to backend
+    return "backend"
+
+def normalize_manifest(manifest, resource_path):
+    """
+    Normalize manifest to discovery resource format.
+    Phase 5: Works with both legacy and new manifest system normalized manifests.
+    """
+    # If manifest is already normalized by new system, use it directly
+    if manifest.get("_normalized") or manifest.get("syncs"):
+        # Extract fields from normalized manifest
+        app_name = manifest.get("appName", resource_path.split("/")[-1])
+        app_type = manifest.get("appType", _determine_app_type(manifest, resource_path))
+        stack = manifest.get("stack", extract_stack_from_path(resource_path))
+        port = manifest.get("port", BASE_PORT_BACKEND if app_type == "backend" else BASE_PORT_FRONTEND)
+    else:
+        # Legacy path: compute fields
+        app_name = manifest.get("appName", resource_path.split("/")[-1])
+        app_type = _determine_app_type(manifest, resource_path)
+        stack = manifest.get("stack", extract_stack_from_path(resource_path))
+        port = manifest.get("port", BASE_PORT_BACKEND if app_type == "backend" else BASE_PORT_FRONTEND)
+    
+    features = manifest.get("featuresEnabled", [])
+    syncs = manifest.get("syncs", get_default_syncs_for_type(app_type, features))
+    dockerfile = manifest.get("dockerfile", ".autogenerated/Dockerfile.app.autogenerated")
+
+    resource = {
+        "name": app_name,
+        "dockerfile": dockerfile if app_type == "bring-your-own" else app_name + "/" + dockerfile,
+        "syncs": syncs,
+        "port": port,
+        "stack": stack,
+        "_manifest": manifest.get("_manifest", manifest),
+        "_resource_path": resource_path,
+    }
+
+    if app_type == "frontend":
+        resource["frontend"] = True
+        resource["backendName"] = manifest.get("backendName", app_name.replace("-frontend", "-backend"))
+
+    if manifest.get("target_path"):
+        resource["target_path"] = manifest["target_path"]
+    if manifest.get("prisma_client_path"):
+        resource["prisma_client_path"] = manifest["prisma_client_path"]
+    if manifest.get("registry_host"):
+        resource["registry_host"] = manifest["registry_host"]
+    if manifest.get("start_command"):
+        resource["start_command"] = manifest["start_command"]
+
+    return resource
+
+
+def _get_stack_path(stack):
+    return "services/product/" + stack
+
+
+def initialize_discovery(cache, second_pass=False):
+    """
+    Initialize discovery cache by scanning for manifest files.
+    
+    Args:
+        cache: Dictionary to populate with discovery data
+        second_pass: If True, this is the second initialization pass (for logging only)
+    """
+    if cache.get("initialized"):
+        return
+    
+    # Scan for resources from JSON manifests (source of truth)
+    # YAML files are only for Tilt resource tracking, not data parsing
+    if second_pass:
+        print("  1.2 Preparing Tilt resources...")
+    else:
+        print("  1.1 Scanning service manifests...")
+    
+    resources = _scan_resources()
+    
+    # Build dependency graph and aliases
+    dependencies = {}
+    aliases = {}
+    path_map = {}
+    
+    for resource in resources:
+        name = resource.get("name", "")
+        path = resource.get("path", "")
+        
+        # Map name to path
+        if name:
+            aliases[name] = path
+            path_map[path] = name
+            
+            # Extract dependencies from manifest
+            manifest = resource.get("_manifest", {})
+            deps = manifest.get("dependsOn", [])
+            if deps:
+                dependencies[name] = deps
+    
+    # Populate cache
+    cache["app_resources"] = resources
+    cache["resource_dependencies"] = dependencies
+    cache["resource_aliases"] = aliases
+    cache["resource_path_map"] = path_map
+    cache["stack_configs"] = {}
+    cache["initialized"] = True
+    if second_pass:
+        cache["second_pass"] = True
+
+
+def _scan_resources():
+    """
+    FIRST PASS: Scan for all resources with JSON manifest files from multiple roots.
+    Phase 2: Multi-root discovery with validation, deduplication, and explicit stack extraction.
+    Returns list of resource dictionaries.
+    """
+    resources = []
+    
+    # Phase 1.5: Track validation stats and skipped stacks for discovery summary
+    validation_stats = {
+        "total_manifests": 0,
+        "valid_manifests": 0,
+        "manifests_with_warnings": 0,
+        "total_warnings": 0,
+    }
+    skipped_stacks = {}  # Track skipped stacks for summary
+    
+    # Phase 2: Validate scan roots don't overlap (prevents duplicate scanning)
+    _validate_scan_roots(DISCOVERY_SCAN_ROOTS)
+    
+    # Phase 2: Scan all root directories and collect manifest paths
+    all_manifest_paths = []  # Collect from all roots
+    
+    # Scan all root directories (quiet unless verbose)
+    total_roots = len(DISCOVERY_SCAN_ROOTS)
+    
+    for root in DISCOVERY_SCAN_ROOTS:
+        # Use json_manifest_scanner.discover_json_manifests() to find all manifest files
+        paths = discover_json_manifests(root)
+        
+        if paths:
+            # Phase 2: Performance guardrails - warn if root is too large
+            if len(paths) > MAX_MANIFESTS_PER_ROOT:
+                print("  ⚠️  Large root: {} has {} manifests (max: {})".format(
+                    root, len(paths), MAX_MANIFESTS_PER_ROOT))
+            
+            # Only show in verbose mode
+            if os.environ.get('TILT_LOG_LEVEL') == 'verbose':
+                print("  📁 Scanned {} manifests from {}".format(len(paths), root))
+            all_manifest_paths.extend(paths)
+    
+    # Phase 2: Deduplicate by path (in case of overlaps between roots)
+    seen_paths = {}
+    manifest_paths = []
+    for path in all_manifest_paths:
+        if path not in seen_paths:
+            seen_paths[path] = True
+            manifest_paths.append(path)
+
+    # CRITICAL FIX: Filter out flisk-cli internal paths to prevent self-scanning
+    # This prevents flisk-cli from discovering its own internal test stubs
+    def _is_flisk_cli_internal_path(path):
+        """Check if path is within flisk-cli's own directory structure."""
+        internal_markers = [
+            "flisk-cli/discovery/services/",
+            "flisk-cli/discovery/identity-",
+        ]
+        for marker in internal_markers:
+            if marker in path:
+                return True
+        return False
+
+    filtered_manifest_paths = []
+    for path in manifest_paths:
+        if _is_flisk_cli_internal_path(path):
+            print("⚠️  Skipping flisk-cli internal stub: {}".format(path))
+            continue
+        filtered_manifest_paths.append(path)
+
+    manifest_paths = filtered_manifest_paths
+
+    if not manifest_paths:
+        return resources
+    
+    project_root = os.environ.get("FLISK_PROJECT_ROOT", ".")
+
+    for manifest_path in manifest_paths:
+        # manifest_path may be absolute (legacy find) or project-relative.
+        # Always rewrite to a path relative to the Flisk project root first.
+        manifest_path = _to_project_relative_path(manifest_path, project_root)
+        
+        # Parse manifest using proper loader (handles JSON and YAML)
+        # First, extract service path from manifest path
+        full_resource_path = manifest_path.rsplit("/", 1)[0]
+        
+        # Use the loader which handles both JSON and YAML and normalizes format
+        # Loader needs a filesystem path: keep absolute for reads when needed.
+        load_path = manifest_path
+        if not load_path.startswith("/"):
+            load_path = project_root.rstrip("/") + "/" + load_path
+        load_result = ManifestLoader.load_from_file(load_path)
+        if load_result.error:
+            print("Error loading manifest: " + load_result.error)
+            continue
+        
+        manifest = load_result.manifest
+        if not manifest:
+            continue
+        
+        # Phase 1.5: Validate manifest structure and content
+        validation_stats["total_manifests"] += 1
+        validation_issues = validate(manifest)
+        if validation_issues:
+            validation_stats["manifests_with_warnings"] += 1
+            validation_stats["total_warnings"] += len(validation_issues)
+            # Log all validation issues with file path for context
+            for issue in validation_issues:
+                print("⚠️  Validation: " + manifest_path + ": " + issue)
+            # Lenient mode: log warnings but continue discovery
+            # (Strict mode could fail here with: continue)
+        else:
+            validation_stats["valid_manifests"] += 1
+        
+        # Skip out-of-scope stacks for alpha (defined in spec.master)
+        stack = manifest.get("stack", "")
+        if stack in OUT_OF_SCOPE_STACKS:
+            # Track skipped stack for summary instead of printing immediately
+            if stack not in skipped_stacks:
+                skipped_stacks[stack] = 0
+            skipped_stacks[stack] += 1
+            continue
+        
+        # Convert relative path to project-root-relative path
+        # manifest_path is like: ../../../../services/product/{domain}/{service}/manifest.json
+        # We want: services/product/{domain}/{service}
+        if manifest_path.startswith("../../../../"):
+            project_relative_path = manifest_path[12:]  # Remove "../../../../" prefix
+        else:
+            project_relative_path = manifest_path
+        
+        # Extract service info from the project-relative path
+        # Format: services/product/{domain}/{service}/" + MANIFEST_FILENAME, 
+        path_parts = project_relative_path.split("/")
+        if len(path_parts) < 2:
+            continue
+        
+        resource_dir = path_parts[-2]  # e.g., "user-management-frontend"
+        
+        # Phase 2: Use explicit stack extraction patterns
+        # Determine which root this manifest came from
+        matching_root = None
+        for root in DISCOVERY_SCAN_ROOTS:
+            if manifest_path.startswith(root):
+                matching_root = root
+                break
+        
+        # Use configured pattern or default to parent folder
+        pattern = SCAN_ROOT_PATTERNS.get(matching_root, {"stack_depth": -2})
+        depth = pattern["stack_depth"]
+        
+        # Extract stack based on configured depth
+        if abs(depth) <= len(path_parts):
+            stack_dir = path_parts[depth]
+        else:
+            stack_dir = path_parts[-2] if len(path_parts) >= 2 else ""  # Fallback to parent
+        
+        # Build paths relative to project root (for use by other modules)
+        # Handle both nested paths (services/product/stack/service) and flat paths (identity-*)
+        if len(path_parts) >= 3:
+            base_path = "/".join(path_parts[:-2])  # e.g., "services/product/users"
+        elif len(path_parts) == 2:
+            base_path = path_parts[0]  # e.g., "identity-management-backend"
+        else:
+            base_path = path_parts[0] if path_parts else ""
+        resource_path = base_path  # This is the DOMAIN path
+        full_resource_path = _to_project_relative_path(
+            project_relative_path.rsplit("/", 1)[0],
+            project_root,
+        )  # Full path to service
+        
+        # BUG FIX: Normalize worktree paths to project-relative paths
+        # Worktrees create paths like .worktrees/task1-dry/services/platform/...
+        # These need to be converted to services/platform/... for correct Dockerfile resolution
+        if full_resource_path.startswith('.worktrees/'):
+            # Extract the part after the worktree name
+            parts = full_resource_path.split('/')
+            if len(parts) >= 3:
+                # Skip .worktrees/ and the worktree name
+                full_resource_path = '/'.join(parts[2:])
+        elif '.worktrees/' in full_resource_path:
+            # Handle paths that include worktree somewhere in the middle
+            worktree_idx = full_resource_path.find('.worktrees/')
+            after_worktree = full_resource_path[worktree_idx:]
+            parts = after_worktree.split('/')
+            if len(parts) >= 3:
+                full_resource_path = '/'.join(parts[2:])
+        
+        # Also normalize resource_path (base_path) if it has worktree
+        if resource_path.startswith('.worktrees/'):
+            parts = resource_path.split('/')
+            if len(parts) >= 3:
+                resource_path = '/'.join(parts[2:])
+        elif '.worktrees/' in resource_path:
+            worktree_idx = resource_path.find('.worktrees/')
+            after_worktree = resource_path[worktree_idx:]
+            parts = after_worktree.split('/')
+            if len(parts) >= 3:
+                resource_path = '/'.join(parts[2:])
+        
+        app_name = manifest.get("appName", resource_dir)
+        app_type = manifest.get("appType", "backend")
+        stack = manifest.get("stack", stack_dir)
+        port = manifest.get("port", get_default_port(app_type))
+        features = manifest.get("featuresEnabled", [])
+
+        # Build resource entry
+        # dockerfile path is relative to the resource directory (prepended with res_path by caller)
+        # Use custom dockerfile from manifest if specified, otherwise use autogenerated default
+        custom_dockerfile = manifest.get("dockerfile")
+        if custom_dockerfile:
+            dockerfile_path = custom_dockerfile
+        else:
+            dockerfile_path = ".autogenerated/Dockerfile.app.autogenerated"
+
+        resource = {
+            "name": app_name,
+            "dockerfile": dockerfile_path,
+            "syncs": get_default_syncs_for_type(app_type, features),
+            "port": port,
+            "stack": stack,
+            "_manifest": manifest,
+            "_resource_path": full_resource_path,
+        }
+        
+        # Add frontend-specific fields
+        if app_type == "frontend":
+            resource["frontend"] = True
+            resource["backendName"] = manifest.get("backendName", app_name.replace("-frontend", "-backend"))
+        
+        # Build resource entry
+        resource_key = stack if stack else app_name.replace("-" + app_type, "")
+        
+        # Check if app resource already exists (merge resources for same stack)
+        existing_app_resource = None
+        for app_res in resources:
+            if app_res["name"] == resource_key:
+                existing_app_resource = app_res
+                break
+        
+        if existing_app_resource:
+            # Check if resource with same name already exists (prevent duplicates from multiple scan roots)
+            resource_exists = False
+            for existing_res in existing_app_resource["resources"]:
+                if existing_res.get("name") == resource["name"]:
+                    resource_exists = True
+                    print("   ⚠️  Skipping duplicate resource: " + app_name + " (from " + resource_path + ")")
+                    break
+            
+            if not resource_exists:
+                # Add resource to existing app resource
+                existing_app_resource["resources"].append(resource)
+                existing_app_resource["labels"].append("app." + app_name)
+                pass  # Service merged into existing domain
+        else:
+            # Create new app resource entry
+            # Use resource_path (domain path) for the app_resource - docker-compose goes here
+            # Individual resources have _resource_path for their specific paths
+            app_resource = {
+                "name": resource_key,
+                "appName": resource_key,
+                "path": resource_path,
+                "labels": ["app." + app_name] if app_name else [],
+                "resources": [resource],
+            }
+            pass  # New domain group created
+            resources.append(app_resource)
+    
+    # Phase 1.5: Print consolidated discovery summary
+    if validation_stats["total_manifests"] > 0:
+        # Calculate total skipped manually (sum() not available in Starlark)
+        total_skipped = 0
+        for count in skipped_stacks.values():
+            total_skipped += count
+        print("✅ {} resources loaded ({} valid, {} skipped)".format(
+            validation_stats["total_manifests"],
+            validation_stats["valid_manifests"],
+            total_skipped))
+        
+        if validation_stats["manifests_with_warnings"] > 0:
+            print("  ⚠️  {} manifest(s) with {} validation warning(s)".format(
+                validation_stats["manifests_with_warnings"], 
+                validation_stats["total_warnings"]))
+        
+        if skipped_stacks and os.environ.get('TILT_LOG_LEVEL') == 'verbose':
+            skipped_list = ", ".join(["{} ({})".format(d, c) for d, c in skipped_stacks.items()])
+            print("  📋 Focus mode skipped: {}".format(skipped_list))
+    
+    
+    return resources

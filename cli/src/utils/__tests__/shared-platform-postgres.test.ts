@@ -15,7 +15,7 @@ import {
 let root: string;
 
 function writeProjectJson(config: Record<string, unknown>): void {
-  writeFileSync(join(root, ".tdk", "project.json"), JSON.stringify(config));
+  writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify(config));
 }
 
 function featureOffProjectJson(): Record<string, unknown> {
@@ -64,8 +64,8 @@ function resource(
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "tdk-shared-platform-postgres-"));
-  mkdirSync(join(root, ".tdk"), { recursive: true });
+  root = mkdtempSync(join(tmpdir(), "flisk-shared-platform-postgres-"));
+  mkdirSync(join(root, ".flisk"), { recursive: true });
   writeProjectJson(featureOffProjectJson());
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));

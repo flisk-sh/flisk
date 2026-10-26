@@ -14,12 +14,12 @@ describe("templateTargetDir", () => {
   });
 
   it("returns repo basename without .git when targetDir is undefined", () => {
-    expect(templateTargetDir("demo")).toBe("tdk-restaurant-example");
-    expect(templateTargetDir("restaurant")).toBe("tdk-restaurant-example");
-    expect(templateTargetDir("saas")).toBe("tdk-saas-starter");
-    expect(templateTargetDir("ecommerce")).toBe("tdk-ecommerce-example");
-    expect(templateTargetDir("agent-stack")).toBe("tdk-agent-stack");
-    expect(templateTargetDir("user-management")).toBe("tdk-user-management");
+    expect(templateTargetDir("demo")).toBe("flisk-restaurant-example");
+    expect(templateTargetDir("restaurant")).toBe("flisk-restaurant-example");
+    expect(templateTargetDir("saas")).toBe("flisk-saas-starter");
+    expect(templateTargetDir("ecommerce")).toBe("flisk-ecommerce-example");
+    expect(templateTargetDir("agent-stack")).toBe("flisk-agent-stack");
+    expect(templateTargetDir("user-management")).toBe("flisk-user-management");
 
     for (const [name, template] of Object.entries(PROJECT_TEMPLATES)) {
       const repoBase = template.repo.split("/").pop() ?? name;
@@ -35,7 +35,7 @@ describe("templateTargetDir", () => {
 
   it("handles empty strings", () => {
     // Empty targetDir is falsy, so the template/repo path is used instead.
-    expect(templateTargetDir("demo", "")).toBe("tdk-restaurant-example");
+    expect(templateTargetDir("demo", "")).toBe("flisk-restaurant-example");
     expect(templateTargetDir("", "/still/used")).toBe("/still/used");
     expect(templateTargetDir("")).toBe("");
   });

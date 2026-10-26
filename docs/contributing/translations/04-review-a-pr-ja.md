@@ -23,18 +23,18 @@
 
 **私たちの進め方**
 
-- [ ] [コントリビューションのガイド](../../../CONTRIBUTING.md): ラベル、issue の担当、DCO の sign-off。
+- [ ] [コントリビューションのガイド](../../../.github/CONTRIBUTING.md): ラベル、issue の担当、DCO の sign-off。
 - [ ] [1. 変更の準備](01-first-change-ja.md): いつ OpenSpec の提案が必要か。
 - [ ] [2. 変更の種類ごとのレシピ](02-feature-recipes-ja.md): コードがどこにあり、各変更にどのチェックが必要か。
 - [ ] [3. pull request を作成する](03-open-a-pr-ja.md): 良い PR に何が必要か。変更前後の証拠を含む。
 
 **全員が守るルール**
 
-- [ ] [行動規範](../../../CODE_OF_CONDUCT.md): レビューで互いにどう話すか。
-- [ ] [セキュリティポリシー](../../../SECURITY.md): セキュリティの問題は非公開で報告し、PR のコメントでは決して報告しない。
-- [ ] [ガバナンス](../../../GOVERNANCE.md)と[メンテナー](../../../MAINTAINERS.md): 誰が決めるか、誰がマージするか。
+- [ ] [行動規範](../../../.github/CODE_OF_CONDUCT.md): レビューで互いにどう話すか。
+- [ ] [セキュリティポリシー](../../../.github/SECURITY.md): セキュリティの問題は非公開で報告し、PR のコメントでは決して報告しない。
+- [ ] [ガバナンス](../../project/GOVERNANCE.md)と[メンテナー](../../project/MAINTAINERS.md): 誰が決めるか、誰がマージするか。
 
-そのあと一度試してください。[クイックセットアップ](../../../CONTRIBUTING.md#quick-setup)を実行すると、PR をチェックアウトして、そのチェックを自分で実行できます。
+そのあと一度試してください。[クイックセットアップ](../../../.github/CONTRIBUTING.md#quick-setup)を実行すると、PR をチェックアウトして、そのチェックを自分で実行できます。
 
 ## 要点
 
@@ -170,7 +170,7 @@ Everything else looks good. Happy to re-review once these are in.
 - 小さな点には `nit:` または `optional:` と付けて、作成者がマージを妨げないと分かるようにする。
 - 人ではなくコードをレビューする。
 
-すべてのコメントで[行動規範](../../../CODE_OF_CONDUCT.md)に従ってください。
+すべてのコメントで[行動規範](../../../.github/CODE_OF_CONDUCT.md)に従ってください。
 
 ## ターミナルから（任意）
 
@@ -196,4 +196,4 @@ gh pr review 123 --request-changes --body "The new flag is never passed to the g
 
 - 誰でもコメント、承認、変更依頼ができます。すべてのレビューはメンテナーの判断を速くします。
 - 自分の PR を承認することはできません。
-- マージするのは[メンテナー](../../../MAINTAINERS.md)だけです。マージ前に、メンテナーはレビューと必須チェックが通っているかを確認します。
+- マージするのは[メンテナー](../../project/MAINTAINERS.md)だけです。マージ前に、メンテナーはレビューと必須チェックが通っているかを確認します。

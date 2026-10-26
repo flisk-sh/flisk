@@ -6,7 +6,7 @@ This change ships the command boundaries. Sections 4 and 5 are not this change.
 
 - [x] 1.1 `flisk config regenerate` rewrites generated files and leaves every `service.json` byte-identical
 - [x] 1.2 `flisk config regenerate --dry-run` writes nothing
-- [x] 1.3 A second regenerate on unchanged `.tdk/project.json` is byte-identical
+- [x] 1.3 A second regenerate on unchanged `.flisk/project.json` is byte-identical
 - [x] 1.4 `flisk config verify` exits 0 on that output and still says generated files are in sync
 
 ## 2. Migrate

@@ -1,3 +1,6 @@
 # Skills authored in this repository, not synced from tdk-skills. scripts/sync-tdk-skills.sh keeps them.
 flisk-agent-ops
 flisk-e2e-author
+flisk-up
+flisk-resource
+flisk-status

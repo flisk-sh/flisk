@@ -11,6 +11,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..")
 const registrationStar = JSON.stringify(
   join(
     repoRoot,
+    "runtime",
     "engine",
     "topologies",
     "tilt",
@@ -20,11 +21,20 @@ const registrationStar = JSON.stringify(
   ),
 );
 const composeStar = JSON.stringify(
-  join(repoRoot, "engine", "topologies", "platform", "docker", "compose", "compose.star"),
+  join(
+    repoRoot,
+    "runtime",
+    "engine",
+    "topologies",
+    "platform",
+    "docker",
+    "compose",
+    "compose.star",
+  ),
 );
 
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for Starlark generator tests in CI.");
 }
 
@@ -38,7 +48,7 @@ afterEach(() => {
 
 /** Evaluates a Tiltfile. A failed `fail(...)` check makes tilt exit non-zero and puts the message in stderr. */
 function expectPasses(source: string) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-stack-routers-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-stack-routers-"));
   temporaryDirs.push(directory);
   const tiltfile = join(directory, "Tiltfile");
   writeFileSync(tiltfile, source);
@@ -62,45 +72,45 @@ entry = generate_backend_compose_entry('services/shop', 'orders-api', {'name': '
 describe.skipIf(!hasTilt)("stack-scoped Traefik routers (#392)", { timeout: 40_000 }, () => {
   it("keeps the stack routers when the stack has one backend", () => {
     expectPasses(`${entryFor("{'_stackBackendCount': 1}")}
-if 'routers.orders-api.rule=' not in entry: fail('missing the stack router')
-if 'routers.orders-api-management.rule=' not in entry: fail('missing the -management router')
-if 'routers.orders-api-project.rule=' not in entry: fail('missing the -project router')
+if '-orders-api.rule=' not in entry: fail('missing the stack router')
+if '-orders-api-management.rule=' not in entry: fail('missing the -management router')
+if '-orders-api-project.rule=' not in entry: fail('missing the -project router')
 `);
   });
 
   it("keeps the stack routers when nothing says how many backends share the stack (old callers)", () => {
     expectPasses(`${entryFor("{}")}
-if 'routers.orders-api.rule=' not in entry: fail('missing the stack router')
-if 'routers.orders-api-management.rule=' not in entry: fail('missing the -management router')
+if '-orders-api.rule=' not in entry: fail('missing the stack router')
+if '-orders-api-management.rule=' not in entry: fail('missing the -management router')
 `);
   });
 
   it("drops the shared stack routers but keeps the per-backend route when two backends share a stack", () => {
     expectPasses(`${entryFor("{'_stackBackendCount': 2}")}
-if 'routers.orders-api.rule=' in entry: fail('the shared stack router is still emitted')
-if 'routers.orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
-if 'routers.orders-api-project.rule=' not in entry: fail('the per-backend -project router is gone')
+if '-orders-api.rule=' in entry: fail('the shared stack router is still emitted')
+if '-orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
+if '-orders-api-project.rule=' not in entry: fail('the per-backend -project router is gone')
 if 'PathPrefix(\`/api/shop-management\`)' in entry: fail('the shared /api/shop-management path is still routed')
 if 'loadbalancer.server.port=4000' not in entry: fail('the service labels are gone, so the -project router has nothing to route to')
-if 'routers.orders-api-project.service=orders-api' not in entry: fail('the -project router lost its service')
+if '-orders-api-project.service=' not in entry: fail('the -project router lost its service')
 `);
   });
 
   it("keeps an explicit traefik.pathPrefix with only that path as its rule when the stack has two backends", () => {
     expectPasses(`${entryFor("{'_stackBackendCount': 2, 'traefik': {'pathPrefix': '/api/orders-legacy'}}")}
-if 'routers.orders-api.rule=PathPrefix(\`/api/orders-legacy\`)"' not in entry: fail('the explicit router should match only its own pathPrefix')
+if '-orders-api.rule=PathPrefix(\`/api/orders-legacy\`)"' not in entry: fail('the explicit router should match only its own pathPrefix')
 if 'Host(\`shop.backend' in entry: fail('the shared stack host is still in a rule')
-if 'routers.orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
+if '-orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
 if '/api/shop-management' in entry: fail('the shared /api/shop-management path is still routed')
-if 'routers.orders-api-project.rule=' not in entry: fail('the per-backend -project router is gone')
+if '-orders-api-project.rule=' not in entry: fail('the per-backend -project router is gone')
 `);
   });
 
   it("keeps an explicit traefik.host with only that host as its rule when the stack has two backends", () => {
     expectPasses(`${entryFor("{'_stackBackendCount': 2, 'traefik': {'host': 'orders.test.local'}}")}
-if 'routers.orders-api.rule=Host(\`orders.test.local\`)"' not in entry: fail('the explicit router should match only its own host')
+if '-orders-api.rule=Host(\`orders.test.local\`)"' not in entry: fail('the explicit router should match only its own host')
 if 'shop.backend' in entry: fail('the shared stack host is still in a rule')
-if 'routers.orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
+if '-orders-api-management.rule=' in entry: fail('the shared -management router is still emitted')
 `);
   });
 

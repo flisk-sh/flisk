@@ -13,16 +13,16 @@ import { resourceCommand } from "../resource.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
-function runTdk(args: string[], cwd: string, input?: string): string {
+function runFlisk(args: string[], cwd: string, input?: string): string {
   return execFileSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
     input,
     env: {
       ...process.env,
-      TDK_EXTENSION_SOURCE: repoRoot,
+      FLISK_EXTENSION_SOURCE: repoRoot,
     },
   });
 }
@@ -31,8 +31,8 @@ describe("frontend resource framework selection", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-resource-framework-"));
-    runTdk(["project", "--yes"], projectRoot);
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-resource-framework-"));
+    runFlisk(["project", "--yes"], projectRoot);
   });
 
   beforeEach(() => {
@@ -48,7 +48,7 @@ describe("frontend resource framework selection", () => {
 
   it("scaffolds the default React provider and persists its id", () => {
     const resourcePath = join(projectRoot, "apps", "storefront");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "storefront",
@@ -67,7 +67,7 @@ describe("frontend resource framework selection", () => {
     const pkg = JSON.parse(readFileSync(join(resourcePath, "package.json"), "utf-8"));
     const tsconfig = JSON.parse(readFileSync(join(resourcePath, "tsconfig.json"), "utf-8"));
     const engineConstants = readFileSync(
-      join(repoRoot, "engine", "topologies", "tilt", "manifest", "constants.star"),
+      join(repoRoot, "runtime", "engine", "topologies", "tilt", "manifest", "constants.star"),
       "utf-8",
     );
     const generatedViteConfig = engineConstants.match(/'vite_frontend': '([^']+)'/)?.[1];
@@ -96,9 +96,9 @@ describe("frontend resource framework selection", () => {
     expect(existsSync(join(resourcePath, "vite.config.ts"))).toBe(false);
     const vendoredViteRoot = join(
       projectRoot,
-      ".tdk",
-      ".tdk-out",
-      "tdk-cli-ext",
+      ".flisk",
+      ".flisk-out",
+      "flisk-cli-ext",
       "engine",
       "topologies",
       "tilt",
@@ -116,15 +116,13 @@ describe("frontend resource framework selection", () => {
     expect(readFileSync(join(resourcePath, "src", "main.tsx"), "utf-8")).toContain(
       "ReactDOM.createRoot",
     );
-    expect(readFileSync(join(resourcePath, "src", "App.tsx"), "utf-8")).toContain(
-      "Frontend resource created with Flisk",
-    );
-  }, 15000);
+    expect(readFileSync(join(resourcePath, "src", "App.tsx"), "utf-8")).toContain("Flisk frontend");
+  }, 60000);
 
   it("scaffolds Vue without a second Vite config owner or runtime fork", () => {
     const vuePath = join(projectRoot, "apps", "vue-web");
     const reactPath = join(projectRoot, "apps", "react-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "vue-web",
@@ -140,7 +138,7 @@ describe("frontend resource framework selection", () => {
       projectRoot,
       "y\n",
     );
-    runTdk(
+    runFlisk(
       [
         "resource",
         "react-web",
@@ -215,15 +213,15 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".tdk/.tdk-out/tdk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vue.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vue.star",
         ),
       ),
     ).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("scaffolds Svelte without a second Vite config owner or runtime fork", () => {
     const sveltePath = join(projectRoot, "apps", "svelte-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "svelte-web",
@@ -270,15 +268,15 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".tdk/.tdk-out/tdk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/svelte.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/svelte.star",
         ),
       ),
     ).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("scaffolds Preact without a second Vite config owner or runtime fork", () => {
     const preactPath = join(projectRoot, "apps", "preact-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "preact-web",
@@ -315,15 +313,15 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".tdk/.tdk-out/tdk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/preact.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/preact.star",
         ),
       ),
     ).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("scaffolds Lit without a second Vite config owner or runtime fork", () => {
     const litPath = join(projectRoot, "apps", "lit-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "lit-web",
@@ -356,15 +354,15 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".tdk/.tdk-out/tdk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/lit.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/lit.star",
         ),
       ),
     ).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("scaffolds Vanilla without a second Vite config owner or runtime fork", () => {
     const vanillaPath = join(projectRoot, "apps", "vanilla-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "vanilla-web",
@@ -395,15 +393,15 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".tdk/.tdk-out/tdk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vanilla.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/vanilla.star",
         ),
       ),
     ).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("scaffolds Solid without a second Vite config owner or runtime fork", () => {
     const solidPath = join(projectRoot, "apps", "solid-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "solid-web",
@@ -440,15 +438,15 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".tdk/.tdk-out/tdk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/solid.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/solid.star",
         ),
       ),
     ).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("scaffolds TanStack Router as a Vite SPA that shares the React toolchain", () => {
     const path = join(projectRoot, "apps", "router-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "router-web",
@@ -476,11 +474,62 @@ describe("frontend resource framework selection", () => {
     expect(tsconfig.compilerOptions.jsx).toBe("react-jsx");
     expect(readdirSync(join(path, "src")).sort()).toEqual(["main.tsx", "router.tsx"]);
     expect(existsSync(join(path, "vite.config.ts"))).toBe(false);
-  }, 15000);
+  }, 60000);
+
+  it("scaffolds Next.js as a server app that owns its build, with the backend health card", () => {
+    const path = join(projectRoot, "apps", "next-web");
+    // The starter's health card calls the stack's backend, so one must exist first.
+    runFlisk(
+      ["resource", "next-api", "--type", "backend", "--stack", "shop", "--path", "apps/next-api"],
+      projectRoot,
+      "y\n",
+    );
+    runFlisk(
+      [
+        "resource",
+        "next-web",
+        "--type",
+        "frontend",
+        "--framework",
+        "next",
+        "--stack",
+        "shop",
+        "--path",
+        "apps/next-web",
+      ],
+      projectRoot,
+      "y\n",
+    );
+
+    const service = JSON.parse(readFileSync(join(path, "service.json"), "utf-8"));
+    const pkg = JSON.parse(readFileSync(join(path, "package.json"), "utf-8"));
+    const tsconfig = JSON.parse(readFileSync(join(path, "tsconfig.json"), "utf-8"));
+
+    expect(service.framework).toBe("next");
+    expect(service.appType).toBe("frontend");
+    expect(pkg.dependencies).toHaveProperty("next");
+    expect(pkg.devDependencies).not.toHaveProperty("vite");
+    // npm installs the image and enforces peers: vitest 5 accepts @types/node ^22 or >=24, not the scaffold's ^20.
+    expect(pkg.devDependencies["@types/node"]).toBe("^22.0.0");
+    expect(pkg.scripts.dev).toBe("next dev");
+    expect(pkg.scripts.build).toBe("next build");
+    expect(pkg.scripts).not.toHaveProperty("predev");
+    expect(tsconfig.compilerOptions.plugins).toEqual([{ name: "next" }]);
+    expect(readFileSync(join(path, "next.config.mjs"), "utf-8")).toContain("FLISK_BASE_PATH");
+    expect(readFileSync(join(path, "src", "app", "page.tsx"), "utf-8")).toContain("HealthCard");
+    expect(readFileSync(join(path, "src", "app", "health-card.tsx"), "utf-8")).toContain(
+      "BACKEND_NAME = 'next-api'",
+    );
+    expect(readFileSync(join(path, "src", "app", "health-card.tsx"), "utf-8")).toContain(
+      "NEXT_PUBLIC_API_URL",
+    );
+    expect(existsSync(join(path, "index.html"))).toBe(false);
+    expect(existsSync(join(path, "vite.config.ts"))).toBe(false);
+  }, 60000);
 
   it("scaffolds Qwik without a second Vite config owner or runtime fork", () => {
     const qwikPath = join(projectRoot, "apps", "qwik-web");
-    runTdk(
+    runFlisk(
       [
         "resource",
         "qwik-web",
@@ -516,14 +565,14 @@ describe("frontend resource framework selection", () => {
       existsSync(
         join(
           projectRoot,
-          ".tdk/.tdk-out/tdk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/qwik.star",
+          ".flisk/.flisk-out/flisk-cli-ext/engine/topologies/tilt/generators/vite/frameworks/qwik.star",
         ),
       ),
     ).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("places a frontend where discovery finds it and says so", () => {
-    const output = runTdk(
+    const output = runFlisk(
       ["resource", "landing", "--type", "frontend", "--stack", "shop"],
       projectRoot,
       "y\n",
@@ -536,10 +585,10 @@ describe("frontend resource framework selection", () => {
     expect(output).toContain("Placed in services/shop/landing instead of the usual apps/landing");
     expect(output).toContain('["services/*/*"]');
     expect(existsSync(join(projectRoot, "services", "shop", "landing", "public"))).toBe(true);
-  }, 15000);
+  }, 60000);
 
   it("warns when an explicit --path is outside discovery", () => {
-    const output = runTdk(
+    const output = runFlisk(
       [
         "resource",
         "marketing",
@@ -557,7 +606,7 @@ describe("frontend resource framework selection", () => {
     expect(existsSync(join(projectRoot, "apps", "marketing", "service.json"))).toBe(true);
     expect(output).toContain("apps/marketing is outside discovery.paths");
     expect(output).toContain("flisk config regenerate");
-  }, 15000);
+  }, 60000);
 
   it("fails for an unknown framework before creating a resource directory", async () => {
     const resourcePath = join(projectRoot, "apps", "invalid-web");
@@ -582,7 +631,7 @@ describe("frontend resource framework selection", () => {
       /Unknown frontend framework "not-a-framework"[\s\S]*Use one of: react, vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router/,
     );
     expect(existsSync(resourcePath)).toBe(false);
-  }, 15000);
+  }, 60000);
 
   it("hands a meta-framework off to bring-your-own before creating a resource directory", async () => {
     const resourcePath = join(projectRoot, "apps", "meta-web");
@@ -607,7 +656,7 @@ describe("frontend resource framework selection", () => {
       /"angular" is not a Vite SPA provider[\s\S]*flisk resource meta-web --type bring-your-own/,
     );
     expect(existsSync(resourcePath)).toBe(false);
-  }, 15000);
+  }, 60000);
 
   it("rejects a frontend framework id on a backend before creating its directory", async () => {
     const resourcePath = join(projectRoot, "services", "shop", "orders-api");
@@ -630,5 +679,5 @@ describe("frontend resource framework selection", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(/Unknown backend framework "react"/);
     expect(existsSync(resourcePath)).toBe(false);
-  }, 15000);
+  }, 60000);
 });

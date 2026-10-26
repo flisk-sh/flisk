@@ -4,7 +4,7 @@ import * as http from "node:http";
 import chalk from "chalk";
 import { Command } from "commander";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
-import { errorFactories, runCommand, TdkError } from "../utils/errors.js";
+import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -85,7 +85,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg);
+        throw new FliskError(msg);
       }
 
       const appType = resource.config?.appType ?? resource.type;
@@ -97,7 +97,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg);
+        throw new FliskError(msg);
       }
 
       const port = resource.port;
@@ -109,7 +109,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg);
+        throw new FliskError(msg);
       }
 
       // The agent runtime keys GET /session by x-session-id and has no list endpoint, so a missing id
@@ -126,7 +126,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg, [`Run: flisk agent sessions ${resourceName} --session-id <id>`]);
+        throw new FliskError(msg, [`Run: flisk agent sessions ${resourceName} --session-id <id>`]);
       }
 
       const portPlan = root
@@ -141,7 +141,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg);
+        throw new FliskError(msg);
       }
       const request = agentSessionRequest(routeUrl, sessionId);
 
@@ -156,7 +156,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(msg, ["Start the stack with: flisk up"]);
+        throw new FliskError(msg, ["Start the stack with: flisk up"]);
       };
 
       let res: { ok: boolean; status: number };
@@ -201,7 +201,7 @@ agentCommand
           );
           process.exit(1);
         }
-        throw new TdkError(`Agent error (${res.status}): ${detail}`);
+        throw new FliskError(`Agent error (${res.status}): ${detail}`);
       }
 
       if (options.json) {

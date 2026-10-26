@@ -5,7 +5,7 @@ import { Pool } from "pg";
 
 const port = Number(process.env.PORT ?? 4000);
 const databaseUrl = process.env.DATABASE_URL;
-const natsUrl = process.env.NATS_URL ?? "nats://tdk_example_nats:4222";
+const natsUrl = process.env.NATS_URL ?? "nats://flisk_example_nats:4222";
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 
 const pgUrl = new URL(databaseUrl);

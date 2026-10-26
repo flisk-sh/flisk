@@ -13,7 +13,7 @@ import {
 } from "../machine-output.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = path.join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
 
 const MASTER_CONFIG_FILES = [
   "TILT_TECH_STACK.star",
@@ -33,18 +33,18 @@ describe("machine output contract: every --json command emits the standard envel
   });
 
   function createProject(): string {
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-machine-contract-"));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-machine-contract-"));
     projectRoots.push(projectRoot);
 
-    // .tdk/project.json
-    fs.mkdirSync(path.join(projectRoot, ".tdk"), { recursive: true });
+    // .flisk/project.json
+    fs.mkdirSync(path.join(projectRoot, ".flisk"), { recursive: true });
     fs.writeFileSync(
-      path.join(projectRoot, ".tdk", "project.json"),
+      path.join(projectRoot, ".flisk", "project.json"),
       JSON.stringify({ project: { name: "test-project" } }),
     );
 
-    // Master config files in .tdk/.tdk-out
-    const outDir = path.join(projectRoot, ".tdk", ".tdk-out");
+    // Master config files in .flisk/.flisk-out
+    const outDir = path.join(projectRoot, ".flisk", ".flisk-out");
     fs.mkdirSync(outDir, { recursive: true });
     for (const file of MASTER_CONFIG_FILES) {
       fs.writeFileSync(path.join(outDir, file), "# generated\n");

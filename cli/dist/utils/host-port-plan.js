@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { createServer } from "node:net";
+import { FliskError } from "./errors.js";
 import { hasLocalListener } from "./port-listener-probe.js";
 export const DEFAULT_HOST_PORT_RANGES = {
     ingressHttp: { start: 8080, end: 8180 },
@@ -8,9 +9,9 @@ export const DEFAULT_HOST_PORT_RANGES = {
     postgres: { start: 15432, end: 15532 },
 };
 const ENV_KEYS = {
-    ingressHttp: "TDK_HTTP_PORT",
-    ingressHttps: "TDK_HTTPS_PORT",
-    postgres: "TDK_POSTGRES_PORT",
+    ingressHttp: "FLISK_HTTP_PORT",
+    ingressHttps: "FLISK_HTTPS_PORT",
+    postgres: "FLISK_POSTGRES_PORT",
 };
 const REQUESTED_PORTS = { ingressHttp: 80, ingressHttps: 443, postgres: 5432 };
 // Tried before the fallback range so routed URLs need no port. Postgres keeps
@@ -43,7 +44,7 @@ export async function isHostPortAvailable(port) {
 function parsePort(name, value) {
     const port = Number(value);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
-        throw new Error(`${name} must be an integer between 1 and 65535 (received ${JSON.stringify(value)})`);
+        throw new FliskError(`${name} must be an integer between 1 and 65535 (received ${JSON.stringify(value)})`, ["Provide a valid port number between 1 and 65535"], 1);
     }
     return port;
 }
@@ -74,11 +75,15 @@ export async function createHostPortPlan(options = {}) {
                 break;
             }
             if (explicit) {
-                throw new Error(`${ENV_KEYS[key]}=${port} is already in use. Choose a free host port and retry.`);
+                throw new FliskError(`${ENV_KEYS[key]}=${port} is already in use. Choose a free host port and retry.`, [
+                    "Choose a different free host port or unset the environment variable to use fallback ranges",
+                ], 1);
             }
         }
         if (chosen === undefined) {
-            throw new Error(`No available host port in ${range.start}-${range.end} for ${key}. Set ${ENV_KEYS[key]} to a free port and retry.`);
+            throw new FliskError(`No available host port in ${range.start}-${range.end} for ${key}. Set ${ENV_KEYS[key]} to a free port and retry.`, [
+                `Free up port range ${range.start}-${range.end} or set ${ENV_KEYS[key]} to an available port`,
+            ], 1);
         }
         reserved.add(chosen);
         selected[key] = chosen;

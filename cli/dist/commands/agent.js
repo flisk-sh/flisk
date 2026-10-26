@@ -4,7 +4,7 @@ import * as http from "node:http";
 import chalk from "chalk";
 import { Command } from "commander";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
-import { errorFactories, runCommand, TdkError } from "../utils/errors.js";
+import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -67,7 +67,7 @@ agentCommand
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "UNKNOWN_RESOURCE", message: msg }])));
                 process.exit(1);
             }
-            throw new TdkError(msg);
+            throw new FliskError(msg);
         }
         const appType = resource.config?.appType ?? resource.type;
         if (appType !== "agent") {
@@ -76,7 +76,7 @@ agentCommand
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "NOT_AN_AGENT", message: msg }])));
                 process.exit(1);
             }
-            throw new TdkError(msg);
+            throw new FliskError(msg);
         }
         const port = resource.port;
         if (!port) {
@@ -85,7 +85,7 @@ agentCommand
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "NO_PORT", message: msg }])));
                 process.exit(1);
             }
-            throw new TdkError(msg);
+            throw new FliskError(msg);
         }
         // The agent runtime keys GET /session by x-session-id and has no list endpoint, so a missing id
         // would only come back as a confusing 400. Fail before any request. Checked after resource
@@ -97,7 +97,7 @@ agentCommand
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "SESSION_ID_REQUIRED", message: msg }])));
                 process.exit(1);
             }
-            throw new TdkError(msg, [`Run: flisk agent sessions ${resourceName} --session-id <id>`]);
+            throw new FliskError(msg, [`Run: flisk agent sessions ${resourceName} --session-id <id>`]);
         }
         const portPlan = root
             ? await getHostPortPlan(root, { inspectDocker: false }).catch(() => null)
@@ -109,7 +109,7 @@ agentCommand
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "NO_ROUTE", message: msg }])));
                 process.exit(1);
             }
-            throw new TdkError(msg);
+            throw new FliskError(msg);
         }
         const request = agentSessionRequest(routeUrl, sessionId);
         // Nothing answered, or Traefik answered for a missing backend: either way the agent is not up.
@@ -119,7 +119,7 @@ agentCommand
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "AGENT_NOT_RUNNING", message: msg }])));
                 process.exit(1);
             }
-            throw new TdkError(msg, ["Start the stack with: flisk up"]);
+            throw new FliskError(msg, ["Start the stack with: flisk up"]);
         };
         let res;
         let bodyText;
@@ -156,7 +156,7 @@ agentCommand
                 ])));
                 process.exit(1);
             }
-            throw new TdkError(`Agent error (${res.status}): ${detail}`);
+            throw new FliskError(`Agent error (${res.status}): ${detail}`);
         }
         if (options.json) {
             console.log(JSON.stringify(createMachineEnvelope({

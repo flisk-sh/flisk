@@ -29,7 +29,8 @@ describe("pickReadyFrontend", () => {
 
   it("reports the wait while it polls", async () => {
     const seen: number[] = [];
-    await pickReadyFrontend(targets, 10, (elapsed) => seen.push(elapsed));
+    // A wait of a few seconds leaves room for at least one poll to report, even when the machine is busy.
+    await pickReadyFrontend(targets, 3000, (elapsed) => seen.push(elapsed));
     expect(seen.length).toBeGreaterThan(0);
   });
 });

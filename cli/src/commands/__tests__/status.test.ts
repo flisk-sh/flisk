@@ -64,13 +64,13 @@ async function runStatus(args: string[] = []): Promise<string> {
 
 describe("flisk status", () => {
   const originalCwd = process.cwd();
-  const originalExtensionSource = process.env.TDK_EXTENSION_SOURCE;
+  const originalExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
   let projectRoot = "";
 
   beforeAll(async () => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-status-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-status-"));
     process.chdir(projectRoot);
-    process.env.TDK_EXTENSION_SOURCE = repoRoot;
+    process.env.FLISK_EXTENSION_SOURCE = repoRoot;
 
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -90,9 +90,9 @@ describe("flisk status", () => {
   afterAll(() => {
     process.chdir(originalCwd);
     if (originalExtensionSource === undefined) {
-      delete process.env.TDK_EXTENSION_SOURCE;
+      delete process.env.FLISK_EXTENSION_SOURCE;
     } else {
-      process.env.TDK_EXTENSION_SOURCE = originalExtensionSource;
+      process.env.FLISK_EXTENSION_SOURCE = originalExtensionSource;
     }
     if (projectRoot.startsWith(tmpdir())) {
       rmSync(projectRoot, { recursive: true, force: true });
@@ -190,10 +190,10 @@ describe("flisk status", () => {
   });
 
   it("reports an empty project without stack lines", async () => {
-    const emptyRoot = mkdtempSync(join(tmpdir(), "tdk-status-empty-"));
+    const emptyRoot = mkdtempSync(join(tmpdir(), "flisk-status-empty-"));
     try {
-      mkdirSync(join(emptyRoot, ".tdk"));
-      writeFileSync(join(emptyRoot, ".tdk", "project.json"), "{}");
+      mkdirSync(join(emptyRoot, ".flisk"));
+      writeFileSync(join(emptyRoot, ".flisk", "project.json"), "{}");
       process.chdir(emptyRoot);
 
       const output = await runStatus(["--verbose"]);
@@ -308,19 +308,25 @@ describe("flisk status", () => {
       vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
       const output = await runStatus();
       expect(output).toContain("Services:");
-      expect(output).toContain("✗ orders-api  error");
-      expect(output).toContain("✗ orders-web  error (orders-api failed)");
-      expect(output).toContain("✓ invoices  ready");
+      expect(output).toContain("✗ orders-api → http://");
+      expect(output).toContain("error (error/none)");
+      expect(output).toContain("✗ orders-web → http://");
+      expect(output).toContain("error (orders-api failed)");
+      expect(output).toContain("✓ invoices → http://");
+      expect(output).toContain("ready");
     });
 
-    it("prints no Services section when no Tilt answers", async () => {
+    it("says service states are unknown in the human output when no Tilt answers", async () => {
       const output = await runStatus();
-      expect(output).not.toContain("Services:");
+      expect(output).toContain("Services:");
+      expect(output).toContain("unknown: no Tilt answers");
+      expect(output).toContain("nothing is confirmed running");
+      expect(output).toContain("flisk up");
     });
   });
 
   it("fails on the missing project before printing any status line", async () => {
-    const outside = mkdtempSync(join(tmpdir(), "tdk-status-outside-"));
+    const outside = mkdtempSync(join(tmpdir(), "flisk-status-outside-"));
     process.chdir(outside);
     clearDiscoveryCache();
     const lines: string[] = [];

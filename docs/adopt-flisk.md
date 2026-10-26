@@ -24,7 +24,7 @@ Install the CLI (see the [README](../README.md#installation)), then from the rep
 flisk project --yes
 ```
 
-In an empty directory this wrote `.tdk/project.json`, a `.env` with working defaults, the generated files under `.tdk/.tdk-out/`, and also a root `package.json`, a `.tiltignore` and `shared-platform-engineering/docker-templates/`. It added `.env`, `.tdk/.tdk-out/`, `.tdk/.project-id` and `.tdk/smoke/` to `.gitignore`, plus `node_modules/` in that empty directory. In an existing repository, run `git status` after this step and read what changed before you commit. In a repository that already had a `package.json`, `.tiltignore`, `Tiltfile` and `docker-compose.yml`, `flisk project --yes` left all of them byte-for-byte unchanged and only appended to `.gitignore`; see [gradual adoption](gradual-adoption.md).
+In an empty directory this wrote `.flisk/project.json`, a `.env` with working defaults, the generated files under `.flisk/.flisk-out/`, and also a root `package.json`, a `.tiltignore` and `shared-platform-engineering/docker-templates/`. It added `.env`, `.flisk/.flisk-out/`, `.flisk/.project-id` and `.flisk/smoke/` to `.gitignore`, plus `node_modules/` in that empty directory. In an existing repository, run `git status` after this step and read what changed before you commit. In a repository that already had a `package.json`, `.tiltignore`, `Tiltfile` and `docker-compose.yml`, `flisk project --yes` left all of them byte-for-byte unchanged and only appended to `.gitignore`; see [gradual adoption](gradual-adoption.md).
 
 Add each service. To wrap a service you already have, use a [bring-your-own resource](byo.md); it does not generate application code:
 
@@ -58,9 +58,9 @@ Would start 1 service from stack "shop"...
 🔧 Backend API URLs:
   - orders-api: http://api.pilot.localhost/api/orders/health
 Host ports: HTTP 80, HTTPS 443, Postgres 15432
-Override with TDK_HTTP_PORT, TDK_HTTPS_PORT, or TDK_POSTGRES_PORT.
+Override with FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT.
 Dry run - not starting services
-Would run: tilt up -f /path/to/pilot/.tdk/.tdk-out/Tiltfile -- --focus=shop orders-api
+Would run: tilt up -f /path/to/pilot/.flisk/.flisk-out/Tiltfile -- --focus=shop orders-api
 ```
 
 The hostname starts with the project directory name (`pilot` here). `flisk up shop` then builds the image and starts Traefik, Postgres and your services. On that run the service answered at the URL above with `{"status":"ok","service":"orders-api"}`.
@@ -76,8 +76,8 @@ Two things seen on that run that you may also meet:
 Do not remove anything during the pilot. Flisk does not replace Compose or Helm, and it does not install or take over your charts ([Flisk and Helm](with-helm.md)). `flisk project` and `flisk resource` did not change a `docker-compose.yml` already in the repository ([gradual adoption](gradual-adoption.md)). Running Flisk and that Compose stack at the same time was **not tested**.
 
 - Keep your `docker-compose.yml`, Tiltfile and Helm charts where they are, and use `git status` to see exactly which files Flisk added.
-- If a service in your Compose file uses the same host port as a Flisk one, change the Flisk port with `TDK_HTTP_PORT`, `TDK_HTTPS_PORT` or `TDK_POSTGRES_PORT`.
-- `service.json` is not `values.yaml`, and `.tdk/.tdk-out/` is not a chart. Do not copy it into Helm. See [Flisk and Helm](with-helm.md) for what maps to what.
+- If a service in your Compose file uses the same host port as a Flisk one, change the Flisk port with `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT` or `FLISK_POSTGRES_PORT`.
+- `service.json` is not `values.yaml`, and `.flisk/.flisk-out/` is not a chart. Do not copy it into Helm. See [Flisk and Helm](with-helm.md) for what maps to what.
 
 If the pilot does not work out, run `flisk down` (add `--prune-networks` to also remove this project's Docker networks that no container uses) and throw the branch away. `flisk down` removes the stack's containers and stops this project's `tilt up`; named volumes, including the Postgres data, are kept ([local data](data.md)).
 
@@ -85,9 +85,9 @@ If the pilot does not work out, run `flisk down` (add `--prune-networks` to also
 
 When the pilot services start cleanly:
 
-1. Commit each `service.json` and `.tdk/project.json`. `.env` and `.tdk/.tdk-out/` are gitignored by `flisk project`; see [environment.md](environment.md) for what belongs in git.
+1. Commit each `service.json` and `.flisk/project.json`. `.env` and `.flisk/.flisk-out/` are gitignored by `flisk project`; see [environment.md](environment.md) for what belongs in git.
 2. Add the commands a new teammate needs to your repository README, for example `flisk doctor` and `flisk up shop`.
-3. Run `flisk config verify` in CI. It checks that the generated project files match `.tdk/project.json` and exits non-zero on drift. It does not validate `service.json` or Helm values. For a copy-paste workflow see [Running Flisk in CI](ci.md); it is adapted from [`e2e-examples.yml`](../.github/workflows/e2e-examples.yml), which runs `flisk project --yes`, `flisk doctor --no-ping` and `flisk config verify` on the bundled example.
+3. Run `flisk config verify` in CI. It checks that the generated project files match `.flisk/project.json` and exits non-zero on drift. It does not validate `service.json` or Helm values. For a copy-paste workflow see [Running Flisk in CI](ci.md); it is adapted from [`e2e-examples.yml`](../.github/workflows/e2e-examples.yml), which runs `flisk project --yes`, `flisk doctor --no-ping` and `flisk config verify` on the bundled example.
 
 ## 5. What to measure
 
@@ -102,5 +102,5 @@ Only quote numbers you measured, with their conditions. Do not repeat the figure
 
 ## 6. Tell us
 
-- Run Flisk on your repositories? Use the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) form, or add a row to [ADOPTERS.md](../ADOPTERS.md).
+- Run Flisk on your repositories? Use the [We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) form, or add a row to [ADOPTERS.md](project/ADOPTERS.md).
 - It did not fit or something broke? Search [Troubleshooting](troubleshooting.md) for the message, then [open an issue](https://github.com/flisk-sh/flisk/issues/new/choose) and include the output of `flisk doctor`.

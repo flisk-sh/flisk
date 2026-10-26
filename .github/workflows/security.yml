@@ -1,7 +1,7 @@
 # Report-only code scanners: Trivy, OSV-Scanner and Semgrep upload SARIF to Security > Code scanning and never fail the build.
 # On pull requests each scanner runs only when its paths changed (a skipped job still reports its check name). On push to
 # main, on the nightly schedule and by hand they run in full.
-name: 🛡️ Security Scans
+name: 🛡️ Security | Scans
 
 on:
   push:
@@ -102,6 +102,7 @@ jobs:
           scanners: vuln,misconfig # secrets are covered by TruffleHog in ci.yml
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          trivyignores: .github/trivyignore
           format: sarif
           output: trivy.sarif
       - uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0

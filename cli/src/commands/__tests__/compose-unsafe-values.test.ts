@@ -9,14 +9,32 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const composeStar = JSON.stringify(
-  join(repoRoot, "engine", "topologies", "platform", "docker", "compose", "compose.star"),
+  join(
+    repoRoot,
+    "runtime",
+    "engine",
+    "topologies",
+    "platform",
+    "docker",
+    "compose",
+    "compose.star",
+  ),
 );
 const traefikStar = JSON.stringify(
-  join(repoRoot, "engine", "topologies", "platform", "docker", "networking", "traefik.star"),
+  join(
+    repoRoot,
+    "runtime",
+    "engine",
+    "topologies",
+    "platform",
+    "docker",
+    "networking",
+    "traefik.star",
+  ),
 );
 
 const hasTilt = spawnSync("tilt", ["version"], { encoding: "utf-8" }).status === 0;
-if (process.env.TDK_REQUIRE_TILT === "1" && !hasTilt) {
+if (process.env.FLISK_REQUIRE_TILT === "1" && !hasTilt) {
   throw new Error("Tilt is required for Starlark generator tests in CI.");
 }
 
@@ -29,7 +47,7 @@ afterEach(() => {
 
 /** Evaluates a Tiltfile. A failed `fail(...)` makes tilt exit non-zero and puts the message in stderr. */
 function runTiltfile(source: string): SpawnSyncReturns<string> {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-unsafe-values-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-unsafe-values-"));
   temporaryDirs.push(directory);
   const tiltfile = join(directory, "Tiltfile");
   writeFileSync(tiltfile, source);
@@ -67,7 +85,7 @@ describe.skipIf(!hasTilt)(
       ["traefik.pathPrefix", `{'traefik': {'pathPrefix': '/api${BAD}'}}`],
       ["traefik.healthCheck", `{'traefik': {'pathPrefix': '/api', 'healthCheck': '/h${BAD}'}}`],
       ["nats.queueGroup", `{'nats': {'queueGroup': 'g${BAD}'}}`],
-      ["databaseName", `{'databaseName': 'TDK_x${BAD}'}`],
+      ["databaseName", `{'databaseName': 'FLISK_x${BAD}'}`],
       ["stack", `{'stack': 'shop${BAD}'}`],
       ["image", `{'appType': 'bring-your-own', 'image': 'app${BAD}'}`],
       ["dockerfile", `{'appType': 'bring-your-own', 'dockerfile': 'Dockerfile${BAD}'}`],
@@ -98,6 +116,17 @@ generate_frontend_compose('services/shop', 'shop-frontend', {'name': 'shop-front
 `);
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain(`MANIFEST ERROR: '${field}'`);
+    });
+
+    it("gives a Next.js frontend its own memory anchor, not the 64M SPA one (next dev is OOM-killed at 64M)", () => {
+      const result = runTiltfile(`
+load(${composeStar}, 'generate_frontend_compose')
+manifest = {'appType': 'frontend', 'framework': 'next', 'stack': 'shop', 'port': 3000, 'appName': 'shop-frontend'}
+entry = generate_frontend_compose('services/shop', 'shop-frontend', {'name': 'shop-frontend', '_resource_path': 'services/shop/shop-frontend'}, manifest)
+if '<<: *next-memory-limit' not in entry: fail('a Next.js entry must merge the next memory anchor')
+if '<<: *frontend-memory-limit' in entry: fail('a Next.js entry must not merge the 64M SPA anchor')
+`);
+      expect(result.status, result.stderr).toBe(0);
     });
 
     it("traefik labels: refuse a line break even when called directly", () => {

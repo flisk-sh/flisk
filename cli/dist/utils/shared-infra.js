@@ -33,10 +33,10 @@ export function groupSharedPostgres(projectName, stacks) {
         return null;
     return { name: "postgres", databases };
 }
-/** `project.name` from `.tdk/project.json`, or null when the project file is missing or unreadable. */
+/** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */
 export function readProjectName(projectRoot) {
     try {
-        const parsed = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
+        const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
         return typeof parsed?.project?.name === "string" ? parsed.project.name : null;
     }
     catch {

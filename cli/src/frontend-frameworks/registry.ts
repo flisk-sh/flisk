@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { TdkError } from "../utils/errors.js";
+import { FliskError } from "../utils/errors.js";
 import { litFrontendProvider } from "./lit.js";
+import { nextFrontendProvider } from "./next.js";
 import { preactFrontendProvider } from "./preact.js";
 import { qwikFrontendProvider } from "./qwik.js";
 import { reactFrontendProvider } from "./react.js";
@@ -24,12 +25,12 @@ export const FRONTEND_FRAMEWORKS: Record<string, FrontendFrameworkProvider> = {
   qwik: qwikFrontendProvider,
   vanilla: vanillaFrontendProvider,
   "tanstack-router": tanstackRouterFrontendProvider,
+  next: nextFrontendProvider,
 };
 
-// Frameworks that own their own server or build config. They are never scaffolded as Vite SPA providers; they go through
-// `flisk resource <name> --type bring-your-own` instead.
+// Meta-frameworks that are not registered providers. They are never scaffolded as Vite SPA providers; they go through
+// `flisk resource <name> --type bring-your-own` instead. Next.js is a registered `server` provider, so it is not listed here.
 export const META_FRAMEWORK_IDS = [
-  "next",
   "nuxt",
   "sveltekit",
   "astro",
@@ -54,7 +55,7 @@ export const VERIFIED_FRONTEND_FRAMEWORKS: readonly string[] = [
 export interface FrontendFrameworkInventoryEntry {
   id: string;
   label: string;
-  kind: "vite-spa";
+  kind: "vite-spa" | "server";
   verified: boolean;
   command: string;
 }
@@ -63,7 +64,7 @@ export function listFrontendFrameworks(): FrontendFrameworkInventoryEntry[] {
   return Object.entries(FRONTEND_FRAMEWORKS).map(([id, provider]) => ({
     id,
     label: provider.label,
-    kind: "vite-spa",
+    kind: provider.kind ?? "vite-spa",
     verified: VERIFIED_FRONTEND_FRAMEWORKS.includes(id),
     command: `flisk resource <name> --type frontend --framework ${id}`,
   }));
@@ -80,7 +81,7 @@ export function getFrontendFramework(
     const supportedIds = Object.keys(FRONTEND_FRAMEWORKS).join(", ");
     const isMeta = (META_FRAMEWORK_IDS as readonly string[]).includes(id);
     const byo = `flisk resource ${resourceName ?? "<name>"} --type bring-your-own`;
-    throw new TdkError(
+    throw new FliskError(
       `${isMeta ? `"${frameworkId}" is not a Vite SPA provider` : `Unknown frontend framework "${frameworkId}"`}. Supported frameworks: ${supportedIds}.`,
       [
         `Use one of: ${supportedIds}`,
@@ -101,7 +102,7 @@ export function resolveFrontendFramework(
   if (resourceType !== "frontend") {
     // Backends take their own framework ids (see backend-frameworks/registry.ts).
     if (frameworkId !== undefined && resourceType !== "backend") {
-      throw new TdkError("--framework can only be used with --type frontend or --type backend.", [
+      throw new FliskError("--framework can only be used with --type frontend or --type backend.", [
         "Add --type frontend or --type backend, or drop --framework for this resource type",
       ]);
     }

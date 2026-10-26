@@ -4,8 +4,9 @@
 
 **Notes:**
 - Echo has no project generator, so unlike the `create-*` examples the app is written out here (a `/health` route and a `/` route).
-- `go mod tidy` runs at build time to resolve Echo and write `go.sum`, so no `go.sum` is committed. The Echo v4 version is whatever
-  that resolves to. Echo v5 is a different major version and is not used here.
+- `go mod tidy` runs at build time to resolve Echo and write `go.sum`, so no `go.sum` is committed. Echo is pinned to v4.16.0 in
+  `go.mod`, the newest v4 release that declares Go 1.25. Newer releases (v4.16.1 and later) require Go 1.26, which the
+  `golang:1.25` image cannot build. Echo v5 is a different major version and is not used here.
 - The image is `golang:1.25-alpine`, the same as the [gin](../gin/README.md) example. I did not test whether Echo v4 also builds
   on an older Go image, so no minimum Go version is claimed.
 - Through Flisk, Traefik sends `Host: api.<project>.localhost`; Echo accepted it with no host configuration (checked through a real
@@ -25,7 +26,7 @@ tests/e2e/resource-types/bring-your-own/verify-byo-example.sh echo
 Through a real `flisk up` and Traefik, which sends `Host: api.<project>.localhost` (needs Docker, Tilt and a built CLI):
 
 ```bash
-VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-tdk.sh echo /health
+VERIFY_WAIT_SECONDS=400 tests/e2e/resource-types/bring-your-own/verify-byo-flisk.sh echo /health
 ```
 
 ## Register it in a Flisk project

@@ -1,3 +1,4 @@
+import type { PortOccupant } from "./port-occupant.js";
 export interface StartupReport {
     failed: Array<{
         name: string;
@@ -18,4 +19,4 @@ export declare function transitiveDependencies(name: string, dependsOn: Record<s
 export declare function buildStartupReport(jsonText: string, dependsOn: Record<string, string[]>, deferred?: Set<string>): StartupReport;
 /** A failure exists and everything still pending is blocked by it, so waiting longer cannot help. */
 export declare function isStartupStalled(jsonText: string, dependsOn: Record<string, string[]>, deferred?: Set<string>): boolean;
-export declare function formatStartupReport(report: StartupReport, timedOut: boolean): string[];
+export declare function formatStartupReport(report: StartupReport, timedOut: boolean, occupantOf?: (port: number) => PortOccupant | null): string[];

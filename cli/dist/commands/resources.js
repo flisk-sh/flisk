@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
-import { errorFactories, requireProjectRoot, runCommand, TdkError } from "../utils/errors.js";
+import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { formatCount, showAllSatisfyCondition, showDetail, showEmptyState, showStep, } from "../utils/formatting.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -29,7 +29,7 @@ export const resourcesCommand = new Command("resources")
             requireProjectRoot();
         }
         if (options.type !== undefined && !includes(VALID_RESOURCE_TYPES, options.type)) {
-            throw new TdkError(`Invalid resource type "${options.type}"`, [
+            throw new FliskError(`Invalid resource type "${options.type}"`, [
                 `Valid types: ${VALID_RESOURCE_TYPES.join(", ")}`,
             ]);
         }

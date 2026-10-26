@@ -50,7 +50,7 @@ export function detectHost(inputs: HostProbeInputs = defaultInputs()): HostInfo 
   }
   // Mirrors nativeWindowsUpRefusal in commands/up.ts: native Windows is inspect-only unless explicitly overridden.
   if (platform === "win32") {
-    return { kind: "native-windows", canUp: env.TDK_ALLOW_NATIVE_WINDOWS === "1" };
+    return { kind: "native-windows", canUp: env.FLISK_ALLOW_NATIVE_WINDOWS === "1" };
   }
   if (platform === "linux" && env.WSL_DISTRO_NAME) return { kind: "wsl2", canUp: true };
   return { kind: "local", canUp: true };

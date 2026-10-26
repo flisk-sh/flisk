@@ -4,7 +4,7 @@
 # stays in its own workflows. release-binaries.yml's publish job reads this workflow's green runs by commit SHA and refuses
 # to publish a commit that has none.
 # Runs on a release/* branch (workflow_dispatch) or an rc-* tag only, never on every push. A pull request does not run it.
-name: 🚦 Release candidate
+name: 🧪 Release | Candidate
 
 on:
   workflow_dispatch:
@@ -51,6 +51,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.version }}
+      artifact: ${{ steps.version.outputs.artifact }}
     steps:
       # Only a release/* branch or an rc-* tag may produce a candidate. A manual run elsewhere fails here, so the
       # publish gate can never be satisfied by a run that was not meant as a candidate.
@@ -83,7 +84,11 @@ jobs:
 
       - name: Read the candidate version
         id: version
-        run: echo "version=$(node -p "require('./cli/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(node -p "require('./cli/package.json').version")" >> "$GITHUB_OUTPUT"
+          # The legs read this name from here, not from github.run_attempt: "Re-run failed jobs" keeps this job's attempt-1
+          # output and artifact, so a re-run of one flaky leg still finds the tarball the candidate checked.
+          echo "artifact=release-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
 
       # Pack the root package (the tarball users install) and stage it with the lifecycle script and cli/package.json,
       # as package-lifecycle-smoke.yml does, so the container never sees the source tree.
@@ -107,7 +112,7 @@ jobs:
       - name: Upload the candidate tarball
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ steps.version.outputs.artifact }}
           path: ${{ runner.temp }}/rc-lifecycle/tdk-cli.tgz
           if-no-files-found: error
           retention-days: 3
@@ -132,7 +137,7 @@ jobs:
       - name: Download the candidate tarball
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ needs.package.outputs.artifact }}
           path: ${{ runner.temp }}/rc-tarball
 
       - name: Install the candidate tarball
@@ -147,7 +152,7 @@ jobs:
 
       - name: Run the quickstart cases (Q1-Q4)
         env:
-          TDK_VERSION: ${{ needs.package.outputs.version }}
+          FLISK_VERSION: ${{ needs.package.outputs.version }}
         run: tests/e2e/journeys/quickstart/run.sh Q1 Q2 Q3 Q4
 
       - name: Diagnostics on failure
@@ -171,7 +176,9 @@ jobs:
     timeout-minutes: ${{ matrix.timeoutMinutes }}
     strategy:
       fail-fast: false
-      max-parallel: 4
+      # The legs are short (about 80 s each) and independent, so the cap sets the wall time: 28 legs at 4 at a time is 7 waves.
+      # 10 leaves room in the shared runner pool (about 20 concurrent jobs) for the other workflows.
+      max-parallel: 10
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -188,7 +195,7 @@ jobs:
       - name: Download the candidate tarball
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ needs.package.outputs.artifact }}
           path: ${{ runner.temp }}/rc-tarball
 
       - name: Install the candidate tarball
@@ -228,7 +235,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-candidate-${{ matrix.label }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
+          path: ${{ runner.temp }}/flisk-e2e/${{ matrix.suite }}/artifacts
           if-no-files-found: warn
           retention-days: 14
 

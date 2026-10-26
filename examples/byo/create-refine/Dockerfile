@@ -8,6 +8,6 @@ WORKDIR /work/app
 RUN test -f package.json && npm ci
 RUN chown -R node:node .
 USER node
-# Vite must listen beyond loopback (--host) and on the port TDK assigns.
+# Vite must listen beyond loopback (--host) and on the port Flisk assigns.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD node -e "require('node:net').connect(${PORT:-3000},'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
 CMD npx vite --host 0.0.0.0 --port ${PORT:-3000}

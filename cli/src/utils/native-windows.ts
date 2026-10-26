@@ -14,7 +14,7 @@ export const NATIVE_WINDOWS_REFUSAL =
 /**
  * Why a command that starts a stack cannot run on this host, or null when it may proceed.
  *
- * `TDK_ALLOW_NATIVE_WINDOWS=1` is the unsupported escape hatch that lets it try anyway.
+ * `FLISK_ALLOW_NATIVE_WINDOWS=1` is the unsupported escape hatch that lets it try anyway.
  */
 export function nativeWindowsStackRefusal(
   platform: string,

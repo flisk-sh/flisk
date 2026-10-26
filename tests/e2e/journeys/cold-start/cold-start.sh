@@ -6,7 +6,7 @@ set -euo pipefail
 
 project_dir="${1:?usage: cold-start.sh PROJECT_DIR}"
 cd "$project_dir"
-export TDK_PREMIUM_DIAGNOSTICS=1
+export FLISK_PREMIUM_DIAGNOSTICS=1
 
 echo "::group::Scaffold deferred and deliberately slow backends"
 flisk project --yes
@@ -47,7 +47,7 @@ manifest = json.loads(manifest_path.read_text())
 if manifest.get("sablier") != {"enable": True, "deferStart": True}:
     raise SystemExit(f"cold-api service manifest lost its deferred Sablier config: {manifest.get('sablier')!r}")
 
-overlay = Path(".tdk/.tdk-out/tdk-cli-ext/engine/topologies/platform/docker/networking/sablier_container_cycle.star")
+overlay = Path(".flisk/.flisk-out/flisk-cli-ext/engine/topologies/platform/docker/networking/sablier_container_cycle.star")
 if not overlay.exists():
     raise SystemExit("Sablier overlay file was not applied; inspect the Premium entitlement probes, bundle contents, and Sablier entitlement check above to identify whether access or the published bundle is missing it")
 overlay_text = " ".join(overlay.read_text().split())
@@ -120,7 +120,7 @@ PY
   fi
   if grep -Fq "requests sablier.deferStart but the licensed Sablier overlay is disabled; starting normally" up.log; then
     cat up.log
-    echo "::error::cold-start E2E cannot continue: TDK_LICENSE_KEY did not activate the licensed Sablier overlay"
+    echo "::error::cold-start E2E cannot continue: FLISK_LICENSE_KEY did not activate the licensed Sablier overlay"
     exit 1
   fi
   if [ $((n % 15)) -eq 0 ]; then
@@ -163,7 +163,7 @@ fi
 echo "Deferred image built: $image"
 if grep -Fq "requests sablier.deferStart but the licensed Sablier overlay is disabled; starting normally" up.log; then
   cat up.log
-  echo "::error::cold-start E2E cannot continue: TDK_LICENSE_KEY did not activate the licensed Sablier overlay"
+  echo "::error::cold-start E2E cannot continue: FLISK_LICENSE_KEY did not activate the licensed Sablier overlay"
   exit 1
 fi
 
@@ -184,7 +184,7 @@ print(f"Observed cold-api before its first request: runtimeStatus={runtime!r}, u
 
 # The generated static route must route through the wake gateway; otherwise an
 # absent container could pass the pre-request assertion without a working wake path.
-route_file="$(find . -path '*/.tdk-out/traefik-dynamic/cold-api.yml' -print -quit)"
+route_file="$(find . -path '*/.flisk-out/traefik-dynamic/cold-api.yml' -print -quit)"
 if [ -z "$route_file" ] || ! grep -q 'wake-gateway' "$route_file"; then
   echo "::error::cold-api static Traefik wake route was not generated"
   exit 1

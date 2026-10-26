@@ -33,7 +33,7 @@ export declare function resolveResourcePort(resourceType: PortAssignableResource
         port?: number;
     };
 }>): number;
-export declare function createServiceJson(name: string, type: CreatableResourceType, stack: string, port: number, extraFeatures?: string[], frameworkId?: string, languageId?: string, agent?: AgentConfig): any;
+export declare function createServiceJson(name: string, type: CreatableResourceType, stack: string, port: number, extraFeatures?: string[], frameworkId?: string, languageId?: string, agent?: AgentConfig, basePath?: string): any;
 export declare function createByoServiceJson(name: string, stack: string, port: number, options: {
     healthCheckPath: string;
     dockerfile: string;
@@ -103,25 +103,12 @@ export declare const DRIZZLE_KIT_RANGE = "^0.31.8";
 export declare const DRIZZLE_DB_TEMPLATE = "import { drizzle } from 'drizzle-orm/node-postgres';\nimport { Pool } from 'pg';\n\n// DATABASE_URL is injected by Flisk. The pool connects on the first query, so a missing or\n// unreachable database fails /health/db instead of stopping the service at startup.\nexport const pool = new Pool({ connectionString: process.env.DATABASE_URL });\nexport const db = drizzle(pool);\n";
 export declare const DRIZZLE_SCHEMA_TEMPLATE = "// Define tables here, for example with pgTable from 'drizzle-orm/pg-core'.\nexport {};\n";
 export declare const DRIZZLE_CONFIG_TEMPLATE = "import { defineConfig } from 'drizzle-kit';\n\nexport default defineConfig({\n  dialect: 'postgresql',\n  schema: './src/schema.ts',\n  out: './drizzle',\n  dbCredentials: { url: process.env.DATABASE_URL ?? '' },\n});\n";
-export declare function createResourceTsconfig(resourceType: CreatableResourceType, frameworkId?: string): {
-    compilerOptions: {
-        types?: string[] | undefined;
-        target: string;
-        module: string;
-        moduleResolution: string;
-        strict: boolean;
-        esModuleInterop: boolean;
-        skipLibCheck: boolean;
-        forceConsistentCasingInFileNames: boolean;
-        outDir: string;
-        rootDir: string;
-        declaration: boolean;
-        declarationMap: boolean;
-        sourceMap: boolean;
-    };
+export interface ResourceTsconfig {
+    compilerOptions: Record<string, unknown>;
     include: string[];
     exclude: string[];
-};
+}
+export declare function createResourceTsconfig(resourceType: CreatableResourceType, frameworkId?: string): ResourceTsconfig;
 export declare const TSCONFIG_TEMPLATE: {
     compilerOptions: {
         target: string;
@@ -155,7 +142,7 @@ type ExistingServiceConfig = {
 /**
  * Parse an existing `service.json` manifest.
  *
- * Wraps JSON syntax errors in a `TdkError` that names the offending file, so a malformed manifest
+ * Wraps JSON syntax errors in a `FliskError` that names the offending file, so a malformed manifest
  * is reported as a CLI error instead of an unhandled `SyntaxError`. Only the JSON syntax is
  * checked here: the manifest fields themselves are not validated, and a syntactically valid file
  * is returned as-is, including unknown or missing fields.
@@ -163,7 +150,7 @@ type ExistingServiceConfig = {
  * @param content - The raw contents of the `service.json` file.
  * @param configPath - Path to the manifest, used in the error message.
  * @returns The parsed manifest.
- * @throws TdkError When the content is not valid JSON.
+ * @throws FliskError When the content is not valid JSON.
  */
 export declare function parseExistingServiceJson(content: string, configPath: string): ExistingServiceConfig;
 export declare const resourceCommand: Command;

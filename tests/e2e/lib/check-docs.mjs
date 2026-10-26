@@ -29,6 +29,12 @@ const llmsFiles = existsSync(path.join(docsDir, "agents"))
       .map((n) => path.join(docsDir, "agents", n))
   : [];
 if (llmsFiles.length === 0) failures.push("docs/agents/llms*.txt: no files found");
+// A fullwidth at-sign (U+FF20) breaks copy-paste commands and the "@grok" trigger in these files.
+for (const file of llmsFiles) {
+  if (readFileSync(file, "utf8").includes("\uFF20")) {
+    failures.push(`${path.relative(root, file)}: contains a fullwidth at-sign (U+FF20); use the ASCII at-sign`);
+  }
+}
 
 // GitHub's heading slug: lower case, drop punctuation, spaces to dashes. Duplicates get -1, -2, ...
 function anchorsOf(file) {
@@ -86,6 +92,59 @@ for (const file of llmsFiles) {
     if (!existsSync(path.join(root, match[1]))) fail(file, `referenced file does not exist: ${match[1]}`);
   }
 }
+
+// Documentation consistency check: version floors in docs must match the CLI code.
+// The code floors are the source of truth; docs must not list a lower minimum.
+function checkVersionFloors() {
+  const doctorPath = path.join(root, "cli", "src", "commands", "doctor.ts");
+  if (!existsSync(doctorPath)) return;
+  const doctorSource = readFileSync(doctorPath, "utf8");
+
+  const floorOf = (name) => {
+    const match = doctorSource.match(
+      new RegExp(`const MIN_${name}_VERSION = \\[(\\d+),\\s*(\\d+),\\s*(\\d+)\\]`, "s"),
+    );
+    return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+  };
+
+  const floors = {
+    DOCKER_COMPOSE: floorOf("DOCKER_COMPOSE"),
+    BUN: floorOf("BUN"),
+    TILT: floorOf("TILT"),
+  };
+
+  const versionStr = (floor) => (floor ? floor.join(".") : null);
+  const expected = {
+    "Docker Compose": versionStr(floors.DOCKER_COMPOSE),
+    Bun: versionStr(floors.BUN),
+    Tilt: versionStr(floors.TILT),
+    "Node.js": "22.12",
+  };
+
+  const docFiles = [path.join(root, "README.md"), path.join(root, "docs", "quickstart.md")].filter(
+    (f) => existsSync(f),
+  );
+
+  for (const file of docFiles) {
+    const text = readFileSync(file, "utf8");
+    for (const [tool, floorVersion] of Object.entries(expected)) {
+      if (!floorVersion) continue;
+      // Accept both the full floor (e.g. "1.2.0+") and the shortened form when the patch is 0 (e.g. "1.2+").
+      const patterns = [floorVersion];
+      const parts = floorVersion.split(".");
+      if (parts.length === 3 && parts[2] === "0") patterns.push(`${parts[0]}.${parts[1]}`);
+      const matched = patterns.some((p) => {
+        const re = new RegExp(`${p.replace(/[.+*?^${}()|[\]\\]/g, "\\$&")}\\+?`, "i");
+        return re.test(text);
+      });
+      if (!matched) {
+        fail(file, `prerequisites table lists ${tool} below the code floor ${floorVersion}+`);
+      }
+    }
+  }
+}
+
+checkVersionFloors();
 
 if (failures.length > 0) {
   console.error(`${failures.length} documentation problem(s):\n${failures.map((f) => `  ${f}`).join("\n")}`);

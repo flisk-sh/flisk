@@ -1,0 +1,38 @@
+name: Usability feedback
+description: Rate Flisk's perceived ease of use with the UMUX-Lite two-item scale.
+title: "usability: "
+labels: ["ux-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us track how easy Flisk is to use. Rate each statement from 1 (strongly disagree) to 7 (strongly agree). No telemetry or automated survey is collected — this is manual and optional.
+  - type: input
+    id: capabilities
+    attributes:
+      label: "“Flisk's capabilities meet my requirements”"
+      description: Your rating (1–7)
+      placeholder: "7"
+    validations:
+      required: true
+  - type: input
+    id: ease
+    attributes:
+      label: "“Flisk is easy to use”"
+      description: Your rating (1–7)
+      placeholder: "5"
+    validations:
+      required: true
+  - type: textarea
+    id: comments
+    attributes:
+      label: Comments (optional)
+      description: What worked well, what was confusing, or what you would change.
+      placeholder: |
+        The quickstart worked, but I expected `flisk status` to print service URLs like `flisk up` does.
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup (optional)
+      description: OS, Docker flavour, and the output of `flisk --version`.
+      placeholder: macOS 15, OrbStack, flisk 1.3.126

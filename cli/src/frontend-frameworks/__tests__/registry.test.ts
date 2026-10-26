@@ -3,7 +3,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { TdkError } from "../../utils/errors.js";
+import { createServiceJson } from "../../commands/resource.js";
+import { FliskError } from "../../utils/errors.js";
 import {
   FRONTEND_FRAMEWORKS,
   getFrontendFramework,
@@ -25,18 +26,32 @@ const SPA_IDS = [
 ];
 
 describe("frontend framework inventory", () => {
-  it("lists exactly the registered vite-spa adapters", () => {
+  it("lists the registered vite-spa adapters and the Next.js server provider", () => {
     const list = listFrontendFrameworks();
-    expect(list.map((f) => f.id).sort()).toEqual([...SPA_IDS].sort());
-    expect(list.every((f) => f.kind === "vite-spa")).toBe(true);
-    for (const meta of ["next", "nuxt", "sveltekit", "astro", "angular"]) {
+    expect(list.map((f) => f.id).sort()).toEqual([...SPA_IDS, "next"].sort());
+    expect(
+      list
+        .filter((f) => f.kind === "vite-spa")
+        .map((f) => f.id)
+        .sort(),
+    ).toEqual([...SPA_IDS].sort());
+    expect(list.find((f) => f.id === "next")?.kind).toBe("server");
+    for (const meta of ["nuxt", "sveltekit", "astro", "angular"]) {
       expect(list.some((f) => f.id === meta)).toBe(false);
     }
   });
 
+  it("does not mark Next.js verified until the frontend e2e suite passes live", () => {
+    expect(listFrontendFrameworks().find((f) => f.id === "next")?.verified).toBe(false);
+  });
+
   it("marks only verified providers as verified", () => {
     expect(VERIFIED_FRONTEND_FRAMEWORKS.every((id) => id in FRONTEND_FRAMEWORKS)).toBe(true);
-    expect(listFrontendFrameworks().every((f) => f.verified)).toBe(true);
+    expect(
+      listFrontendFrameworks()
+        .filter((f) => f.id !== "next")
+        .every((f) => f.verified),
+    ).toBe(true);
   });
 
   it("the frontend e2e suite's matrix is built from the registry's framework list", () => {
@@ -52,13 +67,30 @@ describe("frontend framework resolution", () => {
     expect(resolveFrontendFramework("frontend")?.id).toBe("react");
   });
 
+  it("resolves next to the Next.js server provider", () => {
+    expect(getFrontendFramework("next", "web").id).toBe("next");
+  });
+
+  it("gives a Next.js resource a health probe under its own base path, and a route that answers it", () => {
+    const manifest = createServiceJson("fe-next", "frontend", "app", 3000, [], "next");
+    expect(manifest.healthCheckPath).toBe("/fe-next/health");
+    // A Vite SPA keeps the engine default (/health, served by nginx).
+    expect(
+      createServiceJson("web", "frontend", "app", 3000, [], "react").healthCheckPath,
+    ).toBeUndefined();
+    const route = getFrontendFramework("next", "fe-next")
+      .createFiles("fe-next")
+      .find((f) => f.filename === "src/app/health/route.ts");
+    expect(route?.content).toContain("export function GET()");
+  });
+
   it("hands a meta-framework off to bring-your-own", () => {
     try {
-      getFrontendFramework("next", "web");
+      getFrontendFramework("nuxt", "web");
       expect.unreachable();
     } catch (e) {
-      expect(e).toBeInstanceOf(TdkError);
-      const err = e as TdkError;
+      expect(e).toBeInstanceOf(FliskError);
+      const err = e as FliskError;
       expect(err.message).toContain("react, vue");
       expect(JSON.stringify(err)).toContain("flisk resource web --type bring-your-own");
     }
@@ -69,7 +101,7 @@ describe("frontend framework resolution", () => {
       getFrontendFramework("not-a-framework", "web");
       expect.unreachable();
     } catch (e) {
-      const err = e as TdkError;
+      const err = e as FliskError;
       expect(err.message).toContain("react, vue");
       expect(JSON.stringify(err)).not.toContain("bring-your-own");
     }

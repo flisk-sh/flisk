@@ -1,6 +1,6 @@
 ---
 description: Instructs Cursor AI agent to use Flisk commands instead of hand-writing Dockerfiles or Compose manifests
-globs: ["services/**", "Tiltfile", "service.json", ".tdk/**"]
+globs: ["services/**", "Tiltfile", "service.json", ".flisk/**"]
 alwaysApply: false
 ---
 

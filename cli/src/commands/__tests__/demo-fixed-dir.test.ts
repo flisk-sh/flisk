@@ -80,8 +80,8 @@ vi.mock("../project.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../project.js")>()),
   cloneProjectTemplate: vi.fn(async (_template: string, target: string) => {
     const destination = isAbsolute(target) ? target : resolve(dirs.cwd, target);
-    mkdirSync(join(destination, ".tdk"), { recursive: true });
-    writeFileSync(join(destination, ".tdk", "project.json"), "{}\n");
+    mkdirSync(join(destination, ".flisk"), { recursive: true });
+    writeFileSync(join(destination, ".flisk", "project.json"), "{}\n");
   }),
 }));
 
@@ -98,7 +98,7 @@ vi.setConfig({ testTimeout: 30_000 });
 /** Runs cli.ts from scratch with the given arguments and returns the exit code. */
 async function runDemoCli(...args: string[]): Promise<number | undefined> {
   vi.resetModules();
-  process.argv = [originalArgv[0], "/fake/bin/tdk.js", ...args];
+  process.argv = [originalArgv[0], "/fake/bin/flisk.js", ...args];
 
   try {
     await import("../../cli.js");
@@ -134,7 +134,7 @@ describe("flisk demo fixed directory", () => {
 
     expect(await runDemoCli("demo")).toBe(0);
 
-    expect(existsSync(join(demoDir, ".tdk", "project.json"))).toBe(true);
+    expect(existsSync(join(demoDir, ".flisk", "project.json"))).toBe(true);
   });
 
   it("removes the previous directory and creates a fresh one on the second run", async () => {
@@ -146,7 +146,7 @@ describe("flisk demo fixed directory", () => {
     expect(await runDemoCli("demo")).toBe(0);
 
     expect(existsSync(marker)).toBe(false);
-    expect(existsSync(join(demoDir, ".tdk", "project.json"))).toBe(true);
+    expect(existsSync(join(demoDir, ".flisk", "project.json"))).toBe(true);
   });
 
   it("puts the demo in the home directory, not the current working directory", async () => {

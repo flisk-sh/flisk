@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Tests for daemon auto-registration functionality.
@@ -24,7 +24,7 @@ class TestDaemonRegistration:
         """
         from pathlib import Path
         import sys
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import diff_snapshots, save_snapshot, load_snapshot
         
         original_dir = Path.cwd()
@@ -70,7 +70,7 @@ class TestDaemonRegistration:
         from pathlib import Path
         import sys
         import os
-        sys.path.insert(0, str(Path("discovery").resolve()))
+        sys.path.insert(0, str(Path("runtime/discovery").resolve()))
         from resource_snapshot import save_snapshot, load_snapshot, diff_snapshots, get_current_services
         
         original_dir = Path.cwd()

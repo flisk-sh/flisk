@@ -61,7 +61,7 @@ export function requireVerifiedDockerVersions(result) {
         fix: result.fix ?? "Start Docker and ensure Docker Engine 25+ and Compose 2.20.2+ are installed.",
     };
 }
-function usesPrisma(projectRoot) {
+export function usesPrisma(projectRoot) {
     try {
         return discoverResourcesFromRoot(projectRoot).some((resource) => {
             return resource.config?.featuresEnabled?.includes("prisma") ?? false;
@@ -120,9 +120,10 @@ export async function runColdPreflight(opts = {}) {
     const bunPath = bunNeeded ? findOnPath("bun") : undefined;
     if (bunPath) {
         try {
+            // A cold start of bun can pass 3s on a busy machine; a timeout there reads as "not installed".
             const version = execFileSync(bunPath, ["--version"], {
                 encoding: "utf-8",
-                timeout: 3000,
+                timeout: 10_000,
             }).trim();
             bun = bunMeetsFloor(version);
         }
@@ -155,7 +156,7 @@ export async function runColdPreflight(opts = {}) {
             id: "ports",
             ok: false,
             message: error instanceof Error ? error.message : String(error),
-            fix: "Set TDK_HTTP_PORT, TDK_HTTPS_PORT, or TDK_POSTGRES_PORT to available host ports.",
+            fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
         });
     }
     // Project wiring (NATS, Prisma database) describes a running stack, so it is
@@ -167,7 +168,7 @@ export async function runColdPreflight(opts = {}) {
         if (usesPrisma(projectRoot)) {
             let dbUp = false;
             try {
-                const config = JSON.parse(readFileSync(join(projectRoot, ".tdk", PROJECT_JSON), "utf-8"));
+                const config = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
                 const projectName = String(config?.project?.name ?? "").replace(/-/g, "_");
                 if (projectName) {
                     const running = execFileSync(findOnPath("docker") ?? "docker", [

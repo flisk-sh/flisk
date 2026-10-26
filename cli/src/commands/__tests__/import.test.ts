@@ -2,14 +2,27 @@
 // SPDX-License-Identifier: MIT
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  spawn: vi.fn(),
+}));
+
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  spawn: (...args: unknown[]) => mocks.spawn(...args),
+}));
+
 import {
   buildForwardedImportArgs,
   checkCoreVersion,
+  compareSemver,
   IMPORT_PACKAGE,
   importCommand,
   importInvocation,
   isVersionAtLeast,
   MIN_CORE_VERSION,
+  parseSemver,
+  RECOMMENDED_CORE_VERSION,
   runImport,
 } from "../import.js";
 
@@ -47,8 +60,8 @@ describe("flisk import", () => {
     expect(importCommand.description()).not.toMatch(/procfile|dockerfile|package\.json/i);
   });
 
-  it("honours TDK_IMPORT_PACKAGE and uses npx.cmd on Windows", () => {
-    const inv = importInvocation(["."], { TDK_IMPORT_PACKAGE: "flisk-import@1" }, "win32");
+  it("honours FLISK_IMPORT_PACKAGE and uses npx.cmd on Windows", () => {
+    const inv = importInvocation(["."], { FLISK_IMPORT_PACKAGE: "flisk-import@1" }, "win32");
     expect(inv.command).toBe("npx.cmd");
     expect(inv.args).toEqual(["--yes", "flisk-import@1", "."]);
     expect(inv.shell).toBe(true);
@@ -171,22 +184,19 @@ describe("flisk import", () => {
         importCommand.setOptionValue("force", false);
 
         const { calls, spawnFn } = fakeSpawn({ code: 0 });
-        const argsParsed: string[] = [];
-        const optsParsed: { yes?: boolean; force?: boolean } = {};
+        mocks.spawn.mockImplementation(spawnFn);
+        const prevExitCode = process.exitCode;
 
-        // Parse using commander instance to extract args and options
-        const testCmd = importCommand.action(async (args, options) => {
-          argsParsed.push(...args);
-          Object.assign(optsParsed, options);
-          const forwarded = buildForwardedImportArgs(args, options);
-          await runImport(forwarded, spawnFn, () => "1.3.183");
-        });
+        try {
+          await importCommand.parseAsync(["node", "flisk", ...commandArgs], { from: "node" });
 
-        await testCmd.parseAsync(["node", "flisk", ...commandArgs], { from: "node" });
-
-        expect(calls).toHaveLength(1);
-        const spawnedArgs = calls[0]?.[1] as string[];
-        expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
+          expect(calls).toHaveLength(1);
+          const spawnedArgs = calls[0]?.[1] as string[];
+          expect(spawnedArgs.slice(2)).toEqual(expectedForwarded);
+        } finally {
+          mocks.spawn.mockReset();
+          process.exitCode = prevExitCode;
+        }
       },
     );
   });
@@ -232,6 +242,17 @@ describe("flisk import", () => {
       expect(check.ok).toBe(true);
     });
 
+    it("permits -h shorthand even on older core versions", () => {
+      const check = checkCoreVersion("1.3.103", ["-h"]);
+      expect(check.ok).toBe(true);
+    });
+
+    it("defaults to write check when no arguments are provided", () => {
+      const check = checkCoreVersion("1.3.103");
+      expect(check.ok).toBe(false);
+      expect(check.message).toContain("flisk upgrade");
+    });
+
     it("exits 1 without spawning when core version is below minimum", async () => {
       const err = vi.spyOn(console, "error").mockImplementation(() => {});
       const { calls, spawnFn } = fakeSpawn({ code: 0 });
@@ -240,6 +261,98 @@ describe("flisk import", () => {
       expect(calls).toHaveLength(0);
       expect(err).toHaveBeenCalledWith(expect.stringContaining("flisk upgrade"));
       err.mockRestore();
+    });
+
+    it("resolves to exit code 1 when child process exits with null or undefined code", async () => {
+      const { spawnFn: nullCodeSpawn } = fakeSpawn({ code: null });
+      expect(await runImport(["."], nullCodeSpawn, () => "1.3.200")).toBe(1);
+
+      const { spawnFn: undefinedCodeSpawn } = fakeSpawn({ code: undefined });
+      expect(await runImport(["."], undefinedCodeSpawn, () => "1.3.200")).toBe(1);
+    });
+  });
+
+  describe("parseSemver and compareSemver helpers", () => {
+    it("parses valid semantic version strings correctly", () => {
+      expect(parseSemver("1.2.3")).toEqual({
+        major: 1,
+        minor: 2,
+        patch: 3,
+        prerelease: [],
+      });
+      expect(parseSemver("v2.4.6")).toEqual({
+        major: 2,
+        minor: 4,
+        patch: 6,
+        prerelease: [],
+      });
+      expect(parseSemver("1.2")).toEqual({
+        major: 1,
+        minor: 2,
+        patch: 0,
+        prerelease: [],
+      });
+      expect(parseSemver("1.0.0-alpha.1")).toEqual({
+        major: 1,
+        minor: 0,
+        patch: 0,
+        prerelease: ["alpha", 1],
+      });
+      expect(parseSemver("1.0.0+20130313144700")).toEqual({
+        major: 1,
+        minor: 0,
+        patch: 0,
+        prerelease: [],
+      });
+    });
+
+    it("returns null for unparseable version strings", () => {
+      expect(parseSemver("")).toBeNull();
+      expect(parseSemver("   ")).toBeNull();
+      expect(parseSemver("not-a-version")).toBeNull();
+      expect(parseSemver("1.2.3.4")).toBeNull();
+      expect(parseSemver("1.x.3")).toBeNull();
+    });
+
+    it("compares semver strings according to SemVer 2.0.0 specification", () => {
+      // Major difference
+      expect(compareSemver("2.0.0", "1.9.9")).toBe(1);
+      expect(compareSemver("1.0.0", "2.0.0")).toBe(-1);
+
+      // Minor difference
+      expect(compareSemver("1.5.0", "1.4.99")).toBe(1);
+      expect(compareSemver("1.4.99", "1.5.0")).toBe(-1);
+
+      // Patch difference
+      expect(compareSemver("1.3.105", "1.3.104")).toBe(1);
+      expect(compareSemver("1.3.104", "1.3.105")).toBe(-1);
+
+      // Equal versions
+      expect(compareSemver("1.3.104", "1.3.104")).toBe(0);
+
+      // Prerelease comparison: normal version has higher precedence than prerelease
+      expect(compareSemver("1.0.0", "1.0.0-alpha")).toBe(1);
+      expect(compareSemver("1.0.0-alpha", "1.0.0")).toBe(-1);
+      expect(compareSemver("1.0.0-alpha", "1.0.0-alpha")).toBe(0);
+
+      // Prerelease identifiers comparison
+      expect(compareSemver("1.0.0-alpha", "1.0.0-beta")).toBe(-1);
+      expect(compareSemver("1.0.0-beta", "1.0.0-alpha")).toBe(1);
+      expect(compareSemver("1.0.0-1", "1.0.0-2")).toBe(-1);
+      expect(compareSemver("1.0.0-2", "1.0.0-1")).toBe(1);
+      expect(compareSemver("1.0.0-1", "1.0.0-alpha")).toBe(-1); // numeric has lower precedence than string
+      expect(compareSemver("1.0.0-alpha", "1.0.0-1")).toBe(1); // string has higher precedence than numeric
+      expect(compareSemver("1.0.0-alpha.1", "1.0.0-alpha")).toBe(1);
+      expect(compareSemver("1.0.0-alpha", "1.0.0-alpha.1")).toBe(-1); // fewer prerelease components has lower precedence
+
+      // Invalid inputs return null
+      expect(compareSemver("invalid", "1.0.0")).toBeNull();
+      expect(compareSemver("1.0.0", "invalid")).toBeNull();
+    });
+
+    it("validates that RECOMMENDED_CORE_VERSION is at least MIN_CORE_VERSION", () => {
+      expect(isVersionAtLeast(RECOMMENDED_CORE_VERSION, MIN_CORE_VERSION)).toBe(true);
+      expect(compareSemver(RECOMMENDED_CORE_VERSION, MIN_CORE_VERSION)).toBe(1);
     });
   });
 });

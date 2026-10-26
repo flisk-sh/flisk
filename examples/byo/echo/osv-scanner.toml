@@ -1,0 +1,9 @@
+# GO-2026-5932 flags golang.org/x/crypto/openpgp, which has no fixed release. Every x/crypto
+# version still ships that package, so the advisory cannot be cleared by upgrading. This example
+# only imports x/crypto through Echo's acme/autocert package (echo.go), which does not link
+# openpgp: `go list -deps .` shows no openpgp package. Revisit when Echo drops x/crypto from its
+# go.mod, or when the advisory gains a fixed version.
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+ignoreUntil = 2027-04-25
+reason = "openpgp has no fixed version and is not linked into this example's binary; x/crypto is only reached via echo's acme/autocert."

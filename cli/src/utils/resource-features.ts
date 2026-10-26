@@ -10,11 +10,8 @@
  * Backend services: prisma (enabled by default)
  */
 
-import type { ResourceType as ImportResourceType } from "../types/index.js";
+import type { ResourceType } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE } from "./constants.js";
-
-// Re-export the ResourceType from types/index to avoid conflicts
-export type ResourceType = ImportResourceType;
 
 export interface ResourceFeature {
   name: string;
@@ -166,7 +163,7 @@ export const RESOURCE_FEATURES: Record<string, ResourceFeature> = {
     description:
       "Domain-driven design folder structure (domain/application/infrastructure/presentation) " +
       "and matching @domain/@application/@infrastructure/@presentation/@test path aliases " +
-      "(Premium - requires TDK_LICENSE_KEY; see hasDddLicense() in extension-fetch.ts)",
+      "(Premium - requires FLISK_LICENSE_KEY; see hasDddLicense() in extension-fetch.ts)",
     applies_to: ["backend", "worker", "migrator"],
     enabled_by_default: false,
     category: "premium",
@@ -184,13 +181,13 @@ export const RESOURCE_FEATURES: Record<string, ResourceFeature> = {
       "is created or started, and a Traefik static route wakes it on the first request instead " +
       "(backends only for now), so it doesn't wait behind the rest of a large landscape's " +
       "bring-up. Requires `enable: true`. " +
-      "(Premium - requires TDK_LICENSE_KEY; free tier writes a disabled stub; see " +
+      "(Premium - requires FLISK_LICENSE_KEY; free tier writes a disabled stub; see " +
       "hasSablierLicense() in extension-fetch.ts KNOWN_RESOURCES/PREMIUM_PATH_MAP)",
     applies_to: ["backend", "frontend"],
     enabled_by_default: false,
     category: "premium",
     generator_file:
-      "engine/topologies/platform/docker/networking/sablier_container_cycle.star (stub; real generator in tdk-cli-extensions/premium/networking/), engine/topologies/platform/docker/networking/traefik.star, engine/topologies/platform/docker/compose/traefik_standalone.star (deferStart wake gateway + static route), engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star (deferred image prebuild + wake route wiring)",
+      "engine/topologies/platform/docker/networking/sablier_container_cycle.star (stub; real generator in flisk-cli-extensions/premium/networking/), engine/topologies/platform/docker/networking/traefik.star, engine/topologies/platform/docker/compose/traefik_standalone.star (deferStart wake gateway + static route), engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star (deferred image prebuild + wake route wiring)",
     output_file:
       "(Traefik + Sablier Docker labels on the resource's own compose service; with deferStart, also a generated Traefik file-provider dynamic-config entry, wake gateway, and image prebuild resource)",
   },
@@ -199,9 +196,9 @@ export const RESOURCE_FEATURES: Record<string, ResourceFeature> = {
 /**
  * Get default features for a resource type
  */
-export function getDefaultFeaturesForResourceType(appType: ResourceType): string[] {
+export function getDefaultFeaturesForResourceType(resourceType: ResourceType): string[] {
   // bring-your-own doesn't generate application code, so no features
-  if (appType === BRING_YOUR_OWN_TYPE) {
+  if (resourceType === BRING_YOUR_OWN_TYPE) {
     return [];
   }
 
@@ -210,7 +207,7 @@ export function getDefaultFeaturesForResourceType(appType: ResourceType): string
   for (const [key, feature] of Object.entries(RESOURCE_FEATURES)) {
     if (
       feature.enabled_by_default &&
-      feature.applies_to.includes(appType) &&
+      feature.applies_to.includes(resourceType) &&
       // Only include if it's something users control via features array
       ["api-client", "env-config", "api-index", "prisma"].includes(key)
     ) {
@@ -224,6 +221,6 @@ export function getDefaultFeaturesForResourceType(appType: ResourceType): string
 /**
  * Get all generators for a resource type (for documentation)
  */
-export function getGeneratorsForResourceType(appType: ResourceType): ResourceFeature[] {
-  return Object.values(RESOURCE_FEATURES).filter((f) => f.applies_to.includes(appType));
+export function getGeneratorsForResourceType(resourceType: ResourceType): ResourceFeature[] {
+  return Object.values(RESOURCE_FEATURES).filter((f) => f.applies_to.includes(resourceType));
 }

@@ -9,8 +9,8 @@
   },
   "plugins": [
     {
-      "name": "tdk-cli",
-      "source": "./plugins/tdk-cli",
+      "name": "flisk-cli",
+      "source": "./plugins/flisk-cli",
       "description": "Operate and troubleshoot the Flisk CLI in a project repository"
     }
   ]

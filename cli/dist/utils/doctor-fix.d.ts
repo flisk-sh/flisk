@@ -75,14 +75,14 @@ export interface ApplyOptions {
 export declare function applyDoctorFixes(actions: DoctorAction[], options: ApplyOptions, deps?: DoctorFixDeps): Promise<DoctorAction[]>;
 /** Whether any action leaves a problem behind that a re-run could still repair. */
 export declare function hasFailedActions(actions: DoctorAction[]): boolean;
-export interface TdkInstall {
+export interface FliskInstall {
     path: string;
     version: string | null;
 }
 /** Every distinct `flisk` on PATH (symlinks to one binary count once), in PATH order. */
-export declare function findTdkInstalls(paths?: string[], readVersion?: (path: string) => Promise<string | null>): Promise<TdkInstall[]>;
+export declare function findFliskInstalls(paths?: string[], readVersion?: (path: string) => Promise<string | null>): Promise<FliskInstall[]>;
 /** Two `flisk` binaries can disagree (a dashboard or MCP client may launch the older one), so say which is which. */
-export declare function checkDuplicateTdkInstalls(installs?: TdkInstall[]): Promise<CheckResult>;
+export declare function checkDuplicateFliskInstalls(installs?: FliskInstall[]): Promise<CheckResult>;
 /**
  * PIDs of `tilt up` processes for this project. The process list shows the Tiltfile path as it was typed at launch,
  * which may or may not be the symlink-resolved path, so both spellings are looked up.

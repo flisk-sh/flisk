@@ -93,7 +93,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
 
     const { stdout } = await runCompletion(["--install"]);
 
-    const installPath = join(home.dir, ".zsh", "completions", "_tdk");
+    const installPath = join(home.dir, ".zsh", "completions", "_flisk");
     expect(fsStore.files.get(installPath)).toContain("#compdef flisk");
     expect(stdout).toContain("Installed zsh completion to:");
   });
@@ -104,26 +104,26 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     const { stderr } = await runCompletion(["--install"]);
 
     expect(stderr).toContain("Using bash completion");
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
-    expect(fsStore.files.get(installPath)).toContain("complete -F _tdk_completions flisk");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
+    expect(fsStore.files.get(installPath)).toContain("complete -F _flisk_completions flisk");
   });
 
   it("lets the --shell option pick the install target", async () => {
     const { stdout } = await runCompletion(["--shell", "fish", "--install"]);
 
-    const installPath = join(home.dir, ".config", "fish", "completions", "tdk.fish");
+    const installPath = join(home.dir, ".config", "fish", "completions", "flisk.fish");
     expect(fsStore.files.get(installPath)).toContain("complete -c flisk");
     expect(stdout).toContain("Installed fish completion to:");
   });
 
   it("overwrites an existing bash completion on reinstall", async () => {
-    const installPath = join(home.dir, ".bash_completion.d", "tdk-completion.bash");
+    const installPath = join(home.dir, ".bash_completion.d", "flisk-completion.bash");
     const writeMock = vi.mocked(writeFileSync);
 
     await runCompletion(["bash", "--install"]);
     const first = fsStore.files.get(installPath);
     expect(first).toBeDefined();
-    expect(first).toContain("complete -F _tdk_completions flisk");
+    expect(first).toContain("complete -F _flisk_completions flisk");
 
     await runCompletion(["bash", "--install"]);
 
@@ -193,7 +193,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     const stale = [
       "# my profile",
       "# FLISK-CLI-COMPLETION-START",
-      "Register-ArgumentCompleter -Native -CommandName tdk-old",
+      "Register-ArgumentCompleter -Native -CommandName flisk-old",
       "# FLISK-CLI-COMPLETION-END",
       "# footer",
       "",
@@ -205,7 +205,7 @@ describe("flisk completion --install target selection (mocked fs)", () => {
     const written = fsStore.files.get(installPath);
     expect(written).toContain("# my profile");
     expect(written).toContain("# footer");
-    expect(written).not.toContain("tdk-old");
+    expect(written).not.toContain("flisk-old");
     expect(written).toContain("Register-ArgumentCompleter -Native -CommandName flisk");
     expect(written?.match(/# FLISK-CLI-COMPLETION-START/g)).toHaveLength(1);
     expect(written?.match(/# FLISK-CLI-COMPLETION-END/g)).toHaveLength(1);

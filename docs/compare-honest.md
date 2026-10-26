@@ -42,3 +42,10 @@ If you are using `libfx` or LangGraph, you still need a local database, persiste
 - Built-in generators are TypeScript-first; bring your own Go, Java, or Python services.
 - The 100-service number is a fixture bench of generated `/health` stubs, not an application workload. See [the claims registry](claims.md) and [bench notes](benchmarks/scale-bench.md).
 - Native Windows is inspect-only; startup needs Ubuntu on WSL2.
+- Local development only. Flisk does not deploy; production stays on Helm, Argo CD, or Kustomize, and it does not replace CI/CD.
+- Docker and Tilt are required. If your team already has a mature Compose, DevContainer, or local Kubernetes setup, the added value may be small.
+- Running several instances of one service locally is not supported yet (ports, identity, and service discovery are open design questions).
+- CPU and RAM use for a small stack on a 16 GB laptop has not been benchmarked; see [bench notes](benchmarks/scale-bench.md) for what is measured.
+- The project is young, so docs, examples, and community knowledge are limited.
+- Shutdown sends SIGTERM, but draining in-flight work (queues, background jobs) is the service's responsibility; a healthy container can still lose work if it ignores SIGTERM.
+- Environment variables are moving from the `TDK_` prefix to `FLISK_`. Both work today (`FLISK_X` wins); `TDK_X` prints a deprecation notice. Set `FLISK_QUIET_DEPRECATIONS=1` to silence it in CI.

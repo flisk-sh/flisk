@@ -4,6 +4,8 @@
 
 ## Start here
 
+- **[Quickstart](quickstart.md)**: get a running stack in 3 commands (demo, manual, or guided)
+- [Flisk 101](101/README.md): a 13-lab course from an empty folder to a running stack, with an AI-agent prompt in every lab
 - [Run one backend locally](../examples/one-backend/README.md)
 - [Run one Python backend locally](../examples/one-backend-python/README.md)
 - [Full multi-service example](../examples/tdk-example/README.md)
@@ -13,20 +15,24 @@
 - [Generated service files](generated-files.md): what Flisk writes from `service.json`, and how to handle drift
 - [Environment, params and secrets](environment.md): the project `.env`, `params`, `secrets` and auth
 - [Operator runbook](operator-runbook.md): install matrix, version minimums, releases, license key
+- [Install from GitHub Packages](github-packages.md): `~/.npmrc` setup when you install from GitHub instead of npm
+- [Release operations](releasing.md): cut, verify and repair a CLI release; GitHub Packages backfill; unscoped npm package
 - [WSL2 setup](wsl2.md)
 - [Windows hardware checks](windows-hardware.md): what the Windows e2e suites cover, what a real Windows machine adds, and how to run them
+- [Native Windows runtime decision](design/native-windows-runtime-decision.md): RFC #1757 evaluation, blocker spike, maintainers' decision, and acceptance matrix
 - [Install and use Flisk alongside Helm](with-helm.md)
 
 ## Understand Flisk
 
 - [Project overview and repository map](project-overview.md)
-- [How flisk up works](how-tdk-up-works.md): lifecycle, port planning, focus filtering, and shutdown
+- [How flisk up works](how-flisk-up-works.md): lifecycle, port planning, focus filtering, and shutdown
 - [Architecture](ARCHITECTURE.md): how flisk, the engine, and discovery fit together
 - [Features](FEATURES.md)
 - [Topology](TOPOLOGY.md)
 - [Tool comparison: docker-compose, Tilt, Skaffold, DevSpace, kind](comparison.md)
 - [Honest comparison and known limits](compare-honest.md)
 - [Claims registry](claims.md): every public number and where it comes from
+- [Roadmap](ROADMAP.md): what Flisk intends to do and not do over the next 12 months
 
 ## Guides
 
@@ -43,11 +49,13 @@
 - [Leaving Flisk](leaving-flisk.md): what `flisk eject` really does, what stays usable without Flisk, what you lose
 - [Local data: reset, seed, snapshot](data.md): where Postgres data lives and how to reset it
 - [Testing webhooks locally](local-webhooks.md): a proposed recipe for replaying duplicate, retried and tampered provider deliveries without the provider
-- [Upgrading and version pinning](upgrading.md): `minTdkVersion`, installing a specific version, what is versioned
+- [Upgrading and version pinning](upgrading.md): `minFliskVersion`, installing a specific version, what is versioned
 - [Security: network calls, secrets and supply chain](security.md): what Flisk sends, where secrets live, image tags and release checks
+- [Assurance case](assurance-case.md): threat model, trust boundaries, and the code and tests behind each security claim
 - [Smoke check](smoke.md): `flisk up` checks a service through the URL it prints
 - [Agent hosts](agent-hosts.md): Dev Containers, Codespaces and WebContainers, and what `flisk doctor` reports for them
 - [AI agents in Flisk](agents/ai-agents.md): hosting agents, persistent checkpoint volumes, session routing, and recipes
+- [Flisk agent tooling](agent-tooling/README.md): overview of the local `flisk mcp` server and its guides
 - [Flisk MCP setup](agent-tooling/flisk-mcp-setup.md): install Flisk and connect Codex or Claude Code over local stdio
 - [Flisk MCP quick guide](agent-tooling/flisk-mcp.md): the tools a connected client exposes, and how to target a project
 - [Bring-your-own resources](byo.md): wrap an existing service or image, one-shot jobs, `--restart`
@@ -64,6 +72,9 @@
 
 ## Reference
 
+- [`service.json` reference](service-json.md): every field Flisk reads from a resource's `service.json`
+- [`flisk ui` key bindings](ui.md): keys the terminal dashboard handles
+- [`TILT_TECH_STACK.star` and version ownership](tech-stack-lock.md): what the generated file records, and what it is not
 - [Machine-readable CLI](reference/machine-readable-cli.md): JSON shapes, exit codes, an agent polling example
 - [Doctor contract](reference/doctor-contract.md): `flisk doctor --json` schema and migration notes
 
@@ -71,12 +82,29 @@
 
 - [Scale fixture measurements](benchmarks/scale-bench.md)
 - [Cold boot of a real shop](benchmarks/cold-boot-shop-real.md)
+- [Quickstart timing](benchmarks/quickstart-timing.md): one measured run of the "3 seconds" quickstart claim
+- [Benchmark results](benchmarks/results/README.md): published runs, with machine and tool versions
 
 ## Contributing
 
 - [Contributor guide](contributing/README.md)
+- [Quick start for contributors](contributing/quick-start.md): fresh clone to first passing test run
+- [Follow the recipe for your change](contributing/02-feature-recipes.md)
 - [Write CLI unit tests](contributing/08-write-cli-unit-tests.md)
 - [Write an end-to-end test](contributing/05-write-e2e.md)
+- [Run e2e suites in a matrix](contributing/06-e2e-matrix.md)
+- [Run unit tests in a matrix](contributing/07-unit-test-matrix.md): proposed, not yet in CI
+- [Contributor badges](contributing/contributor-badges.md)
+- [The Flisk Journey](journey/README.md): map of open issues and Hacktoberfest quests
+
+## Project
+
+- [Governance](project/GOVERNANCE.md)
+- [Maintainers](project/MAINTAINERS.md)
+- [Access continuity](ACCESS-CONTINUITY.md): how the project keeps going if a maintainer cannot continue
+- [Adopters](project/ADOPTERS.md)
+
+Not listed on purpose: translations (`README-*.md`, `contributing/translations/`), drafts, marketing and outreach material, and internal design notes and proposals (`design/networks-design.md`, `byo-nestjs-spec.md`, `project/DELIVERY.md`, `branding.md`).
 
 ## Where things live
 

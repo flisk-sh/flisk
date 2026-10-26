@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 // Builds one self-contained HTML page (no external files, no network) from a flisk up benchmark run and the
-// committed history in benchmarks/results. Published to GitHub Pages by .github/workflows/benchmarks.yml.
+// committed history in docs/benchmarks/results. Published to GitHub Pages by .github/workflows/benchmarks.yml.
 //
-// Usage: node scripts/benchmark/build-report.mjs --run <run dir> --history benchmarks/results --out <dir> [--commit <sha>] [--run-url <url>]
+// Usage: node scripts/benchmark/build-report.mjs --run <run dir> --history docs/benchmarks/results --out <dir> [--commit <sha>] [--run-url <url>]
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -14,7 +14,7 @@ import { parseArgs } from "node:util";
 const { values } = parseArgs({
 	options: {
 		run: { type: "string" },
-		history: { type: "string", default: "benchmarks/results" },
+		history: { type: "string", default: "docs/benchmarks/results" },
 		out: { type: "string", default: "site" },
 		commit: { type: "string", default: "" },
 		"run-url": { type: "string", default: "" },
@@ -35,7 +35,7 @@ const num = (value) => (typeof value === "number" && Number.isFinite(value) ? va
 const fmt = (value, digits = 1) => (num(value) === null ? "n/a" : Number(value).toFixed(digits));
 const readJson = (path) => (existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null);
 
-// One run: a summary.json written by summarize-tdk-up.mjs.
+// One run: a summary.json written by summarize-flisk-up.mjs.
 function loadRun(dir, label) {
 	const summary = readJson(join(dir, "summary.json"));
 	if (!summary) return null;
@@ -44,17 +44,17 @@ function loadRun(dir, label) {
 
 const current = loadRun(resolve(values.run), "This run");
 if (!current) {
-	console.error(`No summary.json in ${values.run}; run summarize-tdk-up.mjs first.`);
+	console.error(`No summary.json in ${values.run}; run summarize-flisk-up.mjs first.`);
 	process.exit(1);
 }
 
-// Committed history: every published tdk-up-warm-start-* folder, oldest first.
+// Committed history: every published flisk-up-warm-start-* folder, oldest first.
 const historyDir = resolve(values.history);
 const history = existsSync(historyDir)
 	? readdirSync(historyDir)
-			.filter((name) => name.startsWith("tdk-up-warm-start-"))
+			.filter((name) => name.startsWith("flisk-up-warm-start-"))
 			.sort()
-			.map((name) => loadRun(join(historyDir, name), name.replace("tdk-up-warm-start-", "")))
+			.map((name) => loadRun(join(historyDir, name), name.replace("flisk-up-warm-start-", "")))
 			.filter(Boolean)
 	: [];
 
@@ -131,7 +131,7 @@ const historyRows = history.map((h) => {
 });
 const historyTab = `
 <h2>History</h2>
-<p class="lede">Every published result in <code>benchmarks/results</code>. Each machine is different; compare a row with its own environment, not across rows.</p>
+<p class="lede">Every published result in <code>docs/benchmarks/results</code>. Each machine is different; compare a row with its own environment, not across rows.</p>
 ${historyRows.length ? `<table><thead><tr><th>Result</th><th>Cold to healthy (s)</th><th>Warm median to healthy (s)</th></tr></thead><tbody>
 ${historyRows.map((h) => `<tr><th>${esc(h.label)}</th><td class="num">${fmt(h.cold, 0)}</td><td class="num">${fmt(h.warm, 0)}</td></tr>`).join("\n")}
 </tbody></table>` : "<p>No published results yet.</p>"}
@@ -209,7 +209,7 @@ footer a { color: var(--accent); }
 <section id="t-env" role="tabpanel" aria-labelledby="b-env" hidden>${envTab}</section>
 </main>
 <footer>
-Source: <a href="https://github.com/flisk-sh/flisk/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/tdk-up-warm-start.sh</code> · raw data in <a href="https://github.com/flisk-sh/flisk/tree/main/benchmarks/results">benchmarks/results</a>
+Source: <a href="https://github.com/flisk-sh/flisk/tree/main/scripts/benchmark">scripts/benchmark</a> · reproduce with <code>scripts/benchmark/flisk-up-warm-start.sh</code> · raw data in <a href="https://github.com/flisk-sh/flisk/tree/main/docs/benchmarks/results">docs/benchmarks/results</a>
 </footer>
 <script>
 (function () {

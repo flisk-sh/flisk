@@ -10,6 +10,7 @@ import { evaluateStarlark, tiltAvailable } from "../../test-support/index.js";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const frontendGenerator = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -19,6 +20,7 @@ const frontendGenerator = join(
 );
 const frontendTsconfigGenerator = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -28,6 +30,7 @@ const frontendTsconfigGenerator = join(
 );
 const frontendApiGenerators = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -38,6 +41,7 @@ const frontendApiGenerators = join(
 );
 const envGenerators = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -46,8 +50,39 @@ const envGenerators = join(
   "generators",
   "env.star",
 );
+const viteGenerators = join(
+  repoRoot,
+  "runtime",
+  "engine",
+  "topologies",
+  "tilt",
+  "generators",
+  "vite",
+  "generators.star",
+);
+const nextDockerfile = join(
+  repoRoot,
+  "runtime",
+  "engine",
+  "topologies",
+  "platform",
+  "docker",
+  "dockerfile",
+  "next_dockerfile.star",
+);
+const traefikGenerator = join(
+  repoRoot,
+  "runtime",
+  "engine",
+  "topologies",
+  "platform",
+  "docker",
+  "networking",
+  "traefik.star",
+);
 const viteLibraryTemplates = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -57,6 +92,7 @@ const viteLibraryTemplates = join(
 );
 const frontendValidators = join(
   repoRoot,
+  "runtime",
   "engine",
   "topologies",
   "tilt",
@@ -179,6 +215,7 @@ it("passes the persisted framework to the shared frontend TypeScript generator",
   const orchestrator = readFileSync(
     join(
       repoRoot,
+      "runtime",
       "engine",
       "topologies",
       "tilt",
@@ -198,15 +235,16 @@ it("selects the framework entry in generated frontend health checks", () => {
   expect(validators).toContain(
     'manifest.get("framework", "react") in ["vue", "svelte", "lit", "vanilla"]',
   );
-  expect(validators).toContain('"frontend": ["package.json", "index.html", frontend_entry]');
+  expect(validators).toContain('["package.json", "index.html", frontend_entry]');
+  expect(validators).toContain('["package.json", "next.config.mjs", "src/app/page.tsx"]');
 });
 
-// A project root whose .tdk/project.json names the project, which is the npm scope and the local domain.
+// A project root whose .flisk/project.json names the project, which is the npm scope and the local domain.
 function projectRootNamed(name: string) {
-  const directory = mkdtempSync(join(tmpdir(), "tdk-generator-project-"));
+  const directory = mkdtempSync(join(tmpdir(), "flisk-generator-project-"));
   temporaryDirs.push(directory);
-  mkdirSync(join(directory, ".tdk"));
-  writeFileSync(join(directory, ".tdk", "project.json"), JSON.stringify({ project: { name } }));
+  mkdirSync(join(directory, ".flisk"));
+  writeFileSync(join(directory, ".flisk", "project.json"), JSON.stringify({ project: { name } }));
   return directory;
 }
 
@@ -215,7 +253,7 @@ function projectRootNamed(name: string) {
 function generatedFiles(source: string, projectRoot: string) {
   const result = evaluateStarlark(frontendGenerator, {
     args: source,
-    env: { ...process.env, TDK_PROJECT_ROOT: projectRoot },
+    env: { ...process.env, FLISK_PROJECT_ROOT: projectRoot },
   });
   const marker = "GENERATED_FILES_JSON=";
   const line = result.stderr.split("\n").find((entry) => entry.includes(marker));
@@ -339,6 +377,58 @@ for content in files.values():
     if "@vitejs/plugin-react" not in content: fail('missing React plugin')
     if "base: '/storefront/'" not in content: fail('missing shared base path')
 if 'proxy:' not in files['apps/storefront' + VITE_FRONTEND_CONFIG_PATH]: fail('missing shared proxy')
+`,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it("skips the Vite configs for Next.js, which owns its build through next.config.mjs", () => {
+    const result = evaluateStarlark(frontendGenerator, {
+      args: `load(${JSON.stringify(viteGenerators)}, 'generate_for_manifest')
+manifest = {'appType': 'frontend', 'framework': 'next', 'appName': 'web', 'stack': 'app', 'port': 3000, '_resource_path': 'services/app/web'}
+written = []
+def write_config(path, content):
+    written.append(path)
+if generate_for_manifest(manifest, write_fn=write_config) != None: fail('Next.js must not produce a Vite config')
+if len(written) != 0: fail('no Vite config may be written for Next.js: ' + str(written))
+`,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it("builds Next.js as a Node image with a next dev target and a standalone production server", () => {
+    const result = evaluateStarlark(nextDockerfile, {
+      args: `load(${JSON.stringify(nextDockerfile)}, 'generate_next_dockerfile')
+text = generate_next_dockerfile('services/app/web', 3000)
+for needle in ['AS development', 'next", "dev"', 'AS build', 'next build', 'AS production', 'node", "server.js"', 'EXPOSE 3000']:
+    if needle not in text: fail('missing ' + needle)
+if 'nginx' in text: fail('a Next.js image must not use nginx')
+if 'bun' in text: fail('a Next.js image must not use Bun')
+if 'l4-backend-node:latest' not in text: fail('the golden Node layer is the default base')
+if 'USER app' not in text: fail('the golden path runs the production stage as app')
+if 'RUN chown -R app:app /app/services/app/web' not in text: fail('the dev stage gives the run user the app folder, so next dev can create .next')
+if 'NEXT_DIST_DIR' in text: fail('a distDir outside the project breaks module resolution (react is not found)')
+golden_off = generate_next_dockerfile('services/app/web', 3000, False)
+if 'l4-backend-node' in golden_off: fail('without the golden image the base must be the upstream node image')
+if 'node:22-slim@sha256' not in golden_off: fail('the upstream node image must be pinned by digest')
+if 'apt-get install' not in golden_off: fail('the upstream image needs curl installed')
+if 'USER node' not in golden_off: fail('the upstream path runs as the node user')
+`,
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it("routes Next.js on its basePath without stripping the prefix", () => {
+    const result = evaluateStarlark(traefikGenerator, {
+      args: `load(${JSON.stringify(traefikGenerator)}, 'get_frontend_traefik_labels')
+next_labels = get_frontend_traefik_labels('web', 'app', '/web', 3000, manifest={'framework': 'next'})
+if 'stripprefix' in next_labels: fail('Next.js must keep its basePath prefix, so no stripprefix middleware')
+if 'loadbalancer.server.port=3000' not in next_labels: fail('missing the Next.js port')
+spa_labels = get_frontend_traefik_labels('web', 'app', '/web', 3000, manifest={'framework': 'react'})
+if 'stripprefix.prefixes=/web' not in spa_labels: fail('an SPA keeps stripping the prefix')
 `,
     });
 

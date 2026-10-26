@@ -87,6 +87,7 @@ const GENERATED_STRING_FIELDS = [
         pattern: /^[A-Za-z0-9._/:@-]+$/,
         expected: "an image reference such as ghcr.io/acme/app:1.0",
     },
+    { path: ["basePath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /storefront" },
 ];
 /**
  * Errors for generated-output fields whose values could change the generated YAML. The value itself is not echoed, because it may

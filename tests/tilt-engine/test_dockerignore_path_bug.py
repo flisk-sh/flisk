@@ -1,4 +1,4 @@
-# Copyright (c) 2026 TDK Landscape contributors
+# Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
 """
 Regression test for the sibling-service dockerignore collision bug.
@@ -36,6 +36,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.generator]
 def manifest_resource_path() -> Path:
     return (
         Path(__file__).parent.parent.parent
+        / "runtime"
         / "engine"
         / "topologies"
         / "tilt"

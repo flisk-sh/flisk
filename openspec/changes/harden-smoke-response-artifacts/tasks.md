@@ -1,10 +1,10 @@
 ## 1. Ignore protection
 
 - [x] 1.1 Detect whether the project root or one of its ancestors holds a `.git` entry (a file in a worktree, a directory in a clone).
-- [x] 1.2 Call the shared `ensureGitignore()` for `projectRoot` before the first smoke record is written, so `.tdk/smoke/` is ignored even when the project never ran `flisk project`. Note that it adds the whole Flisk entry set, not only `.tdk/smoke/`.
+- [x] 1.2 Call the shared `ensureGitignore()` for `projectRoot` before the first smoke record is written, so `.flisk/smoke/` is ignored even when the project never ran `flisk project`. Note that it adds the whole Flisk entry set, not only `.flisk/smoke/`.
 - [x] 1.3 Skip the ignore call outside a git working tree: do not create or modify a `.gitignore` there, and print no ignore warning.
 - [x] 1.4 When the ignore entry cannot be ensured, warn before writing the records and say that Git may track them. Never report the directory as protected when it could not be checked.
-- [x] 1.5 Add `.tdk/smoke/` to `examples/tdk-example/.gitignore`.
+- [x] 1.5 Add `.flisk/smoke/` to `examples/tdk-example/.gitignore`.
 - [x] 1.6 Add regression tests: a project with a `smoke` block and no prior `flisk project` call gets the ignore entry; a project outside a git working tree gets no `.gitignore`; an unwritable `.gitignore` produces the warning before any record is written.
 
 ## 2. Redact smoke text
@@ -19,7 +19,7 @@
 
 ## 3. Document the artifact lifecycle and the exposure
 
-- [x] 3.1 Update `docs/smoke.md` with the storage location, the redaction scope and its limits (only what the shared helper recognises, nothing to redact without a readable `.env`), the redacted failure snippet, and the manual cleanup (`rm -rf .tdk/smoke/`).
+- [x] 3.1 Update `docs/smoke.md` with the storage location, the redaction scope and its limits (only what the shared helper recognises, nothing to redact without a readable `.env`), the redacted failure snippet, and the manual cleanup (`rm -rf .flisk/smoke/`).
 - [x] 3.2 Update `docs/configuration.md` so the git-ignore guarantee is no longer described as depending on `flisk project` alone, and state that the records are redacted before they are written.
 - [x] 3.3 Document that records survive `flisk down`, stay until they are deleted or overwritten, and that the `smoke` suite of `.github/workflows/e2e-journeys.yml` publishes `smoke-records-*` artifacts for 14 days that anyone who can read the workflow run can download.
 - [x] 3.4 Note that `.gitignore` does not remove already tracked files and does not scrub Git history, and that older records are not rewritten.

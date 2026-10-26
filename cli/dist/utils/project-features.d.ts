@@ -17,6 +17,9 @@ export interface ProjectFeature {
 }
 export declare const PROJECT_FEATURES: Record<string, ProjectFeature>;
 /**
- * Get all enabled project features
+ * Get all enabled project features: those on by default plus those switched
+ * on in `optional_infra`. Each feature appears once, in `PROJECT_FEATURES`
+ * order. Names that are not features are ignored, and `false` does not turn
+ * off a feature that is on by default.
  */
 export declare function getEnabledProjectFeatures(optional_infra?: Record<string, boolean>): string[];

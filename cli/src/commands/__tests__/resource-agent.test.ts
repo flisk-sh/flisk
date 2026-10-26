@@ -21,7 +21,7 @@ import {
 } from "../../utils/constants.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 const hasBun = spawnSync("bun", ["--version"], { encoding: "utf-8" }).status === 0;
 
 function flisk(args: string[], cwd: string, input = "y\n") {
@@ -29,7 +29,7 @@ function flisk(args: string[], cwd: string, input = "y\n") {
     cwd,
     encoding: "utf-8",
     input,
-    env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
+    env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
   });
 }
 
@@ -66,7 +66,7 @@ describe("the agent resource type", () => {
 
   it("is accepted by the service schema, and the engine runs it as a backend", () => {
     const schema = JSON.parse(
-      readFileSync(join(repoRoot, "engine", "schemas", "service-schema.json"), "utf-8"),
+      readFileSync(join(repoRoot, "runtime", "engine", "schemas", "service-schema.json"), "utf-8"),
     );
     expect(schema.properties.appType.enum).toContain("agent");
     expect(schema.properties.type.enum).toContain("agent");
@@ -76,7 +76,7 @@ describe("the agent resource type", () => {
     // The engine normalises an agent manifest once, where service.json is loaded, so every backend code path (routing,
     // health gate, DATABASE_URL, restart policy) applies. This pins the normalisation; see loader.test below for the rest.
     const loader = readFileSync(
-      join(repoRoot, "engine", "topologies", "tilt", "manifest", "loader.star"),
+      join(repoRoot, "runtime", "engine", "topologies", "tilt", "manifest", "loader.star"),
       "utf-8",
     );
     expect(loader).toContain('manifest.get("appType") == "agent"');
@@ -86,13 +86,22 @@ describe("the agent resource type", () => {
 
   it("gets a named state volume for files durability, declared at the top of the compose file", () => {
     const compose = readFileSync(
-      join(repoRoot, "engine", "topologies", "platform", "docker", "compose", "compose.star"),
+      join(
+        repoRoot,
+        "runtime",
+        "engine",
+        "topologies",
+        "platform",
+        "docker",
+        "compose",
+        "compose.star",
+      ),
       "utf-8",
     );
     expect(compose).toContain("res_name + '-agent-state'");
-    expect(compose).toContain("AGENT_STATE_DIR=/var/lib/tdk-agent");
+    expect(compose).toContain("AGENT_STATE_DIR=/var/lib/flisk-agent");
     expect(compose).toContain("AGENT_DURABILITY={}");
-    expect(compose).toContain('line.strip().startswith("# tdk-agent-volume: ")');
+    expect(compose).toContain('line.strip().startswith("# flisk-agent-volume: ")');
     expect(compose).toContain('volumes_section = "\\nvolumes:\\n"');
     // flisk down must not remove volumes: no compose invocation in the CLI passes -v or --volumes.
     const down = readFileSync(join(repoRoot, "cli", "src", "commands", "down.ts"), "utf-8");
@@ -108,9 +117,9 @@ describe("the agent resource type", () => {
 
     const pgIndex = customRuntime.createIndex("pg-bot", "postgres");
     expect(pgIndex).toContain("from 'pg'");
-    expect(pgIndex).toContain("tdk_agent_sessions");
+    expect(pgIndex).toContain("flisk_agent_sessions");
     expect(pgIndex).toContain("DATABASE_URL");
-    expect(pgIndex).toContain("CREATE TABLE IF NOT EXISTS tdk_agent_sessions");
+    expect(pgIndex).toContain("CREATE TABLE IF NOT EXISTS flisk_agent_sessions");
     expect(pgIndex).toContain("ON CONFLICT (session_id) DO UPDATE");
   });
 });
@@ -119,10 +128,10 @@ describe("flisk resource --type agent", () => {
   let projectRoot = "";
 
   beforeAll(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), "tdk-agent-"));
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-agent-"));
     execFileSync(process.execPath, [cliBin, "project", "--yes"], {
       cwd: projectRoot,
-      env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
+      env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
     });
   }, 30000);
 
@@ -190,7 +199,7 @@ describe("flisk resource --type agent", () => {
 
     const index = readFileSync(join(dir("pg-agent"), "src", "index.ts"), "utf-8");
     expect(index).toContain("from 'pg'");
-    expect(index).toContain("tdk_agent_sessions");
+    expect(index).toContain("flisk_agent_sessions");
     expect(index).toContain("DATABASE_URL");
     expect(index).toContain("url.pathname === '/ready'");
   }, 30000);
@@ -256,7 +265,7 @@ describe("flisk resource --type agent", () => {
   it.skipIf(!hasBun)(
     "keeps a session across a restart, and drains on SIGTERM",
     async () => {
-      const stateDir = mkdtempSync(join(tmpdir(), "tdk-agent-state-"));
+      const stateDir = mkdtempSync(join(tmpdir(), "flisk-agent-state-"));
       const source = join(dir("support-agent"), "src", "index.ts");
 
       // The runtime binds the port it is given, so the test has to hand it one that is free. Asking the OS

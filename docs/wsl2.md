@@ -1,82 +1,164 @@
-# Flisk on WSL2
+# Flisk on Windows
 
-Flisk supports Ubuntu running in WSL2. Native Windows can inspect the CLI, but `flisk up` requires Linux, Docker, and Tilt; run it from Ubuntu in WSL2.
+## Support summary
 
-## Prepare Docker Desktop
+| Platform | `flisk up` | `flisk doctor` | `flisk --version` | `flisk up --dry-run` | Notes |
+|----------|------------|----------------|-------------------|----------------------|-------|
+| macOS / Linux | ✅ Full runtime | ✅ Full | ✅ | ✅ | Native support |
+| **WSL2 Ubuntu** | ✅ Full runtime | ✅ Full | ✅ | ✅ | **Recommended for Windows** |
+| Native Windows | ❌ Refused | ✅ Inspection only | ✅ | ✅ Inspection only | See below |
 
-1. Install Docker Desktop on Windows and select the WSL2 backend.
-2. In Docker Desktop, open **Settings → Resources → WSL Integration** and enable integration for the Ubuntu distribution you will use.
-3. Start Ubuntu from Windows Terminal. Confirm Docker is available with `docker version` and `docker compose version`.
-4. Install Tilt and Flisk in Ubuntu:
+**Bottom line**: Run Flisk from **Ubuntu inside WSL2** for the full stack. Native Windows runs only inspection commands (`flisk --version`, `flisk doctor`, `flisk up --dry-run`); `flisk up` exits with a clear refusal pointing to WSL2.
 
+## Recommended setup: WSL2 Ubuntu with Docker Desktop
+
+### Prerequisites
+- Windows 10 22H2+ or Windows 11 (WSL2 requires Windows 10 1903+; 22H2+ recommended for best compatibility)
+- WSL2 installed: `wsl --install -d Ubuntu` (or `wsl --install` for default Ubuntu)
+- Docker Desktop for Windows with **WSL2 backend** selected
+- Admin rights for Docker Desktop installation
+
+### Step-by-step
+
+1. **Install Docker Desktop with WSL2 backend**
+   - Download from [docker.com](https://www.docker.com/products/docker-desktop/)
+   - During install, ensure **Use WSL 2 instead of Hyper-V** is checked
+   - After install, open Docker Desktop → **Settings → Resources → WSL Integration** → enable for your Ubuntu distro
+   - Click **Apply & Restart**
+
+2. **Open Ubuntu (WSL2)**
+   - Launch "Ubuntu" from Windows Terminal or Start menu
+   - Verify Docker is reachable:
+     ```sh
+     docker version
+     docker compose version
+     ```
+     Both should print version info without errors.
+
+3. **Install Tilt and Flisk in Ubuntu**
    ```sh
    curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash
    curl -fsSL https://flisk.sh/install.sh | sh
    ```
+   Or use Bun/npm:
+   ```sh
+   bun add -g @flisk-sh/flisk
+   # or
+   npm install -g @flisk-sh/flisk
+   ```
 
-## Install and boot the bundled example
+4. **Verify the environment**
+   ```sh
+   flisk doctor
+   ```
+   All checks should pass. If any fail, see [Troubleshooting](#troubleshooting) below.
 
-Run these commands in the Ubuntu shell. The first `flisk project example` copies the bundled example into your home directory; `flisk project --yes` configures that copy.
+5. **Boot the example stack**
+   ```sh
+   flisk project example --path "$HOME/tdk-example"
+   cd "$HOME/tdk-example"
+   flisk project --yes
+   sed -i 's/^INFISICAL_ENABLED=.*/INFISICAL_ENABLED=false/' .env
+   flisk config verify
+   flisk doctor
+   flisk up shop
+   ```
+   The command prints the HTTP port (80, or 8080-8180 on WSL2). Use the printed URLs to access services.
 
-```sh
-flisk doctor
-flisk project example --path "$HOME/tdk-example"
-cd "$HOME/tdk-example"
-flisk project --yes
-sed -i 's/^INFISICAL_ENABLED=.*/INFISICAL_ENABLED=false/' .env
-flisk config verify
-flisk doctor
-flisk up shop
-```
+6. **Verify the stack works** (in another Ubuntu terminal)
+   ```sh
+   export HTTP_PORT=<port printed by flisk up>
+   curl -fsS "http://api.tdk-example.localhost:$HTTP_PORT/api/orders/health"
+   curl -fsS "http://app.tdk-example.localhost:$HTTP_PORT"
+   ```
 
-Leave `flisk up shop` running. From another Ubuntu terminal, check the routed API and UI, create an order, and wait for the NATS worker to mark it:
+7. **Clean up**
+   Press `Ctrl+C` in the `flisk up` terminal, then run:
+   ```sh
+   flisk down
+   ```
 
-Set `HTTP_PORT` to the HTTP port `flisk up` printed (80, or 8080 on WSL2 when 80 is not available):
+## The one-command demo (WSL2 only)
 
-```sh
-set -euo pipefail
-: "${HTTP_PORT:?set HTTP_PORT to the port flisk up printed}"
-api=http://api.tdk-example.localhost:$HTTP_PORT/api/orders
-curl -fsS "$api/health"
-curl -fsS "$api/worker-ready"
-curl -fsS http://app.tdk-example.localhost:$HTTP_PORT/orders-app/ >/dev/null
-order_id="$(curl -fsS -X POST "$api" -H 'content-type: application/json' \
-  -d '{"item":"WSL2 smoke test"}' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).order.id)))')"
-echo "Created order $order_id"
-
-seen=no
-for _ in $(seq 1 60); do
-  result="$(curl -fsS "$api/$order_id")"
-  seen="$(printf '%s' "$result" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).order.workerSeenAt ? "yes" : "no"))')"
-  [ "$seen" = yes ] && break
-  sleep 1
-done
-[ "$seen" = yes ] || { echo "Worker did not observe order $order_id" >&2; exit 1; }
-echo "Worker observed order $order_id"
-```
-
-Stop the stack from the first terminal with `Ctrl+C`, then run `flisk down` from the example directory.
-
-## The one-command demo
-
-The demo is the shortest path to a running stack: it clones the starter into `~/.flisk/flisk-demo`, installs the CLI globally, installs the service dependencies, boots everything and opens the frontend. On native Windows it refuses with the WSL2 guidance, because native Windows is inspection-only; in Ubuntu under WSL2 it works.
+The shortest path to a running stack:
 
 ```sh
 flisk demo
 ```
 
-## Automated smoke
+This clones the starter, installs dependencies, boots the stack, and opens the frontend. **Only works in WSL2 Ubuntu**; native Windows refuses with WSL2 guidance.
 
-With Flisk and Docker Desktop WSL integration already available, run `bash scripts/wsl2-smoke.sh` from the Flisk repository checkout inside Ubuntu. It copies the bundled example into a temporary directory, checks doctor and generated configuration, boots the stack, exercises the same routed write and worker observation, and tears the stack down. Pass a directory path to keep the copied example for inspection.
+## Native Windows: what works and what doesn't
 
-`bash scripts/wsl2-demo.sh` does the same for the demo flow: it runs `flisk demo` the way a user runs it and then confirms that what it started works. Every resource has to be `ready` in `flisk status --json`, every routed service has to answer (the backend at its `/health` path, the frontend at its page), and `flisk down` has to stop the stack again. The demo output, the status and networks reports and the per-service HTTP results land in the evidence directory (the first argument, `/root/tdk-evidence` by default).
+| Command | Native Windows | WSL2 Ubuntu |
+|---------|----------------|-------------|
+| `flisk --version` | ✅ Prints version | ✅ |
+| `flisk doctor` | ✅ Inspection checks | ✅ Full checks |
+| `flisk up --dry-run` | ✅ Shows what would start | ✅ |
+| `flisk up <stack>` | ❌ Exits 1 with WSL2 guidance | ✅ Boots stack |
+| `flisk demo` | ❌ Refuses before cloning | ✅ Full demo flow |
 
-The WSL2 smoke workflow was removed at the end-to-end cutover (#1302), so no CI job runs it now. Its steps are the cases of [`tests/e2e/platforms/wsl2`](../tests/e2e/platforms/wsl2/run.sh), and it runs on `windows-2022`, provisions Ubuntu 24.04 under WSL2, and installs Docker Engine inside that distro. [The successful run on merge commit `ad7c5c0`](https://github.com/flisk-sh/flisk/actions/runs/36903887190) records HTTP 200 responses for the routed API, worker-readiness, and app checks, followed by a successful NATS worker observation. This CI path tests Docker Engine inside WSL2; it does not test Docker Desktop WSL integration.
+**Why?** `flisk up` needs Linux containers, Docker, and Tilt. Native Windows cannot run Linux containers without WSL2. The CLI refuses early to avoid partial/confusing state.
 
-The suite is back in CI as the **🐧 Platforms WSL2 E2E** workflow ([`.github/workflows/e2e-platforms-wsl2.yml`](../.github/workflows/e2e-platforms-wsl2.yml)). It is dispatched by hand: the setup needs a Windows runner and takes a while, and the old job was flaky on `wsl --update` and on the Ubuntu and Docker mirrors (#716, #717). Its `WS6` case runs the demo flow and the confirmation above, and the evidence it uploads is what an acceptance run links to.
+If you are on native Windows and see:
+```
+Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.
+```
+→ Open **Ubuntu (WSL2)** and run the commands there.
+
+## Verification checklist
+
+After setup, run these to confirm readiness:
+
+```sh
+# 1. Docker reachable
+docker ps
+
+# 2. Tilt installed
+tilt version
+
+# 3. Flisk installed
+flisk --version
+
+# 4. Doctor passes
+flisk doctor
+
+# 5. Config verifies (in a project)
+flisk config verify
+```
+
+All should succeed without errors. If not, see [Troubleshooting](#troubleshooting).
 
 ## Troubleshooting
 
-- If `docker version` cannot reach the server, enable the Ubuntu distribution under Docker Desktop's **Resources → WSL Integration** and restart Ubuntu.
-- Flisk asks for HTTP ingress port 80 and uses it when it is free. Otherwise, or on WSL2 where a non-root user cannot check port 80, it selects a free port from 8080-8180, and it selects a fallback Postgres host port when needed. It prints the selected values; use the reported HTTP port in routed URLs if it differs from the URL without a port. Set `TDK_HTTP_PORT`, `TDK_HTTPS_PORT`, or `TDK_POSTGRES_PORT` to override a selection; a conflicting override is reported without stopping the process using it.
-- Use the API and app URLs printed by Flisk if your project name differs from `tdk-example`.
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `docker version` fails / "Cannot connect to the Docker daemon" | WSL integration not enabled | Docker Desktop → Settings → Resources → WSL Integration → enable Ubuntu → Apply & Restart → restart Ubuntu |
+| `flisk doctor` shows port 80/443/5432 conflict | Another process holds the port | `netstat -ano \| findstr :80` (Windows) or `ss -tlnp \| grep :80` (Ubuntu) → stop the process or set `FLISK_HTTP_PORT` |
+| `flisk up` picks port 8080+ instead of 80 | Non-root user cannot bind port 80 on Linux/WSL2 | Expected behavior; use the printed URL with the port. Or run `sudo setcap 'cap_net_bind_service=+ep' $(which docker)` (not recommended) |
+| `flisk doctor` warns about `FLISK_BIND_ADDRESS` | Wildcard bind address exposes ports to network | Unset `FLISK_BIND_ADDRESS` to keep ports on `127.0.0.1` |
+| `flisk up` fails with "Tilt not found" | Tilt not in PATH | `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash` then restart shell |
+| `bun: command not found` | Bun not installed | `curl -fsSL https://bun.sh/install \| bash` or install via npm |
+
+## What is NOT supported
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Native Windows `flisk up` | Not supported | No Linux container runtime; use WSL2 |
+| Docker Desktop without WSL2 backend | Not supported | Hyper-V backend has different networking; use WSL2 backend |
+| Windows Containers | Not supported | Flisk generates Linux container configs only |
+| ARM64 Windows | Untested | AMD64 only for now |
+
+## CI evidence
+
+Flisk runs automated WSL2 smoke tests on GitHub-hosted `windows-2022` runners with Ubuntu 24.04 WSL2 and Docker Engine inside the distro. The workflow runs on every push to `main` and is a required check.
+
+- Workflow: [🐧 Platforms WSL2 E2E](https://github.com/flisk-sh/flisk/actions/workflows/e2e-platforms-wsl2.yml)
+- **Note**: CI uses **Docker Engine inside WSL2**, not Docker Desktop WSL integration. The guide above describes Docker Desktop integration; the two paths are functionally similar but not identical.
+
+## See also
+
+- [Windows hardware checks](windows-hardware.md): Evidence from real Windows machines
+- [Troubleshooting](troubleshooting.md): General troubleshooting guide
+- [Requirements and support](../README.md#requirements-and-support): Platform support matrix
+- [Issue #107](https://github.com/flisk-sh/flisk/issues/107): Windows/WSL2 quickstart test tracking

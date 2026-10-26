@@ -9,26 +9,26 @@ import { expect } from "vitest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = resolve(__dirname, "../../../..");
-export const cliBin = join(repoRoot, "cli", "bin", "tdk.js");
+export const cliBin = join(repoRoot, "cli", "bin", "flisk.js");
 
-export function runTdk(args: string[], cwd: string, input?: string): string {
+export function runFlisk(args: string[], cwd: string, input?: string): string {
   return execFileSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
     input,
     env: {
       ...process.env,
-      TDK_EXTENSION_SOURCE: repoRoot,
+      FLISK_EXTENSION_SOURCE: repoRoot,
     },
   });
 }
 
 /** `flisk doctor` exits non-zero on machines without Docker, so read its output either way. */
-export function runTdkAllowFailure(args: string[], cwd: string): string {
+export function runFliskAllowFailure(args: string[], cwd: string): string {
   const result = spawnSync(process.execPath, [cliBin, ...args], {
     cwd,
     encoding: "utf-8",
-    env: { ...process.env, TDK_EXTENSION_SOURCE: repoRoot },
+    env: { ...process.env, FLISK_EXTENSION_SOURCE: repoRoot },
   });
   return `${result.stdout}${result.stderr}`;
 }
@@ -40,7 +40,7 @@ export function runTdkAllowFailure(args: string[], cwd: string): string {
  * generate its own.
  */
 export function copyProject(source: string): string {
-  const target = mkdtempSync(join(tmpdir(), "tdk-project-copy-"));
+  const target = mkdtempSync(join(tmpdir(), "flisk-project-copy-"));
   cpSync(source, target, { recursive: true });
   return target;
 }

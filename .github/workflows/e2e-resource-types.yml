@@ -2,7 +2,7 @@
 # suites that run for the event; each matrix leg boots one suite's stack and runs all of its cases. Replaces agent-e2e.yml.
 # On a pull request and nightly a leg tests the packed CLI of the checkout (main, nightly), so a regression on main shows up
 # before a release ships it. After a release it tests the published npm package. The gate job always runs and fails when the plan or any selected leg failed.
-name: 🤖 Resource-type E2E
+name: 🧩 E2E | Resource types
 
 on:
   workflow_dispatch:
@@ -15,16 +15,17 @@ on:
         description: "Runner label for every job (default ubuntu-latest); try ubuntu-26.04 before ubuntu-latest moves to it (#1277)"
         type: string
         default: "ubuntu-latest"
-  # Runs on the merge queue, not on pull requests: the live-stack agent suites are too slow and costly for every PR. The
-  # merge queue runs them before a change lands, and the release candidate runs them again. The plan job skips every leg when no
-  # changed file is in the list of paths it checks (the PR_PATHS below).
+  # Pull requests run only the legs their changed files touch (the plan job below): a change to one frontend framework runs
+  # that framework's leg, a change to the shared frontend code runs every frontend leg. A PR that touches none of them runs
+  # no legs, and the gate passes. The full set runs on the merge queue, nightly and release candidates.
+  pull_request:
   merge_group:
   schedule:
     - cron: "30 6 * * *"
   # Prove each release right after it is published. Read-only token, no secrets, main branch only; it checks out main itself
   # rather than the triggering run's ref, so nothing untrusted is executed.
   workflow_run: # zizmor: ignore[dangerous-triggers]
-    workflows: ["Release binaries and npm package"]
+    workflows: ["🚀 Release | Binaries and npm package"]
     types: [completed]
     branches: [main]
 
@@ -70,7 +71,16 @@ jobs:
           if [ "$trigger" = "pr" ]; then
             languages="bun,python,rust,go,node"
             frameworks=""
-            frontends=""
+            # Frontend legs follow the changed files: cli/src/frontend-frameworks/<name>.ts runs <name>; any shared frontend
+            # code (the engine's Dockerfile and Traefik templates, the frontend suite itself) runs them all.
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            pr_files="$(git diff --name-only "$BASE_SHA" HEAD)"
+            all_frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
+            if printf '%s\n' "$pr_files" | grep -qE '^(runtime/engine/topologies/platform/docker/dockerfile/|cli/src/frontend-frameworks/(registry|types)\.ts$|tests/e2e/resource-types/frontend/|tests/e2e/lib/|cli/src/commands/resource\.ts$)'; then
+              frontends="$all_frontends"
+            else
+              frontends="$(printf '%s\n' "$pr_files" | sed -n -E 's#^cli/src/frontend-frameworks/([a-z-]+)\.ts$#\1#p' | sort -u | paste -sd, -)"
+            fi
           else
             languages="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.language | join(",")')"
             frameworks="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.httpFramework | join(",")')"
@@ -84,7 +94,7 @@ jobs:
             files="$(git diff --name-only "$BASE_SHA" HEAD)"
             # A pull request that touches none of these paths runs no legs, and the gate passes. Keep this list in step with
             # the paths the workflow used to filter on (the gate job must report on every pull request, so it is not in `on:`).
-            PR_PATHS='^(cli/src/commands/(agent|restart)\.ts|cli/src/mcp/|cli/src/agent-runtimes/|engine/|\.claude/skills/|scripts/sync-tdk-skills\.sh|tests/e2e/(lib|resource-types|orm)/|\.github/workflows/e2e-resource-types\.yml$)'
+            PR_PATHS='^(cli/src/commands/(agent|restart)\.ts|cli/src/mcp/|cli/src/agent-runtimes/|cli/src/frontend-frameworks/|runtime/engine/|\.claude/skills/|scripts/sync-tdk-skills\.sh|tests/e2e/(lib|resource-types|orm)/|\.github/workflows/e2e-resource-types\.yml$)'
             if [ -z "$(printf '%s\n' "$files" | grep -E "$PR_PATHS" || true)" ]; then
               matrix='{"include":[]}'
               files=""
@@ -145,10 +155,10 @@ jobs:
 
       - name: Tool versions and commit
         env:
-          TDK_VERSION: ${{ steps.version.outputs.version }}
+          FLISK_VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "commit: $(git rev-parse HEAD)"
-          echo "tested package: @flisk-sh/flisk@$TDK_VERSION"
+          echo "tested package: @flisk-sh/flisk@$FLISK_VERSION"
           echo "node: $(node --version)"
           echo "docker: $(docker --version)"
           echo "tilt: $(tilt version)"
@@ -180,7 +190,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: e2e-resource-types-${{ matrix.label }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/tdk-e2e/${{ matrix.suite }}/artifacts
+          path: ${{ runner.temp }}/flisk-e2e/${{ matrix.suite }}/artifacts
           if-no-files-found: warn
           retention-days: 14
       - name: Tear down
@@ -205,5 +215,5 @@ jobs:
           LEGS: ${{ needs.resource-types.result }}
         run: |
           echo "plan: $PLAN; resource-type legs: $LEGS"
-          if [ "$PLAN" != "success" ]; then echo "::error::The plan job did not succeed"; exit 1; fi
+          if [ "$PLAN" != "success" ] && [ "$PLAN" != "skipped" ]; then echo "::error::The plan job did not succeed"; exit 1; fi
           if [ "$LEGS" = "failure" ] || [ "$LEGS" = "cancelled" ]; then echo "::error::A selected suite failed"; exit 1; fi

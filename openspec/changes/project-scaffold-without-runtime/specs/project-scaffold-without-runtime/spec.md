@@ -7,7 +7,7 @@
 #### Scenario: Docker is stopped and Tilt is not installed
 
 - **WHEN** a user runs `flisk project --yes` while the Docker daemon is stopped and Tilt is not on `PATH`
-- **THEN** the CLI writes `.tdk/project.json`, the generated master configuration files and `.env`
+- **THEN** the CLI writes `.flisk/project.json`, the generated master configuration files and `.env`
 - **AND** the CLI exits with code 0
 - **AND** the CLI does not contact the Docker daemon
 

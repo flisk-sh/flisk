@@ -9,7 +9,7 @@ import { getProjectName } from "./service-urls.js";
 import { findOnPath } from "./which.js";
 
 const WINDOWS_DNS_FAILURE =
-  "Windows did not resolve *.tdk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.";
+  "Windows did not resolve *.flisk.localhost to 127.0.0.1. Browser URLs with hostnames will fail until you fix hosts or use the 127.0.0.1 URLs printed by flisk networks.";
 
 function loopbackAddresses(addresses: string[]): boolean {
   return (
@@ -49,16 +49,16 @@ export function checkWindowsRuntimeTools(): CheckResult {
     return {
       name: "Windows Runtime Tools",
       didPass: false,
-      message:
-        "Docker is not running. Start Docker Desktop, wait until it is Running, then retry flisk doctor.",
-      fix: "Install Docker Desktop and start it in Linux container mode.",
+      message: "Docker is not running or not installed.",
+      fix: '1. Install Docker Desktop: https://www.docker.com/products/docker-desktop/\n2. Start Docker Desktop and wait for "Running" status\n3. Enable WSL2 backend in Settings → General\n4. Enable WSL Integration for Ubuntu in Settings → Resources → WSL Integration\n5. Verify: docker version && docker compose version\nDocs: https://docs.docker.com/desktop/wsl/',
     };
   }
   if (!findOnPath("tilt")) {
     return {
       name: "Windows Runtime Tools",
       didPass: false,
-      message: "tilt.exe not found on PATH. Install Tilt from https://docs.tilt.dev/install.html",
+      message: "tilt.exe not found on PATH.",
+      fix: "Install Tilt:\n  curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash\nOr download from: https://docs.tilt.dev/install.html\nVerify: tilt version",
     };
   }
   const bun = findOnPath("bun");
@@ -69,6 +69,7 @@ export function checkWindowsRuntimeTools(): CheckResult {
       name: "Windows Runtime Tools",
       didPass: false,
       message: "node.exe not found on PATH for this npm installation.",
+      fix: "Install Node.js 22.12+: https://nodejs.org/\nOr use Bun (includes Node.js): https://bun.sh/install",
     };
   }
   return {
@@ -76,7 +77,7 @@ export function checkWindowsRuntimeTools(): CheckResult {
     didPass: true,
     message: bun
       ? `Docker (${docker}), Tilt, and Bun found on PATH`
-      : `Docker (${docker}) and Tilt found on PATH; ⚠️ Bun was not found (generated services need Bun)`,
+      : `Docker (${docker}) and Tilt found on PATH; ⚠️ Bun was not found (generated services need Bun)\n  Fix: curl -fsSL https://bun.sh/install | bash\n  Verify: bun --version`,
   };
 }
 
@@ -95,9 +96,8 @@ export function checkWindowsDockerMode(): CheckResult {
       return {
         name: "Docker container mode",
         didPass: false,
-        message:
-          "Docker Desktop is using Windows containers. Switch to Linux containers. Flisk stacks are Linux images.",
-        fix: "Switch Docker Desktop to Linux containers. Flisk does not run Windows containers.",
+        message: "Docker Desktop is using Windows containers. Flisk requires Linux containers.",
+        fix: '1. Open Docker Desktop → Settings → General\n2. Ensure "Use WSL 2 instead of Hyper-V" is checked\n3. Click "Apply & Restart"\n4. Verify: docker info --format \'{{.OSType}}\' (should print "linux")\nDocs: https://docs.docker.com/desktop/wsl/',
       };
     }
     return {
@@ -109,8 +109,8 @@ export function checkWindowsDockerMode(): CheckResult {
     return {
       name: "Docker container mode",
       didPass: false,
-      message:
-        "Docker is not running. Start Docker Desktop, wait until it is Running, then retry flisk doctor.",
+      message: "Docker daemon is not responding.",
+      fix: '1. Start Docker Desktop and wait for "Running" status\n2. Verify: docker version\n3. If stuck: restart Docker Desktop or run `systemctl restart docker` in WSL2\nDocs: https://docs.docker.com/desktop/troubleshoot/',
     };
   }
 }
@@ -126,7 +126,9 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
     );
     excludedRanges = parseExcludedPortRanges(output);
   } catch {
-    warnings.push("Could not inspect Windows Hyper-V excluded TCP port ranges.");
+    warnings.push(
+      "Could not inspect Windows Hyper-V excluded TCP port ranges.\n  Fix: run as Administrator: netsh interface ipv4 show excludedportrange protocol=tcp\n  If netsh fails, this check is skipped.",
+    );
   }
 
   const requiredPorts = [80, 443, 5432];
@@ -135,7 +137,7 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
   );
   if (excluded.length > 0) {
     warnings.push(
-      `⚠️ Windows reserved port${excluded.length > 1 ? "s" : ""} ${excluded.join(", ")} for Hyper-V/WSL. Fix: disable the conflicting Windows feature or change Flisk ports in project config. Common fix: run \`net stop winnat\` then \`net start winnat\` in an Administrator terminal, then retry \`flisk doctor\`.`,
+      `⚠️ Windows reserved port${excluded.length > 1 ? "s" : ""} ${excluded.join(", ")} for Hyper-V/WSL.\n  Fix 1 (reset reserved ranges): run as Administrator: net stop winnat && net start winnat\n  Fix 2 (change Flisk ports): set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, FLISK_POSTGRES_PORT in project config\n  Verify: flisk doctor\n  Docs: https://github.com/flisk-sh/flisk/blob/main/docs/wsl2.md#troubleshooting`,
     );
   }
 
@@ -168,15 +170,17 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
         { encoding: "utf-8", timeout: 10_000, windowsHide: true },
       ).trim();
       warnings.push(
-        `⚠️ Ports ${externallyOccupied.join(", ")} are already listening${owners ? `:\n${owners}` : "."}`,
+        `⚠️ Ports ${externallyOccupied.join(", ")} are already listening${owners ? `:\n${owners}` : "."}\n  Fix: stop the conflicting service or change Flisk ports (FLISK_HTTP_PORT, etc.)\n  Verify: flisk doctor\n  Docs: https://github.com/flisk-sh/flisk/blob/main/docs/wsl2.md#troubleshooting`,
       );
     } catch {
-      warnings.push(`⚠️ Ports ${externallyOccupied.join(", ")} are already in use.`);
+      warnings.push(
+        `⚠️ Ports ${externallyOccupied.join(", ")} are already in use.\n  Fix: netstat -ano | findstr :${externallyOccupied.join(" :")}\n  Verify: flisk doctor`,
+      );
     }
   }
 
   let dnsOk = true;
-  for (const host of ["tdk.localhost", "example.tdk.localhost"]) {
+  for (const host of ["flisk.localhost", "example.flisk.localhost"]) {
     try {
       const records = await lookup(host, { all: true, verbatim: true });
       if (!loopbackAddresses(records.map((record) => record.address))) dnsOk = false;
@@ -186,7 +190,7 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
   }
   if (!dnsOk) {
     warnings.push(
-      `${WINDOWS_DNS_FAILURE}\nAdd these lines to C:\\Windows\\System32\\drivers\\etc\\hosts (Administrator Notepad):\n127.0.0.1 tdk.localhost\n127.0.0.1 example.tdk.localhost`,
+      `${WINDOWS_DNS_FAILURE}\n  Fix: add these lines to C:\\Windows\\System32\\drivers\\etc\\hosts (run Notepad as Administrator):\n    127.0.0.1 flisk.localhost\n    127.0.0.1 example.flisk.localhost\n  Verify: ping flisk.localhost (should resolve to 127.0.0.1)\n  Docs: https://github.com/flisk-sh/flisk/blob/main/docs/wsl2.md#troubleshooting`,
     );
   }
 
@@ -198,7 +202,7 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
     }).trim();
     if (autocrlf.toLowerCase() === "true") {
       warnings.push(
-        "git core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF. Recommended: git config core.autocrlf input in Flisk repos.",
+        'git core.autocrlf is true; generated files may get CRLF while Docker Linux containers expect LF.\n  Fix: git config core.autocrlf input (run in Flisk repo root)\n  Verify: git config core.autocrlf (should show "input")',
       );
     }
   } catch {
@@ -206,14 +210,14 @@ export async function checkWindowsHostConfiguration(): Promise<CheckResult> {
   }
 
   warnings.push(
-    "Docker Desktop Settings → Resources → File sharing must include this project directory.",
+    "Docker Desktop Settings → Resources → File sharing must include this project directory.\n  Fix: Docker Desktop → Settings → Resources → File sharing → add project path\n  Verify: flisk doctor",
   );
   return {
     name: "Windows ports and DNS",
     didPass: dnsOk && externallyOccupied.length === 0,
     message:
       warnings.length > 0
-        ? warnings.join("\n")
+        ? warnings.join("\n\n")
         : "Required ports are available and Flisk localhost DNS resolves to loopback",
     ...(dnsOk ? {} : { fix: WINDOWS_DNS_FAILURE }),
   };

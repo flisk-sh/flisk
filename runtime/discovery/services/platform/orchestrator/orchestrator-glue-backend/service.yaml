@@ -1,0 +1,26 @@
+appName: orchestrator-glue-backend
+appType: backend
+stack: platform
+port: 5001
+databaseName: flisk_project_orchestrator
+features:
+  - nats
+  - prisma
+healthCheck:
+  port: 5001
+  interval: 30
+  path: /health
+infisicalSecretPath: /services/orchestrator-glue
+dependsOn:
+replicas: 1
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+runtime: bun
+traefik:
+  host: orchestrator.backend.flisk-project.local
+  pathPrefix: /api/orchestrator

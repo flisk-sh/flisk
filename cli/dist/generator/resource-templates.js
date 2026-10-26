@@ -122,12 +122,10 @@ main().catch((err) => {
 `;
 }
 export function getTestTemplate(name) {
-    return `import { describe, it, expect } from 'vitest';
+    return `import { describe, it } from 'vitest';
 
 describe('${name}', () => {
-  it('should pass a basic test', () => {
-    expect(true).toBe(true);
-  });
+  it.todo('add a real test for ${name}');
 });
 `;
 }

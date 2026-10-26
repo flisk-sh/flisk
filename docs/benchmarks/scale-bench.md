@@ -1,10 +1,10 @@
 # Flisk scale and cold-boot measurements
 
-> **Live report:** [flisk-sh.github.io/flisk](https://flisk-sh.github.io/flisk/) shows the latest `flisk up` warm and cold start measurements, per-service build times and the history. Published results are indexed in [`benchmarks/results/README.md`](../../benchmarks/results/README.md).
+> **Live report:** [flisk-sh.github.io/flisk](https://flisk-sh.github.io/flisk/) shows the latest `flisk up` warm and cold start measurements, per-service build times and the history. Published results are indexed in [`docs/benchmarks/results/README.md`](../../docs/benchmarks/results/README.md).
 
 These figures are implementation measurements, not the reason to use Flisk. They describe generated `/health` fixtures rather than representative application workloads.
 
-Measured with [`scripts/benchmark/container-scale.ts`](../../scripts/benchmark/README.md) against the 100-service [`tdk-erp-system` fixture bench](https://github.com/flisk-sh/tdk-erp-system), on a 16 GB machine (Docker VM: 7.75 GiB). Raw results are in [`benchmarks/results/`](../../benchmarks/results).
+Measured with [`scripts/benchmark/container-scale.ts`](../../scripts/benchmark/README.md) against the 100-service [`tdk-erp-system` fixture bench](https://github.com/flisk-sh/tdk-erp-system), on a 16 GB machine (Docker VM: 7.75 GiB). Raw results are in [`docs/benchmarks/results/`](../../docs/benchmarks/results).
 
 | Services | All healthy after | Total memory | Avg memory / service | Crashes / OOM kills |
 |---:|---:|---:|---:|---:|

@@ -1,8 +1,8 @@
 # Flisk へのコントリビュート
 
-[English](../../../CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | [繁體中文](CONTRIBUTING-zh_tw.md) | 日本語 | [한국어](CONTRIBUTING-ko.md)
+[English](../../../.github/CONTRIBUTING.md) | [简体中文](CONTRIBUTING-zh_cn.md) | [繁體中文](CONTRIBUTING-zh_tw.md) | 日本語 | [한국어](CONTRIBUTING-ko.md)
 
-> このページは [CONTRIBUTING.md](../../../CONTRIBUTING.md) の翻訳です。内容が異なる場合は英語版が優先されます。ガイドの日本語訳も利用できます。
+> このページは [CONTRIBUTING.md](../../../.github/CONTRIBUTING.md) の翻訳です。内容が異なる場合は英語版が優先されます。ガイドの日本語訳も利用できます。
 
 ようこそ！小さな修正も大きな機能もどちらも役に立ちます。まずは短い[コントリビューターガイド](README-ja.md)から始めてください。変更を見つけ、実装し、確認し、pull request を作成するまでを順に案内します。
 
@@ -86,16 +86,16 @@ issue を選んだら、`I'll take this`（または `I would like this one`、`
 
 ## コミットに署名する
 
-すべてのコミットに [Developer Certificate of Origin](../../../DCO) の署名が必要です。`git commit -s` で追加でき、`Signed-off-by: Your Name <you@example.com>` が付きます。既存のコミットを直すには、`git rebase --signoff origin/main` を実行してブランチを force-push してください。この行がないコミットがあると、pull request のチェックが失敗します。
+すべてのコミットに [Developer Certificate of Origin](../../project/DCO) の署名が必要です。`git commit -s` で追加でき、`Signed-off-by: Your Name <you@example.com>` が付きます。既存のコミットを直すには、`git rebase --signoff origin/main` を実行してブランチを force-push してください。この行がないコミットがあると、pull request のチェックが失敗します。
 
 ## 採用者リストにチームを追加する
 
-自分のリポジトリで Flisk を使っていますか？[ADOPTERS.md](../../../ADOPTERS.md) には2つの方法で掲載できます。[We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../../ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
+自分のリポジトリで Flisk を使っていますか？[ADOPTERS.md](../../project/ADOPTERS.md) には2つの方法で掲載できます。[We use Flisk](https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml) issue フォームを開くか、pull request で表に行を追加してください。[What counts](../../project/ADOPTERS.md#what-counts) では、何をリンクすべきか、何が対象外かを説明しています。
 
 ## ガバナンス
 
-意思決定とメンテナー追加の方法は [GOVERNANCE.md](../../../GOVERNANCE.md)、マージできる人は [MAINTAINERS.md](../../../MAINTAINERS.md)、Flisk を使っているチームは [ADOPTERS.md](../../../ADOPTERS.md) を参照してください。
+意思決定とメンテナー追加の方法は [GOVERNANCE.md](../../project/GOVERNANCE.md)、マージできる人は [MAINTAINERS.md](../../project/MAINTAINERS.md)、Flisk を使っているチームは [ADOPTERS.md](../../project/ADOPTERS.md) を参照してください。
 
 ## 思いやりを持って
 
-参加することで、[行動規範](../../../CODE_OF_CONDUCT.md)に従うことに同意したものとみなされます。セキュリティ上の問題は公開 issue ではなく、[SECURITY.md](../../../SECURITY.md) の手順で非公開に報告してください。
+参加することで、[行動規範](../../../.github/CODE_OF_CONDUCT.md)に従うことに同意したものとみなされます。セキュリティ上の問題は公開 issue ではなく、[SECURITY.md](../../../.github/SECURITY.md) の手順で非公開に報告してください。

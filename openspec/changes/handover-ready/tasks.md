@@ -14,7 +14,7 @@
 ## 3. Operator runbook
 
 - [x] 3.1 Write one runbook page: install matrix, minimum Docker/Tilt versions from `flisk doctor`, release + `checksums.txt` steps, license-key behavior.
-- [x] 3.2 Verify unset/expired `TDK_LICENSE_KEY` still runs `flisk up` and premium commands print a key-needed message.
+- [x] 3.2 Verify unset/expired `FLISK_LICENSE_KEY` still runs `flisk up` and premium commands print a key-needed message.
 
 ## 4. Adopters
 

@@ -56,7 +56,7 @@ describe("summarizeSmokeResults", () => {
 describe("readOnlySmokePlans", () => {
   const basePlan = (steps: SmokePlan["smoke"]["steps"], timeout = 30): SmokePlan => ({
     name: "users-api",
-    baseUrl: "http://users.tdk.local:8080",
+    baseUrl: "http://users.flisk.local:8080",
     smoke: {
       via: "proxy",
       timeoutSeconds: timeout,
@@ -103,6 +103,6 @@ describe("readOnlySmokePlans", () => {
     const plan = basePlan([{ path: "/api/status" }]);
     const [result] = readOnlySmokePlans([plan]);
     expect(result?.name).toBe("users-api");
-    expect(result?.baseUrl).toBe("http://users.tdk.local:8080");
+    expect(result?.baseUrl).toBe("http://users.flisk.local:8080");
   });
 });

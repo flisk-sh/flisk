@@ -3,13 +3,13 @@
 import { createInterface } from "node:readline";
 import { Command } from "commander";
 import { createMcpServer } from "../mcp/server.js";
-import { createTdkTools } from "../mcp/tools.js";
+import { createFliskTools } from "../mcp/tools.js";
 import { getPackageVersion } from "../utils/paths.js";
 
 export const mcpCommand = new Command("mcp")
   .description("Run a Model Context Protocol server over stdio for coding agents")
   .action(async () => {
-    const server = createMcpServer(createTdkTools(), {
+    const server = createMcpServer(createFliskTools(), {
       name: "flisk",
       version: getPackageVersion(),
     });

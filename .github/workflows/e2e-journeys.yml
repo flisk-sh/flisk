@@ -1,12 +1,12 @@
 # The journey suites in tests/e2e/journeys, one matrix leg per suite.json (#1298). A suite runs for the event's trigger (pr,
 # nightly, weekly, release, manual). On a pull request a suite runs only when a changed file matches its paths, and the
-# licensed cold-start suite never runs on a pull request, because PR code must not be able to read TDK_LICENSE_KEY.
+# licensed cold-start suite never runs on a pull request, because PR code must not be able to read FLISK_LICENSE_KEY.
 #
 # The merge queue runs the same journeys as a pull request (its changed files are the queued commit against the queue base).
 # The gate reports on every pull request, so the path filter lives in the selector, not in this workflow's `on:`.
 # Each leg reports the check name its old workflow used (suite.json `checkName`), so branch protection keeps working until it
 # changes. `gate` is the single job to require once it does: it passes when every selected leg passed or none was selected.
-name: 🧭 E2E journeys
+name: 🧭 E2E | Journeys
 
 on:
   merge_group:
@@ -29,7 +29,7 @@ on:
   # Prove each release boots as soon as it is published. Read-only token, no secrets for the pull request path, main only, and
   # it checks out main itself rather than the triggering run's ref.
   workflow_run: # zizmor: ignore[dangerous-triggers]
-    workflows: ["Release binaries and npm package"]
+    workflows: ["🚀 Release | Binaries and npm package"]
     types: [completed]
     branches: [main]
 
@@ -53,16 +53,16 @@ jobs:
     outputs:
       configured: ${{ steps.check.outputs.configured }}
     env:
-      TDK_LICENSE_KEY: ${{ secrets.TDK_LICENSE_KEY }}
+      FLISK_LICENSE_KEY: ${{ secrets.FLISK_LICENSE_KEY }}
     steps:
       - id: check
         run: |
-          if [ -z "$TDK_LICENSE_KEY" ]; then
-            echo "::warning title=TDK_LICENSE_KEY not configured::Skipped the licensed cold-start journey. Add the TDK_LICENSE_KEY Actions secret with a key granting sablier to run it."
+          if [ -z "$FLISK_LICENSE_KEY" ]; then
+            echo "::warning title=FLISK_LICENSE_KEY not configured::Skipped the licensed cold-start journey. Add the FLISK_LICENSE_KEY Actions secret with a key granting sablier to run it."
             {
               echo "### ⚠️ Licensed cold-start journey skipped"
               echo
-              echo "The \`TDK_LICENSE_KEY\` Actions secret is not configured, so the cold-start journey did not run. Add the secret with a key granting \`sablier\` to run it. This is not a failure."
+              echo "The \`FLISK_LICENSE_KEY\` Actions secret is not configured, so the cold-start journey did not run. Add the secret with a key granting \`sablier\` to run it. This is not a failure."
             } >> "$GITHUB_STEP_SUMMARY"
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
@@ -153,10 +153,10 @@ jobs:
         env:
           SUITE: ${{ matrix.suite }}
           CASES: ${{ matrix.cases }}
-          TDK_VERSION: ${{ needs.plan.outputs.version }}
+          FLISK_VERSION: ${{ needs.plan.outputs.version }}
           VERIFY_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/smoke-records
           # Only the cold-start suite may read the licensed secret; the plan never selects it on a pull request.
-          TDK_LICENSE_KEY: ${{ matrix.suite == 'cold-start' && secrets.TDK_LICENSE_KEY || '' }}
+          FLISK_LICENSE_KEY: ${{ matrix.suite == 'cold-start' && secrets.FLISK_LICENSE_KEY || '' }}
         # CASES is a space-separated list of case ids, so it word-splits on purpose.
         run: |
           # shellcheck disable=SC2086

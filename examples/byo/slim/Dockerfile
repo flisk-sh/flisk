@@ -10,5 +10,5 @@ COPY --from=build /work/app /app
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app && chown -R app:app .
 USER app
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD php -r "exit(@fsockopen('127.0.0.1', ${PORT:-8080}) ? 0 : 1);"
-# The skeleton's front controller is public/index.php. The built-in server must listen beyond loopback and on TDK's port.
+# The skeleton's front controller is public/index.php. The built-in server must listen beyond loopback and on Flisk's port.
 CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8080} -t public"]

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 # The published Windows binary on a real Windows host (#1765). The Windows CI suites (tests/e2e/platforms/windows and
 # tests/e2e/platforms/windows-binary) prove the contract on a GitHub-hosted runner: a source build and the release candidate.
-# This script proves it on the machine a developer actually uses: the published tdk-windows-amd64.exe, installed the way a
+# This script proves it on the machine a developer actually uses: the published flisk-windows-amd64.exe, installed the way a
 # user installs it, with the paths, PATH lookup and filesystem that a runner never has.
 #
 # Run it on Windows, from the repository root:
@@ -222,20 +222,20 @@ function Get-PeSignature {
 }
 
 function Get-ReleaseLayout {
-  # The published layout: tdk.exe with the tdk-cli engine directory beside it, the way install.ps1 leaves it.
+  # The published layout: flisk.exe with the flisk-cli engine directory beside it, the way install.ps1 leaves it.
   $tag = Get-ReleaseTag
-  $exeAsset = Get-ReleaseAsset $tag 'tdk-windows-amd64.exe'
-  $engineAsset = Get-ReleaseAsset $tag 'tdk-cli-engine.tar.gz'
+  $exeAsset = Get-ReleaseAsset $tag 'flisk-windows-amd64.exe'
+  $engineAsset = Get-ReleaseAsset $tag 'flisk-cli-engine.tar.gz'
   $checksums = Get-ReleaseAsset $tag 'checksums.txt'
   $dir = Join-Path $script:WorkDir 'release'
-  $exe = Join-Path $dir 'tdk.exe'
+  $exe = Join-Path $dir 'flisk.exe'
   Copy-Item -LiteralPath $exeAsset -Destination $exe -Force
-  $engine = Join-Path $dir 'tdk-cli'
+  $engine = Join-Path $dir 'flisk-cli'
   if (-not (Test-Path -LiteralPath (Join-Path $engine 'shared-platform-engineering'))) {
     & (Get-TarPath) -xzf $engineAsset -C $dir
     if ($LASTEXITCODE -ne 0) { throw "tar could not extract $engineAsset" }
   }
-  if (-not (Test-Path -LiteralPath $engine)) { throw 'the engine archive did not contain tdk-cli' }
+  if (-not (Test-Path -LiteralPath $engine)) { throw 'the engine archive did not contain flisk-cli' }
   return @{ Tag = $tag; Exe = $exe; Engine = $engine; Checksums = $checksums }
 }
 
@@ -349,18 +349,18 @@ function Invoke-Wh1 {
       Observations = @('the local exe is not a published release, so checksums.txt does not cover it')
     }
   }
-  $tag = Get-ReleaseTag
-  $checksums = Get-ReleaseAsset $tag 'checksums.txt'
-  $exeAsset = Get-ReleaseAsset $tag 'tdk-windows-amd64.exe'
-  $engineAsset = Get-ReleaseAsset $tag 'tdk-cli-engine.tar.gz'
-  $exeHash = (Get-FileHash -LiteralPath $exeAsset -Algorithm SHA256).Hash.ToLowerInvariant()
-  $engineHash = (Get-FileHash -LiteralPath $engineAsset -Algorithm SHA256).Hash.ToLowerInvariant()
-  $expectedExe = Get-ExpectedHash $checksums 'tdk-windows-amd64.exe'
-  $expectedEngine = Get-ExpectedHash $checksums 'tdk-cli-engine.tar.gz'
-  if ($exeHash -ne $expectedExe) { throw "SHA-256 mismatch for tdk-windows-amd64.exe: expected $expectedExe, got $exeHash" }
-  if ($engineHash -ne $expectedEngine) { throw "SHA-256 mismatch for tdk-cli-engine.tar.gz: expected $expectedEngine, got $engineHash" }
-  $header = Get-PeSignature $exeAsset
-  if ($header[0] -ne 0x4D -or $header[1] -ne 0x5A) { throw 'tdk-windows-amd64.exe is not a PE executable (missing MZ signature)' }
+$tag = Get-ReleaseTag
+$checksums = Get-ReleaseAsset $tag 'checksums.txt'
+$exeAsset = Get-ReleaseAsset $tag 'flisk-windows-amd64.exe'
+$engineAsset = Get-ReleaseAsset $tag 'flisk-cli-engine.tar.gz'
+$exeHash = (Get-FileHash -LiteralPath $exeAsset -Algorithm SHA256).Hash.ToLowerInvariant()
+$engineHash = (Get-FileHash -LiteralPath $engineAsset -Algorithm SHA256).Hash.ToLowerInvariant()
+$expectedExe = Get-ExpectedHash $checksums 'flisk-windows-amd64.exe'
+$expectedEngine = Get-ExpectedHash $checksums 'flisk-cli-engine.tar.gz'
+if ($exeHash -ne $expectedExe) { throw "SHA-256 mismatch for flisk-windows-amd64.exe: expected $expectedExe, got $exeHash" }
+if ($engineHash -ne $expectedEngine) { throw "SHA-256 mismatch for flisk-cli-engine.tar.gz: expected $expectedEngine, got $engineHash" }
+$header = Get-PeSignature $exeAsset
+if ($header[0] -ne 0x4D -or $header[1] -ne 0x5A) { throw 'flisk-windows-amd64.exe is not a PE executable (missing MZ signature)' }
   return @{
     Detail = "release $tag, exe sha256 $exeHash"
     Observations = @("engine archive sha256 $engineHash")
@@ -425,9 +425,9 @@ function Invoke-Wh2 {
 
   $exe = Join-Path $installDir 'tdk.exe'
   if (-not (Test-Path -LiteralPath $exe)) { throw "the installer did not place tdk.exe in $installDir" }
-  $engine = Join-Path $installDir 'tdk-cli'
+  $engine = Join-Path $installDir 'flisk-cli'
   if (-not (Test-Path -LiteralPath (Join-Path $engine 'shared-platform-engineering'))) {
-    throw 'the installer did not unpack the tdk-cli engine next to tdk.exe'
+    throw 'the installer did not unpack the flisk-cli engine next to tdk.exe'
   }
   $pathEntries = @(([string]$result.UserPathAfter) -split ';' | Where-Object { $_ })
   $onPath = @($pathEntries | Where-Object { $_.TrimEnd('\') -ieq $installDir.TrimEnd('\') }).Count -gt 0
@@ -486,8 +486,8 @@ function Invoke-Wh3 {
   if (-not $report.ok) { throw "the bundled runtime assets are incomplete: $($assets.StdOut)" }
   $assetRoot = [string]$report.assetRoot
   if (-not $assetRoot) { throw 'tdk.exe runtime --check-assets --json printed no assetRoot' }
-  # The engine sits in the tdk-cli directory next to the exe, the way install.ps1 leaves it.
-  $expectedRoot = (Resolve-Path -LiteralPath (Join-Path (Split-Path -Parent $exe) 'tdk-cli')).Path
+  # The engine sits in the flisk-cli directory next to the exe, the way install.ps1 leaves it.
+  $expectedRoot = (Resolve-Path -LiteralPath (Join-Path (Split-Path -Parent $exe) 'flisk-cli')).Path
   $actualRoot = (Resolve-Path -LiteralPath $assetRoot).Path
   if (-not [string]::Equals($actualRoot, $expectedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "the engine root is $actualRoot, but it must sit next to the exe in $expectedRoot"
@@ -578,9 +578,9 @@ function Invoke-Wh5 {
   New-Item -ItemType Directory -Force -Path $installDir | Out-Null
   $spacedExe = Join-Path $installDir 'tdk.exe'
   Copy-Item -LiteralPath $exe -Destination $spacedExe -Force
-  $sourceEngine = Join-Path (Split-Path -Parent $exe) 'tdk-cli'
+  $sourceEngine = Join-Path (Split-Path -Parent $exe) 'flisk-cli'
   if (Test-Path -LiteralPath $sourceEngine) {
-    $engine = Join-Path $installDir 'tdk-cli'
+    $engine = Join-Path $installDir 'flisk-cli'
     if (Test-Path -LiteralPath $engine) { Remove-Item -Recurse -Force -LiteralPath $engine }
     Copy-Item -LiteralPath $sourceEngine -Destination $engine -Recurse -Force
   }
