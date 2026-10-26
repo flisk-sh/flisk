@@ -991,12 +991,17 @@ describe("template-engine", () => {
 
   describe("generateMasterConfigs", () => {
     it("renders configs and copies runtime assets from an executable-relative package", async () => {
-      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-packaged-assets-"));
-      const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-packaged-exec-"));
-      const packagedRoot = path.join(fakeExecDir, "tdk-cli");
-      const runtimeDir = path.join(packagedRoot, "shared-platform-engineering", "docker-templates");
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-packaged-assets-"));
+      const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-packaged-exec-"));
+      const packagedRoot = path.join(fakeExecDir, "flisk-cli");
+      const runtimeRoot = path.join(packagedRoot, "runtime");
+      const runtimeDir = path.join(
+        runtimeRoot,
+        "shared-platform-engineering",
+        "docker-templates",
+      );
       const oldExecPath = process.execPath;
-      const oldExtensionSource = process.env.TDK_EXTENSION_SOURCE;
+      const oldExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
       const originalExistsSync = fsState.actualExistsSync;
       if (!originalExistsSync) throw new Error("node:fs mock was not initialized");
 
@@ -1009,23 +1014,24 @@ describe("template-engine", () => {
       ]) {
         fs.writeFileSync(path.join(runtimeDir, file), `#!/bin/sh\necho ${file}\n`);
       }
-      fs.mkdirSync(path.join(packagedRoot, "engine"), { recursive: true });
-      fs.mkdirSync(path.join(packagedRoot, "discovery"), { recursive: true });
-      fs.mkdirSync(path.join(packagedRoot, "specs"), { recursive: true });
-      fs.mkdirSync(path.join(packagedRoot, "ext"), { recursive: true });
-      fs.writeFileSync(path.join(packagedRoot, "Tiltfile"), "packaged extension\n");
-      fs.writeFileSync(path.join(packagedRoot, "engine", "marker.star"), "packaged engine\n");
+      fs.mkdirSync(path.join(runtimeRoot, "engine"), { recursive: true });
+      fs.mkdirSync(path.join(runtimeRoot, "discovery"), { recursive: true });
+      fs.mkdirSync(path.join(runtimeRoot, "specs"), { recursive: true });
+      fs.mkdirSync(path.join(runtimeRoot, "ext"), { recursive: true });
+      fs.writeFileSync(path.join(runtimeRoot, "Tiltfile"), "packaged extension\n");
+      fs.writeFileSync(path.join(runtimeRoot, "engine", "marker.star"), "packaged engine\n");
 
       Object.defineProperty(process, "execPath", {
         value: path.join(fakeExecDir, "flisk"),
         configurable: true,
       });
-      process.env.TDK_EXTENSION_SOURCE = packagedRoot;
+      process.env.FLISK_EXTENSION_SOURCE = packagedRoot;
       fsState.existsSync.mockImplementation((filePath) => {
         const resolved = String(filePath);
         if (
-          resolved.startsWith(`${repoRoot}${path.sep}`) &&
-          resolved.endsWith(path.join("shared-platform-engineering", "docker-templates"))
+          resolved.startsWith(`${repoRoot}${path.sep}runtime${path.sep}`) ||
+          (resolved.startsWith(`${repoRoot}${path.sep}`) &&
+            resolved.endsWith(path.join("shared-platform-engineering", "docker-templates")))
         ) {
           return false;
         }
@@ -1036,7 +1042,7 @@ describe("template-engine", () => {
         writeProjectJson(projectRoot, projectConfig());
         await generateMasterConfigs(projectRoot, { quiet: true });
 
-        const generatedDir = path.join(projectRoot, ".tdk", ".tdk-out");
+        const generatedDir = path.join(projectRoot, ".flisk", ".flisk-out");
         expect(fs.readFileSync(path.join(generatedDir, "Tiltfile"), "utf-8")).toContain(
           "# 🎯 test-project - TILT ENTRYPOINT",
         );
@@ -1058,7 +1064,7 @@ describe("template-engine", () => {
           ),
         ).toContain("echo install-deps.sh");
         expect(
-          fs.readFileSync(path.join(generatedDir, "tdk-cli-ext", "engine", "marker.star"), "utf-8"),
+          fs.readFileSync(path.join(generatedDir, "flisk-cli-ext", "engine", "marker.star"), "utf-8"),
         ).toBe("packaged engine\n");
       } finally {
         fsState.existsSync.mockImplementation(originalExistsSync);
@@ -1066,15 +1072,15 @@ describe("template-engine", () => {
           value: oldExecPath,
           configurable: true,
         });
-        if (oldExtensionSource === undefined) delete process.env.TDK_EXTENSION_SOURCE;
-        else process.env.TDK_EXTENSION_SOURCE = oldExtensionSource;
+        if (oldExtensionSource === undefined) delete process.env.FLISK_EXTENSION_SOURCE;
+        else process.env.FLISK_EXTENSION_SOURCE = oldExtensionSource;
         fs.rmSync(projectRoot, { recursive: true, force: true });
         fs.rmSync(fakeExecDir, { recursive: true, force: true });
       }
     }, 20000);
 
     it("warns when the packaged runtime asset root is missing", () => {
-      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-missing-assets-"));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-missing-assets-"));
       const originalExistsSync = fsState.actualExistsSync;
       if (!originalExistsSync) throw new Error("node:fs mock was not initialized");
       const warnings: string[] = [];
@@ -1104,10 +1110,15 @@ describe("template-engine", () => {
     });
 
     it("warns for required runtime files missing after the package directory is copied", () => {
-      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-incomplete-assets-"));
-      const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "tdk-incomplete-exec-"));
-      const packagedRoot = path.join(fakeExecDir, "tdk-cli");
-      const runtimeDir = path.join(packagedRoot, "shared-platform-engineering", "docker-templates");
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-incomplete-assets-"));
+      const fakeExecDir = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-incomplete-exec-"));
+      const packagedRoot = path.join(fakeExecDir, "flisk-cli");
+      const runtimeDir = path.join(
+        packagedRoot,
+        "runtime",
+        "shared-platform-engineering",
+        "docker-templates",
+      );
       const originalExecPath = process.execPath;
       const originalExistsSync = fsState.actualExistsSync;
       if (!originalExistsSync) throw new Error("node:fs mock was not initialized");
@@ -1122,8 +1133,9 @@ describe("template-engine", () => {
       fsState.existsSync.mockImplementation((filePath) => {
         const resolved = String(filePath);
         if (
-          resolved.startsWith(`${repoRoot}${path.sep}`) &&
-          resolved.endsWith(path.join("shared-platform-engineering", "docker-templates"))
+          resolved.startsWith(`${repoRoot}${path.sep}runtime${path.sep}`) ||
+          (resolved.startsWith(`${repoRoot}${path.sep}`) &&
+            resolved.endsWith(path.join("shared-platform-engineering", "docker-templates")))
         ) {
           return false;
         }
