@@ -285,6 +285,38 @@ r = {'labels': l}
     assert labels["traefik.http.routers.testproj-orders-api.rule"] == "Host(`custom.orders.local`) || PathPrefix(`/custom/orders`)"
 
 
+def test_shared_stack_backend_with_empty_explicit_route_uses_fallback(tmp_path):
+    """An empty explicit route falls back to no shared-stack router."""
+    body = """
+load('@NETWORKING/traefik.star', 'get_backend_traefik_labels')
+
+manifest = {
+    'appType': 'backend',
+    'stack': 'orders',
+    'port': 4000,
+    '_stackBackendCount': 2,
+    'traefik': {'host': '', 'pathPrefix': ''},
+}
+l = get_backend_traefik_labels(
+    'orders-api',
+    'orders.backend.testproj.local',
+    '/api/v1/orders-management',
+    'orders-api',
+    4000,
+    '/health',
+    manifest=manifest,
+)
+r = {'labels': l}
+"""
+    labels = run_traefik_labels(tmp_path, "testproj", body)
+
+    assert "traefik.http.routers.testproj-orders-api.rule" not in labels
+    assert "traefik.http.routers.testproj-orders-api-management.rule" not in labels
+    assert labels["traefik.http.routers.testproj-orders-api-project.rule"] == (
+        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)"
+    )
+
+
 def test_backend_traefik_labels_without_health_path(tmp_path):
     """When health_path is None or empty, healthcheck labels are omitted."""
     body = """
