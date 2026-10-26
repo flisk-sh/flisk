@@ -28,7 +28,7 @@ import { findPortOccupant } from "../utils/port-occupant.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions } from "../utils/service-config-checks.js";
-import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases } from "../utils/service-urls.js";
+import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, formatStartupReport, isStartupStalled, } from "../utils/startup-report.js";

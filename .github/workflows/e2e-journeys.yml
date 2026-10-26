@@ -86,7 +86,9 @@ jobs:
         with:
           # The changed-file check on a pull request needs the base commit, so fetch the whole history.
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+          # Check out the commit, not the ref: refs/pull/N/merge and the merge queue branch are deleted once the change lands, so a
+          # run that starts or retries after the merge could not fetch them ("couldn't find remote ref refs/pull/N/merge").
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -116,7 +118,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+          # Check out the commit, not the ref: refs/pull/N/merge and the merge queue branch are deleted once the change lands, so a
+          # run that starts or retries after the merge could not fetch them ("couldn't find remote ref refs/pull/N/merge").
+          ref: ${{ github.event_name == 'workflow_run' && 'main' || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:

@@ -61,7 +61,11 @@ import { findPortOccupant } from "../utils/port-occupant.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions } from "../utils/service-config-checks.js";
-import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases } from "../utils/service-urls.js";
+import {
+  appendHealthPath,
+  resolveServiceUrl,
+  resolveSubdomainBases,
+} from "../utils/service-urls.js";
 import {
   type discoverResources,
   discoverResourcesStrict,
