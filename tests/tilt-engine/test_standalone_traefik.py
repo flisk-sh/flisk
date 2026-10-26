@@ -34,6 +34,12 @@ def _run_starlark(tmp_path: Path, body: str) -> dict:
     return json.loads(output.split(RESULT_MARKER, 1)[1].strip())
 
 
+def _compose_section(yaml_text: str, start: str, end: str) -> str:
+    start_index = yaml_text.index(start)
+    end_index = yaml_text.index(end, start_index + len(start))
+    return yaml_text[start_index:end_index]
+
+
 def test_standalone_traefik_compose_generator_exists():
     source = (
         REPO_ROOT
@@ -202,6 +208,23 @@ def test_standalone_compose_uses_selected_ingress_ports(tmp_path):
     assert '\"127.0.0.1:18080:80\"' in r["yaml"]
     assert '\"127.0.0.1:18443:443\"' in r["yaml"]
     assert "--api.insecure" not in r["yaml"]
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_standalone_compose_omits_https_when_disabled(tmp_path):
+    r = _run_starlark(
+        tmp_path,
+        "load('@COMPOSE/traefik_standalone.star', 'generate_standalone_traefik_compose')\n"
+        "r = {'yaml': generate_standalone_traefik_compose(False, '18080', None)}\n",
+    )
+    yaml_text = r["yaml"]
+    command = _compose_section(yaml_text, "    command:\n", "    ports:\n")
+    ports = _compose_section(yaml_text, "    ports:\n", "    volumes:\n")
+
+    assert "--entrypoints.web.address=:80" in command
+    assert "--entrypoints.websecure.address=:443" not in command
+    assert '"127.0.0.1:18080:80"' in ports
+    assert ":443" not in ports
 
 
 @pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
