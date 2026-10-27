@@ -89,7 +89,7 @@ export function templateTargetDir(templateName, targetDir) {
     return fromRepo.replace(/\.git$/, "");
 }
 /** The last non-empty line of a child process error, for a one-line failure message. */
-function lastLine(text) {
+export function lastLine(text) {
     const lines = text
         .split("\n")
         .map((line) => line.trim())

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeResource } from "../../test-support/index.js";
 import type { DiscoveredResource, ProjectConfig } from "../../types/index.js";
 import { MASTER_CONFIG_FILES } from "../../utils/constants.js";
+import { FliskError } from "../../utils/errors.js";
 import { enableDiscoveredStacks, projectCommand } from "../project.js";
 
 const mocks = vi.hoisted(() => ({
@@ -419,9 +420,10 @@ describe("project command action", () => {
 
     await expect(
       runProject({ check: false, force: false, yes: false, configFile: missingFile }),
-    ).rejects.toBeInstanceOf(ProcessExit);
-
-    expect(mocks.showErrorAndExit).toHaveBeenCalledWith(`Config file not found: ${missingFile}`);
+    ).rejects.toBeInstanceOf(FliskError);
+    await expect(
+      runProject({ check: false, force: false, yes: false, configFile: missingFile }),
+    ).rejects.toThrow(`Config file not found: ${missingFile}`);
   });
 
   it("warns when required environment variables are missing from .env", async () => {
