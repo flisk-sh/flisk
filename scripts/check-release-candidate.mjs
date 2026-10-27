@@ -15,6 +15,7 @@ export const RELEASE_INPUTS = [
   "bun.lock",
   "cli/**",
   "scripts/release-binaries.sh",
+  "scripts/lib/legacy-release-assets.sh",
   "runtime/**",
 ];
 

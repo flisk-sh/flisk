@@ -8,6 +8,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly ROOT_DIR
 # shellcheck source=lib/runtime-layout.sh
 source "${ROOT_DIR}/scripts/lib/runtime-layout.sh"
+# shellcheck source=lib/legacy-release-assets.sh
+source "${ROOT_DIR}/scripts/lib/legacy-release-assets.sh"
 readonly RELEASE_REPOSITORY="flisk-sh/releases"
 VERSION="$(node -p "require('${ROOT_DIR}/cli/package.json').version")"
 readonly VERSION
@@ -98,6 +100,8 @@ if [[ "${PUBLISH}" != "--publish-only" ]]; then
       flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 flisk-windows-amd64.exe \
       flisk-cli checksums.txt
   )
+  # After the zip, so the zip's checksums.txt lists only the files the zip holds.
+  add_legacy_release_assets "${RELEASE_DIR}"
 
 fi
 
@@ -128,7 +132,7 @@ validate_release_assets() {
   local checksum_asset
   for checksum_asset in \
     flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
-    flisk-windows-amd64.exe flisk-cli-engine.tar.gz; do
+    flisk-windows-amd64.exe flisk-cli-engine.tar.gz "${LEGACY_RELEASE_ASSETS[@]}"; do
     local checksum_entries
     checksum_entries="$(awk -v name="${checksum_asset}" '$2 == name { count++ } END { print count + 0 }' "${RELEASE_DIR}/checksums.txt")"
     if [[ "${checksum_entries}" != "1" ]]; then
@@ -184,6 +188,11 @@ readonly ASSETS=(
   "${RELEASE_DIR}/flisk-cli-${RELEASE_TAG}-binaries.zip"
   "${RELEASE_DIR}/flisk-cli-engine.tar.gz"
 )
+LEGACY_ASSET_PATHS=()
+for legacy_asset in "${LEGACY_RELEASE_ASSETS[@]}"; do
+  LEGACY_ASSET_PATHS+=("${RELEASE_DIR}/${legacy_asset}")
+done
+readonly LEGACY_ASSET_PATHS
 
 # Never mark a release latest until every asset is uploaded. `gh release create
 # --latest FILE...` publishes the tag first, then uploads binaries, so
@@ -193,7 +202,7 @@ if existing_release_draft="$(gh release view "${RELEASE_TAG}" --repo "${RELEASE_
     echo "Refusing to overwrite published release ${RELEASE_TAG}; published assets may already be in use" >&2
     exit 1
   fi
-  gh release upload "${RELEASE_TAG}" --repo "${RELEASE_REPOSITORY}" --clobber "${ASSETS[@]}"
+  gh release upload "${RELEASE_TAG}" --repo "${RELEASE_REPOSITORY}" --clobber "${ASSETS[@]}" "${LEGACY_ASSET_PATHS[@]}"
 else
   release_notes_file="$(mktemp)"
   generated_notes_file="$(mktemp)"
@@ -265,7 +274,7 @@ EOF
     --title "Flisk CLI ${RELEASE_TAG#v}" \
     --notes-file "${release_notes_file}" \
     --draft \
-    "${ASSETS[@]}"
+    "${ASSETS[@]}" "${LEGACY_ASSET_PATHS[@]}"
 fi
 # Verify remote names and bytes before exposing the release as latest.
 remote_assets="$(gh release view "${RELEASE_TAG}" --repo "${RELEASE_REPOSITORY}" --json assets --jq '.assets[].name')"
@@ -274,7 +283,7 @@ trap 'rm -rf "${verify_dir}"' EXIT
 for asset in \
   flisk-linux-amd64 flisk-linux-arm64 flisk-darwin-amd64 flisk-darwin-arm64 \
   flisk-windows-amd64.exe flisk-cli-engine.tar.gz checksums.txt \
-  "flisk-cli-${RELEASE_TAG}-binaries.zip"; do
+  "flisk-cli-${RELEASE_TAG}-binaries.zip" "${LEGACY_RELEASE_ASSETS[@]}"; do
   if ! grep -Fxq "${asset}" <<<"${remote_assets}"; then
     echo "Published release is missing required asset: ${asset}" >&2
     exit 1
