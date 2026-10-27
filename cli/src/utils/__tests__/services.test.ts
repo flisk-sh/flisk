@@ -527,6 +527,22 @@ describe("findServiceJsonFiles discovery (temp dir integration)", () => {
     expect(resources[0].config?.appType).toBe("frontend");
   });
 
+  it("should handle service.json with legacy type instead of appType", async () => {
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, "services", "product", "svc-legacy", "backend"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, "services", "product", "svc-legacy", "service.json"),
+      JSON.stringify({ appName: "svc-legacy", type: "backend" }),
+    );
+
+    const { discoverResources } = await import("../services.js");
+    const resources = discoverResources();
+    expect(resources).toHaveLength(1);
+    expect(resources[0].config?.appType).toBe("backend");
+    expect(resources[0].type).toBe("backend");
+  });
+
   it("should resolve resource paths relative to project root", async () => {
     mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
     writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
