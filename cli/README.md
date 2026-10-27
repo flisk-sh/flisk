@@ -1,6 +1,6 @@
-# 🚀 Flisk CLI — start services on your machine
+# 🚀 Flisk: your whole app, running on your computer with one command
 
-Flisk CLI — start services on your machine. It is not a deploy and not a Compose file. Define services in `service.json`, then run `flisk up`. No Kubernetes is needed on the machine. If your existing Helm, Compose, or Tilt workflow already works locally, keep using it.
+Flisk runs your whole app on your computer with one command. It is not a deploy and not a Compose file. Define services in `service.json`, then run `flisk up`. No Kubernetes is needed on the machine. If your existing Helm, Compose, or Tilt workflow already works locally, keep using it.
 
 > Command reference for the `flisk` CLI. See the **[main README](../README.md)** for onboarding and the **[Helm handoff guide](../docs/with-helm.md)** for the local-development/production boundary.
 
@@ -217,6 +217,7 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk import [dir]` | 📥 Import the services in a directory's root `docker-compose.yml` (`--dry-run`, `--yes`, `--force`) |
 | `flisk eject` | 🚪 Write `EJECTED.md` describing the generated Tilt files; copies nothing (`--dry-run`, `--yes`) |
 | `flisk mcp` | 🤖 Run a Model Context Protocol server over stdio for coding agents |
+| `flisk connect <claude\|cursor\|codex>` | 🔌 Connect a coding agent: merge the `flisk mcp` entry into its MCP config and write the Flisk skills (`--dry-run`, `--global`, `--force`, `--json`; see [Flisk for AI agents](../docs/agents/flisk-for-agents.md)) |
 | `flisk config regenerate` | ♻️ Regenerate master config files from `.flisk/project.json` |
 | `flisk config verify` | ✅ Check generated files match `.flisk/project.json` |
 | `flisk config enable-infra <service>` | ➕ Enable an optional infrastructure service (`disable-infra` to turn it off) |

@@ -14,6 +14,7 @@ import {
   createDockerFixDeps,
   type DockerNetwork,
   type DoctorFixDeps,
+  dockerFixDeps,
   findFliskInstalls,
   hasFailedActions,
   parseElapsed,
@@ -383,6 +384,63 @@ describe("createDockerFixDeps", () => {
     const deps = createDockerFixDeps();
     const status = await deps.tiltStatus(process.pid);
     expect(["healthy", "stale", "unknown"]).toContain(status);
+  });
+});
+
+describe("dockerFixDeps", () => {
+  it("provides the expected default dependency handlers with correct types", () => {
+    const expectedKeys = [
+      "colima",
+      "colimaStatus",
+      "dockerAnswers",
+      "freeDiskGib",
+      "isProcessAlive",
+      "listNetworks",
+      "prune",
+      "reclaimable",
+      "removeNetwork",
+      "stopProcess",
+      "tiltStatus",
+    ];
+
+    const actualKeys = Object.keys(dockerFixDeps).sort();
+    expect(actualKeys).toEqual(expectedKeys.sort());
+
+    for (const key of expectedKeys) {
+      expect(typeof dockerFixDeps[key as keyof DoctorFixDeps]).toBe("function");
+    }
+  });
+
+  it("does not contain duplicate dependency entries in the default dependency list", () => {
+    const keys = Object.keys(dockerFixDeps);
+    const uniqueKeys = Array.from(new Set(keys));
+    expect(keys.length).toBe(uniqueKeys.length);
+    expect(keys).toEqual(uniqueKeys);
+  });
+
+  it("ensures a dependency already present is not duplicated when merging dependencies", () => {
+    const override = {
+      dockerAnswers: () => true,
+    };
+    const combinedDeps: DoctorFixDeps = {
+      ...dockerFixDeps,
+      ...override,
+    };
+    const keys = Object.keys(combinedDeps);
+    const uniqueKeys = Array.from(new Set(keys));
+    expect(keys.length).toBe(uniqueKeys.length);
+    expect(keys.filter((k) => k === "dockerAnswers")).toHaveLength(1);
+    expect(combinedDeps.dockerAnswers()).toBe(true);
+  });
+
+  it("invokes read-only queries safely on the default dependency bundle", () => {
+    expect(dockerFixDeps.isProcessAlive(process.pid)).toBe(true);
+    const free = dockerFixDeps.freeDiskGib();
+    expect(free === null || (typeof free === "number" && free >= 0)).toBe(true);
+    expect(typeof dockerFixDeps.dockerAnswers()).toBe("boolean");
+    const colima = dockerFixDeps.colimaStatus();
+    expect(typeof colima).toBe("object");
+    expect(typeof colima.isColima).toBe("boolean");
   });
 });
 

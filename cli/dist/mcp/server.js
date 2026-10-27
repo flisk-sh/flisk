@@ -19,7 +19,13 @@ function fail(id, code, message) {
     return JSON.stringify({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 }
 export function createMcpServer(tools, info) {
-    const byName = new Map(tools.map((tool) => [tool.name, tool]));
+    // Aliases first, so a tool's own name always wins over another tool's former name.
+    const byName = new Map();
+    for (const tool of tools)
+        for (const alias of tool.aliases ?? [])
+            byName.set(alias, tool);
+    for (const tool of tools)
+        byName.set(tool.name, tool);
     async function handle(message) {
         const isNotification = message.id === undefined;
         if (message.jsonrpc !== "2.0" || typeof message.method !== "string") {

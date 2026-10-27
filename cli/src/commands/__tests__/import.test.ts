@@ -12,18 +12,22 @@ vi.mock("node:child_process", async (importOriginal) => ({
   spawn: (...args: unknown[]) => mocks.spawn(...args),
 }));
 
+import { createTempDir, runCommandInProcess } from "../../test-support/index.js";
 import {
   buildForwardedImportArgs,
   checkCoreVersion,
   compareSemver,
   IMPORT_PACKAGE,
   importCommand,
+  importFailure,
   importInvocation,
+  importReport,
   isVersionAtLeast,
   MIN_CORE_VERSION,
   parseSemver,
   RECOMMENDED_CORE_VERSION,
   runImport,
+  runImportCaptured,
 } from "../import.js";
 
 function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
@@ -353,6 +357,208 @@ describe("flisk import", () => {
     it("validates that RECOMMENDED_CORE_VERSION is at least MIN_CORE_VERSION", () => {
       expect(isVersionAtLeast(RECOMMENDED_CORE_VERSION, MIN_CORE_VERSION)).toBe(true);
       expect(compareSemver(RECOMMENDED_CORE_VERSION, MIN_CORE_VERSION)).toBe(1);
+    });
+  });
+});
+
+/** A spawn double whose child prints `stdout` and `stderr` through pipes, then closes with `code` (or fails to start). */
+function fakeCapturedSpawn(outcome: {
+  code?: number | null;
+  stdout?: string;
+  stderr?: string;
+  error?: Error;
+}) {
+  const calls: unknown[][] = [];
+  const spawnFn = ((command: string, args: string[], options: unknown) => {
+    calls.push([command, args, options]);
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new EventEmitter(),
+      stderr: new EventEmitter(),
+    });
+    queueMicrotask(() => {
+      if (outcome.error) {
+        child.emit("error", outcome.error);
+        return;
+      }
+      if (outcome.stdout) child.stdout.emit("data", Buffer.from(outcome.stdout));
+      if (outcome.stderr) child.stderr.emit("data", Buffer.from(outcome.stderr));
+      child.emit("close", outcome.code);
+    });
+    return child;
+  }) as never;
+  return { calls, spawnFn };
+}
+
+const IMPORTER_OUTPUT = [
+  "Plan for ./legacy (stack legacy):",
+  "  api   create  services/legacy/api/service.json",
+  "  wrote services/legacy/api/service.json",
+  "  wrote services/legacy/worker/service.json",
+  "",
+  "Wrote 2 service.json file(s).",
+  "",
+].join("\n");
+
+describe("flisk import --json", () => {
+  it("runs the importer with piped output and no stdin, and resolves to what it printed", async () => {
+    const { calls, spawnFn } = fakeCapturedSpawn({ code: 0, stdout: "out", stderr: "err" });
+    expect(await runImportCaptured([".", "--yes"], spawnFn, () => "1.3.200")).toEqual({
+      exitCode: 0,
+      stdout: "out",
+      stderr: "err",
+    });
+    expect((calls[0]?.[2] as { stdio: unknown } | undefined)?.stdio).toEqual([
+      "ignore",
+      "pipe",
+      "pipe",
+    ]);
+  });
+
+  it("reports the core version gate and a missing npx as runs, not throws", async () => {
+    const gate = fakeCapturedSpawn({ code: 0 });
+    const refused = await runImportCaptured([".", "--yes"], gate.spawnFn, () => "1.3.100");
+    expect(refused.exitCode).toBe(1);
+    expect(refused.stderr).toContain("flisk upgrade");
+    expect(gate.calls).toHaveLength(0);
+
+    const missing = fakeCapturedSpawn({ error: new Error("ENOENT") });
+    const run = await runImportCaptured(["."], missing.spawnFn, () => "1.3.200");
+    expect(run.exitCode).toBe(127);
+    expect(run.stderr).toContain("could not run npx (ENOENT)");
+    expect(
+      (await runImportCaptured(["."], fakeCapturedSpawn({ code: null }).spawnFn)).exitCode,
+    ).toBe(1);
+  });
+
+  it("forwards a parsed --dry-run once", () => {
+    expect(buildForwardedImportArgs(["./legacy"], { dryRun: true, yes: true })).toEqual([
+      "./legacy",
+      "--dry-run",
+      "--yes",
+    ]);
+    expect(buildForwardedImportArgs(["--dry-run", "./legacy"], { dryRun: true })).toEqual([
+      "--dry-run",
+      "./legacy",
+    ]);
+  });
+
+  it("reads the written files from the importer's 'wrote' lines", () => {
+    expect(
+      importReport(["./legacy", "--yes", "--force"], {
+        exitCode: 0,
+        stdout: IMPORTER_OUTPUT,
+        stderr: "",
+      }),
+    ).toEqual({
+      dir: "./legacy",
+      dryRun: false,
+      force: true,
+      written: ["services/legacy/api/service.json", "services/legacy/worker/service.json"],
+      output: IMPORTER_OUTPUT.trim(),
+    });
+    expect(
+      importReport(["--dry-run", "--yes"], {
+        exitCode: 0,
+        stdout: "Dry run: nothing written.",
+        stderr: "",
+      }),
+    ).toMatchObject({ dir: ".", dryRun: true, written: [] });
+  });
+
+  it("turns a failed run into IMPORT_FAILED with the importer's message, hints and exit code", () => {
+    const error = importFailure({
+      exitCode: 2,
+      stdout: "",
+      stderr: "Error: docker-compose.yml is not valid YAML\n  -> Fix line 3\n",
+    });
+    expect(error).toMatchObject({
+      code: "IMPORT_FAILED",
+      message: "docker-compose.yml is not valid YAML",
+      suggestions: ["Fix line 3"],
+      exitCode: 2,
+    });
+    expect(
+      importFailure({
+        exitCode: 1,
+        stdout: "Plan\nNothing to import: no service in docker-compose.yml could be mapped.\n",
+        stderr: "",
+      }).message,
+    ).toBe("Nothing to import: no service in docker-compose.yml could be mapped.");
+    expect(importFailure({ exitCode: 127, stdout: "", stderr: "" })).toMatchObject({
+      message: "flisk-import exited with code 127",
+      suggestions: [expect.stringContaining("npx")],
+    });
+  });
+
+  describe("the command", () => {
+    // In-process runs keep Commander's option values, so each case resets the ones it sets.
+    const reset = () => {
+      for (const name of ["yes", "force", "dryRun", "json"])
+        importCommand.setOptionValue(name, false);
+    };
+
+    it("prints one envelope with what the importer wrote and implies --yes", async () => {
+      reset();
+      const { calls, spawnFn } = fakeCapturedSpawn({ code: 0, stdout: IMPORTER_OUTPUT });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["./legacy", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBeUndefined();
+        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["./legacy", "--yes"]);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: {
+            dir: "./legacy",
+            dryRun: false,
+            force: false,
+            written: ["services/legacy/api/service.json", "services/legacy/worker/service.json"],
+            output: IMPORTER_OUTPUT.trim(),
+          },
+          errors: [],
+        });
+        // The importer's text is for a person: it goes to stderr.
+        expect(result.stderr).toContain("Wrote 2 service.json file(s).");
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
+    });
+
+    it("prints an IMPORT_FAILED envelope and exits with the importer's code", async () => {
+      reset();
+      const { spawnFn } = fakeCapturedSpawn({
+        code: 1,
+        stdout: "Nothing to import: no service in docker-compose.yml could be mapped.\n",
+      });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["--dry-run", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBe(1);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: null,
+          errors: [
+            {
+              code: "IMPORT_FAILED",
+              message: "Nothing to import: no service in docker-compose.yml could be mapped.",
+              suggestions: [
+                "Run `flisk import --dry-run` to see the plan without writing anything",
+              ],
+            },
+          ],
+        });
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
     });
   });
 });

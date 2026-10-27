@@ -68,7 +68,10 @@ export const restartCommand = new Command("restart")
                 console.log(JSON.stringify(createMachineEnvelope(null, [{ code: "TILT_TRIGGER_FAILED", message: detail }])));
                 process.exit(1);
             }
-            throw new FliskError(`Failed to restart ${resourceName}: ${detail}`);
+            throw new FliskError(`Failed to restart ${resourceName}: ${detail}`, [
+                "Check that the stack is running with: flisk status",
+                `Read the resource logs with: flisk logs --service ${resourceName}`,
+            ]);
         }
         if (options.json) {
             console.log(JSON.stringify(createMachineEnvelope({ resource: resourceName, restarted: true })));

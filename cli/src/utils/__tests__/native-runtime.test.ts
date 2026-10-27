@@ -18,6 +18,7 @@ import {
   planNativeRun,
   readNativeLogLines,
   readNativeRunState,
+  shellInvocation,
   stopNativeRun,
 } from "../native-runtime.js";
 
@@ -337,5 +338,26 @@ describe("stopping a native run from another process", () => {
     await waitFor(() => !isProcessAlive(orphan.pid as number));
     expect(existsSync(nativeRunStatePath(root))).toBe(false);
     expect(await stopNativeRun(root)).toEqual({ wasRunning: false, services: [] });
+  });
+});
+
+describe("shellInvocation", () => {
+  it("runs a command line through /bin/sh -c on POSIX, unchanged", () => {
+    expect(shellInvocation("PORT=1 node s.js && echo $PORT", "linux")).toEqual({
+      file: "/bin/sh",
+      args: ["-c", "PORT=1 node s.js && echo $PORT"],
+      windowsVerbatimArguments: false,
+    });
+  });
+
+  it("runs it the way Node's shell option does on Windows: ComSpec /d /s /c with the line quoted verbatim", () => {
+    expect(
+      shellInvocation("set X=1 && node s.js", "win32", "C:\\Windows\\System32\\cmd.exe"),
+    ).toEqual({
+      file: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/d", "/s", "/c", '"set X=1 && node s.js"'],
+      windowsVerbatimArguments: true,
+    });
+    expect(shellInvocation("node s.js", "win32", undefined).file).toBe("cmd.exe");
   });
 });

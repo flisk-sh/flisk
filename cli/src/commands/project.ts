@@ -10,11 +10,12 @@ import { Command } from "commander";
 import { generateMasterConfigs, readProjectConfig } from "../generator/template-engine.js";
 import type { DiscoveredResource, ProjectConfig } from "../types/index.js";
 import { installAgentSkills } from "../utils/agent-skills.js";
+import type { RuntimePrerequisiteStatus } from "../utils/cold-preflight.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { MASTER_CONFIG_FILES, PROJECT_JSON } from "../utils/constants.js";
 import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { completeEnvFile, ensureEnvFile, validateEnvFile } from "../utils/env-validator.js";
-import { errorFactories, runCommand, showErrorAndExit } from "../utils/errors.js";
+import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-helpers.js";
 import {
   showCancelled,
@@ -23,6 +24,7 @@ import {
   showStep,
   showSuccess,
 } from "../utils/formatting.js";
+import { type JsonCommandResult, runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
 import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
@@ -127,12 +129,13 @@ function lastLine(text: string): string {
   return lines.pop() ?? "unknown error";
 }
 
+/** Clones (or copies) a starter template and resolves to the absolute directory it landed in. */
 export async function cloneProjectTemplate(
   templateName: string,
   targetDir: string | undefined,
   runtimeNextSteps: string[],
   options: { quiet?: boolean } = {},
-): Promise<void> {
+): Promise<string> {
   const template = PROJECT_TEMPLATES[templateName];
 
   if (!template) {
@@ -197,13 +200,19 @@ export async function cloneProjectTemplate(
       : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
     // A caller that paints its own surface (the one-command flow) needs to report the
     // failure itself instead of having the process die mid-paint.
-    if (options.quiet) throw new Error(message);
+    if (options.quiet) {
+      throw new FliskError(message, [
+        template.bundledPath
+          ? "Reinstall the Flisk CLI package, then run the command again"
+          : "Check that git is installed and that you are online, then run the command again",
+      ]);
+    }
     showErrorAndExit(message);
   }
 
   clearDiscoveryCache();
 
-  if (options.quiet) return;
+  if (options.quiet) return destination;
 
   console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${dirName}/`));
   showDetail("\nNext steps:", 0);
@@ -212,6 +221,7 @@ export async function cloneProjectTemplate(
   showDetail("3. flisk up       # start the stack");
   showDetail("\nRuntime readiness:", 0);
   for (const line of runtimeNextSteps) showDetail(line, 0);
+  return destination;
 }
 
 const DEFAULT_PROJECT_JSON: ProjectConfig = {
@@ -289,22 +299,39 @@ export const projectCommand = addYesOption(new Command("project"))
     "--no-agent-skills",
     "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md",
   )
+  .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
   .action(async (template, options) => {
+    const json = Boolean(options.json);
+    // --json never prompts and prints no progress: it takes the defaults --yes takes.
+    const yes = Boolean(options.yes || json);
+    const quiet = Boolean(options.quiet || json);
     const { assertMachineReadyOrExit, detectRuntimePrerequisites, formatRuntimeNextSteps } =
       await import("../utils/cold-preflight.js");
-    // Project setup only writes files: it must not need a running Docker daemon
-    // or an installed Tilt. The runtime is checked on `flisk up`.
-    await assertMachineReadyOrExit({ scope: "scaffold" });
-    const runtimeNextSteps = formatRuntimeNextSteps(detectRuntimePrerequisites());
-    const quiet = Boolean(options.quiet);
-    if (template) {
-      await runCommand(async () =>
-        cloneProjectTemplate(template, options.path, runtimeNextSteps, { quiet }),
-      );
-      return;
-    }
+    const action = async (): Promise<JsonCommandResult> => {
+      // Project setup only writes files: it must not need a running Docker daemon
+      // or an installed Tilt. The runtime is checked on `flisk up`.
+      await assertMachineReadyOrExit({ scope: "scaffold" });
+      const runtime = detectRuntimePrerequisites();
+      const runtimeNextSteps = formatRuntimeNextSteps(runtime);
+      if (template) {
+        if (json && !Object.hasOwn(PROJECT_TEMPLATES, template)) {
+          throw new FliskError(`Unknown template: "${template}"`, [
+            `Use one of: ${Object.keys(PROJECT_TEMPLATES).join(", ")}`,
+            "Or run `flisk project` with no template for a blank project",
+          ]);
+        }
+        const destination = await cloneProjectTemplate(template, options.path, runtimeNextSteps, {
+          quiet,
+        });
+        return { data: { action: "cloned", template, path: destination, runtime } };
+      }
+      return initializeProject(runtime, runtimeNextSteps);
+    };
 
-    await runCommand(async () => {
+    const initializeProject = async (
+      runtime: RuntimePrerequisiteStatus,
+      runtimeNextSteps: string[],
+    ): Promise<JsonCommandResult> => {
       let projectRoot = findProjectRoot();
 
       if (!projectRoot) {
@@ -323,6 +350,31 @@ export const projectCommand = addYesOption(new Command("project"))
           existsSync(join(projectRoot, ".flisk", ".flisk-out", f)),
         );
         const projectJsonExists = existsSync(projectJsonPath);
+
+        if (json) {
+          const valid = allFilesExist && projectJsonExists;
+          return {
+            data: {
+              action: "check",
+              projectRoot,
+              valid,
+              hasProjectJson: projectJsonExists,
+              missingFiles: MASTER_CONFIG_FILES.filter(
+                (f) => !existsSync(join(projectRoot, ".flisk", ".flisk-out", f)),
+              ),
+            },
+            errors: valid
+              ? []
+              : [
+                  {
+                    code: "PROJECT_INCOMPLETE",
+                    message: "Project configuration incomplete",
+                    suggestions: ["Run `flisk project --yes` to create the missing files"],
+                  },
+                ],
+            exitCode: valid ? 0 : 1,
+          };
+        }
 
         if (allFilesExist && projectJsonExists) {
           const projectConfig = readProjectConfig(projectRoot);
@@ -379,12 +431,13 @@ export const projectCommand = addYesOption(new Command("project"))
         if (!quiet) showStep("\n📋 Regenerating master configuration files...\n");
 
         await generateMasterConfigs(projectRoot, { quiet });
-        if (ensureEnvFile(projectRoot)) {
+        const env = { created: ensureEnvFile(projectRoot), added: [] as string[] };
+        if (env.created) {
           if (!quiet) showSuccess("Created: .env (the defaults work as-is)");
         } else {
-          const added = completeEnvFile(projectRoot);
-          if (added.length > 0 && !quiet) {
-            showSuccess(`Updated: .env (added ${added.join(", ")}; existing values unchanged)`);
+          env.added = completeEnvFile(projectRoot);
+          if (env.added.length > 0 && !quiet) {
+            showSuccess(`Updated: .env (added ${env.added.join(", ")}; existing values unchanged)`);
           }
         }
         const ignored = ensureGitignore(projectRoot);
@@ -400,10 +453,20 @@ export const projectCommand = addYesOption(new Command("project"))
           showDetail("\nRuntime readiness:", 0);
           for (const line of runtimeNextSteps) showDetail(line, 0);
         }
-        return;
+        return {
+          data: {
+            action: "regenerated",
+            projectRoot,
+            autoEnabledStacks,
+            generatedFiles: [...MASTER_CONFIG_FILES],
+            env,
+            gitignoreAdded: ignored,
+            runtime,
+          },
+        };
       }
 
-      if (projectJsonExists && options.force && !options.yes) {
+      if (projectJsonExists && options.force && !yes) {
         console.log(chalk.red("\n⚠️  WARNING: --force will overwrite .flisk/project.json!"));
         const confirm = await promptConfirm({
           message: "This will reset your project configuration. Continue?",
@@ -411,7 +474,7 @@ export const projectCommand = addYesOption(new Command("project"))
         });
         if (!confirm) {
           showCancelled();
-          return;
+          return { data: null };
         }
       }
 
@@ -421,12 +484,15 @@ export const projectCommand = addYesOption(new Command("project"))
       if (options.configFile) {
         const configFilePath = resolve(options.configFile);
         if (!existsSync(configFilePath)) {
-          showErrorAndExit(`Config file not found: ${configFilePath}`);
+          throw new FliskError(`Config file not found: ${configFilePath}`, [
+            "Pass the path of an existing project.json to --config-file",
+            "Or drop --config-file to use the defaults",
+          ]);
         }
         const configContent = readFileSync(configFilePath, "utf-8");
         projectConfig = JSON.parse(configContent);
         if (!quiet) showSuccess(`Loaded config from: ${configFilePath}`);
-      } else if (options.yes) {
+      } else if (yes) {
         projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
         projectConfig.project.name = projectRoot.split("/").pop() || "my-project";
         if (!quiet) console.log(chalk.gray("Using default configuration (non-interactive mode)"));
@@ -541,15 +607,15 @@ export const projectCommand = addYesOption(new Command("project"))
       await generateMasterConfigs(projectRoot, { quiet });
 
       if (!quiet) showStep("\n🔧 Setting up environment variables...\n");
-      const envCreated = ensureEnvFile(projectRoot);
-      if (envCreated) {
+      const env = { created: ensureEnvFile(projectRoot), added: [] as string[] };
+      if (env.created) {
         if (!quiet) showSuccess("Created: .env (the defaults work as-is)");
       } else {
         // An .env from an older CLI lacks keys a newer one expects; add them without changing anything already there.
-        const added = completeEnvFile(projectRoot);
-        if (added.length > 0) {
+        env.added = completeEnvFile(projectRoot);
+        if (env.added.length > 0) {
           if (!quiet) {
-            showSuccess(`Updated: .env (added ${added.join(", ")}; existing values unchanged)`);
+            showSuccess(`Updated: .env (added ${env.added.join(", ")}; existing values unchanged)`);
           }
         } else if (!quiet) {
           showSuccess("Found: .env (environment already configured)");
@@ -572,9 +638,10 @@ export const projectCommand = addYesOption(new Command("project"))
 
       // A coding agent opened in the project then knows to build and run the app with Flisk.
       // The project works without them, so a failure here is a warning, not an exit.
+      let skillFiles: string[] = [];
       if (options.agentSkills !== false) {
         try {
-          const skillFiles = installAgentSkills(projectRoot);
+          skillFiles = installAgentSkills(projectRoot);
           if (skillFiles.length > 0 && !quiet) {
             showSuccess(
               "Added agent skills: .claude/skills, .agents/skills and AGENTS.md (start with flisk-build)",
@@ -603,5 +670,25 @@ export const projectCommand = addYesOption(new Command("project"))
         for (const line of runtimeNextSteps) showDetail(line, 0);
         showDetail("\nAfter editing .flisk/project.json, run `flisk config regenerate`.", 0);
       }
-    });
+      return {
+        data: {
+          action: "created",
+          projectRoot,
+          projectName: projectConfig.project.name,
+          autoEnabledStacks,
+          generatedFiles: [...MASTER_CONFIG_FILES],
+          env,
+          missingEnv: envValidation.missing,
+          gitignoreAdded: ignored,
+          agentSkills: skillFiles,
+          runtime,
+        },
+      };
+    };
+
+    if (json) {
+      await runJsonCommand("PROJECT_FAILED", "flisk project", action);
+      return;
+    }
+    await runCommand(action);
   });

@@ -53,6 +53,40 @@ Example output for `flisk logs --json --service orders-api --tail 50 --since 5m`
 
 This is an illustrative example. `--tail` limits the number of recent lines, and `--since` filters logs to the specified duration. JSON mode returns a snapshot and exits rather than following a live stream. On failure, `data` is `null` and `errors` contains entries with `code` and `message`, optionally with `suggestions`. Usage errors exit with code `2`; other failures use the applicable command exit code. Error diagnostics are also written to stderr.
 - `config verify`: `valid`, `errors`, `warnings`, and `diffs`. Drift or missing tracked master outputs exits 1 and includes a unified diff; a valid project exits 0. A missing project exits 1 with a structured command error; invalid project JSON or an unexpected failure exits 2 with a structured internal error. JSON verification does not regenerate files.
+- `config regenerate`: `dryRun`, `hasChanges`, and `changes`, one entry per master file with `file`, `status` (`new`, `modified` or `unchanged`) and `lineDiff` (new minus current lines, `0` for a new file). With `--dry-run` nothing is written; without it the files are rewritten (hand edits in them are discarded) and `changes` says how each one differed before the run.
+- `config migrate`: `schemaVersion` (the version the files now declare), `migrated` (the `service.json` paths that were rewritten, relative to the project root) and `warnings`. When any file cannot be migrated, nothing is written: `data` is `null`, `errors` has one `MIGRATE_FAILED` entry per problem, and the exit code is `1`.
+- `config enable-infra` and `config disable-infra`: `service`, `enabled` (the new value) and `wasEnabled` (the value before the run). An unknown service, or `verdaccio` without a license that grants it, is a `COMMAND_FAILED` error with `suggestions` and exit code `1`.
+- `project`: `--json` implies `--yes` and `--quiet`, so it never prompts and takes the defaults (with `--force` it overwrites `.flisk/project.json` without asking, like `--force --yes`). `action` says what it did. `created` (a new project) has `projectRoot`, `projectName`, `autoEnabledStacks`, `generatedFiles`, `env` (`created`, and `added` for the keys added to an existing `.env`), `missingEnv`, `gitignoreAdded`, `agentSkills` (the files written) and `runtime` (`hasDockerCli`, `hasTiltCli`). `regenerated` (run inside an existing project) has `projectRoot`, `autoEnabledStacks`, `generatedFiles`, `env`, `gitignoreAdded` and `runtime`. `cloned` (with a template) has `template`, `path` (the absolute directory it landed in) and `runtime`. `check` (with `--check`) has `projectRoot`, `valid`, `hasProjectJson` and `missingFiles`; an incomplete project also gets a `PROJECT_INCOMPLETE` error and exit code `1`.
+- `resource`: `--json` implies `--yes`, so the name is required and, when several stacks exist, `--stack` too. `action` (`created`, or `registered` for a directory that already had a `service.json`), `name`, `type`, `stack`, `port` (`null` for an SDK), `path` (relative to the project root), `framework` and `language` (`null` when they do not apply) and `discovered` (whether `discovery.paths` covers `path`, so `flisk up` starts it). With `--frameworks`, `data` is the inventory instead: `type` (`frontend` or `backend`), `frameworks` (the rows the text listing prints, as objects) and, for a backend, `language`.
+- `stack`: `--json` never prompts, so it needs `--list`, or a stack name with `--resources`. `stacks` (`name`, `resourceCount`) and `unassigned` (`name`, `configPath`) describe the project after the run, `stack` is the stack assigned to (`null` with `--list`) and `assigned` lists the resources this run assigned (`name`, `configPath`).
+- `import`: `--json` implies `--yes`. flisk-import runs with its output captured (and copied to stderr), and `data` has `dir`, `dryRun`, `force`, `written` (the `service.json` paths the importer reports writing) and `output` (what it printed). A failed import (nothing to import, an unreadable `docker-compose.yml`, a core older than the importer needs, or no `npx`) has `data: null`, one `IMPORT_FAILED` error with the importer's message and hints, and the importer's exit code (`127` when `npx` cannot run).
+- `eject`: `--json` implies `--yes`. `dryRun`, `created` (whether this run wrote `EJECTED.md`, or would in a dry run; `false` when it already existed), `ejectedFile`, `generatedFiles` (the files under `.flisk/.flisk-out`, which stay where they are), `userFiles` (a root `Tiltfile`, when there is one) and `tiltUpCommand`. A project without generated Tilt files is a `COMMAND_FAILED` error with exit code `1`.
+- `restart`: `resource` (the name) and `restarted` (`true`) once Tilt accepted the trigger. An invalid `--port` or `TILT_PORT` is a `USAGE` error with exit code `2`; no running Tilt is `TILT_NOT_RUNNING` and a trigger Tilt refused is `TILT_TRIGGER_FAILED` with Tilt's message, both with exit code `1`.
+- `agent sessions`: `agent` (the resource name), `port`, `sessions` (each with `sessionId`, `lastActivity`, `status` and `checkpointBytes`; the last two may be `null`) and `total`. With `--session-id <id>` it is `agent`, `port` and `session` (the checkpoint the agent returned). Failures carry their own code: `USAGE`, `UNKNOWN_RESOURCE`, `NOT_AN_AGENT`, `NO_PORT`, `NO_ROUTE`, `AGENT_NOT_RUNNING`, `AGENT_REQUEST_FAILED`, or `SESSION_LIST_UNSUPPORTED` for an agent scaffolded before `GET /sessions` existed.
+- `config explain`: `file` (project-relative), `ownership`, `reason`, `source` (the input it is generated from, or `null`), `driftOnUp` (what `flisk up` does when the file was edited), `isEditedNow` (whether it differs from its snapshot now) and `next` (suggested steps, in order).
+- `runtime`: prints a bare object rather than the envelope: `ok`, `assetRoot` (the directory the bundled engine and templates were found in, or `null`), `missing` (required assets that are absent), `layoutErrors` and `templateErrors`. `ok` is `true` only when all three lists are empty and an asset root was found.
+
+For `project`, `resource`, `stack`, `import`, `eject` and the `config` subcommands above, the human output goes to stderr without colour and stdout carries the envelope only. Outside a project each prints `data: null` and one `COMMAND_FAILED` error with `suggestions`, and exits `1`. When a deeper check stops the command before it can report (for example the machine check of `flisk project`), the error code is the command's own failure code (`PROJECT_FAILED`, `RESOURCE_FAILED`, `STACK_FAILED`, `IMPORT_FAILED`, `EJECT_FAILED`, `REGENERATE_FAILED`, `MIGRATE_FAILED`, `INFRA_TOGGLE_FAILED`) with the message the check printed.
+
+Example output for `flisk resource orders-api --type backend --stack shop --json` in a project with no other backend:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "action": "created",
+    "name": "orders-api",
+    "type": "backend",
+    "stack": "shop",
+    "port": 4000,
+    "path": "services/shop/orders-api",
+    "framework": "hono",
+    "language": "bun",
+    "discovered": true
+  },
+  "errors": []
+}
+```
 
 `networks --json` previously returned a bare array. It now returns the versioned envelope. During migration, `networks --json-legacy` returns the old array and is scheduled for removal in CLI version 1.5.0; migrate consumers before that release to `data.services`. Existing text and raw output remain available.
 

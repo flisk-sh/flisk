@@ -188,6 +188,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      # The suite imports cli/src, which imports the CLI's own dependencies (chalk, via errors.ts).
+      - run: bun install --frozen-lockfile
+        working-directory: cli
       - run: bun install --frozen-lockfile
       - run: bun run fuzz
 

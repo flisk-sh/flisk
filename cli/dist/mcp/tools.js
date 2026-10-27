@@ -13,6 +13,8 @@ const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
 /** Cloning a starter repository can outlast the default two minutes. */
 const PROJECT_INIT_TIMEOUT_MS = 300_000;
+/** `flisk import` fetches flisk-import through npx first, which can outlast the default two minutes too. */
+const IMPORT_TIMEOUT_MS = 300_000;
 /**
  * How to run this CLI again: `node <script>` / `bun <script>` when started from a script, or the executable alone when it is
  * a `bun build --compile` binary, whose argv[1] is a virtual path that exists only inside the binary.
@@ -53,7 +55,9 @@ function names(value, field) {
     if (value === undefined)
         return [];
     if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !NAME.test(item))) {
-        throw new Error(`${field} must be an array of names (letters, digits, ".", "_", "-")`);
+        throw new FliskError(`${field} must be an array of names (letters, digits, ".", "_", "-")`, [
+            `Pass ${field} as an array of names, for example ["orders-api"]`,
+        ]);
     }
     return value;
 }
@@ -61,15 +65,20 @@ function optionalName(value, field) {
     if (value === undefined)
         return undefined;
     if (typeof value !== "string" || !NAME.test(value)) {
-        throw new Error(`${field} must be a name (letters, digits, ".", "_", "-")`);
+        throw new FliskError(`${field} must be a name (letters, digits, ".", "_", "-")`, [
+            `Pass ${field} as a name that does not start with "-", for example orders-api`,
+        ]);
     }
     return value;
 }
 function flag(value, field, fallback = false) {
     if (value === undefined)
         return fallback;
-    if (typeof value !== "boolean")
-        throw new Error(`${field} must be a boolean`);
+    if (typeof value !== "boolean") {
+        throw new FliskError(`${field} must be a boolean`, [
+            `Pass true or false, or omit ${field} for ${fallback}`,
+        ]);
+    }
     return value;
 }
 /** One of a fixed set of values, such as a resource type or a template name. */
@@ -257,13 +266,17 @@ export function buildLogsArgs(args) {
         out.push(`--service=${name}`);
     if (args.tail !== undefined) {
         if (!Number.isInteger(args.tail) || args.tail < 1) {
-            throw new Error("tail must be a positive integer");
+            throw new FliskError("tail must be a positive integer", [
+                "Pass a whole number from 1 to 10000, or omit tail for the last 200 lines",
+            ]);
         }
         out.push(`--tail=${args.tail}`);
     }
     if (args.since !== undefined) {
         if (typeof args.since !== "string" || !SINCE.test(args.since)) {
-            throw new Error("since must be a duration such as 30s, 5m or 1h");
+            throw new FliskError("since must be a duration such as 30s, 5m or 1h", [
+                "Pass a number with a unit (ms, s, m, h), or omit since for all buffered logs",
+            ]);
         }
         out.push(`--since=${args.since}`);
     }
@@ -348,6 +361,33 @@ export function buildConfigRegenerateArgs(args) {
         ? ["config", "regenerate", "--dry-run"]
         : ["config", "regenerate"];
 }
+/**
+ * `flisk eject --json`. A real run writes EJECTED.md into the project, so it is refused unless `confirm` is true; a dry run
+ * changes nothing and needs no confirmation.
+ */
+export function buildProjectEjectArgs(args) {
+    const dryRun = flag(args.dryRun, "dryRun");
+    if (!dryRun && !flag(args.confirm, "confirm")) {
+        throw new FliskError("project_eject writes EJECTED.md into the project; it needs confirm: true", [
+            "Pass confirm: true to eject",
+            "Pass dryRun: true to list the generated files and what would be written, without confirm",
+        ]);
+    }
+    return dryRun ? ["eject", "--dry-run", "--json"] : ["eject", "--yes", "--json"];
+}
+/** `flisk import [dir] --json`, which writes without a prompt unless `dryRun` is set. `dir` comes before the flags. */
+export function buildProjectImportArgs(args) {
+    const dir = optionalPath(args.dir, "dir");
+    const out = ["import"];
+    if (dir)
+        out.push(dir);
+    if (flag(args.dryRun, "dryRun"))
+        out.push("--dry-run");
+    if (flag(args.force, "force"))
+        out.push("--force");
+    out.push("--json");
+    return out;
+}
 const OBJECT = (properties) => ({
     type: "object",
     properties,
@@ -361,12 +401,15 @@ function projectPath(value) {
     if (value === undefined)
         return undefined;
     if (typeof value !== "string" || !isAbsolute(value)) {
-        throw new Error("projectPath must be an absolute path to a Flisk project root");
+        throw new FliskError("projectPath must be an absolute path to a Flisk project root", [
+            "Pass the absolute path of the directory that holds .flisk/project.json",
+            "Or omit projectPath to run in the MCP server's directory",
+        ]);
     }
     return value;
 }
 export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
-    const viaCli = (build) => async (args) => toToolResult(await run(build(args), { cwd: projectPath(args.projectPath) }));
+    const viaCli = (build, options = {}) => async (args) => toToolResult(await run(build(args), { cwd: projectPath(args.projectPath), ...options }));
     /** For a command without `--json`: returns its text output. */
     const viaCliText = (build, options = {}) => async (args) => toTextResult(await run(build(args), { cwd: projectPath(args.projectPath), ...options }));
     return [
@@ -449,7 +492,8 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
             }),
         },
         {
-            name: "restart_resource",
+            name: "resource_restart",
+            aliases: ["restart_resource"],
             description: "Restart a running resource in the stack (or trigger its rebuild). Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
@@ -457,13 +501,17 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
             }),
             handler: viaCli((args) => {
                 const resource = optionalName(args.resource, "resource");
-                if (!resource)
-                    throw new Error("resource is required");
+                if (!resource) {
+                    throw new FliskError("resource is required", [
+                        "Pass the resource name; resource_list shows them",
+                    ]);
+                }
                 return ["restart", resource, "--json"];
             }),
         },
         {
-            name: "list_agents",
+            name: "agent_list",
+            aliases: ["list_agents"],
             description: "List AI agent resources (appType: 'agent') in the project with their stack, runtime, durability and port. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
@@ -475,7 +523,8 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
             }),
         },
         {
-            name: "get_agent_sessions",
+            name: "agent_sessions",
+            aliases: ["get_agent_sessions"],
             description: "List the sessions of a running AI agent resource (id, last activity, status, checkpoint size), or read one session's checkpoint when sessionId is set. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: {
                 ...OBJECT({
@@ -490,8 +539,11 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
             },
             handler: viaCli((args) => {
                 const resource = optionalName(args.resource, "resource");
-                if (!resource)
-                    throw new Error("resource is required");
+                if (!resource) {
+                    throw new FliskError("resource is required", [
+                        "Pass the agent resource name; agent_list shows them",
+                    ]);
+                }
                 const sessionId = optionalName(args.sessionId, "sessionId");
                 return sessionId
                     ? ["agent", "sessions", resource, `--session-id=${sessionId}`, "--json"]
@@ -660,6 +712,36 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                 },
             }),
             handler: viaCliText(buildProjectInitArgs, { timeoutMs: PROJECT_INIT_TIMEOUT_MS }),
+        },
+        {
+            name: "project_eject",
+            description: "Write EJECTED.md with `flisk eject --json`: it lists the generated Tilt files and how to run the stack with plain Tilt, and copies, moves or deletes nothing. It changes the project, so it is refused unless confirm is true; dryRun returns the plan (data.generatedFiles, data.created) without confirm. Set projectPath when the MCP server is not running from the project root.",
+            inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
+                confirm: {
+                    type: "boolean",
+                    description: "Must be true to write EJECTED.md; without it only a dry run is allowed",
+                },
+                dryRun: {
+                    type: "boolean",
+                    description: "List the generated files and what would be written, without writing",
+                },
+            }),
+            handler: viaCli(buildProjectEjectArgs),
+        },
+        {
+            name: "project_import",
+            description: "Import the services in a directory's root docker-compose.yml as bring-your-own service.json files with `flisk import --json`, which runs the pinned flisk-import from npm (the first run needs network access). It writes without asking: set dryRun to get the plan only, and force to overwrite an existing service.json. Returns data.written and the importer's output. Set projectPath when the MCP server is not running from the project root.",
+            inputSchema: OBJECT({
+                projectPath: PROJECT_PATH,
+                dir: {
+                    type: "string",
+                    description: "Directory with the docker-compose.yml, relative to projectPath or absolute (default: projectPath)",
+                },
+                dryRun: { type: "boolean", description: "Print the plan and write nothing" },
+                force: { type: "boolean", description: "Overwrite an existing service.json" },
+            }),
+            handler: viaCli(buildProjectImportArgs, { timeoutMs: IMPORT_TIMEOUT_MS }),
         },
     ];
 }

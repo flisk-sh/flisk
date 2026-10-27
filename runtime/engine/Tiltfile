@@ -11,12 +11,12 @@
 
 # Core
 load('./topologies/tilt/common/utils.star', _Utils='Utils')
-load('./topologies/tilt/discovery/loading.star', _Manifest='Manifest')
+load('../discovery/loading.star', _Manifest='Manifest')
 load('./topologies/tilt/config/global.star', _Config='Config')
 load('./topologies/platform/docker/build/frontend_build_plan.star', _frontend_build_plan='frontend_build_plan')
 
 # Registry
-load('./topologies/tilt/discovery/registry.star',
+load('../discovery/registry.star',
     _GLOBAL_CONFIG_EXPORT='GLOBAL_CONFIG_EXPORT',
     _APP_RESOURCES='APP_RESOURCES',
     _INFRA_RESOURCES_EXPORT='INFRA_RESOURCES_EXPORT',

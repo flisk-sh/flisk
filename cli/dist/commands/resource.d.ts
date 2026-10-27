@@ -153,4 +153,24 @@ type ExistingServiceConfig = {
  * @throws FliskError When the content is not valid JSON.
  */
 export declare function parseExistingServiceJson(content: string, configPath: string): ExistingServiceConfig;
+/** What `flisk resource --frameworks --json` reports: the same inventory the text listing prints. */
+export declare function frameworkInventoryReport(options: {
+    type?: string;
+    language?: string;
+}, isTypeExplicit: boolean): Record<string, unknown>;
+/**
+ * What `flisk resource <name> --json` reports. `action` is `registered` for a directory that already had a
+ * service.json. `port` is null for an SDK. `discovered` is whether discovery.paths covers `path`, so `flisk up` starts it.
+ */
+export interface ResourceReport {
+    action: "created" | "registered";
+    name: string;
+    type: string;
+    stack: string;
+    port: number | null;
+    path: string;
+    framework: string | null;
+    language: string | null;
+    discovered: boolean;
+}
 export declare const resourceCommand: Command;

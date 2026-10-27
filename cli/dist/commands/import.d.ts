@@ -1,5 +1,6 @@
 import { type SpawnOptions, spawn } from "node:child_process";
 import { Command } from "commander";
+import { JsonCommandError } from "../utils/json-command.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
@@ -42,9 +43,36 @@ export declare function importInvocation(args: string[], env?: NodeJS.ProcessEnv
 };
 /** Runs flisk-import with the caller's terminal and resolves to its exit code. */
 export declare function runImport(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<number>;
+/** What flisk-import printed and how it exited, for `flisk import --json`. */
+export interface ImportRun {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+}
+/**
+ * Runs flisk-import with its output piped instead of the caller's terminal and no stdin, so it can never prompt, and
+ * resolves to what it printed and its exit code. A refusal of the core version gate or a missing npx is a run too.
+ */
+export declare function runImportCaptured(args: string[], spawnFn?: SpawnFn, getVersionFn?: () => string): Promise<ImportRun>;
 export declare function buildForwardedImportArgs(args: string[], options?: {
     yes?: boolean;
     force?: boolean;
+    dryRun?: boolean;
 }): string[];
+/** What `flisk import --json` reports. `written` lists the service.json files the importer says it wrote. */
+export interface ImportReport {
+    dir: string;
+    dryRun: boolean;
+    force: boolean;
+    written: string[];
+    output: string;
+}
+/** The report of a successful run, read from the forwarded arguments and the importer's "  wrote <path>" lines. */
+export declare function importReport(forwardedArgs: string[], run: ImportRun): ImportReport;
+/**
+ * The error of a failed run: the importer's "Error: ..." line (or whatever it printed last) and its "-> ..." hints. The
+ * importer prints "Nothing to import: ..." on stdout, so stdout is read when stderr says nothing.
+ */
+export declare function importFailure(run: ImportRun): JsonCommandError;
 export declare const importCommand: Command;
 export {};

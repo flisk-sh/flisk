@@ -15,6 +15,7 @@ import {
 } from "../../test-support/index.js";
 import { YES_OPTION_DESCRIPTION } from "../../utils/command-helpers.js";
 import { configCommand } from "../config.js";
+import { connectCommand } from "../connect.js";
 import { downCommand } from "../down.js";
 import { ejectCommand } from "../eject.js";
 import { networksCommand } from "../networks.js";
@@ -79,6 +80,41 @@ const CONFIGURED_PROJECT: Parameters<typeof createTempProject>[0] = {
 };
 
 /**
+ * One row per command whose `--json` changes the project (or needs an argument), checked against the same contract.
+ * These rows spawn the CLI both in a project and outside one: an in-process `--json` run would leave Commander's kept
+ * option value on a command object that the --dry-run rows below run in-process again.
+ */
+const JSON_SPAWN_MATRIX: Array<{
+  site: string;
+  command: string[];
+  project: Parameters<typeof createTempProject>[0];
+}> = [
+  { site: "eject --json", command: ["eject"], project: CONFIGURED_PROJECT },
+  { site: "stack --json", command: ["stack", "--list"], project: CONFIGURED_PROJECT },
+  {
+    site: "resource --json",
+    command: ["resource", "web", "--type", "backend"],
+    project: CONFIGURED_PROJECT,
+  },
+  {
+    site: "config regenerate --json",
+    command: ["config", "regenerate", "--dry-run"],
+    project: CONFIGURED_PROJECT,
+  },
+  { site: "config migrate --json", command: ["config", "migrate"], project: CONFIGURED_PROJECT },
+  {
+    site: "config enable-infra --json",
+    command: ["config", "enable-infra", "monitoring"],
+    project: CONFIGURED_PROJECT,
+  },
+  {
+    site: "config disable-infra --json",
+    command: ["config", "disable-infra", "monitoring"],
+    project: CONFIGURED_PROJECT,
+  },
+];
+
+/**
  * One row per command that prints a dry-run plan without Docker or Tilt. `expect` is the text the plan prints.
  * `eject` prints no "Dry run" line; its plan is the list of files it would leave and write.
  */
@@ -91,6 +127,12 @@ const DRY_RUN_MATRIX: Array<{
   {
     site: "config regenerate --dry-run",
     command: ["config", "regenerate"],
+    project: CONFIGURED_PROJECT,
+    expect: "Dry run",
+  },
+  {
+    site: "connect --dry-run",
+    command: ["connect"],
     project: CONFIGURED_PROJECT,
     expect: "Dry run",
   },
@@ -158,6 +200,8 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
+  "connect --json":
+    "takes a required <host> argument and works outside a project, so the matrix's argument-less, project-required rows do not fit; connect.test.ts covers the envelope and its error cases",
   "config explain --json":
     "takes a required <file> argument, so the matrix's argument-less run cannot exercise it; config-explain.test.ts covers the envelope and its error cases",
   "doctor --dry-run":
@@ -169,6 +213,12 @@ const EXEMPT: Record<string, string> = {
   "down --yes":
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
   "import --yes": "spawns npx flisk-import over the network",
+  "import --dry-run":
+    "spawns npx flisk-import over the network; import.test.ts checks that it is forwarded",
+  "import --json":
+    "spawns npx flisk-import over the network; import.test.ts covers the envelope with a spawn double",
+  "project --json":
+    "creates a project outside one instead of failing, so the outside-project row does not apply; json-scaffold-commands.test.ts covers it",
   "logs --json":
     "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
   "restart --json":
@@ -234,6 +284,7 @@ function snapshotTree(root: string, dir = root, out: Record<string, string> = {}
 function coveredSites(): Set<string> {
   return new Set([
     ...JSON_MATRIX.map((row) => `${row.command.join(" ")} --json`),
+    ...JSON_SPAWN_MATRIX.map((row) => row.site),
     ...DRY_RUN_MATRIX.map((row) => row.site),
     ...YES_MATRIX.map((row) => row.site),
     AGENT_SESSIONS_JSON.site,
@@ -293,6 +344,36 @@ describe("flag contract: --json", () => {
       const envelope = parseOneEnvelope(result.stdout);
       expect(envelope.data).toBeNull();
       expect(envelope.errors).toHaveLength(1);
+    },
+  );
+});
+
+describe("flag contract: --json for commands that change the project", () => {
+  it.each(JSON_SPAWN_MATRIX)(
+    "flisk $site prints one envelope and no prompt in a project",
+    ({ command, project }) => {
+      const root = createTempProject(project);
+      const result = runFlisk([...command, "--json"], { cwd: root, input: "", timeout: 120_000 });
+      expect(result.status).toBe(0);
+      expect(result.stderr).not.toMatch(/^\{/m);
+      expect(result.stdout).toMatch(/^\{[^\n]*\}\n$/);
+      const envelope = parseOneEnvelope(result.stdout);
+      expect(envelope.errors).toEqual([]);
+      expect(envelope.data).not.toBeNull();
+    },
+    120_000,
+  );
+
+  it.each(JSON_SPAWN_MATRIX)(
+    "flisk $site outside a project fails with a null-data envelope",
+    ({ command }) => {
+      const result = runFlisk([...command, "--json"], { cwd: createTempDir(), input: "" });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Could not find project root");
+      expect(result.stderr).not.toMatch(/^\{/m);
+      const envelope = parseOneEnvelope(result.stdout);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors).toEqual([expect.objectContaining({ code: "COMMAND_FAILED" })]);
     },
   );
 });
@@ -362,6 +443,7 @@ describe("flag contract: completeness", () => {
 /** The command object and arguments that each dry-run row runs in-process, without `--dry-run` (added below). */
 const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
   "config regenerate": { command: configCommand, args: ["regenerate"] },
+  connect: { command: connectCommand, args: ["claude"] },
   down: { command: downCommand, args: [] },
   eject: { command: ejectCommand, args: [] },
   up: { command: upCommand, args: [] },

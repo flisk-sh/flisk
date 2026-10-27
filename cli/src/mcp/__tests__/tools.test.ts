@@ -16,6 +16,8 @@ import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
 import {
   buildConfigRegenerateArgs,
   buildLogsArgs,
+  buildProjectEjectArgs,
+  buildProjectImportArgs,
   buildProjectInitArgs,
   buildResourceCreateArgs,
   buildStackAssignArgs,
@@ -578,9 +580,9 @@ describe("tool list", () => {
       "status",
       "logs",
       "resource_list",
-      "restart_resource",
-      "list_agents",
-      "get_agent_sessions",
+      "resource_restart",
+      "agent_list",
+      "agent_sessions",
       "stack_list",
       "project_info",
       "network_list",
@@ -591,6 +593,8 @@ describe("tool list", () => {
       "resource_create",
       "stack_assign",
       "project_init",
+      "project_eject",
+      "project_import",
     ]);
     for (const t of tools)
       expect(t.inputSchema).toMatchObject({ type: "object", additionalProperties: false });
@@ -609,12 +613,12 @@ describe("tool list", () => {
     await tools.find((t) => t.name === "resource_list")?.handler({ stack: "store" });
     await tools.find((t) => t.name === "status")?.handler({});
     await tools.find((t) => t.name === "down")?.handler({ dryRun: true });
-    await tools.find((t) => t.name === "restart_resource")?.handler({ resource: "api" });
-    await tools.find((t) => t.name === "list_agents")?.handler({ stack: "shop" });
+    await tools.find((t) => t.name === "resource_restart")?.handler({ resource: "api" });
+    await tools.find((t) => t.name === "agent_list")?.handler({ stack: "shop" });
     await tools
-      .find((t) => t.name === "get_agent_sessions")
+      .find((t) => t.name === "agent_sessions")
       ?.handler({ resource: "bot", sessionId: "sess-1" });
-    await tools.find((t) => t.name === "get_agent_sessions")?.handler({ resource: "bot" });
+    await tools.find((t) => t.name === "agent_sessions")?.handler({ resource: "bot" });
     expect(seen).toEqual([
       { args: ["doctor", "--json"], cwd: "/work/erp" },
       { args: ["resources", "--json", "--stack=store"], cwd: undefined },
@@ -628,23 +632,23 @@ describe("tool list", () => {
     await expect(
       tools.find((t) => t.name === "doctor")?.handler({ projectPath: "relative" }),
     ).rejects.toThrow("projectPath must be an absolute path");
-    await expect(tools.find((t) => t.name === "restart_resource")?.handler({})).rejects.toThrow(
+    await expect(tools.find((t) => t.name === "resource_restart")?.handler({})).rejects.toThrow(
       "resource is required",
     );
-    await expect(tools.find((t) => t.name === "get_agent_sessions")?.handler({})).rejects.toThrow(
+    await expect(tools.find((t) => t.name === "agent_sessions")?.handler({})).rejects.toThrow(
       "resource is required",
     );
-    expect(tools.find((t) => t.name === "get_agent_sessions")?.inputSchema).toMatchObject({
+    expect(tools.find((t) => t.name === "agent_sessions")?.inputSchema).toMatchObject({
       required: ["resource"],
     });
   });
   it("rejects invalid tool arguments before running the CLI", async () => {
     const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
     await expect(
-      tools.find((t) => t.name === "restart_resource")?.handler({ resource: "-x" }),
+      tools.find((t) => t.name === "resource_restart")?.handler({ resource: "-x" }),
     ).rejects.toThrow("resource must be a name");
     await expect(
-      tools.find((t) => t.name === "list_agents")?.handler({ stack: "a b" }),
+      tools.find((t) => t.name === "agent_list")?.handler({ stack: "a b" }),
     ).rejects.toThrow("stack must be a name");
     await expect(
       tools.find((t) => t.name === "doctor")?.handler({ noPing: "yes" }),
@@ -806,12 +810,115 @@ describe("tool list", () => {
       ["project_init", { template: "saas", agentSkills: false }],
       ["config_explain", {}],
       ["config_explain", { file: "-x" }],
+      ["project_eject", {}],
+      ["project_eject", { confirm: "yes" }],
+      ["project_import", { dir: "-x" }],
+      ["project_import", { force: 1 }],
     ];
     for (const [name, args] of rejected) {
       const error = await Promise.resolve(call(name, args)).catch((e: unknown) => e);
       expect(error, `${name} ${JSON.stringify(args)}`).toBeInstanceOf(FliskError);
       expect((error as FliskError).suggestions.length).toBeGreaterThan(0);
     }
+  });
+
+  it("says what to try next when it rejects any tool's argument, with the message unchanged", async () => {
+    const { seen, tools } = recordingTools("");
+    const call = (name: string, args: Record<string, unknown>) =>
+      tools.find((t) => t.name === name)?.handler(args);
+    const rejected: [string, Record<string, unknown>, string][] = [
+      ["resource_restart", {}, "resource is required"],
+      ["resource_restart", { resource: "-x" }, "resource must be a name"],
+      ["agent_sessions", {}, "resource is required"],
+      ["agent_list", { stack: "a b" }, "stack must be a name"],
+      ["logs", { services: ["ok", "-bad"] }, "services must be an array of names"],
+      ["logs", { tail: 0 }, "tail must be a positive integer"],
+      ["logs", { since: "soon" }, "since must be a duration such as 30s, 5m or 1h"],
+      ["doctor", { noPing: "yes" }, "noPing must be a boolean"],
+      ["status", { projectPath: "relative" }, "projectPath must be an absolute path"],
+      ["up", { only: ["-x"] }, "only must be an array of names"],
+    ];
+    for (const [name, args, message] of rejected) {
+      const error = await Promise.resolve(call(name, args)).catch((e: unknown) => e);
+      expect(error, `${name} ${JSON.stringify(args)}`).toBeInstanceOf(FliskError);
+      expect((error as FliskError).message).toContain(message);
+      expect((error as FliskError).suggestions.length).toBeGreaterThan(0);
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it("refuses project_eject without confirm, and runs it with confirm or as a dry run", async () => {
+    const { seen, tools } = recordingTools(
+      '{"schemaVersion":1,"data":{"created":true},"errors":[]}',
+    );
+    const eject = tools.find((t) => t.name === "project_eject");
+    await expect(eject?.handler({})).rejects.toThrow("it needs confirm: true");
+    await expect(eject?.handler({ confirm: false })).rejects.toThrow("it needs confirm: true");
+    expect(seen).toEqual([]);
+
+    const result = await eject?.handler({ projectPath: "/work/erp", confirm: true });
+    expect(result).toEqual({
+      data: { schemaVersion: 1, data: { created: true }, errors: [] },
+      isError: false,
+    });
+    await eject?.handler({ dryRun: true });
+    expect(seen).toEqual([
+      { args: ["eject", "--yes", "--json"], cwd: "/work/erp" },
+      { args: ["eject", "--dry-run", "--json"], cwd: undefined },
+    ]);
+    expect(buildProjectEjectArgs({ confirm: true, dryRun: true })).toEqual([
+      "eject",
+      "--dry-run",
+      "--json",
+    ]);
+    expect(eject?.inputSchema).toMatchObject({
+      properties: { confirm: { type: "boolean" }, dryRun: { type: "boolean" } },
+    });
+  });
+
+  it("runs project_import through flisk import --json with the directory before its flags", async () => {
+    const { seen, tools } = recordingTools(
+      '{"schemaVersion":1,"data":{"written":["services/legacy/api/service.json"]},"errors":[]}',
+    );
+    const call = (args: Record<string, unknown>) =>
+      tools.find((t) => t.name === "project_import")?.handler(args);
+    const result = await call({ projectPath: "/work/erp", dir: "legacy" });
+    expect(result?.isError).toBe(false);
+    await call({ dryRun: true });
+    await call({ dir: "/srv/legacy", dryRun: true, force: true });
+    expect(seen).toEqual([
+      { args: ["import", "legacy", "--json"], cwd: "/work/erp", timeoutMs: 300_000 },
+      { args: ["import", "--dry-run", "--json"], cwd: undefined, timeoutMs: 300_000 },
+      {
+        args: ["import", "/srv/legacy", "--dry-run", "--force", "--json"],
+        cwd: undefined,
+        timeoutMs: 300_000,
+      },
+    ]);
+    expect(buildProjectImportArgs({})).toEqual(["import", "--json"]);
+  });
+
+  it("reports a failed import envelope as an error result", async () => {
+    const { tools } = recordingTools(
+      '{"schemaVersion":1,"data":null,"errors":[{"code":"IMPORT_FAILED","message":"Nothing to import"}]}',
+      { exitCode: 1 },
+    );
+    const result = await tools.find((t) => t.name === "project_import")?.handler({});
+    expect(result?.isError).toBe(true);
+  });
+
+  it("keeps the old verb-first names callable without listing them", () => {
+    const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    const aliases = Object.fromEntries(
+      tools.flatMap((t) => (t.aliases ?? []).map((alias) => [alias, t.name])),
+    );
+    expect(aliases).toEqual({
+      restart_resource: "resource_restart",
+      list_agents: "agent_list",
+      get_agent_sessions: "agent_sessions",
+    });
+    const names = tools.map((t) => t.name);
+    for (const alias of Object.keys(aliases)) expect(names).not.toContain(alias);
   });
 
   it("passes only arguments and options that the target CLI command declares", async () => {
@@ -824,9 +931,9 @@ describe("tool list", () => {
       status: {},
       logs: { services: ["api"], tail: 5, since: "5m" },
       resource_list: { stack: "shop" },
-      restart_resource: { resource: "api" },
-      list_agents: { stack: "shop" },
-      get_agent_sessions: { resource: "bot", sessionId: "s1" },
+      resource_restart: { resource: "api" },
+      agent_list: { stack: "shop" },
+      agent_sessions: { resource: "bot", sessionId: "s1" },
       stack_list: { services: true, verbose: true },
       project_info: {},
       network_list: { stack: "shop" },
@@ -847,6 +954,8 @@ describe("tool list", () => {
       },
       stack_assign: { stack: "shop", resources: ["api", "web"] },
       project_init: { agentSkills: false },
+      project_eject: { confirm: true },
+      project_import: { dir: "legacy", dryRun: true, force: true },
     };
     expect(Object.keys(calls).sort()).toEqual(
       tools
@@ -858,7 +967,8 @@ describe("tool list", () => {
       await tools.find((t) => t.name === name)?.handler(args);
     }
     await tools.find((t) => t.name === "project_init")?.handler({ template: "saas", path: "app" });
-    expect(seen).toHaveLength(Object.keys(calls).length + 1);
+    await tools.find((t) => t.name === "project_eject")?.handler({ dryRun: true });
+    expect(seen).toHaveLength(Object.keys(calls).length + 2);
     for (const { args } of seen) expect(undeclaredArguments(args, commands)).toEqual([]);
     expect(
       undeclaredArguments(

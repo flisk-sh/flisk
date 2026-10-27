@@ -29,28 +29,69 @@ const TRANSLATED = new RegExp(`(^|/)translations/|-(${LOCALES})\\.md$`, "i");
 // A negation right before a forbidden phrase: "not a cold boot", "no cold boot", "isn't a cold boot".
 const NEGATED = /\b(?:not|no|never|isn['’]t|aren['’]t|wasn['’]t)\s+(?:(?:a|an|the)\s+)?$/i;
 
-const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const list = (s) =>
 	s
 		.split("|")
 		.map((x) => x.trim())
 		.filter(Boolean);
 
-// A phrase as a case-insensitive regex: whole words (a hyphen joins words, so "cold-boot.md" is not "cold boot"), any
-// run of whitespace between them so a phrase wrapped across lines still matches.
-function phraseRegex(phrase) {
-	const body = phrase.trim().split(/\s+/).map(escape).join("\\s+");
-	return new RegExp(`(?<![\\w-])${body}(?![\\w-])`, "gi");
+// Where a phrase occurs in text, case-insensitively: whole words (a hyphen joins words, so "cold-boot.md" is not "cold
+// boot"), any run of whitespace between them so a phrase wrapped across lines still matches. A scan rather than a
+// RegExp built from registry text, so the registry's wording is never compiled as a pattern. [{ index, 0: match }].
+export function phraseMatches(text, phrase) {
+	const words = phrase.trim().toLowerCase().split(/\s+/).filter(Boolean);
+	const out = [];
+	if (!words.length) return out;
+	const lower = foldCase(text);
+	const wordChar = (ch) => ch !== undefined && /[\w-]/.test(ch);
+	let from = 0;
+	while (from <= lower.length) {
+		const start = lower.indexOf(words[0], from);
+		if (start < 0) break;
+		let end = start + words[0].length;
+		let whole = !wordChar(lower[start - 1]);
+		for (const w of whole ? words.slice(1) : []) {
+			let j = end;
+			while (j < lower.length && /\s/.test(lower[j])) j++;
+			if (j === end || !lower.startsWith(w, j)) {
+				whole = false;
+				break;
+			}
+			end = j + w.length;
+		}
+		if (whole && !wordChar(lower[end])) {
+			out.push({ index: start, 0: text.slice(start, end) });
+			from = end;
+		} else from = start + 1;
+	}
+	return out;
 }
 
-// A caveat subject: "4.6s" matches 4.6s, 4.6 s, 4.6 sec and 4.6 seconds but not 14.6s; anything else is a phrase.
-function subjectRegex(subject) {
+// Lower case with every index kept: a character whose lower case is longer (İ) keeps its own case.
+const foldCase = (text) => {
+	const lower = text.toLowerCase();
+	return lower.length === text.length ? lower : [...text].map((c) => (c.toLowerCase().length === 1 ? c.toLowerCase() : c)).join("");
+};
+
+// Where a caveat subject occurs: "4.6s" matches 4.6s, 4.6 s, 4.6 sec and 4.6 seconds but not 14.6s; anything else is
+// a phrase.
+export function subjectMatches(text, subject) {
 	const d = /^(\d+(?:\.\d+)?)\s*s$/i.exec(subject.trim());
-	if (!d) return phraseRegex(subject);
-	return new RegExp(`(?<![\\d.])${escape(d[1])}\\s?(?:seconds?|secs?|s)(?![\\w])`, "gi");
+	if (!d) return phraseMatches(text, subject);
+	const lower = foldCase(text);
+	const out = [];
+	for (let at = lower.indexOf(d[1]); at >= 0; at = lower.indexOf(d[1], at + 1)) {
+		if (/[\d.]/.test(lower[at - 1] ?? "")) continue;
+		const after = at + d[1].length;
+		const starts = /\s/.test(lower[after] ?? "") ? [after + 1, after] : [after];
+		const end = starts
+			.flatMap((s) => ["seconds", "second", "secs", "sec", "s"].map((unit) => (lower.startsWith(unit, s) ? s + unit.length : -1)))
+			.find((e) => e > 0 && !/\w/.test(lower[e] ?? ""));
+		if (end !== undefined) out.push({ index: at, 0: text.slice(at, end) });
+	}
+	return out;
 }
 
-// The rules of the registry's claims-guard block, or null when the block is missing.
 export function parseRules(registry) {
 	const block = /<!--\s*claims-guard\b([\s\S]*?)-->/.exec(registry);
 	if (!block) return null;
@@ -84,24 +125,24 @@ export function allowedWording(registry) {
 	const out = [];
 	for (const row of rows.slice(1))
 		for (const q of (row[col] ?? "").matchAll(/“([^”]+)”|"([^"]+)"/g))
-			for (const sentence of (q[1] ?? q[2]).split(/(?<=[.!?])\s+/)) if (sentence.trim()) out.push(phraseRegex(sentence));
+			for (const sentence of (q[1] ?? q[2]).split(/(?<=[.!?])\s+/)) if (sentence.trim()) out.push(sentence);
 	return out;
 }
 
 // Violations in one text. firstLine is the line the text starts on in its file (an npm description sits mid-file).
 export function check(rel, text, rules, allowed = [], firstLine = 1) {
 	const lineOf = (i) => firstLine + (text.slice(0, i).match(/\n/g)?.length ?? 0);
-	const exempt = allowed.flatMap((re) => [...text.matchAll(re)].map((m) => [m.index, m.index + m[0].length]));
+	const exempt = allowed.flatMap((p) => phraseMatches(text, p).map((m) => [m.index, m.index + m[0].length]));
 	const found = [];
 	for (const phrase of rules.forbid)
-		for (const m of text.matchAll(phraseRegex(phrase))) {
+		for (const m of phraseMatches(text, phrase)) {
 			const before = text.slice(0, m.index).replace(/[*_`]/g, "");
 			if (NEGATED.test(before) || exempt.some(([a, b]) => m.index >= a && m.index < b)) continue;
 			found.push({ at: m.index, finding: `${rel}:${lineOf(m.index)} "${phrase}": forbidden` });
 		}
 	if (!TRANSLATED.test(rel))
 		for (const { subject, phrases } of rules.caveats)
-			for (const m of text.matchAll(subjectRegex(subject))) {
+			for (const m of subjectMatches(text, subject)) {
 				const near = text
 					.slice(Math.max(0, m.index - CAVEAT_WINDOW), m.index + m[0].length + CAVEAT_WINDOW)
 					.toLowerCase();

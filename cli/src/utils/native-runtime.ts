@@ -13,6 +13,7 @@ import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource } from "../types/index.js";
+import { FliskError } from "./errors.js";
 import { commandProgram } from "./native-service.js";
 import { findOnPath } from "./which.js";
 
@@ -103,7 +104,10 @@ export function dependencyWaves(
       .map(([name]) => name)
       .sort();
     if (wave.length === 0) {
-      throw new Error(`circular dependsOn between ${[...remaining.keys()].sort().join(", ")}`);
+      throw new FliskError(
+        `circular dependsOn between ${[...remaining.keys()].sort().join(", ")}`,
+        ["Remove one dependsOn entry from the cycle in those services' service.json"],
+      );
     }
     for (const name of wave) {
       remaining.delete(name);
@@ -430,6 +434,25 @@ interface RunningService {
 }
 
 /** Starts and supervises the planned services. One instance per `flisk up`. */
+/**
+ * How a service.json `command` line is run: the platform shell, invoked the way Node's `shell: true` does it (`/bin/sh -c`,
+ * or `%ComSpec% /d /s /c "<line>"` on Windows), spelled out so the call does not hand an opaque flag to spawn.
+ */
+export function shellInvocation(
+  command: string,
+  platform: NodeJS.Platform = process.platform,
+  comSpec: string | undefined = process.env.ComSpec,
+): { file: string; args: string[]; windowsVerbatimArguments: boolean } {
+  if (platform === "win32") {
+    return {
+      file: comSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", `"${command}"`],
+      windowsVerbatimArguments: true,
+    };
+  }
+  return { file: "/bin/sh", args: ["-c", command], windowsVerbatimArguments: false };
+}
+
 export class NativeSupervisor {
   private readonly services = new Map<string, RunningService>();
   private readonly startedAt = new Date().toISOString();
@@ -536,11 +559,11 @@ export class NativeSupervisor {
     service.startedAt = Date.now();
     // `command` is a shell command line the project owner wrote in their own service.json (`PORT=1 node s.js`, `$PORT`,
     // `a && b`), run with the same trust as an npm script or a Procfile entry; nothing from outside the project reaches it.
-    // nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
-    const child = spawn(plan.command, {
+    const shell = shellInvocation(plan.command);
+    const child = spawn(shell.file, shell.args, {
       cwd: plan.cwd,
       env: { ...(this.options.baseEnv ?? process.env), ...plan.env },
-      shell: true,
+      windowsVerbatimArguments: shell.windowsVerbatimArguments,
       // Its own process group, so a stop reaches what the shell started too, and a Ctrl+C in the terminal reaches only
       // `flisk up`, which then stops the services in order.
       detached: true,

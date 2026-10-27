@@ -1,6 +1,6 @@
 # Project overview
 
-Flisk CLI — start services on your machine. It organizes microservices using a **Project → Stack → Resource** hierarchy, then uses Tilt to build, run, and hot-reload them locally. It generates a Tiltfile, Dockerfiles, and supporting configuration; Tilt runs the local containers. See [Flisk + Helm](with-helm.md) for the production handoff.
+Flisk runs your whole app on your computer with one command. It organizes microservices using a **Project → Stack → Resource** hierarchy, then uses Tilt to build, run, and hot-reload them locally. It generates a Tiltfile, Dockerfiles, and supporting configuration; Tilt runs the local containers. See [Flisk + Helm](with-helm.md) for the production handoff.
 
 For a runnable one-service introduction, use [one-backend](../examples/one-backend/README.md). For a larger local multi-service project, see the [bundled Flisk project example](../examples/flisk-example/README.md) or create a template with `flisk project example`.
 

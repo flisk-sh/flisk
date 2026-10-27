@@ -3,6 +3,7 @@
 import { spawn } from "node:child_process";
 import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
+import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
 import { getPackageVersion } from "../utils/paths.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
@@ -129,6 +130,39 @@ export function runImport(args, spawnFn = spawn, getVersionFn = getPackageVersio
         child.on("close", (code) => resolve(code ?? 1));
     });
 }
+/**
+ * Runs flisk-import with its output piped instead of the caller's terminal and no stdin, so it can never prompt, and
+ * resolves to what it printed and its exit code. A refusal of the core version gate or a missing npx is a run too.
+ */
+export function runImportCaptured(args, spawnFn = spawn, getVersionFn = getPackageVersion) {
+    const check = checkCoreVersion(getVersionFn(), args);
+    if (!check.ok) {
+        return Promise.resolve({ exitCode: 1, stdout: "", stderr: check.message ?? "" });
+    }
+    const invocation = importInvocation(args);
+    return new Promise((resolve) => {
+        const child = spawnFn(invocation.command, invocation.args, {
+            stdio: ["ignore", "pipe", "pipe"],
+            shell: invocation.shell,
+        });
+        let stdout = "";
+        let stderr = "";
+        child.stdout?.on("data", (chunk) => {
+            stdout += chunk.toString();
+        });
+        child.stderr?.on("data", (chunk) => {
+            stderr += chunk.toString();
+        });
+        child.on("error", (err) => {
+            resolve({
+                exitCode: 127,
+                stdout,
+                stderr: `flisk import: could not run npx (${err.message}). Install Node.js/npm and retry.`,
+            });
+        });
+        child.on("close", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
+    });
+}
 export function buildForwardedImportArgs(args, options = {}) {
     let yes = Boolean(options.yes);
     let force = Boolean(options.force);
@@ -144,6 +178,9 @@ export function buildForwardedImportArgs(args, options = {}) {
             filtered.push(arg);
         }
     }
+    if (options.dryRun && !filtered.includes("--dry-run")) {
+        filtered.push("--dry-run");
+    }
     if (yes) {
         filtered.push("--yes");
     }
@@ -152,13 +189,65 @@ export function buildForwardedImportArgs(args, options = {}) {
     }
     return filtered;
 }
+/** The report of a successful run, read from the forwarded arguments and the importer's "  wrote <path>" lines. */
+export function importReport(forwardedArgs, run) {
+    return {
+        dir: forwardedArgs.find((arg) => !arg.startsWith("-")) ?? ".",
+        dryRun: forwardedArgs.includes("--dry-run"),
+        force: forwardedArgs.includes("--force"),
+        written: [...run.stdout.matchAll(/^\s+wrote (.+)$/gm)].map((match) => match[1].trim()),
+        output: run.stdout.trim(),
+    };
+}
+/**
+ * The error of a failed run: the importer's "Error: ..." line (or whatever it printed last) and its "-> ..." hints. The
+ * importer prints "Nothing to import: ..." on stdout, so stdout is read when stderr says nothing.
+ */
+export function importFailure(run) {
+    const lines = (text) => text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const errLines = lines(run.stderr);
+    const hints = errLines
+        .filter((line) => line.startsWith("->"))
+        .map((line) => line.slice(2).trim());
+    const errorLine = errLines.find((line) => line.startsWith("Error:"));
+    const message = errorLine?.replace(/^Error:\s*/, "") ??
+        (errLines.filter((line) => !line.startsWith("->")).join(" ") ||
+            lines(run.stdout).pop() ||
+            `flisk-import exited with code ${run.exitCode}`);
+    const fallback = run.exitCode === 127
+        ? "Install Node.js 22.12 or later, which provides npx, then run the command again"
+        : "Run `flisk import --dry-run` to see the plan without writing anything";
+    const suggestions = hints.length > 0 ? hints : [fallback];
+    return new JsonCommandError("IMPORT_FAILED", message, suggestions, run.exitCode);
+}
 export const importCommand = addYesOption(new Command("import"))
     .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
     .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
     .option("-f, --force", "Overwrite an existing service.json", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
     .allowUnknownOption()
     .helpOption(false)
     .action(async (args, options) => {
+    if (options.json) {
+        await runJsonCommand("IMPORT_FAILED", "flisk import", async () => {
+            // Without a terminal the importer cannot ask, so --json writes without a prompt, like --yes.
+            const forwardedArgs = buildForwardedImportArgs(args, { ...options, yes: true });
+            const run = await runImportCaptured(forwardedArgs);
+            // The importer's own text is for a person; stdout carries only the envelope.
+            if (run.stdout.trim())
+                console.log(run.stdout.trimEnd());
+            if (run.stderr.trim())
+                console.error(run.stderr.trimEnd());
+            if (run.exitCode !== 0)
+                throw importFailure(run);
+            return { data: importReport(forwardedArgs, run) };
+        });
+        return;
+    }
     const forwardedArgs = buildForwardedImportArgs(args, options);
     process.exitCode = await runImport(forwardedArgs);
 });

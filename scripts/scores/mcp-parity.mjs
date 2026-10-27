@@ -22,6 +22,7 @@ export const HUMAN_ONLY = {
 	completion: "installs shell completion for a person's terminal",
 	ui: "an interactive terminal UI",
 	mcp: "is the MCP server itself",
+	connect: "writes the MCP entry into the agent's own config; an agent on MCP is already connected",
 	version: "prints the CLI version, which doctor --json already reports",
 	maintainers: "checks this repo's MAINTAINERS.md, not a user's project",
 	open: "opens a browser for a person to look at",

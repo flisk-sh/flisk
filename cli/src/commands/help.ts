@@ -4,7 +4,7 @@ import chalk from "chalk";
 import pkg from "../../package.json" with { type: "json" };
 
 const FLISK_BANNER = `
-  ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Flisk CLI — start services on your machine.")}
+  ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Your whole app, running on your computer with one command.")}
 `;
 
 const COMMAND_GROUPS = [
@@ -86,6 +86,11 @@ const COMMAND_GROUPS = [
       },
       { name: "doctor", desc: "Check environment readiness", alias: "" },
       { name: "mcp", desc: "Run an MCP server over stdio for coding agents", alias: "" },
+      {
+        name: "connect",
+        desc: "Connect a coding agent: MCP server entry and Flisk skills",
+        alias: "<claude|cursor|codex> --dry-run",
+      },
       {
         name: "runtime",
         desc: "Inspect packaged engine and template assets",
