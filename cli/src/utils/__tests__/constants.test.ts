@@ -5,6 +5,7 @@ import {
   BASE_DOMAIN_DEFAULT,
   getBaseDomain,
   getStackEmoji,
+  OPTIONAL_INFRA_SERVICES,
   UNPINNED_DEPENDENCY_VERSIONS,
 } from "../constants.js";
 
@@ -16,6 +17,19 @@ describe("UNPINNED_DEPENDENCY_VERSIONS", () => {
     expect(UNPINNED_DEPENDENCY_VERSIONS.has("latest")).toBe(true);
     expect(UNPINNED_DEPENDENCY_VERSIONS.has("*")).toBe(true);
     expect(UNPINNED_DEPENDENCY_VERSIONS.size).toBe(2);
+  });
+});
+
+describe("OPTIONAL_INFRA_SERVICES", () => {
+  it("matches the exact list and order of optional infrastructure services", () => {
+    // This list is intentionally pinned. Any deliberate change to OPTIONAL_INFRA_SERVICES must update this expected list after review.
+    expect(OPTIONAL_INFRA_SERVICES).toEqual([
+      "monitoring",
+      "elk",
+      "debezium",
+      "golden_image",
+      "verdaccio",
+    ]);
   });
 });
 
