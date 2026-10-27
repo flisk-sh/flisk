@@ -27,6 +27,10 @@ const mocks = vi.hoisted(() => ({
   showDetail: vi.fn(),
   showStep: vi.fn(),
   showSuccess: vi.fn(),
+  showErrorAndExit: vi.fn((_msg: string) => {
+    throw new ProcessExit(1);
+  }),
+  installAgentSkills: vi.fn(() => ["flisk-build"]),
 }));
 
 vi.mock("../../utils/cold-preflight.js", () => ({
@@ -64,7 +68,10 @@ vi.mock("../../utils/formatting.js", () => ({
 vi.mock("../../utils/errors.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/errors.js")>()),
   runCommand: async (fn: () => Promise<unknown>) => fn(),
-  showErrorAndExit: vi.fn(),
+  showErrorAndExit: mocks.showErrorAndExit,
+}));
+vi.mock("../../utils/agent-skills.js", () => ({
+  installAgentSkills: mocks.installAgentSkills,
 }));
 
 class ProcessExit extends Error {
@@ -80,6 +87,11 @@ const runProject = async (options: Record<string, unknown>, template?: string) =
   projectCommand.setOptionValue("configFile", options.configFile);
   projectCommand.setOptionValue("path", options.path);
   projectCommand.setOptionValue("quiet", Boolean(options.quiet));
+  if (options.agentSkills !== undefined) {
+    projectCommand.setOptionValue("agentSkills", options.agentSkills);
+  } else {
+    projectCommand.setOptionValue("agentSkills", true);
+  }
 
   const handler = (projectCommand as unknown as { _actionHandler: (args: unknown[]) => unknown })
     ._actionHandler;
@@ -100,6 +112,10 @@ beforeEach(() => {
   mocks.validateEnvFile.mockReturnValue({ missing: [], invalid: [], warnings: [] });
   mocks.ensureGitignore.mockReturnValue([]);
   mocks.promptConfirm.mockResolvedValue(true);
+  mocks.installAgentSkills.mockReturnValue(["flisk-build"]);
+  mocks.showErrorAndExit.mockImplementation((_msg: string) => {
+    throw new ProcessExit(1);
+  });
   exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
     throw new ProcessExit(code ?? 0);
   }) as never);
@@ -327,6 +343,169 @@ describe("project command action", () => {
 
     expect(mocks.detectRuntimePrerequisites).toHaveBeenCalled();
     expect(mocks.showDetail).toHaveBeenCalledWith("Tilt is not installed. Install it.", 0);
+  });
+
+  it("handles existing project: preserves project.json, regenerates configs, and avoids prompts", async () => {
+    const initialConfig = projectConfig(["platform", "api"]);
+    const originalJson = writeProjectConfig(initialConfig);
+    writeMasterConfigs();
+    mocks.ensureEnvFile.mockReturnValue(false);
+    mocks.completeEnvFile.mockReturnValue([]);
+
+    await runProject({ check: false, force: false, yes: false });
+
+    expect(mocks.showSuccess).toHaveBeenCalledWith(".flisk/project.json exists");
+    expect(mocks.promptConfirm).not.toHaveBeenCalled();
+    expect(mocks.promptText).not.toHaveBeenCalled();
+    expect(mocks.promptMultiSelect).not.toHaveBeenCalled();
+    expect(readFileSync(projectJsonPath(), "utf-8")).toBe(originalJson);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Project configuration regenerated!"),
+    );
+  });
+
+  it("handles existing project: reports when .env is newly created", async () => {
+    writeProjectConfig(projectConfig(["platform"]));
+    mocks.ensureEnvFile.mockReturnValue(true);
+
+    await runProject({ check: false, force: false, yes: false });
+
+    expect(mocks.showSuccess).toHaveBeenCalledWith(".flisk/project.json exists");
+    expect(mocks.showSuccess).toHaveBeenCalledWith("Created: .env (the defaults work as-is)");
+    expect(mocks.completeEnvFile).not.toHaveBeenCalled();
+  });
+
+  it("handles existing project: auto-enables discovered service stacks", async () => {
+    mkdirSync(join(root, "services/shop/orders"), { recursive: true });
+    writeFileSync(
+      join(root, "services/shop/orders/service.json"),
+      JSON.stringify({
+        name: "orders",
+        appName: "orders",
+        appType: "backend",
+        runtime: "node",
+        stack: "shop",
+      }),
+    );
+    writeProjectConfig(projectConfig(["platform"]));
+
+    await runProject({ check: false, force: false, yes: false });
+
+    expect(mocks.showDetail).toHaveBeenCalledWith(
+      "Auto-enabled discovered service stacks: shop",
+      0,
+    );
+    expect(readProjectConfig().phases.pre_alpha.enabledStacks).toEqual(["platform", "shop"]);
+  });
+
+  it("loads configuration from an existing --config-file without prompting", async () => {
+    const customConfig = projectConfig(["custom-stack"]);
+    customConfig.project.name = "from-config-file";
+    const customPath = join(root, "custom-config.json");
+    writeFileSync(customPath, JSON.stringify(customConfig, null, 2));
+
+    await runProject({ check: false, force: false, yes: false, configFile: customPath });
+
+    expect(mocks.showSuccess).toHaveBeenCalledWith(`Loaded config from: ${customPath}`);
+    expect(mocks.promptText).not.toHaveBeenCalled();
+    expect(readProjectConfig().project.name).toBe("from-config-file");
+    expect(readProjectConfig().phases.pre_alpha.enabledStacks).toEqual(["custom-stack"]);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
+  });
+
+  it("reports error and exits when --config-file does not exist", async () => {
+    const missingFile = join(root, "missing-file.json");
+
+    await expect(
+      runProject({ check: false, force: false, yes: false, configFile: missingFile }),
+    ).rejects.toBeInstanceOf(ProcessExit);
+
+    expect(mocks.showErrorAndExit).toHaveBeenCalledWith(`Config file not found: ${missingFile}`);
+  });
+
+  it("warns when required environment variables are missing from .env", async () => {
+    mocks.validateEnvFile.mockReturnValue({
+      missing: ["DATABASE_URL", "STRIPE_SECRET_KEY"],
+      invalid: [],
+      warnings: [],
+    });
+
+    await runProject({ check: false, force: false, yes: true });
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Missing required environment variables:"),
+    );
+    expect(mocks.showDetail).toHaveBeenCalledWith("- DATABASE_URL", 1);
+    expect(mocks.showDetail).toHaveBeenCalledWith("- STRIPE_SECRET_KEY", 1);
+    expect(mocks.showDetail).toHaveBeenCalledWith(
+      "→ Edit .env and fill in these values before running `flisk up`",
+      1,
+    );
+  });
+
+  it("runs interactive project wizard and builds configuration from user prompts", async () => {
+    mocks.promptText
+      .mockResolvedValueOnce("interactive-app")
+      .mockResolvedValueOnce("2.0.0-beta")
+      .mockResolvedValueOnce("services/*/*");
+    mocks.promptMultiSelect
+      .mockResolvedValueOnce(["infra"])
+      .mockResolvedValueOnce(["api"])
+      .mockResolvedValueOnce(["worker"])
+      .mockResolvedValueOnce(["monitoring", "elk"]);
+
+    await runProject({ check: false, force: false, yes: false });
+
+    expect(mocks.showStep).toHaveBeenCalledWith("📝 Project Setup Wizard\n");
+    const savedConfig = readProjectConfig();
+    expect(savedConfig.project.name).toBe("interactive-app");
+    expect(savedConfig.project.version).toBe("2.0.0-beta");
+    expect(savedConfig.phases.pre_alpha.enabledStacks).toEqual(["infra"]);
+    expect(savedConfig.phases.alpha.enabledStacks).toEqual(["api"]);
+    expect(savedConfig.phases.beta.enabledStacks).toEqual(["worker"]);
+    expect(savedConfig.optional_infra.monitoring).toBe(true);
+    expect(savedConfig.optional_infra.elk).toBe(true);
+    expect(savedConfig.optional_infra.verdaccio).toBe(false);
+    expect(savedConfig.discovery.paths).toEqual(["services/*/*"]);
+    expect(mocks.generateMasterConfigs).toHaveBeenCalledWith(root, { quiet: false });
+  });
+
+  it("reports found .env when env file already exists during initial setup", async () => {
+    mocks.ensureEnvFile.mockReturnValue(false);
+    mocks.completeEnvFile.mockReturnValue([]);
+
+    await runProject({ check: false, force: false, yes: true });
+
+    expect(mocks.showSuccess).toHaveBeenCalledWith("Found: .env (environment already configured)");
+  });
+
+  it("warns when agent skills installation throws", async () => {
+    mocks.installAgentSkills.mockImplementation(() => {
+      throw new Error("disk full");
+    });
+
+    await runProject({ check: false, force: false, yes: true });
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Could not add the agent skills: disk full"),
+    );
+  });
+
+  it("skips agent skills installation when agentSkills option is false", async () => {
+    await runProject({ check: false, force: false, yes: true, agentSkills: false });
+
+    expect(mocks.installAgentSkills).not.toHaveBeenCalled();
+  });
+
+  it("reports created .env and added .gitignore during initial setup", async () => {
+    mocks.ensureEnvFile.mockReturnValue(true);
+    mocks.ensureGitignore.mockReturnValue([".env"]);
+
+    await runProject({ check: false, force: false, yes: true });
+
+    expect(mocks.showSuccess).toHaveBeenCalledWith("Created: .env (the defaults work as-is)");
+    expect(mocks.showSuccess).toHaveBeenCalledWith("Added to .gitignore: .env");
   });
 });
 

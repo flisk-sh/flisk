@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
-import { templateTargetDir } from "../project.js";
+import { lastLine, templateTargetDir } from "../project.js";
 
 describe("templateTargetDir", () => {
   it("returns targetDir when provided", () => {
@@ -47,5 +47,24 @@ describe("templateTargetDir", () => {
     expect(templateTargetDir("weird$name!")).toBe("weird$name!");
     // Unknown name ending in .git still has the suffix stripped.
     expect(templateTargetDir("local-thing.git")).toBe("local-thing");
+  });
+});
+
+describe("lastLine", () => {
+  it("returns the final non-empty line of a multi-line string", () => {
+    expect(lastLine("line one\nline two\nline three")).toBe("line three");
+    expect(lastLine("error: clone failed\nfatal: destination path already exists\n")).toBe(
+      "fatal: destination path already exists",
+    );
+    expect(lastLine("first line\nsecond line\n   \n\t\n")).toBe("second line");
+  });
+
+  it("returns \x27unknown error\x27 for empty or whitespace-only input", () => {
+    expect(lastLine("")).toBe("unknown error");
+    expect(lastLine("   \n\n\t  \n")).toBe("unknown error");
+  });
+
+  it("returns the trimmed single line for single-line input", () => {
+    expect(lastLine("  just one error message  ")).toBe("just one error message");
   });
 });
