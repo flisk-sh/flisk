@@ -940,30 +940,53 @@ describe("upgradeAllInstallations", () => {
     const engineSha = sha256("fake-engine");
     const sumsText = `${binarySha}  flisk-darwin-arm64\n${engineSha}  flisk-cli-engine.tar.gz`;
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => {
-        if (url.includes("api.github.com")) {
+    const createGitHubReleaseFetchMock = () =>
+      vi.fn().mockImplementation(async (input: string | URL | Request) => {
+        const url =
+          typeof input === "string"
+            ? new URL(input)
+            : input instanceof URL
+              ? input
+              : new URL(input.url);
+
+        if (
+          url.protocol === "https:" &&
+          url.hostname === "api.github.com" &&
+          url.pathname.startsWith("/repos/")
+        ) {
           return {
             ok: true,
             status: 200,
             json: async () => ({ tag_name: "v1.4.0" }),
           };
         }
-        if (url.endsWith("checksums.txt")) {
+        if (
+          url.protocol === "https:" &&
+          url.hostname === "github.com" &&
+          url.pathname.endsWith("/checksums.txt")
+        ) {
           return {
             ok: true,
             status: 200,
             text: async () => sumsText,
           };
         }
-        return {
-          ok: true,
-          status: 200,
-          arrayBuffer: async () => Buffer.from(url.includes("engine") ? "fake-engine" : "fake-bin"),
-        };
-      }),
-    );
+        if (
+          url.protocol === "https:" &&
+          url.hostname === "github.com" &&
+          url.pathname.includes("/releases/download/")
+        ) {
+          return {
+            ok: true,
+            status: 200,
+            arrayBuffer: async () =>
+              Buffer.from(url.pathname.includes("engine") ? "fake-engine" : "fake-bin"),
+          };
+        }
+        throw new Error(`Unexpected fetch URL: ${url.href}`);
+      });
+
+    vi.stubGlobal("fetch", createGitHubReleaseFetchMock());
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     try {
@@ -975,6 +998,82 @@ describe("upgradeAllInstallations", () => {
     } finally {
       logSpy.mockRestore();
     }
+  });
+
+  it("strictly matches legitimate GitHub release URLs and rejects lookalike or malicious URLs", async () => {
+    const binarySha = sha256("fake-bin");
+    const engineSha = sha256("fake-engine");
+    const sumsText = `${binarySha}  flisk-darwin-arm64\n${engineSha}  flisk-cli-engine.tar.gz`;
+
+    const mockFetch = vi.fn().mockImplementation(async (input: string | URL | Request) => {
+      const url =
+        typeof input === "string"
+          ? new URL(input)
+          : input instanceof URL
+            ? input
+            : new URL(input.url);
+
+      if (
+        url.protocol === "https:" &&
+        url.hostname === "api.github.com" &&
+        url.pathname.startsWith("/repos/")
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ tag_name: "v1.4.0" }),
+        };
+      }
+      if (
+        url.protocol === "https:" &&
+        url.hostname === "github.com" &&
+        url.pathname.endsWith("/checksums.txt")
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => sumsText,
+        };
+      }
+      if (
+        url.protocol === "https:" &&
+        url.hostname === "github.com" &&
+        url.pathname.includes("/releases/download/")
+      ) {
+        return {
+          ok: true,
+          status: 200,
+          arrayBuffer: async () =>
+            Buffer.from(url.pathname.includes("engine") ? "fake-engine" : "fake-bin"),
+        };
+      }
+      throw new Error(`Unexpected fetch URL: ${url.href}`);
+    });
+
+    // Valid GitHub API and asset URLs must match
+    const apiRes = await mockFetch("https://api.github.com/repos/flisk-sh/flisk/releases/latest");
+    expect(apiRes.status).toBe(200);
+    expect(await apiRes.json()).toEqual({ tag_name: "v1.4.0" });
+
+    const sumsRes = await mockFetch(
+      "https://github.com/flisk-sh/flisk/releases/download/v1.4.0/checksums.txt",
+    );
+    expect(sumsRes.status).toBe(200);
+    expect(await sumsRes.text()).toBe(sumsText);
+
+    // Lookalike hostnames, insecure protocols, and attacker-controlled domains must be rejected
+    await expect(
+      mockFetch("https://attacker-api.github.com/repos/flisk-sh/flisk/releases/latest"),
+    ).rejects.toThrow("Unexpected fetch URL");
+    await expect(mockFetch("https://evil.com/api.github.com/releases/latest")).rejects.toThrow(
+      "Unexpected fetch URL",
+    );
+    await expect(
+      mockFetch("http://api.github.com/repos/flisk-sh/flisk/releases/latest"),
+    ).rejects.toThrow("Unexpected fetch URL");
+    await expect(
+      mockFetch("https://not-github.com/releases/download/v1.4.0/checksums.txt"),
+    ).rejects.toThrow("Unexpected fetch URL");
   });
 });
 
