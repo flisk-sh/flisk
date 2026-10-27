@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import {
+  checkExpectedResources,
   evaluateTiltReadiness,
   isAdvisoryResource,
   waitForTiltResourcesReady,
@@ -212,5 +213,106 @@ describe("isAdvisoryResource", () => {
   it("treats the host typecheck resources as advisory", () => {
     expect(isAdvisoryResource("floor-app-typecheck")).toBe(true);
     expect(isAdvisoryResource("floor-app")).toBe(false);
+  });
+});
+
+describe("checkExpectedResources", () => {
+  it("reports no problems when all expected resources are present and enabled", () => {
+    const payload = json(
+      item("api", "ok", "ok"),
+      item("web", "ok", "ok"),
+      item("database", "ok", "ok"),
+    );
+    const expected = ["api", "web", "database"];
+    const result = checkExpectedResources(payload, expected);
+
+    expect(result).toEqual({ missing: [], disabled: [] });
+  });
+
+  it("reports no problems when all expected resources are present alongside unexpected ones", () => {
+    const payload = json(
+      item("api", "ok", "ok"),
+      item("web", "ok", "ok"),
+      item("internal-worker", "ok", "ok"),
+    );
+    const expected = ["api", "web"];
+    const result = checkExpectedResources(payload, expected);
+
+    expect(result.missing).toEqual([]);
+    expect(result.disabled).toEqual([]);
+  });
+
+  it("explicitly identifies a single missing expected resource", () => {
+    const payload = json(item("api", "ok", "ok"), item("database", "ok", "ok"));
+    const expected = ["api", "web", "database"];
+    const result = checkExpectedResources(payload, expected);
+
+    expect(result.missing).toEqual(["web"]);
+    expect(result.disabled).toEqual([]);
+  });
+
+  it("explicitly identifies multiple missing resources in expected order without duplicates", () => {
+    const payload = json(item("postgres", "ok", "ok"), item("redis", "ok", "ok"));
+    const expected = ["auth-api", "postgres", "billing-api", "frontend", "redis"];
+    const result = checkExpectedResources(payload, expected);
+
+    expect(result.missing).toEqual(["auth-api", "billing-api", "frontend"]);
+    expect(result.disabled).toEqual([]);
+    expect(result.missing).not.toContain("postgres");
+    expect(result.missing).not.toContain("redis");
+  });
+
+  it("handles empty expected resources list", () => {
+    const payload = json(item("api", "ok", "ok"));
+    const result = checkExpectedResources(payload, []);
+
+    expect(result).toEqual({ missing: [], disabled: [] });
+  });
+
+  it("reports all expected resources as missing when items list is empty or omitted", () => {
+    const expected = ["api", "worker"];
+
+    const emptyItems = JSON.stringify({ items: [] });
+    expect(checkExpectedResources(emptyItems, expected)).toEqual({
+      missing: ["api", "worker"],
+      disabled: [],
+    });
+
+    const omittedItems = JSON.stringify({});
+    expect(checkExpectedResources(omittedItems, expected)).toEqual({
+      missing: ["api", "worker"],
+      disabled: [],
+    });
+  });
+
+  it("categorizes disabled expected resources separately from missing ones", () => {
+    const payload = JSON.stringify({
+      items: [
+        item("api", "ok", "ok"),
+        {
+          metadata: { name: "catalog-service" },
+          status: {
+            updateStatus: "none",
+            runtimeStatus: "none",
+            disableStatus: { state: "Disabled" },
+          },
+        },
+      ],
+    });
+    const expected = ["api", "catalog-service", "missing-service"];
+    const result = checkExpectedResources(payload, expected);
+
+    expect(result.missing).toEqual(["missing-service"]);
+    expect(result.disabled).toEqual(["catalog-service"]);
+  });
+
+  it("does not mutate the expected resources array", () => {
+    const payload = json(item("api", "ok", "ok"));
+    const expected = ["api", "worker"];
+    const originalExpected = [...expected];
+
+    checkExpectedResources(payload, expected);
+
+    expect(expected).toEqual(originalExpected);
   });
 });
