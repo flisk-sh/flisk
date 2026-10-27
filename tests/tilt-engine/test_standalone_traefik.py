@@ -148,6 +148,29 @@ r = {
     assert r["frontend_defaults"] == "web,websecure"
 
 
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_traefik_constants_pin_network_and_port_contract(tmp_path):
+    r = _run_starlark(
+        tmp_path,
+        """
+load('@NETWORKING/traefik_constants.star', 'TRAEFIK_CONFIG', 'TRAEFIK_DOCKER_NETWORK')
+r = {
+    'config_network': TRAEFIK_CONFIG['network'],
+    'docker_network': TRAEFIK_DOCKER_NETWORK,
+    'default_port': TRAEFIK_CONFIG['default_port'],
+}
+""",
+    )
+
+    # These assertions intentionally pin the Traefik networking contract. Update the expected
+    # values when the underlying constants change deliberately.
+    assert r == {
+        "config_network": "traefik-public",
+        "docker_network": "flisk_project_traefik-public",
+        "default_port": 8080,
+    }
+
+
 def test_tiltfile_keeps_traefik_in_focus_mode():
     source = (REPO_ROOT / "cli" / "templates" / "Tiltfile.hbs").read_text()
     assert "'traefik'" in source
