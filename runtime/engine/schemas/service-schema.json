@@ -391,6 +391,21 @@
       "minimum": 3000,
       "type": "integer"
     },
+    "containerPort": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Bring-your-own only: the port the container listens on, when it differs from `port`. PORT, the Traefik target and the health check use it; `port` stays the Flisk port (4000-5999). Example: an imported Compose app that listens on 3000."
+    },
+    "networkAliases": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+      },
+      "description": "Bring-your-own only: extra hostnames for this container on the stack's networks. `flisk import` sets the original Compose service name here when it renames one (db becomes db-svc), so `db:5432` in the app keeps working."
+    },
     "replicas": {
       "default": 1,
       "description": "Container instances to run.\nCreates separate containers (resource-1, resource-2).\nTraefik load-balances between all replicas.",

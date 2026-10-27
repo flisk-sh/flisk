@@ -815,6 +815,8 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
             # resolved via the manifest's own `dependsOn` below.
             if resource_defers_start(manifest) and write_file:
                 internal_port = res.get('port', manifest.get('port', BASE_PORT_BACKEND))
+                if manifest.get('appType') == 'bring-your-own' and manifest.get('containerPort'):
+                    internal_port = manifest.get('containerPort')
                 static_route_path = PlatformDockerConstants.TRAEFIK_DYNAMIC_DIR_REL + '/' + res['name'] + '.yml'
                 compose_invocation = _wake_compose_invocation(
                     ctx.get('project_root', ''), resource_path, res['name'], resource_name,

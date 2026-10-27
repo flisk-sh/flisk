@@ -47,6 +47,10 @@ export interface ResourceConfigFields {
   traefik?: { host?: string; pathPrefix?: string; healthCheck?: string };
   /** bring-your-own only: false keeps the resource off Traefik (no route, no health check). Defaults to true. */
   exposeViaProxy?: boolean;
+  /** bring-your-own only: the port the container listens on when it differs from `port` (PORT, Traefik target, health check). */
+  containerPort?: number;
+  /** bring-your-own only: extra hostnames on the stack's networks, such as the original Compose service name. */
+  networkAliases?: string[];
   /** On-demand scaling via Sablier (Premium - requires FLISK_LICENSE_KEY). See hasSablierLicense() in extension-fetch.ts. */
   sablier?: {
     enable?: boolean;

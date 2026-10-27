@@ -148,6 +148,8 @@ The `language` and `framework` properties intentionally use an open id pattern i
 | `healthCheckPath` | path string; defaults to `/health` for HTTP API resources | HTTP resources | Container health endpoint. Traefik uses it too unless `traefik.healthCheck` is set. Omit it for a non-HTTP BYO resource. |
 | `traefik` | object; generated when omitted | routable resources | Routing overrides: `host`, `pathPrefix`, and `healthCheck`. |
 | `exposeViaProxy` | boolean; defaults to `true` for BYO | BYO resources | Set `false` to keep a BYO resource off Traefik; it then has no public route or HTTP health probe. |
+| `containerPort` | integer, 1-65535; optional | BYO resources | The port the container listens on when it is not `port`, such as an imported Compose app on 3000. `PORT`, the Traefik target and the health check use it; `port` stays the Flisk port (4000-5999). |
+| `networkAliases` | list of hostnames; optional | BYO resources | Extra hostnames for the container on the stack's networks. `flisk import` puts the original Compose name here when it renames a service (`db` becomes `db-svc`), so `db:5432` in your app keeps working. |
 | `smoke` | object; optional | routable HTTP resources | Post-start checks through the public proxy URL. Use `via: "proxy"` and one or more HTTP `steps`. See the [`smoke` configuration guide](configuration.md#smoke-check-the-public-url-after-flisk-up). |
 
 `healthCheckPath` is an inside-the-container readiness probe. A `smoke` block is different: it verifies the public route printed by `flisk up`, and can perform a safe write/read-back flow. Do not use a full URL in a smoke step; its `path` is appended to the public URL.

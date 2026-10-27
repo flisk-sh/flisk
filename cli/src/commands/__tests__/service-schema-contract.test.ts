@@ -56,6 +56,8 @@ const RESOURCE_CONFIG_FIELDS = [
   "dockerfile",
   "image",
   "exposeViaProxy",
+  "containerPort",
+  "networkAliases",
   "agent",
   "command",
   "env",

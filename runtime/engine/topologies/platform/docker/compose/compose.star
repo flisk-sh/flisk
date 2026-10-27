@@ -200,6 +200,10 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     
     internal_port = reject_unsafe_value(manifest.get('port', BASE_PORT_BACKEND), 'port') if manifest else BASE_PORT_BACKEND
     dev_port = internal_port
+    # A bring-your-own container can keep the port it already listens on (an imported Compose app on 3000):
+    # PORT, the Traefik target and the health check use containerPort, while `port` stays the Flisk port.
+    if manifest and manifest.get('appType') == 'bring-your-own' and manifest.get('containerPort'):
+        internal_port = reject_unsafe_value(manifest.get('containerPort'), 'containerPort')
     # Use PROJECT_NAME from PlatformDockerConstants for portable database naming
     _db_prefix = PlatformDockerConstants.PROJECT_NAME + "_"
     db_name = reject_unsafe_value(manifest.get('databaseName', _db_prefix + stack) if manifest else _db_prefix + stack, 'databaseName')
@@ -345,6 +349,25 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
       test: ["CMD", "curl", "-f", "--max-time", "5", "http://localhost:{internal_port}{health_path}"]
 """.format(internal_port=internal_port, health_path=health_path) + compose_healthcheck_timing()
     infisical_env = get_infisical_environment_vars(as_array=True, resource_name=res_name, resource_type='migrator' if is_migrator else 'backend')
+    # A bring-your-own service imported from Compose keeps its Compose name as a hostname (`db` stays reachable
+    # after Flisk renames it to `db-svc`), so connection strings in the app keep working.
+    network_aliases = []
+    if manifest and manifest.get('appType') == 'bring-your-own':
+        for alias in manifest.get('networkAliases') or []:
+            network_aliases.append(reject_unsafe_value(alias, 'networkAliases'))
+    networks_section = ''
+    for network_name in [
+        PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
+        PlatformDockerConstants.NETWORK_BACKEND,
+        PlatformDockerConstants.NETWORK_DATABASE,
+        PlatformDockerConstants.NETWORK_INFISICAL,
+    ]:
+        if network_aliases:
+            networks_section += '      {}:\n        aliases:\n'.format(network_name)
+            for alias in network_aliases:
+                networks_section += '          - {}\n'.format(alias)
+        else:
+            networks_section += '      - {}\n'.format(network_name)
     
     # Build auth environment variables section using centralized auth utilities
     
@@ -374,11 +397,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {agent_volume_section}    labels:
 {traefik_labels}
     networks:
-      - {network_traefik_public}
-      - {network_backend}
-      - {network_database}
-      - {network_infisical}
-{healthcheck_section}    # Note: depends_on removed - Tilt manages service startup order
+{networks_section}{healthcheck_section}    # Note: depends_on removed - Tilt manages service startup order
     deploy:
       resources:
         limits:
@@ -422,6 +441,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         infisical_env=infisical_env,
         auth_env=auth_env,
         secrets_env=secrets_env,
+        networks_section=networks_section,
         network_traefik_public=PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
         network_database=PlatformDockerConstants.NETWORK_DATABASE,
