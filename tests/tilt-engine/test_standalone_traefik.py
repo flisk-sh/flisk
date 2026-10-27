@@ -3,6 +3,7 @@
 """Standalone Flisk projects must serve api.{project}.localhost via Traefik."""
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -251,6 +252,67 @@ def test_wake_gateway_mounts_project_root_at_its_own_absolute_path(tmp_path):
         "r = {'yaml': generate_standalone_traefik_compose(True)}\n",
     )
     assert "- /Users/dev/flisk-erp-system:/Users/dev/flisk-erp-system:ro" in r["yaml"]
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_project_root_abspath_resolves_relative_root_against_project_directory(tmp_path):
+    """Assert a relative project root resolves against the project directory."""
+    project_dir = tmp_path / "my_project"
+    project_dir.mkdir()
+    real_project_dir = str(project_dir.resolve())
+    orig_cwd = os.getcwd()
+
+    r = _run_starlark(
+        project_dir,
+        "load('@COMPOSE/traefik_standalone.star', 'project_root_abspath')\n"
+        "os.environ['FLISK_PROJECT_ROOT'] = '.'\n"
+        "root_dot = project_root_abspath()\n"
+        "os.environ['FLISK_PROJECT_ROOT'] = 'services/backend'\n"
+        "root_sub = project_root_abspath()\n"
+        "os.environ['FLISK_PROJECT_ROOT'] = './nested/../nested'\n"
+        "root_nested = project_root_abspath()\n"
+        "r = {\n"
+        "    'root_dot': root_dot,\n"
+        "    'root_sub': root_sub,\n"
+        "    'root_nested': root_nested,\n"
+        "}\n",
+    )
+
+    assert os.path.isabs(r["root_dot"])
+    assert r["root_dot"] == real_project_dir
+    assert r["root_sub"] == f"{real_project_dir}/services/backend"
+    assert r["root_nested"] == f"{real_project_dir}/nested"
+    assert os.getcwd() == orig_cwd
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_project_root_abspath_returns_absolute_root_unchanged(tmp_path):
+    """Assert an absolute project root is returned unchanged."""
+    abs_path = "/Users/dev/flisk-erp-system"
+    r = _run_starlark(
+        tmp_path,
+        f"os.environ['FLISK_PROJECT_ROOT'] = '{abs_path}'\n"
+        "load('@COMPOSE/traefik_standalone.star', 'project_root_abspath')\n"
+        "r = {'root': project_root_abspath()}\n",
+    )
+    assert r["root"] == abs_path
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_project_root_abspath_normalizes_dot_segments_and_handles_unset(tmp_path):
+    """Assert dot segments in absolute paths are normalized and unset env returns empty string."""
+    r = _run_starlark(
+        tmp_path,
+        "os.environ['FLISK_PROJECT_ROOT'] = '/Users/dev/flisk-erp-system/.flisk/.flisk-out/../..'\n"
+        "load('@COMPOSE/traefik_standalone.star', 'project_root_abspath')\n"
+        "normalized = project_root_abspath()\n"
+        "if 'FLISK_PROJECT_ROOT' in os.environ:\n"
+        "    os.environ.pop('FLISK_PROJECT_ROOT')\n"
+        "unset_root = project_root_abspath()\n"
+        "r = {'normalized': normalized, 'unset_root': unset_root}\n",
+    )
+    assert r["normalized"] == "/Users/dev/flisk-erp-system"
+    assert r["unset_root"] == ""
 
 
 @pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
