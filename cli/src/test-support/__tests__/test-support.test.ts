@@ -45,14 +45,17 @@ describe("cleanEnv", () => {
   it("drops legacy TDK_* variables from the host and keeps the rest", () => {
     const saved = {
       TDK_EXTENSION_PATH: process.env.TDK_EXTENSION_PATH,
+      TDK_EXTENSION_SOURCE: process.env.TDK_EXTENSION_SOURCE,
       FLISK_HTTP_PORT: process.env.FLISK_HTTP_PORT,
     };
     process.env.TDK_EXTENSION_PATH = "y";
+    process.env.TDK_EXTENSION_SOURCE = "/path/to/source";
     process.env.FLISK_HTTP_PORT = "8080";
     try {
       const env = cleanEnv();
       expect(env.PATH).toBe(process.env.PATH);
       expect(env.TDK_EXTENSION_PATH).toBeUndefined();
+      expect(env.TDK_EXTENSION_SOURCE).toBeUndefined();
       expect(env.FLISK_HTTP_PORT).toBe("8080");
     } finally {
       for (const [key, value] of Object.entries(saved)) {
@@ -71,15 +74,22 @@ describe("cleanEnv", () => {
 });
 
 describe("runFlisk host environment", () => {
-  it("does not pass a host TDK_* variable to the CLI", () => {
-    const saved = process.env.TDK_EXTENSION_PATH;
+  it("does not pass host TDK_* variables to the CLI", () => {
+    const saved = {
+      TDK_EXTENSION_PATH: process.env.TDK_EXTENSION_PATH,
+      TDK_EXTENSION_SOURCE: process.env.TDK_EXTENSION_SOURCE,
+    };
     process.env.TDK_EXTENSION_PATH = "/from/host";
+    process.env.TDK_EXTENSION_SOURCE = "/from/host/source";
     try {
       const result = runFlisk(["projects", "--json"], { cwd: createTempProject() });
       expect(result.stderr).not.toContain("TDK_EXTENSION_PATH");
+      expect(result.stderr).not.toContain("TDK_EXTENSION_SOURCE");
     } finally {
-      if (saved === undefined) delete process.env.TDK_EXTENSION_PATH;
-      else process.env.TDK_EXTENSION_PATH = saved;
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
     }
   });
 });

@@ -6,6 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { cleanEnv } from "../../test-support/index.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const cliBin = path.join(repoRoot, "cli", "bin", "flisk.js");
@@ -19,7 +20,7 @@ function runOutsideProject(args: string[]) {
     return spawnSync(process.execPath, [cliBin, ...args], {
       cwd,
       encoding: "utf-8",
-      env: { ...process.env, NO_COLOR: "1" },
+      env: cleanEnv({ NO_COLOR: "1" }),
     });
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
