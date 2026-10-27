@@ -5,12 +5,29 @@ import { describe, expect, it } from "vitest";
 import { FliskError } from "../errors.js";
 import {
   createHostPortPlan,
+  DEFAULT_HOST_PORT_RANGES,
   formatHostPortPlan,
   type HostPortPlan,
   type HostPortPlanOptions,
   isPrivilegedBindFree,
+  PREFERRED_HOST_PORTS,
 } from "../host-port-plan.js";
 import { resolveSubdomainBases } from "../service-urls.js";
+
+describe("host port allocation defaults", () => {
+  // Deliberate changes to default port allocations require corresponding test updates.
+  it("pins the default ranges and preferred host ports", () => {
+    expect(DEFAULT_HOST_PORT_RANGES).toEqual({
+      ingressHttp: { start: 8080, end: 8180 },
+      ingressHttps: { start: 8443, end: 8543 },
+      postgres: { start: 15432, end: 15532 },
+    });
+    expect(PREFERRED_HOST_PORTS).toEqual({
+      ingressHttp: 80,
+      ingressHttps: 443,
+    });
+  });
+});
 
 describe("createHostPortPlan", () => {
   it("throws FliskError with suggestions on invalid port or exhausted ranges", async () => {
