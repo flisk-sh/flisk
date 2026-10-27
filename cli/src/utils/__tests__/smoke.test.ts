@@ -10,6 +10,7 @@ import {
   formatSmokeFailure,
   readOnlySmokePlans,
   runSmokePlan,
+  runSmokePlans,
   SMOKE_RECORD_BODY_MAX_BYTES,
   type SmokeConfig,
   type SmokePlan,
@@ -730,5 +731,182 @@ describe("readOnlySmokePlans", () => {
   it("drops the ready-poll so doctor does not block on a starting service", () => {
     const [kept] = readOnlySmokePlans([{ ...plan, readyPath: "/health" }]);
     expect(kept.readyPath).toBeUndefined();
+  });
+});
+
+describe("runSmokePlans", () => {
+  const planA: SmokePlan = {
+    name: "auth-service",
+    baseUrl: "http://auth.flisk.local",
+    smoke: {
+      via: "proxy",
+      timeoutSeconds: 5,
+      steps: [{ name: "health", method: "GET", path: "/health", expect: 200 }],
+    },
+  };
+
+  const planB: SmokePlan = {
+    name: "billing-service",
+    baseUrl: "http://billing.flisk.local",
+    smoke: {
+      via: "proxy",
+      timeoutSeconds: 5,
+      steps: [
+        {
+          name: "charge",
+          method: "POST",
+          path: "/charge",
+          body: { amount: 100 },
+          expect: 201,
+        },
+      ],
+    },
+  };
+
+  const planC: SmokePlan = {
+    name: "catalog-service",
+    baseUrl: "http://catalog.flisk.local",
+    smoke: {
+      via: "proxy",
+      timeoutSeconds: 5,
+      steps: [{ name: "items", method: "GET", path: "/items", expect: 200 }],
+    },
+  };
+
+  it("returns an empty array when given no smoke plans", async () => {
+    const results = await runSmokePlans([], clock());
+    expect(results).toEqual([]);
+  });
+
+  it("executes every plan in order and reports successful results", async () => {
+    const { fetch, calls } = fakeFetch({
+      "GET http://auth.flisk.local/health": [{ status: 200, body: "ok" }],
+      "POST http://billing.flisk.local/charge": [{ status: 201, body: '{"charged":true}' }],
+      "GET http://catalog.flisk.local/items": [{ status: 200, body: '{"items":[]}' }],
+    });
+
+    const results = await runSmokePlans([planA, planB, planC], { fetch, ...clock() });
+
+    // Assert every plan executed in the expected order
+    expect(calls).toHaveLength(3);
+    expect(calls[0]).toEqual({
+      url: "http://auth.flisk.local/health",
+      method: "GET",
+      body: undefined,
+    });
+    expect(calls[1]).toEqual({
+      url: "http://billing.flisk.local/charge",
+      method: "POST",
+      body: JSON.stringify({ amount: 100 }),
+    });
+    expect(calls[2]).toEqual({
+      url: "http://catalog.flisk.local/items",
+      method: "GET",
+      body: undefined,
+    });
+
+    // Assert results match plans and preserve the plan list ordering
+    expect(results).toEqual([
+      { name: "auth-service", ok: true },
+      { name: "billing-service", ok: true },
+      { name: "catalog-service", ok: true },
+    ]);
+  });
+
+  it("reports a failed plan and reflects failure in the overall result while running remaining plans", async () => {
+    const { fetch, calls } = fakeFetch({
+      "GET http://auth.flisk.local/health": [{ status: 200, body: "ok" }],
+      "POST http://billing.flisk.local/charge": [
+        { status: 500, body: "insufficient funds in billing account" },
+      ],
+      "GET http://catalog.flisk.local/items": [{ status: 200, body: '{"items":[]}' }],
+    });
+
+    const results = await runSmokePlans([planA, planB, planC], { fetch, ...clock() });
+
+    // Every plan still executes via Promise.all concurrency
+    expect(calls).toHaveLength(3);
+
+    // Failed plan is accurately identified and marked failed
+    expect(results[1]).toEqual({
+      name: "billing-service",
+      ok: false,
+      failure: expect.stringContaining(
+        "billing-service: charge: POST http://billing.flisk.local/charge returned 500, expected 201: insufficient funds",
+      ),
+    });
+
+    // Overall result reflects the failure
+    expect(results.some((r) => !r.ok)).toBe(true);
+
+    // Passing plans are not affected by the failing sibling plan
+    expect(results[0]).toEqual({ name: "auth-service", ok: true });
+    expect(results[2]).toEqual({ name: "catalog-service", ok: true });
+  });
+
+  it("handles network connection rejection and reports structured failure", async () => {
+    const { fetch, calls } = fakeFetch({
+      "GET http://auth.flisk.local/health": [
+        Object.assign(new Error("connect ECONNREFUSED"), { cause: { code: "ECONNREFUSED" } }),
+      ],
+      "POST http://billing.flisk.local/charge": [{ status: 201, body: '{"charged":true}' }],
+      "GET http://catalog.flisk.local/items": [{ status: 200, body: '{"items":[]}' }],
+    });
+
+    const results = await runSmokePlans([planA, planB, planC], { fetch, ...clock() });
+
+    // GET requests retry until the plan budget expires, but all plans are still executed
+    expect(calls.filter((c) => c.url.includes("auth"))).toHaveLength(6);
+    expect(calls.filter((c) => c.url.includes("billing"))).toHaveLength(1);
+    expect(calls.filter((c) => c.url.includes("catalog"))).toHaveLength(1);
+    expect(results[0]?.ok).toBe(false);
+    expect(results[0]?.name).toBe("auth-service");
+    expect(results[0]?.failure).toContain("never answered");
+    expect(results[1]).toEqual({ name: "billing-service", ok: true });
+    expect(results[2]).toEqual({ name: "catalog-service", ok: true });
+  });
+
+  it("reports multiple failures across plans accurately", async () => {
+    const { fetch } = fakeFetch({
+      "GET http://auth.flisk.local/health": [{ status: 503, body: "service unavailable" }],
+      "POST http://billing.flisk.local/charge": [{ status: 201, body: '{"ok":true}' }],
+      "GET http://catalog.flisk.local/items": [{ status: 404, body: "not found" }],
+    });
+
+    const results = await runSmokePlans([planA, planB, planC], { fetch, ...clock() });
+
+    expect(results).toHaveLength(3);
+    expect(results[0]?.ok).toBe(false);
+    expect(results[0]?.name).toBe("auth-service");
+    expect(results[1]?.ok).toBe(true);
+    expect(results[1]?.name).toBe("billing-service");
+    expect(results[2]?.ok).toBe(false);
+    expect(results[2]?.name).toBe("catalog-service");
+  });
+
+  it("writes per-plan records to isolated directories when recordDir is configured", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "flisk-smoke-plans-"));
+    try {
+      const { fetch } = fakeFetch({
+        "GET http://auth.flisk.local/health": [{ status: 200, body: "healthy" }],
+        "POST http://billing.flisk.local/charge": [{ status: 201, body: '{"paid":true}' }],
+      });
+
+      const results = await runSmokePlans([planA, planB], {
+        fetch,
+        recordDir: tempDir,
+        ...clock(),
+      });
+
+      expect(results).toEqual([
+        { name: "auth-service", ok: true },
+        { name: "billing-service", ok: true },
+      ]);
+
+      expect(existsSync(join(tempDir, "auth-service", "health", "latest.json"))).toBe(true);
+      expect(existsSync(join(tempDir, "billing-service", "charge", "latest.json"))).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
