@@ -936,6 +936,22 @@ describe("template-engine", () => {
       ["a discovery without paths", { ...projectConfig(), discovery: {} }],
     ];
 
+    for (const flag of ["monitoring", "elk", "debezium", "golden_image", "verdaccio"] as const) {
+      invalidConfigs.push([
+        `a non-boolean optional_infra.${flag}`,
+        { ...projectConfig(), optional_infra: { ...projectConfig().optional_infra, [flag]: 1 } },
+      ]);
+    }
+    invalidConfigs.push(
+      ["a null discovery", { ...projectConfig(), discovery: null }],
+      ["a string discovery", { ...projectConfig(), discovery: "services/*" }],
+      [
+        "discovery paths that are not an array",
+        { ...projectConfig(), discovery: { paths: "services/*" } },
+      ],
+      ["a null optional_infra", { ...projectConfig(), optional_infra: null }],
+    );
+
     for (const [label, value] of invalidConfigs) {
       it(`rejects ${label}`, () => {
         const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-invalid-project-json-"));
@@ -954,6 +970,21 @@ describe("template-engine", () => {
         }
       });
     }
+
+    it("returns every field of a valid config, including the optional ones", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-valid-project-json-"));
+      try {
+        const config = projectConfig({
+          always_enabled_infra: ["traefik"],
+          overrides: { "shop/api": { port: 4100 } },
+        } as Partial<ProjectConfig>);
+        writeProjectJson(projectRoot, config);
+
+        expect(readProjectConfig(projectRoot)).toEqual(config);
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
 
     it("migrates a legacy stacks config to phases", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-legacy-stacks-"));

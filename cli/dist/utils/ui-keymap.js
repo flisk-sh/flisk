@@ -1,3 +1,4 @@
+import { FliskError } from "./errors.js";
 export const TABS = [
     { id: "overview", label: "OVERVIEW", shortcut: "1" },
     { id: "resources", label: "RESOURCES", shortcut: "2" },
@@ -114,7 +115,9 @@ export const UI_KEYMAP = uiKeymap;
 function getUiKeymapEntry(id) {
     const entry = UI_KEYMAP.find((shortcut) => shortcut.id === id);
     if (!entry) {
-        throw new Error(`Unknown Flisk UI shortcut: ${id}`);
+        throw new FliskError(`Unknown Flisk UI shortcut: ${id}`, [
+            "See the shortcuts with ? in flisk ui",
+        ]);
     }
     return entry;
 }

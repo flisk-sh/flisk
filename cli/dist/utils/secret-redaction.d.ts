@@ -1,7 +1,8 @@
+import { FliskError } from "./errors.js";
 export declare const REDACTED = "[REDACTED]";
-export declare class EnvUnreadableError extends Error {
+export declare class EnvUnreadableError extends FliskError {
     readonly path: string;
-    constructor(path: string, reason: string);
+    constructor(path: string, reason: string, suggestions?: string[]);
 }
 /**
  * Shorter values are left alone: masking a two-letter value would hit ordinary words in every log line. The cost is

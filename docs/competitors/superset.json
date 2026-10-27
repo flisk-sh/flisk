@@ -261,7 +261,7 @@
 						"command": "flisk restart"
 					},
 					{
-						"mcpTool": "restart_resource"
+						"mcpTool": "resource_restart"
 					}
 				]
 			}
@@ -335,7 +335,7 @@
 				"reason": "Flisk agent resources keep checkpoints that survive restarts and can be listed and read, but there is no fork or hand-off.",
 				"evidence": [
 					{
-						"mcpTool": "get_agent_sessions"
+						"mcpTool": "agent_sessions"
 					},
 					{
 						"command": "flisk agent"

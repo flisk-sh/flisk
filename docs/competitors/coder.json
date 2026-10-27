@@ -80,7 +80,7 @@
 						}
 					},
 					{
-						"mcpTool": "get_agent_sessions"
+						"mcpTool": "agent_sessions"
 					},
 					{
 						"command": "agent"

@@ -5,6 +5,8 @@
  */
 export interface McpTool {
     name: string;
+    /** Former names that tools/call still accepts, so older agent configs keep working; tools/list shows only `name`. */
+    aliases?: readonly string[];
     description: string;
     inputSchema: Record<string, unknown>;
     handler: (args: Record<string, unknown>) => Promise<McpToolResult>;

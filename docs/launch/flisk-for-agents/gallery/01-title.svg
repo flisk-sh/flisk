@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="760" viewBox="0 0 1270 760" role="img" aria-label="Flisk for AI agents: Let your coding agent build and run your local stack">
+<title>Flisk for AI agents: Let your coding agent build and run your local stack</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101827"/><stop offset="1" stop-color="#192b3d"/></linearGradient>
+<linearGradient id="glow" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#61f0d3"/><stop offset="1" stop-color="#69a8ff"/></linearGradient>
+</defs>
+<rect width="1270" height="760" fill="url(#bg)"/>
+<text x="64" y="76" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="3" fill="#91a8bf">FLISK FOR AI AGENTS</text>
+<rect x="64" y="90" width="72" height="4" rx="2" fill="url(#glow)"/>
+<text x="64" y="250" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="76" font-weight="750" fill="#edf5ff" text-anchor="start">Flisk for AI agents</text>
+<text x="64" y="330" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="38" font-weight="500" fill="#cfe3f7" text-anchor="start">Let your coding agent build and run your local stack</text>
+<text x="64" y="400" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="24" font-weight="400" fill="#91a8bf" text-anchor="start">The flisk mcp server (19 tools) plus the Flisk skills, for the agent you already use.</text>
+<rect x="64" y="470" width="176" height="52" rx="26" fill="#153040" stroke="#315469"/><text x="152" y="503" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" font-weight="600" fill="#edf5ff" text-anchor="middle">Claude Code</text>
+<rect x="256" y="470" width="116" height="52" rx="26" fill="#153040" stroke="#315469"/><text x="314" y="503" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" font-weight="600" fill="#edf5ff" text-anchor="middle">Cursor</text>
+<rect x="388" y="470" width="104" height="52" rx="26" fill="#153040" stroke="#315469"/><text x="440" y="503" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" font-weight="600" fill="#edf5ff" text-anchor="middle">Codex</text>
+<text x="64" y="610" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="26" font-weight="600" fill="#61f0d3" text-anchor="start">Scaffold · start · check · read logs · fix</text>
+<text x="64" y="740" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#91a8bf">github.com/flisk-sh/flisk · MIT · runs on your machine</text>
+</svg>

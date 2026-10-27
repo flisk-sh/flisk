@@ -50,7 +50,7 @@ Results are specific to the recorded hardware, operating system, and Node runtim
 
 ## `flisk up` warm-start benchmark
 
-Times `flisk up` on a project, one cold run and warm runs, and records per-resource build times, the Docker VM's memory and the container health. It answers "how long does a start take, and what does a warm start save", for any Flisk project. The published run is [`docs/benchmarks/results/flisk-up-warm-start-2026-10-11/`](../../docs/benchmarks/results/flisk-up-warm-start-2026-10-11/summary.md) (flisk-restaurant-example).
+Times `flisk up` on a project, one cold run and warm runs, and records per-resource build times, the Docker VM's memory and the container health. It answers "how long does a start take, and what does a warm start save", for any Flisk project. The published run is the 2026-10-11 warm-start entry in [`docs/benchmarks/results/`](../../docs/benchmarks/results/README.md) (flisk-restaurant-example).
 
 **Requirements:** `flisk`, `tilt`, `docker` (Compose v2 and buildx), `jq` and Node.js 22.12 or newer on `PATH`. Docker Desktop (or another engine) must be running, and nothing else should be building images on the machine.
 

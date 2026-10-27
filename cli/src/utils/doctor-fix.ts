@@ -14,6 +14,7 @@ import {
   fliskNetworkPrefixes,
   projectNetworkNames,
 } from "./down-cleanup.js";
+import { FliskError } from "./errors.js";
 import { tiltGetUiResources } from "./up-readiness.js";
 import { findAllOnPath } from "./which.js";
 
@@ -185,7 +186,10 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
       try {
         await run(["network", "rm", name]);
       } catch (error) {
-        throw new Error(firstLine(error));
+        throw new FliskError(firstLine(error), [
+          `See what still uses it with: docker network inspect ${name}`,
+          `Remove it by hand with: docker network rm ${name}`,
+        ]);
       }
     },
     freeDiskGib() {
@@ -222,7 +226,10 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         // Never `volume prune`, never `-a`: only the build cache and untagged images.
         await run(kind === "builder" ? ["builder", "prune", "-f"] : ["image", "prune", "-f"]);
       } catch (error) {
-        throw new Error(firstLine(error));
+        throw new FliskError(firstLine(error), [
+          `Run it by hand: docker ${kind === "builder" ? "builder" : "image"} prune -f`,
+          "Check the container engine with: flisk doctor",
+        ]);
       }
     },
     async tiltStatus(pid) {
@@ -258,7 +265,10 @@ async function runColima(action: "start" | "restart" | "native-lima"): Promise<v
       });
       nativeDir = nativeLimaPath();
       if (!nativeDir) {
-        throw new Error("brew reinstall lima did not provide a native limactl");
+        throw new FliskError("brew reinstall lima did not provide a native limactl", [
+          "Reinstall Lima with the arm64 Homebrew in /opt/homebrew: brew reinstall lima",
+          "Check the container engine with: flisk doctor",
+        ]);
       }
     }
     const env = nativeDir

@@ -67,6 +67,9 @@ def _container_name(compose_project_name, res_name):
     return compose_project_name + "-" + res_name + "-1"
 
 
+container_name = _container_name
+
+
 def generate_static_wake_route(
     resource_entry_name,
     compose_project_name,

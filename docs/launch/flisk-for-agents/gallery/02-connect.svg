@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="760" viewBox="0 0 1270 760" role="img" aria-label="Connect your agent to Flisk">
+<title>Connect your agent to Flisk</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101827"/><stop offset="1" stop-color="#192b3d"/></linearGradient>
+<linearGradient id="glow" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#61f0d3"/><stop offset="1" stop-color="#69a8ff"/></linearGradient>
+</defs>
+<rect width="1270" height="760" fill="url(#bg)"/>
+<text x="64" y="76" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="3" fill="#91a8bf">FLISK FOR AI AGENTS</text>
+<rect x="64" y="90" width="72" height="4" rx="2" fill="url(#glow)"/>
+<text x="64" y="140" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="44" font-weight="750" fill="#edf5ff" text-anchor="start">Connect your agent to Flisk</text>
+<rect x="64" y="160" width="1142" height="72" rx="18" fill="#111d2b" stroke="#2d4358" stroke-width="1.5" />
+<text x="96" y="204" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#61f0d3" text-anchor="start">Claude Code</text>
+<text x="280" y="204" xml:space="preserve" font-family="'JetBrains Mono','Hack',ui-monospace,Menlo,monospace" font-size="19" font-weight="400" fill="#edf5ff" text-anchor="start">claude mcp add --scope local --transport stdio flisk -- flisk mcp</text>
+<rect x="64" y="254" width="1142" height="72" rx="18" fill="#111d2b" stroke="#2d4358" stroke-width="1.5" />
+<text x="96" y="298" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#61f0d3" text-anchor="start">Codex</text>
+<text x="280" y="298" xml:space="preserve" font-family="'JetBrains Mono','Hack',ui-monospace,Menlo,monospace" font-size="19" font-weight="400" fill="#edf5ff" text-anchor="start">codex mcp add flisk -- flisk mcp</text>
+<rect x="64" y="348" width="1142" height="136" rx="18" fill="#111d2b" stroke="#2d4358" stroke-width="1.5" />
+<text x="96" y="392" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#61f0d3" text-anchor="start">Cursor</text>
+<text x="280" y="392" xml:space="preserve" font-family="'JetBrains Mono','Hack',ui-monospace,Menlo,monospace" font-size="19" font-weight="400" fill="#edf5ff" text-anchor="start"># .cursor/mcp.json, under mcpServers</text>
+<text x="280" y="424" xml:space="preserve" font-family="'JetBrains Mono','Hack',ui-monospace,Menlo,monospace" font-size="19" font-weight="400" fill="#edf5ff" text-anchor="start">&quot;flisk&quot;: { &quot;type&quot;: &quot;stdio&quot;, &quot;command&quot;: &quot;sh&quot;,</text>
+<text x="280" y="456" xml:space="preserve" font-family="'JetBrains Mono','Hack',ui-monospace,Menlo,monospace" font-size="19" font-weight="400" fill="#edf5ff" text-anchor="start">  &quot;args&quot;: [&quot;-c&quot;, &quot;cd \&quot;${workspaceFolder}\&quot; &amp;&amp; exec flisk mcp&quot;] }</text>
+<rect x="64" y="506" width="1142" height="72" rx="18" fill="#111d2b" stroke="#2d4358" stroke-width="1.5" />
+<text x="96" y="550" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#61f0d3" text-anchor="start">Skills</text>
+<text x="280" y="550" xml:space="preserve" font-family="'JetBrains Mono','Hack',ui-monospace,Menlo,monospace" font-size="19" font-weight="400" fill="#edf5ff" text-anchor="start">npx skills add flisk-sh/flisk-skills</text>
+<text x="64" y="628" xml:space="preserve" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" font-weight="400" fill="#91a8bf" text-anchor="start">Install first: npm install -g @flisk-sh/flisk  (or curl -fsSL https://flisk.sh/install.sh | sh)</text>
+<text x="64" y="740" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#91a8bf">github.com/flisk-sh/flisk · MIT · runs on your machine</text>
+</svg>

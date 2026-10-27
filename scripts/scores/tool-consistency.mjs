@@ -58,9 +58,16 @@ const MIN_DESCRIPTION = 40;
 // (AGENTS.md names 7 of 19 inline, which is a mention, not a list, so it is not held to the rest).
 const LIST_SHARE = 0.6;
 
-// Prose that states a count of something that was true once: a changelog, a roadmap, and the gap analysis written
-// against an older tool set ("two MCP tools"). openspec/ holds proposals and sits outside the scanned folders.
-const SKIPPED = [/(^|\/)CHANGELOG\.md$/, /^docs\/ROADMAP\.md$/, /^docs\/strategy-memo-gap-analysis\.md$/];
+// Prose that states a count of something that was true once: a changelog, a roadmap, the gap analysis written
+// against an older tool set ("two MCP tools"), and launch kits, whose copy and rendered images describe the published
+// release they name (docs/launch/flisk-for-agents cites 1.4.8 and its 19 tools). openspec/ holds proposals and sits
+// outside the scanned folders.
+const SKIPPED = [
+	/(^|\/)CHANGELOG\.md$/,
+	/^docs\/ROADMAP\.md$/,
+	/^docs\/strategy-memo-gap-analysis\.md$/,
+	/^docs\/launch\//,
+];
 
 // Tools as { name, description, hasSchema, hasProjectPath }, read from the source text the way ade-score reads names:
 // a tool starts at its `name: "x",` line and ends at the next one.

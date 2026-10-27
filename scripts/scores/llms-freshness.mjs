@@ -28,12 +28,19 @@ export function documents(root) {
 	return [...CONTRACTS, ...walk(root, "cli/templates", (rel) => /(^|\/)AGENTS\.md(\.\w+)?$/.test(rel))];
 }
 
-const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 // Whether text names one of the command's names as `flisk <name>`: a standalone flisk (not @flisk-sh/flisk or
 // flisk.sh), then the name as a whole word (`flisk resource` does not name resources).
+// A scan, not a RegExp built from the name, so a command name is never compiled as a pattern.
 export function namesCommand(text, names) {
-	return names.some((n) => new RegExp(`(?<![\\w./@-])flisk\\s+${escape(n)}(?![\\w-])`).test(text));
+	for (let at = text.indexOf("flisk"); at >= 0; at = text.indexOf("flisk", at + 1)) {
+		if (/[\w./@-]/.test(text[at - 1] ?? "")) continue;
+		let j = at + "flisk".length;
+		const gap = j;
+		while (/\s/.test(text[j] ?? "")) j++;
+		if (j === gap) continue;
+		if (names.some((n) => text.startsWith(n, j) && !/[\w-]/.test(text[j + n.length] ?? ""))) return true;
+	}
+	return false;
 }
 
 export const namesTool = (text, tool) => text.includes(`\`${tool}\``);

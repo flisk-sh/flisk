@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import type { TiltCommandResult } from "../types/index.js";
 import { STANDARD_PORTS } from "./constants.js";
+import { FliskError } from "./errors.js";
 import { runTilt } from "./tilt.js";
 
 type JsonRecord = Record<string, unknown>;
@@ -30,12 +31,19 @@ export interface TiltEventSnapshot {
 
 export type TiltEventsFailureKind = "unavailable" | "error";
 
-export class TiltEventsLoadError extends Error {
+const TILT_UNAVAILABLE_HELP = ["Start the stack with: flisk up", "Check Tilt with: flisk doctor"];
+const TILT_ERROR_HELP = [
+  "Check Tilt with: flisk doctor",
+  "Compare the Tilt version with: tilt version",
+];
+
+export class TiltEventsLoadError extends FliskError {
   constructor(
     message: string,
     readonly kind: TiltEventsFailureKind,
+    suggestions: string[] = [],
   ) {
-    super(message);
+    super(message, suggestions);
     this.name = "TiltEventsLoadError";
   }
 }
@@ -80,7 +88,7 @@ function readStringArray(value: unknown): string[] {
 export function parseTiltUiResourceList(value: unknown): TiltEventSnapshot {
   const list = asRecord(value);
   if (!list || !Array.isArray(list.items)) {
-    throw new Error("Tilt returned an invalid UIResource list");
+    throw new FliskError("Tilt returned an invalid UIResource list", TILT_ERROR_HELP);
   }
   const resources: TiltResourceSummary[] = [];
   const events: TiltTimelineEvent[] = [];
@@ -213,7 +221,11 @@ export async function loadTiltEvents(): Promise<TiltEventSnapshot> {
       )
         ? "unavailable"
         : "error";
-    throw new TiltEventsLoadError(message, kind);
+    throw new TiltEventsLoadError(
+      message,
+      kind,
+      kind === "unavailable" ? TILT_UNAVAILABLE_HELP : TILT_ERROR_HELP,
+    );
   }
   if (result.exitCode !== 0) {
     const message = result.stderr.trim() || `tilt get exited with code ${result.exitCode}`;
@@ -223,13 +235,21 @@ export async function loadTiltEvents(): Promise<TiltEventSnapshot> {
       )
         ? "unavailable"
         : "error";
-    throw new TiltEventsLoadError(message, kind);
+    throw new TiltEventsLoadError(
+      message,
+      kind,
+      kind === "unavailable" ? TILT_UNAVAILABLE_HELP : TILT_ERROR_HELP,
+    );
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(result.stdout) as unknown;
   } catch {
-    throw new TiltEventsLoadError("Tilt returned invalid UIResource JSON", "error");
+    throw new TiltEventsLoadError(
+      "Tilt returned invalid UIResource JSON",
+      "error",
+      TILT_ERROR_HELP,
+    );
   }
   try {
     return parseTiltUiResourceList(parsed);
@@ -237,6 +257,7 @@ export async function loadTiltEvents(): Promise<TiltEventSnapshot> {
     throw new TiltEventsLoadError(
       error instanceof Error ? error.message : "Tilt returned an invalid UIResource list",
       "error",
+      TILT_ERROR_HELP,
     );
   }
 }

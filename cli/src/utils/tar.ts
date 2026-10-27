@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { FliskError } from "./errors.js";
 
 /**
  * Extracts a gzipped tarball (as an in-memory buffer) into destDir.
@@ -41,8 +42,9 @@ export function extractTarball(data: Buffer, destDir: string): void {
         windowsHide: true,
       });
       if (fallback.status !== 0) {
-        throw new Error(
+        throw new FliskError(
           `tar extraction failed: ${fallback.stderr?.toString() || result.stderr?.toString() || "unknown error"}`,
+          ["Check that tar is installed and the download finished", "Run the command again"],
         );
       }
       const entries = readdirSync(fallbackDir);
