@@ -3,7 +3,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { type ColimaDeps, checkColima, isColimaDocker } from "../colima.js";
+import {
+  type ColimaDeps,
+  type ColimaStatus,
+  checkColima,
+  isColimaDocker,
+  planColimaRepair,
+} from "../colima.js";
 
 function deps(overrides: Partial<ColimaDeps> = {}): ColimaDeps {
   return {
@@ -127,5 +133,74 @@ describe("checkColima with colima logging to stderr", () => {
     expect(status.running).toBe(true);
     expect(status.arch).toBe("aarch64");
     expect(status.problem).toBeUndefined();
+  });
+});
+
+describe("planColimaRepair", () => {
+  it("returns undefined (no repair steps) for a healthy Colima setup", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: true,
+      arch: "aarch64",
+    };
+    expect(planColimaRepair(status, true)).toBeUndefined();
+  });
+
+  it("returns undefined when Docker does not run on Colima", () => {
+    const status: ColimaStatus = {
+      isColima: false,
+      running: true,
+    };
+    expect(planColimaRepair(status, true)).toBeUndefined();
+    expect(planColimaRepair(status, false)).toBeUndefined();
+  });
+
+  it("returns a 'start' step when the Colima VM is stopped", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: false,
+      problem: "The Colima VM is not running",
+      fix: "Run `colima start`",
+    };
+    expect(planColimaRepair(status, false)).toBe("start");
+  });
+
+  it("returns a 'start' step when the Colima VM is missing or uninitialized", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: false,
+      problem: "The state of the Colima VM could not be read",
+      fix: "Run `colima status` to see what it says",
+    };
+    expect(planColimaRepair(status, false)).toBe("start");
+  });
+
+  it("returns a 'restart' step when the Colima VM is running but the Docker daemon does not answer", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: true,
+      arch: "aarch64",
+    };
+    expect(planColimaRepair(status, false)).toBe("restart");
+  });
+
+  it("returns a 'native-lima' step when Lima is installed as an x86_64 build on Apple Silicon", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: false,
+      problem: "Lima is installed as an x86_64 build, so it cannot start the Colima VM on this Mac",
+      fix: "Install a native Lima (brew reinstall lima, or use a native limactl on PATH) and run `colima start`",
+    };
+    expect(planColimaRepair(status, false)).toBe("native-lima");
+  });
+
+  it("returns a 'native-lima' step when the colima CLI cannot see the running VM", () => {
+    const status: ColimaStatus = {
+      isColima: true,
+      running: true,
+      problem: "The Colima VM is running, but the colima CLI on this PATH cannot see it",
+      fix: "Use a native limactl",
+    };
+    expect(planColimaRepair(status, true)).toBe("native-lima");
   });
 });
