@@ -121,6 +121,9 @@ def _docker_socket_gid():
     return os.environ.get("FLISK_DOCKER_SOCKET_GID", "0")
 
 
+docker_socket_gid = _docker_socket_gid
+
+
 def _project_root_mount():
     """Read-only mount of the project at its own absolute host path.
 
