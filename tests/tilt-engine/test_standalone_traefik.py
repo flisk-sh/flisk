@@ -250,7 +250,20 @@ def test_wake_gateway_mounts_project_root_at_its_own_absolute_path(tmp_path):
         "load('@COMPOSE/traefik_standalone.star', 'generate_standalone_traefik_compose')\n"
         "r = {'yaml': generate_standalone_traefik_compose(True)}\n",
     )
-    assert "- /Users/dev/flisk-erp-system:/Users/dev/flisk-erp-system:ro" in r["yaml"]
+    expected_mount = "\n      - /Users/dev/flisk-erp-system:/Users/dev/flisk-erp-system:ro"
+    assert expected_mount in r["yaml"]
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_wake_gateway_mounts_project_root_with_spaces(tmp_path):
+    r = _run_starlark(
+        tmp_path,
+        "os.environ['FLISK_PROJECT_ROOT'] = '/Users/dev/flisk demo/.flisk/.flisk-out/../..'\n"
+        "load('@COMPOSE/traefik_standalone.star', 'generate_standalone_traefik_compose')\n"
+        "r = {'yaml': generate_standalone_traefik_compose(True)}\n",
+    )
+    expected_mount = "\n      - /Users/dev/flisk demo:/Users/dev/flisk demo:ro"
+    assert expected_mount in r["yaml"]
 
 
 @pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
