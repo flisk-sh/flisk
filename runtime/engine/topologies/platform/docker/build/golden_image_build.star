@@ -47,7 +47,21 @@ HCL
   BUILDX_MINOR="${BUILDX_VER##* }"
   BAKE_ALLOW=""
   if [ "${BUILDX_MAJOR:-0}" -gt 0 ] || [ "${BUILDX_MINOR:-0}" -ge 19 ]; then BAKE_ALLOW="--allow fs.read=$ROOT"; fi
-  HASH="$HASH" docker buildx bake $BAKE_ALLOW -f golden-layers.bake.hcl --load
+  # A failed bake must fail this resource. Tilt runs the script with `sh -c` and no `set -e`, so an unchecked failure
+  # used to fall through to the success message and mark the resource ready while images were missing; the resources
+  # that depend on it then died with "pull access denied" for images that never existed. Registry and package-mirror
+  # hiccups (an apk SSL EOF, a pull timeout) are common on CI, so retry before giving up.
+  attempt=1
+  until HASH="$HASH" docker buildx bake $BAKE_ALLOW -f golden-layers.bake.hcl --load; do
+    if [ "$attempt" -ge 3 ]; then
+      echo "❌ Golden layers build failed after $attempt attempts (see the first error above)"
+      exit 1
+    fi
+    delay=$((attempt * ${FLISK_GOLDEN_RETRY_DELAY:-10}))
+    echo "  ⚠️  docker buildx bake failed (attempt $attempt of 3, often a registry or package mirror hiccup) - retrying in ${delay}s"
+    sleep "$delay"
+    attempt=$((attempt + 1))
+  done
 else
   echo "  ⚠️  docker buildx is not available - building golden targets one at a time"
   @@SERIAL_BUILDS@@
@@ -57,6 +71,16 @@ fi
 for img in @@LEGACY_IMAGES@@; do
   docker image rm "$img" >/dev/null 2>&1 && echo "  🧹 Removed legacy golden image $img"
 done
+
+# Report success only when every golden image exists, whatever the builder said.
+missing=""
+for img in $IMAGES; do
+  docker image inspect -f '{{.Id}}' "$img" >/dev/null 2>&1 || missing="$missing $img"
+done
+if [ -n "$missing" ]; then
+  echo "❌ Golden images missing after the build:$missing"
+  exit 1
+fi
 
 echo "✅ Golden layers built (@@COUNT@@ images):"
 @@SUMMARY@@

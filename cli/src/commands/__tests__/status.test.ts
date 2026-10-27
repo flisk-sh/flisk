@@ -268,6 +268,22 @@ describe("flisk status", () => {
     expect(runTilt).not.toHaveBeenCalled();
   });
 
+  it("reports a failed Tilt status request in human output", async () => {
+    vi.mocked(runTilt).mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "tilt status request failed",
+    });
+
+    const output = await runStatus(["--tilt"]);
+
+    expect(output).toContain("Tilt Resources:");
+    expect(output).toContain("No Tilt is answering on port 10350. Start it with: flisk up");
+    expect(runTilt).toHaveBeenCalledWith("get", ["uiresources", "--port", "10350"], {
+      inheritStdio: false,
+    });
+  });
+
   describe("service state from a running Tilt", () => {
     const tilt = (...items: Array<[string, string, string]>) =>
       JSON.stringify({
@@ -314,6 +330,26 @@ describe("flisk status", () => {
       expect(output).toContain("error (orders-api failed)");
       expect(output).toContain("✓ invoices → http://");
       expect(output).toContain("ready");
+    });
+
+    it("prints a pending unhealthy service with its status marker", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        tilt(
+          ["orders-api", "pending", "pending"],
+          ["orders-web", "ok", "ok"],
+          ["invoices", "ok", "ok"],
+        ),
+      );
+
+      const output = await runStatus();
+
+      expect(output).toContain("Services:");
+      expect(output).toContain("… orders-api");
+      expect(output).toContain("pending");
+      expect(output).toContain("0/2 healthy");
+      expect(output).toContain("… orders-web");
+      expect(output).toContain("pending (waiting for orders-api)");
+      expect(output).toContain("✓ invoices");
     });
 
     it("groups services by stack with a healthy/total line per stack", async () => {

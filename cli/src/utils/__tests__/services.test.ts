@@ -18,6 +18,7 @@ import {
   discoverResourcesFromRoot,
   discoverResourcesStrict,
   discoverResourcesWithProblems,
+  discoverServiceManifestPaths,
   resetPrintedServiceWarnings,
 } from "../services.js";
 import { includes } from "../validation.js";
@@ -527,6 +528,22 @@ describe("findServiceJsonFiles discovery (temp dir integration)", () => {
     expect(resources[0].config?.appType).toBe("frontend");
   });
 
+  it("should handle service.json with legacy type instead of appType", async () => {
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, "services", "product", "svc-legacy", "backend"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, "services", "product", "svc-legacy", "service.json"),
+      JSON.stringify({ appName: "svc-legacy", type: "backend" }),
+    );
+
+    const { discoverResources } = await import("../services.js");
+    const resources = discoverResources();
+    expect(resources).toHaveLength(1);
+    expect(resources[0].config?.appType).toBe("backend");
+    expect(resources[0].type).toBe("backend");
+  });
+
   it("should resolve resource paths relative to project root", async () => {
     mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
     writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
@@ -846,5 +863,78 @@ describe("single-scan discovery reuse", () => {
     const refreshed = createDiscoveryContext();
     expect(refreshed.resources).toHaveLength(4);
     expect(refreshed.resources.some((r) => r.name === "svc-new")).toBe(true);
+  });
+});
+
+describe("discoverServiceManifestPaths", () => {
+  const trackedDirs: string[] = [];
+
+  const makeTempDir = (prefix: string): string => {
+    const dir = mkdtempSync(join(tmpdir(), prefix));
+    trackedDirs.push(dir);
+    return dir;
+  };
+
+  afterEach(() => {
+    while (trackedDirs.length > 0) {
+      const dir = trackedDirs.pop();
+      if (dir?.startsWith(tmpdir())) {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("discovers service.json in service folders, excludes non-service folders, and preserves sorted paths", () => {
+    const root = makeTempDir("flisk-discover-manifests-");
+    const serviceA = join(root, "service-a");
+    const serviceB = join(root, "service-b");
+    const nonService = join(root, "non-service-folder");
+
+    mkdirSync(serviceA, { recursive: true });
+    mkdirSync(serviceB, { recursive: true });
+    mkdirSync(nonService, { recursive: true });
+
+    const manifestA = join(serviceA, "service.json");
+    const manifestB = join(serviceB, "service.json");
+    const nonManifestFile = join(nonService, "notes.txt");
+
+    writeFileSync(manifestA, JSON.stringify({ appName: "service-a", appType: "backend" }));
+    writeFileSync(manifestB, JSON.stringify({ appName: "service-b", appType: "frontend" }));
+    writeFileSync(nonManifestFile, "not a manifest");
+
+    const expected = [manifestA, manifestB];
+    const actual = discoverServiceManifestPaths(root);
+
+    expect(actual).toEqual(expected);
+    expect(actual).not.toContain(nonManifestFile);
+    expect(actual).not.toContain(nonService);
+  });
+
+  it("returns an empty list when no service manifests exist", () => {
+    const root = makeTempDir("flisk-no-manifests-");
+    const helperDir = join(root, "lib", "helpers");
+    mkdirSync(helperDir, { recursive: true });
+    writeFileSync(join(helperDir, "index.ts"), "export const x = 1;");
+    writeFileSync(join(root, "package.json"), "{}");
+
+    expect(discoverServiceManifestPaths(root)).toEqual([]);
+  });
+
+  it("skips excluded directories such as node_modules and dot-directories", () => {
+    const root = makeTempDir("flisk-skip-manifests-");
+    const validDir = join(root, "services", "api");
+    const ignoredModules = join(root, "node_modules", "pkg");
+    const ignoredDot = join(root, ".hidden-tool");
+
+    mkdirSync(validDir, { recursive: true });
+    mkdirSync(ignoredModules, { recursive: true });
+    mkdirSync(ignoredDot, { recursive: true });
+
+    const validManifest = join(validDir, "service.json");
+    writeFileSync(validManifest, JSON.stringify({ appName: "api", appType: "backend" }));
+    writeFileSync(join(ignoredModules, "service.json"), JSON.stringify({ appName: "pkg" }));
+    writeFileSync(join(ignoredDot, "service.json"), JSON.stringify({ appName: "hidden" }));
+
+    expect(discoverServiceManifestPaths(root)).toEqual([validManifest]);
   });
 });

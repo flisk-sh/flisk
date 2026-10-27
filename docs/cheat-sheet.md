@@ -356,6 +356,17 @@ flisk config disable-infra elk
 | `enable-infra <service>` | Enable optional infrastructure: `monitoring`, `elk`, `debezium`, `golden_image`, `verdaccio` |
 | `disable-infra <service>` | Disable it again |
 
+### Environment variables
+
+| Variable | Effect |
+| --- | --- |
+| `FLISK_VERBOSE` | Set to any value to log the underlying error message when a command fails |
+| `FLISK_PUBLIC_HOST` | Host name used in printed service URLs, for example `my-project.localhost` (`FLISK_SERVICE_BASE_URL` wins when both are set) |
+| `FLISK_EXTENSION_PATH` | Path to a flisk checkout whose Tilt extensions the generated Tiltfile loads instead of the installed ones |
+| `FLISK_PROJECT_NAME` | Project name that `runtime/engine/scripts/debug-container.sh` uses to find containers, instead of the name in `.flisk/project.json` |
+| `FLISK_DOCKER_SOCKET_GID` | Group id of the Docker socket, which Traefik needs when the socket is not owned by root (default `0`) |
+| `FLISK_PREMIUM_DIAGNOSTICS` | Set to `1` to print why a premium extension (Sablier) was not fetched |
+
 See [configuration](configuration.md), [environment, params and secrets](environment.md) and [generated files](generated-files.md).
 
 ## 🩺 Diagnostics and tooling

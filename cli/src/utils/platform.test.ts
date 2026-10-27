@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   binaryAssetNameFor,
   executableName,
+  fliskArch,
   fliskArchFor,
   fliskOs,
   fliskOsFor,
@@ -54,6 +55,27 @@ describe("platform mappings", () => {
         value: platform,
       });
       expect(fliskOs()).toBe(expected);
+    });
+  });
+
+  describe("fliskArch", () => {
+    const originalArch = Object.getOwnPropertyDescriptor(process, "arch");
+
+    afterEach(() => {
+      if (originalArch) {
+        Object.defineProperty(process, "arch", originalArch);
+      }
+    });
+
+    it.each([
+      ["x64", "amd64"],
+      ["arm64", "arm64"],
+    ] as const)("maps %s to %s", (arch, expected) => {
+      Object.defineProperty(process, "arch", {
+        configurable: true,
+        value: arch,
+      });
+      expect(fliskArch()).toBe(expected);
     });
   });
 });

@@ -49,6 +49,20 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - `flisk logs [--service <name>] [--tail <n>] [--json]`: Inspect service output.
 - `flisk mcp`: Launch the Flisk MCP server over stdio for coding assistants.
 
+## More CLI Commands
+
+- `flisk project [template]`: Create a project or clone a starter template (alias `flisk init`).
+- `flisk projects [--json]`: List the projects Flisk knows about (alias `info`).
+- `flisk resources [--json]`: List the project's services with their stack, type, and port.
+- `flisk stack [stack-name]`: Create a stack or assign resources to it.
+- `flisk stacks [--json]`: List the project's stacks (alias `ls`).
+- `flisk restart <resource>`: Restart one running resource, or trigger its rebuild.
+- `flisk networks [--json]`: Show the Traefik URL of every frontend and API service (aliases `urls`, `traefik`).
+- `flisk agent sessions <resource>`: List the stored sessions of an agent resource (`--session-id <id>` reads one checkpoint).
+- `flisk runtime`: Check that the installed CLI has its bundled runtime assets.
+- `flisk import [dir]`: Adopt an existing codebase as Flisk resources.
+- `flisk eject`: Remove Flisk's generated files and leave the services as they are.
+
 ## Key Schemas & Specifications
 
 - Service Schema: `runtime/engine/schemas/service-schema.json`

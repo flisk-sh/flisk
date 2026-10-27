@@ -2,7 +2,7 @@
 
 Contributor and AI coding agent guidelines for Flisk.
 
-Flisk (Topology Development Kit) runs a local development inner loop for microservices and multi-agent systems on Docker and Tilt. It discovers services from manifests, generates necessary local configurations (Vite, TSConfig, Compose), and orchestrates live-reloading environments. It is designed for fast local development; it does not emit Kubernetes manifests by default and does not replace production cluster orchestrators like Helm, Kustomize, Flux, or Argo.
+Flisk runs a local development inner loop for microservices and multi-agent systems on Docker and Tilt. It discovers services from manifests, generates necessary local configurations (Vite, TSConfig, Compose), and orchestrates live-reloading environments. It is designed for fast local development; it does not emit Kubernetes manifests by default and does not replace production cluster orchestrators like Helm, Kustomize, Flux, or Argo.
 
 ## Repository Map
 

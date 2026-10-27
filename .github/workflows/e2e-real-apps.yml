@@ -29,7 +29,7 @@ concurrency:
 jobs:
   example:
     name: ${{ matrix.repo }} on a clean machine
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     strategy:
       fail-fast: false

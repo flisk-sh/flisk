@@ -78,6 +78,10 @@ interface RunGoldenOptions {
   missingImages?: string[];
   staleImages?: string[];
   rmSucceeds?: boolean;
+  /** `buildx bake` fails this many times before it works (a registry or package mirror hiccup). */
+  bakeFailures?: number;
+  /** Images that are still missing after a build that reported success. */
+  stillMissingImages?: string[];
 }
 
 /** Runs the generated script in a scratch project with a fake docker and returns what it did. */
@@ -96,14 +100,38 @@ function runGolden(script: string, options: RunGoldenOptions) {
     `#!/bin/sh
 echo "$*" >> "$FAKE_LOG"
 case "$1" in
+  build)
+    touch "$FAKE_BUILT"
+    exit 0
+    ;;
   buildx)
     if [ -n "$FAKE_NO_BUILDX" ]; then exit 1; fi
+    if [ "$2" = bake ]; then
+      n=$(cat "$FAKE_COUNT" 2>/dev/null || echo 0)
+      n=$((n + 1))
+      echo "$n" > "$FAKE_COUNT"
+      if [ -n "$FAKE_BAKE_FAILS" ] && [ "$n" -le "$FAKE_BAKE_FAILS" ]; then
+        echo "ERROR: target l4-backend: failed to solve: apk add did not complete successfully" >&2
+        exit 1
+      fi
+      touch "$FAKE_BUILT"
+      exit 0
+    fi
     [ "$2" = version ] && echo "github.com/docker/buildx $FAKE_BUILDX_VERSION abc"
     exit 0
     ;;
   image)
     if [ "$2" = inspect ]; then
       img="$5"
+      if [ -n "$FAKE_STILL_MISSING" ]; then
+        for m in $FAKE_STILL_MISSING; do
+          if [ "$img" = "$m" ]; then exit 1; fi
+        done
+      fi
+      if [ -f "$FAKE_BUILT" ]; then
+        echo "$FAKE_LABEL"
+        exit 0
+      fi
       if [ -n "$FAKE_MISSING_IMAGES" ]; then
         for m in $FAKE_MISSING_IMAGES; do
           if [ "$img" = "$m" ]; then exit 1; fi
@@ -142,6 +170,11 @@ exit 0
       FAKE_MISSING_IMAGES: (options.missingImages ?? []).join(" "),
       FAKE_STALE_IMAGES: (options.staleImages ?? []).join(" "),
       FAKE_RM_SUCCEEDS: options.rmSucceeds ? "1" : "",
+      FAKE_BUILT: join(project, "built"),
+      FAKE_COUNT: join(project, "bakecount"),
+      FAKE_BAKE_FAILS: String(options.bakeFailures ?? 0),
+      FAKE_STILL_MISSING: (options.stillMissingImages ?? []).join(" "),
+      FLISK_GOLDEN_RETRY_DELAY: "0",
       FLISK_GOLDEN_REBUILD: options.rebuild ? "1" : "",
     },
   });
@@ -359,6 +392,35 @@ describe.skipIf(!hasTilt)("golden layer build script", () => {
     expect(run.stdout).toContain("up to date");
     expect(run.bake).toEqual([]);
     expect(run.serialBuilds).toEqual([]);
+  });
+
+  it("retries a bake that fails once and succeeds on the next attempt", () => {
+    const run = runGolden(script, { labelMatches: false, bakeFailures: 1 });
+    expect(run.status).toBe(0);
+    expect(run.bake).toHaveLength(2);
+    expect(run.stdout).toContain("retrying in");
+    expect(run.stdout).toContain("Golden layers built");
+  });
+
+  it("fails the resource, and says so, when every bake attempt fails", () => {
+    const run = runGolden(script, { labelMatches: false, bakeFailures: 99 });
+    expect(run.status).toBe(1);
+    expect(run.bake).toHaveLength(3);
+    expect(run.stdout).toContain("failed after 3 attempts");
+    // It used to print this and exit 0, so Tilt marked the resource ready with images missing.
+    expect(run.stdout).not.toContain("Golden layers built");
+  });
+
+  it("fails the resource when an image is still missing after a bake that reported success", () => {
+    const run = runGolden(script, {
+      labelMatches: false,
+      stillMissingImages: ["flisk-project-l3-frontend:latest"],
+    });
+    expect(run.status).toBe(1);
+    expect(run.stdout).toContain(
+      "Golden images missing after the build: flisk-project-l3-frontend:latest",
+    );
+    expect(run.stdout).not.toContain("Golden layers built");
   });
 
   it("builds every golden target with one bake when a label does not match", () => {

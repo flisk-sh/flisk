@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
+import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +14,13 @@ vi.mock("../errors.js", () => ({ showErrorAndExit: mocks.showErrorAndExit }));
 vi.mock("../formatting.js", () => ({ showCancelled: mocks.showCancelled }));
 vi.mock("../prompt.js", () => ({ promptConfirm: mocks.promptConfirm }));
 
-import { assertValid, confirmOrCancel, handleDryRun } from "../command-helpers.js";
+import {
+  addYesOption,
+  assertValid,
+  confirmOrCancel,
+  handleDryRun,
+  YES_OPTION_FLAGS,
+} from "../command-helpers.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -21,6 +29,36 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("addYesOption", () => {
+  it("registers the shared flags on a Commander command", () => {
+    const command = new Command("test");
+
+    addYesOption(command);
+
+    const yesOption = command.options.find((option) => option.long === "--yes");
+    expect(yesOption).toBeDefined();
+    expect(yesOption?.flags).toBe(YES_OPTION_FLAGS);
+  });
+
+  it("parses --yes as true", () => {
+    const command = new Command("test");
+    addYesOption(command);
+
+    command.parse(["node", "test", "--yes"], { from: "node" });
+
+    expect(command.opts().yes).toBe(true);
+  });
+
+  it("defaults yes to false when the flag is omitted", () => {
+    const command = new Command("test");
+    addYesOption(command);
+
+    command.parse(["node", "test"], { from: "node" });
+
+    expect(command.opts().yes).toBe(false);
+  });
 });
 
 describe("handleDryRun", () => {

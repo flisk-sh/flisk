@@ -3,6 +3,7 @@
 """Standalone Flisk projects must serve api.{project}.localhost via Traefik."""
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -148,6 +149,29 @@ r = {
     assert r["frontend_defaults"] == "web,websecure"
 
 
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_traefik_constants_pin_network_and_port_contract(tmp_path):
+    r = _run_starlark(
+        tmp_path,
+        """
+load('@NETWORKING/traefik_constants.star', 'TRAEFIK_CONFIG', 'TRAEFIK_DOCKER_NETWORK')
+r = {
+    'config_network': TRAEFIK_CONFIG['network'],
+    'docker_network': TRAEFIK_DOCKER_NETWORK,
+    'default_port': TRAEFIK_CONFIG['default_port'],
+}
+""",
+    )
+
+    # These assertions intentionally pin the Traefik networking contract. Update the expected
+    # values when the underlying constants change deliberately.
+    assert r == {
+        "config_network": "traefik-public",
+        "docker_network": "flisk_project_traefik-public",
+        "default_port": 8080,
+    }
+
+
 def test_tiltfile_keeps_traefik_in_focus_mode():
     source = (REPO_ROOT / "cli" / "templates" / "Tiltfile.hbs").read_text()
     assert "'traefik'" in source
@@ -250,7 +274,81 @@ def test_wake_gateway_mounts_project_root_at_its_own_absolute_path(tmp_path):
         "load('@COMPOSE/traefik_standalone.star', 'generate_standalone_traefik_compose')\n"
         "r = {'yaml': generate_standalone_traefik_compose(True)}\n",
     )
-    assert "- /Users/dev/flisk-erp-system:/Users/dev/flisk-erp-system:ro" in r["yaml"]
+    expected_mount = "\n      - /Users/dev/flisk-erp-system:/Users/dev/flisk-erp-system:ro"
+    assert expected_mount in r["yaml"]
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_wake_gateway_mounts_project_root_with_spaces(tmp_path):
+    r = _run_starlark(
+        tmp_path,
+        "os.environ['FLISK_PROJECT_ROOT'] = '/Users/dev/flisk demo/.flisk/.flisk-out/../..'\n"
+        "load('@COMPOSE/traefik_standalone.star', 'generate_standalone_traefik_compose')\n"
+        "r = {'yaml': generate_standalone_traefik_compose(True)}\n",
+    )
+    expected_mount = "\n      - /Users/dev/flisk demo:/Users/dev/flisk demo:ro"
+    assert expected_mount in r["yaml"]
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_project_root_abspath_resolves_relative_root_against_project_directory(tmp_path):
+    """Assert a relative project root resolves against the project directory."""
+    project_dir = tmp_path / "my_project"
+    project_dir.mkdir()
+    real_project_dir = str(project_dir.resolve())
+    orig_cwd = os.getcwd()
+
+    r = _run_starlark(
+        project_dir,
+        "load('@COMPOSE/traefik_standalone.star', 'project_root_abspath')\n"
+        "os.environ['FLISK_PROJECT_ROOT'] = '.'\n"
+        "root_dot = project_root_abspath()\n"
+        "os.environ['FLISK_PROJECT_ROOT'] = 'services/backend'\n"
+        "root_sub = project_root_abspath()\n"
+        "os.environ['FLISK_PROJECT_ROOT'] = './nested/../nested'\n"
+        "root_nested = project_root_abspath()\n"
+        "r = {\n"
+        "    'root_dot': root_dot,\n"
+        "    'root_sub': root_sub,\n"
+        "    'root_nested': root_nested,\n"
+        "}\n",
+    )
+
+    assert os.path.isabs(r["root_dot"])
+    assert r["root_dot"] == real_project_dir
+    assert r["root_sub"] == f"{real_project_dir}/services/backend"
+    assert r["root_nested"] == f"{real_project_dir}/nested"
+    assert os.getcwd() == orig_cwd
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_project_root_abspath_returns_absolute_root_unchanged(tmp_path):
+    """Assert an absolute project root is returned unchanged."""
+    abs_path = "/Users/dev/flisk-erp-system"
+    r = _run_starlark(
+        tmp_path,
+        f"os.environ['FLISK_PROJECT_ROOT'] = '{abs_path}'\n"
+        "load('@COMPOSE/traefik_standalone.star', 'project_root_abspath')\n"
+        "r = {'root': project_root_abspath()}\n",
+    )
+    assert r["root"] == abs_path
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_project_root_abspath_normalizes_dot_segments_and_handles_unset(tmp_path):
+    """Assert dot segments in absolute paths are normalized and unset env returns empty string."""
+    r = _run_starlark(
+        tmp_path,
+        "os.environ['FLISK_PROJECT_ROOT'] = '/Users/dev/flisk-erp-system/.flisk/.flisk-out/../..'\n"
+        "load('@COMPOSE/traefik_standalone.star', 'project_root_abspath')\n"
+        "normalized = project_root_abspath()\n"
+        "if 'FLISK_PROJECT_ROOT' in os.environ:\n"
+        "    os.environ.pop('FLISK_PROJECT_ROOT')\n"
+        "unset_root = project_root_abspath()\n"
+        "r = {'normalized': normalized, 'unset_root': unset_root}\n",
+    )
+    assert r["normalized"] == "/Users/dev/flisk-erp-system"
+    assert r["unset_root"] == ""
 
 
 @pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
@@ -268,6 +366,72 @@ def test_wake_gateway_runs_non_root_and_joins_docker_socket_group(tmp_path):
     assert "      - /Users/dev/.tilt-dev:/home/bun/.tilt-dev:ro" in yaml_text
     assert "/root/.tilt-dev" not in yaml_text
     assert 'group_add:\n      - "0"' in yaml_text
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_docker_socket_gid_default_when_unknown(tmp_path):
+    """Assert the default group ('0') when the Docker socket GID is unknown."""
+    r = _run_starlark(
+        tmp_path,
+        """
+if 'FLISK_DOCKER_SOCKET_GID' in os.environ:
+    os.environ.pop('FLISK_DOCKER_SOCKET_GID')
+load('@COMPOSE/traefik_standalone.star', 'docker_socket_gid', 'generate_standalone_traefik_compose')
+r = {
+    'gid': docker_socket_gid(),
+    'yaml': generate_standalone_traefik_compose(True),
+}
+""",
+    )
+    assert r["gid"] == "0"
+    assert 'group_add:\n      - "0"' in r["yaml"]
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_docker_socket_gid_uses_known_group_id(tmp_path):
+    """Assert the Docker socket group ID is used when it is known."""
+    r = _run_starlark(
+        tmp_path,
+        """
+os.environ['FLISK_DOCKER_SOCKET_GID'] = '999'
+load('@COMPOSE/traefik_standalone.star', 'docker_socket_gid', 'generate_standalone_traefik_compose')
+r = {
+    'gid': docker_socket_gid(),
+    'yaml': generate_standalone_traefik_compose(True),
+}
+""",
+    )
+    assert r["gid"] == "999"
+    assert 'group_add:\n      - "999"' in r["yaml"]
+
+
+@pytest.mark.skipif(shutil.which("tilt") is None, reason="tilt CLI not installed")
+def test_docker_socket_gid_custom_known_values(tmp_path):
+    """Assert custom known GIDs (e.g. 1001, 114) are preserved and passed to wake-gateway."""
+    r = _run_starlark(
+        tmp_path,
+        """
+os.environ['FLISK_DOCKER_SOCKET_GID'] = '1001'
+load('@COMPOSE/traefik_standalone.star', 'docker_socket_gid', 'generate_standalone_traefik_compose')
+gid_1001 = docker_socket_gid()
+yaml_1001 = generate_standalone_traefik_compose(True)
+
+os.environ['FLISK_DOCKER_SOCKET_GID'] = '114'
+gid_114 = docker_socket_gid()
+yaml_114 = generate_standalone_traefik_compose(True)
+
+r = {
+    'gid_1001': gid_1001,
+    'yaml_1001': yaml_1001,
+    'gid_114': gid_114,
+    'yaml_114': yaml_114,
+}
+""",
+    )
+    assert r["gid_1001"] == "1001"
+    assert 'group_add:\n      - "1001"' in r["yaml_1001"]
+    assert r["gid_114"] == "114"
+    assert 'group_add:\n      - "114"' in r["yaml_114"]
 
 
 @pytest.mark.skipif(

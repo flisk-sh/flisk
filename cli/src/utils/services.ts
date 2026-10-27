@@ -85,6 +85,10 @@ function isValidResourceConfig(value: unknown): value is ResourceConfig {
   return typeof config.appName === "string" && hasRuntimeOrAppType;
 }
 
+function readLegacyAppType(parsed: Record<string, unknown>): ResourceConfig["appType"] | undefined {
+  return typeof parsed.type === "string" ? (parsed.type as ResourceConfig["appType"]) : undefined;
+}
+
 // Discovery may be invoked more than once per process,
 // so remember what was already printed and show each warning once.
 const printedWarnings = new Set<string>();
@@ -143,7 +147,7 @@ function parseResource(serviceJsonPath: string): DiscoveredResource {
   );
   if (unsafeFields.length > 0) throw new InvalidServiceJsonError(unsafeFields.join("; "));
 
-  const parsedConfig = parsed as unknown as ResourceConfig;
+  const parsedConfig = parsed;
   for (const warning of validateServiceManifest(parsed, serviceJsonPath).warnings) {
     // The warning names the file and field and says what is wrong (unknown, deprecated, ignored), so do not prefix it.
     if (printedWarnings.has(warning)) continue;
@@ -152,8 +156,7 @@ function parseResource(serviceJsonPath: string): DiscoveredResource {
   }
   const config: ResourceConfig = {
     ...parsedConfig,
-    appType: (parsedConfig.appType ||
-      (parsedConfig as unknown as { type?: string }).type) as ResourceConfig["appType"],
+    appType: (parsedConfig.appType || readLegacyAppType(parsedConfig)) as ResourceConfig["appType"],
   };
   const resourceDir = dirname(serviceJsonPath);
 
