@@ -22,7 +22,7 @@ concurrency:
 jobs:
   append:
     name: Append AI spec buttons
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     # Issues only exist on this repository. No fork PR path; no secrets.
     permissions:

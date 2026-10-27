@@ -22,7 +22,7 @@ jobs:
       !github.event.issue.pull_request &&
       github.event.issue.state == 'open' &&
       github.event.comment.user.type == 'User'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       issues: write
@@ -60,7 +60,7 @@ jobs:
   sweep:
     name: Nudge and release quiet claims
     if: github.event_name != 'issue_comment'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       issues: write

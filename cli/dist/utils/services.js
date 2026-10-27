@@ -51,6 +51,9 @@ function isValidResourceConfig(value) {
         typeof config.type === "string";
     return typeof config.appName === "string" && hasRuntimeOrAppType;
 }
+function readLegacyAppType(parsed) {
+    return typeof parsed.type === "string" ? parsed.type : undefined;
+}
 // Discovery may be invoked more than once per process,
 // so remember what was already printed and show each warning once.
 const printedWarnings = new Set();
@@ -108,8 +111,7 @@ function parseResource(serviceJsonPath) {
     }
     const config = {
         ...parsedConfig,
-        appType: (parsedConfig.appType ||
-            parsedConfig.type),
+        appType: (parsedConfig.appType || readLegacyAppType(parsedConfig)),
     };
     const resourceDir = dirname(serviceJsonPath);
     return {

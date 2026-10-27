@@ -6,10 +6,13 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   formatColdPreflight,
+  MACHINE_CHECK_IDS,
   nodeTooOld,
   type PreflightItem,
   type PreflightResult,
+  RUNTIME_CHECK_IDS,
   requireVerifiedDockerVersions,
+  SCAFFOLD_CHECK_IDS,
   usesPrisma,
 } from "./cold-preflight.js";
 
@@ -33,6 +36,14 @@ function result(items: PreflightItem[], inProject = false): PreflightResult {
 }
 
 describe("cold preflight", () => {
+  // These assertions intentionally pin the cold-preflight check IDs.
+  // Deliberate additions, removals, renames, or ordering changes must be reflected in these tests.
+  it("pins the runtime, scaffold, and machine check ID lists", () => {
+    expect(RUNTIME_CHECK_IDS).toEqual(["docker", "compose", "tilt"]);
+    expect(SCAFFOLD_CHECK_IDS).toEqual(["node", "bun", "ports"]);
+    expect(MACHINE_CHECK_IDS).toEqual(["node", "docker", "compose", "tilt", "bun", "ports"]);
+  });
+
   it("compares Node major and minor against 22.12", () => {
     expect(nodeTooOld("18.20.0")).toBe(true);
     expect(nodeTooOld("22.11.0")).toBe(true);

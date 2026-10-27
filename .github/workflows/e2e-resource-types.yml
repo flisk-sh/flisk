@@ -205,7 +205,7 @@ jobs:
     name: e2e-resource-types
     needs: [plan, resource-types]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions: {}
     steps:
