@@ -89,15 +89,7 @@ export function danglingLoads(root: string): string[] {
  * add to this list; delete an entry when the file is fixed or removed.
  */
 export const KNOWN_DANGLING_LOADS = [
-  "discovery/incremental_discovery.star -> ../../engine/topologies/tilt/manifest/loader.star",
-  "discovery/incremental_discovery.star -> ../../specs/specs/TILT_RESOURCE_DEFAULTS.star",
-  "discovery/incremental_discovery.star -> ../resources/orchestrator/generators/manifest_resource.star",
   "discovery/manifest/constants.star -> ./manifest/constants.star",
-  "engine/Tiltfile -> ./topologies/tilt/discovery/loading.star",
-  "engine/Tiltfile -> ./topologies/tilt/discovery/registry.star",
-  "engine/entrypoint.star -> ./topologies/tilt/discovery/discovery_daemon.star",
-  "engine/entrypoint.star -> ./topologies/tilt/discovery/loading.star",
-  "engine/entrypoint.star -> ./topologies/tilt/discovery/resource_registry.star",
   "engine/paths.star -> ./discovery/resource_registry.star",
   "engine/topologies/platform/docker/layers/infisical/index.star -> ./infisical/index.star",
   "engine/topologies/tilt/generators/infisical/index.star -> ./infisical/index.star",

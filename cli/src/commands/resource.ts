@@ -56,6 +56,8 @@ import {
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
+import { type JsonCommandResult, runJsonCommand } from "../utils/json-command.js";
+import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
@@ -523,12 +525,30 @@ function printFrameworkInventory(
   options: { type?: string; language?: string },
   isTypeExplicit: boolean,
 ): void {
-  // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
-  // it is a backend option, and the frontend listing has never carried one.
-  if (!isTypeExplicit) {
+  const listing = frameworkListing(options, isTypeExplicit);
+  if (listing.type === "frontend") {
     printFrontendFrameworks();
     return;
   }
+
+  for (const f of listBackendFrameworks(options.language)) {
+    // The compatibility cell names the language it is judged against, so it is never a bare
+    // "compatible" that could be read against a different language.
+    const compatibility = f.compatible
+      ? `compatible with ${listing.language}`
+      : `incompatible with --language ${listing.language}`;
+    console.log(`${f.id}\t${f.label}\t${f.languages.join(", ")}\t${compatibility}\t${f.command}`);
+  }
+}
+
+/** Which framework inventory `--frameworks` lists, and for a backend the language it is judged against. */
+function frameworkListing(
+  options: { type?: string; language?: string },
+  isTypeExplicit: boolean,
+): { type: "frontend" } | { type: "backend"; language: string | undefined } {
+  // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
+  // it is a backend option, and the frontend listing has never carried one.
+  if (!isTypeExplicit) return { type: "frontend" };
 
   const resourceType = parseResourceType(options.type ?? "backend");
   if (resourceType !== "frontend" && resourceType !== "backend") {
@@ -540,20 +560,40 @@ function printFrameworkInventory(
 
   // `--language` belongs to backends only, so the resource command rejects it for every other type.
   const language = resolveBackendLanguage(resourceType, options.language);
+  return resourceType === "frontend"
+    ? { type: "frontend" }
+    : { type: "backend", language: language?.id };
+}
 
-  if (resourceType === "frontend") {
-    printFrontendFrameworks();
-    return;
-  }
+/** What `flisk resource --frameworks --json` reports: the same inventory the text listing prints. */
+export function frameworkInventoryReport(
+  options: { type?: string; language?: string },
+  isTypeExplicit: boolean,
+): Record<string, unknown> {
+  const listing = frameworkListing(options, isTypeExplicit);
+  return listing.type === "frontend"
+    ? { type: "frontend", frameworks: listFrontendFrameworks() }
+    : {
+        type: "backend",
+        language: listing.language ?? null,
+        frameworks: listBackendFrameworks(options.language),
+      };
+}
 
-  for (const f of listBackendFrameworks(options.language)) {
-    // The compatibility cell names the language it is judged against, so it is never a bare
-    // "compatible" that could be read against a different language.
-    const compatibility = f.compatible
-      ? `compatible with ${language?.id}`
-      : `incompatible with --language ${language?.id}`;
-    console.log(`${f.id}\t${f.label}\t${f.languages.join(", ")}\t${compatibility}\t${f.command}`);
-  }
+/**
+ * What `flisk resource <name> --json` reports. `action` is `registered` for a directory that already had a
+ * service.json. `port` is null for an SDK. `discovered` is whether discovery.paths covers `path`, so `flisk up` starts it.
+ */
+export interface ResourceReport {
+  action: "created" | "registered";
+  name: string;
+  type: string;
+  stack: string;
+  port: number | null;
+  path: string;
+  framework: string | null;
+  language: string | null;
+  discovered: boolean;
 }
 
 /** The historical frontend listing: id, display name, kind, verification, command. */
@@ -615,16 +655,27 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "--durability <kind>",
     "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres",
   )
+  .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .action(async (name, options, command: Command) => {
+    // The frontend listing is the historical default; `--type` selects the listing when it is given.
+    const isTypeExplicit = command.getOptionValueSource("type") === "cli";
+    if (options.frameworks && options.json) {
+      await runJsonCommand("RESOURCE_FAILED", "flisk resource", async () => ({
+        data: frameworkInventoryReport(options, isTypeExplicit),
+      }));
+      return;
+    }
     if (options.frameworks) {
       await runCommand(async () => {
-        // The frontend listing is the historical default; `--type` selects the listing when it is given.
-        printFrameworkInventory(options, command.getOptionValueSource("type") === "cli");
+        printFrameworkInventory(options, isTypeExplicit);
       });
       return;
     }
-    await runCommand(async () => {
-      const projectRoot = requireProjectRoot();
+    // --json never prompts: every question takes the default that --yes takes.
+    const assumeYes = Boolean(options.yes || options.json);
+    const action = async (): Promise<JsonCommandResult> => {
+      const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+      if (!projectRoot) throw errorFactories.notInProject();
       // Support --resource-path as alias for --path
       const resourcePath = options.resourcePath || options.path;
 
@@ -633,9 +684,10 @@ export const resourceCommand = addYesOption(new Command("resource"))
       const allResources = discoverResources();
 
       let resourceName = name;
-      if (!resourceName && options.yes) {
-        throw new FliskError("A resource name is required when using --yes.", [
-          "Pass the name explicitly, for example: flisk resource api --yes.",
+      if (!resourceName && assumeYes) {
+        const flag = options.yes ? "--yes" : "--json";
+        throw new FliskError(`A resource name is required when using ${flag}.`, [
+          `Pass the name explicitly, for example: flisk resource api ${flag}.`,
         ]);
       }
       if (!resourceName) {
@@ -674,7 +726,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       if (
         resourceType === "frontend" &&
         frameworkOption === undefined &&
-        !options.yes &&
+        !assumeYes &&
         process.stdin.isTTY
       ) {
         frameworkOption = await promptSelect({
@@ -706,7 +758,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       if (
         resourceType === "backend" &&
         frameworkOption === undefined &&
-        !options.yes &&
+        !assumeYes &&
         process.stdin.isTTY &&
         backendFrameworkChoices.length > 0
       ) {
@@ -746,9 +798,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
         } else {
           const granted = await hasDddLicense(projectRoot);
           if (!granted) {
-            throw new Error(
+            throw new FliskError(
               "DDD scaffolding is a Premium feature and requires a license key that grants it. " +
                 "Set export FLISK_LICENSE_KEY=<key> (request a Premium license at https://flisk.sh/#waitlist) and try again.",
+              [
+                "export FLISK_LICENSE_KEY=<key>",
+                "Or drop --ddd to scaffold without the DDD folders",
+              ],
             );
           }
           dddEnabled = true;
@@ -766,7 +822,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         const existingStacks = Array.from(stackSet);
 
         if (existingStacks.length > 0) {
-          if (options.yes) {
+          if (assumeYes) {
             if (existingStacks.length > 1) {
               throw new FliskError("Multiple stacks exist; specify --stack when using --yes.", [
                 `Available stacks: ${existingStacks.join(", ")}`,
@@ -795,7 +851,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
               stackName = selectedStack;
             }
           }
-        } else if (options.yes) {
+        } else if (assumeYes) {
           stackName = "main";
         } else {
           const newStack = await promptText({
@@ -841,12 +897,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
 
       // Prevent path traversal attacks
       const relativePathResult = relative(projectRoot, fullPath);
+      // Thrown, not exited: runCommand prints and exits the same way, and --json reports it.
       if (relativePathResult.startsWith("..") || isAbsolute(relativePathResult)) {
-        errorFactories.invalidPath(fullPath).exit();
+        throw errorFactories.invalidPath(fullPath);
       }
 
       if (!isPathSafe(finalResourcePath)) {
-        errorFactories.invalidPath(finalResourcePath).exit();
+        throw errorFactories.invalidPath(finalResourcePath);
       }
 
       // Check if resource already exists
@@ -870,7 +927,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         (isExistingResource && hasServiceJson);
 
       if (isExistingResource && !shouldRegisterExisting && resourceType !== BRING_YOUR_OWN_TYPE) {
-        errorFactories.directoryExists(fullPath).exit();
+        throw errorFactories.directoryExists(fullPath);
       }
 
       const nextPort =
@@ -926,13 +983,35 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       const confirmed =
-        options.yes ||
+        assumeYes ||
         (await confirmOrCancel(
           shouldRegisterExisting && hasServiceJson
             ? "\nRegister existing resource?"
             : "\nCreate resource?",
         ));
-      if (!confirmed) return;
+      if (!confirmed) return { data: null };
+      const report = (action: ResourceReport["action"]): JsonCommandResult => ({
+        data: {
+          action,
+          name: resourceName,
+          type: resourceType,
+          stack: stackName,
+          port: assignedPort > 0 ? assignedPort : null,
+          path: finalResourcePath,
+          // A Bun backend without --framework is scaffolded with the default framework.
+          framework:
+            scaffoldFrameworkId ??
+            (resourceType === "backend" && !backendLanguage?.createFiles
+              ? DEFAULT_BACKEND_FRAMEWORK
+              : null),
+          language: backendLanguage?.id ?? null,
+          discovered: isPathDiscovered(
+            projectRoot,
+            finalResourcePath,
+            readDiscoveryPaths(projectRoot),
+          ),
+        } satisfies ResourceReport,
+      });
 
       // Handle existing resource registration
       if (shouldRegisterExisting && hasServiceJson) {
@@ -965,7 +1044,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         console.log(chalk.gray(`\nLocation: ${fullPath}`));
         console.log(chalk.gray(`\nNext steps:`));
         console.log(chalk.gray(`  flisk up ${stackName}`));
-        return;
+        return report("registered");
       }
 
       // Handle bring-your-own type
@@ -983,7 +1062,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
           dockerfileRelativePath === ".." ||
           dockerfileRelativePath.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
         ) {
-          errorFactories.invalidPath(dockerfile).exit();
+          throw errorFactories.invalidPath(dockerfile);
         }
 
         mkdirSync(fullPath, { recursive: true });
@@ -1043,7 +1122,7 @@ This file contains the resource configuration for Flisk.
         console.log(chalk.gray(`\nLocation: ${fullPath}`));
         console.log(chalk.gray(`\nNext steps:`));
         console.log(chalk.gray(`  flisk up ${stackName}`));
-        return;
+        return report("created");
       }
 
       // Create directory structure for new resources
@@ -1374,5 +1453,12 @@ This file contains the resource configuration for Flisk.
       console.log(chalk.gray(`  cd ${finalResourcePath}`));
       console.log(chalk.gray(`  ${backendLanguage?.installHint ?? "bun install"}`));
       console.log(chalk.gray(`  flisk up ${stackName}`));
-    });
+      return report("created");
+    };
+
+    if (options.json) {
+      await runJsonCommand("RESOURCE_FAILED", "flisk resource", action);
+      return;
+    }
+    await runCommand(action);
   });

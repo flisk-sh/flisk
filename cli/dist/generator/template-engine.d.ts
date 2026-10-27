@@ -1,5 +1,6 @@
 import { PLATFORM_STANDARDS } from "../config/platform-standards.js";
 import type { ProjectConfig } from "../types/index.js";
+import { FliskError } from "../utils/errors.js";
 export declare function loadTemplate(filename: string): string;
 interface GeneratorContext {
     version: string;
@@ -52,7 +53,7 @@ export declare class TemplateEngine {
 }
 export declare function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string;
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
-export declare class ProjectConfigNotFoundError extends Error {
+export declare class ProjectConfigNotFoundError extends FliskError {
 }
 /**
  * Reads, parses, and normalizes `.flisk/project.json` from the given project root.

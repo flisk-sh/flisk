@@ -25,12 +25,13 @@ The entries are the ones the [MCP setup guide](../agent-tooling/flisk-mcp-setup.
 
 ## What the agent can then do
 
-The `flisk mcp` server gives the agent 19 tools. Each runs the matching Flisk command, so it behaves like the CLI:
+The `flisk mcp` server gives the agent 21 tools. Each runs the matching Flisk command, so it behaves like the CLI:
 
 - **Check the machine:** `doctor` reports what would stop a stack from starting, with a fix for each problem.
-- **Build:** `project_init` creates a project or clones a starter, `resource_create` scaffolds a backend, frontend, worker, MCP server or agent.
-- **Run:** `up` starts the stack (or `only` some services and their dependencies), `status` reports readiness and URLs, `down` stops it, `restart_resource` restarts one service.
-- **Debug:** `logs` returns recent output, `config_verify` and `config_explain` check the generated files, `get_agent_sessions` reads an agent resource's sessions.
+- **Build:** `project_init` creates a project or clones a starter, `resource_create` scaffolds a backend, frontend, worker, MCP server or agent, `stack_assign` puts resources in a stack, `config_regenerate` rewrites the generated master files (a dry run unless `dryRun` is `false`).
+- **Run:** `up` starts the stack (or `only` some services and their dependencies), `status` reports readiness and URLs, `down` stops it, `resource_restart` restarts one service.
+- **Inspect:** `project_info`, `resource_list`, `stack_list` and `network_list` report the project, its services, its stacks and their URLs; `runtime_check` checks that the installed CLI has its bundled engine.
+- **Debug:** `logs` returns recent output, `config_verify` and `config_explain` check the generated files, `agent_list` and `agent_sessions` list agent resources and read their sessions. `project_import` adopts an existing Compose project and `project_eject` hands the generated Tilt files over (it needs `confirm: true`).
 
 The skills tell the agent when to use which: `flisk-build` turns "build me a shop" into Flisk steps, `flisk-up`, `flisk-status`, `flisk-doctor` and `flisk-troubleshoot` cover the run-check-fix loop, and the recipes (`flisk-recipe-shop`, `flisk-recipe-saas`, `flisk-recipe-ai-agent`, `flisk-recipe-blog`) start from a working shape.
 

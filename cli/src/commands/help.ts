@@ -4,7 +4,7 @@ import chalk from "chalk";
 import pkg from "../../package.json" with { type: "json" };
 
 const FLISK_BANNER = `
-  ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Flisk CLI — start services on your machine.")}
+  ${chalk.bold.cyan("flisk")} ${chalk.gray(`v${pkg.version}`)}  ${chalk.white("Your whole app, running on your computer with one command.")}
 `;
 
 const COMMAND_GROUPS = [

@@ -1,6 +1,8 @@
 # Flisk CLI Core — Complete Context for LLMs
 
-> Flisk is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
+> Flisk: your whole app, running on your computer with one command.
+
+Flisk is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
 
 Flisk CLI Core is an open-source (MIT) CLI tool that turns clean service manifests (`service.json`) into fully orchestrated local Docker + Tilt development environments with zero Kubernetes on the host.
 
@@ -57,16 +59,16 @@ flisk resource <name> --type mcp --stack <stack>
 ### 3. Agent Host & Control Plane (`flisk mcp`)
 - stdio MCP server for AI coding assistants.
 - Connect a host in one command with `flisk connect <claude|cursor|codex>`: it merges the `flisk` server entry into `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `.codex/config.toml` (Codex, `cwd` pinned to the project), keeps other servers, and writes the Flisk skills to `.claude/skills` (Claude Code) or `.agents/skills` (Cursor, Codex). A second run changes nothing; `--dry-run` writes nothing; `--global` writes only the user config (`~/.cursor/mcp.json`, `~/.codex/config.toml`; Claude Code: `claude mcp add --scope user flisk -- flisk mcp`); `--force` replaces a different `flisk` entry or an edited skill; `--json` prints the `{schemaVersion, data, errors}` envelope with every file and its action (`create`, `update`, `unchanged`, `kept`).
-- Tools: `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `restart_resource`, `list_agents`, `get_agent_sessions`, `stack_list`, `project_info`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`.
+- Tools: `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`.
   - `doctor`: Check whether this machine can run the Flisk stack and optionally validate a project.
   - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
   - `down`: Stop the running stack.
   - `status`: Inspect stacks, resources, ingress URLs, ports, and Tilt readiness.
   - `logs`: Fetch a bounded snapshot of recent logs from the running stack.
   - `resource_list`: List the project's services with their stack, type, and port.
-  - `restart_resource`: Restart a running resource in the stack (or trigger its rebuild).
-  - `list_agents`: List AI agent resources (`appType: "agent"`) with their stack, runtime, durability, and port.
-  - `get_agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
+  - `resource_restart`: Restart a running resource in the stack (or trigger its rebuild).
+  - `agent_list`: List AI agent resources (`appType: "agent"`) with their stack, runtime, durability, and port.
+  - `agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
   - `stack_list`: List the project's stacks with their resource counts (`services` adds service names, `verbose` descriptions).
   - `project_info`: Show the project root, whether the generated master files exist, and resource and stack counts.
   - `network_list`: List the Traefik URL of every frontend and API service and whether it answers (`stack` optional).
@@ -77,8 +79,11 @@ flisk resource <name> --type mcp --stack <stack>
   - `resource_create`: Scaffold a service non-interactively (`name` required; `type`, `stack`, `framework`, `language`, `port`, `features`, `runtime`, `durability`).
   - `stack_assign`: Assign resources that have no stack to a stack (`stack` and `resources` required).
   - `project_init`: Create a Flisk project in `projectPath`, or clone a starter `template` there; it never overwrites an existing `.flisk/project.json`.
-- The read-only and lifecycle tools return the command's structured, versioned `--json` envelope. The scaffolding tools (`config_regenerate`, `resource_create`, `stack_assign`, `project_init`) return its text output as `exitCode`, `output` and `stderr`.
-- No tool runs `eject` (leaving Flisk is the user's decision), `import` (it downloads and runs the `flisk-import` package from npm), `config migrate`, `config enable-infra` or `config disable-infra` (they rewrite `service.json` or `.flisk/project.json` and have no dry run), or `config edit` (it opens an editor). Run them in a shell.
+  - `project_eject`: Write `EJECTED.md` with `flisk eject --json`. Leaving Flisk is the user's decision, so the tool is refused unless `confirm` is `true`; `dryRun` returns the plan (`data.generatedFiles`, `data.created`) without it.
+  - `project_import`: Import a directory's root `docker-compose.yml` as bring-your-own `service.json` files with `flisk import --json`. It downloads and runs the pinned `flisk-import` package from npm, and writes without asking unless `dryRun` is set (`dir` and `force` optional).
+- The read-only, lifecycle, eject and import tools return the command's structured, versioned `--json` envelope. The scaffolding tools (`config_regenerate`, `resource_create`, `stack_assign`, `project_init`) return its text output as `exitCode`, `output` and `stderr`.
+- No tool runs `config migrate`, `config enable-infra` or `config disable-infra` (they rewrite `service.json` or `.flisk/project.json` and have no dry run), or `config edit` (it opens an editor). Run them in a shell; all but `config edit` print one envelope with `--json`.
+- The former tool names `restart_resource`, `list_agents` and `get_agent_sessions` still work in `tools/call`, so older agent configurations keep running, but `tools/list` shows only the current names.
 
 ---
 
@@ -145,17 +150,19 @@ All inspection and lifecycle commands support `--json`:
 - `flisk status --json`: Reports detailed container state, URLs, and Tilt readiness.
 - `flisk logs --json --service <name> --tail <n>`: Bounded log snapshots.
 - `flisk down --json`: Confirms clean container shutdown.
+- `flisk project --json`, `flisk resource <name> --json`, `flisk stack <stack-name> --resources <names...> --json`, `flisk import [dir] --json` and `flisk eject --json`: Report what they created, assigned, imported or wrote. `--json` never prompts: it takes the defaults `--yes` takes.
+- `flisk config regenerate --json`, `flisk config migrate --json`, `flisk config enable-infra <service> --json` and `flisk config disable-infra <service> --json`: Report the changed files or setting.
 
 ## More CLI Commands
 
-- `flisk project [template]`: Create a project or clone a starter template (alias `flisk init`).
+- `flisk project [template] [--json]`: Create a project or clone a starter template (alias `flisk init`).
 - `flisk projects [--json]`: List the projects Flisk knows about (alias `info`).
 - `flisk resources [--json]`: List the project's services with their stack, type, and port.
-- `flisk stack [stack-name]`: Create a stack or assign resources to it.
+- `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.
 - `flisk stacks [--json]`: List the project's stacks (alias `ls`).
 - `flisk restart <resource>`: Restart one running resource, or trigger its rebuild.
 - `flisk networks [--json]`: Show the Traefik URL of every frontend and API service (aliases `urls`, `traefik`).
 - `flisk agent sessions <resource>`: List the stored sessions of an agent resource (`--session-id <id>` reads one checkpoint).
 - `flisk runtime`: Check that the installed CLI has its bundled runtime assets.
-- `flisk import [dir]`: Adopt an existing codebase as Flisk resources.
-- `flisk eject`: Remove Flisk's generated files and leave the services as they are.
+- `flisk import [dir] [--dry-run] [--json]`: Adopt an existing codebase as Flisk resources.
+- `flisk eject [--dry-run] [--json]`: Write `EJECTED.md`, which describes the generated Tilt files and how to run them with plain Tilt; it copies, moves and removes nothing.

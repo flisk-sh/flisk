@@ -186,4 +186,33 @@ describe("mcp server", () => {
     const res = JSON.parse(line as string) as Response;
     expect(res.result).toMatchObject({ isError: true, content: [{ text: "plain failure" }] });
   });
+  it("calls a tool by a former name but lists only its current name", async () => {
+    const renamed = createMcpServer(
+      [
+        { ...echo, name: "item_list", aliases: ["list_items"] },
+        // A tool's own name wins over another tool's former name.
+        { ...boom, name: "list_items_v2", aliases: ["item_list"] },
+      ],
+      { name: "flisk", version: "1.0.0" },
+    );
+    const send = async (message: unknown): Promise<Response> =>
+      JSON.parse((await renamed.handleLine(JSON.stringify(message))) as string) as Response;
+    const list = (await send({ jsonrpc: "2.0", id: 13, method: "tools/list" }))
+      .result as ToolsListResult;
+    expect(list.tools.map((t) => t.name)).toEqual(["item_list", "list_items_v2"]);
+    expect(JSON.stringify(list.tools)).not.toContain("aliases");
+
+    for (const name of ["item_list", "list_items"]) {
+      const res = await send({
+        jsonrpc: "2.0",
+        id: 14,
+        method: "tools/call",
+        params: { name, arguments: { a: 1 } },
+      });
+      expect(res.result, name).toMatchObject({
+        isError: false,
+        structuredContent: { got: { a: 1 } },
+      });
+    }
+  });
 });

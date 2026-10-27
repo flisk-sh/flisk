@@ -18,6 +18,7 @@ import {
   TECH_STACK_FILE,
   TILTIGNORE_FILE,
 } from "../utils/constants.js";
+import { FliskError } from "../utils/errors.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "../utils/project-config-defaults.js";
@@ -67,8 +68,12 @@ export function loadTemplate(filename: string): string {
     }
   }
 
-  throw new Error(
+  throw new FliskError(
     `Failed to load template ${filename} from any of these paths: ${triedPaths.join(", ")}`,
+    [
+      "Reinstall the CLI: npm install -g @flisk-sh/flisk",
+      "Check the installed package with: flisk runtime",
+    ],
   );
 }
 
@@ -239,7 +244,10 @@ export class TemplateEngine {
       ? fs.readFileSync(templatePath, "utf-8")
       : getEmbeddedTemplates()[templateName];
     if (!templateSource) {
-      throw new Error(`Template not found: ${templatePath}`);
+      throw new FliskError(`Template not found: ${templatePath}`, [
+        "Reinstall the CLI: npm install -g @flisk-sh/flisk",
+        "Check the installed package with: flisk runtime",
+      ]);
     }
     return Handlebars.compile(templateSource);
   }
@@ -450,7 +458,7 @@ function normalizeProjectConfig(value: unknown): ProjectConfig | null {
 }
 
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
-export class ProjectConfigNotFoundError extends Error {}
+export class ProjectConfigNotFoundError extends FliskError {}
 
 /**
  * Reads, parses, and normalizes `.flisk/project.json` from the given project root.
@@ -465,6 +473,8 @@ export class ProjectConfigNotFoundError extends Error {}
 export function readProjectConfig(projectRoot: string): ProjectConfig {
   const projectJsonPath = path.join(projectRoot, ".flisk", PROJECT_JSON);
 
+  // A project.json that exists but cannot be read, parsed or validated stays a plain Error: `flisk config verify --json`
+  // documents it as a structured INTERNAL error with exit code 2 (docs/reference/machine-readable-cli.md).
   let jsonContent: string;
   try {
     jsonContent = fs.readFileSync(projectJsonPath, "utf-8");
@@ -472,6 +482,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig {
     if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
       throw new ProjectConfigNotFoundError(
         `Project config not found: ${projectJsonPath}. Run 'flisk project --yes' first.`,
+        ["flisk project --yes"],
       );
     }
     const reason = error instanceof Error ? error.message : String(error);
@@ -572,8 +583,12 @@ export async function generateMasterConfigs(
     ),
   );
   if (unsafeFields.length > 0) {
-    throw new Error(
+    throw new FliskError(
       `Refusing to generate config from unsafe service.json values:\n${unsafeFields.map((error) => `  ${error}`).join("\n")}`,
+      [
+        "Remove the quotes, newlines or control characters from those values",
+        "Check every service.json with: flisk config verify",
+      ],
     );
   }
 

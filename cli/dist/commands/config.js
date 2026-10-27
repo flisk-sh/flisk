@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
@@ -15,12 +15,32 @@ import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand, showError, } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
+import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
 import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
+/** The change `flisk config regenerate` makes to each master file, from the same generator its dry run compares with. */
+export function regeneratePlan(projectRoot) {
+    const newFiles = new TemplateEngine().generateAll(readProjectConfig(projectRoot));
+    const outputDir = join(projectRoot, ".flisk", ".flisk-out");
+    return MASTER_CONFIG_FILES.map((file) => {
+        const filePath = join(outputDir, file);
+        if (!existsSync(filePath))
+            return { file, status: "new", lineDiff: 0 };
+        const current = readFileSync(filePath, "utf-8");
+        const next = newFiles[file];
+        if (current === next)
+            return { file, status: "unchanged", lineDiff: 0 };
+        return {
+            file,
+            status: "modified",
+            lineDiff: next.split("\n").length - current.split("\n").length,
+        };
+    });
+}
 /** Human wording for `flisk config explain`, one line per drift outcome. */
 const DRIFT_LABELS = {
     "blocks-up": "yes, until the edit is removed or --ignore-drift is passed",
@@ -32,7 +52,27 @@ export const configCommand = new Command("config")
     .addCommand(new Command("regenerate")
     .description("Regenerate all 4 master config files from .flisk/project.json")
     .option("--dry-run", "Show what would change without writing files")
+    .option("--json", "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)", false)
     .action(async (options) => {
+    if (options.json) {
+        await runJsonCommand("REGENERATE_FAILED", "flisk config regenerate", async () => {
+            const projectRoot = findProjectRoot();
+            if (!projectRoot)
+                throw errorFactories.notInProject();
+            const changes = regeneratePlan(projectRoot);
+            if (!options.dryRun) {
+                await generateMasterConfigs(projectRoot, { discardHandEdits: true, quiet: true });
+            }
+            return {
+                data: {
+                    dryRun: Boolean(options.dryRun),
+                    hasChanges: changes.some((change) => change.status !== "unchanged"),
+                    changes,
+                },
+            };
+        });
+        return;
+    }
     await runCommand(async () => {
         const projectRoot = requireProjectRoot();
         // The plan is the comparison report, so it supplies its own printer rather than the standard pair.
@@ -158,9 +198,13 @@ export const configCommand = new Command("config")
 }))
     .addCommand(new Command("migrate")
     .description("Migrate service.json files to the current schema version")
-    .action(async () => {
-    await runCommand(async () => {
-        const projectRoot = requireProjectRoot();
+    .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
+    .action(async (options) => {
+    const action = async () => {
+        const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+        if (!projectRoot)
+            throw errorFactories.notInProject();
+        const warnings = [];
         const failures = [];
         const pendingMigrations = [];
         for (const filePath of discoverServiceManifestPaths(projectRoot)) {
@@ -192,10 +236,23 @@ export const configCommand = new Command("config")
                 continue;
             }
             for (const warning of validation.warnings) {
+                warnings.push(warning);
                 console.warn(chalk.yellow(`⚠️  ${warning}`));
             }
             record.schemaVersion = SERVICE_MANIFEST_SCHEMA_VERSION;
             pendingMigrations.push({ filePath, manifest: record });
+        }
+        // Nothing is written when one file fails, so a failed run leaves every service.json as it was.
+        if (options.json && failures.length > 0) {
+            return {
+                data: null,
+                errors: failures.map((message) => ({
+                    code: "MIGRATE_FAILED",
+                    message,
+                    suggestions: ["Fix the file, then run `flisk config migrate` again"],
+                })),
+                exitCode: 1,
+            };
         }
         for (const failure of failures)
             showError(failure);
@@ -210,7 +267,19 @@ export const configCommand = new Command("config")
         const migrated = pendingMigrations.length;
         console.log(chalk.green(`✅ Migrated ${migrated} service.json file${migrated === 1 ? "" : "s"} to schema version ${SERVICE_MANIFEST_SCHEMA_VERSION}.`));
         console.log(chalk.yellow("Review the diff; unknown fields were preserved."));
-    });
+        return {
+            data: {
+                schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+                migrated: pendingMigrations.map(({ filePath }) => relative(projectRoot, filePath).split(sep).join("/")),
+                warnings,
+            },
+        };
+    };
+    if (options.json) {
+        await runJsonCommand("MIGRATE_FAILED", "flisk config migrate", action);
+        return;
+    }
+    await runCommand(action);
 }))
     .addCommand(new Command("verify")
     .description("Verify that generated files match .flisk/project.json")
@@ -390,10 +459,17 @@ export const configCommand = new Command("config")
 function isOptionalInfraKey(service, config) {
     return service in config.optional_infra;
 }
-async function toggleInfraService(service, enabled) {
-    const projectRoot = requireProjectRoot();
+async function toggleInfraService(service, enabled, options = {}) {
+    const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+    if (!projectRoot)
+        throw errorFactories.notInProject();
     // Validates service is in OPTIONAL_INFRA_SERVICES array
     const validation = validateOptionalInfraService(service);
+    if (options.json && !validation.valid) {
+        throw new FliskError(validation.error ?? "Invalid infrastructure service", [
+            `flisk config ${enabled ? "enable" : "disable"}-infra monitoring`,
+        ]);
+    }
     assertValid(validation);
     // Verdaccio is a Premium feature - refuse to enable it without a license
     // key that actually grants it, rather than writing a config that
@@ -414,6 +490,7 @@ async function toggleInfraService(service, enabled) {
         throw new FliskError(`Invalid infrastructure service: "${service}". ` +
             `Must be one of: ${Object.keys(config.optional_infra).join(", ")}`, [`flisk config enable-infra ${Object.keys(config.optional_infra)[0] ?? "monitoring"}`]);
     }
+    const wasEnabled = config.optional_infra[service];
     // Type-safe assignment: service is now narrowed to OptionalInfraKey
     config.optional_infra[service] = enabled;
     const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
@@ -422,21 +499,23 @@ async function toggleInfraService(service, enabled) {
     const action = enabled ? "Enabled" : "Disabled";
     console.log(chalk.green(`✓ ${action}: ${service}`));
     console.log(chalk.gray("Run `flisk config regenerate` to apply."));
+    return { data: { service, enabled, wasEnabled: Boolean(wasEnabled) } };
+}
+/** `flisk config enable-infra` and `disable-infra`: the same command with the other value. */
+function infraToggleCommand(name, enabled) {
+    return new Command(name)
+        .description(`${enabled ? "Enable" : "Disable"} optional infrastructure service`)
+        .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
+        .option("--json", "Print one JSON envelope on stdout with the service and its previous state", false)
+        .action(async (service, options) => {
+        const action = () => toggleInfraService(service, enabled, options);
+        if (options.json) {
+            await runJsonCommand("INFRA_TOGGLE_FAILED", `flisk config ${name}`, action);
+            return;
+        }
+        await runCommand(action);
+    });
 }
 configCommand
-    .addCommand(new Command("enable-infra")
-    .description("Enable optional infrastructure service")
-    .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
-    .action(async (service) => {
-    await runCommand(async () => {
-        await toggleInfraService(service, true);
-    });
-}))
-    .addCommand(new Command("disable-infra")
-    .description("Disable optional infrastructure service")
-    .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
-    .action(async (service) => {
-    await runCommand(async () => {
-        await toggleInfraService(service, false);
-    });
-}));
+    .addCommand(infraToggleCommand("enable-infra", true))
+    .addCommand(infraToggleCommand("disable-infra", false));

@@ -124,6 +124,7 @@ flisk project saas --path my-app       # clone into my-app/
 | `--yes` | Non-interactive, use defaults |
 | `--config-file <path>` | Load project config from an existing JSON file |
 | `--no-agent-skills` | Do not write the Flisk agent skills (`.claude/skills`, `.agents/skills`) and `AGENTS.md` |
+| `--json` | One JSON object on stdout. Implies `--yes` and `--quiet` |
 
 Creates `TILT_RESOURCE_DEFAULTS.star` and `TILT_TECH_STACK.star`, among others. A new project also gets the Flisk agent skills in `.claude/skills` and `.agents/skills` and a short `AGENTS.md`, so a coding agent opened there knows how to build and run the app; files that already exist are left as they are. See [configuration](configuration.md) and [the tech stack guide](tech-stack-lock.md).
 
@@ -150,6 +151,7 @@ flisk import ./legacy --yes
 | `--dry-run` | Print the plan and write nothing |
 | `--yes` | Write without prompting |
 | `--force` | Overwrite an existing `service.json` |
+| `--json` | One JSON object on stdout with the files written; the importer's output goes to stderr. Implies `--yes` |
 
 See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-flisk.md).
 
@@ -161,6 +163,7 @@ Writes `EJECTED.md` describing the generated Tilt files. It copies nothing; the 
 | --- | --- |
 | `--dry-run` | List the generated files and what would be written |
 | `--yes` | Skip the confirmation prompt |
+| `--json` | One JSON object on stdout. Implies `--yes` |
 
 See [leaving Flisk](leaving-flisk.md).
 
@@ -170,6 +173,7 @@ See [leaving Flisk](leaving-flisk.md).
 
 ```bash
 flisk resource api --type backend --yes                         # Bun + Hono
+flisk resource api --type backend --json                        # same, one JSON object on stdout
 flisk resource api --type backend                                # asks for the framework (Hono first)
 flisk resource api --type backend --framework fastify --yes
 flisk resource api --type backend --language python --yes
@@ -199,6 +203,7 @@ flisk resource old-api --path services/old-api --register-existing
 | `--port <port>` | Port (default: next free in 4000-5999) |
 | `--feature <feature...>` | Enable a resource feature, for example `prisma` |
 | `--ddd` | Domain-driven design folders and path aliases. Premium, needs `FLISK_LICENSE_KEY` |
+| `--json` | One JSON object on stdout with what was created. Implies `--yes`. With `--frameworks`, the inventory as JSON |
 
 Bring-your-own only:
 
@@ -246,6 +251,7 @@ flisk stack --list                                      # resources without a st
 | `--resources <names...>` | Resources to add (comma- or space-separated) |
 | `--list` | List resources without a stack |
 | `--yes` | Skip the confirmation prompt |
+| `--json` | One JSON object on stdout. Implies `--yes`; needs `--list` or a stack name with `--resources` |
 
 ### `flisk stacks` (alias `ls`)
 
@@ -339,6 +345,7 @@ flisk logs --since 5m --json
 ```bash
 flisk config regenerate --dry-run      # preview changes to the 4 master files
 flisk config regenerate                # rewrite them from .flisk/project.json
+flisk config regenerate --json         # rewrite them and report each file's change as JSON
 flisk config verify --json             # do generated files match project.json?
 flisk config explain <file>            # is this file generated, and does editing it block flisk up?
 flisk config migrate                   # move service.json files to the current schema
@@ -349,12 +356,14 @@ flisk config disable-infra elk
 
 | Subcommand | Effect |
 | --- | --- |
-| `regenerate [--dry-run]` | Regenerate the 4 master config files from `.flisk/project.json` |
+| `regenerate [--dry-run] [--json]` | Regenerate the 4 master config files from `.flisk/project.json` |
 | `verify [--json]` | Check generated files match `.flisk/project.json`. Drift exits 1 |
-| `migrate` | Migrate `service.json` files to the current schema version |
+| `migrate [--json]` | Migrate `service.json` files to the current schema version |
 | `edit` | Open `.flisk/project.json` in `$EDITOR` |
-| `enable-infra <service>` | Enable optional infrastructure: `monitoring`, `elk`, `debezium`, `golden_image`, `verdaccio` |
-| `disable-infra <service>` | Disable it again |
+| `enable-infra <service> [--json]` | Enable optional infrastructure: `monitoring`, `elk`, `debezium`, `golden_image`, `verdaccio` |
+| `disable-infra <service> [--json]` | Disable it again |
+
+`--json` on any of them prints one JSON object on stdout; see the [machine-readable CLI](reference/machine-readable-cli.md) for each shape.
 
 ### Environment variables
 

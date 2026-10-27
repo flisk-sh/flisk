@@ -163,13 +163,19 @@ function verifyChecksum(filePath, assetName, sums, required) {
     const expected = sums.get(assetName);
     if (!expected) {
         if (required)
-            throw new Error(`${CHECKSUMS_ASSET_NAME} has no entry for ${assetName}`);
+            throw new FliskError(`${CHECKSUMS_ASSET_NAME} has no entry for ${assetName}`, [
+                "Run flisk upgrade again once the release has finished publishing",
+                "Or install with: npm install -g @flisk-sh/flisk",
+            ]);
         logVerbose(`${CHECKSUMS_ASSET_NAME} has no entry for ${assetName}; skipping verification`);
         return;
     }
     const actual = createHash("sha256").update(readFileSync(filePath)).digest("hex");
     if (actual !== expected) {
-        throw new Error(`${isWindows() ? "checksum mismatch" : "Checksum mismatch"} for ${assetName} (expected ${expected}, got ${actual})`);
+        throw new FliskError(`${isWindows() ? "checksum mismatch" : "Checksum mismatch"} for ${assetName} (expected ${expected}, got ${actual})`, [
+            "Run flisk upgrade again; an interrupted download fails this check",
+            "Or install with: npm install -g @flisk-sh/flisk",
+        ]);
     }
 }
 /** @internal Exported for unit tests only; not part of the package API. */
@@ -246,7 +252,10 @@ export async function upgradeViaBinary(fliskPath, release) {
             signal: AbortSignal.timeout(120_000),
         });
         if (!binaryResponse.ok)
-            throw new Error(`Download failed (${binaryResponse.status})`);
+            throw new FliskError(`Download failed (${binaryResponse.status})`, [
+                "Check your network connection and run flisk upgrade again",
+                "Or install with: npm install -g @flisk-sh/flisk",
+            ]);
         writeFileSync(tmpPath, Buffer.from(await binaryResponse.arrayBuffer()));
         // The compiled binary has no source checkout to find engine/ or
         // cli/templates/ in, so it looks for a flisk-cli/ folder next to itself
@@ -259,7 +268,10 @@ export async function upgradeViaBinary(fliskPath, release) {
             signal: AbortSignal.timeout(120_000),
         });
         if (!engineResponse.ok)
-            throw new Error(`Engine download failed (${engineResponse.status})`);
+            throw new FliskError(`Engine download failed (${engineResponse.status})`, [
+                "Check your network connection and run flisk upgrade again",
+                "Or install with: npm install -g @flisk-sh/flisk",
+            ]);
         const engineBuffer = Buffer.from(await engineResponse.arrayBuffer());
         writeFileSync(engineTmpPath, engineBuffer);
         // Verify both downloads against the release's checksums.txt before
@@ -269,7 +281,10 @@ export async function upgradeViaBinary(fliskPath, release) {
             signal: AbortSignal.timeout(30_000),
         });
         if (!checksumResponse.ok)
-            throw new Error(`Checksum download failed (${checksumResponse.status})`);
+            throw new FliskError(`Checksum download failed (${checksumResponse.status})`, [
+                "Check your network connection and run flisk upgrade again",
+                "Or install with: npm install -g @flisk-sh/flisk",
+            ]);
         const sums = parseChecksums(await checksumResponse.text());
         verifyChecksum(tmpPath, release.assetName, sums, true);
         verifyChecksum(engineTmpPath, ENGINE_ASSET_NAME, sums, false);
@@ -338,11 +353,16 @@ export async function getLatestVersion() {
                 signal: AbortSignal.timeout(10_000),
             });
             if (!response.ok)
-                throw new Error(`npm registry returned ${response.status}`);
+                throw new FliskError(`npm registry returned ${response.status}`, [
+                    "Check your network connection and npm registry access",
+                    "Run: npm view @flisk-sh/flisk version",
+                ]);
             const latest = (await response.json());
             result = latest.version ?? "";
             if (!result)
-                throw new Error("npm registry response did not include a version");
+                throw new FliskError("npm registry response did not include a version", [
+                    "Run: npm view @flisk-sh/flisk version",
+                ]);
         }
         else {
             result = execSync("npm view @flisk-sh/flisk version", {

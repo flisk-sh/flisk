@@ -80,6 +80,41 @@ const CONFIGURED_PROJECT: Parameters<typeof createTempProject>[0] = {
 };
 
 /**
+ * One row per command whose `--json` changes the project (or needs an argument), checked against the same contract.
+ * These rows spawn the CLI both in a project and outside one: an in-process `--json` run would leave Commander's kept
+ * option value on a command object that the --dry-run rows below run in-process again.
+ */
+const JSON_SPAWN_MATRIX: Array<{
+  site: string;
+  command: string[];
+  project: Parameters<typeof createTempProject>[0];
+}> = [
+  { site: "eject --json", command: ["eject"], project: CONFIGURED_PROJECT },
+  { site: "stack --json", command: ["stack", "--list"], project: CONFIGURED_PROJECT },
+  {
+    site: "resource --json",
+    command: ["resource", "web", "--type", "backend"],
+    project: CONFIGURED_PROJECT,
+  },
+  {
+    site: "config regenerate --json",
+    command: ["config", "regenerate", "--dry-run"],
+    project: CONFIGURED_PROJECT,
+  },
+  { site: "config migrate --json", command: ["config", "migrate"], project: CONFIGURED_PROJECT },
+  {
+    site: "config enable-infra --json",
+    command: ["config", "enable-infra", "monitoring"],
+    project: CONFIGURED_PROJECT,
+  },
+  {
+    site: "config disable-infra --json",
+    command: ["config", "disable-infra", "monitoring"],
+    project: CONFIGURED_PROJECT,
+  },
+];
+
+/**
  * One row per command that prints a dry-run plan without Docker or Tilt. `expect` is the text the plan prints.
  * `eject` prints no "Dry run" line; its plan is the list of files it would leave and write.
  */
@@ -178,6 +213,12 @@ const EXEMPT: Record<string, string> = {
   "down --yes":
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
   "import --yes": "spawns npx flisk-import over the network",
+  "import --dry-run":
+    "spawns npx flisk-import over the network; import.test.ts checks that it is forwarded",
+  "import --json":
+    "spawns npx flisk-import over the network; import.test.ts covers the envelope with a spawn double",
+  "project --json":
+    "creates a project outside one instead of failing, so the outside-project row does not apply; json-scaffold-commands.test.ts covers it",
   "logs --json":
     "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
   "restart --json":
@@ -243,6 +284,7 @@ function snapshotTree(root: string, dir = root, out: Record<string, string> = {}
 function coveredSites(): Set<string> {
   return new Set([
     ...JSON_MATRIX.map((row) => `${row.command.join(" ")} --json`),
+    ...JSON_SPAWN_MATRIX.map((row) => row.site),
     ...DRY_RUN_MATRIX.map((row) => row.site),
     ...YES_MATRIX.map((row) => row.site),
     AGENT_SESSIONS_JSON.site,
@@ -302,6 +344,36 @@ describe("flag contract: --json", () => {
       const envelope = parseOneEnvelope(result.stdout);
       expect(envelope.data).toBeNull();
       expect(envelope.errors).toHaveLength(1);
+    },
+  );
+});
+
+describe("flag contract: --json for commands that change the project", () => {
+  it.each(JSON_SPAWN_MATRIX)(
+    "flisk $site prints one envelope and no prompt in a project",
+    ({ command, project }) => {
+      const root = createTempProject(project);
+      const result = runFlisk([...command, "--json"], { cwd: root, input: "", timeout: 120_000 });
+      expect(result.status).toBe(0);
+      expect(result.stderr).not.toMatch(/^\{/m);
+      expect(result.stdout).toMatch(/^\{[^\n]*\}\n$/);
+      const envelope = parseOneEnvelope(result.stdout);
+      expect(envelope.errors).toEqual([]);
+      expect(envelope.data).not.toBeNull();
+    },
+    120_000,
+  );
+
+  it.each(JSON_SPAWN_MATRIX)(
+    "flisk $site outside a project fails with a null-data envelope",
+    ({ command }) => {
+      const result = runFlisk([...command, "--json"], { cwd: createTempDir(), input: "" });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Could not find project root");
+      expect(result.stderr).not.toMatch(/^\{/m);
+      const envelope = parseOneEnvelope(result.stdout);
+      expect(envelope.data).toBeNull();
+      expect(envelope.errors).toEqual([expect.objectContaining({ code: "COMMAND_FAILED" })]);
     },
   );
 });

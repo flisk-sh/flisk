@@ -6,6 +6,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { addYesOption, confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
+import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 // Same location `flisk up` hands to Tilt (see getTiltfilePath in utils/tilt.ts), relative to the project root.
 export const TILTFILE_RELATIVE_PATH = ".flisk/.flisk-out/Tiltfile";
@@ -45,8 +46,9 @@ To go back to Flisk: install it and run \`flisk config regenerate\`.
 export const ejectCommand = addYesOption(new Command("eject"))
     .description("Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)")
     .option("--dry-run", "List the generated files and what would be written, without changing the project", false)
+    .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
     .action(async (options) => {
-    await runCommand(async () => {
+    const action = async () => {
         const projectRoot = findProjectRoot();
         if (!projectRoot) {
             throw errorFactories.notInProject();
@@ -71,6 +73,16 @@ export const ejectCommand = addYesOption(new Command("eject"))
         const userTiltfile = existsSync(rootTiltfile) ? ["Tiltfile"] : [];
         const ejectedPath = join(projectRoot, "EJECTED.md");
         const willCreate = existsSync(ejectedPath) ? [] : ["EJECTED.md"];
+        const report = (dryRun) => ({
+            data: {
+                dryRun,
+                created: willCreate.length > 0,
+                ejectedFile: "EJECTED.md",
+                generatedFiles: files,
+                userFiles: userTiltfile,
+                tiltUpCommand: TILT_UP_COMMAND,
+            },
+        });
         // eject's plan is a file list, not the standard "Dry run - ..." pair, so it supplies its own printer.
         if (handleDryRun(options, "", "", () => {
             console.log("Generated files, left where they are (git-ignored):");
@@ -87,11 +99,12 @@ export const ejectCommand = addYesOption(new Command("eject"))
             if (willCreate.length === 0)
                 console.log("  (none)");
         })) {
-            return;
+            return report(true);
         }
         if (!options.yes &&
+            !options.json &&
             !(await confirmOrCancel("Write EJECTED.md? (Generated files stay in .flisk/.flisk-out/; nothing is copied or moved.)"))) {
-            return;
+            return { data: null };
         }
         if (existsSync(ejectedPath)) {
             console.log(chalk.green("EJECTED.md already exists and was left unchanged. Nothing was copied, moved or generated."));
@@ -104,5 +117,11 @@ export const ejectCommand = addYesOption(new Command("eject"))
         console.log(`Run from the project root: ${TILT_UP_COMMAND}`);
         console.log("Replace <stack> with a stack name under services/, or omit --focus to use the Tiltfile's default phase.");
         console.log("Read EJECTED.md");
-    });
+        return report(false);
+    };
+    if (options.json) {
+        await runJsonCommand("EJECT_FAILED", "flisk eject", action);
+        return;
+    }
+    await runCommand(action);
 });

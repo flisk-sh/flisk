@@ -8,6 +8,8 @@ import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
 import { formatCount, showAllSatisfyCondition, showCommandHeader, showDetail, showSuccess, } from "../utils/formatting.js";
+import { runJsonCommand } from "../utils/json-command.js";
+import { findProjectRoot } from "../utils/paths.js";
 import { promptMultiSelect, promptText } from "../utils/prompt.js";
 import { createKebabCaseValidator, validateStackName } from "../utils/validation.js";
 export function parseStackResourceConfig(content, configPath) {
@@ -34,14 +36,41 @@ export const stackCommand = addYesOption(new Command("stack"))
     .argument("[stack-name]", "Stack name to assign to resources")
     .option("--list", "List resources without a stack", false)
     .option("--resources <names...>", "Resource names to add (comma- or space-separated)")
+    .option("--json", "Print one JSON envelope on stdout; implies --yes and needs --list or <stack-name> --resources", false)
     .action(async (stackName, options) => {
-    await runCommand(async () => {
-        requireProjectRoot();
+    const action = async () => {
+        if (options.json) {
+            if (!findProjectRoot())
+                throw errorFactories.notInProject();
+        }
+        else {
+            requireProjectRoot();
+        }
         showCommandHeader("Stack Management");
         const discovery = createDiscoveryContext();
+        // The stacks and unassigned resources after this run: an assignment moves resources out of `unassigned`.
+        const report = (assigned = [], stack = options.list ? null : (stackName ?? null)) => {
+            const counts = new Map(discovery.stackNames.map((name) => [
+                name,
+                discovery.resourcesByStack.get(name)?.length ?? 0,
+            ]));
+            if (stack && assigned.length > 0)
+                counts.set(stack, (counts.get(stack) ?? 0) + assigned.length);
+            const moved = new Set(assigned.map((resource) => resource.configPath));
+            return {
+                data: {
+                    stacks: [...counts].map(([name, resourceCount]) => ({ name, resourceCount })),
+                    unassigned: discovery.unassignedResources
+                        .filter((resource) => !moved.has(resource.configPath))
+                        .map(({ name, configPath }) => ({ name, configPath })),
+                    stack,
+                    assigned,
+                },
+            };
+        };
         if (discovery.resources.length === 0 && options.resources === undefined) {
             console.log(chalk.yellow("No resources discovered. Make sure you're in a project with service.json files."));
-            return;
+            return report();
         }
         showDetail(`Found ${formatCount(discovery.resources.length, "resource")}\n`, 0);
         if (discovery.stackNames.length > 0) {
@@ -55,16 +84,17 @@ export const stackCommand = addYesOption(new Command("stack"))
         if (options.list) {
             if (discovery.unassignedResources.length === 0) {
                 showAllSatisfyCondition("resources", "already assigned to a stack");
-                return;
+                return report();
             }
             console.log(chalk.bold(`${discovery.unassignedResources.length} resources without a stack:`));
             for (const resource of discovery.unassignedResources) {
                 showDetail(`${resource.name}`);
                 showDetail(`${resource.configPath}`, 4);
             }
-            return;
+            return report();
         }
-        if (!process.stdin.isTTY) {
+        // --json never prompts: it takes the same arguments as a run without a terminal.
+        if (!process.stdin.isTTY || options.json) {
             if (options.resources === undefined) {
                 throw new FliskError("Interactive resource selection requires a TTY.", [
                     "Pass --resources <name...> to select resources without a prompt.",
@@ -76,7 +106,7 @@ export const stackCommand = addYesOption(new Command("stack"))
                     "Use: flisk stack <stack-name> --resources <name...> [--yes]",
                 ]);
             }
-            if (!options.yes) {
+            if (!options.yes && !options.json) {
                 throw new FliskError("Confirmation requires a TTY.", [
                     "Pass --yes to skip confirmation when assigning resources without a TTY.",
                 ]);
@@ -132,7 +162,7 @@ export const stackCommand = addYesOption(new Command("stack"))
         else {
             if (resourcesToUpdate.length === 0) {
                 console.log(chalk.yellow("\nNo resources available to add to this stack."));
-                return;
+                return report();
             }
             const promptedResources = await promptMultiSelect({
                 message: `Select resources to add to stack "${targetStack}":`,
@@ -148,27 +178,37 @@ export const stackCommand = addYesOption(new Command("stack"))
             });
             if (promptedResources.length === 0) {
                 console.log(chalk.yellow("No resources selected. Exiting."));
-                return;
+                return report();
             }
             selectedResources.push(...promptedResources);
         }
         showDetail(`\nWill add "stack": "${targetStack}" to ${formatCount(selectedResources.length, "resource")}.`, 0);
-        const confirmed = options.yes || (await confirmOrCancel("Proceed?"));
+        const confirmed = options.yes || options.json || (await confirmOrCancel("Proceed?"));
         if (!confirmed)
-            return;
+            return report([], targetStack);
         // Clear cache since we're about to modify resources
         clearDiscoveryCache();
-        let updated = 0;
+        const nameByConfigPath = new Map(discovery.resources.map((resource) => [resource.configPath, resource.name]));
+        const assigned = [];
         for (const configPath of selectedResources) {
             const content = readFileSync(configPath, "utf-8");
             const config = parseStackResourceConfig(content, configPath);
             config.stack = targetStack;
             writeJsonFile(configPath, config);
-            updated++;
+            assigned.push({
+                name: nameByConfigPath.get(configPath) ?? config.appName ?? configPath,
+                configPath,
+            });
             showSuccess(`${config.appName || configPath}`);
         }
         console.log();
-        showSuccess(`Updated ${formatCount(updated, "resource")}.`);
+        showSuccess(`Updated ${formatCount(assigned.length, "resource")}.`);
         showDetail(`\nYou can now run: flisk up ${targetStack}`, 0);
-    });
+        return report(assigned, targetStack);
+    };
+    if (options.json) {
+        await runJsonCommand("STACK_FAILED", "flisk stack", action);
+        return;
+    }
+    await runCommand(action);
 });

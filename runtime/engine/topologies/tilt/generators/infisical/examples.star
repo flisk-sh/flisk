@@ -11,20 +11,20 @@
 # =============================================================================
 
 # Option 1: Load the complete Infisical module
-load("engine/topologies/tilt/generators/infisical/index.star", "Infisical")
+load("./index.star", "Infisical")
 
 # Option 2: Load individual submodules
-load("engine/topologies/tilt/generators/infisical/secrets_generator.star", "SecretsGenerator")
-load("engine/topologies/tilt/generators/infisical/path_manager.star", "PathManager")
-load("engine/topologies/tilt/generators/infisical/machine_identity.star", "MachineIdentity")
-load("engine/topologies/tilt/generators/infisical/organization.star", "Organization")
+load("./secrets_generator.star", "SecretsGenerator")
+load("./path_manager.star", "PathManager")
+load("./machine_identity.star", "MachineIdentity")
+load("./organization.star", "Organization")
 
 # Option 3: Load from the generators index (recommended)
-load("engine/topologies/tilt/generators/index.star", "Generators")
+load("../index.star", "Generators")
 Infisical = Generators.SecretsManagement
 
 # Option 4: Load from security module (complete integration)
-load("engine/topologies/platform/security/secrets.star", "Secrets")
+load("../../../platform/security/secrets.star", "Secrets")
 
 # =============================================================================
 # 2. Generate Secret Configuration for a Service
@@ -220,8 +220,8 @@ def example_predefined_services():
 """
 # Example Tiltfile usage:
 
-load("engine/topologies/platform/security/secrets.star", "Secrets")
-load("engine/topologies/tilt/generators/infisical/path_manager.star", "PathManager")
+load("../../../platform/security/secrets.star", "Secrets")
+load("./path_manager.star", "PathManager")
 
 def configure_resource_with_secrets(resource_name):
     # Get predefined config or plan new one

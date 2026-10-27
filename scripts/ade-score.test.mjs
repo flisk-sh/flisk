@@ -53,24 +53,39 @@ test("an empty repository scores 0", () => {
 
 test("mcpToolNames reads tool names and ignores other name fields", () => {
 	const root = fixture({
-		"cli/src/mcp/tools.ts": `${toolsTs(["doctor", "get_agent_sessions"])}      description: "x",\n  const nested = { name: "ignored-because-not-snake" };\n`,
+		"cli/src/mcp/tools.ts": `${toolsTs(["doctor", "agent_sessions"])}      description: "x",\n  const nested = { name: "ignored-because-not-snake" };\n`,
 	});
 	try {
-		assert.deepEqual(mcpToolNames(root), ["doctor", "get_agent_sessions"]);
+		assert.deepEqual(mcpToolNames(root), ["doctor", "agent_sessions"]);
 	} finally {
 		rmSync(root, { recursive: true });
 	}
 });
 
+test("agent-sessions passes with the current tool name and with the former one", () => {
+	for (const [name, pass] of [
+		["agent_sessions", true],
+		["get_agent_sessions", true],
+		["agent_list", false],
+	]) {
+		const root = fixture({ "cli/src/mcp/tools.ts": toolsTs(["doctor", name]) });
+		try {
+			assert.equal(byId(runChecks(root), "agent-sessions").pass, pass, name);
+		} finally {
+			rmSync(root, { recursive: true });
+		}
+	}
+});
+
 test("mcp-tools-documented fails naming the tool missing from llms.txt", () => {
 	const root = fixture({
-		"cli/src/mcp/tools.ts": toolsTs(["up", "restart_resource"]),
+		"cli/src/mcp/tools.ts": toolsTs(["up", "resource_restart"]),
 		"docs/agents/llms.txt": "- `up`: start\n",
 	});
 	try {
 		const row = byId(runChecks(root), "mcp-tools-documented");
 		assert.equal(row.pass, false);
-		assert.equal(row.detail, "restart_resource");
+		assert.equal(row.detail, "resource_restart");
 	} finally {
 		rmSync(root, { recursive: true });
 	}

@@ -3,6 +3,7 @@
 import { createConnection, createServer } from "node:net";
 import type { DiscoveredResource, PortAssignableResourceType } from "../types/index.js";
 import { PORT_RANGES } from "./constants.js";
+import { FliskError } from "./errors.js";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -88,9 +89,13 @@ export function assignPort(
   const assignedPort = findNextAvailablePort(usedPorts, portRange);
 
   if (assignedPort === null) {
-    throw new Error(
+    throw new FliskError(
       `No available ports in range ${portRange.base}-${portRange.max}. ` +
         "Check TILT_RESOURCE_DEFAULTS.star for port configuration.",
+      [
+        "See which ports are assigned with: flisk resources",
+        "Remove a resource you no longer use, or set a free port with --port",
+      ],
     );
   }
 

@@ -54,4 +54,11 @@ export declare function buildProjectInitArgs(args: Record<string, unknown>): str
  * from .flisk/project.json and discards any hand edits in them.
  */
 export declare function buildConfigRegenerateArgs(args: Record<string, unknown>): string[];
+/**
+ * `flisk eject --json`. A real run writes EJECTED.md into the project, so it is refused unless `confirm` is true; a dry run
+ * changes nothing and needs no confirmation.
+ */
+export declare function buildProjectEjectArgs(args: Record<string, unknown>): string[];
+/** `flisk import [dir] --json`, which writes without a prompt unless `dryRun` is set. `dir` comes before the flags. */
+export declare function buildProjectImportArgs(args: Record<string, unknown>): string[];
 export declare function createFliskTools(run?: RunFlisk, up?: UpDeps): McpTool[];

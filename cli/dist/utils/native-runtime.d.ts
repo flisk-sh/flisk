@@ -131,6 +131,15 @@ export interface SupervisorEvents {
     onNote?: (service: string, message: string) => void;
 }
 /** Starts and supervises the planned services. One instance per `flisk up`. */
+/**
+ * How a service.json `command` line is run: the platform shell, invoked the way Node's `shell: true` does it (`/bin/sh -c`,
+ * or `%ComSpec% /d /s /c "<line>"` on Windows), spelled out so the call does not hand an opaque flag to spawn.
+ */
+export declare function shellInvocation(command: string, platform?: NodeJS.Platform, comSpec?: string | undefined): {
+    file: string;
+    args: string[];
+    windowsVerbatimArguments: boolean;
+};
 export declare class NativeSupervisor {
     private readonly projectRoot;
     private readonly events;
