@@ -1,7 +1,18 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
-import { getStackEmoji } from "../constants.js";
+import { getStackEmoji, UNPINNED_DEPENDENCY_VERSIONS } from "../constants.js";
+
+describe("UNPINNED_DEPENDENCY_VERSIONS", () => {
+  // Adding a pin or an unpinned entry should be a deliberate change:
+  // unpinned versions allow floating/breaking dependencies during installs.
+  it("matches the exact set of allowed unpinned dependency specifiers", () => {
+    expect(UNPINNED_DEPENDENCY_VERSIONS).toEqual(new Set(["latest", "*"]));
+    expect(UNPINNED_DEPENDENCY_VERSIONS.has("latest")).toBe(true);
+    expect(UNPINNED_DEPENDENCY_VERSIONS.has("*")).toBe(true);
+    expect(UNPINNED_DEPENDENCY_VERSIONS.size).toBe(2);
+  });
+});
 
 describe("getStackEmoji", () => {
   it.each([
