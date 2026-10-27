@@ -507,7 +507,7 @@ export function parseExistingServiceJson(
  * never applies to it. `--type frontend` and `--type backend` list that type's frameworks, and the
  * backend listing carries the language (and runtime) each framework is scaffolded with.
  */
-function printFrameworkInventory(
+export function printFrameworkInventory(
   options: { type?: string; language?: string },
   isTypeExplicit: boolean,
 ): void {
@@ -545,7 +545,7 @@ function printFrameworkInventory(
 }
 
 /** The historical frontend listing: id, display name, kind, verification, command. */
-function printFrontendFrameworks(): void {
+export function printFrontendFrameworks(): void {
   for (const f of listFrontendFrameworks()) {
     console.log(
       `${f.id}\t${f.label}\t${f.kind}\t${f.verified ? "verified" : "unverified"}\t${f.command}`,

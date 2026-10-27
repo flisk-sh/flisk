@@ -356,7 +356,7 @@ export function parseExistingServiceJson(content, configPath) {
  * never applies to it. `--type frontend` and `--type backend` list that type's frameworks, and the
  * backend listing carries the language (and runtime) each framework is scaffolded with.
  */
-function printFrameworkInventory(options, isTypeExplicit) {
+export function printFrameworkInventory(options, isTypeExplicit) {
     // No explicit `--type` means the historical frontend listing, so `--language` is not applied to it:
     // it is a backend option, and the frontend listing has never carried one.
     if (!isTypeExplicit) {
@@ -386,7 +386,7 @@ function printFrameworkInventory(options, isTypeExplicit) {
     }
 }
 /** The historical frontend listing: id, display name, kind, verification, command. */
-function printFrontendFrameworks() {
+export function printFrontendFrameworks() {
     for (const f of listFrontendFrameworks()) {
         console.log(`${f.id}\t${f.label}\t${f.kind}\t${f.verified ? "verified" : "unverified"}\t${f.command}`);
     }

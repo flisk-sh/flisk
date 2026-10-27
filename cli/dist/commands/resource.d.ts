@@ -153,4 +153,18 @@ type ExistingServiceConfig = {
  * @throws FliskError When the content is not valid JSON.
  */
 export declare function parseExistingServiceJson(content: string, configPath: string): ExistingServiceConfig;
+/**
+ * Prints the framework inventory for the requested resource type.
+ *
+ * Without an explicit `--type` the listing stays the historical frontend one, byte for byte, so
+ * `flisk resource --frameworks` keeps working exactly as before: `--language` is a backend option and
+ * never applies to it. `--type frontend` and `--type backend` list that type's frameworks, and the
+ * backend listing carries the language (and runtime) each framework is scaffolded with.
+ */
+export declare function printFrameworkInventory(options: {
+    type?: string;
+    language?: string;
+}, isTypeExplicit: boolean): void;
+/** The historical frontend listing: id, display name, kind, verification, command. */
+export declare function printFrontendFrameworks(): void;
 export declare const resourceCommand: Command;
