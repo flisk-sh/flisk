@@ -29,13 +29,12 @@ A starter is a working multi-service app in the flisk-sh GitHub organisation. St
 flisk doctor
 flisk project <template> --path <folder> --yes
 cd <folder>
-flisk project --yes          # see the note below
 flisk up --dry-run           # check the services and URLs
 flisk up <stack> --json &    # or omit <stack> to start every stack
 flisk networks --raw
 ```
 
-The starters ship `.flisk/project.json`, so `flisk up` and `flisk stacks` work right after cloning. Running `flisk project --yes` inside the clone is safe but not required.
+The starters ship `.flisk/project.json`, so `flisk up` and `flisk stacks` work right after cloning; `flisk up` generates the Tiltfile and refreshes the runtime assets itself. Do not run `flisk project --yes` in the clone unless `flisk doctor` asks for it (Generated Runtime Assets).
 
 Then change the starter to what the user asked for: rename things in the app code, add resources with `flisk resource ... --stack <stack>`, and follow the flisk-build skill to check every URL and report them.
 

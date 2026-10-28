@@ -17,10 +17,17 @@ export const meta = {
 
 const SHELLS = ["bash", "sh", "shell", "zsh"];
 export const FLISK_UP = /(^|[\s;&|(])flisk\s+up\b/m;
+export const FLISK_IMPORT = /(^|[\s;&|(])flisk\s+import\b/m;
 
-// A README's quickstart: its first shell code block that runs `flisk up` ({ lang, line, body }), or null.
+// A README's quickstart: its first shell code block that runs `flisk up` ({ lang, line, body }), or null. A block that runs
+// `flisk import` is the Compose path at the top of the English README, not the from-scratch quickstart the translations
+// carry, so it is skipped.
 export function quickstart(markdown) {
-	return codeBlocks(markdown).find((b) => SHELLS.includes(b.lang) && FLISK_UP.test(b.body)) ?? null;
+	return (
+		codeBlocks(markdown).find(
+			(b) => SHELLS.includes(b.lang) && FLISK_UP.test(b.body) && !FLISK_IMPORT.test(b.body),
+		) ?? null
+	);
 }
 
 // The commands of a shell block in order: continuation lines joined, blank and comment lines and a `$ ` prompt dropped,
