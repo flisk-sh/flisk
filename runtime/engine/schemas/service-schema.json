@@ -5,6 +5,28 @@
   "allOf": [
     {
       "if": {
+        "not": {
+          "properties": {
+            "appType": {
+              "const": "bring-your-own"
+            }
+          },
+          "required": [
+            "appType"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "port": {
+            "minimum": 3000,
+            "maximum": 9999
+          }
+        }
+      }
+    },
+    {
+      "if": {
         "properties": {
           "appType": {
             "const": "backend"
@@ -102,12 +124,6 @@
         }
       },
       "then": {
-        "properties": {
-          "port": {
-            "maximum": 5999,
-            "minimum": 4000
-          }
-        },
         "required": [
           "port"
         ]
@@ -178,7 +194,7 @@
         "order-planner-frontend"
       ],
       "maxLength": 64,
-      "minLength": 3,
+      "minLength": 2,
       "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
       "type": "string"
     },
@@ -379,7 +395,7 @@
       "type": "boolean"
     },
     "port": {
-      "description": "External dev port (internal always 3000).\nAssignments:\n• 4000: user\n• 4001: service\n• 4002: order\n• 4003: team\n• 4004: auth",
+      "description": "External dev port (internal always 3000).\nAssignments:\n• 4000: user\n• 4001: service\n• 4002: order\n• 4003: team\n• 4004: auth\nbring-your-own: the port the container itself listens on (1-65535), for example 3000 for an imported Compose app or 5432 for Postgres. Nothing is published on the host; Traefik reaches the container on the stack network.",
       "examples": [
         4000,
         4001,
@@ -387,8 +403,8 @@
         4003,
         4004
       ],
-      "maximum": 9999,
-      "minimum": 3000,
+      "maximum": 65535,
+      "minimum": 1,
       "type": "integer"
     },
     "replicas": {

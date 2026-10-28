@@ -28,6 +28,12 @@ export declare function pruneProjectNetworks(projectName: string, commandRunner?
  * project's Tilt (or a Tilt the user started by hand) untouched.
  */
 export declare function findProjectTiltUpPids(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
+/**
+ * Roots of the Flisk projects that have a `tilt up` running, read from each process's `-f <root>/.flisk/.flisk-out/Tiltfile`
+ * (the Tiltfile `flisk up` passes). Lets `flisk down` find the project when it runs outside one. A root counts only while
+ * it still has `.flisk/project.json`.
+ */
+export declare function findRunningFliskProjects(platform?: NodeJS.Platform, commandRunner?: CommandRunner, isProject?: (root: string) => boolean): string[];
 export declare function stopProjectTiltUp(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
 /** Wait (up to `timeoutMs`) for the `tilt up` processes to exit after TERM, so `tilt down` does not race a live Tilt. */
 export declare function waitForTiltUpExit(tiltfilePath: string, timeoutMs?: number, findPids?: (tiltfilePath: string) => number[]): Promise<boolean>;

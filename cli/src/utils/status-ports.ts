@@ -1,10 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import type { DiscoveredResource } from "../types/index.js";
-import { STANDARD_PORTS } from "./constants.js";
+import { BRING_YOUR_OWN_TYPE, STANDARD_PORTS } from "./constants.js";
 import type { HostPortPlan } from "./host-port-plan.js";
-import { isApiServiceType } from "./resource-kind.js";
-import { resolveServicePath, resolveSubdomainBases } from "./service-urls.js";
+import { resolveServicePath, resolveSubdomainBases, routesAsApi } from "./service-urls.js";
 
 export interface ServicePorts {
   /** Ingress address (Traefik), or null for resources with no route (workers, libraries, migrators). */
@@ -29,14 +28,18 @@ export function buildServicePorts(
   ingressHttp?: number,
 ): ServicePorts {
   const appType = resource.config?.appType;
-  const routable = appType === "frontend" || isApiServiceType(appType);
+  const routable = appType === "frontend" || routesAsApi(resource);
   let url: string | null = null;
   if (routable) {
     const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
-    url = `${isApiServiceType(appType) ? apiBase : appBase}${resolveServicePath(resource)}`;
+    url = `${routesAsApi(resource) ? apiBase : appBase}${resolveServicePath(resource)}`;
   }
   const containerPort = resource.port ?? resource.config?.port ?? null;
-  const directUrl = !routable && containerPort ? `http://localhost:${containerPort}` : null;
+  // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer.
+  const directUrl =
+    !routable && containerPort && appType !== BRING_YOUR_OWN_TYPE
+      ? `http://localhost:${containerPort}`
+      : null;
   return { url, containerPort, hostPort: null, directUrl };
 }
 

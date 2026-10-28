@@ -121,7 +121,7 @@ export function templateTargetDir(templateName: string, targetDir?: string): str
 }
 
 /** The last non-empty line of a child process error, for a one-line failure message. */
-function lastLine(text: string): string {
+export function lastLine(text: string): string {
   const lines = text
     .split("\n")
     .map((line) => line.trim())

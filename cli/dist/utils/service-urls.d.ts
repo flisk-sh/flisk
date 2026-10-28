@@ -1,7 +1,15 @@
 import type { DiscoveredResource } from "../types/index.js";
+import { BRING_YOUR_OWN_TYPE } from "./constants.js";
+/**
+ * A bring-your-own service with a Traefik route (the default; `exposeViaProxy: false` turns it off). The engine routes it like a
+ * backend, at the API host under /api/<name>, and publishes nothing on the host, so this route is the only address it has.
+ */
+export declare function isRoutedBringYourOwn(resource: DiscoveredResource): boolean;
+/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services. */
+export declare function routesAsApi(resource: DiscoveredResource): boolean;
 export interface HealthTarget {
     name: string;
-    appType: "frontend" | "backend" | "mcp" | "agent";
+    appType: "frontend" | "backend" | "mcp" | "agent" | typeof BRING_YOUR_OWN_TYPE;
     url: string;
 }
 export interface HealthProbe extends HealthTarget {

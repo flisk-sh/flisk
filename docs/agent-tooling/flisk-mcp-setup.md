@@ -220,6 +220,7 @@ To start part of a stack, name the services in `only`. Flisk starts their depend
 
 ## Next
 
+- [Prompts to try](../agents/flisk-for-agents.md#prompts-to-try): whole tasks to paste into a connected agent, starting from an empty folder.
 - [Flisk MCP quick guide](flisk-mcp.md): tool calls in a connected client, and the `projectPath` rules.
 - [Machine-readable CLI reference](../reference/machine-readable-cli.md): the JSON shapes and exit codes behind each tool.
 - [Doctor contract](../reference/doctor-contract.md): what doctor checks and how it reports.

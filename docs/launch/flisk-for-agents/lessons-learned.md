@@ -48,4 +48,4 @@ Where an item says "observed", it was seen on the day. Where it says "not verifi
 ## What does not change
 
 - No vote requests, no vote swaps, no new accounts, no company account. These break Product Hunt's rules (see [checklist.md](checklist.md), "What not to do") and they would not have fixed any of the problems above.
-- No numbers in posts other than the 19 tools, which is a count of the code, and the wording in [docs/claims.md](../../claims.md).
+- No numbers in posts other than the 21 tools, which is a count of the code, and the wording in [docs/claims.md](../../claims.md).

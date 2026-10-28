@@ -1,6 +1,6 @@
 ---
 name: flisk-up
-description: Start a Flisk stack with `flisk up`, preview it first with `flisk up <stack> --dry-run`, and confirm the healthy URLs. Use when the user asks to run, start, or bring up their local services, or after changing service.json files.
+description: Start a Flisk stack with `flisk up`, preview it first with `flisk up <stack> --dry-run`, and confirm the healthy URLs. Use when the user asks to run, start, or bring up their local services, or after changing service.json files. To check a stack that is already running, use flisk-status; when it fails, use flisk-troubleshoot.
 license: MIT
 compatibility: Requires the flisk CLI. Services that declare a `command` need only their own runtime; other services need Docker and Tilt. Does not deploy.
 metadata:

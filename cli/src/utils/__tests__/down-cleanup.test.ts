@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   findProjectTiltUpPids,
+  findRunningFliskProjects,
   fliskNetworkOwner,
   fliskNetworkPrefixes,
   projectNetworkNames,
@@ -158,6 +159,45 @@ describe("pruneProjectNetworks", () => {
     const result = pruneProjectNetworks("shop", runner);
     expect(result.removed).toEqual([]);
     expect(result.kept).toEqual([{ name: "shop_backend", reason: "daemon connection failed" }]);
+  });
+});
+
+describe("findRunningFliskProjects", () => {
+  const ps = [
+    "  100 /opt/homebrew/bin/tilt up -f /work/shop/.flisk/.flisk-out/Tiltfile -- --focus=app migrations web",
+    "  101 /usr/local/bin/tilt up -f /work/my blog/.flisk/.flisk-out/Tiltfile",
+    // A second Tilt for the same project counts once.
+    "  102 tilt up -f /work/shop/.flisk/.flisk-out/Tiltfile",
+    // Not `tilt up`, not a Flisk Tiltfile, a copy of one, a relative path, or not tilt at all.
+    "  103 /opt/homebrew/bin/tilt down -f /work/gone/.flisk/.flisk-out/Tiltfile",
+    "  104 /opt/homebrew/bin/tilt up -f /work/plain/Tiltfile",
+    "  105 tilt up -f /work/copy/.flisk/.flisk-out/Tiltfile.backup",
+    "  106 tilt up -f .flisk/.flisk-out/Tiltfile",
+    "  107 vim /work/edit/.flisk/.flisk-out/Tiltfile",
+    // Its project.json was removed after Tilt started.
+    "  108 tilt up -f /work/deleted/.flisk/.flisk-out/Tiltfile",
+    "  invalid line without command",
+  ].join("\n");
+  const isProject = (root: string) => root !== "/work/deleted";
+
+  it("returns the roots of Flisk projects with a tilt up running, each once, sorted", () => {
+    expect(findRunningFliskProjects("darwin", () => ps, isProject)).toEqual([
+      "/work/my blog",
+      "/work/shop",
+    ]);
+  });
+
+  it("returns nothing on Windows or when ps fails", () => {
+    expect(findRunningFliskProjects("win32", () => ps, isProject)).toEqual([]);
+    expect(
+      findRunningFliskProjects(
+        "linux",
+        () => {
+          throw new Error("no ps");
+        },
+        isProject,
+      ),
+    ).toEqual([]);
   });
 });
 

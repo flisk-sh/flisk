@@ -2,9 +2,20 @@
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PROJECT_JSON } from "./constants.js";
+import { BRING_YOUR_OWN_TYPE, PROJECT_JSON } from "./constants.js";
 import { findProjectRoot } from "./paths.js";
 import { isApiServiceType } from "./resource-kind.js";
+/**
+ * A bring-your-own service with a Traefik route (the default; `exposeViaProxy: false` turns it off). The engine routes it like a
+ * backend, at the API host under /api/<name>, and publishes nothing on the host, so this route is the only address it has.
+ */
+export function isRoutedBringYourOwn(resource) {
+    return (resource.config?.appType === BRING_YOUR_OWN_TYPE && resource.config?.exposeViaProxy !== false);
+}
+/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services. */
+export function routesAsApi(resource) {
+    return isApiServiceType(resource.config?.appType) || isRoutedBringYourOwn(resource);
+}
 export function getProjectName() {
     return getProjectNameFor(findProjectRoot());
 }
@@ -58,7 +69,7 @@ export function appendHealthPath(path) {
 }
 /** The route `flisk up` advertises for a service, without the /health suffix. */
 export function resolveServicePath(resource) {
-    if (isApiServiceType(resource.config?.appType)) {
+    if (routesAsApi(resource)) {
         const servicePathName = resource.name.replace(/-api$/, "");
         return resource.config?.apiPath ?? `/api/${servicePathName}`;
     }
@@ -70,7 +81,7 @@ export function resolveServicePath(resource) {
  */
 export function resolveServiceUrl(resource, ingressPort) {
     const appType = resource.config?.appType;
-    if (appType !== "frontend" && !isApiServiceType(appType))
+    if (appType !== "frontend" && !routesAsApi(resource))
         return undefined;
     const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
     return `${appType === "frontend" ? appBase : apiBase}${resolveServicePath(resource)}`;
@@ -88,14 +99,18 @@ export function buildHealthTargets(resources, ingressPort) {
  * this URL is a 404 (nothing handles the bare path), which is the dead link users click.
  */
 export function buildAdvertisedTargets(resources, ingressPort) {
-    return routableTargets(resources, ingressPort, (path) => path);
+    // A routed bring-your-own service is advertised too: its route is the only address it has. It is not a health target, because
+    // its health path is its own (often /), not /health.
+    return routableTargets(resources, ingressPort, (path) => path, true);
 }
-function routableTargets(resources, ingressPort, toPath) {
+function routableTargets(resources, ingressPort, toPath, includeBringYourOwn = false) {
     const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
     return resources
-        .filter((resource) => resource.config?.appType === "frontend" || isApiServiceType(resource.config?.appType))
+        .filter((resource) => resource.config?.appType === "frontend" ||
+        isApiServiceType(resource.config?.appType) ||
+        (includeBringYourOwn && isRoutedBringYourOwn(resource)))
         .map((resource) => {
-        const base = isApiServiceType(resource.config.appType) ? apiBase : appBase;
+        const base = routesAsApi(resource) ? apiBase : appBase;
         return {
             name: resource.name,
             appType: resource.config.appType,

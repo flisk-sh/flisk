@@ -56,6 +56,23 @@ With the skills, the agent's plan is: `doctor`, scaffold the services, `up`, the
 
 For Cursor, run `flisk connect cursor` and open the folder in Cursor. For Codex, run `flisk connect codex` and start `codex` in the folder; Codex loads a project `.codex/config.toml` only for trusted projects.
 
+## Prompts to try
+
+No project yet? Run `flisk connect claude` (or `cursor`, `codex`) in an empty folder and paste these in order. Each line names the tools the agent is expected to call.
+
+| You want to | Ask the agent | Tools |
+| --- | --- | --- |
+| Check the machine is ready | "Run Flisk doctor and tell me what's missing." | `doctor` |
+| Get a working stack from nothing | "Clone the Flisk agent-stack starter here, set it up, start it, and show me the URLs once everything is healthy." | `project_init` (`template: "agent-stack"`), then `project_init` again with `projectPath` set to the clone, then `up` and `status` with that `projectPath` |
+| Add services | "Add a backend called `api` and a worker called `jobs`, then start the stack again." | `stack_list`, `resource_create` (`type: "backend"`, then `type: "worker"`, with `stack` when the project has more than one), `up` |
+| Find and fix a failure | "Something in my stack is red. Find which service, read its logs, and fix it." | `status`, `logs`, `config_verify`, `resource_restart` |
+| See what is running | "List this project's services, stacks and URLs." | `resource_list`, `stack_list`, `network_list` |
+| Stop | "Stop the stack." | `down` |
+
+The template clones into a new folder (`flisk-agent-stack` by default) and the server keeps running in the folder you started it in, so every tool after the clone needs that folder as `projectPath`. To skip that, start your agent inside the clone after the first step.
+
+In a Flisk project (a folder with `.flisk/project.json`) that already has several services, the day-to-day use is the same loop without the setup: "start it", "why is `api` failing", "add a Redis". The agent reads the running stack through the tools instead of guessing at Docker. A repository that is not a Flisk project yet needs `project_init` first, or `project_import` when it has a root `docker-compose.yml`. For one-tool requests, see [Ask in outcomes](../agent-tooling/flisk-mcp-setup.md#5-ask-in-outcomes).
+
 ## What it is not
 
 - Not a hosted service: `flisk mcp` is a local process your agent starts over stdio. Nothing listens on a port and there is no account.

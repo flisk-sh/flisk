@@ -1,21 +1,33 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { runTiltMock, buildTiltDownArgsMock, getContainerRuntimeStatusMock, isTiltAvailableMock } =
-  vi.hoisted(() => ({
-    runTiltMock: vi.fn(),
-    buildTiltDownArgsMock: vi.fn(),
-    getContainerRuntimeStatusMock: vi.fn(() => "missing" as "running" | "unresponsive" | "missing"),
-    isTiltAvailableMock: vi.fn(async () => false),
-  }));
+const {
+  runTiltMock,
+  buildTiltDownArgsMock,
+  getContainerRuntimeStatusMock,
+  isTiltAvailableMock,
+  findRunningFliskProjectsMock,
+} = vi.hoisted(() => ({
+  runTiltMock: vi.fn(),
+  buildTiltDownArgsMock: vi.fn(),
+  getContainerRuntimeStatusMock: vi.fn(() => "missing" as "running" | "unresponsive" | "missing"),
+  isTiltAvailableMock: vi.fn(async () => false),
+  findRunningFliskProjectsMock: vi.fn((): string[] => []),
+}));
 const originalCwd = process.cwd();
 
 vi.mock("../../utils/docker.js", () => ({
   getContainerRuntimeStatus: getContainerRuntimeStatusMock,
+}));
+
+// The real lookup reads `ps`, and a stack running on the test machine must never be picked (or stopped) by a test.
+vi.mock("../../utils/down-cleanup.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/down-cleanup.js")>()),
+  findRunningFliskProjects: findRunningFliskProjectsMock,
 }));
 
 vi.mock("../../utils/tilt.js", () => ({
@@ -32,6 +44,7 @@ describe("flisk down", () => {
   beforeEach(() => {
     getContainerRuntimeStatusMock.mockReset().mockReturnValue("missing");
     isTiltAvailableMock.mockReset().mockResolvedValue(false);
+    findRunningFliskProjectsMock.mockReset().mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -39,6 +52,152 @@ describe("flisk down", () => {
     runTiltMock.mockReset();
     for (const option of ["dryRun", "json", "verbose", "force", "yes", "pruneNetworks"]) {
       downCommand.setOptionValue(option, false);
+    }
+    downCommand.setOptionValue("project", undefined);
+    // createProgram() makes the shared downCommand a child of a root program that keeps its own --project value.
+    downCommand.parent?.setOptionValue("project", undefined);
+  });
+
+  /** A scratch Flisk project folder (realpath, as process.cwd() reports it on macOS). */
+  function scratchProject(name: string): string {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), `flisk-down-${name}-`)));
+    mkdirSync(join(dir, ".flisk"), { recursive: true });
+    writeFileSync(join(dir, ".flisk", "project.json"), "{}");
+    return dir;
+  }
+
+  /** Runs `flisk down` (with Docker and Tilt available) and returns the folder it ran `tilt down` from. */
+  async function downFrom(
+    cwd: string,
+    args: string[],
+  ): Promise<{ tiltCwd?: string; output: string }> {
+    getContainerRuntimeStatusMock.mockReturnValue("running");
+    isTiltAvailableMock.mockResolvedValue(true);
+    buildTiltDownArgsMock.mockReturnValue(["-f", "/fake/Tiltfile"]);
+    let tiltCwd: string | undefined;
+    runTiltMock.mockImplementation(async () => {
+      tiltCwd = process.cwd();
+      return { exitCode: 0, stdout: "", stderr: "" };
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    process.chdir(cwd);
+    try {
+      await downCommand.parseAsync(["node", "flisk", ...args], { from: "node" });
+      return { tiltCwd, output: log.mock.calls.map((call) => call.join(" ")).join("\n") };
+    } finally {
+      process.chdir(originalCwd);
+      log.mockRestore();
+    }
+  }
+
+  /** Runs `flisk down` expecting it to exit with an error, and returns what it printed to stderr. */
+  async function downFails(cwd: string, args: string[]): Promise<string> {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit:1");
+    }) as never);
+    process.chdir(cwd);
+    try {
+      await expect(
+        downCommand.parseAsync(["node", "flisk", ...args], { from: "node" }),
+      ).rejects.toThrow("exit:1");
+      return error.mock.calls.flat().join("\n");
+    } finally {
+      process.chdir(originalCwd);
+      exit.mockRestore();
+      error.mockRestore();
+    }
+  }
+
+  it("outside a project stops the only Flisk project that is running, from its folder", async () => {
+    const project = scratchProject("running");
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    findRunningFliskProjectsMock.mockReturnValue([project]);
+    try {
+      const { tiltCwd, output } = await downFrom(elsewhere, ["--yes"]);
+      expect(tiltCwd).toBe(project);
+      expect(output).toContain(`stopping the one that is running: ${project}`);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it("outside a project lists the running projects instead of guessing when several run", async () => {
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    findRunningFliskProjectsMock.mockReturnValue(["/work/shop", "/work/blog"]);
+    try {
+      const output = await downFails(elsewhere, []);
+      expect(output).toContain("Not in a Flisk project, and 2 Flisk projects are running");
+      expect(output).toContain("flisk down --project /work/shop");
+      expect(output).toContain("flisk down --project /work/blog");
+      expect(runTiltMock).not.toHaveBeenCalled();
+    } finally {
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it("--project stops that project from anywhere, and is preferred over a running one", async () => {
+    const project = scratchProject("named");
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    findRunningFliskProjectsMock.mockReturnValue(["/work/other"]);
+    try {
+      const { tiltCwd } = await downFrom(elsewhere, ["--yes", "--project", project]);
+      expect(tiltCwd).toBe(project);
+      expect(findRunningFliskProjectsMock).not.toHaveBeenCalled();
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it("--project reaches down through the root program, which has its own --project", async () => {
+    const { createProgram } = await import("../../program.js");
+    const project = scratchProject("via-root");
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    findRunningFliskProjectsMock.mockReturnValue(["/work/other"]);
+    getContainerRuntimeStatusMock.mockReturnValue("running");
+    isTiltAvailableMock.mockResolvedValue(true);
+    buildTiltDownArgsMock.mockReturnValue(["-f", "/fake/Tiltfile"]);
+    let tiltCwd: string | undefined;
+    runTiltMock.mockImplementation(async () => {
+      tiltCwd = process.cwd();
+      return { exitCode: 0, stdout: "", stderr: "" };
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    process.chdir(elsewhere);
+    try {
+      await createProgram().parseAsync(["node", "flisk", "down", "--yes", "--project", project]);
+      expect(tiltCwd).toBe(project);
+      expect(findRunningFliskProjectsMock).not.toHaveBeenCalled();
+    } finally {
+      process.chdir(originalCwd);
+      log.mockRestore();
+      rmSync(project, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it("--project on a folder that is not a Flisk project fails without running Tilt", async () => {
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "flisk-down-elsewhere-")));
+    try {
+      const output = await downFails(elsewhere, ["--project", elsewhere]);
+      expect(output).toContain(`No Flisk project at ${elsewhere}`);
+      expect(runTiltMock).not.toHaveBeenCalled();
+    } finally {
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it("inside a project stops that project even when another one is running", async () => {
+    const project = scratchProject("here");
+    findRunningFliskProjectsMock.mockReturnValue(["/work/other"]);
+    try {
+      const { tiltCwd } = await downFrom(project, ["--yes"]);
+      expect(tiltCwd).toBe(project);
+      expect(findRunningFliskProjectsMock).not.toHaveBeenCalled();
+    } finally {
+      rmSync(project, { recursive: true, force: true });
     }
   });
 
@@ -59,6 +218,7 @@ describe("flisk down", () => {
       expect(output).toContain("Could not find project root (no .flisk/project.json found)");
       expect(output).toContain("Run this from within a Flisk project");
       expect(output).toContain("Run `flisk project --yes` to initialize a new project");
+      expect(output).toContain("flisk down --project <path>");
       expect(runTiltMock).not.toHaveBeenCalled();
       expect(getContainerRuntimeStatusMock).not.toHaveBeenCalled();
       expect(isTiltAvailableMock).not.toHaveBeenCalled();
@@ -96,6 +256,7 @@ describe("flisk down", () => {
             suggestions: [
               "Run this from within a Flisk project",
               "Run `flisk project --yes` to initialize a new project",
+              "Or name the project to stop from anywhere: flisk down --project <path>",
             ],
           },
         ],

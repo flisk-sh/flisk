@@ -256,6 +256,10 @@ describe("buildHealthTargets", () => {
     ]);
   });
 
+  it("does not probe /health on a bring-your-own service: its health path is its own", () => {
+    expect(buildHealthTargets([makeResource("api", "bring-your-own")])).toEqual([]);
+  });
+
   it("skips services that have no Traefik route", () => {
     const targets = buildHealthTargets([
       makeResource("kitchen-worker", "worker"),
@@ -314,6 +318,17 @@ describe("buildAdvertisedTargets", () => {
     expect(targets).toEqual([
       { name: "floor-app", appType: "frontend", url: "http://app.demo.localhost/floor" },
       { name: "menu-api", appType: "backend", url: "http://api.demo.localhost/api/menu" },
+    ]);
+  });
+
+  it("advertises a routed bring-your-own service at the API host, and not a private one", () => {
+    const targets = buildAdvertisedTargets([
+      makeResource("api", "bring-your-own"),
+      makeResource("db", "bring-your-own", { exposeViaProxy: false }),
+    ]);
+
+    expect(targets).toEqual([
+      { name: "api", appType: "bring-your-own", url: "http://api.demo.localhost/api/api" },
     ]);
   });
 

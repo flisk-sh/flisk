@@ -122,6 +122,6 @@ test("the repository's registry has a claims-guard block with the table's forbid
 	assert.ok(!rules.forbid.includes("cold boot"));
 	assert.deepEqual(
 		rules.caveats.map((c) => c.subject),
-		["4.6s", "472s", "100 services still readable"],
+		["4.6s", "472s", "100 services still readable", "49 s"],
 	);
 });

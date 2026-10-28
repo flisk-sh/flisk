@@ -10,9 +10,9 @@ The copy for every step is in [README.md](README.md). Why each step is here is i
 
 | By (PT) | Who | Step | Done |
 | --- | --- | --- | --- |
-| 14:00 | Maker | Decide go or no-go on the connect command: if it is merged and works on a clean machine, add it to the first comment and card 2 (`CONNECT` in [gallery/build.mjs](gallery/build.mjs)), re-render, re-check. If not, launch with the per-host commands that work today. | [ ] |
+| 14:00 | Maker | Check the connect command on a clean machine: `npm install -g @flisk-sh/flisk`, then `flisk connect claude --dry-run` and `flisk connect claude`. The first comment and card 2 already use it (shipped in 1.4.9); if it fails there, drop that line from the first comment and tell the maintainers. | [ ] |
 | 14:00 | Maker | Ask Product Hunt support (help.producthunt.com, or the support chat on the site) two questions: does a separate "Flisk for AI agents" listing, one day after the Flisk listing, meet their guidelines for a new product, and is there anything that would keep it from being featured? Record the answer and its time in the launch log. | [ ] |
-| 15:00 | Maker | Run the whole flow once on a clean folder: install, connect Claude Code (or the connect command), ask the agent to build and start the two-service shop, check `status`. If it fails, fix or cut the claim before it goes on the listing. | [ ] |
+| 15:00 | Maker | Run the whole flow once on a clean folder: install, run `flisk connect claude`, ask the agent to build and start the two-service shop, check `status`. If it fails, fix or cut the claim before it goes on the listing. | [ ] |
 | 16:00 | Maker | Record the video (README, "Video"). Upload it to YouTube as unlisted (Product Hunt takes a YouTube link). | [ ] |
 | 17:00 | Maker | Fill in the listing in Product Hunt's launch flow: name, tagline 1, description, three launch tags, links, thumbnail, the five gallery PNG files in order with their alt text, the video, makers. Paste the first comment. | [ ] |
 | 17:30 | Maker | **Schedule** the listing for Wed Oct 28, 00:01 PT (Product Hunt lets you schedule up to a month ahead). Open the scheduled listing's preview once and check every image, link and line. Do not use "Launch now". | [ ] |

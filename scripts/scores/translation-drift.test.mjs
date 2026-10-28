@@ -39,6 +39,9 @@ const ENGLISH = `# Flisk\n\n${block("npm install -g @flisk-sh/flisk")}\n## In yo
 test("the quickstart is the first shell block that runs flisk up", () => {
 	assert.equal(quickstart(ENGLISH).line, 10);
 	assert.equal(quickstart("```text\nflisk up\n```\n"), null);
+	// The Compose path at the top of the English README is not the quickstart the translations carry.
+	const composeFirst = "```bash\nflisk import .\nflisk up\n```\n\n```bash\nflisk project --yes\nflisk up\n```\n";
+	assert.match(quickstart(composeFirst).body, /flisk project --yes/);
 });
 
 test("a translation with the same commands and another directory name does not drift", () => {
