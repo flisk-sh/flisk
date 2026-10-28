@@ -1,6 +1,6 @@
 ---
 name: flisk-agent-ops
-description: Directs AI coding agents (Claude Code, Cursor, Codex) to operate and scaffold services using Flisk CLI and MCP tools instead of hand-writing Dockerfiles or Compose manifests.
+description: Ground rules and the CLI-to-MCP command map for a coding agent (Claude Code, Cursor, Codex) working in a Flisk project - create services with `flisk resource` instead of hand-writing Dockerfiles, Compose files or manifests, keep the agent resource contract, and drive the stack with `--json` commands or the `flisk mcp` tools (`doctor`, `up`, `status`, `logs`, `resource_restart`, `agent_list`, `agent_sessions`, `down`). Use when about to write container config by hand or when you need the MCP tool for a CLI command. For building a whole app from a request, use flisk-build.
 license: MIT
 compatibility: Requires the flisk CLI, Docker, and Tilt.
 metadata:
@@ -19,13 +19,15 @@ When building, adding, or modifying services in this workspace, **do not hand-wr
    - Scaffold an MCP tool server: `flisk resource <name> --type mcp`
    - Scaffold a backend API: `flisk resource <name> --type backend [--framework hono|express|fastify]`
    - Scaffold a worker: `flisk resource <name> --type worker`
-   - Scaffold a frontend: `flisk resource <name> --type frontend [--framework vite|next]`
+   - Scaffold a frontend: `flisk resource <name> --type frontend [--framework react|vue|next]`
+   - Wrap an existing Dockerfile or image: `flisk resource <name> --type bring-your-own --dockerfile ./Dockerfile` (or `--image <name>`)
 
 2. **The `agent` Process Contract:**
    - `/health`: Liveness only. Responds 200 when the process is alive.
    - `/ready`: Readiness check. Responds 200 when the checkpoint store (named volume or Postgres) is reachable.
-   - `/turn` (POST): Accepts turns with header `x-session-id: <session-id>`.
+   - `/turn` (POST): Accepts a JSON body `{"input": "..."}` with header `x-session-id: <session-id>`.
    - `/session` (GET): Returns checkpointed messages and turns for the session specified in `x-session-id`.
+   - `/sessions` (GET): Lists the stored sessions, newest first.
    - Checkpoints persist across container restarts and `flisk down`/`flisk up`.
 
 3. **Operate via MCP or CLI:**
@@ -35,5 +37,5 @@ When building, adding, or modifying services in this workspace, **do not hand-wr
    - Check logs: `flisk logs --tail 200 --json` (or tool `logs`)
    - Restart a service: `flisk restart <resource> --json` (or tool `resource_restart`)
    - List agents: `flisk resources --type agent --json` (or tool `agent_list`)
-   - Inspect agent sessions: `flisk agent sessions <resource> --session-id <id> --json` (or tool `agent_sessions` with `resource` and `sessionId`; the id is required, otherwise `SESSION_ID_REQUIRED`)
+   - List agent sessions: `flisk agent sessions <resource> --json` (or tool `agent_sessions` with `resource`); add `--session-id <id>` (tool: `sessionId`) to read one session's checkpoint
    - Stop services: `flisk down --json` (or tool `down`)

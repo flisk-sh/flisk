@@ -10,11 +10,14 @@ import { getPackageVersion } from "../utils/paths.js";
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "flisk-import@0.2.2";
+export const IMPORT_PACKAGE = "flisk-import@0.3.0";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export const MIN_CORE_VERSION = "1.3.104";
-/** Recommended core version with automatic Tiltfile bootstrapping for imported stacks (#1018). */
-export const RECOMMENDED_CORE_VERSION = "1.3.145";
+/**
+ * Recommended core for imported stacks: 1.4.11 (#2646) runs a bring-your-own port outside 4000-5999 and two-letter
+ * names, which flisk-import 0.3.0 writes. The pin ships in the CLI itself, so a CLI that runs 0.3.0 is already newer.
+ */
+export const RECOMMENDED_CORE_VERSION = "1.4.11";
 /** Parses a semver version string, extracting major, minor, patch, and prerelease identifiers. */
 export function parseSemver(raw) {
     const cleaned = raw.trim().replace(/^v/, "").split("+")[0];

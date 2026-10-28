@@ -11,7 +11,7 @@
 # === INLINED CONSTANTS for pure extension loading ===
 VALID_STACKS = ()  # Stacks are project-specific, discovered dynamically
 VALID_FEATURES = "api-client", "env-config", "api-index", "prisma", "drizzle", "ddd", "nats", "redis", "infisical", "vitest", "traefik", "websocket", "graphql", "grpc", "vite-node", "maintenance", "sablier"
-PORT_RANGES = {"frontend": {"min": 3000, "max": 5999}, "backend": {"min": 4000, "max": 5999}, "bring-your-own": {"min": 4000, "max": 5999}, "worker": {"min": 6000, "max": 6999}, "migrator": {"min": 7000, "max": 7999}, "sdk": {"min": 3000, "max": 9999}, "library": {"min": 3000, "max": 9999}}
+PORT_RANGES = {"frontend": {"min": 3000, "max": 5999}, "backend": {"min": 4000, "max": 5999}, "bring-your-own": {"min": 1, "max": 65535}, "worker": {"min": 6000, "max": 6999}, "migrator": {"min": 7000, "max": 7999}, "sdk": {"min": 3000, "max": 9999}, "library": {"min": 3000, "max": 9999}}
 DEFAULTS = {}
 
 # === END INLINED CONSTANTS ===
@@ -273,12 +273,12 @@ def _validate_values(manifest, context):
             stats['rules_failed'] += 1
         else:
             # Check length
-            if len(app_name) < 3:
+            if len(app_name) < 2:
                 errors.append(ManifestErrors.new(
-                    message="appName too short (min 3 characters): {}".format(app_name),
+                    message="appName too short (min 2 characters): {}".format(app_name),
                     category=ManifestErrors.CATEGORY['VALIDATION'],
                     severity=ManifestErrors.SEVERITY['ERROR'],
-                    context={'field': 'appName', 'value': app_name, 'min_length': 3},
+                    context={'field': 'appName', 'value': app_name, 'min_length': 2},
                 ))
                 stats['rules_failed'] += 1
             elif len(app_name) > 50:

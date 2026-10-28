@@ -914,10 +914,13 @@ describe("checkDuplicateResourcePorts", () => {
     expect(result.message).toContain("port 4000: api, orders");
   });
 
-  it("warns for a backend and a bring-your-own resource on one port", () => {
+  it("passes for bring-your-own resources on one port: each port is inside its own container", () => {
     resource("app", "api", { appType: "backend", port: 4000 });
     resource("app", "legacy", { appType: "bring-your-own", port: 4000 });
-    expect(checkDuplicateResourcePorts(root).isWarning).toBe(true);
+    resource("app", "db", { appType: "bring-your-own", port: 5432 });
+    resource("app", "db-replica", { appType: "bring-your-own", port: 5432 });
+    expect(checkDuplicateResourcePorts(root).didPass).toBe(true);
+    expect(checkDuplicateResourcePorts(root).isWarning).toBeUndefined();
   });
 
   it("passes for distinct ports", () => {

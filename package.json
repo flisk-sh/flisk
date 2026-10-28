@@ -1,6 +1,6 @@
 {
   "name": "@flisk-sh/flisk",
-  "version": "1.4.10",
+  "version": "1.4.11",
   "description": "Flisk: your whole app, running on your computer with one command.",
   "homepage": "https://flisk.sh",
   "repository": {

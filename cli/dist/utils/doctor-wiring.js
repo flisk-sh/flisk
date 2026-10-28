@@ -250,7 +250,10 @@ export function checkDuplicateResourcePorts(projectRoot = findProjectRoot() ?? p
     const byPort = new Map();
     for (const resource of discoverResourcesFromRoot(projectRoot)) {
         const port = resource.config?.port;
+        // A bring-your-own port is the port inside its own container, so two Postgres images on 5432 do not collide.
         if (typeof port !== "number" || !isRoutedToPort(resource))
+            continue;
+        if (resource.config?.appType === BRING_YOUR_OWN_TYPE)
             continue;
         const names = byPort.get(port) ?? [];
         names.push(resource.name);

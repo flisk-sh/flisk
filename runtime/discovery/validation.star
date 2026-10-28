@@ -16,8 +16,8 @@ def validate(manifest):
         issues.append("Missing required field: appName")
     elif type(app_name) != "string":
         issues.append("appName must be a string")
-    elif len(app_name) < 3:
-        issues.append("appName too short: '" + app_name + "'. Minimum 3 characters")
+    elif len(app_name) < 2:
+        issues.append("appName too short: '" + app_name + "'. Minimum 2 characters")
     elif len(app_name) > 64:
         issues.append("appName too long: '" + app_name + "'. Maximum 64 characters")
 

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 type CommandRunner = (command: string, args: string[]) => string;
 
@@ -120,6 +122,38 @@ export function findProjectTiltUpPids(
     }
   }
   return pids;
+}
+
+const PROJECT_TILTFILE_SUFFIX = "/.flisk/.flisk-out/Tiltfile";
+
+/**
+ * Roots of the Flisk projects that have a `tilt up` running, read from each process's `-f <root>/.flisk/.flisk-out/Tiltfile`
+ * (the Tiltfile `flisk up` passes). Lets `flisk down` find the project when it runs outside one. A root counts only while
+ * it still has `.flisk/project.json`.
+ */
+export function findRunningFliskProjects(
+  platform = process.platform,
+  commandRunner: CommandRunner = run,
+  isProject: (root: string) => boolean = (root) => existsSync(join(root, ".flisk", "project.json")),
+): string[] {
+  if (platform === "win32") return [];
+  let output: string;
+  try {
+    output = commandRunner("ps", ["-axo", "pid=,command="]);
+  } catch {
+    return [];
+  }
+  const roots = new Set<string>();
+  for (const line of output.split(/\r?\n/)) {
+    const command = /^\s*\d+\s+(.*)$/.exec(line)?.[1] ?? "";
+    const exe = (command.split(/\s+/)[0] ?? "").split("/").at(-1);
+    if (exe !== "tilt" || !/^\S+\s+up\s/.test(command)) continue;
+    const tiltfile = / -f (\/.*?\/\.flisk\/\.flisk-out\/Tiltfile)(?= |$)/.exec(command)?.[1];
+    if (!tiltfile) continue;
+    const root = tiltfile.slice(0, -PROJECT_TILTFILE_SUFFIX.length);
+    if (isProject(root)) roots.add(root);
+  }
+  return [...roots].sort();
 }
 
 export function stopProjectTiltUp(

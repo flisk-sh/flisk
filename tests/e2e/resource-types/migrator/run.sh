@@ -77,8 +77,18 @@ M3() { # flisk up starts Postgres, runs the migrator to completion, then starts 
   start_stack "$STACK"
   poll_until "$MIGRATOR logs a completed migration" "$READY_TIMEOUT" migrator_completed
   poll_until "a running $API container" "$READY_TIMEOUT" api_running
-  # The migrator restarts (Tilt re-runs /app/migrate.sh), so compare the first completed migration in its log with the
-  # first "running" line in the API log, using docker's own timestamps. The API must start after the migration completed.
+  # The migrator is a one-shot job: it exits 0 and stays exited. It used to get the backend service (restart:
+  # unless-stopped, an HTTP health check), so Docker restarted it forever, its health stayed unhealthy and flisk up never
+  # became ready. This case only waited for a log line and a running API, so it accepted that restart loop.
+  poll_until "$MIGRATOR exited" "$READY_TIMEOUT" migrator_exited
+  local state
+  state="$(docker inspect -f '{{.State.ExitCode}} {{.HostConfig.RestartPolicy.Name}} {{if .State.Health}}health{{else}}no-health{{end}}' "$(container_named "$MIGRATOR")")"
+  echo "$MIGRATOR exit code, restart policy, health: $state"
+  [ "$state" = "0 no no-health" ] || die "$MIGRATOR is not a one-shot job (want '0 no no-health', got '$state')"
+  run "status-$MIGRATOR" status --json
+  assert check "$OUT/status-$MIGRATOR.out" "j.data.resources.some(r => r.name === '$MIGRATOR' && r.status === 'ready')" "flisk status counts the exited-0 $MIGRATOR as ready"
+  # Compare the first completed migration in the migrator's log with the first "running" line in the API log, using
+  # docker's own timestamps. The API must start after the migration completed.
   local mig api mig_done api_start
   mig="$(container_named "$MIGRATOR")"
   api="$(container_named "$API")"

@@ -23,6 +23,7 @@
 load("../common/utils_debug.star", "debug_log")
 load("../common/utils_env.star", "project_env_file")
 load("./build_concurrency.star", "configure_build_concurrency")
+load("./tilt_image_tags.star", "register_tilt_image_tags")
 load("../../platform/docker/constants.star", "PlatformDockerConstants")
 load("../../platform/docker/compose/traefik_standalone.star", "generate_standalone_traefik_compose")
 load("../../platform/docker/networking/sablier_container_cycle.star", "sablier_middleware_suffix")
@@ -446,6 +447,9 @@ def load_all_infrastructure(should_enable, fix_docker_networks_fn=None, docker_p
 
     # Size Tilt's parallel image builds to the Docker engine before any build is queued
     configure_build_concurrency()
+
+    # Remove the tilt-<hash> tag Tilt leaves on every app image next to :dev, and the old builds it keeps alive
+    register_tilt_image_tags(PlatformDockerConstants.PROJECT_NAME + '_')
 
     # Build golden image before other infrastructure (if enabled)
     golden_image_resource = None

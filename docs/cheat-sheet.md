@@ -297,9 +297,12 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | --- | --- |
 | `-f`, `--force` | Accepted for script compatibility; has no effect |
 | `--prune-networks` | Also remove this project's Docker networks that no container uses |
+| `--project <path>` | Stop the Flisk project in that folder, from any folder |
 | `--dry-run` | Show what would stop |
 | `--json` | One JSON object on stdout |
 | `-v`, `--verbose` | More output |
+
+Outside a project folder and without `--project`, `flisk down` stops the Flisk project whose `tilt up` is running, when there is exactly one. With several running, it lists them and asks for `--project`.
 
 ### `flisk status`
 

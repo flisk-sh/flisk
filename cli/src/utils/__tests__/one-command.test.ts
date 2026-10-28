@@ -8,9 +8,11 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  defaultRun,
   findFrontendUrl,
   findServiceDirs,
   initializeProject,
+  installServiceDependencies,
   nextAvailableProjectDir,
   parseStackEnvelope,
   runStackQuiet,
@@ -165,5 +167,110 @@ describe("findServiceDirs", () => {
     const dirs = findServiceDirs(root).map((dir) => dir.slice(root.length));
     expect(dirs).toContain("/services/api");
     expect(dirs.some((dir) => dir.includes("node_modules"))).toBe(false);
+  });
+});
+
+describe("installServiceDependencies", () => {
+  it("executes the installer once per service directory that contains package.json", async () => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-install-deps-"));
+    const apiDir = join(root, "services", "api");
+    const webDir = join(root, "services", "web");
+    const docsDir = join(root, "services", "docs");
+    mkdirSync(apiDir, { recursive: true });
+    writeFileSync(join(apiDir, "package.json"), "{}");
+    mkdirSync(webDir, { recursive: true });
+    writeFileSync(join(webDir, "package.json"), "{}");
+    mkdirSync(docsDir, { recursive: true });
+    writeFileSync(join(docsDir, "README.md"), "no package.json");
+    // Nested node_modules should be ignored by findServiceDirs
+    mkdirSync(join(apiDir, "node_modules", "nested"), { recursive: true });
+    writeFileSync(join(apiDir, "node_modules", "nested", "package.json"), "{}");
+
+    const run = vi.fn(async () => 0);
+    const results = await installServiceDependencies(root, run);
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledWith("bun", ["install"], apiDir);
+    expect(run).toHaveBeenCalledWith("bun", ["install"], webDir);
+    expect(results).toEqual([
+      { dir: apiDir, ok: true },
+      { dir: webDir, ok: true },
+    ]);
+  });
+
+  it("records failed status when the installer returns a non-zero exit code", async () => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-install-fail-"));
+    const apiDir = join(root, "services", "api");
+    mkdirSync(apiDir, { recursive: true });
+    writeFileSync(join(apiDir, "package.json"), "{}");
+
+    const run = vi.fn(async () => 1);
+    const results = await installServiceDependencies(root, run);
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith("bun", ["install"], apiDir);
+    expect(results).toEqual([{ dir: apiDir, ok: false }]);
+  });
+
+  it("does not invoke the installer when no services have package.json", async () => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-install-empty-"));
+    mkdirSync(join(root, "services", "docs"), { recursive: true });
+    writeFileSync(join(root, "services", "docs", "README.md"), "# Docs");
+
+    const run = vi.fn();
+    const results = await installServiceDependencies(root, run);
+
+    expect(run).not.toHaveBeenCalled();
+    expect(results).toEqual([]);
+  });
+});
+
+describe("defaultRun", () => {
+  it("forwards command, arguments, and cwd to the process runner with stdio ignore", async () => {
+    const child = new EventEmitter();
+    const spawnFn = vi.fn(() => child) as never;
+
+    const promise = defaultRun("bun", ["install"], "/test/project", spawnFn);
+    child.emit("close", 0);
+
+    const code = await promise;
+    expect(spawnFn).toHaveBeenCalledWith("bun", ["install"], {
+      cwd: "/test/project",
+      stdio: "ignore",
+    });
+    expect(code).toBe(0);
+  });
+
+  it("resolves with the exit code when process exits with non-zero", async () => {
+    const child = new EventEmitter();
+    const spawnFn = vi.fn(() => child) as never;
+
+    const promise = defaultRun("echo", ["hello"], "/test/dir", spawnFn);
+    child.emit("close", 2);
+
+    const code = await promise;
+    expect(code).toBe(2);
+  });
+
+  it("resolves with 1 when process exit code is null", async () => {
+    const child = new EventEmitter();
+    const spawnFn = vi.fn(() => child) as never;
+
+    const promise = defaultRun("test", [], "/test/dir", spawnFn);
+    child.emit("close", null);
+
+    const code = await promise;
+    expect(code).toBe(1);
+  });
+
+  it("resolves with 1 when the process emits an error event", async () => {
+    const child = new EventEmitter();
+    const spawnFn = vi.fn(() => child) as never;
+
+    const promise = defaultRun("nonexistent-command", ["arg"], "/test/dir", spawnFn);
+    child.emit("error", new Error("spawn ENOENT"));
+
+    const code = await promise;
+    expect(code).toBe(1);
   });
 });

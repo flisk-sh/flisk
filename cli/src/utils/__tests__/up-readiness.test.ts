@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
+import { isStartupStalled } from "../startup-report.js";
 import {
   checkExpectedResources,
   evaluateTiltReadiness,
@@ -206,6 +207,61 @@ describe("a resource that is building right now", () => {
       ready: true,
       pending: 0,
     });
+  });
+});
+
+describe("a migrator, a one-shot job", () => {
+  // Tilt reports a compose container that exited 0 as runtime `ok` and one that exited non-zero as `error`. The
+  // migrator's health check is disabled, so Docker has no health for it: `composeResourceInfo` is `{}`. Shape captured
+  // from flisk-stack on Tilt 0.37.8, with `migrations` exited 0 and api and worker still building.
+  const migrator = (runtimeStatus: string) => ({
+    metadata: { name: "migrations" },
+    status: { updateStatus: "ok", runtimeStatus, composeResourceInfo: {} },
+  });
+  const dependsOn = { api: ["migrations"], worker: ["migrations"], migrations: ["postgres"] };
+
+  it("counts a migrator that exited 0 as done once its dependents are up", async () => {
+    const responses = [
+      json(
+        item("postgres", "ok", "ok"),
+        migrator("ok"),
+        item("api", "in_progress", "pending"),
+        item("worker", "in_progress", "pending"),
+      ),
+      json(
+        item("postgres", "ok", "ok"),
+        migrator("ok"),
+        item("api", "ok", "ok"),
+        item("worker", "ok", "ok"),
+      ),
+    ];
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      fetchJson: async () => responses.shift() ?? null,
+    });
+    expect(responses).toEqual([]);
+    expect(result).toMatchObject({ ready: true, failures: [], pending: 0, timedOut: false });
+  });
+
+  it("fails on a migrator that exited non-zero, without waiting for the dependents it blocks", async () => {
+    // Tilt never starts api and worker: they wait on the migrator, which will not run again.
+    const stalled = json(
+      item("postgres", "ok", "ok"),
+      migrator("error"),
+      item("api", "pending", "pending"),
+      item("worker", "pending", "pending"),
+    );
+    const started = Date.now();
+    const result = await waitForTiltResourcesReady(1, {
+      timeoutMs: 60_000,
+      intervalMs: 1,
+      deferred: new Set(),
+      fetchJson: async () => stalled,
+      isStalled: (text) => isStartupStalled(text, dependsOn),
+    });
+    expect(result).toMatchObject({ ready: false, timedOut: false });
+    expect(result.failures).toEqual([{ name: "migrations", message: "ok/error" }]);
+    expect(Date.now() - started).toBeLessThan(5_000);
   });
 });
 

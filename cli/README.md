@@ -86,7 +86,10 @@ flisk down --force               # ⚙️ Accepted for script compatibility; has
 flisk down --dry-run             # 🔍 Show the command without stopping resources
 flisk down --verbose             # 📝 Verbose output (-v)
 flisk down --prune-networks      # 🧹 Also remove unattached Docker networks for this project
+flisk down --project ~/code/shop # 📁 Stop the project in that folder, from anywhere
 ```
+
+Outside a project folder, `flisk down` stops the one Flisk project that is running; with several running it lists them and asks for `--project`.
 
 For non-interactive assignment of unassigned resources, pass the stack name and `--resources`; names may be space- or comma-separated. Add `--yes` to skip confirmation. Use `flisk stack --list` to inspect unassigned resources without changing them.
 
