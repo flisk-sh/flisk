@@ -31,7 +31,7 @@ function run({ visibleOnCall, timeoutSeconds }) {
     );
     chmodSync(npm, 0o755);
     const proc = spawnSync("bash", [script, "@flisk-sh/flisk", "1.2.3", String(timeoutSeconds)], {
-      env: { ...process.env, PATH: `${root}:${process.env.PATH}`, NPM_POLL_SECONDS: "1" },
+      env: { ...process.env, PATH: `${root}:${process.env.PATH}`, NPM_POLL_SECONDS: "1", NPM_REGISTRY: "https://registry.npmjs.org" },
       encoding: "utf8",
     });
     return { ...proc, calls: Number(readFileSync(calls, "utf8")) };
