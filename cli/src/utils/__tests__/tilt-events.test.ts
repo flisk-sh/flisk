@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   loadTiltEvents,
   parseTiltUiResourceList,
+  stripTerminalControls,
   TiltEventsLoadError,
 } from "../../utils/tilt-events.js";
 
@@ -233,5 +234,32 @@ describe("loadTiltEvents", () => {
       kind: "error",
       message: "tilt get exited with code 7",
     });
+  });
+});
+
+describe("stripTerminalControls", () => {
+  it("strips ANSI color codes and returns plain text", () => {
+    const input = "\x1b[31mError\x1b[0m";
+    expect(stripTerminalControls(input)).toBe("Error");
+  });
+
+  it("returns an ordinary plain string unchanged", () => {
+    const input = "Application started successfully";
+    expect(stripTerminalControls(input)).toBe(input);
+  });
+
+  it("strips complex ANSI formatting including 256-color, 24-bit RGB, and text styles", () => {
+    const styled =
+      "\x1b[1;4mBold Underline\x1b[0m \x1b[38;5;196mRed256\x1b[0m \x1b[48;2;0;255;0mGreenBgRGB\x1b[0m";
+    expect(stripTerminalControls(styled)).toBe("Bold Underline Red256 GreenBgRGB");
+  });
+
+  it("strips terminal control characters while preserving meaningful whitespace like tabs and newlines", () => {
+    const input = "\x00\x1b[2J\x1b[HLine 1\x07\n\tLine 2\x08";
+    expect(stripTerminalControls(input)).toBe("Line 1\n\tLine 2");
+  });
+
+  it("returns an empty string unchanged", () => {
+    expect(stripTerminalControls("")).toBe("");
   });
 });

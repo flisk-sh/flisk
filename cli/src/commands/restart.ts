@@ -90,7 +90,10 @@ export const restartCommand = new Command("restart")
           );
           process.exit(1);
         }
-        throw new FliskError(`Failed to restart ${resourceName}: ${detail}`);
+        throw new FliskError(`Failed to restart ${resourceName}: ${detail}`, [
+          "Check that the stack is running with: flisk status",
+          `Read the resource logs with: flisk logs --service ${resourceName}`,
+        ]);
       }
 
       if (options.json) {

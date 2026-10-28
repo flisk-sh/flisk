@@ -157,13 +157,13 @@ Podman: doctor prints `Podman is running` when it is the runtime it finds, and `
 
 ```text
 ✗ Docker cannot create another network: all predefined address pools are in use. Each Flisk project needs several
-ℹ Fix: run flisk down --prune-networks in projects you are not using, or docker network prune (removes all unused networks)
+ℹ Fix: Run flisk doctor --fix --scope=machine: it removes unused networks of every Flisk project and keeps the ones in use. Or run flisk down --prune-networks in each project you are not using
 ```
 
 - **Cause:** Docker's default address pools are used up. Each Flisk project creates several networks and keeps them after `flisk down`. Docker's own error text is `all predefined address pools have been fully subnetted`; doctor matches `address pools`.
-- **Fix:** run `flisk down --prune-networks` in projects you no longer use, or `docker network prune`, which removes every unused network on that Docker daemon, whoever created it. `--prune-networks` was added in [#585](https://github.com/flisk-sh/flisk/pull/585).
+- **Fix:** run `flisk doctor --fix --scope=machine`. It lists every unused network that belongs to a Flisk project (each with its owner), skips any network with a container attached, and asks before it removes them; add `--dry-run` to only list them. Alternatives: `flisk down --prune-networks` in each project you no longer use, or `docker network prune`, which removes every unused network on that Docker daemon, whoever created it. `--prune-networks` was added in [#585](https://github.com/flisk-sh/flisk/pull/585).
 - **If you skip doctor:** since [#589](https://github.com/flisk-sh/flisk/pull/589), the `init-networks` resource in Tilt fails with `Failed to create Docker network <name>: <Docker's message>` and exits 1. Before it, the failure was swallowed (the command ended `|| true`), `init-networks` reported success, and the later failure was `network ... declared as external, but could not be found`, which is what [byo.md](byo.md#running-more-than-one-project) and the [moon recipe](recipes/moon.md) describe. The `Failed to create Docker network` text is in [`utils_docker_networks.star`](../runtime/engine/topologies/tilt/common/utils_docker_networks.star).
-- **Checked:** the doctor message is **simulated** (the stand-in `docker` failed `network create` with Docker's text). The `init-networks` and `declared as external` messages are **read from source and docs, not reproduced**; this machine's Docker pools are in use by other people's work and were not touched.
+- **Checked:** the doctor message is **simulated** (the stand-in `docker` failed `network create` with Docker's text). The `init-networks` failure was **reproduced** on 2026-10-27 (macOS, Colima, 32 networks, 25 of them unused): `Failed to create Docker network helpdock_backend: Error response from daemon: all predefined address pools have been fully subnetted`. Removing the unused networks of other Flisk projects let the next `network create` succeed.
 
 Note that `flisk doctor` itself runs `docker network create flisk_doctor_probe_<pid>` and removes it, to test whether a network can be created.
 
@@ -357,6 +357,18 @@ Before [#585](https://github.com/flisk-sh/flisk/pull/585), `flisk up shop` start
 
 - **Fix:** use a version that includes #585, then `flisk down`. On an older version, `docker ps` shows what is left; stop only containers whose names start with your project's.
 - **Checked:** read from the PR description and merged change, not reproduced.
+
+### `docker images` lists every service twice (`:dev` and `:tilt-<hash>`), and old builds fill the disk
+
+```text
+<project>_<stack>_<service>   dev                ddbc536add42
+<project>_<stack>_<service>   tilt-ddbc536add42  ddbc536add42
+```
+
+- **Cause:** Tilt builds each image as `<name>:tilt-<hash>`, tags it with the `:dev` name the compose service uses, and from then on uses only `:dev`. The `tilt-*` tag stays. Both tags are one image, so the pair costs no space, but after a rebuild the previous build keeps its own `tilt-*` tag, so a full old image per service stays on disk until Tilt's own prune.
+- **Fix:** the `tilt-image-tags` resource (label `infra.docker`) removes this project's `tilt-*` tags when `flisk up` starts and each time a build is tagged `:dev`: the tag on the current image, and old builds. An old build still used by the container compose is replacing goes once that container is removed. A newer build that Tilt has not tagged `:dev` yet is left alone. To keep the tags, run `FLISK_KEEP_TILT_TAGS=1 flisk up`. On a version without it, `docker image rm <name>:tilt-<hash>` removes a tag by hand; it never deletes an image another tag still names.
+- **Defined in:** [`tilt_image_tags.star`](../runtime/engine/topologies/tilt/resources/tilt_image_tags.star), registered by `load_all_infrastructure` in [`infra-loader.star`](../runtime/engine/topologies/tilt/resources/infra-loader.star).
+- **Checked:** unit tests with a fake `docker` (`tilt-image-tags-tilt.test.ts`), and the generated script run once in a Colima VM on Docker 29.5.2: six `:dev` services went from two tags to one with their containers still running, and a `:dev` tag event removed a new alias.
 
 ## Scaffolded code
 

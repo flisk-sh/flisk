@@ -13,7 +13,7 @@ permissions:
 jobs:
   graph:
     name: 📈 Refresh graph
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     permissions:
       contents: write # commit the refreshed SVG back to main

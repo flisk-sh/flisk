@@ -639,7 +639,7 @@ load('ext://live_update', 'sync', 'run')  # Remove this line!
 4. Verify in Tilt UI
 
 ### Adding New Generator
-1. Create generator in `engine/topologies/tilt/generators/`
+1. Create generator in `runtime/engine/topologies/tilt/generators/`
 2. Export in `index.star`
 3. Call from `manifest_resource.star`
 4. Test with single manifest

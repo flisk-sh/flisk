@@ -208,9 +208,14 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     db_url_for_tilt = PlatformDockerConstants.get_database_url_for_env(db_name)
     db_url_with_fallback = PlatformDockerConstants.get_compose_env_database_url(db_name)
     
+    # A migrator is a one-shot job: it applies migrations and exits. It serves no HTTP, gets no route, and is not restarted.
+    is_migrator = manifest.get('appType') == 'migrator' if manifest else False
+
     health_path = reject_unsafe_value(manifest.get('healthCheckPath', HEALTH_CHECK_PATH) if manifest else HEALTH_CHECK_PATH, 'healthCheckPath')
     # A bring-your-own service without healthCheckPath may not serve HTTP. None means no HTTP probe: no Traefik health check labels.
     if manifest and manifest.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath'):
+        health_path = None
+    if is_migrator:
         health_path = None
     
     traefik_cfg = manifest.get('traefik', {}) if manifest else {}
@@ -294,12 +299,17 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     restart_policy = 'unless-stopped'
     if is_byo and manifest.get('restart') in ['no', 'on-failure', 'unless-stopped', 'always']:
         restart_policy = manifest.get('restart')
+    # A migrator that exits 0 is done (Tilt counts an exited-0 container as ready); one that fails stays failed, so the error shows.
+    if is_migrator:
+        restart_policy = 'no'
     restart_policy = '"no"' if restart_policy == 'no' else restart_policy
 
     # No HTTP server means no HTTP probe. Disable explicitly: the image HEALTHCHECK would otherwise probe a port nothing listens on.
     no_http_healthcheck_section = NO_HTTP_HEALTHCHECK if (is_worker or health_path == None) else ""
     # Backends with a health path get it in the env, so the shared golden image's HEALTHCHECK can probe it.
     health_env = "      - FLISK_HEALTH_PATH={}\n".format(health_path) if health_path else ""
+    # A migrator listens on nothing, so it gets no PORT.
+    port_env = "" if is_migrator else "      - PORT={}\n".format(internal_port)
     # An agent with files durability keeps its session checkpoints in a named volume. The volume is declared at the top of the
     # generated file (generate_app_compose_from_entries reads the marker line below), so flisk down keeps it.
     agent_env = ""
@@ -312,7 +322,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
             agent_env += "      - AGENT_STATE_DIR=/var/lib/flisk-agent\n"
             agent_volume_section = "    # flisk-agent-volume: {vol}\n    volumes:\n      - {vol}:/var/lib/flisk-agent\n".format(vol=agent_volume)
 
-    if is_worker or is_proxy_disabled_byo:
+    if is_worker or is_migrator or is_proxy_disabled_byo:
         traefik_labels = '      - "traefik.enable=false"'
         healthcheck_section = no_http_healthcheck_section
     else:
@@ -334,7 +344,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         healthcheck_section = no_http_healthcheck_section if no_http_healthcheck_section else "" if is_byo else """    healthcheck:
       test: ["CMD", "curl", "-f", "--max-time", "5", "http://localhost:{internal_port}{health_path}"]
 """.format(internal_port=internal_port, health_path=health_path) + compose_healthcheck_timing()
-    infisical_env = get_infisical_environment_vars(as_array=True, resource_name=res_name)
+    infisical_env = get_infisical_environment_vars(as_array=True, resource_name=res_name, resource_type='migrator' if is_migrator else 'backend')
     
     # Build auth environment variables section using centralized auth utilities
     
@@ -350,8 +360,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     environment:
 {infisical_env}
       - RESOURCE_NAME={stack}
-      - PORT={port_anchor}
-{health_env}{agent_env}      - INSTANCE_ID={instance_label}
+{port_env}{health_env}{agent_env}      - INSTANCE_ID={instance_label}
       - NATS_QUEUE_GROUP={nats_queue}
       - TILT_DATABASE_URL={db_url_for_tilt}
       - TILT_NATS_URL={nats_url}
@@ -392,7 +401,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         env_file_rel_path=env_file_rel_path,
         stack=stack,
         internal_port=internal_port,
-        port_anchor=internal_port,
+        port_env=port_env,
         restart_policy=restart_policy,
         dev_port=dev_port,
         db_name=db_name,

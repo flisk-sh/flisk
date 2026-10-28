@@ -43,6 +43,20 @@ export function rewriteSkillLinks(markdown: string): string {
   return markdown.replace(/\]\((?:\.\.\/)+docs\//g, `](${DOCS_URL}`);
 }
 
+/** The skill files Flisk ships for the given skill directories: a root-relative path and its contents. */
+export function agentSkillFiles(
+  dirs: readonly string[] = AGENT_SKILL_DIRS,
+): Array<{ rel: string; contents: string }> {
+  const files: Array<{ rel: string; contents: string }> = [];
+  for (const name of PROJECT_AGENT_SKILLS) {
+    const contents = rewriteSkillLinks(loadTemplate(`agent-skills/${name}/SKILL.md`));
+    for (const dir of dirs) {
+      files.push({ rel: path.join(dir, name, "SKILL.md"), contents });
+    }
+  }
+  return files;
+}
+
 /**
  * Write the Flisk agent skills and an AGENTS.md into a project. Never overwrites: a file that already exists is left
  * as it is, so a user's own edits survive `flisk project` running again. Returns the paths written, relative to the
@@ -50,16 +64,12 @@ export function rewriteSkillLinks(markdown: string): string {
  */
 export function installAgentSkills(projectRoot: string): string[] {
   const written: string[] = [];
-  for (const name of PROJECT_AGENT_SKILLS) {
-    const contents = rewriteSkillLinks(loadTemplate(`agent-skills/${name}/SKILL.md`));
-    for (const dir of AGENT_SKILL_DIRS) {
-      const rel = path.join(dir, name, "SKILL.md");
-      const target = path.join(projectRoot, rel);
-      if (existsSync(target)) continue;
-      mkdirSync(path.dirname(target), { recursive: true });
-      writeFileSync(target, contents);
-      written.push(rel);
-    }
+  for (const { rel, contents } of agentSkillFiles()) {
+    const target = path.join(projectRoot, rel);
+    if (existsSync(target)) continue;
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, contents);
+    written.push(rel);
   }
   const agentsMd = path.join(projectRoot, "AGENTS.md");
   if (!existsSync(agentsMd)) {

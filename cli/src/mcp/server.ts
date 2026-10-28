@@ -8,6 +8,8 @@
 
 export interface McpTool {
   name: string;
+  /** Former names that tools/call still accepts, so older agent configs keep working; tools/list shows only `name`. */
+  aliases?: readonly string[];
   description: string;
   inputSchema: Record<string, unknown>;
   handler: (args: Record<string, unknown>) => Promise<McpToolResult>;
@@ -52,7 +54,10 @@ export function createMcpServer(
   tools: McpTool[],
   info: { name: string; version: string },
 ): McpServer {
-  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  // Aliases first, so a tool's own name always wins over another tool's former name.
+  const byName = new Map<string, McpTool>();
+  for (const tool of tools) for (const alias of tool.aliases ?? []) byName.set(alias, tool);
+  for (const tool of tools) byName.set(tool.name, tool);
 
   async function handle(message: JsonRpcRequest): Promise<string | null> {
     const isNotification = message.id === undefined;

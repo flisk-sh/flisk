@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 const run = (command, args) => execFileSync(command, args, { encoding: "utf-8", stdio: "pipe", windowsHide: true });
 /** Network names the engine creates per project (see engine/.../docker/constants.star and init-networks). */
 const PROJECT_NETWORK_SUFFIXES = [
@@ -100,6 +102,37 @@ export function findProjectTiltUpPids(tiltfilePath, platform = process.platform,
         }
     }
     return pids;
+}
+const PROJECT_TILTFILE_SUFFIX = "/.flisk/.flisk-out/Tiltfile";
+/**
+ * Roots of the Flisk projects that have a `tilt up` running, read from each process's `-f <root>/.flisk/.flisk-out/Tiltfile`
+ * (the Tiltfile `flisk up` passes). Lets `flisk down` find the project when it runs outside one. A root counts only while
+ * it still has `.flisk/project.json`.
+ */
+export function findRunningFliskProjects(platform = process.platform, commandRunner = run, isProject = (root) => existsSync(join(root, ".flisk", "project.json"))) {
+    if (platform === "win32")
+        return [];
+    let output;
+    try {
+        output = commandRunner("ps", ["-axo", "pid=,command="]);
+    }
+    catch {
+        return [];
+    }
+    const roots = new Set();
+    for (const line of output.split(/\r?\n/)) {
+        const command = /^\s*\d+\s+(.*)$/.exec(line)?.[1] ?? "";
+        const exe = (command.split(/\s+/)[0] ?? "").split("/").at(-1);
+        if (exe !== "tilt" || !/^\S+\s+up\s/.test(command))
+            continue;
+        const tiltfile = / -f (\/.*?\/\.flisk\/\.flisk-out\/Tiltfile)(?= |$)/.exec(command)?.[1];
+        if (!tiltfile)
+            continue;
+        const root = tiltfile.slice(0, -PROJECT_TILTFILE_SUFFIX.length);
+        if (isProject(root))
+            roots.add(root);
+    }
+    return [...roots].sort();
 }
 export function stopProjectTiltUp(tiltfilePath, platform = process.platform, commandRunner = run) {
     const pids = findProjectTiltUpPids(tiltfilePath, platform, commandRunner);

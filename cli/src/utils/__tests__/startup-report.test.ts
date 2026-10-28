@@ -346,11 +346,11 @@ describe("shared infrastructure that fails before any service starts", () => {
       undefined,
       fixes,
     );
-    expect(lines.join("\n")).toContain("flisk down --prune-networks");
+    expect(lines.join("\n")).toContain("flisk doctor --fix --scope=machine");
   });
 
   it("explains an exhausted Docker network pool", () => {
-    expect(machineProblemFix(poolExhausted)).toContain("flisk down --prune-networks");
+    expect(machineProblemFix(poolExhausted)).toContain("flisk doctor --fix --scope=machine");
     expect(machineProblemFix("exit status 1")).toBeNull();
     const lines = formatStartupReport(buildStartupReport(text, {}), false);
     expect(lines.join("\n")).toContain("Docker has no free network ranges left");

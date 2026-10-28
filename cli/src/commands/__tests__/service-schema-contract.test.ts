@@ -316,3 +316,31 @@ describe("command services (the minimal contract)", () => {
     expect(validateService({ ...minimal, env: { PORT2: 1 } })).toBe(false);
   });
 });
+
+describe("bring-your-own keeps its Compose port and short names", () => {
+  it("accepts the container's own port and a two-letter name for bring-your-own", () => {
+    for (const port of [80, 3000, 5432, 8080]) {
+      const ok = validateService(
+        manifest({ appName: "db", appType: "bring-your-own", port, image: "postgres:16" }),
+      );
+      expect(ok, `${port}: ${JSON.stringify(validateService.errors)}`).toBe(true);
+    }
+  });
+
+  it("still keeps backend and frontend ports in their Flisk ranges", () => {
+    expect(validateService(manifest({ appName: "api", appType: "backend", port: 3000 }))).toBe(
+      false,
+    );
+    expect(validateService(manifest({ appName: "web", appType: "frontend", port: 80 }))).toBe(
+      false,
+    );
+  });
+
+  it("rejects a one-letter name", () => {
+    expect(
+      validateService(
+        manifest({ appName: "d", appType: "bring-your-own", port: 5432, image: "postgres:16" }),
+      ),
+    ).toBe(false);
+  });
+});

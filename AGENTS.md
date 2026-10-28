@@ -2,7 +2,7 @@
 
 Contributor and AI coding agent guidelines for Flisk.
 
-Flisk (Topology Development Kit) runs a local development inner loop for microservices and multi-agent systems on Docker and Tilt. It discovers services from manifests, generates necessary local configurations (Vite, TSConfig, Compose), and orchestrates live-reloading environments. It is designed for fast local development; it does not emit Kubernetes manifests by default and does not replace production cluster orchestrators like Helm, Kustomize, Flux, or Argo.
+Flisk runs a local development inner loop for microservices and multi-agent systems on Docker and Tilt. It discovers services from manifests, generates necessary local configurations (Vite, TSConfig, Compose), and orchestrates live-reloading environments. It is designed for fast local development; it does not emit Kubernetes manifests by default and does not replace production cluster orchestrators like Helm, Kustomize, Flux, or Argo.
 
 ## Repository Map
 
@@ -57,8 +57,8 @@ Run `make help` to inspect all available targets:
   - Create services: `flisk resource <name> --type agent|backend|worker|mcp` or call the `resource_create` MCP tool
   - Start the stack: `flisk up [stack]` or call the `up` MCP tool
   - Inspect status: `flisk status --json` or call the `status` MCP tool
-  - Inspect agent sessions: `flisk agent sessions <resource>` lists them (add `--watch` to refresh); `--session-id <id>` reads one checkpoint. The MCP tool `get_agent_sessions` takes an optional `sessionId` the same way
-  - Restart services: `flisk restart <resource>` or call `restart_resource`
+  - Inspect agent sessions: `flisk agent sessions <resource>` lists them (add `--watch` to refresh); `--session-id <id>` reads one checkpoint. The MCP tool `agent_sessions` takes an optional `sessionId` the same way
+  - Restart services: `flisk restart <resource>` or call `resource_restart`
   - Check diagnostics: `flisk doctor --json`; check generated files with `flisk config verify --json` or the `config_verify` MCP tool
 - Agent resource contracts: The `agent` resource type manages its own process contract (`/health` for liveness, `/ready` for checkpoint store reachable, `GET /sessions` lists stored sessions, session routing via `x-session-id`, checkpoints survive restarts).
 - MCP integration: Use `flisk mcp` over stdio (`{ "command": "flisk", "args": ["mcp"] }`) for full MCP stack integration.

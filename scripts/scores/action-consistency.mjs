@@ -124,8 +124,43 @@ export function analyse(files) {
 	return [...pinProblems(uses), ...structureProblems(files)];
 }
 
-export async function measure({ root }) {
+// Deviations from the most common node-version or runner that are on purpose: { file, kind, value, reason }. Each
+// covers that value in that file only; an entry that matches no deviation is a finding, so the list cannot go stale.
+export const EXPECTED = [
+	{
+		file: ".github/workflows/ci.yml",
+		kind: "node-version",
+		value: "22.12",
+		reason: "the published-package smoke and audit run on the oldest Node that cli/package.json engines.node allows (>=22.12.0)",
+	},
+	...["release-binaries.yml", "publish-flisk-import.yml", "publish-existing-npm-to-github-packages.yml"].map((name) => ({
+		file: `.github/workflows/${name}`,
+		kind: "node-version",
+		value: "24.15.0",
+		reason: "publish jobs run npm publish with the npm 11 that Node 24 bundles (npm trusted publishing needs npm >= 11.5.1)",
+	})),
+	{
+		file: ".github/workflows/e2e-platforms-wsl2.yml",
+		kind: "runs-on",
+		value: "windows-2022",
+		reason: "the WSL2 suite stays on the Windows image it was validated on (#1876); setup-wsl's wsl --update is flaky (#716)",
+	},
+];
+
+// Drops the expected deviations from findings and reports EXPECTED entries that match none.
+export function withoutExpected(findings, expected = EXPECTED) {
+	const used = new Set();
+	const kept = findings.filter((f) => {
+		const e = expected.find((x) => f.startsWith(`${x.file}: ${x.kind} ${x.value} (`));
+		if (e) used.add(e);
+		return !e;
+	});
+	const stale = expected.filter((e) => !used.has(e)).map((e) => `${e.file}: EXPECTED ${e.kind} ${e.value} no longer deviates; remove it`);
+	return [...kept, ...stale];
+}
+
+export async function measure({ root }, expected = EXPECTED) {
 	const files = workflowFiles(root).map((file) => ({ file, text: readFileSync(path.join(root, file), "utf8") }));
-	const findings = analyse(files);
+	const findings = withoutExpected(analyse(files), expected);
 	return { value: findings.length, summary: `${files.length} workflow and action files, ${findings.length} anomalies`, findings };
 }

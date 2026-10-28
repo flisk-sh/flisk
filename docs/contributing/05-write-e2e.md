@@ -9,7 +9,7 @@ This page explains when you need one, where it goes, how to write it, and how to
 Add or extend an e2e test when your change:
 
 - adds a resource type, or changes what a type scaffolds or how it runs;
-- adds a command or an MCP tool that talks to a running stack (`flisk agent sessions`, `flisk restart`, `get_agent_sessions`);
+- adds a command or an MCP tool that talks to a running stack (`flisk agent sessions`, `flisk restart`, `agent_sessions`);
 - changes `flisk up`, `flisk down`, Traefik routing, or the engine's generated Compose and Tilt files;
 - adds a backend language, a backend or frontend framework, or another provider that users pick with a flag.
 

@@ -11,6 +11,9 @@ export default defineConfig({
       "src/generator/__tests__/template-engine.test.ts",
       "src/generator/__tests__/resource-templates.test.ts",
       "src/generator/__tests__/generated-headers.test.ts",
+      // Renders whole projects through generateMasterConfigs and compares them with checked-in golden files: the
+      // only pure test of most of template-engine.ts, so without it those mutants count as NoCoverage.
+      "src/generator/__tests__/golden-generated-output.test.ts",
     ],
     testTimeout: 30_000,
   },

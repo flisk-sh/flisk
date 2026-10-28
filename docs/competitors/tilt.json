@@ -236,7 +236,7 @@
 						"command": "flisk restart"
 					},
 					{
-						"mcpTool": "restart_resource"
+						"mcpTool": "resource_restart"
 					}
 				]
 			}

@@ -34,8 +34,8 @@ def validate_manifest(manifest):
         issues.append("Missing required field: appName")
     elif type(app_name) != 'string':
         issues.append("appName must be a string")
-    elif len(app_name) < 3:
-        issues.append("appName too short: '" + app_name + "'. Minimum 3 characters")
+    elif len(app_name) < 2:
+        issues.append("appName too short: '" + app_name + "'. Minimum 2 characters")
     elif len(app_name) > 64:
         issues.append("appName too long: '" + app_name + "'. Maximum 64 characters")
     
@@ -70,6 +70,11 @@ def validate_manifest(manifest):
             issues.append("Missing required field: port")
     elif type(port) != 'int':
         issues.append("Invalid port: " + str(port) + ". Must be an integer")
+    elif app_type == 'bring-your-own':
+        # A bring-your-own port is the port its own container listens on (Traefik reaches it on the stack
+        # network; nothing is published on the host), so an imported Compose app keeps 3000, 80 or 5432.
+        if port < 1 or port > 65535:
+            issues.append("Invalid port: " + str(port) + ". Must be integer 1-65535")
     elif app_type != 'infra':
         if port < 3000 or port > 9999:
             issues.append("Invalid port: " + str(port) + ". Must be integer 3000-9999")

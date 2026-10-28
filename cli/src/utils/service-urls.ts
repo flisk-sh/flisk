@@ -3,13 +3,28 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DiscoveredResource } from "../types/index.js";
-import { PROJECT_JSON } from "./constants.js";
+import { BRING_YOUR_OWN_TYPE, PROJECT_JSON } from "./constants.js";
 import { findProjectRoot } from "./paths.js";
 import { isApiServiceType } from "./resource-kind.js";
 
+/**
+ * A bring-your-own service with a Traefik route (the default; `exposeViaProxy: false` turns it off). The engine routes it like a
+ * backend, at the API host under /api/<name>, and publishes nothing on the host, so this route is the only address it has.
+ */
+export function isRoutedBringYourOwn(resource: DiscoveredResource): boolean {
+  return (
+    resource.config?.appType === BRING_YOUR_OWN_TYPE && resource.config?.exposeViaProxy !== false
+  );
+}
+
+/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services. */
+export function routesAsApi(resource: DiscoveredResource): boolean {
+  return isApiServiceType(resource.config?.appType) || isRoutedBringYourOwn(resource);
+}
+
 export interface HealthTarget {
   name: string;
-  appType: "frontend" | "backend" | "mcp" | "agent";
+  appType: "frontend" | "backend" | "mcp" | "agent" | typeof BRING_YOUR_OWN_TYPE;
   url: string;
 }
 
@@ -80,7 +95,7 @@ export function appendHealthPath(path: string): string {
 
 /** The route `flisk up` advertises for a service, without the /health suffix. */
 export function resolveServicePath(resource: DiscoveredResource): string {
-  if (isApiServiceType(resource.config?.appType)) {
+  if (routesAsApi(resource)) {
     const servicePathName = resource.name.replace(/-api$/, "");
     return resource.config?.apiPath ?? `/api/${servicePathName}`;
   }
@@ -96,7 +111,7 @@ export function resolveServiceUrl(
   ingressPort?: number,
 ): string | undefined {
   const appType = resource.config?.appType;
-  if (appType !== "frontend" && !isApiServiceType(appType)) return undefined;
+  if (appType !== "frontend" && !routesAsApi(resource)) return undefined;
   const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
   return `${appType === "frontend" ? appBase : apiBase}${resolveServicePath(resource)}`;
 }
@@ -121,13 +136,16 @@ export function buildAdvertisedTargets(
   resources: DiscoveredResource[],
   ingressPort?: number,
 ): HealthTarget[] {
-  return routableTargets(resources, ingressPort, (path) => path);
+  // A routed bring-your-own service is advertised too: its route is the only address it has. It is not a health target, because
+  // its health path is its own (often /), not /health.
+  return routableTargets(resources, ingressPort, (path) => path, true);
 }
 
 function routableTargets(
   resources: DiscoveredResource[],
   ingressPort: number | undefined,
   toPath: (path: string) => string,
+  includeBringYourOwn = false,
 ): HealthTarget[] {
   const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
 
@@ -136,11 +154,14 @@ function routableTargets(
       (
         resource,
       ): resource is DiscoveredResource & {
-        config: { appType: "frontend" | "backend" | "mcp" | "agent" };
-      } => resource.config?.appType === "frontend" || isApiServiceType(resource.config?.appType),
+        config: { appType: HealthTarget["appType"] };
+      } =>
+        resource.config?.appType === "frontend" ||
+        isApiServiceType(resource.config?.appType) ||
+        (includeBringYourOwn && isRoutedBringYourOwn(resource)),
     )
     .map((resource) => {
-      const base = isApiServiceType(resource.config.appType) ? apiBase : appBase;
+      const base = routesAsApi(resource) ? apiBase : appBase;
       return {
         name: resource.name,
         appType: resource.config.appType,

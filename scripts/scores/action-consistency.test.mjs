@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { analyse, measure, usesLines } from "./action-consistency.mjs";
+import { analyse, measure, usesLines, withoutExpected } from "./action-consistency.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const A = "a".repeat(40);
@@ -56,7 +56,7 @@ test("measure reads workflows and composite actions from disk", async () => {
 			mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
 			writeFileSync(path.join(root, rel), body);
 		}
-		const r = await measure({ root });
+		const r = await measure({ root }, []);
 		assert.equal(r.value, 1);
 		assert.match(r.findings[0], /^o\/r: different SHAs/);
 	} finally {
@@ -67,4 +67,19 @@ test("measure reads workflows and composite actions from disk", async () => {
 test("this repository: stable", async () => {
 	const first = await measure({ root: repoRoot });
 	assert.deepEqual(await measure({ root: repoRoot }), first);
+});
+
+test("EXPECTED drops a deliberate deviation in its own file only and flags an entry that matches nothing", () => {
+	const findings = [
+		".github/workflows/a.yml: node-version 24.15.0 (j3); most common 22 x4 of 5 (22 x4, 24.15.0 x1)",
+		".github/workflows/b.yml: node-version 24.15.0 (j1); most common 22 x4 of 5 (22 x4, 24.15.0 x1)",
+	];
+	const expected = [
+		{ file: ".github/workflows/a.yml", kind: "node-version", value: "24.15.0", reason: "publish" },
+		{ file: ".github/workflows/c.yml", kind: "runs-on", value: "windows-2022", reason: "old" },
+	];
+	assert.deepEqual(withoutExpected(findings, expected), [
+		findings[1],
+		".github/workflows/c.yml: EXPECTED runs-on windows-2022 no longer deviates; remove it",
+	]);
 });

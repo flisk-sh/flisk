@@ -57,7 +57,20 @@ export const INTERNAL = [
 
 // Pairs of different names that are different variables on purpose (TILT_X is Tilt's or the engine's, FLISK_X is the
 // CLI's). Each needs its reason; a pair that no longer exists is a finding.
-export const DISTINCT = [];
+export const DISTINCT = [
+	{
+		pair: ["FLISK_DEBUG", "TILT_DEBUG"],
+		reason: "FLISK_DEBUG is the CLI's switch; TILT_DEBUG is read by the Starlark engine and set by the CLI from it",
+	},
+	{
+		pair: ["FLISK_ENV", "TILT_ENV"],
+		reason: "TILT_ENV selects the environment in the engine; FLISK_ENV is the value the generated container receives",
+	},
+	{
+		pair: ["FLISK_VERSION", "TILT_VERSION"],
+		reason: "FLISK_VERSION pins the Flisk CLI release in CI; TILT_VERSION pins the Tilt binary in images and doctor",
+	},
+];
 
 const isDoc = (rel) =>
 	/\.md$/i.test(rel) || /^docs\/.*\.txt$/.test(rel) || /(^|\/)\.env\.(example|sample)$|\.env\.example$/.test(rel);

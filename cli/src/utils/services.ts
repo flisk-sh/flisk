@@ -21,7 +21,7 @@ import {
   SERVICE_JSON,
   SKIP_DIRECTORIES,
 } from "./constants.js";
-import { errorFactories } from "./errors.js";
+import { errorFactories, FliskError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
@@ -85,6 +85,10 @@ function isValidResourceConfig(value: unknown): value is ResourceConfig {
   return typeof config.appName === "string" && hasRuntimeOrAppType;
 }
 
+function readLegacyAppType(parsed: Record<string, unknown>): ResourceConfig["appType"] | undefined {
+  return typeof parsed.type === "string" ? (parsed.type as ResourceConfig["appType"]) : undefined;
+}
+
 // Discovery may be invoked more than once per process,
 // so remember what was already printed and show each warning once.
 const printedWarnings = new Set<string>();
@@ -93,9 +97,17 @@ export function resetPrintedServiceWarnings(): void {
   printedWarnings.clear();
 }
 
-class InvalidServiceJsonError extends Error {
-  constructor(readonly reason: string) {
-    super(reason);
+const FIX_SERVICE_JSON = [
+  "Fix that service.json",
+  "Check every service.json with: flisk config verify",
+];
+
+class InvalidServiceJsonError extends FliskError {
+  constructor(
+    readonly reason: string,
+    suggestions: string[] = [],
+  ) {
+    super(reason, suggestions);
     this.name = "InvalidServiceJsonError";
   }
 }
@@ -109,14 +121,17 @@ function parseResource(serviceJsonPath: string): DiscoveredResource {
   try {
     content = fs.readFileSync(serviceJsonPath, "utf-8");
   } catch (error) {
-    throw new InvalidServiceJsonError(`could not read file: ${errorMessage(error)}`);
+    throw new InvalidServiceJsonError(
+      `could not read file: ${errorMessage(error)}`,
+      FIX_SERVICE_JSON,
+    );
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
   } catch (error) {
-    throw new InvalidServiceJsonError(`invalid JSON: ${errorMessage(error)}`);
+    throw new InvalidServiceJsonError(`invalid JSON: ${errorMessage(error)}`, FIX_SERVICE_JSON);
   }
 
   if (!isValidResourceConfig(parsed)) {
@@ -124,16 +139,19 @@ function parseResource(serviceJsonPath: string): DiscoveredResource {
       declaresCommand(parsed as Record<string, unknown>)
         ? "missing required fields (appName and appType)"
         : "missing required fields (appName, runtime or appType)",
+      FIX_SERVICE_JSON,
     );
   }
 
   const nativeErrors = validateNativeServiceFields(parsed as Record<string, unknown>);
-  if (nativeErrors.length > 0) throw new InvalidServiceJsonError(nativeErrors.join("; "));
+  if (nativeErrors.length > 0)
+    throw new InvalidServiceJsonError(nativeErrors.join("; "), FIX_SERVICE_JSON);
 
   const invalidRoutePathFields = getInvalidServiceRoutePathFields(parsed);
   if (invalidRoutePathFields.length > 0) {
     throw new InvalidServiceJsonError(
       invalidRoutePathFields.map((field) => `${field}: expected a string`).join("; "),
+      FIX_SERVICE_JSON,
     );
   }
 
@@ -141,9 +159,10 @@ function parseResource(serviceJsonPath: string): DiscoveredResource {
     parsed as Record<string, unknown>,
     serviceJsonPath,
   );
-  if (unsafeFields.length > 0) throw new InvalidServiceJsonError(unsafeFields.join("; "));
+  if (unsafeFields.length > 0)
+    throw new InvalidServiceJsonError(unsafeFields.join("; "), FIX_SERVICE_JSON);
 
-  const parsedConfig = parsed as unknown as ResourceConfig;
+  const parsedConfig = parsed;
   for (const warning of validateServiceManifest(parsed, serviceJsonPath).warnings) {
     // The warning names the file and field and says what is wrong (unknown, deprecated, ignored), so do not prefix it.
     if (printedWarnings.has(warning)) continue;
@@ -152,8 +171,7 @@ function parseResource(serviceJsonPath: string): DiscoveredResource {
   }
   const config: ResourceConfig = {
     ...parsedConfig,
-    appType: (parsedConfig.appType ||
-      (parsedConfig as unknown as { type?: string }).type) as ResourceConfig["appType"],
+    appType: (parsedConfig.appType || readLegacyAppType(parsedConfig)) as ResourceConfig["appType"],
   };
   const resourceDir = dirname(serviceJsonPath);
 
@@ -229,10 +247,11 @@ export function discoverResourcesStrict(discovered?: {
   }
 
   if (result.problems.length > 0) {
-    throw new Error(
+    throw new FliskError(
       result.problems
         .map((problem) => `Invalid service.json at ${problem.path}: ${problem.reason}`)
         .join("\n"),
+      FIX_SERVICE_JSON,
     );
   }
 

@@ -1,15 +1,18 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { describe, expect, it } from "vitest";
+import chalk from "chalk";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createDemoStage,
   type DemoState,
   FRAME_ROWS,
+  type FrameRow,
   formatElapsed,
   frameToPlain,
   renderDemoFrame,
   sanitizeCell,
+  styleRow,
 } from "../demo-stage.js";
 
 function baseState(patch: Partial<DemoState> = {}): DemoState {
@@ -228,5 +231,40 @@ describe("createDemoStage", () => {
     const output = stream.chunks.join("");
     expect(output).toContain("✖  Installing dependencies");
     expect(output).toContain("The stack did not come up.");
+  });
+});
+
+describe("styleRow", () => {
+  const originalLevel = chalk.level;
+
+  beforeEach(() => {
+    chalk.level = 1;
+  });
+
+  afterEach(() => {
+    chalk.level = originalLevel;
+  });
+
+  it("formats a normal row with styled segments", () => {
+    const row: FrameRow = [
+      { text: "✔  ", style: "ok" },
+      { text: "Fetching the demo", style: "bold" },
+      { text: " · ", style: "plain" },
+      { text: "0.9s", style: "dim" },
+      { text: " ◐ installing", style: "warn" },
+      { text: " ✖ failed", style: "err" },
+    ];
+    const expected = `${chalk.green("✔  ")}${chalk.bold("Fetching the demo")} · ${chalk.gray("0.9s")}${chalk.yellow(" ◐ installing")}${chalk.red(" ✖ failed")}`;
+    expect(styleRow(row)).toBe(expected);
+  });
+
+  it("handles an empty row without throwing and returns an empty string", () => {
+    expect(() => styleRow([])).not.toThrow();
+    expect(styleRow([])).toBe("");
+  });
+
+  it("formats single-segment rows", () => {
+    expect(styleRow([{ text: "plain text", style: "plain" }])).toBe("plain text");
+    expect(styleRow([{ text: "bold title", style: "bold" }])).toBe(chalk.bold("bold title"));
   });
 });

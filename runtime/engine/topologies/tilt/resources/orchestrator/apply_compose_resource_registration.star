@@ -582,7 +582,8 @@ def _register_dc_resources(resource_configs, resource_path, compose_project_name
 
 # appTypes whose containers get DATABASE_URL and therefore need their logical database provisioned. Bring-your-own
 # containers receive DATABASE_URL too (docs/byo.md), so without provisioning they point at a database that never exists.
-DATABASE_APP_TYPES = ['backend', 'bring-your-own']
+# A migrator's whole job is that database.
+DATABASE_APP_TYPES = ['backend', 'bring-your-own', 'migrator']
 
 
 def resource_needs_database(manifest):
@@ -697,12 +698,12 @@ def _build_resource_config(res, manifest, resource_config, full_res_path, infra_
 
 
 def count_routable_backends_by_stack(resource_config, resource_manifests, default_stack):
-    """Count the backends of each stack that get a Traefik route (workers, frontends, SDKs, libraries and unproxied BYO do not)."""
+    """Count the backends of each stack that get a Traefik route (workers, migrators, frontends, SDKs, libraries and unproxied BYO do not)."""
     counts = {}
     for resource in resource_config.get('resources', []):
         manifest = resource_manifests.get(resource['name'], {})
         app_type = manifest.get('appType', 'backend')
-        if resource.get('frontend', False) or app_type in ['frontend', 'worker', 'library', 'sdk', 'infra']:
+        if resource.get('frontend', False) or app_type in ['frontend', 'worker', 'migrator', 'library', 'sdk', 'infra']:
             continue
         if app_type == 'bring-your-own' and not manifest.get('exposeViaProxy', True):
             continue

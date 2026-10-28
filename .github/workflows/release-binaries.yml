@@ -274,6 +274,7 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         with:
+          retries: 3 # transient GitHub 5xx (scripts/scores/github-script-retries.mjs)
           script: |
             const { owner, repo } = context.repo;
             const version = process.env.VERSION;

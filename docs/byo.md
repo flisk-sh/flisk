@@ -27,7 +27,7 @@ Aliases: `byo`, `bring-your-own`
 
 - Flisk does not generate application code for this type
 - Provide your own Dockerfile or use `--image <name>` to use an existing image
-- Default port range: 4000-5999 (next free port)
+- Port: the port your container listens on (any 1-65535). `flisk resource` suggests the next free one in 4000-5999 when you do not pass one
 - If Dockerfile exists, it will not be overwritten
 - BYO resources receive the standard Traefik route by default. Use `--no-proxy` to disable it;
   this writes `exposeViaProxy: false` to the service manifest
@@ -103,7 +103,7 @@ The existing `Dockerfile` is kept, and the resource gets a `service.json` like t
 ### Limits
 
 - **No live reload.** Flisk does not sync source into a bring-your-own container, and only the manifest is watched. After changing source, rebuild the image from the Tilt UI or restart `flisk up`. For Go, the native provider has an opt-in loop (`dev.liveReload`, see [backend language providers](backend-language-providers.md#opt-in-live-reload)); a Go app you bring as a container, including the Gin example, does not get it.
-- **Ports.** 4000-5999 for this type, shared with backends.
+- **Ports.** `port` is the port inside your container, such as 3000, 8080 or 5432. Nothing is published on your machine: Traefik reaches the container on the stack network, so two bring-your-own services can both use 5432. Names can be two characters (`db`), so the Compose hostname keeps working.
 - **No generated code.** Flisk will not add a health route, a `PORT` read or a Dockerfile for you.
 
 ### Examples and recipes

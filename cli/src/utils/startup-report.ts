@@ -58,7 +58,7 @@ export async function machineProblemFixes(
 /** A plain fix for a failure message that names a known machine problem, or null. */
 export function machineProblemFix(message: string): string | null {
   if (NETWORK_POOL_EXHAUSTED.test(message)) {
-    return "Fix: Docker has no free network ranges left. Run `flisk down --prune-networks` in Flisk projects you no longer use (or `docker network prune` to remove every unused network), then run flisk up again";
+    return "Fix: Docker has no free network ranges left. Run `flisk doctor --fix --scope=machine` to remove the unused networks of every Flisk project (networks in use are kept), then run flisk up again";
   }
   return null;
 }

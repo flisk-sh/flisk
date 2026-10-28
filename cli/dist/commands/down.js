@@ -1,11 +1,12 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
-import { pruneProjectNetworks, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
-import { errorFactories, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
+import { findRunningFliskProjects, pruneProjectNetworks, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
+import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { writeMachineError } from "../utils/machine-output.js";
 import { readNativeRunState, stopNativeRun } from "../utils/native-runtime.js";
@@ -32,6 +33,42 @@ function isNativeRun(projectRoot) {
     catch {
         return false;
     }
+}
+/**
+ * The project to stop: the one at `--project`, else the one around the current folder, else the only Flisk project with
+ * a `tilt up` running. Exits with the project-root error when none is found, and lists them when several are running.
+ */
+function resolveDownProject(options) {
+    const fail = (error) => {
+        if (options.json)
+            writeMachineError(error);
+        return error.exit();
+    };
+    if (options.project) {
+        const path = resolve(options.project);
+        return (findProjectRoot(path) ??
+            fail(new FliskError(`No Flisk project at ${path} (no .flisk/project.json found)`, [
+                "Pass the folder of a Flisk project: flisk down --project <path>",
+            ])));
+    }
+    const here = findProjectRoot();
+    if (here)
+        return here;
+    const running = findRunningFliskProjects();
+    if (running.length === 1) {
+        const root = running[0];
+        if (!options.json)
+            console.log(chalk.gray(`Not in a Flisk project; stopping the one that is running: ${root}`));
+        return root;
+    }
+    if (running.length > 1) {
+        return fail(new FliskError(`Not in a Flisk project, and ${running.length} Flisk projects are running`, running.map((root) => `flisk down --project ${root}`)));
+    }
+    const notInProject = errorFactories.notInProject();
+    return fail(new FliskError(notInProject.message, [
+        ...notInProject.suggestions,
+        "Or name the project to stop from anywhere: flisk down --project <path>",
+    ]));
 }
 function pruneNetworksOrWarn(json) {
     const root = findProjectRoot();
@@ -63,13 +100,15 @@ export const downCommand = addYesOption(new Command("down"))
     .option("--prune-networks", "Also remove this project's Docker networks (only those no container is attached to)", false)
     .option("--dry-run", "Show what would be stopped without stopping", false)
     .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
-    .action(async (options) => {
-    if (!findProjectRoot()) {
-        const projectRootError = errorFactories.notInProject();
-        if (options.json)
-            writeMachineError(projectRootError);
-        projectRootError.exit();
-    }
+    .option("--project <path>", "Stop the Flisk project in this folder (default: the current project, or the only running one)")
+    .action(async (options, command) => {
+    // The root program also defines `--project` (the one-command template flow), and Commander gives a root option to
+    // the root wherever it appears, so `flisk down --project <path>` arrives in the global options.
+    const project = options.project ?? command.optsWithGlobals().project;
+    const resolvedRoot = resolveDownProject({ ...options, project });
+    // Everything below reads the project from the current folder (Tiltfile, stacks, networks), so stop from its root.
+    if (findProjectRoot() !== resolvedRoot)
+        process.chdir(resolvedRoot);
     if (options.force) {
         options.yes = true;
         if (!options.json) {

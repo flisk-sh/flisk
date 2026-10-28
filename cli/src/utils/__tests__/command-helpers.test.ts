@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
+import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +14,14 @@ vi.mock("../errors.js", () => ({ showErrorAndExit: mocks.showErrorAndExit }));
 vi.mock("../formatting.js", () => ({ showCancelled: mocks.showCancelled }));
 vi.mock("../prompt.js", () => ({ promptConfirm: mocks.promptConfirm }));
 
-import { assertValid, confirmOrCancel, handleDryRun } from "../command-helpers.js";
+import {
+  addYesOption,
+  assertValid,
+  confirmAction,
+  confirmOrCancel,
+  handleDryRun,
+  YES_OPTION_FLAGS,
+} from "../command-helpers.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -21,6 +30,129 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("addYesOption", () => {
+  it("registers the shared flags on a Commander command", () => {
+    const command = new Command("test");
+
+    addYesOption(command);
+
+    const yesOption = command.options.find((option) => option.long === "--yes");
+    expect(yesOption).toBeDefined();
+    expect(yesOption?.flags).toBe(YES_OPTION_FLAGS);
+  });
+
+  it("parses --yes as true", () => {
+    const command = new Command("test");
+    addYesOption(command);
+
+    command.parse(["node", "test", "--yes"], { from: "node" });
+
+    expect(command.opts().yes).toBe(true);
+  });
+
+  it("defaults yes to false when the flag is omitted", () => {
+    const command = new Command("test");
+    addYesOption(command);
+
+    command.parse(["node", "test"], { from: "node" });
+
+    expect(command.opts().yes).toBe(false);
+  });
+});
+
+describe("confirmAction", () => {
+  it("returns true when promptConfirm resolves to true without showing cancelled message", async () => {
+    mocks.promptConfirm.mockResolvedValue(true);
+
+    const result = await confirmAction("Proceed with action?");
+
+    expect(result).toBe(true);
+    expect(mocks.promptConfirm).toHaveBeenCalledWith({
+      message: "Proceed with action?",
+      initial: true,
+    });
+    expect(mocks.showCancelled).not.toHaveBeenCalled();
+  });
+
+  it("returns false and displays cancelled notice when promptConfirm resolves to false", async () => {
+    mocks.promptConfirm.mockResolvedValue(false);
+
+    const result = await confirmAction("Proceed with action?");
+
+    expect(result).toBe(false);
+    expect(mocks.promptConfirm).toHaveBeenCalledWith({
+      message: "Proceed with action?",
+      initial: true,
+    });
+    expect(mocks.showCancelled).toHaveBeenCalledOnce();
+  });
+
+  it("passes an explicit defaultValue to promptConfirm initial option", async () => {
+    mocks.promptConfirm.mockResolvedValue(true);
+
+    await confirmAction("Delete resource?", false);
+
+    expect(mocks.promptConfirm).toHaveBeenCalledWith({
+      message: "Delete resource?",
+      initial: false,
+    });
+  });
+
+  it("propagates errors when promptConfirm rejects without displaying cancelled notice", async () => {
+    mocks.promptConfirm.mockRejectedValue(new Error("terminal closed"));
+
+    await expect(confirmAction("Proceed?")).rejects.toThrow("terminal closed");
+    expect(mocks.showCancelled).not.toHaveBeenCalled();
+  });
+
+  it("bypasses promptConfirm when a command specifies --yes before confirming", async () => {
+    const command = new Command("test");
+    addYesOption(command);
+    command.parse(["node", "test", "--yes"], { from: "node" });
+
+    const options = command.opts<{ yes: boolean }>();
+    const confirmed = options.yes || (await confirmAction("Proceed with action?"));
+
+    expect(confirmed).toBe(true);
+    expect(mocks.promptConfirm).not.toHaveBeenCalled();
+    expect(mocks.showCancelled).not.toHaveBeenCalled();
+  });
+
+  it("invokes confirmAction and returns the prompt answer when --yes is absent", async () => {
+    mocks.promptConfirm.mockResolvedValue(true);
+    const command = new Command("test");
+    addYesOption(command);
+    command.parse(["node", "test"], { from: "node" });
+
+    const options = command.opts<{ yes: boolean }>();
+    const confirmed = options.yes || (await confirmAction("Proceed with action?"));
+
+    expect(confirmed).toBe(true);
+    expect(mocks.promptConfirm).toHaveBeenCalledWith({
+      message: "Proceed with action?",
+      initial: true,
+    });
+    expect(mocks.showCancelled).not.toHaveBeenCalled();
+  });
+
+  it("invokes confirmAction and returns false when --yes is absent and prompt is declined", async () => {
+    mocks.promptConfirm.mockResolvedValue(false);
+    const command = new Command("test");
+    addYesOption(command);
+    command.parse(["node", "test"], { from: "node" });
+
+    const options = command.opts<{ yes: boolean }>();
+    const confirmed = options.yes || (await confirmAction("Proceed with action?"));
+
+    expect(confirmed).toBe(false);
+    expect(mocks.promptConfirm).toHaveBeenCalledWith({
+      message: "Proceed with action?",
+      initial: true,
+    });
+    expect(mocks.showCancelled).toHaveBeenCalledOnce();
+  });
 });
 
 describe("handleDryRun", () => {
