@@ -73,7 +73,7 @@ Every PR description ends with **Review this PR in**: **Grok**, **Claude**, and 
 
 **Watch for:** the AI can invent a problem or miss a real one. Check every point in the code before you copy it. The review that counts is the one you submit under your own name.
 
-You can also add the same kind of button to your own repository with the [flisk-pr-review-buttons skill](https://skills.sh/flisk-sh/flisk-skills/flisk-pr-review-buttons). Install the skill set with `npx skills add flisk-sh/flisk-skills`.
+You can also add the same kind of button to your own repository with the [gh-pr-review-buttons skill](https://github.com/odykyi/gh-skills/tree/main/skills/gh-pr-review-buttons). Install it with `npx skills add odykyi/gh-skills`.
 
 **If the buttons are missing:** edit the PR description and save it. The workflow adds the section on the next update. Maintainers can run the workflow by hand from the **Actions** tab to add buttons to every open PR.
 

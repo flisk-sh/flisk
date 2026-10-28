@@ -1,16 +1,18 @@
-import { STANDARD_PORTS } from "./constants.js";
-import { isApiServiceType } from "./resource-kind.js";
-import { resolveServicePath, resolveSubdomainBases } from "./service-urls.js";
+import { BRING_YOUR_OWN_TYPE, STANDARD_PORTS } from "./constants.js";
+import { resolveServicePath, resolveSubdomainBases, routesAsApi } from "./service-urls.js";
 export function buildServicePorts(resource, ingressHttp) {
     const appType = resource.config?.appType;
-    const routable = appType === "frontend" || isApiServiceType(appType);
+    const routable = appType === "frontend" || routesAsApi(resource);
     let url = null;
     if (routable) {
         const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
-        url = `${isApiServiceType(appType) ? apiBase : appBase}${resolveServicePath(resource)}`;
+        url = `${routesAsApi(resource) ? apiBase : appBase}${resolveServicePath(resource)}`;
     }
     const containerPort = resource.port ?? resource.config?.port ?? null;
-    const directUrl = !routable && containerPort ? `http://localhost:${containerPort}` : null;
+    // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer.
+    const directUrl = !routable && containerPort && appType !== BRING_YOUR_OWN_TYPE
+        ? `http://localhost:${containerPort}`
+        : null;
     return { url, containerPort, hostPort: null, directUrl };
 }
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */

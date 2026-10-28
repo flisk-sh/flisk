@@ -52,6 +52,11 @@ const MAX_LINE = 1500;
 // matches no line any more is a finding.
 export const INTENTIONAL = [
 	{
+		file: "tests/e2e/journeys/compose-import/run.sh",
+		line: /\[ ! -e \.tdk \]|grep -qiE 'tdk \(up\|core\)/,
+		reason: "the journey fails if flisk import writes the pre-rename folder or prints the old name, so it has to spell them",
+	},
+	{
 		file: "scripts/scores/warm-start-time.test.mjs",
 		line: /tdk-up-warm-start/,
 		reason: "the test builds fixture folders with the old benchmark folder name that warm-start-time must still find",

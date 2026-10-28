@@ -98,11 +98,21 @@ describe("buildServicePorts", () => {
       expect(ports.containerPort).toBe(6000);
     });
 
-    it("gives bring-your-own app with known port a direct loopback url and null url", () => {
-      const ports = buildServicePorts(resource("sourcing-api", "bring-your-own", 4002), 8080);
+    it("gives a routed bring-your-own app its Traefik url and no loopback url: nothing is published on the host", () => {
+      const ports = buildServicePorts(resource("api", "bring-your-own", 3000), 8080);
+      expect(ports.url).toMatch(/^http:\/\/.+:8080\/api\/api$/);
+      expect(ports.directUrl).toBeNull();
+      expect(ports.containerPort).toBe(3000);
+    });
+
+    it("gives a private bring-your-own service neither url: it has no route and no host port", () => {
+      const ports = buildServicePorts(
+        resource("db", "bring-your-own", 5432, { exposeViaProxy: false }),
+        8080,
+      );
       expect(ports.url).toBeNull();
-      expect(ports.directUrl).toBe("http://localhost:4002");
-      expect(ports.containerPort).toBe(4002);
+      expect(ports.directUrl).toBeNull();
+      expect(ports.containerPort).toBe(5432);
     });
 
     it("gives migrator with known port a direct loopback url and null url", () => {
