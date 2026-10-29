@@ -11,6 +11,7 @@
     "chaos:cli": "bun cli/fuzz.ts --count 3000 --jobs 8",
     "chaos:mcp": "bun cli/mcp.ts --count 450",
     "chaos:state": "bun cli/state.ts --sequences 30 --steps 12",
+    "chaos:size": "bun docker/size.ts",
     "chaos:docker": "bun docker/run.ts --jobs 4",
     "chaos:docker:frontend": "bun docker/run.ts --service storefront --jobs 4"
   },
