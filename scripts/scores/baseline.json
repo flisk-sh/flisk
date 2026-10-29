@@ -3,6 +3,7 @@
 	"ade": 50,
 	"competitor-coverage": 57.2,
 	"env-var-consistency": 0,
+	"doctor-check-docs": 27.8,
 	"error-contract": 96.8,
 	"install-weight": 833.7,
 	"json-coverage": 100,

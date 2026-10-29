@@ -57,3 +57,13 @@ export function measure(ctx) {
 
 and a `<id>.test.mjs` next to it. `run.test.mjs` fails until a new ratchet has a baseline. Shared helpers live in
 `lib.mjs`.
+
+## Checks that guard the doctor and public environment variables
+
+| Scorer | Mode | Guards |
+| --- | --- | --- |
+| `public-env-secrets` | gate, 0 | no secret-looking value in a tracked `NEXT_PUBLIC_*` / `VITE_*` example |
+| `public-env-heuristic` | gate, 100% | `flisk doctor`'s secret heuristic agrees with a labelled corpus (false positives and negatives) |
+| `doctor-check-docs` | ratchet | share of doctor checks named in `docs/troubleshooting.md` |
+
+How each works, why it earns a place in CI and how to fix a finding: [docs/scoreboard](../../docs/scoreboard/README.md).
