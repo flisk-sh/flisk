@@ -28,6 +28,10 @@ import { join, resolve } from "node:path";
 import { Rng } from "../gates/generate.js";
 import { REPO_ROOT } from "../graph/project.js";
 
+/** Reports go to the temp directory, never into the checkout (they are run output, not source). */
+const reportPath = (name: string): string =>
+	join(process.env.CHAOS_REPORT_DIR ?? tmpdir(), name);
+
 const FLISK_BIN = process.env.FLISK_BIN ?? join(REPO_ROOT, "cli/bin/flisk.js");
 const flag = (name: string, fallback: string): string => {
 	const at = process.argv.indexOf(`--${name}`);

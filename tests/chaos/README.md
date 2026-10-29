@@ -9,6 +9,7 @@ Three tiers that attack how Flisk reads `service.json`, each cheaper and bigger 
 | Docker (`docker/`) | `bun run chaos:docker` (add `--service storefront` for a frontend, `--service mailer` for a worker) | changes one field to a good or bad value, and for each value `flisk up` accepts, runs the generated Tiltfile, `docker compose config` and `docker buildx build --check` | about 150 values, minutes |
 | CLI (`cli/fuzz.ts`) | `bun run chaos:cli` | runs every command that is safe offline with random arguments against a valid project, no project, a corrupt `project.json` and a corrupt `service.json`; checks it ends with exit 0, 1 or 2, prints no runtime stack trace, keeps `--json` stdout to one envelope that agrees with the exit code, and prints no `[object Object]`/`NaN` | about 15 runs a second; 25,000 runs found the `networks` crash on a corrupt `project.json` |
 | State (`cli/state.ts`) | `bun run chaos:state` | applies random create, delete, rename, copy, port-clash and truncate edits to one project; after each step `resources`, `stacks`, `config regenerate` (twice, must be idempotent), `config verify` and `up --dry-run` must agree with the disk | 30 sequences, minutes |
+| MCP (`cli/mcp.ts`) | `bun run chaos:mcp` | starts `flisk mcp`, calls every tool with arguments built from its input schema and then corrupted, against a valid, a corrupt and a missing project; the server must stay up, answer every call once and print no stack trace | 450 calls in about a minute; found `up` with a missing `projectPath` killing the server |
 
 The graph tier is described below. The gates tier needs nothing but Bun. The Docker tier needs `tilt`, Docker with Compose
 and Buildx; it builds no image and starts no container (the Dockerfile's base images are replaced by a local image through
@@ -77,3 +78,7 @@ lists each distinct violation with the shortest sequence that shows it.
 | `CHAOS_STRICT` | off | `1` runs the random sequences with every gap off |
 | `CHAOS_KEEP` | off | `1` keeps the generated projects and prints where |
 | `FLISK_BIN` | `cli/bin/flisk.js` | the CLI to test |
+
+## Method
+
+The skill `.claude/skills/flisk-bug-hunter/SKILL.md` describes how to choose a tier, write an oracle that does not cry wolf, bucket findings, prove each by hand and fix it with a test. Reports are written to the temp directory (`CHAOS_REPORT_DIR` to change it), never into the checkout.

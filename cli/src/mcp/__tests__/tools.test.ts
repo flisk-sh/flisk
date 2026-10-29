@@ -534,6 +534,17 @@ describe("startUp", () => {
     expect(r.isError).toBe(true);
     expect(JSON.stringify(r.data)).toContain("UNKNOWN_SERVICE");
   });
+  it("reports a child that cannot start (a projectPath that does not exist) instead of crashing the server", async () => {
+    const { deps, child } = fakeUp({ logs: [""] });
+    // Node emits "error" and never "exit" for an ENOENT cwd; with no listener the emit throws and ends the MCP server.
+    deps.spawnUp = vi.fn(() => {
+      queueMicrotask(() => child.emit("error", new Error("spawn /nosuch ENOENT")));
+      return child as never;
+    });
+    const r = await startUp({ projectPath: "/nosuch" }, deps);
+    expect(r.isError).toBe(true);
+    expect(JSON.stringify(r.data)).toContain("Could not start flisk up: spawn /nosuch ENOENT");
+  });
   it("returns started + a polling hint, and detaches, when nothing happens within the window", async () => {
     const { deps, child } = fakeUp({ logs: [""] });
     const r = await startUp({ waitSeconds: 3 }, deps);
