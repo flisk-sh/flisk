@@ -295,3 +295,234 @@ validate_release_assets
     rmSync(workDir, { recursive: true, force: true });
   }
 });
+
+export function getBunLockCliWorkspaceVersion(lockfileContent) {
+  if (typeof lockfileContent !== "string") {
+    throw new TypeError("bun.lock content must be a string");
+  }
+  const cliStart = lockfileContent.indexOf('"cli":');
+  if (cliStart === -1) {
+    throw new Error('no "cli" workspace entry found in bun.lock');
+  }
+  const braceStart = lockfileContent.indexOf("{", cliStart);
+  if (braceStart === -1) {
+    throw new Error('malformed "cli" workspace entry in bun.lock (missing opening brace)');
+  }
+  let depth = 1;
+  let i = braceStart + 1;
+  for (; i < lockfileContent.length && depth > 0; i++) {
+    if (lockfileContent[i] === "{") depth++;
+    else if (lockfileContent[i] === "}") depth--;
+  }
+  if (depth !== 0) {
+    throw new Error('malformed "cli" workspace entry in bun.lock (unclosed brace)');
+  }
+  const cliBlock = lockfileContent.slice(cliStart, i);
+  const match = cliBlock.match(/"version":\s*"([^"]+)"/);
+  if (!match) {
+    throw new Error('no "version" field found in "cli" workspace entry in bun.lock');
+  }
+  return match[1];
+}
+
+export function updateBunLockCliWorkspaceVersion(lockfileContent, newVersion) {
+  if (typeof lockfileContent !== "string") {
+    throw new TypeError("bun.lock content must be a string");
+  }
+  if (typeof newVersion !== "string" || !newVersion.trim()) {
+    throw new TypeError("newVersion must be a non-empty string");
+  }
+  const cliStart = lockfileContent.indexOf('"cli":');
+  if (cliStart === -1) {
+    throw new Error('no "cli" workspace entry found in bun.lock');
+  }
+  const braceStart = lockfileContent.indexOf("{", cliStart);
+  if (braceStart === -1) {
+    throw new Error('malformed "cli" workspace entry in bun.lock (missing opening brace)');
+  }
+  let depth = 1;
+  let i = braceStart + 1;
+  for (; i < lockfileContent.length && depth > 0; i++) {
+    if (lockfileContent[i] === "{") depth++;
+    else if (lockfileContent[i] === "}") depth--;
+  }
+  if (depth !== 0) {
+    throw new Error('malformed "cli" workspace entry in bun.lock (unclosed brace)');
+  }
+  const cliBlock = lockfileContent.slice(cliStart, i);
+  const versionRegex = /("version":\s*")[^"]+(")/
+  if (!versionRegex.test(cliBlock)) {
+    throw new Error('no "version" field found in "cli" workspace entry in bun.lock');
+  }
+  const updatedCliBlock = cliBlock.replace(versionRegex, (_, key, quote) => key + newVersion + quote);
+  return lockfileContent.slice(0, cliStart) + updatedCliBlock + lockfileContent.slice(i);
+}
+
+export function assertCliVersionsMatch(pkgJsonContent, bunLockContent) {
+  let pkg;
+  try {
+    pkg = typeof pkgJsonContent === "string" ? JSON.parse(pkgJsonContent) : pkgJsonContent;
+  } catch (err) {
+    throw new Error(`failed to parse cli/package.json: ${err.message}`);
+  }
+  const packageVersion = pkg?.version;
+  if (!packageVersion) {
+    throw new Error('no "version" field found in cli/package.json');
+  }
+  const lockVersion = getBunLockCliWorkspaceVersion(bunLockContent);
+  if (packageVersion !== lockVersion) {
+    throw new Error(
+      `cli/package.json version (${packageVersion}) does not match bun.lock CLI workspace version (${lockVersion})`,
+    );
+  }
+  return { packageVersion, lockVersion };
+}
+
+test("cli/package.json version matches bun.lock cli workspace version", () => {
+  const cliPkg = readFileSync(join(ROOT_DIR, "cli/package.json"), "utf8");
+  const bunLock = readFileSync(join(ROOT_DIR, "bun.lock"), "utf8");
+  const { packageVersion, lockVersion } = assertCliVersionsMatch(cliPkg, bunLock);
+  assert.equal(
+    packageVersion,
+    lockVersion,
+    `expected cli/package.json (${packageVersion}) to match bun.lock (${lockVersion})`,
+  );
+});
+
+test("assertCliVersionsMatch succeeds when versions match exactly", () => {
+  const pkg = JSON.stringify({ name: "flisk-cli-internal", version: "1.4.13" });
+  const lock = `{\n  "workspaces": {\n    "cli": {\n      "name": "flisk-cli-internal",\n      "version": "1.4.13",\n    },\n  },\n}`;
+  const res = assertCliVersionsMatch(pkg, lock);
+  assert.deepEqual(res, { packageVersion: "1.4.13", lockVersion: "1.4.13" });
+});
+
+test("assertCliVersionsMatch fails with actionable error identifying both versions when they disagree", () => {
+  const pkg = JSON.stringify({ name: "flisk-cli-internal", version: "1.4.13" });
+  const lock = `{\n  "workspaces": {\n    "cli": {\n      "name": "flisk-cli-internal",\n      "version": "1.4.5",\n    },\n  },\n}`;
+  assert.throws(
+    () => assertCliVersionsMatch(pkg, lock),
+    (err) => {
+      assert.match(
+        err.message,
+        /cli\/package\.json version \(1\.4\.13\) does not match bun\.lock CLI workspace version \(1\.4\.5\)/,
+      );
+      return true;
+    },
+  );
+});
+
+test("assertCliVersionsMatch rejects malformed input and missing entries", () => {
+  const validPkg = JSON.stringify({ version: "1.4.13" });
+  const validLock = `{\n  "workspaces": {\n    "cli": {\n      "version": "1.4.13",\n    },\n  },\n}`;
+
+  assert.throws(
+    () => assertCliVersionsMatch("not-valid-json", validLock),
+    /failed to parse cli\/package\.json/,
+  );
+
+  assert.throws(
+    () => assertCliVersionsMatch(JSON.stringify({ name: "flisk-cli" }), validLock),
+    /no "version" field found in cli\/package\.json/,
+  );
+
+  assert.throws(
+    () => assertCliVersionsMatch(validPkg, `{\n  "workspaces": {}\n}`),
+    /no "cli" workspace entry found in bun\.lock/,
+  );
+
+  assert.throws(
+    () => assertCliVersionsMatch(validPkg, `{\n  "workspaces": {\n    "cli": {\n      "version": "1.4.13",\n`),
+    /malformed "cli" workspace entry in bun\.lock/,
+  );
+
+  assert.throws(
+    () => assertCliVersionsMatch(validPkg, `{\n  "workspaces": {\n    "cli": {\n      "name": "flisk-cli-internal",\n    },\n  },\n}`),
+    /no "version" field found in "cli" workspace entry in bun\.lock/,
+  );
+});
+
+test("updateBunLockCliWorkspaceVersion updates CLI version while preserving formatting and other entries", () => {
+  const originalLock = `{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "@flisk-sh/flisk",
+      "dependencies": {
+        "commander": "^15.0.0",
+      },
+    },
+    "cli": {
+      "name": "flisk-cli-internal",
+      "version": "1.4.5",
+      "dependencies": {
+        "commander": "^15.0.0",
+      },
+    },
+  },
+  "packages": {
+    "chalk": ["chalk@6.0.1", "", {}, "sha512-abc123=="],
+  },
+}
+`;
+  const updated = updateBunLockCliWorkspaceVersion(originalLock, "1.4.13");
+  assert.equal(getBunLockCliWorkspaceVersion(updated), "1.4.13");
+  const expected = originalLock.replace('"version": "1.4.5",', '"version": "1.4.13",');
+  assert.equal(updated, expected);
+});
+
+test("release-binaries.yml workflow synchronizes bun.lock and stages it with package.json", () => {
+  const workflowPath = join(ROOT_DIR, ".github/workflows/release-binaries.yml");
+  const workflowContent = readFileSync(workflowPath, "utf8");
+
+  assert.match(
+    workflowContent,
+    /const lockBefore = fs\.readFileSync\("bun\.lock", "utf8"\);/,
+    "release workflow must read bun.lock during version bump",
+  );
+  assert.match(
+    workflowContent,
+    /fs\.writeFileSync\("bun\.lock", lockAfter\);/,
+    "release workflow must write updated bun.lock during version bump",
+  );
+  assert.match(
+    workflowContent,
+    /git add package\.json cli\/package\.json bun\.lock/,
+    "release workflow must stage bun.lock in commit step",
+  );
+
+  const workDir = mkdtempSync(join(tmpdir(), "flisk-version-bump-"));
+  try {
+    const pkgPath = join(workDir, "package.json");
+    const cliDir = join(workDir, "cli");
+    mkdirSync(cliDir, { recursive: true });
+    const cliPkgPath = join(cliDir, "package.json");
+    const lockPath = join(workDir, "bun.lock");
+
+    writeFileSync(pkgPath, JSON.stringify({ name: "@flisk-sh/flisk", version: "1.4.13" }, null, 2));
+    writeFileSync(cliPkgPath, JSON.stringify({ name: "flisk-cli-internal", version: "1.4.13" }, null, 2));
+    writeFileSync(
+      lockPath,
+      `{\n  "workspaces": {\n    "cli": {\n      "name": "flisk-cli-internal",\n      "version": "1.4.13",\n    },\n  },\n}`,
+    );
+
+    const nextVersion = "1.4.14";
+    for (const f of [pkgPath, cliPkgPath]) {
+      const before = readFileSync(f, "utf8");
+      const after = before.replace(/("version":\s*")[^"]+"/, (_, key) => key + nextVersion + '"');
+      writeFileSync(f, after);
+    }
+    const lockBefore = readFileSync(lockPath, "utf8");
+    const lockAfter = updateBunLockCliWorkspaceVersion(lockBefore, nextVersion);
+    writeFileSync(lockPath, lockAfter);
+
+    assert.equal(JSON.parse(readFileSync(pkgPath, "utf8")).version, "1.4.14");
+    assert.equal(JSON.parse(readFileSync(cliPkgPath, "utf8")).version, "1.4.14");
+    assert.equal(getBunLockCliWorkspaceVersion(readFileSync(lockPath, "utf8")), "1.4.14");
+
+    const matchRes = assertCliVersionsMatch(readFileSync(cliPkgPath, "utf8"), readFileSync(lockPath, "utf8"));
+    assert.deepEqual(matchRes, { packageVersion: "1.4.14", lockVersion: "1.4.14" });
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+});

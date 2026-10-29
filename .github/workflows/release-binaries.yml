@@ -114,12 +114,30 @@ jobs:
             echo "::notice::${current} is already released; releasing this commit as ${version}."
             node -e '
               const fs = require("fs");
+              const nextVersion = process.argv[1];
               for (const file of ["package.json", "cli/package.json"]) {
                 const before = fs.readFileSync(file, "utf8");
-                const after = before.replace(/("version":\s*")[^"]+"/, (_, key) => key + process.argv[1] + "\"");
+                const after = before.replace(/("version":\s*")[^"]+"/, (_, key) => key + nextVersion + "\"");
                 if (after === before) throw new Error("no version field in " + file);
                 fs.writeFileSync(file, after);
               }
+              const lockBefore = fs.readFileSync("bun.lock", "utf8");
+              const cliStart = lockBefore.indexOf("\"cli\":");
+              if (cliStart === -1) throw new Error("no cli workspace in bun.lock");
+              const braceStart = lockBefore.indexOf("{", cliStart);
+              if (braceStart === -1) throw new Error("malformed cli workspace in bun.lock");
+              let depth = 1, i = braceStart + 1;
+              for (; i < lockBefore.length && depth > 0; i++) {
+                if (lockBefore[i] === "{") depth++;
+                else if (lockBefore[i] === "}") depth--;
+              }
+              if (depth !== 0) throw new Error("malformed cli workspace in bun.lock");
+              const cliBlock = lockBefore.slice(cliStart, i);
+              const versionRegex = /("version":\s*")[^"]+(")/;
+              if (!versionRegex.test(cliBlock)) throw new Error("no version field in cli workspace in bun.lock");
+              const updatedCliBlock = cliBlock.replace(versionRegex, (_, key, quote) => key + nextVersion + quote);
+              const lockAfter = lockBefore.slice(0, cliStart) + updatedCliBlock + lockBefore.slice(i);
+              fs.writeFileSync("bun.lock", lockAfter);
             ' "$version"
             echo "bumped=true" >> "$GITHUB_OUTPUT"
           fi
@@ -208,12 +226,30 @@ jobs:
         run: |
           node -e '
             const fs = require("fs");
+            const nextVersion = process.argv[1];
             for (const file of ["package.json", "cli/package.json"]) {
               const before = fs.readFileSync(file, "utf8");
-              const after = before.replace(/("version":\s*")[^"]+"/, (_, key) => key + process.argv[1] + "\"");
+              const after = before.replace(/("version":\s*")[^"]+"/, (_, key) => key + nextVersion + "\"");
               if (after === before) throw new Error("no version field in " + file);
               fs.writeFileSync(file, after);
             }
+            const lockBefore = fs.readFileSync("bun.lock", "utf8");
+            const cliStart = lockBefore.indexOf("\"cli\":");
+            if (cliStart === -1) throw new Error("no cli workspace in bun.lock");
+            const braceStart = lockBefore.indexOf("{", cliStart);
+            if (braceStart === -1) throw new Error("malformed cli workspace in bun.lock");
+            let depth = 1, i = braceStart + 1;
+            for (; i < lockBefore.length && depth > 0; i++) {
+              if (lockBefore[i] === "{") depth++;
+              else if (lockBefore[i] === "}") depth--;
+            }
+            if (depth !== 0) throw new Error("malformed cli workspace in bun.lock");
+            const cliBlock = lockBefore.slice(cliStart, i);
+            const versionRegex = /("version":\s*")[^"]+(")/;
+            if (!versionRegex.test(cliBlock)) throw new Error("no version field in cli workspace in bun.lock");
+            const updatedCliBlock = cliBlock.replace(versionRegex, (_, key, quote) => key + nextVersion + quote);
+            const lockAfter = lockBefore.slice(0, cliStart) + updatedCliBlock + lockBefore.slice(i);
+            fs.writeFileSync("bun.lock", lockAfter);
           ' "$VERSION"
 
       - run: bun install --frozen-lockfile
@@ -448,7 +484,7 @@ jobs:
             lines.splice(start + 1, 0, "", "## " + version + " (" + date + ")");
             fs.writeFileSync("docs/CHANGELOG.md", lines.join("\n"));
           ' "$VERSION" "$(date -u +%F)"
-          git add package.json cli/package.json
+          git add package.json cli/package.json bun.lock
           if [ -f docs/CHANGELOG.md ]; then git add docs/CHANGELOG.md; fi
           git commit -m "Release ${VERSION} (automatic version bump)"
           # main requires checks that a direct push from github.token never reports, so the bump goes
