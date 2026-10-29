@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.14 (2026-10-29)
+
 - `dependsOn` now means the same everywhere. `flisk up --only`, the circular-dependency check, `flisk config verify` and the generated Tiltfile read one graph: a service name, a stack name (the stack's other services, never its frontends, as with `--focus`), a frontend's `backendName` (also when the backend is in another stack) and the deprecated `dependencies` key.
 - A frontend that named a stack in `dependsOn` no longer fails the whole Tiltfile with `string value is not iterable`. A `dependsOn` written as a string, object or `null` no longer crashes `flisk config verify` (`{} is not iterable`) or splits into one unknown name per character; both commands report one clear error.
 - `flisk config verify` reports circular `dependsOn` and wrong-typed `dependsOn`, as `flisk up` already refused them. `flisk up` warns about a `dependsOn` name that is no service, stack or shared Postgres name, and the dry-run JSON lists them as `unknownDependsOn`.
