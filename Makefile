@@ -42,6 +42,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/pilot-scorecard.test.mjs
 	node --test scripts/package-lifecycle-smoke.test.mjs
 	node --test scripts/cold-boot-notes.test.mjs
+	node --test scripts/install-git-hooks.test.mjs
 	node --test scripts/release-binaries.test.mjs
 	node --test scripts/umux-lite-score.test.mjs
 	node --test scripts/ade-score.test.mjs
