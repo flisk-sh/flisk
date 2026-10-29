@@ -8,6 +8,7 @@ import {
   checkCircularDependencies,
   checkCustomDockerfiles,
   checkDependsOnShape,
+  checkRequiredSecrets,
   checkSchemaVersions,
   checkServiceFields,
   checkServicePorts,
@@ -520,6 +521,8 @@ describe("the gate accepts what `flisk import` writes for a Compose app", () => 
   it("an api built from a tree outside its service directory, and a database from an image", () => {
     mkdirSync(join(root, "api"), { recursive: true });
     writeFileSync(join(root, "api/Dockerfile"), "FROM node:22-alpine\n");
+    // `flisk import` copies the password of the Compose file into .env, which the required-secrets check then finds.
+    writeFileSync(join(root, ".env"), "POSTGRES_PASSWORD=example\n");
     service(
       "api",
       {
@@ -558,5 +561,55 @@ describe("the gate accepts what `flisk import` writes for a Compose app", () => 
     expect(checkServiceFields(root).message).toContain(
       "buildContext: must be a path relative to the service directory",
     );
+  });
+});
+
+describe("checkRequiredSecrets", () => {
+  it("fails for a required secret with no value, naming the file and the secret", () => {
+    service("api", { secrets: { required: ["SECRET_KEY"], optional: ["TOKEN"] } });
+    const result = checkRequiredSecrets(root, undefined, {});
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("secret SECRET_KEY has no value");
+    expect(result.message).not.toContain("TOKEN");
+    expect(result.fix).toContain(".env");
+  });
+
+  it("passes when the project .env or the environment has a value, and fails for an empty one", () => {
+    service("api", { secrets: { required: ["A_KEY", "B_KEY"] } });
+    writeFileSync(join(root, ".env"), "A_KEY=1\nB_KEY=\n");
+    expect(checkRequiredSecrets(root, undefined, {}).message).toContain("B_KEY");
+    expect(checkRequiredSecrets(root, undefined, {}).message).not.toContain("A_KEY");
+    expect(checkRequiredSecrets(root, undefined, { B_KEY: "2" }).didPass).toBe(true);
+  });
+
+  it("reads the env file selected for the run instead of the project .env", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    writeFileSync(join(root, ".env"), "A_KEY=1\n");
+    writeFileSync(join(root, "other.env"), "X=1\n");
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_ENV_FILE: join(root, "other.env") }).didPass,
+    ).toBe(false);
+  });
+
+  it("leaves the names to the provider with FLISK_SECRET_PROVIDER=infisical", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    expect(
+      checkRequiredSecrets(root, undefined, { FLISK_SECRET_PROVIDER: "infisical" }).didPass,
+    ).toBe(true);
+  });
+
+  it("is part of the gate, so flisk up refuses it before Tilt starts", () => {
+    service("api", { secrets: { required: ["A_KEY"] } });
+    const exit = vi.fn((code: number) => {
+      throw new Error(`exit ${code}`);
+    }) as unknown as (code: number) => never;
+    const messages: string[] = [];
+    const saved = process.env.A_KEY;
+    delete process.env.A_KEY;
+    expect(() =>
+      enforceServiceConfigGate(root, { onInvalid: (m) => messages.push(m) }, exit),
+    ).toThrow("exit 1");
+    if (saved !== undefined) process.env.A_KEY = saved;
+    expect(messages.join("\n")).toContain("secret A_KEY has no value");
   });
 });

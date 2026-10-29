@@ -31,7 +31,7 @@ import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
 import { findPortOccupant } from "../utils/port-occupant.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
-import { enforceServiceConfigGate, warnSchemaVersions } from "../utils/service-config-checks.js";
+import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
 import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
@@ -520,6 +520,7 @@ export const upCommand = new Command("up")
         // A project without schemaVersion keeps working; say how to add it, but only where a person is reading.
         if (foundRoot && !emit && !options.quiet) {
             warnSchemaVersions(foundRoot, discoveredResources);
+            warnSecretConflicts(foundRoot, discoveredResources);
         }
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,

@@ -6,7 +6,7 @@ import { join, relative, sep } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
-import { generateMasterConfigs, readProjectConfig, TemplateEngine, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { generateMasterConfigs, readProjectConfig, staleServiceOutputs, TemplateEngine, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { isMasterConfigFileName } from "../types/index.js";
 import { assertValid, handleDryRun } from "../utils/command-helpers.js";
 import { explainConfigFile } from "../utils/config-explain.js";
@@ -69,6 +69,8 @@ export const configCommand = new Command("config")
                     dryRun: Boolean(options.dryRun),
                     hasChanges: changes.some((change) => change.status !== "unchanged"),
                     changes,
+                    // Written by `flisk up`, not by regenerate: listed so a caller does not take "regenerated" for "up to date".
+                    staleServiceOutputs: staleServiceOutputs(projectRoot),
                 },
             };
         });
@@ -195,6 +197,13 @@ export const configCommand = new Command("config")
         console.log(chalk.blue("📋 Regenerating master configuration files...\n"));
         await generateMasterConfigs(projectRoot, { discardHandEdits: true });
         console.log(chalk.green("\n✅ Configuration regenerated!"));
+        const stale = staleServiceOutputs(projectRoot);
+        if (stale.length > 0) {
+            console.log(chalk.yellow(`\n⚠️  ${stale.length} service${stale.length === 1 ? "" : "s"} still ${stale.length === 1 ? "has" : "have"} generated files (compose, Dockerfile) written from an older service.json:`));
+            for (const file of stale)
+                console.log(chalk.gray(`   ${file}`));
+            console.log(chalk.gray("   `flisk config regenerate` rewrites the master files only; `flisk up` writes these, and `flisk config verify` reports them until then."));
+        }
     });
 }))
     .addCommand(new Command("migrate")

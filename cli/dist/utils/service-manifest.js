@@ -336,6 +336,58 @@ export function getInvalidServiceRoutePathFields(value) {
     const manifest = value;
     return SERVICE_ROUTE_PATH_FIELDS.filter((field) => field in manifest && typeof manifest[field] !== "string");
 }
+/**
+ * A name in `secrets.required` / `secrets.optional` that `params` or `env` also sets to a literal: the literal reaches the
+ * container, so the secret in `.env` is silently never used (an admin account created with "changeme").
+ */
+const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
+export function secretsErrors(manifest, displayPath) {
+    const secrets = manifest.secrets;
+    if (secrets === undefined || secrets === null)
+        return [];
+    if (typeof secrets !== "object" || Array.isArray(secrets))
+        return [`${displayPath}.secrets: expected an object like { "required": ["NAME"] }`];
+    const errors = [];
+    for (const kind of ["required", "optional"]) {
+        const names = secrets[kind];
+        if (names === undefined)
+            continue;
+        if (!Array.isArray(names)) {
+            errors.push(`${displayPath}.secrets.${kind}: expected a list of environment variable names`);
+            continue;
+        }
+        for (const name of names) {
+            if (typeof name !== "string" || !ENV_NAME_PATTERN.test(name))
+                errors.push(`${displayPath}.secrets.${kind}: ${JSON.stringify(name)} is not an environment variable name (letters, digits and underscores, not starting with a digit)`);
+        }
+    }
+    return errors;
+}
+export function secretConflictWarnings(manifest, displayPath) {
+    const secrets = manifest.secrets;
+    if (!secrets || typeof secrets !== "object")
+        return [];
+    const declared = new Set();
+    for (const kind of ["required", "optional"]) {
+        const names = secrets[kind];
+        if (Array.isArray(names))
+            for (const name of names)
+                if (typeof name === "string")
+                    declared.add(name);
+    }
+    const warnings = [];
+    for (const field of ["params", "env"]) {
+        const values = manifest[field];
+        if (!values || typeof values !== "object" || Array.isArray(values))
+            continue;
+        for (const name of Object.keys(values)) {
+            if (declared.has(name))
+                warnings.push(`${displayPath}.${field}.${name}: also listed in secrets, so this literal value is used and the secret from .env is ignored; remove one of them`);
+        }
+    }
+    return warnings;
+}
 export function validateServiceManifest(value, displayPath) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
         return { errors: [`${displayPath}: expected a JSON object`], warnings: [] };
@@ -373,6 +425,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...dockerNameErrors(manifest, displayPath));
     errors.push(...fieldTypeErrors(manifest, displayPath));
     errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
+    errors.push(...secretsErrors(manifest, displayPath));
     if ("smoke" in manifest) {
         for (const message of validateSmoke(manifest.smoke))
             errors.push(`${displayPath}.${message}`);
@@ -385,6 +438,7 @@ export function validateServiceManifest(value, displayPath) {
             return [`${displayPath}.${field}: unknown field is preserved`];
         return [];
     });
+    warnings.push(...secretConflictWarnings(manifest, displayPath));
     if (liveReload === true && manifest.language !== "go") {
         warnings.push(`${displayPath}.dev.liveReload: only applies to Go services (language "go"); it is ignored here`);
     }

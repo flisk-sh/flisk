@@ -297,6 +297,7 @@ describe("flisk config --json", () => {
     expect(parseEnvelope(result.stdout).data).toEqual({
       dryRun: true,
       hasChanges: true,
+      staleServiceOutputs: [],
       changes: [
         { file: "TILT_TECH_STACK.star", status: "new", lineDiff: 0 },
         { file: "TILT_RESOURCE_DEFAULTS.star", status: "new", lineDiff: 0 },

@@ -95,4 +95,10 @@ export declare function verifyMasterConfigs(projectRoot: string, options?: {
     /** Generated service files (project-relative) whose content differs from their Flisk snapshot, i.e. edited by hand. */
     handEdited: string[];
 };
+/**
+ * Services whose generated files (the app compose, the Dockerfile) were written from an older service.json than the one on disk,
+ * as project-relative service.json paths. `flisk config regenerate` rewrites only the master files; these are written by
+ * `flisk up`, which is also what `flisk config verify` asks for.
+ */
+export declare function staleServiceOutputs(projectRoot: string): string[];
 export {};
