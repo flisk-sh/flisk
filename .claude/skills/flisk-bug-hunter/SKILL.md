@@ -30,6 +30,7 @@ Three kinds of bug turned up again and again:
 | a value passes the check but breaks Compose, Tilt or the Dockerfile | Docker (`docker/run.ts`, variants in `docker/variants.ts`): one field changed at a time, then Tilt eval, `docker compose config`, `docker buildx build --check` | about 3 cases a second |
 | a command crashes or lies for odd arguments or a damaged project | CLI fuzz (`cli/fuzz.ts`) | about 15 runs a second |
 | commands disagree after a sequence of edits | state (`cli/state.ts`) | a project per sequence |
+| an image is bigger than its contents | size (`docker/size.ts`) plus `docker history` of a real image (section 4) | seconds, no build |
 | an agent tool crashes the server or returns garbage | MCP (`cli/mcp.ts`) | one server per project state |
 
 Start with the cheapest tier that could see the bug. Scale only after a small run is clean or the findings are understood.
@@ -51,13 +52,21 @@ An oracle that cries wolf wastes the whole run. After every first run, **read ea
 - exit 127 means a helper such as `npx` is not installed on this machine;
 - two services on one port are harmless in Docker (only Traefik publishes a host port), but the native runtime refuses them.
 
-## 4. Run, then bucket
+## 4. Hunting image size
+
+Size bugs hide because nothing fails. Two cheap moves find them:
+1. **Look at a real image first.** `docker images` lists what is on the machine; compare an image with its siblings (an agent was 181 MB, its migrator 1.54 GB). Then `docker history` shows which layer holds the bytes. Two layers of the same size, one a `COPY` and one a `RUN`, mean a file tree was stored twice.
+2. **Turn the cause into a static rule** in `docker/size.ts` and run it over the Dockerfiles generated for every resource type. No image is built, so it takes seconds and can run in CI.
+
+Causes seen so far: a recursive `chown`/`chmod` after a `COPY` (every file stored again; use `COPY --chown`); `apk add` without `--no-cache`; `apt-get install` without removing the index; `COPY . .` before the dependency install. Prove the mechanism on a tiny offline Dockerfile with a 60 MB file (`COPY` then `chown -R` was 651 MB, `COPY --chown` 531 MB) before claiming a saving, and say plainly which numbers were measured and which were read from a layer listing. Building the real generated image needs the golden base images that Tilt builds first, so it is usually not possible in a quick session.
+
+## 5. Run, then bucket
 
 Give every random case a seed (`--seed`) so a finding replays. Group failures by tool, oracle and a **normalised** first line (strip digits, paths, quoted strings) so 4,000 hits of one bug show up as one bucket with a count and one reproduction. A run that prints 12 buckets is readable; one that prints 12,000 lines is not.
 
 Typical yield, as a guide to effort: about 28,000 CLI fuzz cases found 3 real bugs, 100 state sequences found 1, and the Docker tier found one in a few dozen cases. Argument fuzzing is cheap and finds crashes; the Docker and state tiers find the expensive, user-visible ones.
 
-## 5. Prove it by hand before believing it
+## 6. Prove it by hand before believing it
 
 For each bucket:
 1. Reproduce it with a plain command in a fresh temp project (`flisk project --yes --no-agent-skills`, then `flisk resource <name> --yes --type backend --stack main`).
@@ -65,7 +74,7 @@ For each bucket:
 3. Decide whether it is a bug or a design choice by reading the schema, the docs and the code comments. `flisk config regenerate` leaving the per-service compose alone is by design (`flisk up` writes it); the message around it was the bug.
 4. If the claim cannot be reproduced, say so and withdraw it. A test that "shows" a missing value can pass because the file was never generated at all (`tilt alpha tiltfile-result` writes no app compose). Check that your check can fail.
 
-## 6. Fix it the way the codebase expects
+## 7. Fix it the way the codebase expects
 
 - Put the rule where the existing checks live: `cli/src/utils/service-manifest.ts` for field shapes, `cli/src/utils/service-config-checks.ts` for project-wide checks that `flisk up` runs before Tilt.
 - **Prefer a warning when real projects might already have the value.** A rule inferred from the Docker tier was too strict twice (enum values, and `..` in a build path that `flisk import` writes itself) and broke the compose-import journey. Check what `flisk import` and the examples write before you refuse something.
@@ -73,7 +82,7 @@ For each bucket:
 - **Deliberate-break check:** put the bug back and see the new test fail. `bin/flisk.js` runs `cli/dist-bundle` when it exists, so swapping one file in `cli/dist` proves nothing; rebuild instead.
 - Add a CHANGELOG line under "Unreleased", a `docs/troubleshooting.md` entry for any new check name (the `doctor-check-docs` ratchet drops otherwise), and update `docs/reference/machine-readable-cli.md` when a `--json` shape changes.
 
-## 7. Verify like CI does
+## 8. Verify like CI does
 
 Run these from the repository root and read the result, not just the exit code:
 - `npm --prefix cli run typecheck` (the CI typecheck uses `tsconfig.typecheck.json`, which includes the tests, so a plain `tsc --noEmit` can pass where CI fails);
@@ -84,10 +93,30 @@ Run these from the repository root and read the result, not just the exit code:
 
 On a machine without Node or with network limits, some CLI test files fail for reasons that have nothing to do with the change. Run the same files on a clean `origin/main` worktree and compare the failure count before blaming yourself.
 
-## 8. Mistakes to avoid
+## 9. Mistakes to avoid
 
 - Committing run output (a `*-report.json`). Reports go to the temp directory.
 - Bundling unrelated fixes. One PR per finding family, with the chaos case that found it.
 - Reporting a count of "bugs" instead of reproduced ones. Say what was run, how many buckets, how many were real, and what was withdrawn.
 - Running anything that starts or stops a real stack from a fuzzer. Force `--dry-run`, and keep every project path inside a temp directory.
 - Editing generated files (`.flisk/`, `.flisk-out/`, `**/*.autogenerated.*`). Fix the source or the template.
+- Evaluating the Tiltfile without enabling the stack. `flisk up` adds a newly found stack to the `pre_alpha` phase of `.flisk/project.json`; `--dry-run` does not, and `tilt alpha tiltfile-result` then writes no Dockerfile or compose at all. Add the stack to `enabledStacks` first, or a missing file looks like a missing feature.
+- Trusting `tilt alpha tiltfile-result` to write the app compose. To test a compose generator, call it directly from a small Tiltfile (see `tests/tilt-engine/test_dependson_graph.py` for the pattern).
+
+## 10. Findings log (add a line for every bug, in the order found)
+
+Each line: what broke, which tier or move found it, and the fix. Keep it short; the PR has the detail.
+
+- `dependsOn` edits not reaching the graph: stack names, the deprecated `dependencies` key, wrong-typed values, frontends' `backendName`. Graph tier. One shared reading in `cli/src/utils/dependency-graph.ts`.
+- 35 service.json values that passed `flisk up` and then broke Tilt, Compose or Docker (unsafe names, wrong types, absolute build paths). Docker tier. Gate in `service-manifest.ts`.
+- Live-only: discovery daemon left disabled, Tilt dropping file watches on a cycle, `status` hiding a Tiltfile error. A real `flisk up`, not a dry run.
+- Native `command` services ignored `dependencies` and refused stack names in `dependsOn`. Hand probe of a native project. `native-runtime.ts` now uses the shared reading.
+- A service with its own `dockerfile` failed the whole Tiltfile on the generated `.dockerignore`. Docker tier, variant `dockerfile=Dockerfile`.
+- `flisk networks` on a corrupt `project.json` ended as an unhandled rejection with a stack trace. CLI fuzz. `parseAsync` plus one handler.
+- Names starting with a hyphen (`--stack --json` made `services/--json/x`). CLI fuzz. Name pattern.
+- `flisk resource` accepted a name another service.json already used. State tier. Refused with the existing path.
+- The MCP `up` tool killed the whole server when `projectPath` did not exist (unhandled spawn `error`). MCP tier.
+- A required secret with no value failed the whole Tiltfile through Compose interpolation; malformed `secrets` crashed the generator; a `params` value silently beat a secret. Docker tier `secrets` variants and a user report. Gate, shape errors and a warning.
+- `flisk config regenerate` said it was done while per-service files were stale. User report. It now lists them; `flisk up` writes them.
+- The migrator image stored `node_modules` twice (a 332 MB `COPY` plus a `chown -R` layer; 1.54 GB against 181 MB for the agent). `docker history` of a real image. `COPY --chown`, and the size lint.
+- Not fixed, recorded in issue 2692: the migrator base carries a 294 MB global Bun install, and each migrator installs its own full `node_modules` on top.

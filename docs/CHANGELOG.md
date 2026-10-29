@@ -4,6 +4,7 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- The migrator image no longer stores `node_modules` twice. A `chown -R` over the copied directory added a second 332 MB layer (1.54 GB against 181 MB for the agent next to it); ownership is now set by `COPY --chown`. Images already built keep their size until they are rebuilt.
 - The MCP `up` tool no longer ends the whole MCP server when `projectPath` does not exist: the failed spawn emitted an unhandled `error` event and the connection to the agent dropped. It now returns an error result saying `flisk up` could not start.
 - A command that throws inside an async action (a corrupt `.flisk/project.json` read by `flisk networks`) now prints one error line and exits 1 instead of ending as an unhandled rejection with a raw runtime stack trace.
 - Resource and stack names must start and end with a letter or digit: `--json` taken as the value of `--stack` created `services/--json/<name>`, and `-x` or `x-` passed the name check and were refused later by Docker.
