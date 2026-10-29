@@ -44,7 +44,7 @@ afterEach(() => {
   setPlatform(realPlatform);
 });
 
-describe("getContainerRuntimeStatus on Linux and macOS", () => {
+describe("getContainerRuntimeStatus on Non-Windows", () => {
   beforeEach(() => setPlatform("linux"));
 
   it("returns running when docker ps succeeds and stops checking", () => {
