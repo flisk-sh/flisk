@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_LOG_TAIL,
   isTiltConnectionFailure,
   isValidPort,
   isValidSince,
   isValidTail,
+  MAX_LOG_TAIL,
   parseTiltLogLines,
 } from "../tilt-logs.js";
 
@@ -126,5 +128,13 @@ describe("isTiltConnectionFailure", () => {
       false,
     );
     expect(isTiltConnectionFailure("context deadline exceeded")).toBe(false);
+  });
+});
+
+describe("log tail limits", () => {
+  it("pins default and maximum tail values and enforces ordering", () => {
+    expect(DEFAULT_LOG_TAIL).toBe(200);
+    expect(MAX_LOG_TAIL).toBe(10_000);
+    expect(DEFAULT_LOG_TAIL).toBeLessThanOrEqual(MAX_LOG_TAIL);
   });
 });
