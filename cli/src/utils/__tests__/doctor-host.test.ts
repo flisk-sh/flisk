@@ -3,7 +3,9 @@
 import { describe, expect, it } from "vitest";
 import {
   checkDiskSpace,
+  DISK_FAIL_GIB,
   DISK_SPACE_CHECK,
+  DISK_WARN_GIB,
   DOCKER_DESKTOP_STUCK_FIX,
   dockerDesktopStuck,
 } from "../doctor-host.js";
@@ -112,5 +114,13 @@ describe("dockerDesktopStuck", () => {
   it("defaults to process.platform when platform argument is omitted", () => {
     const result = dockerDesktopStuck(false);
     expect(result).toBeNull();
+  });
+});
+
+describe("disk space thresholds", () => {
+  it("pins failure and warning thresholds and enforces ordering", () => {
+    expect(DISK_FAIL_GIB).toBe(2);
+    expect(DISK_WARN_GIB).toBe(10);
+    expect(DISK_FAIL_GIB).toBeLessThan(DISK_WARN_GIB);
   });
 });
