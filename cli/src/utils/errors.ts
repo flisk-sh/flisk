@@ -137,7 +137,8 @@ export function requireProjectRoot(): string {
   return projectRoot;
 }
 
-function handleCommandError(err: unknown): never {
+/** Prints a command failure the way every command does (a FliskError with its suggestions, anything else as one error line) and exits 1. */
+export function handleCommandError(err: unknown): never {
   if (err instanceof FliskError) {
     err.exit();
   }

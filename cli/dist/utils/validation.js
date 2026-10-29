@@ -1,5 +1,6 @@
 import { OPTIONAL_INFRA_SERVICES } from "./constants.js";
-export const KEBAB_CASE_REGEX = /^[a-z0-9-]+$/;
+// Starts and ends with a letter or digit: "-x" and "--json" (an option swallowed as a value) are not names.
+export const KEBAB_CASE_REGEX = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 function isKebabCase(value) {
     return KEBAB_CASE_REGEX.test(value);
 }

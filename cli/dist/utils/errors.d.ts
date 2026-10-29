@@ -28,6 +28,8 @@ export declare const errorFactories: {
     notInProject: () => FliskError;
 };
 export declare function requireProjectRoot(): string;
+/** Prints a command failure the way every command does (a FliskError with its suggestions, anything else as one error line) and exits 1. */
+export declare function handleCommandError(err: unknown): never;
 export declare function runCommand<T>(action: () => Promise<T>, options?: {
     verbose?: boolean;
 }): Promise<T | never>;
