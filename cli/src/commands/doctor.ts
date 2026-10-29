@@ -66,6 +66,7 @@ import {
   checkFrontendBackendUrls,
   checkMigrationsInApi,
   checkNatsBroker,
+  checkPostgresCredentials,
   checkPrismaConsistency,
   checkResourcePackageJson,
   checkServiceUrlPorts,
@@ -1802,6 +1803,7 @@ export const doctorCommand = new Command("doctor")
       () => checkPrismaConsistency(),
       // Shared platform Postgres: will-start report + unknown dependsOn names stay errors.
       () => checkSharedPlatformPostgres(),
+      requiresContainerRuntime("Postgres credentials", () => checkPostgresCredentials()),
       () => checkMigrationsInApi(),
       () => checkTiltInstances(),
       checkEnvironmentVariables,

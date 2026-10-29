@@ -15,6 +15,7 @@ import {
   checkFrontendBackendUrls,
   checkMigrationsInApi,
   checkNatsBroker,
+  checkPostgresCredentials,
   checkPrismaConsistency,
   checkResourcePackageJson,
   checkServiceUrlPorts,
@@ -940,5 +941,122 @@ describe("checkDuplicateResourcePorts", () => {
     resource("app", "noport", { appType: "backend" });
     resource("app", "noport2", { appType: "backend" });
     expect(checkDuplicateResourcePorts(root).didPass).toBe(true);
+  });
+});
+
+describe("checkPostgresCredentials", () => {
+  const PASSWORD = "p4ssw0rd-from-env";
+  const VOLUME = "reports-demo-database-management_reports_demo_postgres_data";
+
+  function writeEnv(content = `DB_PASSWORD=${PASSWORD}\n`): void {
+    writeFileSync(join(root, ".env"), content);
+  }
+
+  /** Answers the docker commands the check runs; `login` decides what the psql attempt does. */
+  function stubExec(
+    login: () => string,
+    calls: string[] = [],
+    options: { isRunning?: boolean } = {},
+  ): ExecAsync {
+    return async (command) => {
+      calls.push(command);
+      if (command.includes("State.Running")) {
+        if (options.isRunning === false) throw new Error("No such object: reports_demo_postgres");
+        return "true\n";
+      }
+      if (command.includes("IPAddress")) return "172.20.0.5 172.21.0.5 \n";
+      if (command.includes(".Mounts")) return `${VOLUME} \n`;
+      if (command.includes("psql")) return login();
+      throw new Error(`unexpected command: ${command}`);
+    };
+  }
+
+  const refusePassword = (): string => {
+    throw Object.assign(new Error("Command failed: docker exec"), {
+      stderr:
+        'psql: error: connection to server at "172.20.0.5", port 5432 failed: FATAL:  password authentication failed for user "reports_demo"',
+    });
+  };
+
+  afterEach(() => {
+    delete process.env.PGPASSWORD;
+  });
+
+  it("skips when .env has no DB_PASSWORD", async () => {
+    const calls: string[] = [];
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => "1\n", calls),
+    );
+    expect(result.isSkipped).toBe(true);
+    expect(result.didPass).toBe(true);
+    expect(calls).toEqual([]);
+  });
+
+  it("skips when the Postgres container is not running", async () => {
+    writeEnv();
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => "1\n", [], { isRunning: false }),
+    );
+    expect(result.isSkipped).toBe(true);
+    expect(result.message).toContain("reports_demo_postgres is not running");
+  });
+
+  it("passes when the login works, tried from the container address with the password kept off the command line", async () => {
+    writeEnv();
+    const calls: string[] = [];
+    let passwordSeenByDocker: string | undefined;
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => {
+        passwordSeenByDocker = process.env.PGPASSWORD;
+        return "1\n";
+      }, calls),
+    );
+    expect(result.didPass).toBe(true);
+    expect(result.isSkipped).toBeUndefined();
+    const login = calls.find((command) => command.includes("psql")) ?? "";
+    // The official image trusts 127.0.0.1 without a password, so a loopback test would pass whatever DB_PASSWORD is.
+    expect(login).toContain("-h 172.20.0.5");
+    expect(login).not.toContain("127.0.0.1");
+    expect(login).toContain("-U reports_demo");
+    expect(calls.some((command) => command.includes(PASSWORD))).toBe(false);
+    expect(passwordSeenByDocker).toBe(PASSWORD);
+    expect(process.env.PGPASSWORD).toBeUndefined();
+  });
+
+  it("fails, and names the volume to remove, when the volume was created with a different password", async () => {
+    writeEnv();
+    const result = await checkPostgresCredentials(root, stubExec(refusePassword));
+    expect(result.didPass).toBe(false);
+    expect(result.name).toBe("Postgres credentials");
+    expect(result.message).toContain("reports_demo_postgres refuses the DB_PASSWORD in .env");
+    expect(result.message).toContain("recreated project folder");
+    expect(result.fix).toContain("flisk down");
+    expect(result.fix).toContain(`docker volume rm ${VOLUME}`);
+    expect(result.fix).toContain("deletes its data");
+    expect(`${result.message} ${result.fix}`).not.toContain(PASSWORD);
+  });
+
+  it("restores a PGPASSWORD that was already set, even when the login is refused", async () => {
+    writeEnv();
+    process.env.PGPASSWORD = "set-by-the-user";
+    await checkPostgresCredentials(root, stubExec(refusePassword));
+    expect(process.env.PGPASSWORD).toBe("set-by-the-user");
+  });
+
+  it("skips rather than blaming the password when the login fails for another reason", async () => {
+    writeEnv();
+    const result = await checkPostgresCredentials(
+      root,
+      stubExec(() => {
+        throw Object.assign(new Error("Command failed"), {
+          stderr: "psql: error: connection to server failed: Connection refused",
+        });
+      }),
+    );
+    expect(result.didPass).toBe(true);
+    expect(result.isSkipped).toBe(true);
   });
 });
