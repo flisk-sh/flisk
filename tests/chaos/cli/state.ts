@@ -29,6 +29,10 @@ import { join, resolve } from "node:path";
 import { Rng } from "../gates/generate.js";
 import { REPO_ROOT } from "../graph/project.js";
 
+/** Reports go to the temp directory, never into the checkout (they are run output, not source). */
+const reportPath = (name: string): string =>
+	join(process.env.CHAOS_REPORT_DIR ?? tmpdir(), name);
+
 const FLISK_BIN = process.env.FLISK_BIN ?? join(REPO_ROOT, "cli/bin/flisk.js");
 const flag = (name: string, fallback: number): number => {
 	const at = process.argv.indexOf(`--${name}`);
@@ -128,7 +132,8 @@ function readDisk(dir: string): OnDisk {
 			if (typeof manifest.port === "number") {
 				const other = ports.get(manifest.port);
 				// Two services on one port are fine in Docker (only Traefik publishes a host port); the native runtime refuses it itself.
-        if (other && other !== manifest.appName) ports.set(manifest.port, other);
+				if (other && other !== manifest.appName)
+					ports.set(manifest.port, other);
 				ports.set(manifest.port, manifest.appName);
 			}
 		}
@@ -283,8 +288,7 @@ function check(
 			);
 	} else {
 		// A known break: `up` must refuse it rather than start (a duplicate name or a port clash), and say it as an error.
-		const breakNeedsRefusal =
-			disk.breaks.has("duplicate-name");
+		const breakNeedsRefusal = disk.breaks.has("duplicate-name");
 		if (breakNeedsRefusal) {
 			const up = json(dir, ["up", "--dry-run"]);
 			if (up.status === 0 && up.data?.ok === true)

@@ -269,12 +269,25 @@ export async function startUp(
   child.once("exit", (code) => {
     exited = code;
   });
+  // A child that cannot start (a projectPath that does not exist) emits "error" and never "exit"; without a listener that event
+  // is thrown and takes the whole MCP server down with it.
+  let spawnError: Error | undefined;
+  child.once("error", (error) => {
+    spawnError = error;
+  });
   const waitMs =
     typeof args.waitSeconds === "number"
       ? Math.min(Math.max(args.waitSeconds, 0), 60) * 1000
       : 15_000;
   const deadline = deps.now() + waitMs;
   for (;;) {
+    if (spawnError) {
+      return toToolResult({
+        exitCode: 1,
+        stdout: "",
+        stderr: `Could not start flisk up: ${spawnError.message}`,
+      });
+    }
     const log = deps.readLog(logFile);
     const line = log
       .split("\n")
