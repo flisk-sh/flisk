@@ -9,7 +9,7 @@ Pins the exact label map generated for backend services, covering:
 - Backend without healthcheck (bring-your-own / no HTTP probe)
 - Backend without manifest (standalone base router)
 
-Spec / Issue: https://github.com/flisk-sh/flisk/issues/2410
+Spec / Issues: https://github.com/flisk-sh/flisk/issues/2410, https://github.com/flisk-sh/flisk/issues/2412
 """
 
 from __future__ import annotations
@@ -377,3 +377,91 @@ r = {'labels': l}
     # Project-level and management routers are only created when manifest is provided
     assert "traefik.http.routers.testproj-orders-api-project.rule" not in labels
     assert "traefik.http.routers.testproj-orders-api-management.rule" not in labels
+
+
+def test_shared_stack_backend_with_explicit_path_prefix_retains_only_explicit_rule(tmp_path):
+    """Scenario B (#2412): Shared stack with explicit pathPrefix retains only that rule, no implicit host/path."""
+    body = """
+load('@NETWORKING/traefik.star', 'get_backend_traefik_labels')
+
+manifest = {
+    'appType': 'backend',
+    'stack': 'orders',
+    'port': 4000,
+    '_stackBackendCount': 2,
+    'traefik': {'pathPrefix': '/custom/orders'},
+}
+l = get_backend_traefik_labels(
+    'orders-api',
+    'orders.backend.testproj.local',
+    '/api/v1/orders-management',
+    'orders-api',
+    4000,
+    '/health',
+    manifest=manifest,
+)
+r = {'labels': l}
+"""
+    labels = run_traefik_labels(tmp_path, "testproj", body)
+
+    # Router rule contains ONLY the explicit path prefix, never the shared stack host or path
+    assert labels["traefik.http.routers.testproj-orders-api.rule"] == "PathPrefix(`/custom/orders`)"
+    assert "orders.backend.testproj.local" not in labels["traefik.http.routers.testproj-orders-api.rule"]
+    assert "/api/v1/orders-management" not in labels["traefik.http.routers.testproj-orders-api.rule"]
+    assert labels["traefik.http.routers.testproj-orders-api.service"] == "testproj-orders-api"
+    assert labels["traefik.http.routers.testproj-orders-api.entrypoints"] == "web"
+
+    # Expected service labels remain correct
+    assert labels["traefik.http.services.testproj-orders-api.loadbalancer.server.port"] == "4000"
+    assert labels["traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.path"] == "/health"
+    assert labels["traefik.docker.network"] == "testproj_traefik-public"
+
+    # Project router remains present
+    assert labels["traefik.http.routers.testproj-orders-api-project.rule"] == (
+        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)"
+    )
+
+    # Management router is omitted because stack is shared
+    assert "traefik.http.routers.testproj-orders-api-management.rule" not in labels
+
+
+@pytest.mark.parametrize("stack_backend_count", [None, 1])
+def test_normal_non_shared_stack_backend_variants_emit_stack_router(tmp_path, stack_backend_count):
+    """Scenario C (#2412): When _stackBackendCount is missing or 1, normal stack router and service labels are emitted."""
+    count_field = f"'_stackBackendCount': {stack_backend_count}," if stack_backend_count is not None else ""
+    body = f"""
+load('@NETWORKING/traefik.star', 'get_backend_traefik_labels')
+
+manifest = {{
+    'appType': 'backend',
+    'stack': 'orders',
+    'port': 4000,
+    {count_field}
+}}
+l = get_backend_traefik_labels(
+    'orders-api',
+    'orders.backend.testproj.local',
+    '/api/v1/orders-management',
+    'orders-api',
+    4000,
+    '/health',
+    manifest=manifest,
+)
+r = {{'labels': l}}
+"""
+    labels = run_traefik_labels(tmp_path, "testproj", body)
+
+    # Normal stack router rule is emitted with both stack host and path
+    assert labels["traefik.http.routers.testproj-orders-api.rule"] == (
+        "Host(`orders.backend.testproj.local`) || PathPrefix(`/api/v1/orders-management`)"
+    )
+    assert labels["traefik.http.routers.testproj-orders-api.service"] == "testproj-orders-api"
+    assert labels["traefik.http.services.testproj-orders-api.loadbalancer.server.port"] == "4000"
+    assert labels["traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.path"] == "/health"
+    assert labels["traefik.docker.network"] == "testproj_traefik-public"
+    assert labels["traefik.http.routers.testproj-orders-api-project.rule"] == (
+        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders`)"
+    )
+    assert labels["traefik.http.routers.testproj-orders-api-management.rule"] == (
+        "Host(`api.testproj.localhost`) && PathPrefix(`/api/orders-management`)"
+    )
