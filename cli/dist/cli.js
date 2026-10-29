@@ -13,6 +13,7 @@ import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
 import { stopDemoStack } from "./utils/demo-reset.js";
+import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
 import { bareTemplateArg } from "./utils/project-templates.js";
 const program = createProgram();
@@ -271,7 +272,9 @@ if (unknownHelp) {
         code: "commander.unknownCommand",
     });
 }
-program.parse();
+// An async action that throws (a corrupt project.json read deep inside a command) used to end as an unhandled rejection with a
+// raw runtime stack trace; every command now fails with one error line.
+program.parseAsync().catch(handleCommandError);
 /** Reads `--name value` and `--name=value` out of the raw arguments. */
 function readOptionValue(args, name) {
     const prefix = `${name}=`;

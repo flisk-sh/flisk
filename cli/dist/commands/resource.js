@@ -678,6 +678,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
         if (isExistingResource && !shouldRegisterExisting && resourceType !== BRING_YOUR_OWN_TYPE) {
             throw errorFactories.directoryExists(fullPath);
         }
+        // A second service.json with the same appName (a service whose directory was renamed, or lives in another stack) would
+        // make every later command refuse the project with a duplicate-name error.
+        const sameName = allResources.find((existing) => existing.name === resourceName && resolve(existing.path) !== fullPath);
+        if (sameName) {
+            throw new FliskError(`A resource named "${resourceName}" already exists at ${relative(projectRoot, resolve(sameName.path))}.`, ["Pick another name, or remove or rename the existing resource first"]);
+        }
         const nextPort = resourceType === "sdk"
             ? 0
             : assignPort(resourceType, allResources);

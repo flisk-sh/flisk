@@ -92,6 +92,14 @@ describe("validateStackName", () => {
     expect(validateStackName("a/b").valid).toBe(false);
   });
 
+  it("rejects a name that starts or ends with a hyphen, such as an option taken as a value", () => {
+    for (const name of ["--json", "-x", "x-", "-", "--"]) {
+      expect(validateStackName(name).valid, name).toBe(false);
+      expect(validateResourceName(name).valid, name).toBe(false);
+    }
+    expect(validateStackName("a-b--c").valid).toBe(true);
+  });
+
   it("requires a name", () => {
     expect(validateStackName("  ")).toEqual({ valid: false, error: "Stack name is required" });
   });
