@@ -21,6 +21,7 @@ export const PROJECT_AGENT_SKILLS = [
   "flisk-status",
   "flisk-troubleshoot",
   "flisk-agent-ops",
+  "flisk-convert",
 ] as const;
 
 // Claude Code reads .claude/skills; Codex, Cursor and other agents read .agents/skills.
