@@ -19,9 +19,12 @@ function run(args, { npmExit = 0 } = {}) {
     const npm = join(root, "npm");
     writeFileSync(
       npm,
-      ["#!/usr/bin/env bash", `printf '%s\\n' "$@" > "${argsFile}"`, `exit ${npmExit}`, ""].join(
-        "\n",
-      ),
+      [
+        "#!/usr/bin/env bash",
+        `printf '%s\\n' "$@" > '${argsFile.replaceAll("'", "'\\''")}'`,
+        `exit ${npmExit}`,
+        "",
+      ].join("\n"),
     );
     chmodSync(npm, 0o755);
     const proc = spawnSync(process.execPath, [script, ...args], {
