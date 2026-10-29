@@ -142,6 +142,19 @@ export const VARIANTS: Variant[] = [
   // restart is not enumerated (nothing downstream reads it), so an odd value is accepted and nothing breaks.
   v("restart=odd", { restart: "sometimes" }, "accept"),
   v("unknown.field", { totallyUnknown: { a: 1 } }, "accept"),
+
+  // Bring-your-own and migrator shapes.
+  v("appType=migrator", { appType: "migrator" }, "accept"),
+  v("appType=migrator+deps", { appType: "migrator", dependsOn: ["postgres"] }, "accept"),
+  v("image+port", { image: "nginx:1.27", build: undefined, port: 8080 }, "accept"),
+  v("image+replicas", { image: "nginx:1.27", build: undefined, replicas: 2 }, "accept"),
+  v("image+healthCheckPath", { image: "nginx:1.27", build: undefined, healthCheckPath: "/" }, "accept"),
+  v("image=digest", { image: "nginx@sha256:" + "a".repeat(64), build: undefined }, "accept"),
+  v("image=registry", { image: "ghcr.io/acme/app:1.2.3", build: undefined }, "accept"),
+  v("image=empty", { image: "" }, "accept"),
+  v("image=number", { image: 7 }, "reject"),
+  v("dockerfile=Dockerfile", { dockerfile: "Dockerfile" }, "accept"),
+  v("buildContext+dockerfile", { buildContext: ".", dockerfile: "Dockerfile" }, "accept"),
 ];
 
 /** Values for a frontend (`storefront`): its Vite config, base path and the backend it calls come from these. */
