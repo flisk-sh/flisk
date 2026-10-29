@@ -15,7 +15,7 @@ change in behaviour is a visible diff in a reviewed file instead of a surprise i
 
 ## How it works
 
-`CASES` in [`public-env-heuristic.mjs`](../../scripts/scores/public-env-heuristic.mjs) lists
+`CREDENTIALS` and `PUBLIC_VALUES` in [`public-env/corpus.mjs`](../../scripts/scores/public-env/corpus.mjs) list
 `{ name, value, secret, why }`:
 
 - 16 credential shapes that must warn (Stripe, OpenAI, Anthropic, AWS, GitHub, Slack, Google, npm, webhook, JWT, URL
@@ -23,8 +23,9 @@ change in behaviour is a visible diff in a reviewed file instead of a surprise i
 - 19 public values that must stay quiet (publishable keys, placeholders, URLs, kebab-case config, build ids, versions,
   commit SHAs in build variables, UUIDs, booleans, numbers, paths, short values).
 
-The scorer runs `isSecretLookingValue` from `cli/dist` on each and reports the ones that disagree, naming the promise
-(`Stripe secret key (VITE_STRIPE_KEY): doctor misses it (false negative)`), not the value.
+[`evaluate.mjs`](../../scripts/scores/public-env/evaluate.mjs) runs `isSecretLookingValue` from `cli/dist` on each and
+reports the ones that disagree, naming the promise and the direction
+(`Stripe secret key (VITE_STRIPE_KEY): false negative`), not the value. Code layout: [architecture](architecture.md).
 
 Credentials are assembled at runtime from a prefix and filler, so the file holds no credential-shaped literal and
 [tracked-secrets](../../scripts/scores/tracked-secrets.mjs) stays at zero.
@@ -36,7 +37,7 @@ Decide which side is right. If the code regressed, fix it. If the promise change
 
 ## Add a case
 
-Whenever a user reports a missed key or a noisy warning, add the value shape to `CASES` first, watch the gate go red,
+Whenever a user reports a missed key or a noisy warning, add the value shape to the corpus first, watch the gate go red,
 then fix the heuristic. The corpus only grows.
 
 ## What it cannot see

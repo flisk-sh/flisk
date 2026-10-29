@@ -8,6 +8,7 @@ drop points at a file and a line the way a lint error does.
 | --- | --- |
 | [Why deterministic checks belong in CI](why-deterministic-checks.md) | you want to know why a number beats a review comment |
 | [Gate, ratchet or report](modes.md) | you are choosing how strict a new check should be |
+| [How the scorers are built](architecture.md) | you are reading or changing scorer code |
 | [Add a check to CI](adding-a-check.md) | you are writing a scorer |
 | [Reading a failing score](reading-a-failure.md) | `make test-shell` or `make scores` just went red |
 | [public-env-secrets](public-env-secrets.md) | a finding names a `NEXT_PUBLIC_*` or `VITE_*` line |
