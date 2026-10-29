@@ -153,6 +153,22 @@ describe("native run planning", () => {
     ]);
   });
 
+  it("reads the deprecated dependencies key and expands a stack name, as the Docker path does", () => {
+    const stacked = (name: string, stack: string, config: Record<string, unknown>) => ({
+      ...makeResource(name, "bring-your-own", { command: "x", ...config }),
+      stack,
+    });
+    const plan = planNativeRun([
+      stacked("db", "core", {}),
+      stacked("cache", "core", {}),
+      stacked("api", "edge", { dependsOn: ["core"] }),
+      stacked("web", "edge", { dependencies: ["db"] }),
+    ]);
+    expect(plan.errors).toEqual([]);
+    expect(plan.services.find((s) => s.name === "api")?.dependsOn).toEqual(["db", "cache"]);
+    expect(plan.services.find((s) => s.name === "web")?.dependsOn).toEqual(["db"]);
+  });
+
   it("names services whose program is not installed", () => {
     const plans = planNativeRun([
       makeResource("api", "bring-your-own", { command: "node s.js" }),

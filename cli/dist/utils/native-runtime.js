@@ -5,6 +5,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
+import { dependsOnOf } from "./dependency-graph.js";
 import { FliskError } from "./errors.js";
 import { commandProgram } from "./native-service.js";
 import { findOnPath } from "./which.js";
@@ -70,12 +71,26 @@ export function planNativeRun(selected, vars = process.env) {
     const errors = [];
     const missingVars = [];
     const names = new Set(selected.map((resource) => resource.name));
+    const byStack = new Map();
+    for (const resource of selected) {
+        if (resource.stack)
+            byStack.set(resource.stack, [...(byStack.get(resource.stack) ?? []), resource.name]);
+    }
     const portOwners = new Map();
     const services = selected.map((resource) => {
         const config = resource.config ?? {};
-        const dependsOn = Array.isArray(config.dependsOn) ? config.dependsOn : [];
-        for (const dep of dependsOn) {
-            if (!names.has(dep)) {
+        // The same reading as the Docker path: dependsOn plus the deprecated `dependencies`, and a stack name means its services.
+        const dependsOn = [];
+        for (const dep of dependsOnOf(config)) {
+            if (names.has(dep)) {
+                dependsOn.push(dep);
+            }
+            else if (byStack.has(dep)) {
+                for (const member of byStack.get(dep) ?? [])
+                    if (member !== resource.name)
+                        dependsOn.push(member);
+            }
+            else {
                 errors.push(`service "${resource.name}" dependsOn "${dep}", which is not a service with a command in this project. Shared infrastructure such as a database or the gateway still needs Docker: add a "${dep}" service with a command, or remove it from dependsOn.`);
             }
         }
@@ -100,7 +115,7 @@ export function planNativeRun(selected, vars = process.env) {
             cwd: resource.path,
             port,
             env,
-            dependsOn: dependsOn.filter((dep) => names.has(dep)),
+            dependsOn: [...new Set(dependsOn)],
             healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
             url: port !== undefined ? localUrl(port) : undefined,
             restart: config.restart !== "no",
