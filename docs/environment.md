@@ -164,6 +164,16 @@ STRIPE_KEY=sk_test_...
   with the resource and the name in the message.
 - `FLISK_SECRET_PROVIDER=infisical` (set in the environment) leaves secrets to Infisical, and nothing is injected from `.env`.
 
+### Public variables (`NEXT_PUBLIC_*`, `VITE_*`) and client bundling
+
+Next.js (`NEXT_PUBLIC_*`) and Vite (`VITE_*`) inline environment variables into the generated client JavaScript bundles at build time. Placing credentials in these variables exposes them to every visitor inspecting network requests or script sources in the browser.
+
+`flisk doctor` includes a warning-only diagnostic that inspects project environment files (`.env`, `.env.local`, `.env.*`) for secret-looking values in public variables:
+- **High-confidence credential signatures:** detects provider keys such as Stripe secret keys (`sk_live_`, `sk_test_`), AWS keys (`AKIA`), GitHub tokens (`ghp_`), Slack tokens (`xoxb-`), OpenAI keys (`sk-proj-`), Google API keys (`AIza`), private keys, JWTs, and URLs with embedded credentials.
+- **Publishable keys allowed:** publishable keys intended for client-side use (`pk_live_`, `pk_test_`, `publishable_`, `pubkey_`) and documentation placeholders (`sk_test_x`) do not trigger warnings.
+- **Value redaction:** diagnostic reports and JSON output name only the variable and the file; secret values are never printed.
+- **Remediation:** rotate any credential placed in a public variable. Move sensitive API calls to server-side routes or a backend service, keeping secrets in server-only environment variables (`service.json.secrets` or un-prefixed `.env` variables).
+
 ## Auth
 
 A backend defaults to `AUTH_MODE=local-jwt`, and Compose requires `JWT_SECRET` from the project `.env`:

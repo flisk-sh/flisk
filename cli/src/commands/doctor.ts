@@ -82,6 +82,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { promptConfirm } from "../utils/prompt.js";
+import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import {
   EnvUnreadableError,
   envSecretValues,
@@ -121,7 +122,7 @@ export {
   summarizeServiceProbes,
   summarizeTiltBuildError,
 } from "../utils/doctor-runtime.js";
-export { checkStarlarkLoadExports };
+export { checkPublicEnvSecrets, checkStarlarkLoadExports };
 
 // A wedged Docker daemon makes `docker ps` block forever instead of failing,
 // and doctor is exactly the tool people run when their environment is broken.
@@ -1804,6 +1805,7 @@ export const doctorCommand = new Command("doctor")
       () => checkMigrationsInApi(),
       () => checkTiltInstances(),
       checkEnvironmentVariables,
+      () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
       // Preflight: Verdaccio down causes ImageBuild bun install ConnectionRefused.
       async () => {
         const root = findProjectRoot() ?? process.cwd();
@@ -1853,6 +1855,7 @@ export const doctorCommand = new Command("doctor")
           () => checkServicePorts(),
           () => checkSchemaVersions(undefined, options.strict),
           () => checkDuplicateResourcePorts(),
+          () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
         ]
       : containerProjectChecks;
 

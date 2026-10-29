@@ -405,6 +405,64 @@ describe("doctor JSON command", () => {
     }
   });
 
+  it("includes public env secrets warning in JSON output with ready=true and exits 0", async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    if (!platform) throw new Error("Missing process.platform descriptor");
+    const secretKey = [
+      "sk",
+      "live",
+      "51M00000000000000000000000000000000000000000000000000000000",
+    ].join("_");
+    vi.mocked(getHostPortPlan).mockResolvedValue({
+      ingressHttp: 80,
+      ingressHttps: 443,
+      postgres: 5432,
+      requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+      explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+      reason: { ingressHttp: "preferred", ingressHttps: "preferred", postgres: "preferred" },
+    });
+    vi.mocked(collectDoctorChecks).mockResolvedValue({
+      checks: [
+        PASSING_CHECK,
+        {
+          name: "Public Environment Secrets",
+          didPass: true,
+          isWarning: true,
+          message:
+            "Potential secret-looking values detected in public environment variables: NEXT_PUBLIC_STRIPE (.env)",
+          fix: "Move secrets to server-side variables or API routes. Public variables (NEXT_PUBLIC_*, VITE_*) are embedded into client bundles.",
+        },
+      ],
+      errors: [],
+    });
+
+    try {
+      Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+
+      const { log, exit } = captureOutput();
+      await doctorCommand.parseAsync(["--json", "--no-ping"], { from: "user" });
+      expect(exit).not.toHaveBeenCalled();
+
+      const rawStdout = String(log.mock.calls[0]?.[0]);
+      expect(rawStdout).not.toContain(secretKey);
+
+      const report = parseEnvelope(rawStdout);
+      expect(report.data.ready).toBe(true);
+      expect(report.data.checks).toHaveLength(2);
+      expect(report.data.checks[1]).toMatchObject({
+        name: "Public Environment Secrets",
+        didPass: true,
+        isWarning: true,
+      });
+      expect(report.data.checks[1].message).toContain("NEXT_PUBLIC_STRIPE (.env)");
+      expect(report.data.checks[1].message).not.toContain(secretKey);
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+      doctorCommand.setOptionValue("json", false);
+      doctorCommand.setOptionValue("ping", true);
+    }
+  });
+
   it("redacts secret values across check results, fixes, and error messages in JSON output", async () => {
     const platform = Object.getOwnPropertyDescriptor(process, "platform");
     if (!platform) throw new Error("Missing process.platform descriptor");

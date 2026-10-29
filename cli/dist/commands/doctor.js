@@ -30,6 +30,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { promptConfirm } from "../utils/prompt.js";
+import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
 import { checkCircularDependencies, checkDependsOnShape, checkSchemaVersions, checkServicePorts, } from "../utils/service-config-checks.js";
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
@@ -38,7 +39,7 @@ import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } fr
 import { findOnPath } from "../utils/which.js";
 import { checkWindowsDockerMode, checkWindowsHostConfiguration, checkWindowsRuntimeTools, } from "../utils/windows-doctor.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
-export { checkStarlarkLoadExports };
+export { checkPublicEnvSecrets, checkStarlarkLoadExports };
 // A wedged Docker daemon makes `docker ps` block forever instead of failing,
 // and doctor is exactly the tool people run when their environment is broken.
 const EXEC_TIMEOUT_MS = 10_000;
@@ -1509,6 +1510,7 @@ export const doctorCommand = new Command("doctor")
         () => checkMigrationsInApi(),
         () => checkTiltInstances(),
         checkEnvironmentVariables,
+        () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
         // Preflight: Verdaccio down causes ImageBuild bun install ConnectionRefused.
         async () => {
             const root = findProjectRoot() ?? process.cwd();
@@ -1558,6 +1560,7 @@ export const doctorCommand = new Command("doctor")
             () => checkServicePorts(),
             () => checkSchemaVersions(undefined, options.strict),
             () => checkDuplicateResourcePorts(),
+            () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
         ]
         : containerProjectChecks;
     if (options.ping && nativeResources && projectRoot) {

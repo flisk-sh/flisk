@@ -189,6 +189,20 @@ $ flisk doctor --no-ping      # no .env file
 - **Defined in:** [`doctor.ts`](../cli/src/commands/doctor.ts) (`checkEnvironmentVariables`) and [`env-validator.ts`](../cli/src/utils/env-validator.ts).
 - **Checked:** reproduced, all three. When only a warning applies, doctor passes and appends `(warning: ...)`; for example a `DATABASE_URL` password that differs from `DB_PASSWORD` (read from source, not reproduced).
 
+### Public environment secrets (`NEXT_PUBLIC_*`, `VITE_*`)
+
+```text
+⚠ Potential secret-looking values detected in public environment variables: NEXT_PUBLIC_API_KEY (.env)
+ℹ Fix: Move secrets to server-side variables or API routes. Public variables (NEXT_PUBLIC_*, VITE_*) are embedded into client bundles.
+```
+
+- **Cause:** a client-accessible variable prefixed with `NEXT_PUBLIC_` (Next.js) or `VITE_` (Vite) holds a value that matches high-confidence credential signatures (for example Stripe secret keys `sk_live_`, AWS credentials `AKIA`, GitHub tokens `ghp_`, OpenAI keys `sk-proj-`, Slack tokens `xoxb-`, Google API keys `AIza`, private keys, JWTs, or embedded URL credentials). The bundler inlines these values directly into the browser-facing JavaScript bundle where any visitor can inspect them.
+- **Warning-only:** this check is an informational warning (`⚠`) by default, so it does not fail `flisk doctor` or block local developer workflows. When run with `flisk doctor --strict`, it is treated as a blocking failure.
+- **Redaction:** `flisk doctor` outputs only the variable name and the relative file path. Secret values are never printed in diagnostic messages, error output, JSON envelopes, or logs.
+- **Publishable keys allowed:** known public-by-design identifiers, such as Stripe publishable keys (`pk_live_`, `pk_test_`) and common placeholders (`sk_test_x`), are recognized and permitted.
+- **Fix:** rotate any leaked credential immediately. Move calls that require secrets to server routes, API endpoints, or a backend-for-frontend (BFF) proxy so client code never receives secret tokens.
+- **Defined in:** [`public-env-secrets.ts`](../cli/src/utils/public-env-secrets.ts) and [`doctor.ts`](../cli/src/commands/doctor.ts) (`checkPublicEnvSecrets`).
+
 ### Project files that do not match what Flisk expects
 
 ```text
