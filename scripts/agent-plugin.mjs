@@ -43,7 +43,7 @@ export const PLUGIN = {
   name: "flisk",
   version: "1.0.0",
   description:
-    "Run your whole app on your own computer with one command. Skills and an MCP server that let your coding agent build, start, check and fix a local stack with the Flisk CLI.",
+    "Flisk App Builder. Tell your AI what app you want (an online shop, a website, a booking app, an AI helper) and it builds the whole app and runs it on your own computer with one command.",
   author: { name: "Flisk", url: "https://flisk.sh" },
   homepage: "https://flisk.sh",
   repository: "https://github.com/flisk-sh/flisk",
@@ -83,6 +83,7 @@ const SERVER = { command: "flisk", args: ["mcp"] };
 // What the Claude plugin directory shows on the listing. It reads these from plugin.json; without them it guesses
 // (the first docs link in the README, the last issue template) and has no privacy policy.
 const CLAUDE_LISTING = {
+  displayName: "Flisk App Builder",
   icon: "./.claude-plugin/icon.png",
   documentationUrl: "https://flisk.sh/docs",
   supportUrl: "https://github.com/flisk-sh/flisk/issues",
@@ -192,7 +193,7 @@ export function plan(root) {
     json({
       name: "flisk",
       owner,
-      metadata: { description: "The Flisk plugin: skills and the flisk mcp server for running your app locally" },
+      metadata: { description: "Flisk App Builder: tell your AI what app you want and it builds and runs it on your computer" },
       plugins: [
         { ...entry, source: `./${CLAUDE_PLUGIN_DIR}`, homepage: PLUGIN.homepage, license: PLUGIN.license, category: "development" },
       ],
