@@ -13,7 +13,7 @@ import { showHelp } from "./commands/help.js";
 import { createProgram } from "./program.js";
 import { ensureGlobalInstall } from "./utils/cli-command.js";
 import { formatColdPreflight, runColdPreflight } from "./utils/cold-preflight.js";
-import { stopDemoStack } from "./utils/demo-reset.js";
+import { readProjectName, removeStaleProjectVolumes, stopDemoStack } from "./utils/demo-reset.js";
 import type { DemoPhase, DemoPhaseStatus } from "./utils/demo-stage.js";
 import { handleCommandError } from "./utils/errors.js";
 import { unknownHelpTarget } from "./utils/help-command.js";
@@ -209,6 +209,16 @@ if (templateArg) {
     process.exit(1);
   }
   setPhase("config", "done", Date.now() - configStarted);
+
+  // The setup above wrote a new database password. Data a previous run left in Docker was initialised with
+  // the old one, and Postgres would keep it, so the migrator could not log in. A kept demo keeps its password.
+  if (!reused) {
+    const projectName = readProjectName(destination);
+    if (projectName) {
+      const removed = removeStaleProjectVolumes(projectName);
+      if (removed.length > 0) logLines.push(`removed stale volumes: ${removed.join(", ")}`);
+    }
+  }
 
   // The true service count comes from the project on disk, so the frame says "0 of 6"
   // while the stack is starting instead of "no services found".
