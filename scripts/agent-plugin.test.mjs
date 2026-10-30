@@ -5,7 +5,7 @@
 //   node --test scripts/agent-plugin.test.mjs
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -101,8 +101,9 @@ test("every marketplace points at a folder with that host's manifest", () => {
   const claude = readJson(ROOT, ".claude-plugin/marketplace.json").plugins[0].source;
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/plugin.json")), "Claude Code / Copilot CLI");
   const launcher = readJson(path.join(ROOT, claude), ".mcp.json").mcpServers.flisk;
-  assert.deepEqual([launcher.command, ...launcher.args], ["sh", "${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh"]);
+  assert.deepEqual([launcher.command, ...launcher.args], ["${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh"]);
   assert.ok(existsSync(path.join(ROOT, claude, "bin/flisk-mcp.sh")), "the launcher ships in the Claude Code plugin");
+  assert.ok(statSync(path.join(ROOT, claude, "bin/flisk-mcp.sh")).mode & 0o100, "the launcher is executable");
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/icon.png")), "the Claude directory wants an icon");
   const codex = readJson(ROOT, ".agents/plugins/marketplace.json").plugins[0].source;
   assert.equal(codex.source, "local");
