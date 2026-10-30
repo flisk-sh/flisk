@@ -12,7 +12,7 @@
 //   .claude-plugin/marketplace.json            marketplace for Claude Code, pointing at plugins/flisk-claude (and Copilot CLI, which reads it too)
 //   .agents/plugins/marketplace.json           marketplace for Codex
 //   .cursor-plugin/marketplace.json            marketplace for Cursor
-//   plugins/flisk-claude/                      the Claude Code plugin: same skills, and .mcp.json runs bin/flisk-mcp.mjs (a launcher
+//   plugins/flisk-claude/                      the Claude Code plugin: same skills, and .mcp.json runs bin/flisk-mcp.sh (a launcher
 //                                              that starts flisk mcp), which the Claude directory can read
 //   gemini-extension.json                      Gemini CLI extension (it must sit at the repository root)
 // plugins/flisk/README.md, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
@@ -79,22 +79,16 @@ const SERVER = { command: "flisk", args: ["mcp"] };
 
 // Claude Code's directory only reads a server command it knows (node, python, docker, java or a script shipped in the
 // plugin), and an unknown `flisk` command is held for a reviewer. So the Claude Code plugin (plugins/flisk-claude) runs
-// a small launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
-const CLAUDE_SERVER = { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.mjs"] };
-const CLAUDE_LAUNCHER = `#!/usr/bin/env node
-// Copyright (c) 2026 Flisk Landscape contributors
-// SPDX-License-Identifier: MIT
-// Written by ${"scripts/agent-plugin.mjs"}. Starts \`flisk mcp\` (the Flisk CLI's own stdio MCP server) from the user's
-// PATH, in the folder the agent was started in. It reads no credential and uses no network.
-import { spawn } from "node:child_process";
-
-const child = spawn("flisk", ["mcp"], { stdio: "inherit" });
-child.on("error", (error) => {
-  const why = error.code === "ENOENT" ? "the flisk command was not found" : error.message;
-  console.error(\`flisk mcp: \${why}. Install the Flisk CLI first: npm install -g @flisk-sh/flisk\`);
-  process.exit(1);
-});
-child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
+// a small shell launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
+const CLAUDE_SERVER = { command: "sh", args: ["${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh"] };
+const CLAUDE_LAUNCHER = `#!/bin/sh
+# Written by scripts/agent-plugin.mjs. Starts \`flisk mcp\` (the Flisk CLI's own stdio MCP server) from the user's
+# PATH, in the folder the agent was started in. It reads no credential and uses no network.
+if ! command -v flisk >/dev/null 2>&1; then
+  echo "flisk mcp: the flisk command was not found. Install the Flisk CLI first: npm install -g @flisk-sh/flisk" >&2
+  exit 1
+fi
+exec flisk mcp
 `;
 
 // The name the MCP Registry lists Flisk under. The io.github.flisk-sh/ namespace is proven by publishing from a
@@ -178,9 +172,9 @@ export function plan(root) {
     json({ ...PLUGIN, skills: "./skills/", mcpServers: "./.mcp.json", interface: OPENAI_INTERFACE }),
   );
   add(inPlugin(".cursor-plugin/plugin.json"), json({ ...PLUGIN, logo: "assets/logo.svg" }));
-  add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json(PLUGIN));
+  add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json({ ...PLUGIN, icon: "./.claude-plugin/icon.png" }));
   add(`${CLAUDE_PLUGIN_DIR}/.mcp.json`, json({ mcpServers: { flisk: CLAUDE_SERVER } }));
-  add(`${CLAUDE_PLUGIN_DIR}/bin/flisk-mcp.mjs`, CLAUDE_LAUNCHER);
+  add(`${CLAUDE_PLUGIN_DIR}/bin/flisk-mcp.sh`, CLAUDE_LAUNCHER);
   for (const name of skillNames(root)) {
     const source = absoluteDocLinks(readFileSync(path.join(root, SKILLS_SOURCE, name, "SKILL.md"), "utf8"));
     add(inPlugin(`skills/${name}/SKILL.md`), source);
