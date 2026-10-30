@@ -6,6 +6,7 @@ import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { ensureProjectRuntimeAssets, generateMasterConfigs, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
@@ -45,6 +46,7 @@ import { upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
 import { tiltGetUiResources, tiltResourceLogs, waitForTiltResourcesReady, } from "../utils/up-readiness.js";
+import { defaultUpWaitDeps, parseWaitTimeout, upAndWait } from "../utils/up-wait.js";
 import { enableDiscoveredStacks, writeDefaultProjectConfig } from "./project.js";
 export function formatUpSuccess(port, options = {}) {
     const { appUrls = [], serviceHealth = [], showLogsHint = serviceHealth.length > 0 } = options;
@@ -306,6 +308,56 @@ export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
         dependencies: only ? selection.dependencies : [],
     };
 }
+/**
+ * `flisk up --wait`: runs `flisk up --json` detached and waits for its one result line, so a script gets an exit code
+ * when the stack is healthy instead of an attached command that never returns.
+ */
+async function runUpWait(options) {
+    const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up --wait") : undefined;
+    const timeout = parseWaitTimeout(options.waitTimeout);
+    if (!timeout.ok) {
+        emit?.({ ok: false }, [
+            { code: "INVALID_WAIT_TIMEOUT", message: timeout.message, suggestions: [] },
+        ]);
+        showErrorAndExit(timeout.message, 1, []);
+    }
+    const outcome = await upAndWait(process.argv.slice(2), timeout.seconds, defaultUpWaitDeps(cliInvocation), process.cwd());
+    if (outcome.kind === "ready" || outcome.kind === "failed") {
+        if (options.json) {
+            console.log(outcome.json);
+        }
+        else {
+            const parsed = JSON.parse(outcome.json);
+            if (outcome.kind === "ready") {
+                console.log(chalk.green("Stack is healthy."));
+                if (parsed.data?.tiltUrl)
+                    console.log(chalk.gray(`Tilt: ${parsed.data.tiltUrl}`));
+                console.log(chalk.gray("It keeps running. `flisk status` shows it, `flisk down` stops it."));
+            }
+            else {
+                const failures = parsed.data?.failures?.map((f) => `${f.name}: ${f.message}`) ?? [];
+                const messages = failures.length > 0 ? failures : (parsed.errors ?? []).map((e) => e.message ?? "");
+                showError(`flisk up failed:\n  ${messages.filter(Boolean).join("\n  ")}`);
+            }
+        }
+        process.exit(outcome.kind === "ready" ? 0 : 1);
+    }
+    const reason = outcome.kind === "timeout"
+        ? `the stack was not healthy after ${timeout.seconds} seconds (the log is ${outcome.logFile})`
+        : outcome.kind === "exited"
+            ? `flisk up exited with code ${outcome.exitCode ?? "unknown"} before the stack was ready`
+            : `could not start flisk up: ${outcome.message}`;
+    const code = outcome.kind === "timeout" ? "UP_WAIT_TIMEOUT" : "UP_WAIT_FAILED";
+    const suggestions = outcome.kind === "timeout"
+        ? ["`flisk status` shows which services are not healthy", "`flisk down` stops the stack"]
+        : [];
+    emit?.({ ok: false }, [{ code, message: reason, suggestions }]);
+    if (!options.json) {
+        const tail = "logTail" in outcome ? outcome.logTail.trim() : "";
+        showError(`${reason}${tail ? `\n${tail}` : ""}`, undefined, suggestions);
+    }
+    process.exit(1);
+}
 export const upCommand = new Command("up")
     .description("Start all services (optionally filtered by stack)")
     .alias("deploy")
@@ -319,8 +371,14 @@ export const upCommand = new Command("up")
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
     .option("--env-file <path>", "Use this project env file for the run instead of .env (for example: --env-file .env.integration)")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
+    .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
+    .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
     .action(async (stackName, options) => {
     const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
+    if (options.wait) {
+        await runUpWait(options);
+        return;
+    }
     if (options.json)
         options.quiet = true;
     const portSetting = parseTiltPort(process.env.TILT_PORT);

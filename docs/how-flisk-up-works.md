@@ -197,6 +197,8 @@ sequenceDiagram
 | `-q, --quiet` | Suppresses progress spinners, headers, and non-essential logs. | `flisk up --quiet` |
 | `--only <services...>` | Starts only named services plus their required dependencies. | `flisk up --only api worker` |
 | `--ignore-drift` | Bypasses drift check when generated service files differ from `service.json`. | `flisk up --ignore-drift` |
+| `--wait` | Runs `flisk up --json` in the background and returns once every service is healthy (exit 0). It exits 1 when the stack fails or `--wait-timeout` passes. The stack keeps running; `flisk down` stops it. With `--json` it prints that one result. Use it in scripts and CI instead of a foreground `flisk up`. | `flisk up --wait` |
+| `--wait-timeout <seconds>` | With `--wait`: seconds to wait for a healthy stack, from 1 to 21600. The default is 1800. | `flisk up --wait --wait-timeout 600` |
 | `--ignore-version` | Bypasses `minFliskVersion` constraint in `.flisk/project.json`. | `flisk up --ignore-version` |
 | `--json` | Emits a single JSON result object on stdout upon completion; implies `--quiet`. | `flisk up --json` |
 
