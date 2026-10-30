@@ -112,7 +112,7 @@ export async function hostUpRefusal(host = detectHost(), dockerReachable = defau
         return DEVCONTAINER_DOCKER_FIX;
     return null;
 }
-async function defaultDockerReachable() {
+export async function defaultDockerReachable() {
     const { execFile } = await import("node:child_process");
     return new Promise((resolve) => {
         execFile("docker", ["ps"], { timeout: 10_000 }, (error) => resolve(!error));
@@ -192,7 +192,7 @@ export async function waitForTiltUnlessStartupFailed(tiltRun, startupFailure, ex
         exit(1);
     return outcome;
 }
-function waitForTiltUi(port, timeoutMs = 30_000) {
+export function waitForTiltUi(port, timeoutMs = 30_000) {
     return new Promise((resolve) => {
         const deadline = Date.now() + timeoutMs;
         const attempt = () => {

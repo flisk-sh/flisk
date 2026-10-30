@@ -21,6 +21,7 @@ export declare function formatUpSuccess(port: number, options?: {
 export declare const nativeWindowsUpRefusal: typeof nativeWindowsStackRefusal;
 /** Why `flisk up` cannot work on this host, or null when it may proceed. Docker reachability is only probed in container hosts. */
 export declare function hostUpRefusal(host?: import("../utils/agent-host.js").HostInfo, dockerReachable?: () => Promise<boolean>): Promise<string | null>;
+export declare function defaultDockerReachable(): Promise<boolean>;
 /** Exit status for `flisk up` when generated files no longer match service.json / project.json. */
 export declare const DRIFT_EXIT_CODE = 2;
 /**
@@ -51,6 +52,7 @@ export declare function enforceVersionFloor(projectRoot: string, options: {
  * running (`flisk down` stops it), so waiting for its exit would hang the command.
  */
 export declare function waitForTiltUnlessStartupFailed<T>(tiltRun: Promise<T>, startupFailure: Promise<void>, exit?: (code: number) => never): Promise<T>;
+export declare function waitForTiltUi(port: number, timeoutMs?: number): Promise<boolean>;
 /**
  * The env file of the run. `flisk up --env-file <path>` replaces the project `.env` for the run, so the
  * file is resolved, read and checked before anything is written or started. Without the option the
