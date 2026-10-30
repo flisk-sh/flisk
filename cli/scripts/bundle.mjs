@@ -49,7 +49,7 @@ await build({
   format: "esm",
   platform: "node",
   target: "node22",
-  minify: true,
+  minify: false,
   external: ["commander", "react-devtools-core"],
   banner: {
     js: "import{createRequire as __fliskRequire}from'node:module';const require=__fliskRequire(import.meta.url);",
