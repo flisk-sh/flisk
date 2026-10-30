@@ -96,7 +96,20 @@ def _docker_compose_app(compose_paths, project_name, env_file):
         docker_compose(compose_paths, project_name=project_name)
 
 
-def _build_infra_dependencies(resource_name, should_enable, ctx, has_backend=False):
+def _stack_uses_golden_image(resource_config, resource_manifests):
+    """Whether any resource of the stack builds from the shared golden base images.
+
+    A bring-your-own resource builds its own Dockerfile and never uses them, and libraries, SDKs and
+    infra resources build no image. A stack made only of those must not wait for the golden build.
+    """
+    for resource in resource_config.get('resources', []):
+        app_type = resource_manifests.get(resource['name'], {}).get('appType', 'backend')
+        if app_type not in ['bring-your-own', 'library', 'sdk', 'infra']:
+            return True
+    return False
+
+
+def _build_infra_dependencies(resource_name, should_enable, ctx, has_backend=False, uses_golden_image=True):
     infra_deps = []
     if should_enable('database-management'):
         infra_deps.append('postgres')
@@ -107,7 +120,7 @@ def _build_infra_dependencies(resource_name, should_enable, ctx, has_backend=Fal
         verdaccio_compose = ((project_root.rstrip('/') + '/') if project_root else '') + 'docker-compose.verdaccio.yml'
         if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", verdaccio_compose], quiet=True, echo_off=True)).strip() == 'yes':
             infra_deps.append(PlatformDockerConstants.VERDACCIO_RESOURCE_NAME)
-    if should_enable('golden-image') and ctx.get('golden_image_resource'):
+    if uses_golden_image and should_enable('golden-image') and ctx.get('golden_image_resource'):
         infra_deps.append(ctx['golden_image_resource'])
     return infra_deps
 
@@ -289,13 +302,19 @@ def resolve_dependency_to_resource(dep_name, all_services_map):
     return _resolve_dependency_to_resource(dep_name, all_services_map)
 
 
-def build_infra_dependencies(resource_name, should_enable, ctx=None, has_backend=False):
+def build_infra_dependencies(resource_name, should_enable, ctx=None, has_backend=False, uses_golden_image=True):
     """Public wrapper over `_build_infra_dependencies` (exported for tests).
 
     feature off → no postgres; feature on → has postgres (plus backend
-    provision-db edge when has_backend is true).
+    provision-db edge when has_backend is true). The golden build is a dependency only
+    when uses_golden_image is true.
     """
-    return _build_infra_dependencies(resource_name, should_enable, ctx if ctx != None else {}, has_backend)
+    return _build_infra_dependencies(resource_name, should_enable, ctx if ctx != None else {}, has_backend, uses_golden_image)
+
+
+def stack_uses_golden_image(resource_config, resource_manifests):
+    """Public wrapper over `_stack_uses_golden_image` (exported for tests)."""
+    return _stack_uses_golden_image(resource_config, resource_manifests)
 
 
 def build_resource_deps(res, res_name, manifest, resource_config, infra_deps, config_gen_resources=None, resource_manifests=None, runtime_flags=None, all_services_map=None):
@@ -866,7 +885,10 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
     resource_manifests = manifest_state['resource_manifests']
     config_gen_resources = manifest_state['config_gen_resources']
     has_backend = _has_backend_resource(resource_config, resource_manifests)
-    infra_deps = _build_infra_dependencies(resource_name, should_enable, ctx, has_backend)
+    infra_deps = _build_infra_dependencies(
+        resource_name, should_enable, ctx, has_backend,
+        uses_golden_image=_stack_uses_golden_image(resource_config, resource_manifests),
+    )
     
     # Build map of all services for dependency resolution
     # This maps short names like 'identity' to full resource names
