@@ -1,8 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Unit and integration tests for scripts/check-ruleset-snapshots.mjs.
-// Platform note: Integration fixtures execute under POSIX/Linux CI (ubuntu-26.04 in make test-shell).
-// Cross-platform compatibility is preserved via path separator detection and Windows cmd wrapper.
+// Integration cases run the script against a stub `gh` on PATH, so they never touch the network.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -107,6 +106,15 @@ test("compareRuleset: identical snapshots produce no mismatches", () => {
 	const a = createValidRuleset("main ruleset", "refs/heads/main");
 	const b = createValidRuleset("main ruleset", "refs/heads/main");
 	assert.deepEqual(compareRuleset(a, b), []);
+});
+
+test("compareRuleset: ignores ordering of rules and ref patterns", () => {
+	const snapshot = createValidRuleset("main ruleset", "refs/heads/main");
+	snapshot.conditions.ref_name.include = ["refs/heads/main", "refs/heads/release/*"];
+	const live = createValidRuleset("main ruleset", "refs/heads/main");
+	live.conditions.ref_name.include = ["refs/heads/release/*", "refs/heads/main"];
+	live.rules = [...snapshot.rules].reverse();
+	assert.deepEqual(compareRuleset(snapshot, live), []);
 });
 
 test("compareRuleset: detects altered rules and parameters", () => {
