@@ -23,6 +23,12 @@ interface TypeSpecificConfig {
     };
 }
 export declare const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificConfig>;
+/** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
+export declare function resolveInferencePort(value: string | undefined, resources: Array<{
+    config?: {
+        port?: number;
+    };
+}>): number;
 export declare function resolveByoPort(value: string | undefined, assignedPort: number, resources: Array<{
     config?: {
         port?: number;
@@ -128,7 +134,7 @@ export declare const TSCONFIG_TEMPLATE: {
     exclude: string[];
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
-/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
+/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` a preset of it. */
 export declare function parseResourceType(type: string): CreatableResourceType | "sdk";
 type ExistingServiceConfig = {
     [key: string]: unknown;
