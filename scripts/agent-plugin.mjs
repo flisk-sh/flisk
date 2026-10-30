@@ -4,7 +4,7 @@
 // `flisk project` writes, from cli/templates/agent-skills) and the `flisk mcp` server. This script writes
 //   plugins/flisk/plugin.json, mcp.json        the open Agent Plugins format (agent-plugins.org): Codex and ChatGPT,
 //                                              Cursor and GitHub Copilot CLI load these
-//   plugins/flisk/.mcp.json                    Claude Code (and older Copilot builds): runs bin/flisk-mcp.mjs, which starts flisk mcp
+//   plugins/flisk/.mcp.json                    the same server for Claude Code and older Codex and Copilot builds
 //   plugins/flisk/.claude-plugin/plugin.json   Claude Code
 //   plugins/flisk/.codex-plugin/plugin.json    Codex builds that predate the root plugin.json
 //   plugins/flisk/.cursor-plugin/plugin.json   Cursor marketplace entries
@@ -13,7 +13,7 @@
 //   .agents/plugins/marketplace.json           marketplace for Codex
 //   .cursor-plugin/marketplace.json            marketplace for Cursor
 //   gemini-extension.json                      Gemini CLI extension (it must sit at the repository root)
-// plugins/flisk/README.md, plugins/flisk/bin/, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
+// plugins/flisk/README.md, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
 //   node scripts/agent-plugin.mjs [--root <repo dir>]                 write everything
 //   node scripts/agent-plugin.mjs [--root <repo dir>] --check         exit 1 when anything is out of date (run by D6 in
 //                                                                     tests/e2e/static/skills-and-docs.sh)
@@ -73,9 +73,6 @@ export const OPENAI_INTERFACE = {
 // The server every host starts: the Flisk CLI's own stdio server, run in the user's project.
 const SERVER = { command: "flisk", args: ["mcp"] };
 
-// Claude Code's directory reads a server's command and only knows node, python, docker, java or a script shipped in
-// the plugin, so .mcp.json runs a small launcher (plugins/flisk/bin/flisk-mcp.mjs) that starts `flisk mcp`.
-const CLAUDE_SERVER = { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.mjs"] };
 
 // The name the MCP Registry lists Flisk under. The io.github.flisk-sh/ namespace is proven by publishing from a
 // flisk-sh GitHub Actions run, and the registry checks that the npm package's mcpName (root package.json) matches it.
@@ -151,11 +148,11 @@ export function plan(root) {
       mcpServers: { flisk: { type: "stdio", ...SERVER } },
     }),
   );
-  add(inPlugin(".mcp.json"), json({ mcpServers: { flisk: CLAUDE_SERVER } }));
+  add(inPlugin(".mcp.json"), json({ mcpServers: { flisk: SERVER } }));
   add(inPlugin(".claude-plugin/plugin.json"), json(PLUGIN));
   add(
     inPlugin(".codex-plugin/plugin.json"),
-    json({ ...PLUGIN, skills: "./skills/", mcpServers: "./mcp.json", interface: OPENAI_INTERFACE }),
+    json({ ...PLUGIN, skills: "./skills/", mcpServers: "./.mcp.json", interface: OPENAI_INTERFACE }),
   );
   add(inPlugin(".cursor-plugin/plugin.json"), json({ ...PLUGIN, logo: "assets/logo.svg" }));
   for (const name of skillNames(root)) {

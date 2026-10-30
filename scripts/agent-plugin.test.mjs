@@ -89,13 +89,11 @@ test("every host starts the same server: flisk mcp", () => {
   const plugin = path.join(ROOT, PLUGIN_DIR);
   const servers = [
     readJson(plugin, "mcp.json").mcpServers.flisk,
+    readJson(plugin, ".mcp.json").mcpServers.flisk,
     readJson(ROOT, "gemini-extension.json").mcpServers.flisk,
   ];
   for (const server of servers) assert.deepEqual([server.command, ...server.args], ["flisk", "mcp"]);
-  assert.equal(readJson(plugin, ".codex-plugin/plugin.json").mcpServers, "./mcp.json");
-  const claude = readJson(plugin, ".mcp.json").mcpServers.flisk;
-  assert.deepEqual([claude.command, ...claude.args], ["node", "${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.mjs"]);
-  assert.ok(existsSync(path.join(plugin, "bin/flisk-mcp.mjs")), "the Claude Code launcher ships in the plugin");
+  assert.equal(readJson(plugin, ".codex-plugin/plugin.json").mcpServers, "./.mcp.json");
 });
 
 test("every marketplace points at a folder with that host's manifest", () => {
