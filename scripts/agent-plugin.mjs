@@ -80,6 +80,14 @@ const SERVER = { command: "flisk", args: ["mcp"] };
 // Claude Code's directory only reads a server command it knows (node, python, docker, java or a script shipped in the
 // plugin), and an unknown `flisk` command is held for a reviewer. So the Claude Code plugin (plugins/flisk-claude) runs
 // a shell launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
+// What the Claude plugin directory shows on the listing. It reads these from plugin.json; without them it guesses
+// (the first docs link in the README, the last issue template) and has no privacy policy.
+const CLAUDE_LISTING = {
+  icon: "./.claude-plugin/icon.png",
+  documentationUrl: "https://flisk.sh/docs",
+  supportUrl: "https://github.com/flisk-sh/flisk/issues",
+  privacyPolicyUrl: "https://github.com/flisk-sh/flisk/blob/main/docs/security.md#what-flisk-sends-over-the-network",
+};
 const CLAUDE_SERVER = { command: "${CLAUDE_PLUGIN_ROOT}/scripts/flisk-mcp.sh", args: [] };
 const CLAUDE_LAUNCHER = `#!/bin/sh
 # Written by scripts/agent-plugin.mjs. Starts \`flisk mcp\` (the Flisk CLI's own stdio MCP server) from the user's
@@ -169,7 +177,7 @@ export function plan(root) {
     json({ ...PLUGIN, skills: "./skills/", mcpServers: "./.mcp.json", interface: OPENAI_INTERFACE }),
   );
   add(inPlugin(".cursor-plugin/plugin.json"), json({ ...PLUGIN, logo: "assets/logo.svg" }));
-  add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json({ ...PLUGIN, icon: "./.claude-plugin/icon.png" }));
+  add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json({ ...PLUGIN, ...CLAUDE_LISTING }));
   add(`${CLAUDE_PLUGIN_DIR}/.mcp.json`, json({ mcpServers: { flisk: CLAUDE_SERVER } }));
   add(`${CLAUDE_PLUGIN_DIR}/scripts/flisk-mcp.sh`, CLAUDE_LAUNCHER);
   for (const name of skillNames(root)) {
