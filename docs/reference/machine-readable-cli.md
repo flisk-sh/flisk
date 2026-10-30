@@ -307,6 +307,6 @@ A failed shutdown is reported in the same envelope. If `tilt down` exits with a 
 }
 ```
 
-`message` ends with the exit code of the command. A failed shutdown has no `stoppedTilt` or network fields, and containers may still be running, so run `flisk status --json` or `flisk doctor --json` to see what is left. Outside a project, `flisk down --json` does not use this shape: `data` is `null`, `errors` has one `COMMAND_FAILED` entry with `suggestions`, and the exit code is `1`.
+When the command printed an error before it stopped (for example `Could not find project root`), `message` is that error and `suggestions` lists its hints, so a script gets the real reason from the JSON alone. Otherwise `message` ends with the exit code of the command. A failed shutdown has no `stoppedTilt` or network fields, and containers may still be running, so run `flisk status --json` or `flisk doctor --json` to see what is left. Outside a project, `flisk down --json` does not use this shape: `data` is `null`, `errors` has one `COMMAND_FAILED` entry with `suggestions`, and the exit code is `1`.
 
 New resources created by `flisk resource` include a per-file `$schema` reference to the hosted service manifest schema. VS Code's JSON language service uses that reference for completion and validation; the generator leaves `.vscode/settings.json` untouched, so existing project editor settings remain intact. Resource registration adds the reference only when one is absent and preserves a user's existing `$schema` value.
