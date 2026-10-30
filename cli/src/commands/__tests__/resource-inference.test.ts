@@ -107,6 +107,18 @@ describe("inference resource type", () => {
     expect(service).not.toHaveProperty("image");
   });
 
+  it("keeps the port of an existing service.json when registering without --port", async () => {
+    const dir = join(tempDir, "services", "kitchen", "brain");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "service.json"),
+      JSON.stringify({ appName: "brain", appType: "bring-your-own", port: 8000 }),
+    );
+    clearDiscoveryCache();
+    const service = await createInference(["--register-existing"]);
+    expect(service).toMatchObject({ port: 8000 });
+  });
+
   describe("resolveInferencePort", () => {
     it("defaults to 11434", () => {
       expect(resolveInferencePort(undefined, [])).toBe(11434);

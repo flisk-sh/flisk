@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -75,6 +75,15 @@ const INFERENCE_TYPE = "inference";
 const INFERENCE_DEFAULT_PORT = 11434;
 const INFERENCE_DEFAULT_IMAGE = "ollama/ollama";
 const INFERENCE_HEALTH_PATH = "/v1/models";
+function readServiceJsonPort(path) {
+    try {
+        const port = JSON.parse(readFileSync(path, "utf-8")).port;
+        return typeof port === "number" && Number.isInteger(port) && port > 0 ? port : undefined;
+    }
+    catch {
+        return undefined;
+    }
+}
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
 export function resolveInferencePort(value, resources) {
     if (!value)
@@ -463,7 +472,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
     .option("--no-proxy", "Disable the Traefik route (bring-your-own only)")
     .option("--restart <policy>", "Compose restart policy: no, on-failure, unless-stopped, always (bring-your-own only; use no for one-shot jobs)")
     .option("--image <name>", "Docker image name instead of building from Dockerfile (for bring-your-own; inference defaults to ollama/ollama)")
-    .option("--port <port>", "Port for the resource, within its type's range (default: next free port in that range)")
+    .option("--port <port>", "Port for the resource, within its type's range (default: next free port in that range; inference defaults to 11434)")
     .option("--base-path <path>", "Base path for frontend routing (e.g., /storefront). Default is /{stack}s. Frontend only.")
     .option("--feature <feature...>", "Enable a resource feature (for example: prisma, drizzle)")
     .option("--runtime <id>", "Agent runtime (for agent only): custom (default)")
@@ -710,7 +719,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         if (sameName) {
             throw new FliskError(`A resource named "${resourceName}" already exists at ${relative(projectRoot, resolve(sameName.path))}.`, ["Pick another name, or remove or rename the existing resource first"]);
         }
-        const nextPort = resourceType === "sdk"
+        const nextPort = resourceType === "sdk" || isInference
             ? 0
             : assignPort(resourceType, allResources);
         if (options.restart !== undefined) {
@@ -733,8 +742,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
                 "Use --type backend without --language, or drop --feature drizzle",
             ]);
         }
+        // Registering an existing inference server without --port keeps the port its service.json already has.
+        const existingInferencePort = isInference && !options.port && shouldRegisterExisting && hasServiceJson
+            ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
+            : undefined;
         const assignedPort = isInference
-            ? resolveInferencePort(options.port, allResources)
+            ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
             : resourceType === "sdk"
                 ? 0
                 : resolveResourcePort(resourceType, options.port, nextPort, allResources);
@@ -773,7 +786,6 @@ export const resourceCommand = addYesOption(new Command("resource"))
         // Handle existing resource registration
         if (shouldRegisterExisting && hasServiceJson) {
             // Read existing service.json
-            const { readFileSync } = await import("node:fs");
             const existingServiceJsonPath = resolve(fullPath, SERVICE_JSON);
             const existingContent = readFileSync(existingServiceJsonPath, "utf-8");
             const existingServiceJson = parseExistingServiceJson(existingContent, existingServiceJsonPath);

@@ -49,7 +49,7 @@ flisk resource brain --type inference --stack kitchen
 
 It writes a `service.json` with `port: 11434`, `healthCheckPath: "/v1/models"` and `image: "ollama/ollama"`, and no Dockerfile. Ollama is only the default: pass `--image` (vLLM, llama.cpp server, any image), `--dockerfile`, `--port` (any 1-65535) or `--health-path` to use something else. Anything that answers `GET /v1/models` works. Agents call it at `http://brain:11434/v1/chat/completions` on the Docker network.
 
-Pull a model once with `docker compose exec brain ollama pull <model>` (or your server's equivalent). A container on macOS cannot use the GPU; for Metal speed run the server on the host and set `"command"` in `service.json` instead.
+Pull a model once with `docker compose exec brain ollama pull <model>` (or your server's equivalent). The preset mounts no volume, so pulled models are lost when `flisk down` removes the container: pull them again after `flisk up`, or bake the model into your own image with `--dockerfile`. A container on macOS cannot use the GPU; for Metal speed run the server on the host and set `"command"` in `service.json` instead.
 
 ## One-shot jobs (migrations, seeders)
 
