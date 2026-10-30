@@ -545,6 +545,16 @@ describe("startUp", () => {
     expect(r.isError).toBe(true);
     expect(JSON.stringify(r.data)).toContain("Could not start flisk up: spawn /nosuch ENOENT");
   });
+  it("reports a failed spawn even when the wait window is zero", async () => {
+    const { deps, child } = fakeUp({ logs: [""] });
+    deps.spawnUp = vi.fn(() => {
+      queueMicrotask(() => child.emit("error", new Error("spawn /nosuch ENOENT")));
+      return child as never;
+    });
+    const r = await startUp({ projectPath: "/nosuch", waitSeconds: 0 }, deps);
+    expect(r.isError).toBe(true);
+    expect(JSON.stringify(r.data)).toContain("Could not start flisk up");
+  });
   it("returns started + a polling hint, and detaches, when nothing happens within the window", async () => {
     const { deps, child } = fakeUp({ logs: [""] });
     const r = await startUp({ waitSeconds: 3 }, deps);

@@ -30,8 +30,11 @@ import { Rng } from "../gates/generate.js";
 import { REPO_ROOT } from "../graph/project.js";
 
 /** Reports go to the temp directory, never into the checkout (they are run output, not source). */
-const reportPath = (name: string): string =>
-	join(process.env.CHAOS_REPORT_DIR ?? tmpdir(), name);
+const reportPath = (name: string): string => {
+	const dir = process.env.CHAOS_REPORT_DIR ?? tmpdir();
+	mkdirSync(dir, { recursive: true });
+	return join(dir, name);
+};
 
 const FLISK_BIN = process.env.FLISK_BIN ?? join(REPO_ROOT, "cli/bin/flisk.js");
 const flag = (name: string, fallback: number): number => {
@@ -433,7 +436,7 @@ function main(): void {
 		console.log(`    after: ${first.history.join("; ")}`);
 	}
 	writeFileSync(
-		resolve("cli-state-report.json"),
+		reportPath("cli-state-report.json"),
 		JSON.stringify(failures, null, 2),
 	);
 	process.exit(failures.length > 0 ? 1 : 0);

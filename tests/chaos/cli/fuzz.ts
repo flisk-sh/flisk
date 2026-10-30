@@ -24,13 +24,16 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { Rng } from "../gates/generate.js";
 import { REPO_ROOT } from "../graph/project.js";
 
 /** Reports go to the temp directory, never into the checkout (they are run output, not source). */
-const reportPath = (name: string): string =>
-	join(process.env.CHAOS_REPORT_DIR ?? tmpdir(), name);
+const reportPath = (name: string): string => {
+	const dir = process.env.CHAOS_REPORT_DIR ?? tmpdir();
+	mkdirSync(dir, { recursive: true });
+	return join(dir, name);
+};
 
 const FLISK_BIN = process.env.FLISK_BIN ?? join(REPO_ROOT, "cli/bin/flisk.js");
 const flag = (name: string, fallback: string): string => {
@@ -566,7 +569,7 @@ async function main(): Promise<void> {
 		console.log(`    ${bucket.evidence}`);
 	}
 	writeFileSync(
-		resolve("cli-fuzz-report.json"),
+		reportPath("cli-fuzz-report.json"),
 		JSON.stringify(sorted, null, 2),
 	);
 	process.exit(sorted.length > 0 ? 1 : 0);

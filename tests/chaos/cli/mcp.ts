@@ -18,6 +18,7 @@ import {
 	mkdirSync,
 	mkdtempSync,
 	realpathSync,
+	rmSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,8 +27,11 @@ import { Rng } from "../gates/generate.js";
 import { REPO_ROOT } from "../graph/project.js";
 
 /** Reports go to the temp directory, never into the checkout (they are run output, not source). */
-const reportPath = (name: string): string =>
-	join(process.env.CHAOS_REPORT_DIR ?? tmpdir(), name);
+const reportPath = (name: string): string => {
+	const dir = process.env.CHAOS_REPORT_DIR ?? tmpdir();
+	mkdirSync(dir, { recursive: true });
+	return join(dir, name);
+};
 
 const FLISK_BIN = process.env.FLISK_BIN ?? join(REPO_ROOT, "cli/bin/flisk.js");
 const flag = (name: string, fallback: number): number => {
@@ -35,6 +39,10 @@ const flag = (name: string, fallback: number): number => {
 	return at >= 0 ? Number(process.argv[at + 1]) : fallback;
 };
 const COUNT = flag("count", 600);
+if (!Number.isInteger(COUNT) || COUNT < 1) {
+	console.error(`--count must be an integer of at least 1, got ${COUNT}`);
+	process.exit(2);
+}
 const SEED = flag("seed", 1);
 
 const SKIP = new Set(["resource_restart", "project_init"]);
@@ -154,7 +162,9 @@ class Server {
 				this.buffer = this.buffer.slice(newline + 1);
 				try {
 					const message = JSON.parse(line);
-					this.waiting.get(message.id)?.(message);
+					const reply = this.waiting.get(message.id);
+					if (reply) reply(message);
+					else this.noise.push(`reply matching no pending request: ${line.slice(0, 160)}`);
 				} catch {
 					// a non-JSON line on the protocol stream is itself a finding, recorded by the caller through `noise`
 					this.noise.push(line.slice(0, 200));
@@ -165,10 +175,14 @@ class Server {
 		this.child.stderr.on("data", (chunk) => {
 			this.stderr += chunk;
 		});
-		this.child.on("close", () => {
+		const died = (): void => {
 			this.alive = false;
-			for (const done of this.waiting.values()) done({ closed: true });
-		});
+			for (const done of [...this.waiting.values()]) done({ closed: true });
+		};
+		// A child that exits between two requests makes the next stdin write emit "error"; unhandled it would end the run.
+		this.child.on("error", died);
+		this.child.stdin.on("error", died);
+		this.child.on("close", died);
 	}
 
 	noise: string[] = [];
@@ -359,14 +373,15 @@ async function main(): Promise<void> {
 				const text = JSON.stringify(
 					reply.result?.content ?? reply.error ?? reply,
 				);
-				const trace = TRACE.exec(text.replace(/\\n/g, "\n"));
+				const unescaped = text.replace(/\\n/g, "\n");
+				const trace = TRACE.exec(unescaped);
 				if (trace)
 					record(
 						tool.name,
 						"stack-trace",
 						state,
 						args,
-						text.slice(Math.max(0, trace.index - 60), trace.index + 160),
+						unescaped.slice(Math.max(0, trace.index - 60), trace.index + 160),
 					);
 				const garbage = GARBAGE.exec(text);
 				// A value the caller sent can be echoed back ("Unknown stack 'undefined'"); only a bare one counts.
@@ -440,6 +455,8 @@ async function main(): Promise<void> {
 		reportPath("cli-mcp-report.json"),
 		JSON.stringify(sorted, null, 2),
 	);
+	// Keep the workspace when there are findings: it is the evidence.
+	if (sorted.length === 0) rmSync(root, { recursive: true, force: true });
 	process.exit(sorted.length > 0 ? 1 : 0);
 }
 

@@ -257,8 +257,13 @@ export async function startUp(args, deps = defaultUpDeps) {
         if (exited !== undefined) {
             return toToolResult({ exitCode: exited, stdout: "", stderr: log.slice(-2000) });
         }
-        if (deps.now() >= deadline)
+        if (deps.now() >= deadline) {
+            // A zero window would otherwise return before a failed spawn has emitted its "error" event.
+            await new Promise((done) => setImmediate(done));
+            if (spawnError)
+                continue;
             break;
+        }
         await deps.sleep(250);
     }
     child.unref();
