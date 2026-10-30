@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 // Unit and integration tests for scripts/check-ruleset-snapshots.mjs.
+// Platform note: Integration fixtures execute under POSIX/Linux CI (ubuntu-26.04 in make test-shell).
+// Cross-platform compatibility is preserved via path separator detection and Windows cmd wrapper.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -74,16 +76,20 @@ if (match) {
 console.error("Mock gh endpoint not found: " + endpoint);
 process.exit(1);
 `;
+		const pathSep = process.platform === "win32" ? ";" : ":";
 		const ghPath = join(binDir, "gh");
 		writeFileSync(ghPath, ghScript, { mode: 0o755 });
 		chmodSync(ghPath, 0o755);
+		if (process.platform === "win32") {
+			writeFileSync(join(binDir, "gh.cmd"), `@echo off\r\nnode "%~dp0gh" %*\r\n`);
+		}
 
 		const runScript = () => {
 			return spawnSync(process.execPath, [join(scriptsDir, "check-ruleset-snapshots.mjs")], {
 				cwd: tempDir,
 				env: {
 					...process.env,
-					PATH: `${binDir}:${process.env.PATH}`,
+					PATH: `${binDir}${pathSep}${process.env.PATH}`,
 					MOCK_DATA_FILE: join(tempDir, "mock-gh.json"),
 					GITHUB_REPOSITORY: "flisk-sh/flisk",
 				},
@@ -110,7 +116,7 @@ test("compareRuleset: detects altered rules and parameters", () => {
 	assert.deepEqual(compareRuleset(snapshot, live), ["rules"]);
 });
 
-test("compareRuleset: detects altered enforcement, bypass_actors, conditions, name", () => {
+test("compareRuleset: detects altered enforcement and name", () => {
 	const snapshot = createValidRuleset("main ruleset", "refs/heads/main");
 	const live = {
 		...snapshot,
@@ -118,6 +124,87 @@ test("compareRuleset: detects altered enforcement, bypass_actors, conditions, na
 		name: "renamed ruleset",
 	};
 	assert.deepEqual(compareRuleset(snapshot, live), ["name", "enforcement"]);
+});
+
+test("compareRuleset: detects altered target", () => {
+	const snapshot = createValidRuleset("main ruleset", "refs/heads/main");
+	const live = {
+		...snapshot,
+		target: "tag",
+	};
+	assert.deepEqual(compareRuleset(snapshot, live), ["target"]);
+});
+
+test("compareRuleset: detects altered bypass_actors", () => {
+	const snapshot = {
+		...createValidRuleset("main ruleset", "refs/heads/main"),
+		bypass_actors: [
+			{ actor_id: 1, actor_type: "OrganizationAdmin", bypass_mode: "always" },
+		],
+	};
+	const live = {
+		...snapshot,
+		bypass_actors: [
+			{ actor_id: 2, actor_type: "RepositoryRole", bypass_mode: "pull_request" },
+		],
+	};
+	assert.deepEqual(compareRuleset(snapshot, live), ["bypass_actors"]);
+});
+
+test("compareRuleset: detects altered conditions", () => {
+	const snapshot = createValidRuleset("main ruleset", "refs/heads/main");
+	const live = {
+		...snapshot,
+		conditions: {
+			ref_name: {
+				exclude: ["refs/heads/feature/*"],
+				include: ["refs/heads/main"],
+			},
+		},
+	};
+	assert.deepEqual(compareRuleset(snapshot, live), ["conditions"]);
+});
+
+test("compareRuleset: normalizes and ignores extra API metadata in live bypass actors and rules", () => {
+	const snapshot = {
+		...createValidRuleset("main ruleset", "refs/heads/main"),
+		bypass_actors: [
+			{ actor_id: 42, actor_type: "OrganizationAdmin", bypass_mode: "always" },
+		],
+	};
+	// Live GitHub response includes extra metadata not present in snapshot
+	const live = {
+		...snapshot,
+		id: 12345,
+		source_type: "Repository",
+		source: "flisk-sh/flisk",
+		current_user_can_bypass: "always",
+		node_id: "R_kwDO...",
+		_links: { html: { href: "https://github.com/..." } },
+		bypass_actors: [
+			{
+				actor_id: 42,
+				actor_type: "OrganizationAdmin",
+				bypass_mode: "always",
+				id: 999,
+				actor_name: "admin",
+				created_at: "2026-01-01T00:00:00Z",
+				updated_at: "2026-01-01T00:00:00Z",
+			},
+		],
+		rules: [
+			{ id: 101, ruleset_id: 12345, type: "deletion" },
+			{
+				id: 102,
+				ruleset_id: 12345,
+				type: "pull_request",
+				parameters: {
+					required_approving_review_count: 1,
+				},
+			},
+		],
+	};
+	assert.deepEqual(compareRuleset(snapshot, live), []);
 });
 
 test("Case A — Matching snapshot: exits 0 when all snapshots match live rulesets", () => {
