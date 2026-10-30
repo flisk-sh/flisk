@@ -34,6 +34,7 @@ function fakeDocker(
 ) {
   const removed: string[] = [];
   const pruned: string[] = [];
+  const trimmed: string[] = [];
   const stopped: number[] = [];
   const colimaActions: string[] = [];
   const colimaState: ColimaStatus = { isColima: false, running: true };
@@ -62,8 +63,11 @@ function fakeDocker(
     prune: async (kind) => {
       pruned.push(kind);
     },
+    trimColima: async () => {
+      trimmed.push("fstrim");
+    },
   };
-  return { deps, removed, stopped, pruned };
+  return { deps, removed, stopped, pruned, trimmed, colimaState };
 }
 
 const net = (name: string, containers = 0): DockerNetwork => ({ name, containers });
@@ -199,6 +203,7 @@ describe("applyDoctorFixes", () => {
       freeDiskGib: () => 100,
       reclaimable: async () => ({ buildCache: null, danglingImages: 0 }),
       prune: async () => {},
+      trimColima: async () => {},
       colima: async () => {},
       colimaStatus: () => ({ isColima: false, running: true }),
       dockerAnswers: () => true,
@@ -414,6 +419,7 @@ describe("dockerFixDeps", () => {
       "removeNetwork",
       "stopProcess",
       "tiltStatus",
+      "trimColima",
     ];
 
     const actualKeys = Object.keys(dockerFixDeps).sort();
@@ -576,6 +582,96 @@ describe("disk reclaim", () => {
     expect(plan[1]?.reason).toContain("1 untagged image");
   });
 
+  it("plans a trim of the Colima VM after the prunes, so the freed space returns to the Mac", async () => {
+    const { deps, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "3GB", dangling: 2 },
+    );
+    colimaState.isColima = true;
+    const plan = await planDoctorFixes("p", deps);
+    expect(plan.map((a) => a.id)).toEqual(["prune:builder", "prune:images", "trim:colima"]);
+    const trim = plan[2];
+    expect(trim?.command).toBe("colima ssh -- sudo fstrim -av");
+    expect(trim?.scope).toBe("host");
+    expect(trim?.reason).toContain("3.4 GB free");
+  });
+
+  it("plans the trim even when there is nothing left to prune", async () => {
+    const { deps, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "0B", dangling: 0 },
+    );
+    colimaState.isColima = true;
+    expect((await planDoctorFixes("p", deps)).map((a) => a.id)).toEqual(["trim:colima"]);
+  });
+
+  it("does not plan a trim without Colima, when the VM is stopped, or when disk is not low", async () => {
+    const plain = fakeDocker([], [], [], {}, { freeGib: 3.4, buildCache: "3GB", dangling: 0 });
+    expect((await planDoctorFixes("p", plain.deps)).map((a) => a.id)).toEqual(["prune:builder"]);
+
+    const stopped = fakeDocker([], [], [], {}, { freeGib: 3.4, buildCache: "3GB", dangling: 0 });
+    stopped.colimaState.isColima = true;
+    stopped.colimaState.running = false;
+    expect((await planDoctorFixes("p", stopped.deps)).some((a) => a.id === "trim:colima")).toBe(
+      false,
+    );
+
+    const roomy = fakeDocker([], [], [], {}, { freeGib: 100, buildCache: "3GB", dangling: 5 });
+    roomy.colimaState.isColima = true;
+    expect(await planDoctorFixes("p", roomy.deps)).toEqual([]);
+  });
+
+  it("applies the trim once, after the prunes, and reports it", async () => {
+    const { deps, pruned, trimmed, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "3GB", dangling: 1 },
+    );
+    colimaState.isColima = true;
+    const results = await applyDoctorFixes(
+      await planDoctorFixes("p", deps),
+      { dryRun: false, confirm: async () => true },
+      deps,
+    );
+    expect(pruned).toEqual(["builder", "images"]);
+    expect(trimmed).toEqual(["fstrim"]);
+    expect(results.find((a) => a.id === "trim:colima")).toMatchObject({
+      status: "applied",
+      reason: "trimmed",
+    });
+  });
+
+  it("reports a failed trim with the command to run by hand, and does not stop the other repairs", async () => {
+    const { deps, pruned, colimaState } = fakeDocker(
+      [],
+      [],
+      [],
+      {},
+      { freeGib: 3.4, buildCache: "3GB", dangling: 0 },
+    );
+    colimaState.isColima = true;
+    deps.trimColima = async () => {
+      throw new Error("sudo: a password is required");
+    };
+    const results = await applyDoctorFixes(
+      await planDoctorFixes("p", deps),
+      { dryRun: false, confirm: async () => true },
+      deps,
+    );
+    expect(pruned).toEqual(["builder"]);
+    const trim = results.find((a) => a.id === "trim:colima");
+    expect(trim?.status).toBe("failed");
+    expect(trim?.reason).toContain("sudo: a password is required");
+  });
+
   it("skips what has nothing to reclaim, and never plans volumes or a full image prune", async () => {
     const { deps } = fakeDocker([], [], [], {}, { freeGib: 1, buildCache: "0B", dangling: 0 });
     expect(await planDoctorFixes("p", deps)).toEqual([]);
@@ -660,6 +756,7 @@ describe("Colima repairs", () => {
     freeDiskGib: () => 100,
     reclaimable: async () => ({ buildCache: null, danglingImages: 0 }),
     prune: async () => {},
+    trimColima: async () => {},
     colima: async () => {},
     colimaStatus: () => ({ isColima: true, running: false }),
     dockerAnswers: () => false,

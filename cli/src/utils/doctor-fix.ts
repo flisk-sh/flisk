@@ -43,6 +43,11 @@ export interface DoctorFixDeps {
   /** What `docker builder prune` and `docker image prune` (dangling only) would reclaim. */
   reclaimable(): Promise<{ buildCache: string | null; danglingImages: number }>;
   prune(kind: "builder" | "images"): Promise<void>;
+  /**
+   * Gives the space Docker freed inside the Colima VM back to the host. Pruning only frees space inside the VM; its disk
+   * image keeps its size on the Mac until the free blocks are trimmed (`fstrim`).
+   */
+  trimColima(): Promise<void>;
   /** Starts, restarts, or repairs (native lima) the Colima VM, with a native limactl first on PATH when there is one. */
   colima(action: "start" | "restart" | "native-lima"): Promise<void>;
   /** The state of the Colima VM behind Docker. */
@@ -214,6 +219,20 @@ export function createDockerFixDeps(run: DockerRunner = runDocker): DoctorFixDep
         ]);
       }
     },
+    async trimColima() {
+      try {
+        await execFilePromise("colima", ["ssh", "--", "sudo", "fstrim", "-av"], {
+          encoding: "utf-8",
+          timeout: 300_000,
+          windowsHide: true,
+        });
+      } catch (error) {
+        throw new FliskError(firstLine(error), [
+          "Run it by hand: colima ssh -- sudo fstrim -av",
+          "Check the container engine with: flisk doctor",
+        ]);
+      }
+    },
     async tiltStatus(pid) {
       return tiltProcessStatus(pid);
     },
@@ -379,6 +398,19 @@ export async function planDoctorFixes(
         reason: `${low}; ${danglingImages} untagged image${danglingImages === 1 ? "" : "s"}`,
       });
     }
+    // Docker's data lives in the Colima VM; its disk image does not shrink by itself, so the freed space stays
+    // unavailable to macOS until the VM trims it. This runs after the prunes above.
+    const colima = deps.colimaStatus();
+    if (colima.isColima && colima.running) {
+      actions.push({
+        id: "trim:colima",
+        check: "Disk Space",
+        scope: "host",
+        command: "colima ssh -- sudo fstrim -av",
+        status: "planned",
+        reason: `${low}; Docker data lives in the Colima VM, whose disk image keeps its size on the Mac until it is trimmed`,
+      });
+    }
   }
   const own = new Set(projectName ? projectNetworkNames(projectName) : []);
   const prefixes = fliskNetworkPrefixes(networks.map((network) => network.name));
@@ -462,6 +494,11 @@ export async function applyDoctorFixes(
       continue;
     }
     try {
+      if (action.id === "trim:colima") {
+        await deps.trimColima();
+        results.push({ ...action, status: "applied", reason: "trimmed" });
+        continue;
+      }
       if (action.id.startsWith("prune:")) {
         await deps.prune(action.id === "prune:builder" ? "builder" : "images");
         results.push({ ...action, status: "applied", reason: "pruned" });

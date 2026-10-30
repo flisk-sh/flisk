@@ -21,6 +21,11 @@ export interface DoctorFixDeps {
         danglingImages: number;
     }>;
     prune(kind: "builder" | "images"): Promise<void>;
+    /**
+     * Gives the space Docker freed inside the Colima VM back to the host. Pruning only frees space inside the VM; its disk
+     * image keeps its size on the Mac until the free blocks are trimmed (`fstrim`).
+     */
+    trimColima(): Promise<void>;
     /** Starts, restarts, or repairs (native lima) the Colima VM, with a native limactl first on PATH when there is one. */
     colima(action: "start" | "restart" | "native-lima"): Promise<void>;
     /** The state of the Colima VM behind Docker. */
