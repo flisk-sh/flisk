@@ -6,10 +6,16 @@ import type { DiscoveredResource } from "../../types/index.js";
 import { DEVCONTAINER_DOCKER_FIX } from "../../utils/agent-host.js";
 import { defaultDockerReachable, driftReport, hostUpRefusal, waitForTiltUi } from "../up.js";
 
-const { execFileMock, connectMock } = vi.hoisted(() => ({
+const { execFileMock, connectMock, verifyMock } = vi.hoisted(() => ({
   execFileMock: vi.fn(),
   connectMock: vi.fn(),
+  verifyMock: vi.fn(),
 }));
+
+vi.mock("../../generator/template-engine.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../generator/template-engine.js")>();
+  return { ...actual, verifyMasterConfigs: verifyMock };
+});
 
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
@@ -39,6 +45,7 @@ describe("up-command Docker and Tilt startup helpers", () => {
   beforeEach(() => {
     execFileMock.mockReset();
     connectMock.mockReset();
+    verifyMock.mockReset();
   });
 
   afterEach(() => {
@@ -176,20 +183,39 @@ describe("up-command Docker and Tilt startup helpers", () => {
     });
   });
 
-  describe("driftReport with resources (lines 232–243)", () => {
-    it("verifies master configs with provided resources manifestPaths", () => {
-      const resources: DiscoveredResource[] = [
-        {
-          name: "web",
-          path: "/project/services/web",
-          configPath: "/project/services/web/service.json",
-          config: { appName: "web", appType: "frontend" },
-        },
-      ];
+  describe("driftReport with resources", () => {
+    const resources: DiscoveredResource[] = [
+      {
+        name: "web",
+        path: "/project/services/web",
+        configPath: "/project/services/web/service.json",
+        config: { appName: "web", appType: "frontend" },
+      },
+    ];
 
-      // Calling driftReport with resources exercises the ternary branch on lines 237–241
-      const result = driftReport("/project", resources);
-      expect(result === null || Array.isArray(result)).toBe(true);
+    it("verifies only the discovered manifests and skips manifest validation", () => {
+      verifyMock.mockReturnValue({ handEdited: [] });
+
+      expect(driftReport("/project", resources)).toBeNull();
+      expect(verifyMock).toHaveBeenCalledWith("/project", {
+        manifestPaths: ["/project/services/web/service.json"],
+        skipManifestValidation: true,
+      });
+    });
+
+    it("reports hand-edited generated files", () => {
+      verifyMock.mockReturnValue({ handEdited: ["services/web/Dockerfile"] });
+
+      const report = driftReport("/project", resources);
+      expect(report).toContain("  services/web/Dockerfile");
+      expect(report?.[0]).toMatch(/edited by hand/);
+    });
+
+    it("verifies without options when no resources are given", () => {
+      verifyMock.mockReturnValue({ handEdited: [] });
+
+      driftReport("/project");
+      expect(verifyMock).toHaveBeenCalledWith("/project", undefined);
     });
   });
 });
