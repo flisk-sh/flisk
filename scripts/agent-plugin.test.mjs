@@ -101,9 +101,11 @@ test("every marketplace points at a folder with that host's manifest", () => {
   const claude = readJson(ROOT, ".claude-plugin/marketplace.json").plugins[0].source;
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/plugin.json")), "Claude Code / Copilot CLI");
   const launcher = readJson(path.join(ROOT, claude), ".mcp.json").mcpServers.flisk;
-  assert.deepEqual([launcher.command, ...launcher.args], ["${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh"]);
-  assert.ok(existsSync(path.join(ROOT, claude, "bin/flisk-mcp.sh")), "the launcher ships in the Claude Code plugin");
-  assert.ok(statSync(path.join(ROOT, claude, "bin/flisk-mcp.sh")).mode & 0o100, "the launcher is executable");
+  assert.deepEqual([launcher.command, ...launcher.args], ["${CLAUDE_PLUGIN_ROOT}/scripts/flisk-mcp.sh"]);
+  assert.ok(existsSync(path.join(ROOT, claude, "scripts/flisk-mcp.sh")), "the launcher ships in the Claude Code plugin");
+  assert.ok(statSync(path.join(ROOT, claude, "scripts/flisk-mcp.sh")).mode & 0o100, "the launcher is executable");
+  const listing = readJson(path.join(ROOT, claude), ".claude-plugin/plugin.json");
+  for (const key of ["documentationUrl", "supportUrl", "privacyPolicyUrl"]) assert.match(listing[key], /^https:\/\//, key);
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/icon.png")), "the Claude directory wants an icon");
   const codex = readJson(ROOT, ".agents/plugins/marketplace.json").plugins[0].source;
   assert.equal(codex.source, "local");

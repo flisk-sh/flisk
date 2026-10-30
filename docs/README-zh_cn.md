@@ -13,7 +13,7 @@ Flisk 是一款用于本地开发的命令行工具。它在你的电脑上把�
 
 ```bash
 npm install -g @flisk-sh/flisk
-mkdir shop && cd shop
+# mkdir shop && cd shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes

@@ -12,7 +12,7 @@
 //   .claude-plugin/marketplace.json            marketplace for Claude Code, pointing at plugins/flisk-claude (and Copilot CLI, which reads it too)
 //   .agents/plugins/marketplace.json           marketplace for Codex
 //   .cursor-plugin/marketplace.json            marketplace for Cursor
-//   plugins/flisk-claude/                      the Claude Code plugin: same skills, and .mcp.json runs bin/flisk-mcp.sh (a launcher
+//   plugins/flisk-claude/                      the Claude Code plugin: same skills, and .mcp.json runs scripts/flisk-mcp.sh (a launcher
 //                                              that starts flisk mcp), which the Claude directory can read
 //   gemini-extension.json                      Gemini CLI extension (it must sit at the repository root)
 // plugins/flisk/README.md, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
@@ -80,7 +80,15 @@ const SERVER = { command: "flisk", args: ["mcp"] };
 // Claude Code's directory only reads a server command it knows (node, python, docker, java or a script shipped in the
 // plugin), and an unknown `flisk` command is held for a reviewer. So the Claude Code plugin (plugins/flisk-claude) runs
 // a shell launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
-const CLAUDE_SERVER = { command: "${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh", args: [] };
+// What the Claude plugin directory shows on the listing. It reads these from plugin.json; without them it guesses
+// (the first docs link in the README, the last issue template) and has no privacy policy.
+const CLAUDE_LISTING = {
+  icon: "./.claude-plugin/icon.png",
+  documentationUrl: "https://flisk.sh/docs",
+  supportUrl: "https://github.com/flisk-sh/flisk/issues",
+  privacyPolicyUrl: "https://github.com/flisk-sh/flisk/blob/main/docs/security.md#what-flisk-sends-over-the-network",
+};
+const CLAUDE_SERVER = { command: "${CLAUDE_PLUGIN_ROOT}/scripts/flisk-mcp.sh", args: [] };
 const CLAUDE_LAUNCHER = `#!/bin/sh
 # Written by scripts/agent-plugin.mjs. Starts \`flisk mcp\` (the Flisk CLI's own stdio MCP server) from the user's
 # PATH, in the folder the agent was started in. Needs the CLI: npm install -g @flisk-sh/flisk
@@ -169,9 +177,9 @@ export function plan(root) {
     json({ ...PLUGIN, skills: "./skills/", mcpServers: "./.mcp.json", interface: OPENAI_INTERFACE }),
   );
   add(inPlugin(".cursor-plugin/plugin.json"), json({ ...PLUGIN, logo: "assets/logo.svg" }));
-  add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json({ ...PLUGIN, icon: "./.claude-plugin/icon.png" }));
+  add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json({ ...PLUGIN, ...CLAUDE_LISTING }));
   add(`${CLAUDE_PLUGIN_DIR}/.mcp.json`, json({ mcpServers: { flisk: CLAUDE_SERVER } }));
-  add(`${CLAUDE_PLUGIN_DIR}/bin/flisk-mcp.sh`, CLAUDE_LAUNCHER);
+  add(`${CLAUDE_PLUGIN_DIR}/scripts/flisk-mcp.sh`, CLAUDE_LAUNCHER);
   for (const name of skillNames(root)) {
     const source = absoluteDocLinks(readFileSync(path.join(root, SKILLS_SOURCE, name, "SKILL.md"), "utf8"));
     add(inPlugin(`skills/${name}/SKILL.md`), source);
