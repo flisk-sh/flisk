@@ -12,8 +12,8 @@ Flisk เป็นเครื่องมือบรรทัดคำสั�
 เริ่มต้นอย่างรวดเร็ว:
 
 ```bash
-npm install -g @flisk-sh/flisk
-# mkdir shop && cd shop
+# npm install -g @flisk-sh/flisk
+mkdir shop && cd shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes
