@@ -4,7 +4,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import Handlebars from "handlebars";
 import { PLATFORM_STANDARDS } from "../config/platform-standards.js";
 import type { JsonValue, ProjectConfig } from "../types/index.js";
 import { writeTextFileAtomic } from "../utils/atomic-write.js";
@@ -38,6 +37,7 @@ import {
 import { discoverResourcesFromRoot, discoverServiceManifestPaths } from "../utils/services.js";
 import { isStackFeatureEnabledInStacks } from "../utils/stack-features.js";
 import { hasSablierLicense, hasVerdaccioLicense } from "./extension-fetch.js";
+import { compileTemplate, type TemplateHelpers } from "./mini-template.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -161,7 +161,6 @@ export class TemplateEngine {
   constructor(templatesDir?: string) {
     const currentDir = import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
     this.templatesDir = templatesDir || path.join(currentDir, "..", "..", "templates");
-    this.registerHelpers();
   }
 
   // Backslashes must be escaped before quotes, or a value ending in a backslash escapes the closing quote.
@@ -195,20 +194,18 @@ export class TemplateEngine {
     return String(val);
   }
 
-  private registerHelpers(): void {
-    Handlebars.registerHelper("starlark", (value: JsonValue): Handlebars.SafeString => {
-      return new Handlebars.SafeString(this.formatStarlarkValue(value));
-    });
-
-    Handlebars.registerHelper("starlarkArray", (value: JsonValue[]): Handlebars.SafeString => {
-      if (!Array.isArray(value)) return new Handlebars.SafeString("[]");
-      const items = value.map((item) => this.formatStarlarkValue(item));
-      return new Handlebars.SafeString(`[${items.join(", ")}]`);
-    });
-
-    Handlebars.registerHelper("json", (value: JsonValue): string => {
-      return JSON.stringify(value);
-    });
+  private helpers(): TemplateHelpers {
+    return {
+      starlark: { raw: true, fn: (value) => this.formatStarlarkValue(value as JsonValue) },
+      starlarkArray: {
+        raw: true,
+        fn: (value) => {
+          if (!Array.isArray(value)) return "[]";
+          return `[${value.map((item) => this.formatStarlarkValue(item)).join(", ")}]`;
+        },
+      },
+      json: { raw: false, fn: (value) => JSON.stringify(value) },
+    };
   }
 
   buildContext(projectConfig: ProjectConfig): GeneratorContext {
@@ -238,7 +235,7 @@ export class TemplateEngine {
     };
   }
 
-  private loadTemplate(templateName: string): HandlebarsTemplateDelegate {
+  private loadTemplate(templateName: string): (context: unknown) => string {
     const templatePath = path.join(this.templatesDir, `${templateName}.hbs`);
     const templateSource = fs.existsSync(templatePath)
       ? fs.readFileSync(templatePath, "utf-8")
@@ -249,7 +246,7 @@ export class TemplateEngine {
         "Check the installed package with: flisk runtime",
       ]);
     }
-    return Handlebars.compile(templateSource);
+    return compileTemplate(templateSource, this.helpers());
   }
 
   generateTechStack(context: GeneratorContext): string {

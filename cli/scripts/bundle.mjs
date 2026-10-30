@@ -3,8 +3,7 @@
 // Publish-time bundle of the tsc output (dist/ -> dist-bundle/).
 //
 // ink, react and chalk (plus their transitive deps, notably es-toolkit at
-// ~18 MB) are inlined so the npm package does not install them. commander and
-// handlebars stay external. dist/ itself is committed and untouched; bin/flisk.js
+// ~18 MB) are inlined so the npm package does not install them. commander stays external. dist/ itself is committed and untouched; bin/flisk.js
 // prefers dist-bundle/ when it exists (only inside a packed/installed package).
 // The npm package ships dist-bundle/ and not dist/ (only the two files of its "main"
 // entry), so bundled code must not read or import a file under dist/ at runtime.
@@ -51,7 +50,7 @@ await build({
   platform: "node",
   target: "node22",
   minify: true,
-  external: ["commander", "handlebars", "react-devtools-core"],
+  external: ["commander", "react-devtools-core"],
   banner: {
     js: "import{createRequire as __fliskRequire}from'node:module';const require=__fliskRequire(import.meta.url);",
   },

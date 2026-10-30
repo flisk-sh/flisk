@@ -41,7 +41,7 @@ export declare class TemplateEngine {
     constructor(templatesDir?: string);
     private quoteStarlarkString;
     private formatStarlarkValue;
-    private registerHelpers;
+    private helpers;
     buildContext(projectConfig: ProjectConfig): GeneratorContext;
     private loadTemplate;
     generateTechStack(context: GeneratorContext): string;
