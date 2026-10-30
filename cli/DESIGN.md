@@ -1,5 +1,4 @@
 # Flisk CLI Neon Design System v3.0
-
 ## Cyberpunk Terminal UI - Practical & Beautiful
 
 ```
@@ -47,23 +46,23 @@
 
 ### Primary Palette (Neon Accents - Used Sparingly)
 
-| Color           | Hex       | Usage                               | ANSI Fallback        |
-| --------------- | --------- | ----------------------------------- | -------------------- |
-| **Neon Cyan**   | `#00FFFF` | Selected items, active tab, headers | Cyan (`\x1b[36m`)    |
-| **Acid Green**  | `#39FF14` | Healthy/ready status                | Green (`\x1b[32m`)   |
-| **Neon Yellow** | `#FFFF00` | Warnings, pending                   | Yellow (`\x1b[33m`)  |
-| **Neon Red**    | `#FF073A` | Errors, failed                      | Red (`\x1b[31m`)     |
-| **Hot Pink**    | `#FF0080` | Highlights, emphasis                | Magenta (`\x1b[35m`) |
+| Color | Hex | Usage | ANSI Fallback |
+|-------|-----|-------|---------------|
+| **Neon Cyan** | `#00FFFF` | Selected items, active tab, headers | Cyan (`\x1b[36m`) |
+| **Acid Green** | `#39FF14` | Healthy/ready status | Green (`\x1b[32m`) |
+| **Neon Yellow** | `#FFFF00` | Warnings, pending | Yellow (`\x1b[33m`) |
+| **Neon Red** | `#FF073A` | Errors, failed | Red (`\x1b[31m`) |
+| **Hot Pink** | `#FF0080` | Highlights, emphasis | Magenta (`\x1b[35m`) |
 
 ### Neutral Palette (Workhorse Colors)
 
-| Color           | Hex       | Usage             | ANSI Fallback      |
-| --------------- | --------- | ----------------- | ------------------ |
-| **Void Black**  | `#0A0A0F` | Background        | Default bg         |
-| **Panel Gray**  | `#14141F` | Panels, cards     | Black (`\x1b[40m`) |
-| **Text White**  | `#E0E0E0` | Primary text      | White (`\x1b[37m`) |
-| **Dim Gray**    | `#6B7280` | Secondary text    | Dark gray          |
-| **Border Gray** | `#374151` | Borders, dividers | Gray (`\x1b[90m`)  |
+| Color | Hex | Usage | ANSI Fallback |
+|-------|-----|-------|---------------|
+| **Void Black** | `#0A0A0F` | Background | Default bg |
+| **Panel Gray** | `#14141F` | Panels, cards | Black (`\x1b[40m`) |
+| **Text White** | `#E0E0E0` | Primary text | White (`\x1b[37m`) |
+| **Dim Gray** | `#6B7280` | Secondary text | Dark gray |
+| **Border Gray** | `#374151` | Borders, dividers | Gray (`\x1b[90m`) |
 
 ### Where to Apply Neon (And Where NOT To)
 
@@ -87,12 +86,12 @@
 
 ### Breakpoints
 
-| Width           | Layout  | Behavior                            |
-| --------------- | ------- | ----------------------------------- |
-| **≥120 cols**   | Full    | Sidebar visible, full neon borders  |
+| Width | Layout | Behavior |
+|-------|--------|----------|
+| **≥120 cols** | Full | Sidebar visible, full neon borders |
 | **80-119 cols** | Compact | Sidebar visible, simplified borders |
-| **60-79 cols**  | Minimal | No sidebar, stacked tabs            |
-| **<60 cols**    | Mobile  | Single column, minimal chrome       |
+| **60-79 cols** | Minimal | No sidebar, stacked tabs |
+| **<60 cols** | Mobile | Single column, minimal chrome |
 
 ### Content Density by Size
 
@@ -548,40 +547,44 @@ Implementation:
 // Detect terminal capabilities
 const capabilities = {
   // True color (24-bit) support
-  trueColor: process.env.COLORTERM === "truecolor" || process.env.TERM === "xterm-256color",
-
+  trueColor: process.env.COLORTERM === 'truecolor' || 
+             process.env.TERM === 'xterm-256color',
+  
   // Unicode support
-  unicode: process.env.LANG?.includes("UTF-8") !== false,
-
+  unicode: process.env.LANG?.includes('UTF-8') !== false,
+  
   // Animation support (not in CI, not in dumb terminal)
-  animations: !process.env.CI && process.env.TERM !== "dumb" && !process.env.NO_ANIMATIONS,
-
+  animations: !process.env.CI && 
+            process.env.TERM !== 'dumb' &&
+            !process.env.NO_ANIMATIONS,
+  
   // Mouse support
-  mouse: process.stdout.isTTY && !process.env.NO_MOUSE,
+  mouse: process.stdout.isTTY && 
+         !process.env.NO_MOUSE,
 };
 ```
 
 ### Fallback Strategy
 
-| Feature        | Full Support  | Fallback         |
-| -------------- | ------------- | ---------------- |
-| **True Color** | 24-bit neon   | 256-color approx |
-| **Unicode**    | ▓▒░ borders   | ASCII +-\|       |
-| **Animations** | 150ms fades   | Instant          |
-| **Mouse**      | Click support | Keyboard only    |
-| **Bold**       | Bold + bright | Bright only      |
+| Feature | Full Support | Fallback |
+|---------|--------------|----------|
+| **True Color** | 24-bit neon | 256-color approx |
+| **Unicode** | ▓▒░ borders | ASCII +-\| |
+| **Animations** | 150ms fades | Instant |
+| **Mouse** | Click support | Keyboard only |
+| **Bold** | Bold + bright | Bright only |
 
 ### 256-Color Fallback Palette
 
 ```typescript
 // When true color isn't available
 const FALLBACK_256 = {
-  cyan: "\x1b[38;5;51m", // Closest to #00FFFF
-  green: "\x1b[38;5;82m", // Closest to #39FF14
-  yellow: "\x1b[38;5;226m", // Closest to #FFFF00
-  red: "\x1b[38;5;196m", // Closest to #FF073A
-  pink: "\x1b[38;5;198m", // Closest to #FF0080
-  purple: "\x1b[38;5;129m", // Closest to #BF00FF
+  cyan: '\x1b[38;5;51m',      // Closest to #00FFFF
+  green: '\x1b[38;5;82m',    // Closest to #39FF14
+  yellow: '\x1b[38;5;226m',   // Closest to #FFFF00
+  red: '\x1b[38;5;196m',     // Closest to #FF073A
+  pink: '\x1b[38;5;198m',    // Closest to #FF0080
+  purple: '\x1b[38;5;129m',  // Closest to #BF00FF
 };
 ```
 
@@ -590,14 +593,14 @@ const FALLBACK_256 = {
 ```typescript
 // For basic terminals (like Windows CMD without ANSI)
 const FALLBACK_16 = {
-  cyan: "\x1b[36m", // ANSI cyan
-  green: "\x1b[32m", // ANSI green
-  yellow: "\x1b[33m", // ANSI yellow
-  red: "\x1b[31m", // ANSI red
-  pink: "\x1b[35m", // ANSI magenta (closest)
-  purple: "\x1b[35m", // ANSI magenta
-  white: "\x1b[37m", // ANSI white
-  gray: "\x1b[90m", // ANSI bright black
+  cyan: '\x1b[36m',     // ANSI cyan
+  green: '\x1b[32m',    // ANSI green
+  yellow: '\x1b[33m',    // ANSI yellow
+  red: '\x1b[31m',      // ANSI red
+  pink: '\x1b[35m',     // ANSI magenta (closest)
+  purple: '\x1b[35m',    // ANSI magenta
+  white: '\x1b[37m',    // ANSI white
+  gray: '\x1b[90m',     // ANSI bright black
 };
 ```
 
@@ -649,7 +652,6 @@ Border ASCII:
 ## IMPLEMENTATION CHECKLIST
 
 ### Visual Design
-
 - [ ] Header uses single neon accent
 - [ ] Only active tab has neon
 - [ ] Only selected item has neon background
@@ -658,7 +660,6 @@ Border ASCII:
 - [ ] Responsive layout works at 80+ cols
 
 ### Animations
-
 - [ ] Selection pulse: 150ms
 - [ ] Tab switch: 100ms
 - [ ] Spinner: 800ms loop
@@ -666,14 +667,12 @@ Border ASCII:
 - [ ] All animations can be disabled
 
 ### Accessibility
-
 - [ ] Keyboard navigation works
 - [ ] Color blind safe (symbols + colors)
 - [ ] High contrast mode available
 - [ ] Screen reader hints included
 
 ### Compatibility
-
 - [ ] True color detection
 - [ ] 256-color fallback
 - [ ] 16-color fallback
@@ -681,7 +680,6 @@ Border ASCII:
 - [ ] Mouse optional (keyboard always works)
 
 ### Error States
-
 - [ ] No services found state
 - [ ] Connection error state
 - [ ] Loading state with progress
@@ -692,20 +690,21 @@ Border ASCII:
 
 ## DESIGN DECISIONS LOG
 
-| Decision                | Alternatives             | Rationale                       |
-| ----------------------- | ------------------------ | ------------------------------- |
-| ▓▒░ for selected only   | Border every item        | Reduces visual noise            |
-| Simple borders          | Neon borders everywhere  | Cleaner, more professional      |
-| Single header row       | Ornate multi-row header  | Saves space for content         |
-| 5 tabs max              | More tabs with scrolling | 80-col minimum support          |
-| Cyan primary            | Pink or green            | Cyan is most visible on dark bg |
-| Spinners on status only | Spinners everywhere      | Focuses attention               |
+| Decision | Alternatives | Rationale |
+|----------|--------------|-----------|
+| ▓▒░ for selected only | Border every item | Reduces visual noise |
+| Simple borders | Neon borders everywhere | Cleaner, more professional |
+| Single header row | Ornate multi-row header | Saves space for content |
+| 5 tabs max | More tabs with scrolling | 80-col minimum support |
+| Cyan primary | Pink or green | Cyan is most visible on dark bg |
+| Spinners on status only | Spinners everywhere | Focuses attention |
 
 ---
 
 ## SUMMARY
 
 **The Golden Rules:**
+
 1. **Neon is a spotlight, not a floodlight**
 2. **Clarity beats decoration**
 3. **Works everywhere, shines where supported**

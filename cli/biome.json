@@ -9,7 +9,8 @@
       "!**/dist-bundle",
       "!**/coverage",
       "!**/*.lockb",
-      "!**/*.svg"
+      "!**/*.svg",
+      "!**/*.md"
     ]
   },
   "formatter": {
