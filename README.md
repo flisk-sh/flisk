@@ -17,10 +17,11 @@
 
 ## What is Flisk?
 
-Flisk is a command-line tool for local development. It runs every part of your app (API, website, workers, AI agents, database) on your computer behind one local address, and reloads a part when you save it. You describe each part in a small `service.json`; Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. It does not deploy: production stays with your own tools.
+Flisk is a command-line tool that starts services on your machine for local development. It runs every part of your app (API, website, workers, AI agents, database) on your computer behind one local address, and reloads a part when you save it. You describe each part in a small `service.json`; Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. It does not deploy: production stays with your own tools.
+
+Install Flisk with `npm install -g @flisk-sh/flisk`, then, in a new folder:
 
 ```bash
-npm install -g @flisk-sh/flisk
 mkdir my-shop && cd my-shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
@@ -36,7 +37,7 @@ Want to see it run first? One command, no install and no project of your own (sa
 npx @flisk-sh/flisk demo
 ```
 
-Already have a Compose file? `npx @flisk-sh/flisk import . && npx @flisk-sh/flisk up` (add `--dry-run` to `import` to preview).
+Two ways in: `flisk project` starts a new app from scratch (above); `flisk import` starts from an app you already have. Already have a Compose file? `npx @flisk-sh/flisk import . && npx @flisk-sh/flisk up` (add `--dry-run` to `import` to preview).
 
 <p align="center">
 <img src="docs/assets/demo-cli.svg" alt="Four flisk commands create a project, an API, and a website, then start them" width="900" />
