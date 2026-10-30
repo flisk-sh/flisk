@@ -12,18 +12,18 @@ Run in a project with Bun, Docker, and Tilt, or, when every service's `service.j
 
 `flisk project` writes the project configuration and clones starter templates without a running Docker daemon or an installed Tilt; the runtime is only needed by `flisk up`.
 
-| Command                                               | When to use it                                                                       |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `flisk project --yes`                                 | Create a project with the default setup.                                             |
-| `flisk resource api --type backend --stack api --yes` | Scaffold `api` directly into the `api` stack.                                        |
-| `flisk stack api`                                     | Assign unstacked resources to `api` interactively.                                   |
-| `flisk stacks --services`                             | See which resources belong to each stack.                                            |
-| `flisk resources --ports`                             | Check resource assignments and port mappings.                                        |
-| `flisk up api`                                        | Start services in the `api` stack.                                                   |
-| `flisk status`                                        | Check the current stack and service state.                                           |
-| `flisk down --force`                                  | Stop all services. `--force` is accepted for script compatibility and has no effect. |
-| `flisk doctor --no-ping`                              | Check readiness without pinging service health endpoints.                            |
-| `flisk projects --check`                              | Validate project configuration before CI.                                            |
+| Command | When to use it |
+| --- | --- |
+| `flisk project --yes` | Create a project with the default setup. |
+| `flisk resource api --type backend --stack api --yes` | Scaffold `api` directly into the `api` stack. |
+| `flisk stack api` | Assign unstacked resources to `api` interactively. |
+| `flisk stacks --services` | See which resources belong to each stack. |
+| `flisk resources --ports` | Check resource assignments and port mappings. |
+| `flisk up api` | Start services in the `api` stack. |
+| `flisk status` | Check the current stack and service state. |
+| `flisk down --force` | Stop all services. `--force` is accepted for script compatibility and has no effect. |
+| `flisk doctor --no-ping` | Check readiness without pinging service health endpoints. |
+| `flisk projects --check` | Validate project configuration before CI. |
 
 Every command and flag: [mega cheat sheet](../docs/cheat-sheet.md).
 
@@ -155,14 +155,14 @@ See the complete [`service.json` field reference](../docs/service-json.md) for f
 
 Backend creation defaults to Bun + Hono, exactly as it always has: omit `--language` and nothing changes. Use `--language python` for FastAPI on Python 3.12, `--language go` for a standard-library `net/http` service on Go 1.23, `--language rust` for an axum service (Go and Rust have no live reload: Tilt rebuilds the image on change), or `--language node` for a Node.js 22 service with built-in `node:http` and `node --watch` live reload. The selected id is saved as `language` in `service.json`; a legacy manifest without it still means Bun and is never rewritten. The flag applies only to `--type backend`, and unknown ids fail before a resource is written. On the Bun runtime the HTTP framework is Hono by default. To use another, pass one of these to `--framework`:
 
-| Id        | Framework | Version |
-| --------- | --------- | ------- |
-| `express` | Express   | 5       |
-| `elysia`  | Elysia    | 1       |
-| `fastify` | Fastify   | 5       |
-| `nestjs`  | NestJS    | 11      |
-| `koa`     | Koa       | 3       |
-| `h3`      | h3        | 1.x     |
+| Id | Framework | Version |
+| --- | --- | --- |
+| `express` | Express | 5 |
+| `elysia` | Elysia | 1 |
+| `fastify` | Fastify | 5 |
+| `nestjs` | NestJS | 11 |
+| `koa` | Koa | 3 |
+| `h3` | h3 | 1.x |
 
 The selected id is saved as `framework` in `service.json`. `--framework hono` is accepted and saved too, and omitting it changes nothing. `--framework` cannot be combined with `--language python`, and unknown ids fail before a resource is written. Languages without a provider can use `--type bring-your-own`. Python services also support opt-in pytest-on-save via `dev.testOnSave` in `service.json`. See the [backend provider guide](../docs/backend-language-providers.md) and the runnable [Python example](../examples/one-backend-python/README.md).
 
@@ -198,38 +198,38 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 
 ## 🔄 Lifecycle Commands
 
-| Command                              | Description                                                                                                                                     | Example                                |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `flisk up`                           | 🚀 Start all services                                                                                                                           | `flisk up`                             |
-| `flisk up <stack>`                   | 🚀 Start a stack                                                                                                                                | `flisk up api`                         |
-| `flisk up --dry-run`                 | 👀 Preview the services and URLs without Docker, Tilt, or file changes                                                                          | `flisk up api --dry-run`               |
-| `flisk up --env-file <path>`         | 🔀 Use another project env file for the run instead of `.env` (inside the project)                                                              | `flisk up --env-file .env.integration` |
-| `flisk up` (services with `command`) | 🏃 Run them as local processes without Docker or Tilt, in `dependsOn` order, with prefixed logs and restarts; Ctrl+C or `flisk down` stops them | `flisk up`                             |
-| `flisk down`                         | ⏹️ Stop all services                                                                                                                            | `flisk down`                           |
-| `flisk status`                       | 📊 Show resource status                                                                                                                         | `flisk status`                         |
-| `flisk logs`                         | 📜 Print a bounded snapshot of recent logs from the running stack (`--json`)                                                                    | `flisk logs`                           |
+| Command | Description | Example |
+|---------|-------------|---------|
+| `flisk up` | 🚀 Start all services | `flisk up` |
+| `flisk up <stack>` | 🚀 Start a stack | `flisk up api` |
+| `flisk up --dry-run` | 👀 Preview the services and URLs without Docker, Tilt, or file changes | `flisk up api --dry-run` |
+| `flisk up --env-file <path>` | 🔀 Use another project env file for the run instead of `.env` (inside the project) | `flisk up --env-file .env.integration` |
+| `flisk up` (services with `command`) | 🏃 Run them as local processes without Docker or Tilt, in `dependsOn` order, with prefixed logs and restarts; Ctrl+C or `flisk down` stops them | `flisk up` |
+| `flisk down` | ⏹️ Stop all services | `flisk down` |
+| `flisk status` | 📊 Show resource status | `flisk status` |
+| `flisk logs` | 📜 Print a bounded snapshot of recent logs from the running stack (`--json`) | `flisk logs` |
 
 ---
 
 ## 🛠️ Utility Commands
 
-| Command                                        | Description                                                                                                                                                                                                                                                                                                                                                        |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `flisk ui [--high-contrast] [--no-animations]` | 🎨 Interactive terminal UI                                                                                                                                                                                                                                                                                                                                         |
-| `flisk os`                                     | 🖥️ Start [FliskOS](https://github.com/flisk-sh/fliskos), the local desktop app for projects, coding agents and Flisk apps: runs `fliskos` for the current project when it is on `PATH`, else opens `FliskOS.app` on macOS; never installs it (`--project`, `--port`, `--no-open`, `--scan-root`, `--json`; see the [cheat sheet](../docs/cheat-sheet.md#flisk-os)) |
-| `flisk networks`                               | 🌐 Show Traefik-routed URLs (`--stack`, `--json`, `--raw`)                                                                                                                                                                                                                                                                                                         |
-| `flisk import [dir]`                           | 📥 Import the services in a directory's root `docker-compose.yml` (`--dry-run`, `--yes`, `--force`)                                                                                                                                                                                                                                                                |
-| `flisk eject`                                  | 🚪 Write `EJECTED.md` describing the generated Tilt files; copies nothing (`--dry-run`, `--yes`)                                                                                                                                                                                                                                                                   |
-| `flisk mcp`                                    | 🤖 Run a Model Context Protocol server over stdio for coding agents                                                                                                                                                                                                                                                                                                |
-| `flisk connect <claude\|cursor\|codex>`        | 🔌 Connect a coding agent: merge the `flisk mcp` entry into its MCP config and write the Flisk skills (`--dry-run`, `--global`, `--force`, `--json`; see [Flisk for AI agents](../docs/agents/flisk-for-agents.md))                                                                                                                                                |
-| `flisk config regenerate`                      | ♻️ Regenerate master config files from `.flisk/project.json`                                                                                                                                                                                                                                                                                                       |
-| `flisk config verify`                          | ✅ Check generated files match `.flisk/project.json`                                                                                                                                                                                                                                                                                                               |
-| `flisk config enable-infra <service>`          | ➕ Enable an optional infrastructure service (`disable-infra` to turn it off)                                                                                                                                                                                                                                                                                      |
-| `flisk doctor`                                 | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports); a project of `command` services is checked only for what its processes need                                                                                                                                                                                          |
-| `flisk completion --install`                   | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#flisk-completion-shell)                                                                                                                                                                                                              |
-| `flisk upgrade`                                | ⬆️ Self-update to the latest version (`--dry-run`, `--force`, `--all`)                                                                                                                                                                                                                                                                                             |
-| `flisk version`                                | ℹ️ Show version                                                                                                                                                                                                                                                                                                                                                    |
-| `flisk --help`                                 | ❓ Show help                                                                                                                                                                                                                                                                                                                                                       |
+| Command | Description |
+|---------|-------------|
+| `flisk ui [--high-contrast] [--no-animations]` | 🎨 Interactive terminal UI |
+| `flisk os` | 🖥️ Start [FliskOS](https://github.com/flisk-sh/fliskos), the local desktop app for projects, coding agents and Flisk apps: runs `fliskos` for the current project when it is on `PATH`, else opens `FliskOS.app` on macOS; never installs it (`--project`, `--port`, `--no-open`, `--scan-root`, `--json`; see the [cheat sheet](../docs/cheat-sheet.md#flisk-os)) |
+| `flisk networks` | 🌐 Show Traefik-routed URLs (`--stack`, `--json`, `--raw`) |
+| `flisk import [dir]` | 📥 Import the services in a directory's root `docker-compose.yml` (`--dry-run`, `--yes`, `--force`) |
+| `flisk eject` | 🚪 Write `EJECTED.md` describing the generated Tilt files; copies nothing (`--dry-run`, `--yes`) |
+| `flisk mcp` | 🤖 Run a Model Context Protocol server over stdio for coding agents |
+| `flisk connect <claude\|cursor\|codex>` | 🔌 Connect a coding agent: merge the `flisk mcp` entry into its MCP config and write the Flisk skills (`--dry-run`, `--global`, `--force`, `--json`; see [Flisk for AI agents](../docs/agents/flisk-for-agents.md)) |
+| `flisk config regenerate` | ♻️ Regenerate master config files from `.flisk/project.json` |
+| `flisk config verify` | ✅ Check generated files match `.flisk/project.json` |
+| `flisk config enable-infra <service>` | ➕ Enable an optional infrastructure service (`disable-infra` to turn it off) |
+| `flisk doctor` | 🔍 Print ranked cold-start failures first, then check environment (Docker, Bun, Tilt, ports); a project of `command` services is checked only for what its processes need |
+| `flisk completion --install` | ⌨️ Install shell completions (`--shell bash\|zsh\|fish\|powershell`); setup steps in the [cheat sheet](../docs/cheat-sheet.md#flisk-completion-shell) |
+| `flisk upgrade` | ⬆️ Self-update to the latest version (`--dry-run`, `--force`, `--all`) |
+| `flisk version` | ℹ️ Show version |
+| `flisk --help` | ❓ Show help |
 
 `-v` is context-specific: `flisk -v` prints the version, while `flisk up -v` and `flisk down -v`
 enable verbose output. Use `--version` and `--verbose` when clarity matters.
@@ -287,24 +287,24 @@ flisk resources --stack api
 
 ## 📊 PSR Command Matrix
 
-| Level           | 🔨 Create/Action | 📋 List           |
-| --------------- | ---------------- | ----------------- |
-| **🌍 Project**  | `flisk project`  | `flisk projects`  |
-| **📦 Stack**    | `flisk stack`    | `flisk stacks`    |
+| Level | 🔨 Create/Action | 📋 List |
+|-------|------------------|---------|
+| **🌍 Project** | `flisk project` | `flisk projects` |
+| **📦 Stack** | `flisk stack` | `flisk stacks` |
 | **⚡ Resource** | `flisk resource` | `flisk resources` |
 
 ---
 
 ## 🎨 Resource Types
 
-| Type             | Port Range | Template                                                                                                        | Use Case                                       |
-| ---------------- | ---------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `backend`        | 4000-4999  | 🏎️ Hono API (or Express, Elysia, Fastify, NestJS, Koa, h3, or Python)                                           | REST APIs, microservices                       |
-| `frontend`       | 3000-3999  | React (default), Vue, Svelte, Preact, Lit, Solid, Qwik or plain TypeScript + Vite; Next.js (`--framework next`) | Web apps, dashboards                           |
-| `worker`         | (optional) | 🔧 Background worker                                                                                            | Queue processors, jobs                         |
-| `mcp`            | 4000-5999  | 🔌 Model Context Protocol server over HTTP (Bun; see [docs/mcp.md](../docs/mcp.md))                             | Tools and context for AI clients               |
-| `bring-your-own` | 4000-5999  | none                                                                                                            | Existing app with your own Dockerfile or image |
-| `sdk`            | —          | none (register existing, `packages/<name>`)                                                                     | Shared libraries                               |
+| Type | Port Range | Template | Use Case |
+|------|------------|----------|----------|
+| `backend` | 4000-4999 | 🏎️ Hono API (or Express, Elysia, Fastify, NestJS, Koa, h3, or Python) | REST APIs, microservices |
+| `frontend` | 3000-3999 | React (default), Vue, Svelte, Preact, Lit, Solid, Qwik or plain TypeScript + Vite; Next.js (`--framework next`) | Web apps, dashboards |
+| `worker` | (optional) | 🔧 Background worker | Queue processors, jobs |
+| `mcp` | 4000-5999 | 🔌 Model Context Protocol server over HTTP (Bun; see [docs/mcp.md](../docs/mcp.md)) | Tools and context for AI clients |
+| `bring-your-own` | 4000-5999 | none | Existing app with your own Dockerfile or image |
+| `sdk` | — | none (register existing, `packages/<name>`) | Shared libraries |
 
 ---
 
@@ -391,6 +391,7 @@ The general Tilt-resource fix points to the URL printed by `flisk up`; the defau
 ### Container footprint
 
 Generated runtimes are sized so large landscapes fit on a 16 GB machine:
+
 - **One process per container.** A service whose `start` script is just `bun run <file>` runs `bun <file>` directly under Docker's init (`init: true`). Any other `start` script keeps `bun run start`.
 - **Healthchecks:** every 2 s during startup, then every 30 s. You can override the timing for a run:
 

@@ -9,25 +9,22 @@ This document defines the coding standards and API conventions for the Flisk CLI
 ## Naming Conventions
 
 ### Functions and Variables
-
-| Category          | Convention                       | Example                                    |
-| ----------------- | -------------------------------- | ------------------------------------------ |
-| Functions         | camelCase                        | `discoverResources()`, `isPortAvailable()` |
-| Variables         | camelCase                        | `const resourceCount`, `let projectRoot`   |
-| Constants         | UPPER_SNAKE_CASE                 | `const CACHE_TTL = 5000`                   |
-| Private functions | camelCase with underscore prefix | `_internalHelper()` (if needed)            |
+| Category | Convention | Example |
+|----------|------------|---------|
+| Functions | camelCase | `discoverResources()`, `isPortAvailable()` |
+| Variables | camelCase | `const resourceCount`, `let projectRoot` |
+| Constants | UPPER_SNAKE_CASE | `const CACHE_TTL = 5000` |
+| Private functions | camelCase with underscore prefix | `_internalHelper()` (if needed) |
 
 ### Types and Classes
-
-| Category        | Convention              | Example                                  |
-| --------------- | ----------------------- | ---------------------------------------- |
-| Classes         | PascalCase              | `FliskError`, `TemplateEngine`           |
-| Interfaces      | PascalCase, descriptive | `DiscoveredResource`, `ResourceMetadata` |
-| Type aliases    | PascalCase              | `ResourceStatus`, `FileType`             |
-| Factory objects | camelCase               | `errorFactories` (not `Errors`)          |
+| Category | Convention | Example |
+|----------|------------|---------|
+| Classes | PascalCase | `FliskError`, `TemplateEngine` |
+| Interfaces | PascalCase, descriptive | `DiscoveredResource`, `ResourceMetadata` |
+| Type aliases | PascalCase | `ResourceStatus`, `FileType` |
+| Factory objects | camelCase | `errorFactories` (not `Errors`) |
 
 ### Boolean Properties
-
 Use a camelCase prefix for clarity:
 - `is*` for state: `isEnabled`, `isAvailable`
 - `has*` for possession: `hasDockerfile`, `hasTiltfile`
@@ -56,7 +53,6 @@ interface CheckResult {
 ## Export Patterns
 
 ### Public API Surface
-
 Use **explicit named exports** instead of wildcards:
 
 ```typescript
@@ -65,21 +61,20 @@ export type {
   DiscoveredResource,
   DiscoveredStack,
   ResourceMetadata,
-} from "./types/index.js";
+} from './types/index.js';
 
 export {
   discoverResources,
   discoverStacks,
   findProjectRoot,
-} from "./utils/services.js";
+} from './utils/services.js';
 
 // ❌ Avoid - Wildcard exports
-export * from "./types/index.js";
-export * from "./utils/services.js";
+export * from './types/index.js';
+export * from './utils/services.js';
 ```
 
 ### Export Organization
-
 Group exports by category with comments:
 
 ```typescript
@@ -88,15 +83,15 @@ Group exports by category with comments:
  */
 
 // Main UI components
-export { TabBar } from "./TabBar.js";
-export { ResourceTable } from "./ResourceTable.js";
+export { TabBar } from './TabBar.js';
+export { ResourceTable } from './ResourceTable.js';
 
 // Type definitions
-export type { TabId } from "./TabBar.js";
-export type { FileNode } from "./FileTree.js";
+export type { TabId } from './TabBar.js';
+export type { FileNode } from './FileTree.js';
 
 // Utility constants
-export { TOOLTIPS } from "./Tooltip.js";
+export { TOOLTIPS } from './Tooltip.js';
 ```
 
 ---
@@ -104,7 +99,6 @@ export { TOOLTIPS } from "./Tooltip.js";
 ## Function Signatures
 
 ### Parameter Ordering
-
 1. **Required data parameters** first
 2. **Optional data parameters** next
 3. **Options object** last
@@ -112,17 +106,20 @@ export { TOOLTIPS } from "./Tooltip.js";
 ```typescript
 // ✅ Good
 function processResource(
-  name: string, // Required data
-  config: ResourceConfig, // Required data
-  options: { verbose?: boolean } = {}, // Options last
-): ProcessResult;
+  name: string,                    // Required data
+  config: ResourceConfig,          // Required data
+  options: { verbose?: boolean } = {}  // Options last
+): ProcessResult
 
 // ❌ Avoid - Mixed ordering
-function processResource(options: { verbose?: boolean }, name: string, config: ResourceConfig);
+function processResource(
+  options: { verbose?: boolean },
+  name: string,
+  config: ResourceConfig
+)
 ```
 
 ### Options Object Pattern
-
 For functions with 3+ parameters or multiple optional parameters:
 
 ```typescript
@@ -134,8 +131,8 @@ function runTilt(
     verbose?: boolean;
     inheritStdio?: boolean;
     timeout?: number;
-  } = {},
-): Promise<TiltCommandResult>;
+  } = {}
+): Promise<TiltCommandResult>
 
 // ❌ Avoid - Too many positional parameters
 function runTilt(
@@ -143,12 +140,11 @@ function runTilt(
   args: string[],
   verbose: boolean,
   inheritStdio: boolean,
-  timeout: number,
-): Promise<TiltCommandResult>;
+  timeout: number
+): Promise<TiltCommandResult>
 ```
 
 ### Return Types
-
 Always provide explicit return types:
 
 ```typescript
@@ -168,25 +164,23 @@ export function findProjectRoot(startDir: string = cwd()) {
 ## Error Handling
 
 ### Use FliskError for CLI Errors
-
 All user-facing errors should use the `FliskError` class:
 
 ```typescript
-import { FliskError } from "../utils/errors.js";
+import { FliskError } from '../utils/errors.js';
 
 // ✅ Good
 throw new FliskError(
-  "Resource not found",
-  ["Check the resource name", "Run flisk resources to list all"],
-  1, // exit code
+  'Resource not found',
+  ['Check the resource name', 'Run flisk resources to list all'],
+  1  // exit code
 );
 
 // ❌ Avoid - Generic errors for user-facing issues
-throw new Error("Resource not found");
+throw new Error('Resource not found');
 ```
 
 ### Error Factories
-
 Use the `errorFactories` object for common errors:
 
 ```typescript
@@ -199,7 +193,6 @@ new FliskError(`Resource "${name}" not found`, [...]).display();
 ```
 
 ### Validation Results
-
 Use consistent validation result pattern:
 
 ```typescript
@@ -211,7 +204,7 @@ interface ValidationResult {
 
 function validateResourceName(name: string): ValidationResult {
   if (!name.trim()) {
-    return { valid: false, error: "Name is required" };
+    return { valid: false, error: 'Name is required' };
   }
   return { valid: true };
 }
@@ -222,7 +215,6 @@ function validateResourceName(name: string): ValidationResult {
 ## Type Definitions
 
 ### Interface Naming
-
 Use descriptive names without redundant suffixes:
 
 ```typescript
@@ -236,19 +228,17 @@ interface ResourceMetadataType { ... }
 ```
 
 ### Type Placement
-
 - Place shared types in `src/types/index.ts`
 - Place component-specific types in the component file
 - Export types explicitly using `export type`
 
 ### Optional Properties
-
 Use `?` for optional properties and provide defaults where sensible:
 
 ```typescript
 interface CLIOptions {
-  verbose?: boolean; // Optional, defaults to false
-  timeout?: number; // Optional, has default
+  verbose?: boolean;  // Optional, defaults to false
+  timeout?: number;   // Optional, has default
 }
 
 function runCommand(options: CLIOptions = {}) {
@@ -262,7 +252,6 @@ function runCommand(options: CLIOptions = {}) {
 ## File Organization
 
 ### Directory Structure
-
 ```
 src/
 ├── types/
@@ -283,7 +272,6 @@ src/
 ```
 
 ### File Naming
-
 - Commands: `[command-name].ts` (e.g., `resource.ts`)
 - Utilities: `[category].ts` (e.g., `services.ts`, `tilt.ts`)
 - Components: `[ComponentName].tsx` (PascalCase)
@@ -294,7 +282,6 @@ src/
 ## Testing
 
 ### Test Location
-
 Place tests in a `__tests__/` folder next to the source they cover. A few older tests still sit beside their source file; follow the folder pattern for new tests:
 
 ```
@@ -307,7 +294,6 @@ commands/
 ```
 
 ### Test Naming
-
 Use descriptive test names:
 
 ```typescript
@@ -327,7 +313,6 @@ it('test 1', () => { ... });
 ## Documentation
 
 ### JSDoc Comments
-
 Use JSDoc for public functions:
 
 ```typescript
@@ -344,7 +329,6 @@ export function discoverResources(): DiscoveredResource[] {
 ```
 
 ### Inline Comments
-
 Use inline comments sparingly, only for complex logic:
 
 ```typescript
@@ -358,7 +342,6 @@ const assignedPort = findNextPort(existingPorts, portRange);
 ## Common Patterns
 
 ### Resource Discovery
-
 ```typescript
 export function discoverResources(): DiscoveredResource[] {
   const projectRoot = findProjectRoot();
@@ -370,11 +353,10 @@ export function discoverResources(): DiscoveredResource[] {
 ```
 
 ### Command Action Wrapper
-
 ```typescript
-export const commandName = new Command("command")
-  .description("Description")
-  .option("-v, --verbose", "Enable verbose output", false)
+export const commandName = new Command('command')
+  .description('Description')
+  .option('-v, --verbose', 'Enable verbose output', false)
   .action(async (options) => {
     await runCommand(async () => {
       // Command implementation
@@ -383,7 +365,6 @@ export const commandName = new Command("command")
 ```
 
 ### Result Type
-
 ```typescript
 interface Result<T, E = string> {
   success: boolean;
