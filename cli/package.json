@@ -56,8 +56,7 @@
     "prepack": "../scripts/stage-npm-engine.sh && npm run build"
   },
   "dependencies": {
-    "commander": "^15.0.0",
-    "handlebars": "^4.7.8"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",

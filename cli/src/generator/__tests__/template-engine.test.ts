@@ -4,9 +4,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import Handlebars from "handlebars";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectConfig } from "../../types/index.js";
+import { compileTemplate } from "../mini-template.js";
 import {
   ensureProjectRuntimeAssets,
   findCliAssetRoot,
@@ -429,9 +429,10 @@ describe("template-engine", () => {
   });
 
   describe("starlark helper", () => {
+    const compile = (source: string) =>
+      compileTemplate(source, (new TemplateEngine() as unknown as { helpers(): never }).helpers());
     const render = (value: unknown) => {
-      new TemplateEngine();
-      return Handlebars.compile("{{starlark v}}")({ v: value });
+      return compile("{{starlark v}}")({ v: value });
     };
 
     it("escapes a trailing backslash so it cannot close the string", () => {
@@ -452,17 +453,13 @@ describe("template-engine", () => {
     });
 
     it("starlarkArray renders [] for a non-array and one item per array element", () => {
-      new TemplateEngine();
-      const template = Handlebars.compile("{{starlarkArray v}}");
+      const template = compile("{{starlarkArray v}}");
       expect(template({ v: "proxy" })).toBe("[]");
       expect(template({ v: ["proxy", 1, true] })).toBe('["proxy", 1, True]');
     });
 
     it("json helper emits compact JSON", () => {
-      new TemplateEngine();
-      expect(Handlebars.compile("{{{json v}}}")({ v: { a: 1, b: [null] } })).toBe(
-        '{"a":1,"b":[null]}',
-      );
+      expect(compile("{{{json v}}}")({ v: { a: 1, b: [null] } })).toBe('{"a":1,"b":[null]}');
     });
   });
 

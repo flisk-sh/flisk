@@ -80,8 +80,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "commander": "^15.0.0",
-    "handlebars": "^4.7.8"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "chalk": "^6.0.1",
