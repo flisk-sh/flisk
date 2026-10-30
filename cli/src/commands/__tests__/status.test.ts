@@ -1,26 +1,11 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import {
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
-import {
-	afterAll,
-	afterEach,
-	beforeAll,
-	beforeEach,
-	describe,
-	expect,
-	it,
-	vi,
-} from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureExit } from "../../test-support/index.js";
 import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 import { isTiltAvailable, runTilt } from "../../utils/tilt.js";
@@ -32,613 +17,559 @@ import { statusCommand } from "../status.js";
 // and `flisk status` asks Tilt whether it is installed. Neither is needed to
 // check what status prints, so both are mocked.
 vi.mock("../../utils/cold-preflight.js", () => ({
-	assertMachineReadyOrExit: vi.fn(async () => {}),
-	detectRuntimePrerequisites: vi.fn(() => ({
-		hasDockerCli: true,
-		hasTiltCli: true,
-	})),
-	formatRuntimeNextSteps: vi.fn(() => []),
+  assertMachineReadyOrExit: vi.fn(async () => {}),
+  detectRuntimePrerequisites: vi.fn(() => ({
+    hasDockerCli: true,
+    hasTiltCli: true,
+  })),
+  formatRuntimeNextSteps: vi.fn(() => []),
 }));
 vi.mock("../../utils/tilt.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../../utils/tilt.js")>()),
-	isTiltAvailable: vi.fn(),
-	runTilt: vi.fn(),
+  ...(await importOriginal<typeof import("../../utils/tilt.js")>()),
+  isTiltAvailable: vi.fn(),
+  runTilt: vi.fn(),
 }));
 
 vi.mock("../../utils/up-readiness.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../../utils/up-readiness.js")>()),
-	tiltGetUiResources: vi.fn(),
+  ...(await importOriginal<typeof import("../../utils/up-readiness.js")>()),
+  tiltGetUiResources: vi.fn(),
 }));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../../..");
 
 const FIXTURE_SERVICES = [
-	{
-		dir: "services/shop/orders-api",
-		appName: "orders-api",
-		appType: "backend",
-		stack: "shop",
-	},
-	{
-		dir: "services/shop/orders-web",
-		appName: "orders-web",
-		appType: "frontend",
-		stack: "shop",
-		dependsOn: ["orders-api"],
-	},
-	{
-		dir: "services/billing/invoices",
-		appName: "invoices",
-		appType: "backend",
-		stack: "billing",
-	},
-	{ dir: "tools/report-job", appName: "report-job", appType: "backend" },
+  {
+    dir: "services/shop/orders-api",
+    appName: "orders-api",
+    appType: "backend",
+    stack: "shop",
+  },
+  {
+    dir: "services/shop/orders-web",
+    appName: "orders-web",
+    appType: "frontend",
+    stack: "shop",
+    dependsOn: ["orders-api"],
+  },
+  {
+    dir: "services/billing/invoices",
+    appName: "invoices",
+    appType: "backend",
+    stack: "billing",
+  },
+  { dir: "tools/report-job", appName: "report-job", appType: "backend" },
 ];
 
 async function runStatus(args: string[] = []): Promise<string> {
-	const lines: string[] = [];
-	const log = vi
-		.spyOn(console, "log")
-		.mockImplementation((...parts: unknown[]) => {
-			lines.push(parts.map(String).join(" "));
-		});
-	try {
-		await statusCommand.parseAsync(args, { from: "user" });
-	} finally {
-		log.mockRestore();
-	}
-	if (!args.includes("--tilt")) expect(runTilt).not.toHaveBeenCalled();
-	return stripVTControlCharacters(lines.join("\n"));
+  const lines: string[] = [];
+  const log = vi.spyOn(console, "log").mockImplementation((...parts: unknown[]) => {
+    lines.push(parts.map(String).join(" "));
+  });
+  try {
+    await statusCommand.parseAsync(args, { from: "user" });
+  } finally {
+    log.mockRestore();
+  }
+  if (!args.includes("--tilt")) expect(runTilt).not.toHaveBeenCalled();
+  return stripVTControlCharacters(lines.join("\n"));
 }
 
 describe("flisk status", () => {
-	const originalCwd = process.cwd();
-	const originalExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
-	let projectRoot = "";
+  const originalCwd = process.cwd();
+  const originalExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
+  let projectRoot = "";
 
-	beforeAll(async () => {
-		projectRoot = mkdtempSync(join(tmpdir(), "flisk-status-"));
-		process.chdir(projectRoot);
-		process.env.FLISK_EXTENSION_SOURCE = repoRoot;
+  beforeAll(async () => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-status-"));
+    process.chdir(projectRoot);
+    process.env.FLISK_EXTENSION_SOURCE = repoRoot;
 
-		const log = vi.spyOn(console, "log").mockImplementation(() => {});
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		try {
-			await projectCommand.parseAsync(["--yes"], { from: "user" });
-		} finally {
-			log.mockRestore();
-			warn.mockRestore();
-		}
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await projectCommand.parseAsync(["--yes"], { from: "user" });
+    } finally {
+      log.mockRestore();
+      warn.mockRestore();
+    }
 
-		for (const { dir, ...manifest } of FIXTURE_SERVICES) {
-			mkdirSync(join(projectRoot, dir), { recursive: true });
-			writeFileSync(
-				join(projectRoot, dir, "service.json"),
-				JSON.stringify(manifest, null, 2),
-			);
-		}
-	}, 30000);
+    for (const { dir, ...manifest } of FIXTURE_SERVICES) {
+      mkdirSync(join(projectRoot, dir), { recursive: true });
+      writeFileSync(join(projectRoot, dir, "service.json"), JSON.stringify(manifest, null, 2));
+    }
+  }, 30000);
 
-	afterAll(() => {
-		process.chdir(originalCwd);
-		if (originalExtensionSource === undefined) {
-			delete process.env.FLISK_EXTENSION_SOURCE;
-		} else {
-			process.env.FLISK_EXTENSION_SOURCE = originalExtensionSource;
-		}
-		if (projectRoot.startsWith(tmpdir())) {
-			rmSync(projectRoot, { recursive: true, force: true });
-		}
-	});
+  afterAll(() => {
+    process.chdir(originalCwd);
+    if (originalExtensionSource === undefined) {
+      delete process.env.FLISK_EXTENSION_SOURCE;
+    } else {
+      process.env.FLISK_EXTENSION_SOURCE = originalExtensionSource;
+    }
+    if (projectRoot.startsWith(tmpdir())) {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
 
-	beforeEach(() => {
-		clearDiscoveryCache();
-		vi.mocked(isTiltAvailable).mockResolvedValue(true);
-		vi.mocked(runTilt).mockReset();
-		vi.mocked(tiltGetUiResources).mockReset().mockResolvedValue(null);
-	});
+  beforeEach(() => {
+    clearDiscoveryCache();
+    vi.mocked(isTiltAvailable).mockResolvedValue(true);
+    vi.mocked(runTilt).mockReset();
+    vi.mocked(tiltGetUiResources).mockReset().mockResolvedValue(null);
+  });
 
-	afterEach(() => {
-		vi.unstubAllEnvs();
-		vi.mocked(isTiltAvailable).mockReset();
-		vi.mocked(runTilt).mockReset();
-		vi.mocked(tiltGetUiResources).mockReset();
-	});
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.mocked(isTiltAvailable).mockReset();
+    vi.mocked(runTilt).mockReset();
+    vi.mocked(tiltGetUiResources).mockReset();
+  });
 
-	it.each([
-		[undefined, 10350],
-		["12345", 12345],
-		["12345abc", 10350],
-		["10350.5", 10350],
-		["0", 10350],
-		["-1", 10350],
-		["65536", 10350],
-	])(
-		"polls and reports the same port for TILT_PORT=%s",
-		async (value, port) => {
-			vi.stubEnv("TILT_PORT", value);
-			const output = JSON.parse(await runStatus(["--json"]));
-			expect(tiltGetUiResources).toHaveBeenCalledWith(port);
-			expect(output.data.ports).toContainEqual({
-				name: "tilt-ui",
-				hostPort: port,
-				purpose: "Tilt UI",
-			});
-		},
-	);
+  it.each([
+    [undefined, 10350],
+    ["12345", 12345],
+    ["12345abc", 10350],
+    ["10350.5", 10350],
+    ["0", 10350],
+    ["-1", 10350],
+    ["65536", 10350],
+  ])("polls and reports the same port for TILT_PORT=%s", async (value, port) => {
+    vi.stubEnv("TILT_PORT", value);
+    const output = JSON.parse(await runStatus(["--json"]));
+    expect(tiltGetUiResources).toHaveBeenCalledWith(port);
+    expect(output.data.ports).toContainEqual({
+      name: "tilt-ui",
+      hostPort: port,
+      purpose: "Tilt UI",
+    });
+  });
 
-	it("prints Tilt availability, resource and stack counts, and next steps by default", async () => {
-		const output = await runStatus();
+  it("prints Tilt availability, resource and stack counts, and next steps by default", async () => {
+    const output = await runStatus();
 
-		expect(output).toContain("Flisk Status");
-		expect(output).toContain("Tilt: available");
-		expect(output).not.toContain("Install Tilt");
-		expect(output).toContain("Resources: 4 discovered");
-		expect(output).toContain("Stacks: 2 defined");
-		expect(output).toMatch(/^ {2}billing: 1 resource$/m);
-		expect(output).toMatch(/^ {2}shop: 2 resources$/m);
-		expect(output.indexOf("billing:")).toBeLessThan(output.indexOf("shop:"));
-		expect(output).toContain("1 resource not in any stack:");
-		expect(output).toContain('Run "flisk stacks" to see all stacks.');
-		expect(output).not.toContain("flisk list-stacks");
-		expect(output).toContain('Run "flisk up <stack-name>" to start a stack.');
+    expect(output).toContain("Flisk Status");
+    expect(output).toContain("Tilt: available");
+    expect(output).not.toContain("Install Tilt");
+    expect(output).toContain("Resources: 4 discovered");
+    expect(output).toContain("Stacks: 2 defined");
+    expect(output).toMatch(/^ {2}billing: 1 resource$/m);
+    expect(output).toMatch(/^ {2}shop: 2 resources$/m);
+    expect(output.indexOf("billing:")).toBeLessThan(output.indexOf("shop:"));
+    expect(output).toContain("1 resource not in any stack:");
+    expect(output).toContain('Run "flisk stacks" to see all stacks.');
+    expect(output).not.toContain("flisk list-stacks");
+    expect(output).toContain('Run "flisk up <stack-name>" to start a stack.');
 
-		// Resource names are only listed with --verbose.
-		for (const { appName } of FIXTURE_SERVICES) {
-			expect(output).not.toContain(appName);
-		}
-	});
+    // Resource names are only listed with --verbose.
+    for (const { appName } of FIXTURE_SERVICES) {
+      expect(output).not.toContain(appName);
+    }
+  });
 
-	it("points to the Tilt install guide when Tilt is not installed", async () => {
-		vi.mocked(isTiltAvailable).mockResolvedValue(false);
+  it("points to the Tilt install guide when Tilt is not installed", async () => {
+    vi.mocked(isTiltAvailable).mockResolvedValue(false);
 
-		const output = await runStatus();
+    const output = await runStatus();
 
-		expect(output).toContain("Tilt: not found");
-		expect(output).toContain(
-			"Install Tilt: https://docs.tilt.dev/install.html",
-		);
-		expect(output).toContain("Resources: 4 discovered");
-	});
+    expect(output).toContain("Tilt: not found");
+    expect(output).toContain("Install Tilt: https://docs.tilt.dev/install.html");
+    expect(output).toContain("Resources: 4 discovered");
+  });
 
-	it("lists each stack's resources and the unassigned resources with --verbose", async () => {
-		const output = await runStatus(["--verbose"]);
+  it("lists each stack's resources and the unassigned resources with --verbose", async () => {
+    const output = await runStatus(["--verbose"]);
 
-		expect(output).toMatch(/^ {2}billing: 1 resource\n {6}invoices$/m);
-		expect(output).toMatch(
-			/^ {2}shop: 2 resources\n {6}orders-api\n {6}orders-web$/m,
-		);
-		expect(output).toMatch(/^1 resource not in any stack:\n {2}report-job$/m);
-	});
+    expect(output).toMatch(/^ {2}billing: 1 resource\n {6}invoices$/m);
+    expect(output).toMatch(/^ {2}shop: 2 resources\n {6}orders-api\n {6}orders-web$/m);
+    expect(output).toMatch(/^1 resource not in any stack:\n {2}report-job$/m);
+  });
 
-	it("accepts the -v shorthand for --verbose", async () => {
-		expect(await runStatus(["-v"])).toBe(await runStatus(["--verbose"]));
-	});
+  it("accepts the -v shorthand for --verbose", async () => {
+    expect(await runStatus(["-v"])).toBe(await runStatus(["--verbose"]));
+  });
 
-	it("shows stacks by default, so --stacks prints the default output", async () => {
-		expect(await runStatus(["--stacks"])).toBe(await runStatus());
-	});
+  it("shows stacks by default, so --stacks prints the default output", async () => {
+    expect(await runStatus(["--stacks"])).toBe(await runStatus());
+  });
 
-	it("prints the default summary with --resources", async () => {
-		// The text report does not read --resources yet; its resource count line is
-		// part of the default output. Update this test if the flag gains a listing.
-		const output = await runStatus(["--resources"]);
+  it("prints the default summary with --resources", async () => {
+    // The text report does not read --resources yet; its resource count line is
+    // part of the default output. Update this test if the flag gains a listing.
+    const output = await runStatus(["--resources"]);
 
-		expect(output).toBe(await runStatus());
-		expect(output).toContain("Resources: 4 discovered");
-	});
+    expect(output).toBe(await runStatus());
+    expect(output).toContain("Resources: 4 discovered");
+  });
 
-	it("reports an empty project without stack lines", async () => {
-		const emptyRoot = mkdtempSync(join(tmpdir(), "flisk-status-empty-"));
-		try {
-			mkdirSync(join(emptyRoot, ".flisk"));
-			writeFileSync(join(emptyRoot, ".flisk", "project.json"), "{}");
-			process.chdir(emptyRoot);
+  it("reports an empty project without stack lines", async () => {
+    const emptyRoot = mkdtempSync(join(tmpdir(), "flisk-status-empty-"));
+    try {
+      mkdirSync(join(emptyRoot, ".flisk"));
+      writeFileSync(join(emptyRoot, ".flisk", "project.json"), "{}");
+      process.chdir(emptyRoot);
 
-			const output = await runStatus(["--verbose"]);
+      const output = await runStatus(["--verbose"]);
 
-			expect(output).toContain("Resources: 0 discovered");
-			expect(output).toContain("Stacks: 0 defined");
-			expect(output).not.toContain("not in any stack");
-		} finally {
-			process.chdir(projectRoot);
-			rmSync(emptyRoot, { recursive: true, force: true });
-		}
-	});
+      expect(output).toContain("Resources: 0 discovered");
+      expect(output).toContain("Stacks: 0 defined");
+      expect(output).not.toContain("not in any stack");
+    } finally {
+      process.chdir(projectRoot);
+      rmSync(emptyRoot, { recursive: true, force: true });
+    }
+  });
 
-	it("prints one JSON envelope with stack and unassigned resource details", async () => {
-		vi.mocked(isTiltAvailable).mockResolvedValue(false);
+  it("prints one JSON envelope with stack and unassigned resource details", async () => {
+    vi.mocked(isTiltAvailable).mockResolvedValue(false);
 
-		const output = await runStatus(["--json"]);
-		expect(output.trim().split(/\r?\n/)).toHaveLength(1);
-		expect(JSON.parse(output)).toMatchObject({
-			schemaVersion: 1,
-			data: {
-				tilt: {
-					available: false,
-					resourcesQueried: false,
-					resources: null,
-					readiness: null,
-				},
-				resourceCount: 4,
-				stacks: [
-					{ name: "billing", resourceCount: 1, resources: ["invoices"] },
-					{
-						name: "shop",
-						resourceCount: 2,
-						resources: ["orders-api", "orders-web"],
-					},
-				],
-				unassignedResources: ["report-job"],
-			},
-			errors: [],
-		});
-	});
+    const output = await runStatus(["--json"]);
+    expect(output.trim().split(/\r?\n/)).toHaveLength(1);
+    expect(JSON.parse(output)).toMatchObject({
+      schemaVersion: 1,
+      data: {
+        tilt: {
+          available: false,
+          resourcesQueried: false,
+          resources: null,
+          readiness: null,
+        },
+        resourceCount: 4,
+        stacks: [
+          { name: "billing", resourceCount: 1, resources: ["invoices"] },
+          {
+            name: "shop",
+            resourceCount: 2,
+            resources: ["orders-api", "orders-web"],
+          },
+        ],
+        unassignedResources: ["report-job"],
+      },
+      errors: [],
+    });
+  });
 
-	it("includes Tilt resource status in JSON when requested and available", async () => {
-		vi.mocked(isTiltAvailable).mockResolvedValue(true);
-		vi.mocked(tiltGetUiResources).mockResolvedValue(
-			JSON.stringify({ items: [{ metadata: { name: "orders-api" } }] }),
-		);
+  it("includes Tilt resource status in JSON when requested and available", async () => {
+    vi.mocked(isTiltAvailable).mockResolvedValue(true);
+    vi.mocked(tiltGetUiResources).mockResolvedValue(
+      JSON.stringify({ items: [{ metadata: { name: "orders-api" } }] }),
+    );
 
-		const output = await runStatus(["--json", "--tilt"]);
-		const envelope = JSON.parse(output);
+    const output = await runStatus(["--json", "--tilt"]);
+    const envelope = JSON.parse(output);
 
-		expect(output.trim().split(/\r?\n/)).toHaveLength(1);
-		expect(envelope.data.tilt).toMatchObject({
-			available: true,
-			resourcesQueried: true,
-			resources: { items: [{ metadata: { name: "orders-api" } }] },
-		});
-		// Resources come from the Tilt API on its port; `tilt get -f` does not exist and must not be called.
-		expect(runTilt).not.toHaveBeenCalled();
-		expect(envelope.errors ?? []).toEqual([]);
-	});
+    expect(output.trim().split(/\r?\n/)).toHaveLength(1);
+    expect(envelope.data.tilt).toMatchObject({
+      available: true,
+      resourcesQueried: true,
+      resources: { items: [{ metadata: { name: "orders-api" } }] },
+    });
+    // Resources come from the Tilt API on its port; `tilt get -f` does not exist and must not be called.
+    expect(runTilt).not.toHaveBeenCalled();
+    expect(envelope.errors ?? []).toEqual([]);
+  });
 
-	it("explains which port has no Tilt when --tilt is requested but nothing answers", async () => {
-		vi.mocked(isTiltAvailable).mockResolvedValue(true);
-		vi.mocked(tiltGetUiResources).mockResolvedValue(null);
+  it("explains which port has no Tilt when --tilt is requested but nothing answers", async () => {
+    vi.mocked(isTiltAvailable).mockResolvedValue(true);
+    vi.mocked(tiltGetUiResources).mockResolvedValue(null);
 
-		const lines: string[] = [];
-		const log = vi
-			.spyOn(console, "log")
-			.mockImplementation((...parts: unknown[]) => {
-				lines.push(parts.map(String).join(" "));
-			});
-		try {
-			// A status with errors exits non-zero; the JSON envelope is still printed first.
-			await statusCommand
-				.parseAsync(["--json", "--tilt"], { from: "user" })
-				.catch(() => undefined);
-		} finally {
-			log.mockRestore();
-		}
-		// The status envelope comes first; vitest turns the following process.exit into an error that prints a second one.
-		const envelope = JSON.parse(
-			stripVTControlCharacters(lines.filter(Boolean)[0] ?? "{}"),
-		);
-		expect(envelope.errors?.[0]).toMatchObject({
-			code: "TILT_STATUS_UNAVAILABLE",
-		});
-		expect(envelope.errors?.[0]?.message).toMatch(
-			/No Tilt is answering on port \d+/,
-		);
-		expect(runTilt).not.toHaveBeenCalled();
-	});
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...parts: unknown[]) => {
+      lines.push(parts.map(String).join(" "));
+    });
+    try {
+      // A status with errors exits non-zero; the JSON envelope is still printed first.
+      await statusCommand.parseAsync(["--json", "--tilt"], { from: "user" }).catch(() => undefined);
+    } finally {
+      log.mockRestore();
+    }
+    // The status envelope comes first; vitest turns the following process.exit into an error that prints a second one.
+    const envelope = JSON.parse(stripVTControlCharacters(lines.filter(Boolean)[0] ?? "{}"));
+    expect(envelope.errors?.[0]).toMatchObject({
+      code: "TILT_STATUS_UNAVAILABLE",
+    });
+    expect(envelope.errors?.[0]?.message).toMatch(/No Tilt is answering on port \d+/);
+    expect(runTilt).not.toHaveBeenCalled();
+  });
 
-	it("reports a failed Tilt status request in human output", async () => {
-		vi.mocked(runTilt).mockResolvedValue({
-			exitCode: 1,
-			stdout: "",
-			stderr: "tilt status request failed",
-		});
+  it("reports a failed Tilt status request in human output", async () => {
+    vi.mocked(runTilt).mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "tilt status request failed",
+    });
 
-		const output = await runStatus(["--tilt"]);
+    const output = await runStatus(["--tilt"]);
 
-		expect(output).toContain("Tilt Resources:");
-		expect(output).toContain(
-			"No Tilt is answering on port 10350. Start it with: flisk up",
-		);
-		expect(runTilt).toHaveBeenCalledWith(
-			"get",
-			["uiresources", "--port", "10350"],
-			{
-				inheritStdio: false,
-			},
-		);
-	});
+    expect(output).toContain("Tilt Resources:");
+    expect(output).toContain("No Tilt is answering on port 10350. Start it with: flisk up");
+    expect(runTilt).toHaveBeenCalledWith("get", ["uiresources", "--port", "10350"], {
+      inheritStdio: false,
+    });
+  });
 
-	describe("service state from a running Tilt", () => {
-		const tilt = (...items: Array<[string, string, string]>) =>
-			JSON.stringify({
-				items: items.map(([name, update, runtime]) => ({
-					metadata: { name },
-					status: { updateStatus: update, runtimeStatus: runtime },
-				})),
-			});
-		// orders-api failed; orders-web depends on it and its own process is up.
-		const apiDown = tilt(
-			["orders-api", "error", "none"],
-			["orders-web", "ok", "ok"],
-			["invoices", "ok", "ok"],
-		);
+  describe("service state from a running Tilt", () => {
+    const tilt = (...items: Array<[string, string, string]>) =>
+      JSON.stringify({
+        items: items.map(([name, update, runtime]) => ({
+          metadata: { name },
+          status: { updateStatus: update, runtimeStatus: runtime },
+        })),
+      });
+    // orders-api failed; orders-web depends on it and its own process is up.
+    const apiDown = tilt(
+      ["orders-api", "error", "none"],
+      ["orders-web", "ok", "ok"],
+      ["invoices", "ok", "ok"],
+    );
 
-		it("does not call a service ready when a dependency has failed, in JSON", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
-			const output = await runStatus(["--json"]);
-			const resources = JSON.parse(output).data.resources as Array<
-				Record<string, unknown>
-			>;
-			const byName = Object.fromEntries(resources.map((r) => [r.name, r]));
-			expect(byName["orders-api"]).toMatchObject({ status: "error" });
-			expect(byName["orders-web"]).toMatchObject({
-				status: "error",
-				statusReason: "orders-api failed",
-				blockedBy: ["orders-api"],
-			});
-			expect(byName.invoices).toMatchObject({ status: "ready" });
-			expect(byName["report-job"]).toMatchObject({ status: "unknown" });
-		});
+    it("does not call a service ready when a dependency has failed, in JSON", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const output = await runStatus(["--json"]);
+      const resources = JSON.parse(output).data.resources as Array<Record<string, unknown>>;
+      const byName = Object.fromEntries(resources.map((r) => [r.name, r]));
+      expect(byName["orders-api"]).toMatchObject({ status: "error" });
+      expect(byName["orders-web"]).toMatchObject({
+        status: "error",
+        statusReason: "orders-api failed",
+        blockedBy: ["orders-api"],
+      });
+      expect(byName.invoices).toMatchObject({ status: "ready" });
+      expect(byName["report-job"]).toMatchObject({ status: "unknown" });
+    });
 
-		it("says so when the Tiltfile could not be reloaded, instead of showing the old graph as healthy", async () => {
-			// A cycle written into a service.json while the stack runs: Tilt keeps the last good graph, every service stays ready, and
-			// only the (Tiltfile) resource carries the error. It used to reach the JSON readiness only, never the terminal.
-			const broken = JSON.stringify({
-				items: [
-					{
-						metadata: { name: "(Tiltfile)" },
-						status: {
-							updateStatus: "error",
-							runtimeStatus: "not_applicable",
-							buildHistory: [
-								{
-									error:
-										"cycle detected in resource dependency graph: a -> b -> a",
-								},
-							],
-						},
-					},
-					{
-						metadata: { name: "orders-api" },
-						status: { updateStatus: "ok", runtimeStatus: "ok" },
-					},
-				],
-			});
-			vi.mocked(tiltGetUiResources).mockResolvedValue(broken);
+    it("says so when the Tiltfile could not be reloaded, instead of showing the old graph as healthy", async () => {
+      // A cycle written into a service.json while the stack runs: Tilt keeps the last good graph, every service stays ready, and
+      // only the (Tiltfile) resource carries the error. It used to reach the JSON readiness only, never the terminal.
+      const broken = JSON.stringify({
+        items: [
+          {
+            metadata: { name: "(Tiltfile)" },
+            status: {
+              updateStatus: "error",
+              runtimeStatus: "not_applicable",
+              buildHistory: [
+                {
+                  error: "cycle detected in resource dependency graph: a -> b -> a",
+                },
+              ],
+            },
+          },
+          {
+            metadata: { name: "orders-api" },
+            status: { updateStatus: "ok", runtimeStatus: "ok" },
+          },
+        ],
+      });
+      vi.mocked(tiltGetUiResources).mockResolvedValue(broken);
 
-			const human = await runStatus([]);
-			expect(human).toContain("Tilt could not reload the Tiltfile");
-			expect(human).toContain("a -> b -> a");
+      const human = await runStatus([]);
+      expect(human).toContain("Tilt could not reload the Tiltfile");
+      expect(human).toContain("a -> b -> a");
 
-			const data = JSON.parse(await runStatus(["--json"])).data;
-			expect(data.tilt.tiltfileError).toContain("cycle detected");
-		});
+      const data = JSON.parse(await runStatus(["--json"])).data;
+      expect(data.tilt.tiltfileError).toContain("cycle detected");
+    });
 
-		it("reports no Tiltfile error when the Tiltfile is fine", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
-			expect(await runStatus([])).not.toContain(
-				"could not reload the Tiltfile",
-			);
-			expect(
-				JSON.parse(await runStatus(["--json"])).data.tilt.tiltfileError,
-			).toBeNull();
-		});
+    it("reports no Tiltfile error when the Tiltfile is fine", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      expect(await runStatus([])).not.toContain("could not reload the Tiltfile");
+      expect(JSON.parse(await runStatus(["--json"])).data.tilt.tiltfileError).toBeNull();
+    });
 
-		it("reports resources kept Disabled by Tilt that the Tiltfile enables", async () => {
-			const specMasterPath = join(
-				projectRoot,
-				".flisk",
-				".flisk-out",
-				"spec.master",
-			);
-			const originalSpecMaster = readFileSync(specMasterPath, "utf-8");
-			writeFileSync(
-				specMasterPath,
-				originalSpecMaster.replace(
-					"PRE_ALPHA_RESOURCES = {",
-					'PRE_ALPHA_RESOURCES = {\n"orders-api": True,',
-				),
-			);
-			try {
-				const stale = JSON.stringify({
-					items: [
-						{
-							metadata: { name: "traefik" },
-							status: { updateStatus: "ok", runtimeStatus: "ok" },
-						},
-						{
-							metadata: { name: "orders-api" },
-							status: {
-								updateStatus: "none",
-								runtimeStatus: "none",
-								disableStatus: { state: "Disabled" },
-							},
-						},
-						{
-							metadata: { name: "service-discovery-daemon" },
-							status: {
-								updateStatus: "none",
-								runtimeStatus: "none",
-								disableStatus: { state: "Disabled" },
-							},
-						},
-						{
-							metadata: { name: "invoices" },
-							status: {
-								updateStatus: "none",
-								runtimeStatus: "none",
-								disableStatus: { state: "Disabled" },
-							},
-						},
-					],
-				});
-				vi.mocked(tiltGetUiResources).mockResolvedValue(stale);
+    it("reports resources kept Disabled by Tilt that the Tiltfile enables", async () => {
+      const specMasterPath = join(projectRoot, ".flisk", ".flisk-out", "spec.master");
+      const originalSpecMaster = readFileSync(specMasterPath, "utf-8");
+      writeFileSync(
+        specMasterPath,
+        originalSpecMaster.replace(
+          "PRE_ALPHA_RESOURCES = {",
+          'PRE_ALPHA_RESOURCES = {\n"orders-api": True,',
+        ),
+      );
+      try {
+        const stale = JSON.stringify({
+          items: [
+            {
+              metadata: { name: "traefik" },
+              status: { updateStatus: "ok", runtimeStatus: "ok" },
+            },
+            {
+              metadata: { name: "orders-api" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+            {
+              metadata: { name: "service-discovery-daemon" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+            {
+              metadata: { name: "invoices" },
+              status: {
+                updateStatus: "none",
+                runtimeStatus: "none",
+                disableStatus: { state: "Disabled" },
+              },
+            },
+          ],
+        });
+        vi.mocked(tiltGetUiResources).mockResolvedValue(stale);
 
-				const human = await runStatus([]);
-				expect(human).toContain("orders-api");
-				expect(human).toContain("service-discovery-daemon");
-				expect(human).toContain("restart needed: `flisk down && flisk up`");
+        const human = await runStatus([]);
+        expect(human).toContain("orders-api");
+        expect(human).toContain("service-discovery-daemon");
+        expect(human).toContain("restart needed: `flisk down && flisk up`");
 
-				const data = JSON.parse(await runStatus(["--json"])).data;
-				expect(data.tilt.staleDisabled).toEqual([
-					"orders-api",
-					"service-discovery-daemon",
-				]);
-			} finally {
-				writeFileSync(specMasterPath, originalSpecMaster);
-			}
-		});
+        const data = JSON.parse(await runStatus(["--json"])).data;
+        expect(data.tilt.staleDisabled).toEqual(["orders-api", "service-discovery-daemon"]);
+      } finally {
+        writeFileSync(specMasterPath, originalSpecMaster);
+      }
+    });
 
-		it("shows every service as unknown when no Tilt answers", async () => {
-			const output = await runStatus(["--json"]);
-			const resources = JSON.parse(output).data.resources as Array<{
-				status: string;
-			}>;
-			expect(resources.map((r) => r.status)).toEqual([
-				"unknown",
-				"unknown",
-				"unknown",
-				"unknown",
-			]);
-		});
+    it("shows every service as unknown when no Tilt answers", async () => {
+      const output = await runStatus(["--json"]);
+      const resources = JSON.parse(output).data.resources as Array<{
+        status: string;
+      }>;
+      expect(resources.map((r) => r.status)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
+    });
 
-		it("lists service states in the human output and names the failed dependency", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
-			const output = await runStatus();
-			expect(output).toContain("Services:");
-			expect(output).toContain("✗ orders-api → http://");
-			expect(output).toContain("error (error/none)");
-			expect(output).toContain("✗ orders-web → http://");
-			expect(output).toContain("error (orders-api failed)");
-			expect(output).toContain("✓ invoices → http://");
-			expect(output).toContain("ready");
-		});
+    it("lists service states in the human output and names the failed dependency", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const output = await runStatus();
+      expect(output).toContain("Services:");
+      expect(output).toContain("✗ orders-api → http://");
+      expect(output).toContain("error (error/none)");
+      expect(output).toContain("✗ orders-web → http://");
+      expect(output).toContain("error (orders-api failed)");
+      expect(output).toContain("✓ invoices → http://");
+      expect(output).toContain("ready");
+    });
 
-		it("prints a pending unhealthy service with its status marker", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(
-				tilt(
-					["orders-api", "pending", "pending"],
-					["orders-web", "ok", "ok"],
-					["invoices", "ok", "ok"],
-				),
-			);
+    it("prints a pending unhealthy service with its status marker", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        tilt(
+          ["orders-api", "pending", "pending"],
+          ["orders-web", "ok", "ok"],
+          ["invoices", "ok", "ok"],
+        ),
+      );
 
-			const output = await runStatus();
+      const output = await runStatus();
 
-			expect(output).toContain("Services:");
-			expect(output).toContain("… orders-api");
-			expect(output).toContain("pending");
-			expect(output).toContain("0/2 healthy");
-			expect(output).toContain("… orders-web");
-			expect(output).toContain("pending (waiting for orders-api)");
-			expect(output).toContain("✓ invoices");
-		});
+      expect(output).toContain("Services:");
+      expect(output).toContain("… orders-api");
+      expect(output).toContain("pending");
+      expect(output).toContain("0/2 healthy");
+      expect(output).toContain("… orders-web");
+      expect(output).toContain("pending (waiting for orders-api)");
+      expect(output).toContain("✓ invoices");
+    });
 
-		it("groups services by stack with a healthy/total line per stack", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
-			const output = await runStatus();
-			expect(output).toMatch(/^ {2}billing: 1\/1 healthy$/m);
-			expect(output).toMatch(/^ {2}shop: 0\/2 healthy$/m);
-			expect(output).toMatch(/^ {2}\(no stack\): 0\/1 healthy$/m);
-			expect(output.indexOf("shop: 0/2")).toBeLessThan(
-				output.indexOf("✗ orders-api"),
-			);
-		});
+    it("groups services by stack with a healthy/total line per stack", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const output = await runStatus();
+      expect(output).toMatch(/^ {2}billing: 1\/1 healthy$/m);
+      expect(output).toMatch(/^ {2}shop: 0\/2 healthy$/m);
+      expect(output).toMatch(/^ {2}\(no stack\): 0\/1 healthy$/m);
+      expect(output.indexOf("shop: 0/2")).toBeLessThan(output.indexOf("✗ orders-api"));
+    });
 
-		it("adds healthyCount per stack and an unhealthy list to JSON without touching other fields", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
-			const data = JSON.parse(await runStatus(["--json"])).data;
-			expect(data.stacks).toEqual([
-				{
-					name: "billing",
-					resourceCount: 1,
-					resources: ["invoices"],
-					healthyCount: 1,
-				},
-				{
-					name: "shop",
-					resourceCount: 2,
-					resources: ["orders-api", "orders-web"],
-					healthyCount: 0,
-				},
-			]);
-			expect(data.unhealthy).toEqual(["orders-api", "orders-web"]);
-			expect(data.resourceCount).toBe(4);
-		});
+    it("adds healthyCount per stack and an unhealthy list to JSON without touching other fields", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const data = JSON.parse(await runStatus(["--json"])).data;
+      expect(data.stacks).toEqual([
+        {
+          name: "billing",
+          resourceCount: 1,
+          resources: ["invoices"],
+          healthyCount: 1,
+        },
+        {
+          name: "shop",
+          resourceCount: 2,
+          resources: ["orders-api", "orders-web"],
+          healthyCount: 0,
+        },
+      ]);
+      expect(data.unhealthy).toEqual(["orders-api", "orders-web"]);
+      expect(data.resourceCount).toBe(4);
+    });
 
-		it("--unhealthy shows only failing services and their stacks", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
-			const output = await runStatus(["--unhealthy"]);
-			expect(output).toContain("Unhealthy services:");
-			expect(output).toContain("✗ orders-api");
-			expect(output).toContain("✗ orders-web");
-			expect(output).not.toContain("invoices");
-			expect(output).not.toContain("billing");
-			expect(output).not.toContain("All services are healthy");
-		});
+    it("--unhealthy shows only failing services and their stacks", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(apiDown);
+      const output = await runStatus(["--unhealthy"]);
+      expect(output).toContain("Unhealthy services:");
+      expect(output).toContain("✗ orders-api");
+      expect(output).toContain("✗ orders-web");
+      expect(output).not.toContain("invoices");
+      expect(output).not.toContain("billing");
+      expect(output).not.toContain("All services are healthy");
+    });
 
-		it("--unhealthy says so when every service is healthy", async () => {
-			vi.mocked(tiltGetUiResources).mockResolvedValue(
-				tilt(
-					["orders-api", "ok", "ok"],
-					["orders-web", "ok", "ok"],
-					["invoices", "ok", "ok"],
-					["report-job", "ok", "ok"],
-				),
-			);
-			const output = await runStatus(["--unhealthy"]);
-			expect(output).toContain("All services are healthy.");
-			expect(output).not.toContain("✓");
-		});
+    it("--unhealthy says so when every service is healthy", async () => {
+      vi.mocked(tiltGetUiResources).mockResolvedValue(
+        tilt(
+          ["orders-api", "ok", "ok"],
+          ["orders-web", "ok", "ok"],
+          ["invoices", "ok", "ok"],
+          ["report-job", "ok", "ok"],
+        ),
+      );
+      const output = await runStatus(["--unhealthy"]);
+      expect(output).toContain("All services are healthy.");
+      expect(output).not.toContain("✓");
+    });
 
-		it("--unhealthy does not claim health when no Tilt answers", async () => {
-			const output = await runStatus(["--unhealthy"]);
-			expect(output).toContain("nothing is confirmed running");
-			expect(output).not.toContain("All services are healthy");
-		});
+    it("--unhealthy does not claim health when no Tilt answers", async () => {
+      const output = await runStatus(["--unhealthy"]);
+      expect(output).toContain("nothing is confirmed running");
+      expect(output).not.toContain("All services are healthy");
+    });
 
-		it("says service states are unknown in the human output when no Tilt answers", async () => {
-			const output = await runStatus();
-			expect(output).toContain("Services:");
-			expect(output).toContain("unknown: no Tilt answers");
-			expect(output).toContain("nothing is confirmed running");
-			expect(output).toContain("flisk up");
-		});
-	});
+    it("says service states are unknown in the human output when no Tilt answers", async () => {
+      const output = await runStatus();
+      expect(output).toContain("Services:");
+      expect(output).toContain("unknown: no Tilt answers");
+      expect(output).toContain("nothing is confirmed running");
+      expect(output).toContain("flisk up");
+    });
+  });
 
-	it("fails on the missing project before printing any status line", async () => {
-		const outside = mkdtempSync(join(tmpdir(), "flisk-status-outside-"));
-		process.chdir(outside);
-		clearDiscoveryCache();
-		const lines: string[] = [];
-		const log = vi
-			.spyOn(console, "log")
-			.mockImplementation((...parts: unknown[]) => {
-				lines.push(parts.map(String).join(" "));
-			});
-		const errors: string[] = [];
-		const err = vi
-			.spyOn(console, "error")
-			.mockImplementation((...parts: unknown[]) => {
-				errors.push(parts.map(String).join(" "));
-			});
-		const { exit } = captureExit();
-		try {
-			await statusCommand.parseAsync([], { from: "user" }).catch(() => {});
-		} finally {
-			log.mockRestore();
-			err.mockRestore();
-			exit.mockRestore();
-			process.chdir(projectRoot);
-			rmSync(outside, { recursive: true, force: true });
-		}
+  it("fails on the missing project before printing any status line", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "flisk-status-outside-"));
+    process.chdir(outside);
+    clearDiscoveryCache();
+    const lines: string[] = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...parts: unknown[]) => {
+      lines.push(parts.map(String).join(" "));
+    });
+    const errors: string[] = [];
+    const err = vi.spyOn(console, "error").mockImplementation((...parts: unknown[]) => {
+      errors.push(parts.map(String).join(" "));
+    });
+    const { exit } = captureExit();
+    try {
+      await statusCommand.parseAsync([], { from: "user" }).catch(() => {});
+    } finally {
+      log.mockRestore();
+      err.mockRestore();
+      exit.mockRestore();
+      process.chdir(projectRoot);
+      rmSync(outside, { recursive: true, force: true });
+    }
 
-		const stdout = stripVTControlCharacters(lines.join("\n"));
-		expect(stdout).not.toContain("Flisk Status");
-		expect(stdout).not.toContain("Tilt:");
-		expect(stripVTControlCharacters(errors.join("\n"))).toContain(
-			"Could not find project root",
-		);
-	});
+    const stdout = stripVTControlCharacters(lines.join("\n"));
+    expect(stdout).not.toContain("Flisk Status");
+    expect(stdout).not.toContain("Tilt:");
+    expect(stripVTControlCharacters(errors.join("\n"))).toContain("Could not find project root");
+  });
 });
