@@ -17,11 +17,11 @@
 
 ## What is Flisk?
 
-Flisk is a command-line tool for local development. It runs every part of your app (API, website, workers, AI agents, database) on your computer behind one local address, and reloads a part when you save it. You describe each part in a small `service.json`; Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. It does not deploy: production stays with your own tools.
+Flisk is a command-line tool for local development. It runs every part of your app (API, website, workers, AI agents, database) locally on your computer, with routes behind one address, and rebuilds a part when you save it. Have a `docker-compose.yml`? `flisk import` reads it. Otherwise describe each part in a small `service.json`; Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. An MCP server lets your AI agent run it too. It does not deploy: production stays with your own tools.
 
 ```bash
 npm install -g @flisk-sh/flisk
-mkdir my-shop && cd my-shop
+# in a new, empty folder (mkdir my-shop && cd my-shop):
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes

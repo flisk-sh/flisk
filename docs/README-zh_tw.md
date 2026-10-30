@@ -13,7 +13,7 @@ Flisk 是用於本機開發的命令列工具。它在你的電腦上，把應�
 
 ```bash
 npm install -g @flisk-sh/flisk
-mkdir shop && cd shop
+# mkdir shop && cd shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes
