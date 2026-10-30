@@ -1,0 +1,22 @@
+{
+  "name": "flisk",
+  "version": "1.0.0",
+  "description": "Run your whole app on your own computer with one command. Skills and an MCP server that let your coding agent build, start, check and fix a local stack with the Flisk CLI.",
+  "author": {
+    "name": "Flisk",
+    "url": "https://flisk.sh"
+  },
+  "homepage": "https://flisk.sh",
+  "repository": "https://github.com/flisk-sh/flisk",
+  "license": "MIT",
+  "keywords": [
+    "flisk",
+    "local-development",
+    "dev-environment",
+    "microservices",
+    "docker",
+    "tilt",
+    "mcp",
+    "agents"
+  ]
+}

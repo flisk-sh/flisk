@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   absoluteDocLinks,
+  CLAUDE_PLUGIN_DIR,
   INSTALL_LINKS,
   MCP_REGISTRY_NAME,
   mcpRegistryServer,
@@ -99,6 +100,9 @@ test("every host starts the same server: flisk mcp", () => {
 test("every marketplace points at a folder with that host's manifest", () => {
   const claude = readJson(ROOT, ".claude-plugin/marketplace.json").plugins[0].source;
   assert.ok(existsSync(path.join(ROOT, claude, ".claude-plugin/plugin.json")), "Claude Code / Copilot CLI");
+  const launcher = readJson(path.join(ROOT, claude), ".mcp.json").mcpServers.flisk;
+  assert.deepEqual([launcher.command, ...launcher.args], ["node", "${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.mjs"]);
+  assert.ok(existsSync(path.join(ROOT, claude, "bin/flisk-mcp.mjs")), "the launcher ships in the Claude Code plugin");
   const codex = readJson(ROOT, ".agents/plugins/marketplace.json").plugins[0].source;
   assert.equal(codex.source, "local");
   assert.ok(existsSync(path.join(ROOT, codex.path, "plugin.json")), "Codex");
@@ -156,7 +160,12 @@ test("the generator follows the skill sources: a changed skill is rewritten and 
 
     writeFileSync(skill("flisk-a"), "---\nname: flisk-a\n---\nChanged.\n");
     rmSync(path.dirname(skill("flisk-b")), { recursive: true });
-    assert.deepEqual(run(repo, { write: false }), [`${PLUGIN_DIR}/skills/flisk-a/SKILL.md`, `${PLUGIN_DIR}/skills/flisk-b`]);
+    assert.deepEqual(run(repo, { write: false }), [
+      `${PLUGIN_DIR}/skills/flisk-a/SKILL.md`,
+      `${CLAUDE_PLUGIN_DIR}/skills/flisk-a/SKILL.md`,
+      `${PLUGIN_DIR}/skills/flisk-b`,
+      `${CLAUDE_PLUGIN_DIR}/skills/flisk-b`,
+    ]);
     run(repo, { write: true });
     assert.equal(readFileSync(copy, "utf8"), "---\nname: flisk-a\n---\nChanged.\n");
     assert.ok(!existsSync(path.join(repo, PLUGIN_DIR, "skills/flisk-b")));

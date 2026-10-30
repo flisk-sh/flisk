@@ -31,7 +31,8 @@ One set of files for every agent format, all written by [`scripts/agent-plugin.m
 | File | Read by |
 | --- | --- |
 | `plugin.json`, `mcp.json` | The open [Agent Plugins](https://agent-plugins.org) format: Codex and ChatGPT, Cursor, GitHub Copilot CLI |
-| `.mcp.json` | Claude Code, and Codex and Copilot builds that predate the open format |
+| `.mcp.json` | Older Codex and Copilot builds that predate the open format |
+| `../flisk-claude/` | Claude Code: the same skills, and an `.mcp.json` that runs `bin/flisk-mcp.mjs`, a small launcher that starts `flisk mcp` (the Claude plugin directory only reads commands it knows) |
 | `.claude-plugin/plugin.json` | Claude Code |
 | `.codex-plugin/plugin.json` | Codex builds that predate the open format |
 | `.cursor-plugin/plugin.json` | Cursor marketplace |

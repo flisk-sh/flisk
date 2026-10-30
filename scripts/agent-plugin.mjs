@@ -9,9 +9,11 @@
 //   plugins/flisk/.codex-plugin/plugin.json    Codex builds that predate the root plugin.json
 //   plugins/flisk/.cursor-plugin/plugin.json   Cursor marketplace entries
 //   plugins/flisk/skills/<name>/SKILL.md       copies of cli/templates/agent-skills, with docs/ links made absolute
-//   .claude-plugin/marketplace.json            marketplace for Claude Code (and Copilot CLI, which reads it too)
+//   .claude-plugin/marketplace.json            marketplace for Claude Code, pointing at plugins/flisk-claude (and Copilot CLI, which reads it too)
 //   .agents/plugins/marketplace.json           marketplace for Codex
 //   .cursor-plugin/marketplace.json            marketplace for Cursor
+//   plugins/flisk-claude/                      the Claude Code plugin: same skills, and .mcp.json runs bin/flisk-mcp.mjs (a launcher
+//                                              that starts flisk mcp), which the Claude directory can read
 //   gemini-extension.json                      Gemini CLI extension (it must sit at the repository root)
 // plugins/flisk/README.md, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
 //   node scripts/agent-plugin.mjs [--root <repo dir>]                 write everything
@@ -32,6 +34,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PLUGIN_DIR = "plugins/flisk";
+export const CLAUDE_PLUGIN_DIR = "plugins/flisk-claude";
 export const SKILLS_SOURCE = "cli/templates/agent-skills";
 const GENERATOR = "scripts/agent-plugin.mjs";
 const DOCS_URL = "https://github.com/flisk-sh/flisk/blob/main/docs/";
@@ -73,6 +76,26 @@ export const OPENAI_INTERFACE = {
 // The server every host starts: the Flisk CLI's own stdio server, run in the user's project.
 const SERVER = { command: "flisk", args: ["mcp"] };
 
+
+// Claude Code's directory only reads a server command it knows (node, python, docker, java or a script shipped in the
+// plugin), and an unknown `flisk` command is held for a reviewer. So the Claude Code plugin (plugins/flisk-claude) runs
+// a small launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
+const CLAUDE_SERVER = { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.mjs"] };
+const CLAUDE_LAUNCHER = `#!/usr/bin/env node
+// Copyright (c) 2026 Flisk Landscape contributors
+// SPDX-License-Identifier: MIT
+// Written by ${"scripts/agent-plugin.mjs"}. Starts \`flisk mcp\` (the Flisk CLI's own stdio MCP server) from the user's
+// PATH, in the folder the agent was started in. It reads no credential and uses no network.
+import { spawn } from "node:child_process";
+
+const child = spawn("flisk", ["mcp"], { stdio: "inherit" });
+child.on("error", (error) => {
+  const why = error.code === "ENOENT" ? "the flisk command was not found" : error.message;
+  console.error(\`flisk mcp: \${why}. Install the Flisk CLI first: npm install -g @flisk-sh/flisk\`);
+  process.exit(1);
+});
+child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
+`;
 
 // The name the MCP Registry lists Flisk under. The io.github.flisk-sh/ namespace is proven by publishing from a
 // flisk-sh GitHub Actions run, and the registry checks that the npm package's mcpName (root package.json) matches it.
@@ -155,9 +178,13 @@ export function plan(root) {
     json({ ...PLUGIN, skills: "./skills/", mcpServers: "./.mcp.json", interface: OPENAI_INTERFACE }),
   );
   add(inPlugin(".cursor-plugin/plugin.json"), json({ ...PLUGIN, logo: "assets/logo.svg" }));
+  add(`${CLAUDE_PLUGIN_DIR}/.claude-plugin/plugin.json`, json(PLUGIN));
+  add(`${CLAUDE_PLUGIN_DIR}/.mcp.json`, json({ mcpServers: { flisk: CLAUDE_SERVER } }));
+  add(`${CLAUDE_PLUGIN_DIR}/bin/flisk-mcp.mjs`, CLAUDE_LAUNCHER);
   for (const name of skillNames(root)) {
-    const source = readFileSync(path.join(root, SKILLS_SOURCE, name, "SKILL.md"), "utf8");
-    add(inPlugin(`skills/${name}/SKILL.md`), absoluteDocLinks(source));
+    const source = absoluteDocLinks(readFileSync(path.join(root, SKILLS_SOURCE, name, "SKILL.md"), "utf8"));
+    add(inPlugin(`skills/${name}/SKILL.md`), source);
+    add(`${CLAUDE_PLUGIN_DIR}/skills/${name}/SKILL.md`, source);
   }
 
   const entry = { name: PLUGIN.name, description: PLUGIN.description };
@@ -168,7 +195,7 @@ export function plan(root) {
       owner,
       metadata: { description: "The Flisk plugin: skills and the flisk mcp server for running your app locally" },
       plugins: [
-        { ...entry, source: `./${PLUGIN_DIR}`, homepage: PLUGIN.homepage, license: PLUGIN.license, category: "development" },
+        { ...entry, source: `./${CLAUDE_PLUGIN_DIR}`, homepage: PLUGIN.homepage, license: PLUGIN.license, category: "development" },
       ],
     }),
   );
@@ -203,12 +230,14 @@ export function plan(root) {
 
 /** Generated skill folders whose source skill is gone: { rel } of each, to delete. */
 function staleSkills(root, files) {
-  const dir = path.join(root, PLUGIN_DIR, "skills");
-  if (!existsSync(dir)) return [];
   const wanted = new Set(files.map((f) => f.rel));
-  return readdirSync(dir)
-    .map((name) => `${PLUGIN_DIR}/skills/${name}`)
-    .filter((rel) => !wanted.has(`${rel}/SKILL.md`));
+  return [PLUGIN_DIR, CLAUDE_PLUGIN_DIR].flatMap((pluginDir) => {
+    const dir = path.join(root, pluginDir, "skills");
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir)
+      .map((name) => `${pluginDir}/skills/${name}`)
+      .filter((rel) => !wanted.has(`${rel}/SKILL.md`));
+  });
 }
 
 /** Write (write: true) or compare everything. Returns the repo-relative paths that were or are out of date. */

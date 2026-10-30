@@ -11,7 +11,7 @@
     {
       "name": "flisk",
       "description": "Run your whole app on your own computer with one command. Skills and an MCP server that let your coding agent build, start, check and fix a local stack with the Flisk CLI.",
-      "source": "./plugins/flisk",
+      "source": "./plugins/flisk-claude",
       "homepage": "https://flisk.sh",
       "license": "MIT",
       "category": "development"
