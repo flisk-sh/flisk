@@ -1,5 +1,13 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+// Minimal Handlebars-compatible renderer for the .hbs templates in cli/templates.
+// Supports exactly what they use: {{path}}, {{{path}}}, {{helper arg}}, {{lookup obj key}},
+// {{#each}} (arrays and objects, with this/@key/../), {{#if}}, and Handlebars' removal of
+// lines that hold only a block tag. Replaces the 2.8 MB handlebars dependency.
+import { FliskError } from "../utils/errors.js";
+const TEMPLATE_HINT = [
+    "This is a bug in a Flisk template; reinstall flisk, or report it with the template name",
+];
 const TAG = /\{\{(\{?)\s*([^{}]*?)\s*\}?\}\}/g;
 function parse(source) {
     const root = [];
@@ -46,7 +54,7 @@ function parse(source) {
         if (body.startsWith("#")) {
             const [kind, ...rest] = body.slice(1).trim().split(/\s+/);
             if (kind !== "each" && kind !== "if")
-                throw new Error(`Unsupported block: ${body}`);
+                throw new FliskError(`Unsupported block: ${body}`, TEMPLATE_HINT);
             const node = {
                 t: "block",
                 kind,
@@ -60,7 +68,7 @@ function parse(source) {
         else if (body.startsWith("/")) {
             const open = stack.pop();
             if (!open || open.tag !== body.slice(1).trim())
-                throw new Error(`Unmatched ${body}`);
+                throw new FliskError(`Unmatched ${body}`, TEMPLATE_HINT);
             out = stack.length > 0 ? (stack[stack.length - 1]?.node.body ?? root) : root;
         }
         else {
@@ -69,7 +77,7 @@ function parse(source) {
     }
     pushText(source.slice(pos));
     if (stack.length > 0)
-        throw new Error(`Unclosed block: ${stack[stack.length - 1]?.tag}`);
+        throw new FliskError(`Unclosed block: ${stack[stack.length - 1]?.tag}`, TEMPLATE_HINT);
     return root;
 }
 const ESCAPES = {
@@ -139,7 +147,7 @@ function evalExpr(expr, scope, helpers) {
         return { s: helper.fn(resolvePath(parts[1] ?? "", scope)), raw: helper.raw };
     }
     if (parts.length !== 1)
-        throw new Error(`Unsupported expression: ${expr}`);
+        throw new FliskError(`Unsupported expression: ${expr}`, TEMPLATE_HINT);
     return { s: stringify(resolvePath(head, scope)), raw: false };
 }
 function renderNodes(nodes, scope, helpers) {

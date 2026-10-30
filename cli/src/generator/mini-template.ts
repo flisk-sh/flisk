@@ -6,6 +6,12 @@
 // {{#each}} (arrays and objects, with this/@key/../), {{#if}}, and Handlebars' removal of
 // lines that hold only a block tag. Replaces the 2.8 MB handlebars dependency.
 
+import { FliskError } from "../utils/errors.js";
+
+const TEMPLATE_HINT = [
+  "This is a bug in a Flisk template; reinstall flisk, or report it with the template name",
+];
+
 export type TemplateHelper = (value: unknown) => string;
 export type TemplateHelpers = Record<string, { fn: TemplateHelper; raw: boolean }>;
 
@@ -67,7 +73,8 @@ function parse(source: string): Node[] {
 
     if (body.startsWith("#")) {
       const [kind, ...rest] = body.slice(1).trim().split(/\s+/);
-      if (kind !== "each" && kind !== "if") throw new Error(`Unsupported block: ${body}`);
+      if (kind !== "each" && kind !== "if")
+        throw new FliskError(`Unsupported block: ${body}`, TEMPLATE_HINT);
       const node: Extract<Node, { t: "block" }> = {
         t: "block",
         kind,
@@ -79,14 +86,16 @@ function parse(source: string): Node[] {
       out = node.body;
     } else if (body.startsWith("/")) {
       const open = stack.pop();
-      if (!open || open.tag !== body.slice(1).trim()) throw new Error(`Unmatched ${body}`);
+      if (!open || open.tag !== body.slice(1).trim())
+        throw new FliskError(`Unmatched ${body}`, TEMPLATE_HINT);
       out = stack.length > 0 ? (stack[stack.length - 1]?.node.body ?? root) : root;
     } else {
       out.push({ t: "expr", expr: body, raw: triple });
     }
   }
   pushText(source.slice(pos));
-  if (stack.length > 0) throw new Error(`Unclosed block: ${stack[stack.length - 1]?.tag}`);
+  if (stack.length > 0)
+    throw new FliskError(`Unclosed block: ${stack[stack.length - 1]?.tag}`, TEMPLATE_HINT);
   return root;
 }
 
@@ -157,7 +166,7 @@ function evalExpr(
   if (helper && parts.length === 2) {
     return { s: helper.fn(resolvePath(parts[1] ?? "", scope)), raw: helper.raw };
   }
-  if (parts.length !== 1) throw new Error(`Unsupported expression: ${expr}`);
+  if (parts.length !== 1) throw new FliskError(`Unsupported expression: ${expr}`, TEMPLATE_HINT);
   return { s: stringify(resolvePath(head, scope)), raw: false };
 }
 
