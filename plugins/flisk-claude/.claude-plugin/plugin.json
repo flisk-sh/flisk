@@ -19,5 +19,8 @@
     "mcp",
     "agents"
   ],
-  "icon": "./.claude-plugin/icon.png"
+  "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://flisk.sh/docs",
+  "supportUrl": "https://github.com/flisk-sh/flisk/issues",
+  "privacyPolicyUrl": "https://github.com/flisk-sh/flisk/blob/main/docs/security.md#what-flisk-sends-over-the-network"
 }
