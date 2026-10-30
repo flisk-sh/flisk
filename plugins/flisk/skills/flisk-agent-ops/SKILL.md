@@ -1,12 +1,11 @@
 ---
-
 name: flisk-agent-ops
 description: Ground rules and the CLI-to-MCP command map for a coding agent (Claude Code, Cursor, Codex) working in a Flisk project - create services with `flisk resource` instead of hand-writing Dockerfiles, Compose files or manifests, keep the agent resource contract, and drive the stack with `--json` commands or the `flisk mcp` tools (`doctor`, `up`, `status`, `logs`, `resource_restart`, `agent_list`, `agent_sessions`, `down`). Use when about to write container config by hand or when you need the MCP tool for a CLI command. For building a whole app from a request, use flisk-build.
 license: MIT
 compatibility: Requires the flisk CLI, Docker, and Tilt.
 metadata:
-author: flisk-sh
-version: "1.0"
+  author: flisk-sh
+  version: "1.0"
 ---
 
 # Flisk Agent Operations Guide

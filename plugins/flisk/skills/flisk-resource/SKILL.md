@@ -1,12 +1,11 @@
 ---
-
 name: flisk-resource
 description: Add one service to an existing Flisk project with `flisk resource <name> --type frontend|backend|worker|agent|mcp --stack <stack>`, or wrap an existing Dockerfile or image with `--type bring-your-own`. Use when the user asks to add a service, website, agent, MCP tools server, worker or backend. For a whole new app from a plain request, use flisk-build; to start it, use flisk-up.
 license: MIT
 compatibility: Requires the flisk CLI. Does not deploy.
 metadata:
-author: flisk-sh
-version: "1.0"
+  author: flisk-sh
+  version: "1.0"
 ---
 
 # Flisk resource

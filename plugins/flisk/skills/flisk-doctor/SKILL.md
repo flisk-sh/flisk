@@ -1,12 +1,11 @@
 ---
-
 name: flisk-doctor
 description: Check or repair the local Flisk development environment and project configuration using `flisk doctor` (including `--all`, `--json` and `--fix`). Use when setting up a Flisk project, before running `flisk up`, or when Docker, Tilt, Bun, ports, Docker networks, generated files or service manifests may be misconfigured. For a stack that started and then failed, use flisk-troubleshoot instead.
 license: MIT
 compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-author: flisk-sh
-version: "1.0"
+  author: flisk-sh
+  version: "1.0"
 ---
 
 # Flisk doctor
@@ -24,6 +23,7 @@ Use the CLI's environment and project checks as the starting point for Flisk set
 ## When the standard check is not enough
 
 `flisk doctor` has no `--verbose` flag of its own. Use these instead:
+
 - `flisk doctor --all` runs every check and prints the Machine and Project sections with a summary.
 - `flisk doctor --json` prints the versioned readiness report: each check's name, result, message and fix. Read it instead of parsing the human output.
 - `flisk doctor --no-ping` skips pinging the `/health` of running services; `--ping-timeout <ms>` gives slow services longer.
