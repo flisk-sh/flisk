@@ -67,6 +67,7 @@ Run `make help` to inspect all available targets:
 - Preserve diagnostics boundaries: Maintain the distinction between `flisk doctor` environment/service checks and `flisk config verify` generated-project consistency checks.
 - Database migrations: New services, examples, and fixtures must run database migrations in an explicit `migrator` resource (`appType: migrator`), not from an API start script or entrypoint.
 - Agent contracts location: Agent-facing contracts (`llms.txt`, `llms-full.txt`, and the AI agents guide) live in `docs/agents/`; keep them there, not in the repo root.
+- The one-command demo is P1: `npx @flisk-sh/flisk demo` is the first thing a new user runs, so a regression in it outranks every other task. Its CI suite is `tests/e2e/journeys/demo` (check "🎬 Demo command, run twice"). It runs the demo twice, because the second run meets the first run's Docker volumes. Keep it passing, and extend it when the demo's behaviour changes.
 - Never commit secrets or `.env`: Keep credentials, API keys, and environment overrides out of version control.
 - Sign off commits: All commits must be signed off (`git commit -s`) to comply with the Developer Certificate of Origin (DCO).
 
