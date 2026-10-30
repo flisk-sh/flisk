@@ -599,6 +599,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "sync-llms-demos.yml",
+			"job": "sync",
+			"tier": "bot",
+			"required": false,
+			"reason": "Weekly copy of the demo instructions into the llms files; opens a pull request when they changed",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "update-pr-branches.yml",
 			"job": "update",
 			"tier": "bot",
