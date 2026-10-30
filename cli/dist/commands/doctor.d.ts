@@ -89,6 +89,23 @@ export declare function checkFrontendDockerPreflight(): CheckResult;
  * for a slow migration or a flaky healthcheck.
  */
 export declare const checkContainerResourceHealth: DoctorCheckFn;
+/**
+ * Pings every routable service on the same /health URLs `flisk up` advertises.
+ *
+ * This is a runtime check, not an environment one: before `flisk up` there is
+ * nothing to ping, so a stopped stack is reported as skipped and doctor still
+ * passes. Once services are up, an unreachable endpoint is a real failure --
+ * it catches the case where a container is running but Traefik never routed
+ * to it, which `docker ps` alone will not show.
+ */
+export declare function checkServiceHealth(timeoutMs: number, ingressPort?: number): Promise<CheckResult>;
+/**
+ * Runs the GET steps of each service's "smoke" block through its public URL. These are the checks `flisk up` already runs, minus the
+ * writes, so a service with an empty /health but a missing list route is caught before anyone clicks a dead link.
+ *
+ * Like the health ping, this only runs once services answer. A stopped stack is skipped, not failed.
+ */
+export declare function checkServiceSmoke(timeoutMs: number, ingressPort?: number): Promise<CheckResult>;
 export declare function renderDoctorOutput(machineResults: CheckResult[], projectResults: CheckResult[], inProject: boolean, options?: {
     all?: boolean;
 }, allResults?: CheckResult[]): void;
