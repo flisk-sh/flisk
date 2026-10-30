@@ -12,8 +12,8 @@ Flisk è uno strumento da riga di comando per lo sviluppo locale. Esegue ogni pa
 Avvio rapido:
 
 ```bash
-npm install -g @flisk-sh/flisk
-# mkdir shop && cd shop
+# npm install -g @flisk-sh/flisk
+mkdir shop && cd shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes

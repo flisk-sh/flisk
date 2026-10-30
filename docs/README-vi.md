@@ -12,8 +12,8 @@ Flisk là công cụ dòng lệnh cho phát triển cục bộ. Nó chạy mọi
 Bắt đầu nhanh:
 
 ```bash
-npm install -g @flisk-sh/flisk
-# mkdir shop && cd shop
+# npm install -g @flisk-sh/flisk
+mkdir shop && cd shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes

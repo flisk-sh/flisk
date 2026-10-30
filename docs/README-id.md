@@ -12,8 +12,8 @@ Flisk adalah alat baris perintah untuk pengembangan lokal. Flisk menjalankan set
 Mulai cepat:
 
 ```bash
-npm install -g @flisk-sh/flisk
-# mkdir shop && cd shop
+# npm install -g @flisk-sh/flisk
+mkdir shop && cd shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes
