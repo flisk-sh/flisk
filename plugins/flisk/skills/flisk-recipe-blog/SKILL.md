@@ -1,11 +1,12 @@
 ---
+
 name: flisk-recipe-blog
 description: Recipe for "build me a blog with an admin API" with Flisk - a public blog site and a posts API with a database and token-protected admin routes, in one stack started with `flisk up`. Use with the flisk-build skill when the user asks for a blog, a CMS, a news site or any site with an editor.
 license: MIT
 compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Recipe: a blog with an admin API

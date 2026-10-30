@@ -1,11 +1,12 @@
 ---
+
 name: flisk-recipe-ai-agent
 description: Recipe for "build me an AI agent with MCP tools and a database" with Flisk - an agent service with sessions, an MCP tools server and a backend with a database in one stack, started with `flisk up`. Use with the flisk-build skill when the user asks for an AI agent, chatbot, assistant, MCP server or tools for an agent.
 license: MIT
 compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Recipe: an AI agent with MCP tools and a database

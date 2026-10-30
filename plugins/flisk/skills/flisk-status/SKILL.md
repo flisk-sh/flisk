@@ -1,11 +1,12 @@
 ---
+
 name: flisk-status
 description: Report the state of Flisk stacks and resources with `flisk status --json`, and list or read agent sessions with `flisk agent sessions`. Use when the user asks what is running, which URLs are healthy, or why a service is not responding. To start a stack, use flisk-up; to fix one that failed, use flisk-troubleshoot.
 license: MIT
 compatibility: Requires the flisk CLI. Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Flisk status

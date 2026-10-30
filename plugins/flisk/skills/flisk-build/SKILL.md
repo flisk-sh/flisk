@@ -1,11 +1,12 @@
 ---
+
 name: flisk-build
 description: Turn a plain request such as "build me a small online shop", "a SaaS with login and billing", "an AI agent with MCP tools and a database" or "a blog with an admin API" into Flisk steps (`flisk project`, `flisk resource ... --type ... --stack ...`, `flisk up`), check that every URL is healthy, and tell the user where the app is. Use when the user asks you to build, scaffold or run a new app on their laptop with Flisk.
 license: MIT
 compatibility: Requires the flisk CLI and the app's runtime (Node.js, Python, Go, Bun). Docker and Tilt only for the Docker + Tilt path (databases, one gateway URL, container parity). Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Build an app with Flisk
@@ -15,7 +16,6 @@ The user describes an app. Map each part of it to a Flisk resource, let Flisk wr
 ## First: does this app need Docker?
 
 Pick the path before anything else.
-
 - **No Docker (prefer it for a simple app):** every part can be started with one command and none needs a database, one gateway URL, or the container it deploys. Examples: an API and a website, a static site and a webhook receiver, an agent that calls an external model API. Follow "Simple app without Docker" below and skip the Workflow.
 - **Docker + Tilt:** the app stores data in Postgres, needs Redis or another image, or the user asks for the same container they deploy. Follow the Workflow.
 
@@ -45,22 +45,22 @@ Do not mix the two in one project: `flisk up` refuses with `MIXED_RUNTIME`.
 
 ## From request to resources
 
-| The user asks for | Resource | Command |
-| --- | --- | --- |
-| A website, storefront, dashboard, admin page | `frontend` | `flisk resource web --type frontend --stack <stack> --yes` |
-| An API (orders, posts, users, billing) | `backend` | `flisk resource orders-api --type backend --stack <stack> --yes` |
-| Something that stores data, "a database" | `backend` with a database feature | `flisk resource notes-api --type backend --stack <stack> --feature drizzle --yes` |
-| Background jobs, emails, imports | `worker` | `flisk resource jobs --type worker --stack <stack> --yes` |
-| An AI agent, chatbot, assistant | `agent` | `flisk resource assistant --type agent --stack <stack> --yes` |
-| Tools for an agent, an MCP server | `mcp` | `flisk resource tools-mcp --type mcp --stack <stack> --yes` |
-| An admin panel or back office next to the main site | a second `frontend` | `flisk resource admin --type frontend --stack <stack> --yes` |
-| Several APIs ("3 APIs") | one `backend` each | `flisk resource catalog-api ...`, `flisk resource orders-api ...` (keep it to three or fewer) |
-| A cache, Redis | `bring-your-own` | `flisk resource cache --type bring-your-own --image redis:7 --no-proxy --stack <stack> --yes` |
-| Chat, live updates, websockets | `backend` | an ordinary backend; write the websocket route in its code |
-| An existing image (Mailpit, a vendor's server) | `bring-your-own` | `flisk resource mail --type bring-your-own --image <image> --stack <stack> --yes` |
-| A third-party API (payments, a shop platform) | `backend` that holds the key | list the key's name under `secrets.required` in its `service.json`, put the value in the project `.env`, and call the vendor only from that backend |
-| Python or Go | `backend` with a language | `flisk resource api --type backend --language python --stack <stack> --yes` (or `go`) |
-| A frontend framework by name (Vue, Svelte, Solid...) | `frontend` with a framework | `flisk resource web --type frontend --framework vue --stack <stack> --yes` (list them: `flisk resource --type frontend --frameworks`) |
+| The user asks for                                    | Resource                          | Command                                                                                                                                             |
+| ---------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A website, storefront, dashboard, admin page         | `frontend`                        | `flisk resource web --type frontend --stack <stack> --yes`                                                                                          |
+| An API (orders, posts, users, billing)               | `backend`                         | `flisk resource orders-api --type backend --stack <stack> --yes`                                                                                    |
+| Something that stores data, "a database"             | `backend` with a database feature | `flisk resource notes-api --type backend --stack <stack> --feature drizzle --yes`                                                                   |
+| Background jobs, emails, imports                     | `worker`                          | `flisk resource jobs --type worker --stack <stack> --yes`                                                                                           |
+| An AI agent, chatbot, assistant                      | `agent`                           | `flisk resource assistant --type agent --stack <stack> --yes`                                                                                       |
+| Tools for an agent, an MCP server                    | `mcp`                             | `flisk resource tools-mcp --type mcp --stack <stack> --yes`                                                                                         |
+| An admin panel or back office next to the main site  | a second `frontend`               | `flisk resource admin --type frontend --stack <stack> --yes`                                                                                        |
+| Several APIs ("3 APIs")                              | one `backend` each                | `flisk resource catalog-api ...`, `flisk resource orders-api ...` (keep it to three or fewer)                                                       |
+| A cache, Redis                                       | `bring-your-own`                  | `flisk resource cache --type bring-your-own --image redis:7 --no-proxy --stack <stack> --yes`                                                       |
+| Chat, live updates, websockets                       | `backend`                         | an ordinary backend; write the websocket route in its code                                                                                          |
+| An existing image (Mailpit, a vendor's server)       | `bring-your-own`                  | `flisk resource mail --type bring-your-own --image <image> --stack <stack> --yes`                                                                   |
+| A third-party API (payments, a shop platform)        | `backend` that holds the key      | list the key's name under `secrets.required` in its `service.json`, put the value in the project `.env`, and call the vendor only from that backend |
+| Python or Go                                         | `backend` with a language         | `flisk resource api --type backend --language python --stack <stack> --yes` (or `go`)                                                               |
+| A frontend framework by name (Vue, Svelte, Solid...) | `frontend` with a framework       | `flisk resource web --type frontend --framework vue --stack <stack> --yes` (list them: `flisk resource --type frontend --frameworks`)               |
 
 Web3 apps (a local chain node and contracts) are not covered: no Flisk recipe has run a chain node end to end. Say so instead of improvising one.
 
