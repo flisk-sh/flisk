@@ -60,16 +60,23 @@ D2() { # the second demo: new folder, new password, same Docker project and the 
   [ "$first" != "$second" ] || echo "::warning::both demo runs got the same DB_PASSWORD, so this run did not exercise the changed-password case"
 }
 
-D3() { # the second run's frontend answers
+D3() { # a frontend the second run printed answers
   log "D3 the demo frontend answers"
-  local url code
-  url="$(grep -aoE 'https?://[A-Za-z0-9._-]+(:[0-9]+)?/[A-Za-z0-9._/-]*' "$OUT/demo-second.out" | grep -v '10350\|10351\|10352' | tail -1)"
-  [ -n "$url" ] || { tail -40 "$OUT/demo-second.out"; die "the second demo printed no frontend URL"; }
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url" || true)"
-  case "$code" in
-    2??) echo "$url answered $code" ;;
-    *) die "$url answered $code, expected 2xx" ;;
-  esac
+  # The demo prints each frontend's base URL. A frontend mounted under a base path answers its page with a trailing slash, and every
+  # Flisk service answers /health, so a URL passes when any of those forms returns 2xx.
+  local urls url form code tried=""
+  urls="$(grep -aoE 'https?://[A-Za-z0-9._-]+(:[0-9]+)?/[A-Za-z0-9._/-]*' "$OUT/demo-second.out" | grep -vE ':1035[0-9]' | sort -u)"
+  [ -n "$urls" ] || { tail -40 "$OUT/demo-second.out"; die "the second demo printed no frontend URL"; }
+  for url in $urls; do
+    for form in "$url" "${url%/}/" "${url%/}/health"; do
+      code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$form" || true)"
+      tried="$tried $form=$code"
+      case "$code" in
+        2??) echo "$form answered $code"; return 0 ;;
+      esac
+    done
+  done
+  die "no demo URL answered 2xx:$tried"
 }
 
 e2e_main "$@"
