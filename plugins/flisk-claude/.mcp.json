@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "flisk": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh",
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/flisk-mcp.sh",
       "args": []
     }
   }
