@@ -1,7 +1,7 @@
 {
   "name": "flisk-cli-internal",
   "private": true,
-  "version": "1.4.17",
+  "version": "1.4.19",
   "description": "Flisk: your whole app, running on your computer with one command.",
   "keywords": [
     "flisk",
