@@ -1,11 +1,12 @@
 ---
+
 name: flisk-recipe-shop
 description: Recipe for "build me a small online shop" with Flisk - a storefront website and an orders API with a database in one stack, started with `flisk up` and checked URL by URL. Use with the flisk-build skill when the user asks for a shop, store, catalogue or anything with products and orders.
 license: MIT
 compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Recipe: a small online shop
@@ -33,7 +34,6 @@ flisk networks --stack shop --raw
 ## Done when
 
 Each of these answers 200 (ports come from `flisk networks`):
-
 - the storefront health URL, for example `http://app.<project>.localhost:<port>/storefront/health`
 - `http://api.<project>.localhost:<port>/api/orders/health`
 - `http://api.<project>.localhost:<port>/api/orders/health/db`

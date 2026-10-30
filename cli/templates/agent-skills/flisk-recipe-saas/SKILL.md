@@ -1,11 +1,12 @@
 ---
+
 name: flisk-recipe-saas
 description: Recipe for "build me a SaaS with login and billing" with Flisk - a web app, an accounts API with a database for sign-up and login, and a billing API, in one stack started with `flisk up`. Use with the flisk-build skill when the user asks for a SaaS, a members area, subscriptions, sign-up or payments.
 license: MIT
 compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Recipe: a SaaS with login and billing

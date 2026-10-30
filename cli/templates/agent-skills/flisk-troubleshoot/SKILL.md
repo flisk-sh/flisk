@@ -1,11 +1,12 @@
 ---
+
 name: flisk-troubleshoot
 description: Diagnose a Flisk stack that fails after `flisk up` starts it - red or pending Tilt resources (golden image "pull access denied", run-only "No such image", missing shared-platform-engineering files, TS2688 bun types), Postgres crash loops, services that never turn healthy, "Docker daemon is not responding", `flisk up` or `flisk down` hanging, or a machine overloaded by many containers. Use when something in a running Flisk project is broken or slow. For setup checks before the first `flisk up`, use flisk-doctor; for measuring memory and scale, use flisk-benchmark.
 license: MIT
 compatibility: Requires the flisk CLI, Docker and Tilt on the local machine. Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Flisk troubleshooting
@@ -49,7 +50,6 @@ docker inspect <project>_postgres --format '{{range .Config.Env}}{{println .}}{{
 ### Tilt: `pull access denied ... <project>-l4-backend:latest` (or `-l3-frontend`)
 
 The golden image named in the error is missing locally. Check with `docker image inspect <project>-l4-backend:latest`.
-
 - **`golden-layers-build` is still running:** wait for it. Tilt does not retry resources that failed earlier, so trigger every errored resource yourself:
 
   ```bash

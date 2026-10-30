@@ -1,11 +1,12 @@
 ---
+
 name: flisk-convert
 description: Convert any existing app (Node, Python, Go, Rust, Bun, a static site, a Docker Compose or Procfile project, a monorepo) to run with Flisk, so `flisk up` starts it locally. Picks the right path (local processes, bring-your-own container, or `flisk import`), writes the `service.json` files with the CLI, and checks every URL. Use when the user says "convert this app to Flisk", "run this with Flisk", "add Flisk to this repo" or "move my Compose setup to Flisk". For a new app from a plain request, use flisk-build.
 license: MIT
 compatibility: Requires the flisk CLI and the app's own runtime. Docker and Tilt only for the container paths. Does not deploy.
 metadata:
-  author: flisk-sh
-  version: "1.0"
+author: flisk-sh
+version: "1.0"
 ---
 
 # Convert an app to Flisk
@@ -20,11 +21,11 @@ Work on a branch. Read the repo and list the parts that start together: websites
 
 Do not mix runtimes in one project: `flisk up` refuses with `MIXED_RUNTIME`.
 
-| The app | Path |
-| --- | --- |
-| Every part starts with one command and needs no database or Docker image | **A. Local processes**: a `command` in each `service.json` |
+| The app                                                                                     | Path                                                                                                                                  |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Every part starts with one command and needs no database or Docker image                    | **A. Local processes**: a `command` in each `service.json`                                                                            |
 | A part needs Postgres, Redis or another image, one gateway URL, or the container it deploys | **B. Containers**: `flisk resource <name> --type bring-your-own` (a Dockerfile or an `--image`), the others as normal Flisk resources |
-| It already has a `docker-compose.yml`, a `Procfile` or several Dockerfiles | **C. Import**: `flisk import <path>` reads them and writes the resources (needs `npx`), then check each result by hand |
+| It already has a `docker-compose.yml`, a `Procfile` or several Dockerfiles                  | **C. Import**: `flisk import <path>` reads them and writes the resources (needs `npx`), then check each result by hand                |
 
 Prefer A when it fits: nothing to install but Flisk and the app's runtime.
 
