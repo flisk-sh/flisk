@@ -653,10 +653,22 @@ def register_python_test_resource(config, resource_path, compose_project_name, a
     if os.path.exists(test_dir):
         deps.append(test_dir)
 
+    all_services = config.get('all_services', {})
+    test_res_name = res_name + '-test'
+    if test_res_name in all_services:
+        test_res_name = res_name + '-pytest'
+
     cmd = [
         "sh", "-c",
-        'if ! docker compose -p "$1" -f "$2" ps --status running -q "$3" >/dev/null 2>&1; then ' +
+        'RUNNING_ID=$(docker compose -p "$1" -f "$2" ps --status running -q "$3" 2>/dev/null); ' +
+        'if [ -z "$RUNNING_ID" ]; then ' +
         '  echo "[flisk] Container $3 is not currently running; skipping pytest" && exit 0; ' +
+        'fi; ' +
+        'if [ "$4" != "." ] && [ -n "$5" ] && [ ! -e "$5" ]; then ' +
+        '  echo "[flisk] Test path \'"$4"\' does not exist; skipping pytest" && exit 0; ' +
+        'fi; ' +
+        'if [ "$4" != "." ] && [ -n "$5" ] && [ -d "$5" ]; then ' +
+        '  docker compose -p "$1" -f "$2" cp "$5/." "$3:/app/$6/$4" 2>/dev/null || docker cp "$5/." "$RUNNING_ID:/app/$6/$4" 2>/dev/null || true; ' +
         'fi; ' +
         'docker compose -p "$1" -f "$2" exec -T "$3" sh -c ' +
         '\'if ! command -v pytest >/dev/null 2>&1; then ' +
@@ -671,10 +683,12 @@ def register_python_test_resource(config, resource_path, compose_project_name, a
         compose_file,
         res_name,
         test_path,
+        test_dir if test_path != '.' else '',
+        config['res_path'],
     ]
 
     local_resource(
-        name=res_name + '-test',
+        name=test_res_name,
         cmd=cmd,
         deps=deps,
         ignore=[
@@ -688,7 +702,7 @@ def register_python_test_resource(config, resource_path, compose_project_name, a
         labels=config['labels'] + ['test'],
         resource_deps=[config['res_name']],
         auto_init=auto_init_apps,
-        allow_parallel=True,
+        allow_parallel=False,
     )
 
 
@@ -748,10 +762,19 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
     # Skip docker_build for libraries and SDKs - they don't have Dockerfiles
     if app_type not in ['library', 'sdk', 'bring-your-own'] and config.get('syncs'):
         debug_log("REGISTER: '{}' has syncs, calling docker_build".format(res_name))
+        syncs = list(config['syncs'])
+        if Docker.python_test_on_save(config.get('manifest', {})):
+            test_path = Docker.python_test_path(config.get('manifest', {}))
+            if test_path and test_path != '.' and test_path not in syncs:
+                project_root = config.get('project_root', '')
+                service_dir = (project_root.rstrip('/') + '/' if project_root else '') + config['res_path']
+                test_dir = service_dir + '/' + test_path
+                if os.path.exists(test_dir):
+                    syncs.append(test_path)
         live_update_rules = _build_live_update_rules(
             config['res_path'],
             config['res_path'],
-            config['syncs'],
+            syncs,
             project_root=config.get('project_root', ''),
             language=config.get('manifest', {}).get('language', 'bun'),
             # A Next.js image is Node with no Bun install step: syncing sources is enough, `next dev` reloads itself.
@@ -898,6 +921,7 @@ def _build_resource_config(res, manifest, resource_config, full_res_path, infra_
         'env': env_vars,
         'project_root': project_root,
         'manifest': manifest,
+        'all_services': all_services_map or {},
     }
 
 

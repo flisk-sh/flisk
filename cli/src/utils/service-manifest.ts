@@ -362,21 +362,28 @@ export function fieldTypeErrors(manifest: Record<string, unknown>, displayPath: 
   ) {
     bad("dev.liveReload", "true or false");
   }
-  if (typeof dev.testOnSave !== "undefined" && dev.testOnSave !== null) {
-    if (typeof dev.testOnSave === "boolean") {
+  if (typeof dev.testOnSave !== "undefined") {
+    if (dev.testOnSave === null) {
+      bad(
+        "dev.testOnSave",
+        'true or false, or an object such as { "enabled": true, "path": "tests" }',
+      );
+    } else if (typeof dev.testOnSave === "boolean") {
       // boolean is valid
     } else if (isPlainObject(dev.testOnSave)) {
       const testOnSave = dev.testOnSave as Record<string, unknown>;
-      if (
-        typeof testOnSave.enabled !== "undefined" &&
-        testOnSave.enabled !== null &&
-        typeof testOnSave.enabled !== "boolean"
-      ) {
+      for (const key of Object.keys(testOnSave)) {
+        if (key !== "enabled" && key !== "path") {
+          errors.push(
+            `${displayPath}.dev.testOnSave: unexpected key "${key}" (expected "enabled" or "path")`,
+          );
+        }
+      }
+      if (typeof testOnSave.enabled !== "undefined" && typeof testOnSave.enabled !== "boolean") {
         bad("dev.testOnSave.enabled", "true or false");
       }
       if (
         typeof testOnSave.path !== "undefined" &&
-        testOnSave.path !== null &&
         (typeof testOnSave.path !== "string" || !testOnSave.path.trim())
       ) {
         bad("dev.testOnSave.path", "a non-empty string path such as 'tests'");

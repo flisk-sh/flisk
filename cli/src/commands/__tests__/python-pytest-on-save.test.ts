@@ -16,6 +16,14 @@ const languageDockerfile = join(
   "runtime/engine/topologies/platform/docker/dockerfile/language_dockerfile.star",
 );
 const hasTilt = tiltAvailable();
+const hasPytest = (() => {
+  try {
+    const res = spawnSync("python3", ["-m", "pytest", "--version"], { encoding: "utf-8" });
+    return res.status === 0;
+  } catch {
+    return false;
+  }
+})();
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -64,6 +72,14 @@ describe("python pytest-on-save manifest validation", () => {
   });
 
   it("rejects non-boolean, non-object dev.testOnSave with an actionable error", () => {
+    const resNull = validateServiceManifest(
+      { ...validManifest, dev: { testOnSave: null } },
+      "service.json",
+    );
+    expect(resNull.errors).toContain(
+      'service.json.dev.testOnSave: expected true or false, or an object such as { "enabled": true, "path": "tests" }',
+    );
+
     const resStr = validateServiceManifest(
       { ...validManifest, dev: { testOnSave: "always" } },
       "service.json",
@@ -81,13 +97,29 @@ describe("python pytest-on-save manifest validation", () => {
     );
   });
 
-  it("rejects invalid properties inside dev.testOnSave object", () => {
+  it("rejects invalid properties and unknown keys inside dev.testOnSave object", () => {
+    const resNullEnabled = validateServiceManifest(
+      { ...validManifest, dev: { testOnSave: { enabled: null } } },
+      "service.json",
+    );
+    expect(resNullEnabled.errors).toContain(
+      "service.json.dev.testOnSave.enabled: expected true or false",
+    );
+
     const resBadEnabled = validateServiceManifest(
       { ...validManifest, dev: { testOnSave: { enabled: "yes" } } },
       "service.json",
     );
     expect(resBadEnabled.errors).toContain(
       "service.json.dev.testOnSave.enabled: expected true or false",
+    );
+
+    const resNullPath = validateServiceManifest(
+      { ...validManifest, dev: { testOnSave: { path: null } } },
+      "service.json",
+    );
+    expect(resNullPath.errors).toContain(
+      "service.json.dev.testOnSave.path: expected a non-empty string path such as 'tests'",
     );
 
     const resEmptyPath = validateServiceManifest(
@@ -104,6 +136,22 @@ describe("python pytest-on-save manifest validation", () => {
     );
     expect(resAbsPath.errors).toContain(
       'service.json.dev.testOnSave.path: must be a path relative to the service directory (no leading "/" or drive)',
+    );
+
+    const resUnknownKey = validateServiceManifest(
+      { ...validManifest, dev: { testOnSave: { enabled: true, extraKey: "unexpected" } } },
+      "service.json",
+    );
+    expect(resUnknownKey.errors).toContain(
+      'service.json.dev.testOnSave: unexpected key "extraKey" (expected "enabled" or "path")',
+    );
+
+    const resMisspelledKey = validateServiceManifest(
+      { ...validManifest, dev: { testOnSave: { enable: false } } },
+      "service.json",
+    );
+    expect(resMisspelledKey.errors).toContain(
+      'service.json.dev.testOnSave: unexpected key "enable" (expected "enabled" or "path")',
     );
   });
 
@@ -211,7 +259,7 @@ register_python_test_resource(config_enabled, 'services/shop', 'flisk-shop', Tru
       test: "test",
     });
     expect(testManifest.ResourceDependencies).toEqual(["api-backend"]);
-    expect(testManifest.DeployTarget.AllowParallel).toBe(true);
+    expect(testManifest.DeployTarget.AllowParallel).toBe(false);
     expect(testManifest.DeployTarget.FileWatchIgnores).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -269,52 +317,237 @@ register_python_test_resource(config_absent, 'services/shop', 'flisk-shop', True
     const parsed = JSON.parse(tiltResult.stdout);
     expect(parsed.Manifests).toHaveLength(0);
   });
+
+  it("handles resource name collision by suffixing with -pytest when <service>-test exists", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-tilt-collision-"));
+    dirs.push(dir);
+    const tiltfilePath = join(dir, "Tiltfile");
+
+    writeFileSync(
+      tiltfilePath,
+      `load('${repoRoot}/runtime/engine/topologies/platform/docker/index.star', 'Docker')
+load('${repoRoot}/runtime/engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star', 'register_python_test_resource')
+
+config_collision = {
+    'res_name': 'api-backend',
+    'res_path': 'services/shop/api',
+    'labels': ['app.api-backend'],
+    'manifest': {
+        'language': 'python',
+        'appType': 'backend',
+        'dev': {'testOnSave': True},
+    },
+    'all_services': {'api-backend-test': True},
+}
+
+local_resource('api-backend', cmd=['true'])
+register_python_test_resource(config_collision, 'services/shop', 'flisk-shop', True)
+`,
+    );
+
+    const tiltResult = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", tiltfilePath], {
+      encoding: "utf-8",
+      timeout: 30_000,
+    });
+    expect(tiltResult.status, tiltResult.stderr).toBe(0);
+    const parsed = JSON.parse(tiltResult.stdout);
+    const testManifest = parsed.Manifests.find(
+      (m: { Name: string }) => m.Name === "api-backend-pytest",
+    );
+    expect(testManifest).toBeDefined();
+    expect(testManifest.DeployTarget.AllowParallel).toBe(false);
+  });
 });
 
-describe("python dev loop E2E: PASS -> FAIL -> FIX -> PASS execution cycle", () => {
-  it("executes pytest, detects failures without crashing the application, and recovers cleanly", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "flisk-pytest-e2e-"));
+describe("python test container diagnostics and execution safety", () => {
+  it("handles missing pytest in container with actionable error guidance using generated cmd", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-tilt-diag-"));
     dirs.push(dir);
-    const srcDir = join(dir, "src");
-    const testDir = join(dir, "tests");
-    mkdirSync(srcDir, { recursive: true });
-    mkdirSync(testDir, { recursive: true });
+    const tiltfilePath = join(dir, "Tiltfile");
 
-    // Mock application server running on loopback representing the healthy service process
-    let appRequestsHandled = 0;
-    const server = createServer((req, res) => {
-      if (req.url === "/health") {
-        appRequestsHandled++;
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ status: "ok", service: "py-api" }));
-      } else {
-        res.writeHead(404);
-        res.end();
-      }
+    writeFileSync(
+      tiltfilePath,
+      `load('${repoRoot}/runtime/engine/topologies/platform/docker/index.star', 'Docker')
+load('${repoRoot}/runtime/engine/topologies/tilt/resources/orchestrator/apply_compose_resource_registration.star', 'register_python_test_resource')
+
+config = {
+    'res_name': 'api-backend',
+    'res_path': 'services/shop/api',
+    'labels': ['app.api-backend'],
+    'manifest': {
+        'language': 'python',
+        'appType': 'backend',
+        'dev': {'testOnSave': True},
+    },
+}
+
+local_resource('api-backend', cmd=['true'])
+register_python_test_resource(config, 'services/shop', 'flisk-shop', True)
+`,
+    );
+
+    const tiltResult = spawnSync("tilt", ["alpha", "tiltfile-result", "-f", tiltfilePath], {
+      encoding: "utf-8",
+      timeout: 30_000,
     });
+    expect(tiltResult.status, tiltResult.stderr).toBe(0);
+    const parsed = JSON.parse(tiltResult.stdout);
+    const testManifest = parsed.Manifests.find(
+      (m: { Name: string }) => m.Name === "api-backend-test",
+    );
+    expect(testManifest).toBeDefined();
 
-    await new Promise<void>((resolveServer) => {
-      server.listen(0, "127.0.0.1", () => resolveServer());
+    // Verify generated shell script handles stopped container, non-existent test dir, and missing pytest
+    const cmdArgs = testManifest.DeployTarget.UpdateCmdSpec.args;
+    expect(cmdArgs[0]).toBe("sh");
+    expect(cmdArgs[1]).toBe("-c");
+
+    const mockBinDir = join(dir, "bin");
+    mkdirSync(mockBinDir, { recursive: true });
+    const mockDocker = join(mockBinDir, "docker");
+
+    // 1. Mock docker when container is not running (ps prints nothing)
+    writeFileSync(
+      mockDocker,
+      `#!/bin/sh
+for arg in "$@"; do
+  if [ "$arg" = "ps" ]; then
+    exit 0
+  fi
+done
+exit 0
+`,
+      { mode: 0o755 },
+    );
+
+    const runStopped = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
+      cwd: dir,
+      env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
+      encoding: "utf-8",
     });
-    const addr = server.address() as { port: number };
-    const healthUrl = `http://127.0.0.1:${addr.port}/health`;
+    expect(runStopped.status).toBe(0);
+    expect(runStopped.stdout).toContain(
+      "Container api-backend is not currently running; skipping pytest",
+    );
 
-    try {
-      // Create initial valid source code (PASS)
-      writeFileSync(
-        join(srcDir, "main.py"),
-        `def get_status() -> str:
+    // 2. Mock docker when container is running but test directory does not exist on host
+    writeFileSync(
+      mockDocker,
+      `#!/bin/sh
+for arg in "$@"; do
+  if [ "$arg" = "ps" ]; then
+    echo "mock-container-id-1234"
+    exit 0
+  fi
+done
+exit 0
+`,
+      { mode: 0o755 },
+    );
+
+    const runMissingHostDir = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
+      cwd: dir,
+      env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
+      encoding: "utf-8",
+    });
+    expect(runMissingHostDir.status).toBe(0);
+    expect(runMissingHostDir.stdout).toContain("Test path 'tests' does not exist; skipping pytest");
+
+    // 3. Mock docker when container is running, test directory exists on host, but pytest is not in container
+    const testHostDir = join(dir, cmdArgs[8]);
+    mkdirSync(testHostDir, { recursive: true });
+
+    writeFileSync(
+      mockDocker,
+      `#!/bin/sh
+is_exec=0
+for arg in "$@"; do
+  if [ "$arg" = "ps" ]; then
+    echo "mock-container-id-1234"
+    exit 0
+  fi
+  if [ "$arg" = "cp" ]; then
+    exit 0
+  fi
+  if [ "$arg" = "exec" ]; then
+    is_exec=1
+  fi
+done
+if [ "$is_exec" -eq 1 ]; then
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "sh" ] && [ "$2" = "-c" ]; then
+      shift 2
+      exec env PATH="/usr/bin:/bin" sh -c "$@"
+    fi
+    shift
+  done
+fi
+exit 0
+`,
+      { mode: 0o755 },
+    );
+
+    const runMissingPytest = spawnSync(cmdArgs[0], cmdArgs.slice(1), {
+      cwd: dir,
+      env: { ...process.env, PATH: `${mockBinDir}:${process.env.PATH}` },
+      encoding: "utf-8",
+    });
+    expect(runMissingPytest.status).toBe(1);
+    expect(runMissingPytest.stdout).toContain(
+      "Error: pytest is not installed in container api-backend.",
+    );
+    expect(runMissingPytest.stdout).toContain(
+      "Hint: Add pytest to pyproject.toml dev dependencies",
+    );
+  });
+});
+
+describe.skipIf(!hasPytest)(
+  "python dev loop simulated runner: PASS -> FAIL -> FIX -> PASS execution cycle",
+  () => {
+    it("executes pytest, detects failures without crashing the application, and recovers cleanly", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "flisk-pytest-e2e-"));
+      dirs.push(dir);
+      const srcDir = join(dir, "src");
+      const testDir = join(dir, "tests");
+      mkdirSync(srcDir, { recursive: true });
+      mkdirSync(testDir, { recursive: true });
+
+      // Mock application server running on loopback representing the healthy service process
+      let appRequestsHandled = 0;
+      const server = createServer((req, res) => {
+        if (req.url === "/health") {
+          appRequestsHandled++;
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ status: "ok", service: "py-api" }));
+        } else {
+          res.writeHead(404);
+          res.end();
+        }
+      });
+
+      await new Promise<void>((resolveServer) => {
+        server.listen(0, "127.0.0.1", () => resolveServer());
+      });
+      const addr = server.address() as { port: number };
+      const healthUrl = `http://127.0.0.1:${addr.port}/health`;
+
+      try {
+        // Create initial valid source code (PASS)
+        writeFileSync(
+          join(srcDir, "main.py"),
+          `def get_status() -> str:
     return "ok"
 
 def add(a: int, b: int) -> int:
     return a + b
 `,
-      );
+        );
 
-      // Create pytest test suite
-      writeFileSync(
-        join(testDir, "test_app.py"),
-        `import sys
+        // Create pytest test suite
+        writeFileSync(
+          join(testDir, "test_app.py"),
+          `import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from main import get_status, add
@@ -325,91 +558,77 @@ def test_status():
 def test_add():
     assert add(2, 3) == 5
 `,
-      );
+        );
 
-      // STAGE 1: Initial state -> PASS
-      const run1 = spawnSync("python3", ["-m", "pytest", "tests"], {
-        cwd: dir,
-        encoding: "utf-8",
-        timeout: 10_000,
-      });
-      expect(run1.status, run1.stderr).toBe(0);
-      expect(run1.stdout).toContain("2 passed");
+        // STAGE 1: Initial state -> PASS
+        const run1 = spawnSync("python3", ["-m", "pytest", "tests"], {
+          cwd: dir,
+          encoding: "utf-8",
+          timeout: 10_000,
+        });
+        expect(run1.status, run1.stderr).toBe(0);
+        expect(run1.stdout).toContain("2 passed");
 
-      // Verify the app service remains healthy
-      const health1 = await fetch(healthUrl);
-      expect(health1.status).toBe(200);
-      const json1 = await health1.json();
-      expect(json1).toEqual({ status: "ok", service: "py-api" });
+        // Verify the app service remains healthy
+        const health1 = await fetch(healthUrl);
+        expect(health1.status).toBe(200);
+        const json1 = await health1.json();
+        expect(json1).toEqual({ status: "ok", service: "py-api" });
 
-      // STAGE 2: Introduce code failure -> FAIL
-      writeFileSync(
-        join(srcDir, "main.py"),
-        `def get_status() -> str:
+        // STAGE 2: Introduce code failure -> FAIL
+        writeFileSync(
+          join(srcDir, "main.py"),
+          `def get_status() -> str:
     return "broken"
 
 def add(a: int, b: int) -> int:
     return a + b
 `,
-      );
+        );
 
-      const run2 = spawnSync("python3", ["-m", "pytest", "tests"], {
-        cwd: dir,
-        encoding: "utf-8",
-        timeout: 10_000,
-      });
-      // Pytest must fail (non-zero exit)
-      expect(run2.status).toBe(1);
-      expect(run2.stdout).toContain("FAILED tests/test_app.py::test_status");
-      expect(run2.stdout).toContain("assert 'broken' == 'ok'");
+        const run2 = spawnSync("python3", ["-m", "pytest", "tests"], {
+          cwd: dir,
+          encoding: "utf-8",
+          timeout: 10_000,
+        });
+        // Pytest must fail (non-zero exit)
+        expect(run2.status).toBe(1);
+        expect(run2.stdout).toContain("FAILED tests/test_app.py::test_status");
+        expect(run2.stdout).toContain("assert 'broken' == 'ok'");
 
-      // CRITICAL ACCEPTANCE REQUIREMENT:
-      // The running application server MUST NOT crash or restart when pytest fails!
-      const health2 = await fetch(healthUrl);
-      expect(health2.status).toBe(200);
-      const json2 = await health2.json();
-      expect(json2).toEqual({ status: "ok", service: "py-api" });
+        // CRITICAL ACCEPTANCE REQUIREMENT:
+        // The running application server MUST NOT crash or restart when pytest fails!
+        const health2 = await fetch(healthUrl);
+        expect(health2.status).toBe(200);
+        const json2 = await health2.json();
+        expect(json2).toEqual({ status: "ok", service: "py-api" });
 
-      // STAGE 3: Fix the failure -> FIX -> PASS
-      writeFileSync(
-        join(srcDir, "main.py"),
-        `def get_status() -> str:
+        // STAGE 3: Fix the failure -> FIX -> PASS
+        writeFileSync(
+          join(srcDir, "main.py"),
+          `def get_status() -> str:
     return "ok"
 
 def add(a: int, b: int) -> int:
     return a + b
 `,
-      );
+        );
 
-      const run3 = spawnSync("python3", ["-m", "pytest", "tests"], {
-        cwd: dir,
-        encoding: "utf-8",
-        timeout: 10_000,
-      });
-      expect(run3.status, run3.stderr).toBe(0);
-      expect(run3.stdout).toContain("2 passed");
+        const run3 = spawnSync("python3", ["-m", "pytest", "tests"], {
+          cwd: dir,
+          encoding: "utf-8",
+          timeout: 10_000,
+        });
+        expect(run3.status, run3.stderr).toBe(0);
+        expect(run3.stdout).toContain("2 passed");
 
-      // Verify app continues serving seamlessly
-      const health3 = await fetch(healthUrl);
-      expect(health3.status).toBe(200);
-      expect(appRequestsHandled).toBe(3);
-    } finally {
-      await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
-    }
-  });
-
-  it("handles missing pytest in container with actionable error guidance", () => {
-    // Test the shell script diagnostic when pytest executable is missing
-    const testScript = `
-if ! command -v non_existent_pytest_binary >/dev/null 2>&1; then
-  echo "[flisk] Error: pytest is not installed in container 'api-backend'."
-  echo "[flisk] Hint: Add pytest to pyproject.toml dev dependencies (e.g. pip install -e ".[dev]")"
-  exit 1
-fi
-`;
-    const run = spawnSync("sh", ["-c", testScript], { encoding: "utf-8" });
-    expect(run.status).toBe(1);
-    expect(run.stdout).toContain("Error: pytest is not installed in container 'api-backend'.");
-    expect(run.stdout).toContain("Hint: Add pytest to pyproject.toml dev dependencies");
-  });
-});
+        // Verify app continues serving seamlessly
+        const health3 = await fetch(healthUrl);
+        expect(health3.status).toBe(200);
+        expect(appRequestsHandled).toBe(3);
+      } finally {
+        await new Promise<void>((resolveClose) => server.close(() => resolveClose()));
+      }
+    });
+  },
+);
