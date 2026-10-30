@@ -30,6 +30,14 @@ flisk up shop
 
 That starts an orders API and a storefront behind one gateway, with Postgres and live reload, and prints their URLs. It needs [Docker](docs/start/words.md#docker), [Tilt](https://docs.tilt.dev/install.html), Node.js 22.12+ and [Bun](https://bun.sh/) 1.2+; `flisk doctor` says what is missing. A small app can skip Docker and [run as local processes](docs/run-without-docker.md).
 
+Want to see it run first? One command, no install and no project of your own (same requirements; the demo uses Docker and Tilt):
+
+```bash
+npx @flisk-sh/flisk demo
+```
+
+Already have a Compose file? `npx @flisk-sh/flisk import . && npx @flisk-sh/flisk up` (add `--dry-run` to `import` to preview).
+
 <p align="center">
 <img src="docs/assets/demo-cli.svg" alt="Four flisk commands create a project, an API, and a website, then start them" width="900" />
 </p>
