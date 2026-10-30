@@ -268,3 +268,31 @@ def go_live_reload_enabled(manifest):
     if type(dev) != "dict":
         return False
     return dev.get("liveReload") == True
+
+def python_test_on_save_enabled(manifest):
+    """True for a Python service that opted in with `dev.testOnSave` (boolean or dict with enabled: True); anything else stays off."""
+    if not manifest or manifest.get("language", "bun") != "python":
+        return False
+    dev = manifest.get("dev")
+    if type(dev) != "dict":
+        return False
+    test_on_save = dev.get("testOnSave")
+    if test_on_save == True:
+        return True
+    if type(test_on_save) == "dict":
+        return test_on_save.get("enabled", True) == True
+    return False
+
+
+def python_test_on_save_path(manifest):
+    """The configured test path for pytest in a Python service, defaulting to 'tests'. """
+    if not manifest:
+        return "tests"
+    dev = manifest.get("dev")
+    if type(dev) == "dict":
+        test_on_save = dev.get("testOnSave")
+        if type(test_on_save) == "dict":
+            path = test_on_save.get("path")
+            if path and type(path) == "string":
+                return path.strip()
+    return "tests"

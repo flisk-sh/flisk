@@ -54,6 +54,41 @@ flisk resource --type backend --language python --frameworks
 # hono       Bun + Hono       bun       incompatible with --language python    flisk resource <name> --type backend --language python
 ```
 
+## Python
+
+`flisk resource api --type backend --language python --stack shop` scaffolds `pyproject.toml`, `src/main.py` (FastAPI, `GET /health`, reads `PORT`, listens on `0.0.0.0`), and `tests/test_health.py` (`pytest`). The engine generates a `python:3.12-slim` multi-stage Dockerfile (`base`, `test`, `production`).
+
+### Opt-in pytest on save (`dev.testOnSave`)
+
+Python services can automatically execute pytest inside the running container whenever source or test files change:
+
+```json
+{
+  "dev": {
+    "testOnSave": true
+  }
+}
+```
+
+You can also customize the test directory (defaults to `tests`):
+
+```json
+{
+  "dev": {
+    "testOnSave": {
+      "enabled": true,
+      "path": "tests/unit"
+    }
+  }
+}
+```
+
+- **Separate Tilt resource:** Flisk registers an independent `<service>-test` local resource in Tilt that watches `src/`, `pyproject.toml`, and the test directory.
+- **Service isolation:** Pytest executes via `docker compose exec` inside the service container. A test failure marks the test resource red in Tilt, but the application service remains healthy and keeps running without restart.
+- **Recovery:** Fixing the code or test automatically reruns pytest in the next pass and clears the failure to green.
+- **Zero baseline drift:** When `dev.testOnSave` is omitted or false, Flisk registers zero test resources, and generated files remain byte-for-byte identical to baseline.
+- **Pytest requirement:** The container must have `pytest` installed (configured in `pyproject.toml` dev dependencies). If missing, Flisk outputs a clear diagnostic hint.
+
 ## Go
 
 `flisk resource api --type backend --language go --stack shop` scaffolds `go.mod`, `main.go` (standard-library `net/http`, `GET /health`,

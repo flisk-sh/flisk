@@ -59,6 +59,18 @@ export interface ResourceConfigFields {
     command?: string;
     /** Extra environment for a `command` service. Values may reference `${VAR}` from the project .env or the shell. */
     env?: Record<string, string>;
+    /** Development loop settings (live reload, file watching, test on save). */
+    dev?: DevConfig;
+}
+export interface DevTestOnSaveConfig {
+    enabled?: boolean;
+    path?: string;
+}
+export interface DevConfig {
+    command?: string;
+    watch?: string[];
+    liveReload?: boolean;
+    testOnSave?: boolean | DevTestOnSaveConfig;
 }
 export interface AgentConfig {
     /** Runtime scaffold the resource was created with. `custom` is the only one today and carries no vendor dependency. */

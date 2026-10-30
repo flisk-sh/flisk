@@ -60,6 +60,7 @@ const RESOURCE_CONFIG_FIELDS = [
   "agent",
   "command",
   "env",
+  "dev",
 ] as const satisfies readonly (keyof ResourceConfigFields)[];
 type ResourceConfigFieldsAreComplete =
   Exclude<keyof ResourceConfigFields, (typeof RESOURCE_CONFIG_FIELDS)[number]> extends never

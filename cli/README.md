@@ -164,7 +164,7 @@ Backend creation defaults to Bun + Hono, exactly as it always has: omit `--langu
 | `koa` | Koa | 3 |
 | `h3` | h3 | 1.x |
 
-The selected id is saved as `framework` in `service.json`. `--framework hono` is accepted and saved too, and omitting it changes nothing. `--framework` cannot be combined with `--language python`, and unknown ids fail before a resource is written. Languages without a provider can use `--type bring-your-own`. See the [backend provider guide](../docs/backend-language-providers.md) and the runnable [Python example](../examples/one-backend-python/README.md).
+The selected id is saved as `framework` in `service.json`. `--framework hono` is accepted and saved too, and omitting it changes nothing. `--framework` cannot be combined with `--language python`, and unknown ids fail before a resource is written. Languages without a provider can use `--type bring-your-own`. Python services also support opt-in pytest-on-save via `dev.testOnSave` in `service.json`. See the [backend provider guide](../docs/backend-language-providers.md) and the runnable [Python example](../examples/one-backend-python/README.md).
 
 An interactive terminal asks which backend framework to use and lists Hono first. `--yes`, a piped run and a language that owns its runtime (Python, Go, Rust, Node) never ask, so a script keeps the same output as before.
 
