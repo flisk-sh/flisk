@@ -212,7 +212,7 @@ export async function hostUpRefusal(
   return null;
 }
 
-async function defaultDockerReachable(): Promise<boolean> {
+export async function defaultDockerReachable(): Promise<boolean> {
   const { execFile } = await import("node:child_process");
   return new Promise((resolve) => {
     execFile("docker", ["ps"], { timeout: 10_000 }, (error) => resolve(!error));
@@ -316,7 +316,7 @@ export async function waitForTiltUnlessStartupFailed<T>(
   return outcome as T;
 }
 
-function waitForTiltUi(port: number, timeoutMs = 30_000): Promise<boolean> {
+export function waitForTiltUi(port: number, timeoutMs = 30_000): Promise<boolean> {
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs;
     const attempt = () => {
