@@ -28,7 +28,7 @@
 //                                                                     in package.json unless --version is given; the
 //                                                                     release workflow writes and publishes it
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -79,15 +79,12 @@ const SERVER = { command: "flisk", args: ["mcp"] };
 
 // Claude Code's directory only reads a server command it knows (node, python, docker, java or a script shipped in the
 // plugin), and an unknown `flisk` command is held for a reviewer. So the Claude Code plugin (plugins/flisk-claude) runs
-// a small shell launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
-const CLAUDE_SERVER = { command: "sh", args: ["${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh"] };
+// a shell launcher that starts `flisk mcp`. The other hosts, the MCP Registry and Glama keep the plain `flisk mcp`.
+const CLAUDE_SERVER = { command: "${CLAUDE_PLUGIN_ROOT}/bin/flisk-mcp.sh", args: [] };
 const CLAUDE_LAUNCHER = `#!/bin/sh
 # Written by scripts/agent-plugin.mjs. Starts \`flisk mcp\` (the Flisk CLI's own stdio MCP server) from the user's
-# PATH, in the folder the agent was started in. It reads no credential and uses no network.
-if ! command -v flisk >/dev/null 2>&1; then
-  echo "flisk mcp: the flisk command was not found. Install the Flisk CLI first: npm install -g @flisk-sh/flisk" >&2
-  exit 1
-fi
+# PATH, in the folder the agent was started in. Needs the CLI: npm install -g @flisk-sh/flisk
+# It reads no credential and uses no network.
 exec flisk mcp
 `;
 
@@ -247,6 +244,7 @@ export function run(root, { write }) {
       writeFileSync(target, contents);
     }
   }
+  if (write) for (const { rel } of files) if (rel.endsWith(".sh")) chmodSync(path.join(root, rel), 0o755);
   for (const rel of staleSkills(root, files)) {
     changed.push(rel);
     if (write) rmSync(path.join(root, rel), { recursive: true, force: true });
