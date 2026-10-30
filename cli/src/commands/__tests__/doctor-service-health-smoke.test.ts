@@ -187,8 +187,10 @@ describe("doctor service health and smoke checks", () => {
     });
 
     it("skips checkServiceHealth when no services respond (stack down semantics)", async () => {
-      // Pick an ephemeral port on loopback that has no listener
-      process.env.FLISK_SERVICE_BASE_URL = "http://127.0.0.1:49151";
+      // Bind then close a loopback server so the port is known to have no listener
+      const { server, port } = await startLoopbackServer((_req, res) => res.end());
+      await stopServer(server);
+      process.env.FLISK_SERVICE_BASE_URL = `http://127.0.0.1:${port}`;
 
       const result = await checkServiceHealth(100);
 
