@@ -20,7 +20,7 @@
     "agents"
   ],
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
+  "mcpServers": "./mcp.json",
   "interface": {
     "displayName": "Flisk",
     "shortDescription": "Run your whole app locally",

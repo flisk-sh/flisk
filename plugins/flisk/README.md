@@ -31,12 +31,12 @@ One set of files for every agent format, all written by [`scripts/agent-plugin.m
 | File | Read by |
 | --- | --- |
 | `plugin.json`, `mcp.json` | The open [Agent Plugins](https://agent-plugins.org) format: Codex and ChatGPT, Cursor, GitHub Copilot CLI |
-| `.mcp.json` | Claude Code, and Codex and Copilot builds that predate the open format |
+| `.mcp.json`, `bin/flisk-mcp.mjs` | Claude Code, and Copilot builds that predate the open format: `.mcp.json` runs the launcher, which starts `flisk mcp` |
 | `.claude-plugin/plugin.json` | Claude Code |
 | `.codex-plugin/plugin.json` | Codex builds that predate the open format |
 | `.cursor-plugin/plugin.json` | Cursor marketplace |
 | `skills/` | Every agent above |
-| `GEMINI.md` | Gemini CLI (hand-written; the extension manifest is `gemini-extension.json` at the repository root) |
+| `gemini/GEMINI.md` (repository root) | Gemini CLI (hand-written; the extension manifest is `gemini-extension.json` at the repository root) |
 
 The marketplaces that list this plugin are `.claude-plugin/marketplace.json` (Claude Code, Copilot CLI), `.agents/plugins/marketplace.json` (Codex) and `.cursor-plugin/marketplace.json` (Cursor) at the repository root.
 
