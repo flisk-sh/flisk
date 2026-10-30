@@ -7,3 +7,16 @@
 id = "GO-2026-5932"
 ignoreUntil = 2027-04-25
 reason = "openpgp has no fixed version and is not linked into this example's binary; x/crypto is only reached via echo's acme/autocert."
+
+# Echo <= 4.16.2 (the newest v4) has no patched release for these two advisories, so upgrading cannot clear them.
+# This example serves only /health and /, with no rate limiter (CVE-2026-118653) and no proxy middleware
+# (CVE-2026-118651), so it does not reach the affected code. Revisit when Echo publishes a fix.
+[[IgnoredVulns]]
+id = "CVE-2026-118651"
+ignoreUntil = 2027-04-25
+reason = "Echo reverse-proxy X-Real-IP forwarding; no patched version, and this example does not use the proxy middleware."
+
+[[IgnoredVulns]]
+id = "CVE-2026-118653"
+ignoreUntil = 2027-04-25
+reason = "Echo rate-limiter X-Forwarded-For bypass; no patched version, and this example does not use the rate limiter."
