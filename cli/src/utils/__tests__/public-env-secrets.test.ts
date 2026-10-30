@@ -62,8 +62,13 @@ const SYNTHETIC_SENDGRID = makeKey([
 const SYNTHETIC_TWILIO = makeKey(["SK", "0123456789abcdef0123456789abcdef"]);
 const SYNTHETIC_NPM_TOKEN = makeKey(["npm", "_", "0123456789abcdef0123456789abcdef0123"]);
 const SYNTHETIC_WEBHOOK_SEC = makeKey(["whsec", "_", "0123456789abcdef0123456789abcdef01234567"]);
-const SYNTHETIC_JWT =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+const SYNTHETIC_JWT = makeKey([
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+  ".",
+  "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ",
+  ".",
+  "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+]);
 const SYNTHETIC_URL_CREDS = "https://admin:my-secret-password-1234@api.internal.example.com";
 const SYNTHETIC_PRIVATE_KEY = makeKey([
   "-----BEGIN RSA ",

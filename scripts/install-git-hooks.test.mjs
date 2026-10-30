@@ -55,6 +55,8 @@ function withCheckout({ gitRepo = true, hooksDirectory = false, globalHooksPath 
         cwd: root,
         env,
         encoding: "utf8",
+        // npm is a .cmd shim on Windows; the command and arguments are literals, never input.
+        // nosemgrep: javascript.lang.security.audit.spawn-shell-true
         shell: process.platform === "win32",
         timeout: TIMEOUT_MS,
       });

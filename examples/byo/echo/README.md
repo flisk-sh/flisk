@@ -8,6 +8,10 @@
   declare Go 1.26, so the build image is `golang:1.26-alpine`. The image's `GOTOOLCHAIN=local` refuses a `go.mod` newer than
   the image, which is why pinning Echo for an older image did not hold: Dependabot bumped it back (#2409, then #2435).
   Echo v5 is a different major version and is not used here.
+- Dependabot alerts #75 (reverse proxy forwards an attacker-supplied `X-Real-IP`) and #76 (rate limiter trusts a spoofed
+  `X-Forwarded-For`) affect Echo `>= 4.0.0, <= 4.16.2` and have no patched version, so they cannot be cleared by upgrading. This
+  example uses neither the rate limiter nor the proxy middleware (only `/health` and `/`), so it does not reach the vulnerable
+  code. Revisit when Echo publishes a fix.
 - Through Flisk, Traefik sends `Host: api.<project>.localhost`; Echo accepted it with no host configuration (checked through a real
   `flisk up`).
 - The server listens on `":" + $PORT` (every interface). Flisk's native Go provider (`--language go`) scaffolds standard-library
