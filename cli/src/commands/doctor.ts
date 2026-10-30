@@ -1383,7 +1383,10 @@ const DEFAULT_PING_TIMEOUT_MS = 5000;
  * it catches the case where a container is running but Traefik never routed
  * to it, which `docker ps` alone will not show.
  */
-async function checkServiceHealth(timeoutMs: number, ingressPort?: number): Promise<CheckResult> {
+export async function checkServiceHealth(
+  timeoutMs: number,
+  ingressPort?: number,
+): Promise<CheckResult> {
   const projectRoot = findProjectRoot() ?? process.cwd();
   const targets = buildHealthTargets(discoverResourcesFromRoot(projectRoot), ingressPort);
 
@@ -1405,7 +1408,10 @@ async function checkServiceHealth(timeoutMs: number, ingressPort?: number): Prom
  *
  * Like the health ping, this only runs once services answer. A stopped stack is skipped, not failed.
  */
-async function checkServiceSmoke(timeoutMs: number, ingressPort?: number): Promise<CheckResult> {
+export async function checkServiceSmoke(
+  timeoutMs: number,
+  ingressPort?: number,
+): Promise<CheckResult> {
   const projectRoot = findProjectRoot() ?? process.cwd();
   const resources = discoverResourcesFromRoot(projectRoot);
   const plans = readOnlySmokePlans(buildSmokePlans(resources, ingressPort), {
