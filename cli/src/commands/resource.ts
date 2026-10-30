@@ -134,6 +134,35 @@ export const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificConfig> = 
 
 const BYO_RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"];
 
+// `--type inference` is a bring-your-own resource preconfigured for an OpenAI-compatible model server. Any server that answers
+// GET /v1/models works (Ollama, LM Studio, vLLM, llama.cpp); the Ollama image is only the default when no --image is given.
+const INFERENCE_TYPE = "inference";
+const INFERENCE_DEFAULT_PORT = 11434;
+const INFERENCE_DEFAULT_IMAGE = "ollama/ollama";
+const INFERENCE_HEALTH_PATH = "/v1/models";
+
+/** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
+export function resolveInferencePort(
+  value: string | undefined,
+  resources: Array<{ config?: { port?: number } }>,
+): number {
+  if (!value) return INFERENCE_DEFAULT_PORT;
+  const port = Number(value);
+  if (!/^\d+$/.test(value) || port < 1 || port > 65535) {
+    throw new FliskError("--port must be an integer from 1 through 65535.", [
+      `Pass a port in range, for example --port ${INFERENCE_DEFAULT_PORT}`,
+      "Or leave the flag out to use the default",
+    ]);
+  }
+  if (resources.some((resource) => resource.config?.port === port)) {
+    throw new FliskError(`Port ${port} is already assigned to another resource.`, [
+      "See the ports in use with: flisk resources",
+      "Pick another port with --port",
+    ]);
+  }
+  return port;
+}
+
 export function resolveByoPort(
   value: string | undefined,
   assignedPort: number,
@@ -463,10 +492,10 @@ export const TSCONFIG_TEMPLATE = {
 
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 
-/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`. */
+/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` a preset of it. */
 export function parseResourceType(type: string): CreatableResourceType | "sdk" {
-  const normalized = type === "byo" ? BRING_YOUR_OWN_TYPE : type;
-  const validTypes: readonly string[] = [...RESOURCE_TYPE_VALUES];
+  const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
+  const validTypes: readonly string[] = [...RESOURCE_TYPE_VALUES, INFERENCE_TYPE];
   if (!validTypes.includes(normalized)) {
     throw new FliskError(
       `Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`,
@@ -611,7 +640,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .argument("[name]", "Resource name (kebab-case)")
   .option(
     "-t, --type <type>",
-    "Resource type: backend, frontend, worker, mcp, agent, bring-your-own, sdk",
+    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, sdk",
     "backend",
   )
   .option(
@@ -632,7 +661,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "Scaffold DDD (domain-driven design) folders + path aliases (Premium - requires FLISK_LICENSE_KEY)",
   )
   .option("--dockerfile <path>", "Path to Dockerfile relative to resource dir (for bring-your-own)")
-  .option("--health-path <path>", "HTTP health check path (for bring-your-own)", "/health")
+  .option(
+    "--health-path <path>",
+    "HTTP health check path (for bring-your-own; inference defaults to /v1/models)",
+    "/health",
+  )
   .option("--no-proxy", "Disable the Traefik route (bring-your-own only)")
   .option(
     "--restart <policy>",
@@ -640,7 +673,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   )
   .option(
     "--image <name>",
-    "Docker image name instead of building from Dockerfile (for bring-your-own)",
+    "Docker image name instead of building from Dockerfile (for bring-your-own; inference defaults to ollama/ollama)",
   )
   .option(
     "--port <port>",
@@ -705,6 +738,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       const resourceType = parseResourceType(options.type);
+      const isInference = options.type === INFERENCE_TYPE;
       if (
         resourceType !== "agent" &&
         (options.runtime !== undefined || options.durability !== undefined)
@@ -968,8 +1002,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
           "Use --type backend without --language, or drop --feature drizzle",
         ]);
       }
-      const assignedPort =
-        resourceType === "sdk"
+      const assignedPort = isInference
+        ? resolveInferencePort(options.port, allResources)
+        : resourceType === "sdk"
           ? 0
           : resolveResourcePort(
               resourceType as PortAssignableResourceType,
@@ -1064,6 +1099,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
         const port = assignedPort;
 
         const dockerfile = options.dockerfile || "./Dockerfile";
+        const image =
+          options.image ??
+          (isInference && !options.dockerfile ? INFERENCE_DEFAULT_IMAGE : undefined);
+        const healthCheckPath =
+          isInference && command.getOptionValueSource("healthPath") !== "cli"
+            ? INFERENCE_HEALTH_PATH
+            : options.healthPath || "/health";
         const dockerfilePath = resolve(fullPath, dockerfile);
         const dockerfileRelativePath = relative(fullPath, dockerfilePath);
         if (
@@ -1078,9 +1120,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
 
         // Create service.json
         const byoServiceJson = createByoServiceJson(resourceName, stackName, port, {
-          healthCheckPath: options.healthPath || "/health",
+          healthCheckPath,
           dockerfile,
-          ...(options.image ? { image: options.image } : {}),
+          ...(image ? { image } : {}),
           ...(options.proxy === false ? { exposeViaProxy: false } : {}),
           ...(options.restart ? { restart: options.restart } : {}),
         });
@@ -1089,7 +1131,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         writeFileSync(resolve(fullPath, SERVICE_JSON), JSON.stringify(byoServiceJson, null, 2));
 
         // Create Dockerfile stub if no image provided and dockerfile doesn't exist
-        if (!options.image && !existsSync(dockerfilePath)) {
+        if (!image && !existsSync(dockerfilePath)) {
           mkdirSync(resolve(dockerfilePath, ".."), { recursive: true });
           const healthConfigPath = resolve(dockerfilePath, "..", "health.conf");
           const healthConfigRelativePath = relative(fullPath, healthConfigPath).replace(/\\/g, "/");

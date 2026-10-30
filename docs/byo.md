@@ -39,6 +39,18 @@ Aliases: `byo`, `bring-your-own`
 - Pass `--dockerfile <path>` to select a custom Dockerfile, or `--image <image>` to use an
   existing image without creating a Dockerfile
 
+## Inference (a local model server)
+
+`--type inference` is a bring-your-own preset for an OpenAI-compatible model server, so agents and MCP servers can point at a model that runs with the stack instead of a paid API:
+
+```bash
+flisk resource brain --type inference --stack kitchen
+```
+
+It writes a `service.json` with `port: 11434`, `healthCheckPath: "/v1/models"` and `image: "ollama/ollama"`, and no Dockerfile. Ollama is only the default: pass `--image` (vLLM, llama.cpp server, any image), `--dockerfile`, `--port` (any 1-65535) or `--health-path` to use something else. Anything that answers `GET /v1/models` works. Agents call it at `http://brain:11434/v1/chat/completions` on the Docker network.
+
+Pull a model once with `docker compose exec brain ollama pull <model>` (or your server's equivalent). A container on macOS cannot use the GPU; for Metal speed run the server on the host and set `"command"` in `service.json` instead.
+
 ## One-shot jobs (migrations, seeders)
 
 A bring-your-own container is restarted with `unless-stopped` by default, so a job that exits `0` is started again forever.
