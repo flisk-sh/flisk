@@ -600,7 +600,7 @@
 		},
 		{
 			"workflow": "sync-llms-demos.yml",
-			"job": "sync",
+			"job": "sync-demos",
 			"tier": "bot",
 			"required": false,
 			"reason": "Weekly copy of the demo instructions into the llms files; opens a pull request when they changed",
