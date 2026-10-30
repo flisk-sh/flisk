@@ -7,6 +7,7 @@ export default defineConfig({
     // Project-level suites (generated output in tests/generated, runtime layout in tests/runtime-layout) run with the CLI suite.
     include: [
       "src/**/*.test.ts",
+      "src/**/*.test.tsx",
       "../tests/generated/**/*.test.ts",
       "../tests/runtime-layout/**/*.test.ts",
     ],
