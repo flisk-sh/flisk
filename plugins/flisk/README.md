@@ -36,7 +36,7 @@ One set of files for every agent format, all written by [`scripts/agent-plugin.m
 | `.codex-plugin/plugin.json` | Codex builds that predate the open format |
 | `.cursor-plugin/plugin.json` | Cursor marketplace |
 | `skills/` | Every agent above |
-| `GEMINI.md` | Gemini CLI (hand-written; the extension manifest is `gemini-extension.json` at the repository root) |
+| `gemini/GEMINI.md` (repository root) | Gemini CLI (hand-written; the extension manifest is `gemini-extension.json` at the repository root) |
 
 The marketplaces that list this plugin are `.claude-plugin/marketplace.json` (Claude Code, Copilot CLI), `.agents/plugins/marketplace.json` (Codex) and `.cursor-plugin/marketplace.json` (Cursor) at the repository root.
 

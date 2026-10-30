@@ -13,7 +13,7 @@
 //   .agents/plugins/marketplace.json           marketplace for Codex
 //   .cursor-plugin/marketplace.json            marketplace for Cursor
 //   gemini-extension.json                      Gemini CLI extension (it must sit at the repository root)
-// plugins/flisk/README.md, plugins/flisk/GEMINI.md and plugins/flisk/assets/ are hand-written and kept as they are.
+// plugins/flisk/README.md, plugins/flisk/assets/ and gemini/GEMINI.md are hand-written and kept as they are.
 //   node scripts/agent-plugin.mjs [--root <repo dir>]                 write everything
 //   node scripts/agent-plugin.mjs [--root <repo dir>] --check         exit 1 when anything is out of date (run by D6 in
 //                                                                     tests/e2e/static/skills-and-docs.sh)
@@ -72,6 +72,7 @@ export const OPENAI_INTERFACE = {
 
 // The server every host starts: the Flisk CLI's own stdio server, run in the user's project.
 const SERVER = { command: "flisk", args: ["mcp"] };
+
 
 // The name the MCP Registry lists Flisk under. The io.github.flisk-sh/ namespace is proven by publishing from a
 // flisk-sh GitHub Actions run, and the registry checks that the npm package's mcpName (root package.json) matches it.
@@ -193,7 +194,7 @@ export function plan(root) {
       name: PLUGIN.name,
       version: "1.0.0",
       description: PLUGIN.description,
-      contextFileName: `${PLUGIN_DIR}/GEMINI.md`,
+      contextFileName: "gemini/GEMINI.md",
       mcpServers: { flisk: SERVER },
     }),
   );
