@@ -1042,3 +1042,43 @@ describe("tool list", () => {
     ]);
   });
 });
+
+describe("tool annotations", () => {
+  const tools = createFliskTools(async () => ({ exitCode: 0, stdout: "{}", stderr: "" }));
+  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+
+  it("gives every tool behavior hints", () => {
+    for (const tool of tools) {
+      expect(tool.annotations, tool.name).toBeDefined();
+    }
+  });
+
+  it("marks the inspection tools read-only and the rest as writes", () => {
+    const readOnly = [
+      "doctor",
+      "status",
+      "logs",
+      "resource_list",
+      "agent_list",
+      "agent_sessions",
+      "stack_list",
+      "project_info",
+      "network_list",
+      "config_verify",
+      "config_explain",
+      "runtime_check",
+    ];
+    for (const name of readOnly) {
+      expect(byName.get(name)?.annotations?.readOnlyHint, name).toBe(true);
+    }
+    for (const tool of tools.filter((t) => !readOnly.includes(t.name))) {
+      expect(tool.annotations?.readOnlyHint, tool.name).toBe(false);
+    }
+  });
+
+  it("flags the tools that can discard or overwrite files as destructive", () => {
+    for (const name of ["down", "config_regenerate", "resource_create", "project_import"]) {
+      expect(byName.get(name)?.annotations?.destructiveHint, name).toBe(true);
+    }
+  });
+});

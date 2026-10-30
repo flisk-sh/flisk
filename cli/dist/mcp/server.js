@@ -47,10 +47,11 @@ export function createMcpServer(tools, info) {
                 return reply(message.id, {});
             case "tools/list":
                 return reply(message.id, {
-                    tools: tools.map(({ name, description, inputSchema }) => ({
+                    tools: tools.map(({ name, description, inputSchema, annotations }) => ({
                         name,
                         description,
                         inputSchema,
+                        ...(annotations ? { annotations } : {}),
                     })),
                 });
             case "tools/call": {

@@ -3,12 +3,20 @@
  * what a tools-only server needs: initialize, ping, tools/list and tools/call. Keeping it dependency-free keeps the
  * published CLI small; the protocol surface used here is stable across the listed protocol versions.
  */
+/** Behavior hints a client shows or uses to decide whether to ask before calling a tool (MCP 2025-03-26 and later). */
+export interface McpToolAnnotations {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+}
 export interface McpTool {
     name: string;
     /** Former names that tools/call still accepts, so older agent configs keep working; tools/list shows only `name`. */
     aliases?: readonly string[];
     description: string;
     inputSchema: Record<string, unknown>;
+    annotations?: McpToolAnnotations;
     handler: (args: Record<string, unknown>) => Promise<McpToolResult>;
 }
 export interface McpToolResult {

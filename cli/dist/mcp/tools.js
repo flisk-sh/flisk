@@ -426,14 +426,47 @@ function projectPath(value) {
     }
     return value;
 }
+/** Local-only reads: they inspect the project or the running stack and change nothing. */
+const READ_ONLY = { readOnlyHint: true, openWorldHint: false };
+const WRITES_LOCALLY = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    openWorldHint: false,
+};
+const TOOL_ANNOTATIONS = {
+    doctor: READ_ONLY,
+    status: READ_ONLY,
+    logs: READ_ONLY,
+    resource_list: READ_ONLY,
+    agent_list: READ_ONLY,
+    agent_sessions: READ_ONLY,
+    stack_list: READ_ONLY,
+    project_info: READ_ONLY,
+    network_list: READ_ONLY,
+    config_verify: READ_ONLY,
+    config_explain: READ_ONLY,
+    runtime_check: READ_ONLY,
+    up: WRITES_LOCALLY,
+    down: { ...WRITES_LOCALLY, destructiveHint: true, idempotentHint: true },
+    resource_restart: WRITES_LOCALLY,
+    // dryRun is the default; dryRun: false overwrites the generated files and discards hand edits in them.
+    config_regenerate: { ...WRITES_LOCALLY, destructiveHint: true, idempotentHint: true },
+    // Running it again on an existing resource rewrites its service.json.
+    resource_create: { ...WRITES_LOCALLY, destructiveHint: true },
+    stack_assign: { ...WRITES_LOCALLY, idempotentHint: true },
+    project_init: { ...WRITES_LOCALLY, openWorldHint: true },
+    project_eject: { ...WRITES_LOCALLY, idempotentHint: true },
+    // force overwrites an existing service.json; the importer is fetched from npm.
+    project_import: { ...WRITES_LOCALLY, destructiveHint: true, openWorldHint: true },
+};
 export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
     const viaCli = (build, options = {}) => async (args) => toToolResult(await run(build(args), { cwd: projectPath(args.projectPath), ...options }));
     /** For a command without `--json`: returns its text output. */
     const viaCliText = (build, options = {}) => async (args) => toTextResult(await run(build(args), { cwd: projectPath(args.projectPath), ...options }));
-    return [
+    const tools = [
         {
             name: "doctor",
-            description: "Check whether this machine can run the Flisk stack. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`.",
+            description: "Check whether this machine can run the Flisk stack (Docker, Tilt, ports). Read-only. Optionally set projectPath to include checks for a specific Flisk project. Returns data.ready and data.host.canUp; run it before `up`. For the state of a running stack use `status`; for whether generated files are consistent use `config_verify`.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 noPing: { type: "boolean", description: "Skip pinging running services' health endpoints" },
@@ -466,7 +499,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "down",
-            description: "Stop the running stack, optionally selecting its project with projectPath.",
+            description: "Stop the running stack, optionally selecting its project with projectPath. It stops the running services and does not edit the project's files. Use `status` first to see whether a stack is running, set dryRun to preview, and start it again with `up`.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 dryRun: { type: "boolean", description: "Show what would be stopped without stopping" },
@@ -479,13 +512,13 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "status",
-            description: "Stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers). Optionally select the project with projectPath.",
+            description: "Show the live state of the stack: its stacks, resources, their ingress URLs and container ports, the stack-level ports, and Tilt readiness (data.tilt.readiness: ready, pending, failures, enabled; null when no Tilt answers). Read-only. Poll it after `up`. For the services a project defines whether or not they run use `resource_list`; for URLs only use `network_list`; for host checks use `doctor`. Optionally select the project with projectPath.",
             inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
             handler: viaCli(() => ["status", "--json"]),
         },
         {
             name: "logs",
-            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000). Optionally select the project with projectPath. Not a stream.",
+            description: "A bounded snapshot of recent logs from the running stack (default the last 200 lines, at most 10000), returned as text. Read-only. Optionally select the project with projectPath. Not a stream: call it again for newer lines. Use `status` first to find which service is failing, then pass services to narrow the output.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 services: { type: "array", items: { type: "string" }, description: "Only these services" },
@@ -499,7 +532,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "resource_list",
-            description: "List the selected project's services (resources) with their stack, type and port. Set projectPath when the MCP server is not running from the project root.",
+            description: "List the selected project's services (resources) with their stack, type and port, whether or not they are running. Read-only. Use `status` for live state, `stack_list` to group them by stack and `agent_list` for agents only. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 stack: { type: "string", description: "Only this stack" },
@@ -512,7 +545,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         {
             name: "resource_restart",
             aliases: ["restart_resource"],
-            description: "Restart a running resource in the stack (or trigger its rebuild). Set projectPath when the MCP server is not running from the project root.",
+            description: "Restart one running resource in the stack (or trigger its rebuild); the other resources are not touched. It needs a running stack: start one with `up`. Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 resource: { type: "string", description: "Name of the resource to restart" },
@@ -530,7 +563,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         {
             name: "agent_list",
             aliases: ["list_agents"],
-            description: "List AI agent resources (appType: 'agent') in the project with their stack, runtime, durability and port. Set projectPath when the MCP server is not running from the project root.",
+            description: "List AI agent resources (appType: 'agent') in the project with their stack, runtime, durability and port. Read-only. Use `resource_list` for every resource type, and `agent_sessions` to inspect one agent's sessions. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 stack: { type: "string", description: "Only this stack" },
@@ -570,7 +603,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "stack_list",
-            description: "List the project's stacks with their resource counts. Set services to include each stack's service names, and verbose for its description. Set projectPath when the MCP server is not running from the project root.",
+            description: "List the project's stacks with their resource counts. Read-only. Use `resource_list` for the resources themselves. Set services to include each stack's service names, and verbose for its description. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 services: { type: "boolean", description: "Include the service names in each stack" },
@@ -585,13 +618,13 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "project_info",
-            description: "Project root, whether the generated master files exist (data.configured, data.missingFiles), and resource and stack counts. Set projectPath when the MCP server is not running from the project root.",
+            description: "Project root, whether the generated master files exist (data.configured, data.missingFiles), and resource and stack counts. Read-only; a quick first call to learn whether a folder is a configured Flisk project. Use `config_verify` to check that the generated files match, and `status` for the running stack. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
             handler: viaCli(() => ["projects", "--json"]),
         },
         {
             name: "network_list",
-            description: "The Traefik URL of every frontend and API service, with its base path, port and whether it answers (running, stopped). Set projectPath when the MCP server is not running from the project root.",
+            description: "The Traefik URL of every frontend and API service, with its base path, port and whether it answers (running, stopped). Read-only. Use it to find where to open a service; use `status` for full readiness. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({
                 projectPath: PROJECT_PATH,
                 stack: { type: "string", description: "Only this stack" },
@@ -632,7 +665,7 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
         },
         {
             name: "runtime_check",
-            description: "Check that the installed Flisk CLI has its bundled runtime assets (engine, templates). Returns ok, assetRoot and what is missing; a source checkout reports ok: false because the assets exist only in a packaged install. projectPath is optional: a project-local install under its node_modules is checked too.",
+            description: "Read-only. Check that the installed Flisk CLI has its bundled runtime assets (engine, templates). Returns ok, assetRoot and what is missing; a source checkout reports ok: false because the assets exist only in a packaged install. projectPath is optional: a project-local install under its node_modules is checked too.",
             inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
             handler: viaCli(() => ["runtime", "--check-assets", "--json"]),
         },
@@ -762,4 +795,5 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
             handler: viaCli(buildProjectImportArgs, { timeoutMs: IMPORT_TIMEOUT_MS }),
         },
     ];
+    return tools.map((tool) => ({ ...tool, annotations: TOOL_ANNOTATIONS[tool.name] }));
 }
