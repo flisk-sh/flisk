@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.15 (2026-10-30)
+
 - The migrator image no longer stores `node_modules` twice. A `chown -R` over the copied directory added a second 332 MB layer (1.54 GB against 181 MB for the agent next to it); ownership is now set by `COPY --chown`. Images already built keep their size until they are rebuilt.
 - The MCP `up` tool no longer ends the whole MCP server when `projectPath` does not exist: the failed spawn emitted an unhandled `error` event and the connection to the agent dropped. It now returns an error result saying `flisk up` could not start.
 - `flisk up` (also `--dry-run`) now refuses a `secrets.required` name that has no value in the env file of the run or the environment, naming the service.json and the secret. Compose refuses to interpolate such a name, which failed the whole Tiltfile and stopped every service, not only the one that needs it. Set `FLISK_SECRET_PROVIDER=infisical` to leave the names to Infisical.
