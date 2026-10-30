@@ -586,7 +586,6 @@ def _register_deferred_image_prebuild(config, auto_init_apps):
         _app_image_name(config['resource_name'], config['res_name']),
         project_root or '.',
     ]
-
     local_resource(
         name=config['res_name'] + '-image',
         cmd=cmd,

@@ -283,9 +283,8 @@ def python_test_on_save_enabled(manifest):
         return test_on_save.get("enabled", True) == True
     return False
 
-
 def python_test_on_save_path(manifest):
-    """The configured test path for pytest in a Python service, defaulting to 'tests'. """
+    """The configured test path for pytest in a Python service, defaulting to 'tests'."""
     if not manifest:
         return "tests"
     dev = manifest.get("dev")
