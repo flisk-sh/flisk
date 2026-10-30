@@ -50,13 +50,13 @@ function withCheckout({ gitRepo = true, hooksDirectory = false, globalHooksPath 
       execFileSync("git", ["init", "-q"], { cwd: root, env, stdio: "pipe", timeout: TIMEOUT_MS });
     }
 
+    // npm is a .cmd shim on Windows; the command and arguments are literals, never input.
     const runInstall = () =>
+      // nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
       spawnSync("npm", ["install", "--package-lock=false", "--no-audit", "--no-fund"], {
         cwd: root,
         env,
         encoding: "utf8",
-        // npm is a .cmd shim on Windows; the command and arguments are literals, never input.
-        // nosemgrep: javascript.lang.security.audit.spawn-shell-true
         shell: process.platform === "win32",
         timeout: TIMEOUT_MS,
       });

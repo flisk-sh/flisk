@@ -42,7 +42,7 @@ function validate(schema, value, at = "$", defs = schema.$defs) {
   if ("const" in schema && value !== schema.const) errors.push(`${at}: must be ${JSON.stringify(schema.const)}`);
   if (kind === "string") {
     // The patterns come from the vendored agent-plugins.org schemas in this repo, never from input.
-    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
     if (schema.pattern && !new RegExp(schema.pattern).test(value)) errors.push(`${at}: does not match ${schema.pattern}`);
     if (schema.minLength !== undefined && value.length < schema.minLength) errors.push(`${at}: is too short`);
     if (schema.maxLength !== undefined && value.length > schema.maxLength) errors.push(`${at}: is too long`);

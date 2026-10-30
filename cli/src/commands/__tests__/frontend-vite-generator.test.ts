@@ -413,6 +413,8 @@ if 'NEXT_DIST_DIR' in text: fail('a distDir outside the project breaks module re
 golden_off = generate_next_dockerfile('services/app/web', 3000, False)
 if 'l4-backend-node' in golden_off: fail('without the golden image the base must be the upstream node image')
 if 'node:22-slim@sha256' not in golden_off: fail('the upstream node image must be pinned by digest')
+if golden_off.count('FROM node:22-slim@sha256:') != 2: fail('both FROM lines carry the digest literally, so a scanner reading the file sees a pinned image')
+if 'BASE_IMAGE' in golden_off or 'BASE_IMAGE' in text: fail('no ARG indirection: FROM must name the image directly')
 if 'apt-get install' not in golden_off: fail('the upstream image needs curl installed')
 if 'USER node' not in golden_off: fail('the upstream path runs as the node user')
 `,
