@@ -10,6 +10,8 @@ export interface Variant {
   patch: Record<string, Json | undefined>;
   /** What we expect of a correct tool. `reject`: no gate-passing run may break Docker, and the gate should say no. */
   expect: "accept" | "reject";
+  /** Leave the secret names of this variant out of .env, so a required one has no value. */
+  noSecretValues?: boolean;
 }
 
 const v = (id: string, patch: Variant["patch"], expect: Variant["expect"]): Variant => ({
@@ -142,6 +144,28 @@ export const VARIANTS: Variant[] = [
   // restart is not enumerated (nothing downstream reads it), so an odd value is accepted and nothing breaks.
   v("restart=odd", { restart: "sometimes" }, "accept"),
   v("unknown.field", { totallyUnknown: { a: 1 } }, "accept"),
+
+  // secrets.required / secrets.optional become `${NAME:?...}` lines in the Compose environment block; the generator fails on a name
+  // that is not an environment variable name.
+  v("secrets=required", { secrets: { required: ["SECRET_KEY", "TEAM_TAYLOR_WEBHOOK_SECRET"] } }, "accept"),
+  v("secrets=optional", { secrets: { optional: ["TOKEN"] } }, "accept"),
+  v("secrets=both", { secrets: { required: ["A_KEY"], optional: ["B_KEY"] } }, "accept"),
+  v("secrets=same name twice", { secrets: { required: ["A_KEY", "A_KEY"] } }, "accept"),
+  { ...v("secrets=required, no value", { secrets: { required: ["NO_VALUE_KEY"] } }, "reject"), noSecretValues: true },
+  { ...v("secrets=optional, no value", { secrets: { optional: ["NO_VALUE_KEY"] } }, "accept"), noSecretValues: true },
+  v("secrets=digit first", { secrets: { required: ["1BAD"] } }, "reject"),
+  v("secrets=dash", { secrets: { required: ["A-B"] } }, "reject"),
+  v("secrets=space", { secrets: { required: ["A B"] } }, "reject"),
+  v("secrets=empty name", { secrets: { required: [""] } }, "reject"),
+  v("secrets=newline", { secrets: { required: ["A\nB: c"] } }, "reject"),
+  v("secrets=quote", { secrets: { required: ['A"B'] } }, "reject"),
+  v("secrets=dollar", { secrets: { required: ["A${B}"] } }, "reject"),
+  v("secrets=number name", { secrets: { required: [7] } }, "reject"),
+  v("secrets=required string", { secrets: { required: "A_KEY" } }, "reject"),
+  v("secrets=string", { secrets: "A_KEY" }, "reject"),
+  v("secrets=array", { secrets: ["A_KEY"] }, "reject"),
+  v("secrets=null", { secrets: null }, "accept"),
+  v("secrets+params overlap", { secrets: { required: ["A_KEY"] }, params: { A_KEY: "x" } }, "accept"),
 
   // Bring-your-own and migrator shapes.
   v("appType=migrator", { appType: "migrator" }, "accept"),

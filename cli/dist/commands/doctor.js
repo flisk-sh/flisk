@@ -20,7 +20,7 @@ import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNat
 import { collectDoctorChecks, createDoctorReport, getDoctorExitCode, } from "../utils/doctor-report.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, summarizeAdvertisedProbes, summarizeServiceProbes, summarizeSmokeResults, } from "../utils/doctor-runtime.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
-import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkMigrationsInApi, checkNatsBroker, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
+import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
 import { validateEnvFile } from "../utils/env-validator.js";
 import { execAsync, isExecTimeout } from "../utils/exec-async.js";
 import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
@@ -1507,6 +1507,7 @@ export const doctorCommand = new Command("doctor")
         () => checkPrismaConsistency(),
         // Shared platform Postgres: will-start report + unknown dependsOn names stay errors.
         () => checkSharedPlatformPostgres(),
+        requiresContainerRuntime("Postgres credentials", () => checkPostgresCredentials()),
         () => checkMigrationsInApi(),
         () => checkTiltInstances(),
         checkEnvironmentVariables,

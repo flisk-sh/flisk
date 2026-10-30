@@ -23,6 +23,9 @@ export interface ServiceManifestValidation {
     manifest?: Record<string, unknown>;
 }
 export declare function getInvalidServiceRoutePathFields(value: unknown): ("apiPath" | "basePath")[];
+/** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
+export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function validateServiceManifest(value: unknown, displayPath: string): ServiceManifestValidation;
 /**
  * Generated-output errors for one service.json. A file that cannot be read or parsed returns none here, because

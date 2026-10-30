@@ -11,6 +11,8 @@ import {
   isDockerSafeName,
   SERVICE_MANIFEST_SCHEMA_URL,
   SERVICE_MANIFEST_SCHEMA_VERSION,
+  secretConflictWarnings,
+  secretsErrors,
   validateGeneratedStringFields,
   validateServiceManifest,
   validateServiceManifestFile,
@@ -122,7 +124,7 @@ describe("service manifest compatibility", () => {
       runtime: "docker",
       sablier: { sessionDuration: "5m" },
       schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
-      secrets: ["DB_PASSWORD"],
+      secrets: { required: ["DB_PASSWORD"] },
       smoke: { via: "proxy", steps: [{ path: "/health", expect: 200 }] },
       stack: "shop",
       syncs: [{ host: "./src", container: "/app" }],
@@ -746,5 +748,62 @@ describe("service manifest compatibility", () => {
           .errors,
       ).toEqual([]);
     });
+  });
+});
+
+describe("secretConflictWarnings", () => {
+  const file = "services/main/api/service.json";
+
+  it("warns when params or env sets a name that secrets also declares", () => {
+    const warnings = secretConflictWarnings(
+      {
+        secrets: { required: ["ADMIN_PASSWORD"], optional: ["TOKEN"] },
+        params: { ADMIN_PASSWORD: "changeme", OTHER: "x" },
+        env: { TOKEN: "t" },
+      },
+      file,
+    );
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("params.ADMIN_PASSWORD");
+    expect(warnings[1]).toContain("env.TOKEN");
+  });
+
+  it("is quiet when the names differ, or the shapes are not the expected ones", () => {
+    expect(
+      secretConflictWarnings({ secrets: { required: ["A"] }, params: { B: "1" } }, file),
+    ).toEqual([]);
+    expect(secretConflictWarnings({ secrets: "A", params: { A: "1" } }, file)).toEqual([]);
+    expect(secretConflictWarnings({ secrets: { required: ["A"] }, params: ["A"] }, file)).toEqual(
+      [],
+    );
+    expect(secretConflictWarnings({}, file)).toEqual([]);
+  });
+});
+
+describe("secretsErrors", () => {
+  const file = "services/main/api/service.json";
+
+  it("accepts the documented shape and an absent value", () => {
+    expect(secretsErrors({}, file)).toEqual([]);
+    expect(secretsErrors({ secrets: null }, file)).toEqual([]);
+    expect(secretsErrors({ secrets: { required: ["A_KEY", "_b2"], optional: [] } }, file)).toEqual(
+      [],
+    );
+  });
+
+  it.each([
+    [{ secrets: "A_KEY" }, "secrets: expected an object"],
+    [{ secrets: ["A_KEY"] }, "secrets: expected an object"],
+    [{ secrets: { required: "A_KEY" } }, "secrets.required: expected a list"],
+    [{ secrets: { optional: 7 } }, "secrets.optional: expected a list"],
+    [{ secrets: { required: ["1BAD"] } }, '"1BAD" is not an environment variable name'],
+    [{ secrets: { required: ["A-B"] } }, '"A-B"'],
+    [{ secrets: { required: [""] } }, '""'],
+    [{ secrets: { required: [7] } }, "7 is not an environment variable name"],
+    [{ secrets: { required: ["A${B}"] } }, "is not an environment variable name"],
+  ])("rejects %j", (manifest, message) => {
+    const errors = secretsErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
   });
 });

@@ -11,7 +11,7 @@
 // Needs tilt and docker (Compose and Buildx) on PATH. No image is built and no container starts: the base images the generated
 // Dockerfile names are replaced by a local image through --build-context, and only the Dockerfile is checked.
 import { spawn } from "node:child_process";
-import { cpSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createWorkspace, flisk, Project, REPO_ROOT } from "../graph/project.js";
 import { INITIAL } from "../graph/steps.js";
@@ -113,6 +113,15 @@ function applyVariant(dir: string, variant: Variant): void {
     else manifest[key] = JSON.parse(JSON.stringify(value).split("$SELF").join(TARGET));
   }
   if (typeof variant.patch.appName === "string") manifest.name = variant.patch.appName;
+  // A required secret needs a value in .env, or Compose refuses it and the whole Tiltfile fails.
+  const secrets = variant.patch.secrets as { required?: unknown } | null | undefined;
+  if (!variant.noSecretValues && Array.isArray(secrets?.required)) {
+    const lines = secrets.required
+      .filter((name): name is string => typeof name === "string" && /^[A-Za-z_]\w*$/.test(name))
+      .map((name) => `${name}=chaos-value\n`)
+      .join("");
+    appendFileSync(join(dir, ".env"), lines);
+  }
   writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
   const stack = variant.patch.stack;
   if (typeof stack === "string" && stack) {
@@ -156,6 +165,7 @@ async function runVariant(variant: Variant, dir: string, image: string): Promise
       .filter((line) => /Error in|^Error|error:/.test(line.trim()))
       .pop();
     outcome.detail.push(`tilt: ${(error ?? tail(tilt.out, 2)).trim().slice(0, 300)}`);
+    if (process.env.CHAOS_DEBUG) outcome.detail.push(`full tilt output: ${tilt.out.slice(-1500)}`);
     return outcome;
   }
 

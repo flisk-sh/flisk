@@ -25,6 +25,14 @@ export declare function checkSchemaVersions(projectRoot?: string, strict?: boole
 /** Prints the schemaVersion warning once. It never stops anything: the project keeps working as it is. */
 export declare function warnSchemaVersions(projectRoot: string, resources?: DiscoveredResource[]): void;
 /**
+ * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
+ * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
+ * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ */
+export declare function checkRequiredSecrets(projectRoot?: string, resources?: DiscoveredResource[], env?: NodeJS.ProcessEnv): CheckResult;
+/** Prints each secret that a literal in `params` or `env` overrides. A warning: such a project still starts. */
+export declare function warnSecretConflicts(projectRoot: string, resources?: DiscoveredResource[]): void;
+/**
  * Runs before anything starts (also under --dry-run, like the drift gate): duplicate service names, circular
  * dependsOn and invalid ports exit with 1 and say which file, which field, and how to fix it.
  */

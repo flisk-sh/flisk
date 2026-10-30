@@ -1,14 +1,20 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import chalk from "chalk";
 import type { CheckResult, DiscoveredResource } from "../types/index.js";
 import { declaredDependsOn, dependencyEdges } from "./dependency-graph.js";
 import { checkDuplicateResourceNames } from "./doctor-wiring.js";
+import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
+import { parseEnv } from "./env-validator.js";
 import { formatCount } from "./formatting.js";
 import { findProjectRoot } from "./paths.js";
-import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest } from "./service-manifest.js";
+import {
+  SERVICE_MANIFEST_SCHEMA_VERSION,
+  secretConflictWarnings,
+  validateServiceManifest,
+} from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
 
 function filePath(projectRoot: string, resource: DiscoveredResource): string {
@@ -246,6 +252,71 @@ export function warnSchemaVersions(projectRoot: string, resources?: DiscoveredRe
 }
 
 /**
+ * `secrets.required` names that neither the env file of the run nor the environment holds a value for. Compose refuses to
+ * interpolate such a name, and that fails the whole Tiltfile, so every service stops, not only the one that needs the secret.
+ * Not checked with FLISK_SECRET_PROVIDER=infisical, which leaves the names to Infisical.
+ */
+export function checkRequiredSecrets(
+  projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+  env: NodeJS.ProcessEnv = process.env,
+): CheckResult {
+  const provider = (env.FLISK_SECRET_PROVIDER ?? "").trim().toLowerCase();
+  if (provider !== "" && provider !== "env-file") {
+    return {
+      name: "Required secrets",
+      didPass: true,
+      message: "Secrets are left to the secret provider",
+    };
+  }
+  const envFile = env[PROJECT_ENV_FILE_VAR] || join(projectRoot, ".env");
+  let fileValues = new Map<string, string>();
+  try {
+    if (existsSync(envFile)) fileValues = parseEnv(readFileSync(envFile, "utf-8"));
+  } catch {
+    // An unreadable env file is reported where the file is read; here every name counts as missing.
+  }
+  const has = (name: string): boolean =>
+    Boolean((env[name] ?? "").trim() || (fileValues.get(name) ?? "").trim());
+  const problems = resources.flatMap((resource) => {
+    const required: unknown = (resource.config?.secrets as { required?: unknown } | undefined)
+      ?.required;
+    if (!Array.isArray(required)) return [];
+    return required
+      .filter(
+        (name): name is string =>
+          typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !has(name),
+      )
+      .map((name) => `${filePath(projectRoot, resource)}: secret ${name} has no value`);
+  });
+  if (problems.length === 0) {
+    return {
+      name: "Required secrets",
+      didPass: true,
+      message: "Every required secret has a value",
+    };
+  }
+  return {
+    name: "Required secrets",
+    didPass: false,
+    message: `${formatCount(problems.length, "required secret")} without a value:\n    ${problems.join("\n    ")}`,
+    fix: `Add NAME=value to ${relative(projectRoot, envFile) || ".env"} (it is gitignored), or export it in the environment, or move it to "optional"`,
+  };
+}
+
+/** Prints each secret that a literal in `params` or `env` overrides. A warning: such a project still starts. */
+export function warnSecretConflicts(projectRoot: string, resources?: DiscoveredResource[]): void {
+  for (const resource of resources ?? discoverResourcesFromRoot(projectRoot)) {
+    if (!resource.config) continue;
+    for (const warning of secretConflictWarnings(
+      resource.config as Record<string, unknown>,
+      filePath(projectRoot, resource),
+    ))
+      console.warn(chalk.yellow(`⚠ ${warning}`));
+  }
+}
+
+/**
  * Runs before anything starts (also under --dry-run, like the drift gate): duplicate service names, circular
  * dependsOn and invalid ports exit with 1 and say which file, which field, and how to fix it.
  */
@@ -259,6 +330,7 @@ export function enforceServiceConfigGate(
     checkDuplicateResourceNames(projectRoot, resources),
     checkServiceFields(projectRoot, resources),
     checkCustomDockerfiles(projectRoot, resources),
+    checkRequiredSecrets(projectRoot, resources),
     checkDependsOnShape(projectRoot, resources),
     checkCircularDependencies(projectRoot, resources),
     checkServicePorts(projectRoot, resources),

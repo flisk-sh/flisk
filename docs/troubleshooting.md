@@ -57,6 +57,20 @@ $ flisk up nope --dry-run
 - **Defined in:** [`errors.ts`](../cli/src/utils/errors.ts) (`stackNotFound`). `Resource "x" not found` is the same pattern.
 - **Checked:** reproduced for the stack message; the resource message was read from source, not reproduced.
 
+### `Required secrets`: `secret X has no value`
+
+```text
+$ flisk up --dry-run
+❌ 1 required secret without a value:
+    services/main/api/service.json: secret SECRET_KEY has no value
+   Fix: Add NAME=value to .env (it is gitignored), or export it in the environment, or move it to "optional"
+```
+
+- **Cause:** the service lists `SECRET_KEY` in `secrets.required`, and neither the env file of the run (the project `.env`, or the one chosen with `--env-file`) nor the environment has a non-empty value for it. Compose refuses to interpolate such a name, which used to fail the whole Tiltfile and stop every service.
+- **Fix:** put `SECRET_KEY=...` in `.env`, export it, or list it under `secrets.optional` if the service can run without it. With `FLISK_SECRET_PROVIDER=infisical` the check is skipped and Infisical supplies the names.
+- **Defined in:** [`service-config-checks.ts`](../cli/src/utils/service-config-checks.ts) (`checkRequiredSecrets`), run by the `flisk up` gate, dry run included.
+- **Checked:** reproduced by the Docker chaos tier (`secrets=required, no value`) and covered by `service-config-checks.test.ts`.
+
 ### `flisk X is older than the Y this project requires (minFliskVersion)`
 
 ```text

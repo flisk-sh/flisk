@@ -52,6 +52,18 @@ export declare function checkNatsBroker(projectRoot?: string): CheckResult;
  * Doctor is the gate; one real `flisk up` after doctor is green confirms the run.
  */
 export declare function checkSharedPlatformPostgres(projectRoot?: string): CheckResult;
+/**
+ * Whether the shared Postgres still accepts the DB_PASSWORD in the project .env.
+ *
+ * Postgres applies POSTGRES_PASSWORD only when it first initialises a data volume, and the volume lives in Docker, outside the
+ * project folder. A recreated folder (or a changed .env) gets a new random DB_PASSWORD while the old volume keeps its own, and
+ * every service that connects, such as a migrator, then fails with "password authentication failed" minutes into `flisk up`.
+ *
+ * The login is tried from the container's own network address: the official image trusts 127.0.0.1 without a password, so a
+ * loopback test would pass whatever the password. PGPASSWORD is handed to docker through this process's environment, so the
+ * password never appears in a command line.
+ */
+export declare function checkPostgresCredentials(projectRoot?: string, exec?: ExecAsync): Promise<CheckResult>;
 interface TiltProcess {
     pid: number;
     root: string;
