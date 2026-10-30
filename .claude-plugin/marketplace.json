@@ -5,12 +5,12 @@
     "url": "https://flisk.sh"
   },
   "metadata": {
-    "description": "The Flisk plugin: skills and the flisk mcp server for running your app locally"
+    "description": "Flisk App Builder: tell your AI what app you want and it builds and runs it on your computer"
   },
   "plugins": [
     {
       "name": "flisk",
-      "description": "Run your whole app on your own computer with one command. Skills and an MCP server that let your coding agent build, start, check and fix a local stack with the Flisk CLI.",
+      "description": "Flisk App Builder. Tell your AI what app you want (an online shop, a website, a booking app, an AI helper) and it builds the whole app and runs it on your own computer with one command.",
       "source": "./plugins/flisk-claude",
       "homepage": "https://flisk.sh",
       "license": "MIT",
