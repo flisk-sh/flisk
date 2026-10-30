@@ -104,6 +104,12 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"'`=]/g, (c) => ESCAPES[c] ?? c);
 }
 
+/** Read an own property only, so a template cannot reach `constructor` or `__proto__`. */
+function getOwn(obj: unknown, key: string): unknown {
+  if (obj === null || obj === undefined) return undefined;
+  return Object.hasOwn(Object(obj), key) ? (obj as Record<string, unknown>)[key] : undefined;
+}
+
 function resolvePath(path: string, scope: Scope): unknown {
   if (path === "@key") return scope.key;
   let s: Scope | null = scope;
@@ -118,7 +124,7 @@ function resolvePath(path: string, scope: Scope): unknown {
   let cur: unknown = s.ctx;
   for (const part of p.split(".")) {
     if (cur === null || cur === undefined) return undefined;
-    cur = (cur as Record<string, unknown>)[part];
+    cur = getOwn(cur, part);
   }
   return cur;
 }
@@ -144,10 +150,7 @@ function evalExpr(
   if (head === "lookup" && parts.length === 3) {
     const obj = resolvePath(parts[1] ?? "", scope);
     const keyVal = resolvePath(parts[2] ?? "", scope);
-    const v =
-      obj !== null && typeof obj === "object"
-        ? (obj as Record<string, unknown>)[String(keyVal)]
-        : undefined;
+    const v = obj !== null && typeof obj === "object" ? getOwn(obj, String(keyVal)) : undefined;
     return { s: stringify(v), raw: false };
   }
   const helper = helpers[head];

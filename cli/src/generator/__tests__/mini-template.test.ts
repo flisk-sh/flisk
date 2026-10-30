@@ -45,4 +45,10 @@ describe("mini-template", () => {
     expect(() => render("{{#each l}}", { l: [] })).toThrow(/Unclosed/);
     expect(() => render("{{/if}}", {})).toThrow(/Unmatched/);
   });
+
+  it("reads own properties only, never the prototype chain", () => {
+    expect(render("{{constructor.name}}|{{__proto__.x}}|{{a.toString}}", { a: {} })).toBe("||");
+    expect(render("{{lookup o k}}", { o: {}, k: "constructor" })).toBe("");
+    expect(render("{{s.length}}|{{l.length}}", { s: "abc", l: [1, 2] })).toBe("3|2");
+  });
 });
