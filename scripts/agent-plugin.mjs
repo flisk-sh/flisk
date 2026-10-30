@@ -38,6 +38,7 @@ const DOCS_URL = "https://github.com/flisk-sh/flisk/blob/main/docs/";
 
 export const PLUGIN = {
   name: "flisk",
+  version: "1.0.0",
   description:
     "Run your whole app on your own computer with one command. Skills and an MCP server that let your coding agent build, start, check and fix a local stack with the Flisk CLI.",
   author: { name: "Flisk", url: "https://flisk.sh" },
