@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it, vi } from "vitest";
-import { ensureNetworkCapacity } from "../demo-networks.js";
 import type { DoctorAction } from "../../types/index.js";
+import { ensureNetworkCapacity } from "../demo-networks.js";
 
 const EXHAUSTED =
   "Error response from daemon: all predefined address pools have been fully subnetted";
