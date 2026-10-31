@@ -27,6 +27,7 @@ export declare const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificCo
 /** Options an infrastructure preset cannot take: its image listens on a fixed port inside the container. */
 export declare function assertInfraPresetOptions(preset: InfraResourceType, options: {
     port?: string;
+    image?: string;
 }): void;
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
 export declare function resolveInferencePort(value: string | undefined, resources: Array<{

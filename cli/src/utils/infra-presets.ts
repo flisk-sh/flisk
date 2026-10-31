@@ -95,7 +95,9 @@ export const INFRA_PRESETS = {
       "5000",
       "--backend-store-uri",
       "sqlite:////mlflow/mlflow.db",
-      "--default-artifact-root",
+      // Runs get mlflow-artifacts:/ URIs that clients in other containers upload through this server; an explicit
+      // --default-artifact-root would hand them paths on the clients' own disks.
+      "--artifacts-destination",
       "/mlflow/artifacts",
     ],
     provides: { MLFLOW_TRACKING_URI: "http://{name}:5000" },

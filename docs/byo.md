@@ -237,11 +237,11 @@ Traefik; the containers in the stack reach them on the Docker network by name.
 MinIO no longer publishes community images, so the `minio` preset uses Chainguard's `latest`, the only tag its free tier has; pass `--image` to pin your own.
 `minio` and `mlflow` need a start command, which bring-your-own does not have, so they write a two-line `Dockerfile`
 (`FROM <image>` and `CMD`) next to the `service.json`; `--image` changes the `FROM`. MinIO uses the development login
-`minioadmin` / `minioadmin` (set in `params`), and MLflow keeps its SQLite store and artifacts in the volume. Neither is
+`minioadmin` / `minioadmin` (set in `params`), and MLflow keeps its SQLite store in the volume and serves artifacts through the tracking server (`mlflow-artifacts:/` URIs), so clients in other containers can upload and read them. Neither is
 reachable from outside the stack's Docker network.
 The RabbitMQ preset lets the default `guest` account connect from the other containers, which RabbitMQ allows only from
-localhost by default; the broker is not reachable from outside the stack's Docker network. None of the presets sets a
-password, so do not publish them on the host.
+localhost by default; the broker is not reachable from outside the stack's Docker network. Apart from the MinIO
+development login, none of the presets sets a password, so do not publish them on the host.
 
 ### Connection settings for the services that depend on it (`provides`)
 

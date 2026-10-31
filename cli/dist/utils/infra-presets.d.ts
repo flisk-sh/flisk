@@ -97,7 +97,7 @@ export declare const INFRA_PRESETS: {
             readonly port: 5000;
         };
         readonly dataPath: "/mlflow";
-        readonly startCommand: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--default-artifact-root", "/mlflow/artifacts"];
+        readonly startCommand: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--artifacts-destination", "/mlflow/artifacts"];
         readonly provides: {
             readonly MLFLOW_TRACKING_URI: "http://{name}:5000";
         };

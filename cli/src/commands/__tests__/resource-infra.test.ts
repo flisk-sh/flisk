@@ -136,8 +136,11 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
       'FROM cgr.dev/chainguard/minio:latest\nCMD ["server","/data","--console-address",":9001"]\n',
     );
     expect(dockerfile("tracking")).toMatch(
-      /^FROM ghcr\.io\/mlflow\/mlflow:v[\d.]+\nCMD \["mlflow","server"/,
+      /^FROM ghcr\.io\/mlflow\/mlflow:v[\d.]+\nCMD \["mlflow","server".*"--backend-store-uri","sqlite:\/\/\/\/mlflow\/mlflow\.db"/,
     );
+    // Artifacts go through the tracking server, so a run's URI is mlflow-artifacts:/ and not a path on the client's disk.
+    expect(dockerfile("tracking")).toContain('"--artifacts-destination","/mlflow/artifacts"');
+    expect(dockerfile("tracking")).not.toContain("--default-artifact-root");
   });
 
   it("lets --image replace the image a Dockerfile preset builds from", async () => {
@@ -145,6 +148,16 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
     expect(readFileSync(join(tempDir, "services", "hqc", "store", "Dockerfile"), "utf-8")).toMatch(
       /^FROM minio\/minio:latest\n/,
     );
+  });
+
+  it("refuses to overwrite a Dockerfile that is already in the folder", async () => {
+    const dir = join(tempDir, "services", "hqc", "store");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "Dockerfile"), "FROM scratch\n");
+    // The command reports the FliskError and exits non-zero; the test runner turns process.exit into a throw.
+    await expect(create("store", "minio")).rejects.toThrow("process.exit");
+    expect(readFileSync(join(dir, "Dockerfile"), "utf-8")).toBe("FROM scratch\n");
+    expect(existsSync(join(dir, "service.json"))).toBe(false);
   });
 
   it("writes a service.json that validates", async () => {
@@ -165,6 +178,17 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
   it("lets --image replace the pinned image", async () => {
     const service = await create("cache", "redis", ["--image", "redis:8-alpine"]);
     expect(service).toMatchObject({ image: "redis:8-alpine", port: 6379 });
+  });
+
+  it("refuses an --image that is not one image reference", () => {
+    for (const image of ["minio/minio latest", "minio/minio\nRUN x", 'a"b']) {
+      expect(() => assertInfraPresetOptions("minio", { image })).toThrow(
+        "--image must be an image reference",
+      );
+    }
+    expect(() =>
+      assertInfraPresetOptions("minio", { image: "ghcr.io/acme/minio:1.0@sha256:abc" }),
+    ).not.toThrow();
   });
 
   it("refuses --port, because the image listens on its own port", () => {
