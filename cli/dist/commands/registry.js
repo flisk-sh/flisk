@@ -5,6 +5,7 @@ import { connectCommand } from "./connect.js";
 import { doctorCommand } from "./doctor.js";
 import { downCommand } from "./down.js";
 import { ejectCommand } from "./eject.js";
+import { exportCommand } from "./export.js";
 import { importCommand } from "./import.js";
 import { logsCommand } from "./logs.js";
 import { maintainersCommand } from "./maintainers.js";
@@ -37,6 +38,7 @@ export function getRegisteredCommands() {
         connectCommand,
         logsCommand,
         ejectCommand,
+        exportCommand,
         importCommand,
         openCommand,
         statusCommand,

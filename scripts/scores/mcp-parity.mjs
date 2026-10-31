@@ -28,6 +28,7 @@ export const HUMAN_ONLY = {
 	open: "opens a browser for a person to look at",
 	os: "starts a desktop app for a person to look at; it runs until the person closes it",
 	upgrade: "replaces the installed CLI, a person's call",
+	export: "writes deploy files (render.yaml, wrangler.toml) for a person to review and commit; the export scope agreed in AGENTS.md keeps it opt-in and off MCP",
 };
 
 // Whether a command path ("maintainers check") belongs to a human-only command.

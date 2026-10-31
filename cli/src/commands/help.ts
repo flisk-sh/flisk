@@ -28,6 +28,11 @@ const COMMAND_GROUPS = [
         desc: "Write EJECTED.md describing the generated Tilt files",
         alias: "--dry-run --yes",
       },
+      {
+        name: "export",
+        desc: "Write render.yaml or wrangler.toml from service.json (never deploys)",
+        alias: "render|wrangler --dry-run",
+      },
     ],
   },
   {
