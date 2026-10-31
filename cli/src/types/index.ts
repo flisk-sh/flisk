@@ -22,6 +22,7 @@ export const RESOURCE_CONFIG_APP_TYPES = [
   "migrator",
   "mcp",
   "agent",
+  "database",
   "bring-your-own",
 ] as const;
 
@@ -151,6 +152,7 @@ export type ResourceType =
   | "migrator"
   | "mcp"
   | "agent"
+  | "database"
   | "bring-your-own";
 
 export const CREATABLE_RESOURCE_TYPES = [
@@ -163,23 +165,37 @@ export const CREATABLE_RESOURCE_TYPES = [
 ] as const;
 
 /**
- * Every value `flisk resource --type` accepts: the creatable types plus `sdk`, which registers a
- * package that already exists instead of scaffolding one.
+ * `--type database`: the project's database, declared in a service.json (`framework: postgres`). It has
+ * no code, port or image of its own: services list its name in `dependsOn` and get `DATABASE_URL`.
  */
-export const RESOURCE_TYPE_VALUES = [...CREATABLE_RESOURCE_TYPES, "sdk"] as const;
+export const DATABASE_RESOURCE_TYPE = "database";
+
+/** The one database a `database` resource can name today. */
+export const DATABASE_FRAMEWORK = "postgres";
+
+/**
+ * Every value `flisk resource --type` accepts: the creatable types, `database`, and `sdk`, which
+ * registers a package that already exists instead of scaffolding one.
+ */
+export const RESOURCE_TYPE_VALUES = [
+  ...CREATABLE_RESOURCE_TYPES,
+  DATABASE_RESOURCE_TYPE,
+  "sdk",
+] as const;
 
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export const INFERENCE_RESOURCE_TYPE = "inference";
 
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
- * the `inference` preset. `sdk` is left out because it only registers a package that already has a
- * service.json, and the `byo` alias because `bring-your-own` is listed. The MCP `resource_create`
- * tool builds its type enum from this list.
+ * the `inference` preset and `database`. `sdk` is left out because it only registers a package that
+ * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
+ * `resource_create` tool builds its type enum from this list.
  */
 export const RESOURCE_CREATE_TYPE_VALUES = [
   ...CREATABLE_RESOURCE_TYPES,
   INFERENCE_RESOURCE_TYPE,
+  DATABASE_RESOURCE_TYPE,
 ] as const;
 
 export type CreatableResourceType = Extract<

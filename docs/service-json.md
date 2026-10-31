@@ -104,7 +104,7 @@ Run `flisk resource <name> --type backend`, `flisk resource <name> --type fronte
 | `$schema` | string; optional | all | Editor metadata. Point it at the published schema URL for completion and inline validation. |
 | `schemaVersion` | integer; **required**, currently `1` | all | Version of the Flisk manifest contract. An unsupported version is rejected; Flisk does not guess how to migrate it. |
 | `appName` | string; **required** | all | Resource identifier. Use lowercase letters, numbers, and hyphens; it should match the resource directory name. |
-| `appType` | enum; required when `type` is absent | all | Resource kind: `backend`, `frontend`, `library`, `sdk`, `worker`, `migrator`, `mcp`, or `bring-your-own`. Provide either `appType` or the legacy `type` field. |
+| `appType` | enum; required when `type` is absent | all | Resource kind: `backend`, `frontend`, `library`, `sdk`, `worker`, `migrator`, `mcp`, `agent`, `database`, or `bring-your-own`. Provide either `appType` or the legacy `type` field. |
 | `type` | enum; legacy alias for `appType` | existing manifests | Older manifests may use `type`; provide it when `appType` is absent. Use `appType` in new files. During config migration, Flisk copies the legacy value to `appType`. |
 | `stack` | string; **required** | all | Groups related resources and influences database names, routes, and generated dependency configuration. |
 
@@ -119,7 +119,7 @@ A service that declares `command` needs `schemaVersion`, `appName` and `appType`
 
 For a local process, `port`, `healthCheckPath`, `dependsOn` and `restart: "no"` keep their meaning, without the container port ranges.
 
-`appType` determines more than the label shown in the UI. It selects the generator and validation rules. A `worker` must declare the `nats` feature, while `bring-your-own` resources need a `Dockerfile` or `image` and do not receive an application scaffold.
+`appType` determines more than the label shown in the UI. It selects the generator and validation rules. A `worker` must declare the `nats` feature, while `bring-your-own` resources need a `Dockerfile` or `image` and do not receive an application scaffold. A `database` resource declares the project's Postgres: it needs `"framework": "postgres"` and has no `port`, `command`, `image` or `dockerfile` (see [the example below](#example-postgres-then-a-migrator-then-an-api)).
 
 ## Ports, runtimes, and providers
 
@@ -209,7 +209,22 @@ services/shop/
   orders-api/service.json
 ```
 
-Postgres has no manifest of its own. `postgres` (or `database-management`) in `dependsOn` names the shared platform Postgres that Flisk runs for the project.
+Postgres can be declared as a resource of its own. `flisk resource shop-db --type database --stack shop` writes `services/shop/shop-db/service.json`:
+
+```json
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "shop-db",
+  "appType": "database",
+  "framework": "postgres",
+  "stack": "shop"
+}
+```
+
+A service then waits for it by name (`"dependsOn": ["shop-db"]`), like any other resource. The database resource is the shared platform Postgres that Flisk runs for the project: it gets no container of its own, each stack still gets its own database in it (`databaseName`, `FLISK_{stack}` by default), and services get `DATABASE_URL` as before. Declaring one starts Postgres even when the project turned the database capability off (`flisk up --no-database`). `framework` is `postgres` today; other databases may follow.
+
+Without a database resource, `postgres` (or `database-management`) in `dependsOn` names the same shared Postgres, and existing projects keep working unchanged. The example below uses that name.
 
 `services/shop/orders-api-migrator/service.json` waits for Postgres:
 

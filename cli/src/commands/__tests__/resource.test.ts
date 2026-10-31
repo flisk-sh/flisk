@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -17,6 +18,7 @@ import { describe, expect, it } from "vitest";
 import {
   BASE_TEMPLATE,
   createByoServiceJson,
+  createDatabaseServiceJson,
   createPackageJson,
   createResourceTsconfig,
   createServiceJson,
@@ -821,6 +823,21 @@ describe("service.json schema", () => {
     expect(schema.required).toContain("schemaVersion");
     expect(schema.properties.schemaVersion).toMatchObject({ const: 1, type: "integer" });
     expect(schema.properties.appType.enum).toContain("bring-your-own");
+    expect(schema.properties.appType.enum).toContain("database");
+    expect(schema.properties.type.enum).toContain("database");
+    // A database names its engine in framework (only postgres) and has no port, command, image or Dockerfile.
+    const databaseRule = schema.allOf.find(
+      (rule: { if?: { properties?: { appType?: { const?: string } } } }) =>
+        rule.if?.properties?.appType?.const === "database",
+    );
+    expect(databaseRule.then.properties.framework).toEqual({ const: "postgres" });
+    expect(databaseRule.then.required).toEqual(["framework"]);
+    expect(databaseRule.then.not.anyOf).toEqual([
+      { required: ["port"] },
+      { required: ["command"] },
+      { required: ["image"] },
+      { required: ["dockerfile"] },
+    ]);
     expect(schema.properties.stack.type).toBe("string");
     expect(schema.properties.stack.enum).toBeUndefined();
     expect(schema.properties.image.type).toBe("string");
@@ -954,6 +971,93 @@ describe("resource command drizzle feature", () => {
       expect(result.status).toBe(1);
       expect(output).toContain("--feature drizzle is only supported for Bun backends");
       expect(existsSync(join(projectRoot, "services", "main", "jobs"))).toBe(false);
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("resource command database type (#2863)", () => {
+  it("writes only a service.json that declares the project's Postgres", () => {
+    const projectRoot = createResourceProject();
+    try {
+      const result = runResourceCli(projectRoot, [
+        "shop-db",
+        "--type",
+        "database",
+        "--stack",
+        "shop",
+        "--json",
+      ]);
+      const serviceDir = join(projectRoot, "services", "shop", "shop-db");
+      const envelope = JSON.parse(result.stdout.trim());
+
+      expect(result.status).toBe(0);
+      expect(envelope.data).toMatchObject({
+        action: "created",
+        name: "shop-db",
+        type: "database",
+        stack: "shop",
+        port: null,
+        path: "services/shop/shop-db",
+        framework: "postgres",
+      });
+      expect(JSON.parse(readFileSync(join(serviceDir, "service.json"), "utf8"))).toEqual(
+        createDatabaseServiceJson("shop-db", "shop"),
+      );
+      expect(createDatabaseServiceJson("shop-db", "shop")).toMatchObject({
+        appType: "database",
+        framework: "postgres",
+        schemaVersion: 1,
+      });
+      // No code, Dockerfile or port: Flisk runs the database itself.
+      expect(readdirSync(serviceDir)).toEqual(["service.json"]);
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    [["--framework", "mysql"], "--framework mysql is not a database Flisk can run"],
+    [["--port", "5432"], "--port cannot be used with --type database"],
+    [["--image", "postgres:17"], "--image cannot be used with --type database"],
+    [["--feature", "prisma"], "--feature cannot be used with --type database"],
+  ])("rejects %j before writing anything", (flags, message) => {
+    const projectRoot = createResourceProject();
+    try {
+      const result = runResourceCli(projectRoot, [
+        "shop-db",
+        "--type",
+        "database",
+        "--yes",
+        ...flags,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout + result.stderr).toContain(message);
+      expect(existsSync(join(projectRoot, "services", "main", "shop-db"))).toBe(false);
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts --framework postgres", () => {
+    const projectRoot = createResourceProject();
+    try {
+      const result = runResourceCli(projectRoot, [
+        "shop-db",
+        "--type",
+        "database",
+        "--framework",
+        "postgres",
+        "--yes",
+      ]);
+
+      expect(result.status).toBe(0);
+      const serviceJson = JSON.parse(
+        readFileSync(join(projectRoot, "services", "main", "shop-db", "service.json"), "utf8"),
+      );
+      expect(serviceJson.framework).toBe("postgres");
     } finally {
       rmSync(projectRoot, { recursive: true, force: true });
     }

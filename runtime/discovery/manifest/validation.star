@@ -63,10 +63,10 @@ def validate_manifest(manifest):
         # Only validate against list if VALID_STACKS is not empty
         issues.append("Invalid stack: " + str(stack) + ". Must be one of: " + ', '.join(VALID_STACKS))
     
-    # 4. port validation with appType-specific ranges (skip for infra services)
+    # 4. port validation with appType-specific ranges (skip for infra services and the database resource, which has no port)
     port = manifest.get('port')
     if port == None:
-        if app_type != 'infra':
+        if app_type not in ['infra', 'database']:
             issues.append("Missing required field: port")
     elif type(port) != 'int':
         issues.append("Invalid port: " + str(port) + ". Must be an integer")

@@ -21,7 +21,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import { checkCircularDependencies, checkDependsOnShape } from "../utils/service-config-checks.js";
 import { SERVICE_MANIFEST_SCHEMA_VERSION, validateServiceManifest, } from "../utils/service-manifest.js";
 import { discoverResourcesWithProblems, discoverServiceManifestPaths, warnAboutSkippedFiles, } from "../utils/services.js";
-import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
+import { describeSharedPostgresUsers, evaluateSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
 /** The change `flisk config regenerate` makes to each master file, from the same generator its dry run compares with. */
 export function regeneratePlan(projectRoot) {
@@ -359,10 +359,10 @@ export const configCommand = new Command("config")
                 console.log(chalk.gray(`ℹ️  Postgres will start because database-management is enabled${source} (project-wide; not a flisk up selection)`));
             }
             else if (sharedPostgres.reason === "feature") {
-                console.log(chalk.yellow(`ℹ️  Postgres will start because database-management is enabled and resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`));
+                console.log(chalk.yellow(`ℹ️  Postgres will start because database-management is enabled and ${describeSharedPostgresUsers(sharedPostgres)} (project resource set; flisk up may select a subset)`));
             }
             else {
-                console.log(chalk.green(`ℹ️  Postgres will start because resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`));
+                console.log(chalk.green(`ℹ️  Postgres will start because ${describeSharedPostgresUsers(sharedPostgres)} (project resource set; flisk up may select a subset)`));
             }
         }
         else if (sharedPostgres.focusWouldEnableDatabaseManagement) {

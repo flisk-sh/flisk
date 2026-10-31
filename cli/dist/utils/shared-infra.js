@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled, } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
-import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
+import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 export const SHARED_INFRA_SERVICES = {
     traefik: {
         name: "traefik",
@@ -42,6 +42,13 @@ export function getSharedInfrastructureItems(configOrOptions) {
 }
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export function usesSharedPostgres(resource) {
+    return usesSharedPostgresAmong(resource, []);
+}
+/**
+ * Like `usesSharedPostgres`, but a dependsOn on one of `databaseNames` (the appNames of the project's `database`
+ * resources, which name that same Postgres) also counts.
+ */
+export function usesSharedPostgresAmong(resource, databaseNames) {
     const config = resource.config;
     if (!config)
         return false;
@@ -50,7 +57,7 @@ export function usesSharedPostgres(resource) {
         config.featuresEnabled.includes(DATABASE_MANAGEMENT_FEATURE))
         return true;
     const dependsOn = Array.isArray(config.dependsOn) ? config.dependsOn : [];
-    return dependsOn.some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name));
+    return dependsOn.some((name) => typeof name === "string" && namesSharedPlatformPostgres(name, databaseNames));
 }
 export function groupSharedPostgres(projectName, stacks, options) {
     // A project that opted out of the shared Postgres has none to show.
@@ -58,8 +65,11 @@ export function groupSharedPostgres(projectName, stacks, options) {
         return null;
     const prefix = projectName.replace(/-/g, "_");
     const databases = [];
+    const databaseNames = databaseResourceNames(stacks.flatMap((stack) => stack.resources));
     for (const stack of [...stacks].sort((a, b) => a.name.localeCompare(b.name))) {
-        const services = stack.resources.filter(usesSharedPostgres).map((resource) => resource.name);
+        const services = stack.resources
+            .filter((resource) => usesSharedPostgresAmong(resource, databaseNames))
+            .map((resource) => resource.name);
         if (services.length === 0)
             continue;
         databases.push({

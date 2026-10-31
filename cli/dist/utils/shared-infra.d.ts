@@ -51,6 +51,11 @@ export declare function getSharedInfrastructureList(configOrOptions?: Capability
 export declare function getSharedInfrastructureItems(configOrOptions?: CapabilitySource): SharedInfraItem[];
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export declare function usesSharedPostgres(resource: DiscoveredResource): boolean;
+/**
+ * Like `usesSharedPostgres`, but a dependsOn on one of `databaseNames` (the appNames of the project's `database`
+ * resources, which name that same Postgres) also counts.
+ */
+export declare function usesSharedPostgresAmong(resource: DiscoveredResource, databaseNames: readonly string[]): boolean;
 export declare function groupSharedPostgres(projectName: string, stacks: DiscoveredStack[], options?: SharedInfraOptions): SharedPostgresInstance | null;
 /** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */
 export declare function readProjectName(projectRoot: string): string | null;

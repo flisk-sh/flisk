@@ -79,7 +79,7 @@ def _determine_app_type(manifest, resource_path):
     Determine app type from manifest or service path.
     """
     # Check if manifest has explicit appType
-    if manifest.get("appType") in ["frontend", "backend", "library", "migrator", "sdk", "worker", "infra", "bring-your-own"]:
+    if manifest.get("appType") in ["frontend", "backend", "library", "migrator", "sdk", "worker", "infra", "database", "bring-your-own"]:
         return manifest["appType"]
     
     # Extract from path

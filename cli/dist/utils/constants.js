@@ -46,12 +46,14 @@ export const VALID_RESOURCE_TYPES = [
     "migrator",
     "mcp",
     "agent",
+    "database",
     BRING_YOUR_OWN_TYPE,
 ];
 // Frontend/library/sdk services are served statically or consumed as
 // packages, so they never need a "start" script - only backend/worker/
 // migrator processes are run in production via `<runtime> run start`.
-// bring-your-own doesn't generate application code, so no scripts required.
+// bring-your-own doesn't generate application code, and a database resource
+// has no code at all, so neither needs scripts.
 export const REQUIRED_PACKAGE_SCRIPTS = {
     backend: ["dev", "build", "start"],
     worker: ["dev", "build", "start"],
@@ -61,6 +63,7 @@ export const REQUIRED_PACKAGE_SCRIPTS = {
     frontend: ["dev", "build"],
     library: ["dev", "build"],
     sdk: ["dev", "build"],
+    database: [],
     [BRING_YOUR_OWN_TYPE]: [],
 };
 // Version specifiers that pin nothing at all - a fresh `bun install`/`npm install`

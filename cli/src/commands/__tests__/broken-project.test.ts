@@ -67,7 +67,7 @@ describe("broken project: missing dependency", () => {
     expect(check?.message).toContain('"ghost-service"');
     expect(check?.message).toContain("(from api)");
     // ... and the fix says what to change.
-    expect(check?.fix).toMatch(/"postgres" or "database-management"/);
+    expect(check?.fix).toMatch(/"postgres", "database-management" or a database resource's name/);
     expect(check?.fix).toMatch(/fix the name to match an existing service/);
   }, 150_000);
 });

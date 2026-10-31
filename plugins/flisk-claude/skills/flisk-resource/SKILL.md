@@ -14,7 +14,7 @@ Create services with the CLI so each one gets a valid `service.json` and the rig
 
 ## Workflow
 
-1. Choose the type: `frontend` (website), `backend` (HTTP API), `worker` (background jobs), `agent` (its own `/health`, `/ready`, and `x-session-id` routing), `mcp` (tools server), or `bring-your-own` (an existing Dockerfile with `--dockerfile`, or an image with `--image`).
+1. Choose the type: `frontend` (website), `backend` (HTTP API), `worker` (background jobs), `agent` (its own `/health`, `/ready`, and `x-session-id` routing), `mcp` (tools server), `database` (the project's Postgres: a `service.json` only, which services name in `dependsOn`), or `bring-your-own` (an existing Dockerfile with `--dockerfile`, or an image with `--image`).
 2. Create it: `flisk resource <name> --type <type> --stack <stack>`. Use `--language <id>` only when the user names a language (`bun` is the default).
 3. For an existing service, use `--register-existing` instead of generating templates.
 4. Check the result with `flisk doctor` and read the new `service.json`.

@@ -131,6 +131,36 @@
     },
     {
       "if": {
+        "properties": {
+          "appType": {
+            "const": "database"
+          }
+        },
+        "required": [
+          "appType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "framework": {
+            "const": "postgres"
+          }
+        },
+        "required": [
+          "framework"
+        ],
+        "not": {
+          "anyOf": [
+            { "required": ["port"] },
+            { "required": ["command"] },
+            { "required": ["image"] },
+            { "required": ["dockerfile"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
         "required": [
           "command"
         ]
@@ -199,7 +229,7 @@
       "type": "string"
     },
     "appType": {
-      "description": "Resource type determining build strategy:\n• backend - Hono/Express API server\n• frontend - Vite single-page application (React, Vue, Svelte, Preact, Lit, Solid, Qwik or Vanilla TypeScript, see framework)\n• sdk - Shared library package\n• worker - Background job processor\n• migrator - Database migration runner\n• library - Shared code library\n• mcp - Model Context Protocol server (an HTTP service on Bun, run like a backend)\n• agent - Long-running AI agent (a Bun HTTP service with /health and /ready, run like a backend; see agent)\n• bring-your-own - Wrap an existing service. No app scaffold. Needs Dockerfile or --image.",
+      "description": "Resource type determining build strategy:\n• backend - Hono/Express API server\n• frontend - Vite single-page application (React, Vue, Svelte, Preact, Lit, Solid, Qwik or Vanilla TypeScript, see framework)\n• sdk - Shared library package\n• worker - Background job processor\n• migrator - Database migration runner\n• library - Shared code library\n• mcp - Model Context Protocol server (an HTTP service on Bun, run like a backend)\n• agent - Long-running AI agent (a Bun HTTP service with /health and /ready, run like a backend; see agent)\n• database - The project's database, declared as a resource (framework: postgres). Services list its appName in dependsOn. No port, command or image.\n• bring-your-own - Wrap an existing service. No app scaffold. Needs Dockerfile or --image.",
       "enum": [
         "backend",
         "frontend",
@@ -209,6 +239,7 @@
         "library",
         "mcp",
         "agent",
+        "database",
         "bring-your-own"
       ],
       "type": "string"
@@ -385,7 +416,7 @@
       "uniqueItems": true
     },
     "framework": {
-      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
+      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). For a database resource it names the database: postgres. Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
       "examples": [
         "react",
         "vue",
@@ -626,6 +657,7 @@
         "library",
         "mcp",
         "agent",
+        "database",
         "bring-your-own"
       ],
       "type": "string"

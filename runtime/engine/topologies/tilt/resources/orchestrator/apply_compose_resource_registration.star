@@ -24,6 +24,7 @@ load('../infra-loader.star', 'Infra')
 load('../shared-platform-postgres.star',
      _shared_postgres_names = 'SHARED_POSTGRES_DEPENDENCY_NAMES',
      _is_shared_platform_postgres_dependency = 'is_shared_platform_postgres_dependency',
+     _is_database_manifest = 'is_database_manifest',
      _manifest_needs_shared_platform_postgres = 'manifest_needs_shared_platform_postgres')
 
 load('./builders/typescript.star', 'TypescriptBuilders')
@@ -38,9 +39,31 @@ def is_shared_platform_postgres_dependency(name):
     return _is_shared_platform_postgres_dependency(name)
 
 
-def manifest_needs_shared_platform_postgres(manifest):
-    """True when a manifest's dependsOn lists postgres or database-management."""
-    return _manifest_needs_shared_platform_postgres(manifest)
+def manifest_needs_shared_platform_postgres(manifest, database_names=None):
+    """True when a manifest is a database resource, or its dependsOn lists postgres, database-management or a database resource."""
+    return _manifest_needs_shared_platform_postgres(manifest, database_names)
+
+
+def _is_database_resource(name, all_services_map):
+    """True when `name` is the appName of a discovered `database` resource (the project's Postgres, declared in a service.json)."""
+    service = (all_services_map or {}).get(name)
+    if not service:
+        return False
+    for res in service.get('resources', []):
+        if res.get('name', '') == name and _is_database_manifest(res.get('_manifest', {}) or {}):
+            return True
+    return False
+
+
+def database_resource_names(all_services_map):
+    """The appNames of every discovered `database` resource."""
+    names = []
+    for svc in (all_services_map or {}).values():
+        for res in svc.get('resources', []):
+            name = res.get('name', '')
+            if name and name not in names and _is_database_manifest(res.get('_manifest', {}) or {}):
+                names.append(name)
+    return names
 
 
 def selected_for_shared_platform_postgres(name, ctx):
@@ -104,7 +127,7 @@ def _stack_uses_golden_image(resource_config, resource_manifests):
     """
     for resource in resource_config.get('resources', []):
         app_type = resource_manifests.get(resource['name'], {}).get('appType', 'backend')
-        if app_type not in ['bring-your-own', 'library', 'sdk', 'infra']:
+        if app_type not in ['bring-your-own', 'library', 'sdk', 'infra', 'database']:
             return True
     return False
 
@@ -140,7 +163,7 @@ def _resolve_dependency_to_resource(dep_name, all_services_map):
     NOT fall through to `postgres-yaml` or any other name.
     """
     # Shared platform Postgres: exact names only (typos stay on the normal path).
-    if is_shared_platform_postgres_dependency(dep_name):
+    if is_shared_platform_postgres_dependency(dep_name) or _is_database_resource(dep_name, all_services_map):
         return 'postgres'
 
     # Check if already a full YAML resource name
@@ -178,7 +201,7 @@ def _resolve_dependency_to_resource(dep_name, all_services_map):
 
 # App types the registration loop skips (see register_compose_resources): they get no Tilt resource, so nothing can wait for them
 # and their own dependsOn never reaches the graph.
-_UNREGISTERED_APP_TYPES = ['library', 'sdk', 'infra']
+_UNREGISTERED_APP_TYPES = ['library', 'sdk', 'infra', 'database']
 
 
 def _is_registered_resource(res):
@@ -216,13 +239,13 @@ def _is_known_resource(name, all_services_map):
 def _resolve_dependency_to_resources(dep_name, all_services_map):
     """Resolve one dependsOn entry to the Tilt resources it makes a service wait for.
 
-    - the shared platform Postgres names -> `postgres`
+    - the shared platform Postgres names, and the appName of a `database` resource -> `postgres`
     - a resource (service) name -> that resource
     - a stack name -> every backend-side resource of that stack. Frontends are left out, as in the `--focus` closure
       (get_all_needed_services), so a service that depends on a stack never waits for the stack's UI.
     - anything else -> [] (a typo; `flisk up` and `flisk config verify` name it)
     """
-    if is_shared_platform_postgres_dependency(dep_name):
+    if is_shared_platform_postgres_dependency(dep_name) or _is_database_resource(dep_name, all_services_map):
         return ['postgres']
     all_services_map = all_services_map or {}
     if _is_known_resource(dep_name, all_services_map):
@@ -949,7 +972,7 @@ def count_routable_backends_by_stack(resource_config, resource_manifests, defaul
     for resource in resource_config.get('resources', []):
         manifest = resource_manifests.get(resource['name'], {})
         app_type = manifest.get('appType', 'backend')
-        if resource.get('frontend', False) or app_type in ['frontend', 'worker', 'migrator', 'library', 'sdk', 'infra']:
+        if resource.get('frontend', False) or app_type in ['frontend', 'worker', 'migrator', 'library', 'sdk', 'infra', 'database']:
             continue
         if app_type == 'bring-your-own' and not manifest.get('exposeViaProxy', True):
             continue
@@ -998,19 +1021,20 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
     # Selection-bound shared platform Postgres start signal.
     # Only enabled resources in THIS stack are evaluated. Registration sees
     # unselected siblings before Tilt's enabled-resource filter runs.
-    # When database-management is off and any selected resource's
-    # manifest depends on postgres/database-management, force-start the shared
+    # When database-management is off and any selected resource is a `database`
+    # resource or depends on postgres/database-management/a database resource, force-start the shared
     # platform Postgres via the existing infra loader (materializes
     # services/platform/database-management/docker-compose.yml + registers the
     # existing `postgres` Tilt resource). Does NOT open migrators/provision-db/Prisma.
     # Idempotent across services: force_start_shared_platform_postgres_once
     # guards on ctx so two selected dependents do not register postgres twice.
     if not should_enable('database-management'):
+        database_names = database_resource_names(all_services_map)
         for res in resource_config.get('resources', []):
             if not selected_for_shared_platform_postgres(res.get('name', ''), ctx):
                 continue
             res_manifest = resource_manifests.get(res['name'], {})
-            if manifest_needs_shared_platform_postgres(res_manifest):
+            if manifest_needs_shared_platform_postgres(res_manifest, database_names):
                 debug_log("COMPOSE: selected '{}' dependsOn shared platform Postgres; force-starting postgres".format(res.get('name', '')))
                 force_start_shared_platform_postgres_once(ctx, should_enable, res.get('name', ''))
                 break
@@ -1034,7 +1058,8 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
         # infra (e.g. verdaccio) is loaded via registries/verdaccio_loader.star instead.
         # Building verdaccio as a backend produced broken COPY paths and missing package.json.
         app_type = manifest.get('appType', 'backend')
-        if app_type in ['library', 'sdk', 'infra']:
+        # A `database` resource is the shared platform Postgres (registered by the infra loader as `postgres`), not a container of its own.
+        if app_type in ['library', 'sdk', 'infra', 'database']:
             debug_log("COMPOSE: Skipping '{}' appType='{}' (not an app container)".format(res.get('name', ''), app_type))
             continue
         

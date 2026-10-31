@@ -9,7 +9,7 @@ export interface DiscoveredResource {
     port?: number;
     type?: ResourceType;
 }
-export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "bring-your-own"];
+export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "database", "bring-your-own"];
 export interface HealthCheckObjectConfig {
     enabled?: boolean;
     interval?: number;
@@ -118,22 +118,29 @@ export interface FileGenerationTask {
     description: string;
     emoji: string;
 }
-export type ResourceType = "frontend" | "backend" | "library" | "sdk" | "worker" | "migrator" | "mcp" | "agent" | "bring-your-own";
+export type ResourceType = "frontend" | "backend" | "library" | "sdk" | "worker" | "migrator" | "mcp" | "agent" | "database" | "bring-your-own";
 export declare const CREATABLE_RESOURCE_TYPES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own"];
 /**
- * Every value `flisk resource --type` accepts: the creatable types plus `sdk`, which registers a
- * package that already exists instead of scaffolding one.
+ * `--type database`: the project's database, declared in a service.json (`framework: postgres`). It has
+ * no code, port or image of its own: services list its name in `dependsOn` and get `DATABASE_URL`.
  */
-export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "sdk"];
+export declare const DATABASE_RESOURCE_TYPE = "database";
+/** The one database a `database` resource can name today. */
+export declare const DATABASE_FRAMEWORK = "postgres";
+/**
+ * Every value `flisk resource --type` accepts: the creatable types, `database`, and `sdk`, which
+ * registers a package that already exists instead of scaffolding one.
+ */
+export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "database", "sdk"];
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export declare const INFERENCE_RESOURCE_TYPE = "inference";
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
- * the `inference` preset. `sdk` is left out because it only registers a package that already has a
- * service.json, and the `byo` alias because `bring-your-own` is listed. The MCP `resource_create`
- * tool builds its type enum from this list.
+ * the `inference` preset and `database`. `sdk` is left out because it only registers a package that
+ * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
+ * `resource_create` tool builds its type enum from this list.
  */
-export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference"];
+export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference", "database"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";

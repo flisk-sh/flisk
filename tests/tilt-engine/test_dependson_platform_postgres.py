@@ -451,7 +451,8 @@ def test_source_orchestrator_calls_force_start_for_selected_dependson():
 def test_source_resolution_special_case_before_yaml_fallthrough():
     source = ORCHESTRATOR.read_text()
     resolve_idx = source.find("def _resolve_dependency_to_resource(")
-    special_idx = source.find("if is_shared_platform_postgres_dependency(dep_name):")
+    # The alias check (now also matching a `database` resource name, #2863) must come before the -yaml fallthrough.
+    special_idx = source.find("if is_shared_platform_postgres_dependency(dep_name)", resolve_idx)
     yaml_fallthrough = source.find("return dep_name + '-yaml'", resolve_idx)
     assert resolve_idx != -1 and special_idx != -1 and yaml_fallthrough != -1
     assert resolve_idx < special_idx < yaml_fallthrough

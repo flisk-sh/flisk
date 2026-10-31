@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- New resource type `database` (#2863): `flisk resource shop-db --type database` writes a `service.json` with `"appType": "database"` and `"framework": "postgres"` for the project's Postgres, so it shows up next to the services and they wait for it by name (`"dependsOn": ["shop-db"]`) instead of the magic name `postgres`. It is the same shared Postgres with one database per stack, and declaring it starts Postgres even with the database capability off. `postgres` and `database-management` in `dependsOn` keep working.
+
 ## 1.4.23 (2026-10-31)
 
 - `npx @flisk-sh/flisk demo` no longer needs Docker. When Docker is not installed or not running, Compose or Tilt is missing, on native Windows, or with `--no-docker`, it writes a two-service menu app (an API and a website) to `~/.flisk/flisk-demo-native`, starts it as local processes on free ports and opens it, in about a second. With Docker and Tilt ready it still starts the full restaurant demo. A second run while it is up reopens it; `flisk down` stops it.
