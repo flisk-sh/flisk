@@ -17,6 +17,7 @@ import {
   buildForwardedImportArgs,
   checkCoreVersion,
   compareSemver,
+  composeCommand,
   IMPORT_PACKAGE,
   importCommand,
   importFailure,
@@ -170,6 +171,25 @@ describe("flisk import", () => {
         "--force",
       ]);
     });
+
+    it("strips the compose subcommand keyword from forwarded positional arguments", () => {
+      expect(buildForwardedImportArgs(["compose", "./services"])).toEqual(["./services"]);
+      expect(buildForwardedImportArgs(["compose", "./services"], { dryRun: true })).toEqual([
+        "./services",
+        "--dry-run",
+      ]);
+      expect(
+        buildForwardedImportArgs(["compose", "./services"], { yes: true, force: true }),
+      ).toEqual(["./services", "--yes", "--force"]);
+      expect(buildForwardedImportArgs(["compose"])).toEqual([]);
+      expect(buildForwardedImportArgs(["compose"], { dryRun: true })).toEqual(["--dry-run"]);
+      expect(buildForwardedImportArgs(["compose", "-y", "-f", "./services"])).toEqual([
+        "./services",
+        "--yes",
+        "--force",
+      ]);
+      expect(buildForwardedImportArgs(["compose", "./compose"])).toEqual(["./compose"]);
+    });
   });
 
   describe("importCommand CLI argument parsing and execution", () => {
@@ -181,11 +201,32 @@ describe("flisk import", () => {
       { commandArgs: ["-y", ".", "-f"], expectedForwarded: [".", "--yes", "--force"] },
       { commandArgs: [".", "-y", "-f"], expectedForwarded: [".", "--yes", "--force"] },
       { commandArgs: ["--force", "--yes", "."], expectedForwarded: [".", "--yes", "--force"] },
+      { commandArgs: ["compose", "."], expectedForwarded: ["."] },
+      { commandArgs: ["compose", "./services"], expectedForwarded: ["./services"] },
+      { commandArgs: ["compose", "--yes", "."], expectedForwarded: [".", "--yes"] },
+      { commandArgs: ["compose", ".", "-y"], expectedForwarded: [".", "--yes"] },
+      { commandArgs: ["compose", "--force", "."], expectedForwarded: [".", "--force"] },
+      { commandArgs: ["compose", ".", "-f"], expectedForwarded: [".", "--force"] },
+      { commandArgs: ["compose", "-y", ".", "-f"], expectedForwarded: [".", "--yes", "--force"] },
+      { commandArgs: ["compose", "--dry-run"], expectedForwarded: ["--dry-run"] },
+      {
+        commandArgs: ["compose", "./services", "--dry-run"],
+        expectedForwarded: ["./services", "--dry-run"],
+      },
+      {
+        commandArgs: ["--dry-run", "compose", "./services"],
+        expectedForwarded: ["./services", "--dry-run"],
+      },
+      { commandArgs: ["compose"], expectedForwarded: [] },
     ])(
       "normalizes flags regardless of position or alias for $commandArgs",
       async ({ commandArgs, expectedForwarded }) => {
         importCommand.setOptionValue("yes", false);
         importCommand.setOptionValue("force", false);
+        importCommand.setOptionValue("dryRun", false);
+        composeCommand.setOptionValue("yes", false);
+        composeCommand.setOptionValue("force", false);
+        composeCommand.setOptionValue("dryRun", false);
 
         const { calls, spawnFn } = fakeSpawn({ code: 0 });
         mocks.spawn.mockImplementation(spawnFn);
@@ -203,6 +244,73 @@ describe("flisk import", () => {
         }
       },
     );
+  });
+
+  describe("flisk import compose subcommand", () => {
+    it("registers compose as a subcommand of import", () => {
+      const sub = importCommand.commands.find((c) => c.name() === "compose");
+      expect(sub).toBeDefined();
+      expect(sub).toBe(composeCommand);
+    });
+
+    it("registers -y/--yes, -f/--force, --dry-run, and --json on compose subcommand", () => {
+      const yesOpt = composeCommand.options.find((o) => o.long === "--yes");
+      expect(yesOpt?.short).toBe("-y");
+      const forceOpt = composeCommand.options.find((o) => o.long === "--force");
+      expect(forceOpt?.short).toBe("-f");
+      expect(composeCommand.options.find((o) => o.long === "--dry-run")).toBeDefined();
+      expect(composeCommand.options.find((o) => o.long === "--json")).toBeDefined();
+    });
+
+    it("leaves --help to flisk-import", () => {
+      expect(composeCommand.options.find((o) => o.long === "--help")).toBeUndefined();
+    });
+
+    it("forwards arguments and dry-run when executed directly through composeCommand", async () => {
+      composeCommand.setOptionValue("yes", false);
+      composeCommand.setOptionValue("force", false);
+      composeCommand.setOptionValue("dryRun", false);
+
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const prevExitCode = process.exitCode;
+
+      try {
+        await composeCommand.parseAsync(["node", "flisk", "compose", "./legacy", "--dry-run"], {
+          from: "node",
+        });
+
+        expect(calls).toHaveLength(1);
+        const spawnedArgs = calls[0]?.[1] as string[];
+        expect(spawnedArgs.slice(2)).toEqual(["./legacy", "--dry-run"]);
+      } finally {
+        mocks.spawn.mockReset();
+        process.exitCode = prevExitCode;
+      }
+    });
+
+    it("forwards empty arguments when executed directly through composeCommand without dir", async () => {
+      composeCommand.setOptionValue("yes", false);
+      composeCommand.setOptionValue("force", false);
+      composeCommand.setOptionValue("dryRun", false);
+
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const prevExitCode = process.exitCode;
+
+      try {
+        await composeCommand.parseAsync(["node", "flisk", "compose"], {
+          from: "node",
+        });
+
+        expect(calls).toHaveLength(1);
+        const spawnedArgs = calls[0]?.[1] as string[];
+        expect(spawnedArgs.slice(2)).toEqual([]);
+      } finally {
+        mocks.spawn.mockReset();
+        process.exitCode = prevExitCode;
+      }
+    });
   });
 
   describe("core version gate", () => {
@@ -493,8 +601,10 @@ describe("flisk import --json", () => {
   describe("the command", () => {
     // In-process runs keep Commander's option values, so each case resets the ones it sets.
     const reset = () => {
-      for (const name of ["yes", "force", "dryRun", "json"])
+      for (const name of ["yes", "force", "dryRun", "json"]) {
         importCommand.setOptionValue(name, false);
+        composeCommand.setOptionValue(name, false);
+      }
     };
 
     it("prints one envelope with what the importer wrote and implies --yes", async () => {
@@ -554,6 +664,68 @@ describe("flisk import --json", () => {
               ],
             },
           ],
+        });
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
+    });
+
+    it("prints JSON envelope when running compose subcommand with --json", async () => {
+      reset();
+      const { calls, spawnFn } = fakeCapturedSpawn({ code: 0, stdout: IMPORTER_OUTPUT });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["compose", "./legacy", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBeUndefined();
+        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["./legacy", "--yes"]);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: {
+            dir: "./legacy",
+            dryRun: false,
+            force: false,
+            written: ["services/legacy/api/service.json", "services/legacy/worker/service.json"],
+            output: IMPORTER_OUTPUT.trim(),
+          },
+          errors: [],
+        });
+        expect(result.stderr).toContain("Wrote 2 service.json file(s).");
+      } finally {
+        mocks.spawn.mockReset();
+        reset();
+      }
+    });
+
+    it("prints JSON envelope for compose --dry-run --json without dir argument", async () => {
+      reset();
+      const { calls, spawnFn } = fakeCapturedSpawn({
+        code: 0,
+        stdout: "Dry run: nothing written.",
+      });
+      mocks.spawn.mockImplementation(spawnFn);
+      try {
+        const result = await runCommandInProcess(
+          importCommand,
+          ["compose", "--dry-run", "--json"],
+          createTempDir(),
+        );
+        expect(result.status).toBeUndefined();
+        expect((calls[0]?.[1] as string[] | undefined)?.slice(2)).toEqual(["--dry-run", "--yes"]);
+        expect(JSON.parse(result.stdout)).toEqual({
+          schemaVersion: 1,
+          data: {
+            dir: ".",
+            dryRun: true,
+            force: false,
+            written: [],
+            output: "Dry run: nothing written.",
+          },
+          errors: [],
         });
       } finally {
         mocks.spawn.mockReset();
