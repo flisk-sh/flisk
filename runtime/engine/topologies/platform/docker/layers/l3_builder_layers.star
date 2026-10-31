@@ -219,7 +219,7 @@ def L3_generate_production_purger(res_path, use_golden = True):
         # The --mount=type=cache below already shares the same warmed /cache/bun
         # cache across stages via its target+sharing=shared, with no COPY needed.
         # sharing=shared allows parallel builds without lock contention (Bun cache is atomic)
-        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared bun install --production --cache-dir=/cache/bun\n"
+        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared n=0 && until timeout 150 bun install --production --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
         + "# Option 2: Aggressive node_modules pruning to reduce size\n"
         + "# NOTE: Keep .d.ts files - they are needed for Bun module resolution with subpath exports\n"
         + "RUN find node_modules -type f \\( -name '*.md' -o -name '*.ts' ! -name '*.d.ts' -o -name '*.map' -o -name '*.test.js' -o -name '*.spec.js' -o -name 'README*' -o -name 'CHANGELOG*' -o -name 'LICENSE*' \\) -delete\n"

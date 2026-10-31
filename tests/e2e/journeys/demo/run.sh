@@ -67,14 +67,20 @@ D3() { # a frontend the second run printed answers
   local urls url form code tried=""
   urls="$(grep -aoE 'https?://[A-Za-z0-9._-]+(:[0-9]+)?/[A-Za-z0-9._/-]*' "$OUT/demo-second.out" | grep -vE ':1035[0-9]' | sort -u)"
   [ -n "$urls" ] || { tail -40 "$OUT/demo-second.out"; die "the second demo printed no frontend URL"; }
-  for url in $urls; do
-    for form in "$url" "${url%/}/" "${url%/}/health"; do
-      code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$form" || true)"
-      tried="$tried $form=$code"
-      case "$code" in
-        2??) echo "$form answered $code"; return 0 ;;
-      esac
+  # Traefik can lag the container becoming healthy by a few seconds (a 404 until its router loads), so retry for up to a minute.
+  local attempt
+  for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    tried=""
+    for url in $urls; do
+      for form in "$url" "${url%/}/" "${url%/}/health"; do
+        code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$form" || true)"
+        tried="$tried $form=$code"
+        case "$code" in
+          2??) echo "$form answered $code"; return 0 ;;
+        esac
+      done
     done
+    sleep 5
   done
   die "no demo URL answered 2xx:$tried"
 }
