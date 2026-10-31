@@ -151,6 +151,8 @@ describe.concurrent("flisk resource --type mcp", () => {
     expect(index).toContain("registerPrompt");
     expect(index).toContain("readOnlyHint: true");
     expect(index).toContain("path === '/icon-512.png'");
+    expect(index).toContain("icons: [{ src: '/icon-512.png'");
+    expect(index).toContain("if (isEntryPoint()) {");
 
     // The placeholder test is replaced by a protocol test that speaks JSON-RPC to the server.
     const test = readFileSync(join(dir("docs-mcp"), "tests", "docs-mcp.test.ts"), "utf-8");

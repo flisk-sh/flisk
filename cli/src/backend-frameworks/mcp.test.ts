@@ -1,5 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { crc32, inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { portFromEnv } from "../utils/generated-port.js";
@@ -28,7 +32,7 @@ describe("getMcpIndexTemplate", () => {
   const index = getMcpIndexTemplate("docs-mcp");
 
   it("names the service in the server, health response and startup log", () => {
-    expect(index).toContain("new McpServer({ name: 'docs-mcp', version: '1.0.0' })");
+    expect(index).toContain("new McpServer({\n    name: 'docs-mcp',\n    version: '1.0.0',");
     expect(index).toContain("{ status: 'ok', service: 'docs-mcp' }");
     expect(index).toContain("docs-mcp MCP server on http://localhost:");
   });
@@ -104,15 +108,49 @@ describe("getMcpIndexTemplate", () => {
     expect(index).toContain("server.close();");
   });
 
-  it("binds beyond loopback on the injected port, except under vitest", () => {
+  it("binds beyond loopback on the injected port, only when run as the entry point", () => {
     expect(index).toContain(portFromEnv());
-    expect(index).toContain("if (!process.env.VITEST) {");
-    expect(index).toContain("httpServer.listen(port, '0.0.0.0'");
+    expect(index).not.toContain("VITEST");
+    expect(index.match(/httpServer\.listen\(/g)).toHaveLength(1);
+    const guard = index.indexOf("if (isEntryPoint()) {");
+    expect(guard).toBeGreaterThan(-1);
+    expect(index.indexOf("httpServer.listen(port, '0.0.0.0'")).toBeGreaterThan(guard);
+    expect(index).toContain("imported as a module, not listening");
   });
 
-  it("exports the HTTP server and the server factory for the protocol test", () => {
+  it("listens when run directly and not when imported", () => {
+    const start = index.indexOf("function isEntryPoint()");
+    const end = index.indexOf("\n}\n", start) + 3;
+    const dir = mkdtempSync(join(tmpdir(), "mcp-entry-"));
+    try {
+      writeFileSync(
+        join(dir, "entry.mjs"),
+        "import { realpathSync } from 'node:fs';\nimport { fileURLToPath } from 'node:url';\n" +
+          index.slice(start, end) +
+          "\nconsole.log('entry=' + isEntryPoint());\n",
+      );
+      writeFileSync(join(dir, "importer.mjs"), "await import('./entry.mjs');\n");
+      expect(
+        execFileSync(process.execPath, [join(dir, "entry.mjs")], { encoding: "utf8" }),
+      ).toContain("entry=true");
+      expect(
+        execFileSync(process.execPath, [join(dir, "importer.mjs")], { encoding: "utf8" }),
+      ).toContain("entry=false");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("advertises the icon in serverInfo.icons", () => {
+    expect(index).toContain(
+      "icons: [{ src: '/icon-512.png', mimeType: 'image/png', sizes: ['512x512'] }]",
+    );
+  });
+
+  it("exports the HTTP server for the protocol test and keeps the server factory private", () => {
     expect(index).toContain("export const httpServer = createServer(");
-    expect(index).toContain("export function buildServer()");
+    expect(index).toContain("\nfunction buildServer()");
+    expect(index).not.toContain("export function buildServer");
   });
 });
 
@@ -123,6 +161,10 @@ describe("getMcpTestTemplate", () => {
     expect(test).toContain("import { httpServer } from '../src/index';");
     expect(test).toContain("httpServer.listen(0, '127.0.0.1', resolve)");
     expect(test).toContain("httpServer.close(");
+  });
+
+  it("checks the advertised icon in the initialize result", () => {
+    expect(test).toContain("expect(result.serverInfo.icons).toEqual(");
   });
 
   it("calls initialize, tools/list, prompts/list and one tools/call over /mcp", () => {
