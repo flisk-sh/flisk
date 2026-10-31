@@ -802,9 +802,9 @@ export const upCommand = new Command("up")
         }
 
         // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
+        // Tilt fail on a missing Tiltfile.
         const configOverrides =
           options.gateway === false ? { capabilities: { gateway: false } } : undefined;
-        // Tilt fail on a missing Tiltfile.
         if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
           if (!options.quiet) {
             console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));

@@ -5,8 +5,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { DiscoveredResource, HostPortPlan, ProjectConfig } from "../../types/index.js";
 import { TemplateEngine } from "../../generator/template-engine.js";
+import type { DiscoveredResource, HostPortPlan, ProjectConfig } from "../../types/index.js";
 import { runColdPreflight } from "../cold-preflight.js";
 import { createDoctorReport } from "../doctor-report.js";
 import { checkIngressPorts } from "../doctor-runtime.js";
@@ -14,7 +14,6 @@ import {
   getEnabledCapabilities,
   getSharedInfrastructureItems,
   getSharedInfrastructureList,
-  isCapabilityEnabled,
   isGatewayEnabled,
 } from "../shared-infra.js";
 import { buildServicePorts, buildStackPorts } from "../status-ports.js";
@@ -30,11 +29,7 @@ function makeTempProject(config: Partial<ProjectConfig>): { root: string; cleanu
   };
 }
 
-const mockResource = (
-  name: string,
-  appType: string,
-  port?: number,
-): DiscoveredResource =>
+const mockResource = (name: string, appType: string, port?: number): DiscoveredResource =>
   ({
     name,
     path: "",

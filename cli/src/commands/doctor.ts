@@ -48,7 +48,6 @@ import {
   type DoctorError,
   getDoctorExitCode,
 } from "../utils/doctor-report.js";
-import { getEnabledCapabilities, isGatewayEnabled } from "../utils/shared-infra.js";
 import {
   checkHealthRoutes,
   checkIngressPorts,
@@ -104,6 +103,7 @@ import {
   pingHealthTargets,
 } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
+import { getEnabledCapabilities } from "../utils/shared-infra.js";
 import {
   buildSmokePlans,
   readOnlySmokePlans,

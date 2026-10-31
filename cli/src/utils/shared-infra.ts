@@ -3,8 +3,13 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities, ProjectConfig } from "../types/index.js";
 import { DEFAULT_CAPABILITIES } from "../config/platform-standards.js";
+import type {
+  DiscoveredResource,
+  DiscoveredStack,
+  ProjectCapabilities,
+  ProjectConfig,
+} from "../types/index.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
 
@@ -61,7 +66,10 @@ export type CapabilityConfigInput =
 export function readProjectCapabilities(projectRoot: string): ProjectCapabilities | null {
   try {
     const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-    return parsed && typeof parsed === "object" && parsed.capabilities && typeof parsed.capabilities === "object"
+    return parsed &&
+      typeof parsed === "object" &&
+      parsed.capabilities &&
+      typeof parsed.capabilities === "object"
       ? (parsed.capabilities as ProjectCapabilities)
       : null;
   } catch {
@@ -82,8 +90,9 @@ export function isCapabilityEnabled(
   }
   if (typeof configOrOptions === "string") {
     const fileCaps = readProjectCapabilities(configOrOptions);
-    if (fileCaps && typeof fileCaps[capabilityName] === "boolean") {
-      return fileCaps[capabilityName]!;
+    const fileValue = fileCaps?.[capabilityName];
+    if (typeof fileValue === "boolean") {
+      return fileValue;
     }
     return true;
   }
@@ -93,8 +102,9 @@ export function isCapabilityEnabled(
       return direct;
     }
     const caps = (configOrOptions as { capabilities?: ProjectCapabilities }).capabilities;
-    if (caps && typeof caps === "object" && typeof caps[capabilityName] === "boolean") {
-      return caps[capabilityName]!;
+    const capValue = caps && typeof caps === "object" ? caps[capabilityName] : undefined;
+    if (typeof capValue === "boolean") {
+      return capValue;
     }
   }
   return true;
@@ -124,10 +134,14 @@ export function getEnabledCapabilities(configOrOptions?: CapabilityConfigInput):
       }
     }
   } else if (typeof configOrOptions === "object" && configOrOptions !== null) {
-    const caps = (configOrOptions as { capabilities?: ProjectCapabilities }).capabilities ?? configOrOptions;
+    const caps =
+      (configOrOptions as { capabilities?: ProjectCapabilities }).capabilities ?? configOrOptions;
     if (typeof caps === "object" && caps !== null) {
       for (const k of Object.keys(caps)) {
-        if (!standardKeys.includes(k) && typeof (caps as Record<string, unknown>)[k] === "boolean") {
+        if (
+          !standardKeys.includes(k) &&
+          typeof (caps as Record<string, unknown>)[k] === "boolean"
+        ) {
           extraKeys.push(k);
         }
       }
@@ -156,7 +170,9 @@ export function getSharedInfrastructureList(configOrOptions?: CapabilityConfigIn
 /**
  * Returns detailed shared infrastructure items based on enabled capabilities.
  */
-export function getSharedInfrastructureItems(configOrOptions?: CapabilityConfigInput): SharedInfraItem[] {
+export function getSharedInfrastructureItems(
+  configOrOptions?: CapabilityConfigInput,
+): SharedInfraItem[] {
   const list = getSharedInfrastructureList(configOrOptions);
   return list
     .map((name) => (SHARED_INFRA_SERVICES as Record<string, SharedInfraItem>)[name])

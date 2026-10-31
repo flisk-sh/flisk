@@ -23,7 +23,10 @@ export const SHARED_INFRA_SERVICES = {
 export function readProjectCapabilities(projectRoot) {
     try {
         const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        return parsed && typeof parsed === "object" && parsed.capabilities && typeof parsed.capabilities === "object"
+        return parsed &&
+            typeof parsed === "object" &&
+            parsed.capabilities &&
+            typeof parsed.capabilities === "object"
             ? parsed.capabilities
             : null;
     }
@@ -41,8 +44,9 @@ export function isCapabilityEnabled(configOrOptions, capabilityName) {
     }
     if (typeof configOrOptions === "string") {
         const fileCaps = readProjectCapabilities(configOrOptions);
-        if (fileCaps && typeof fileCaps[capabilityName] === "boolean") {
-            return fileCaps[capabilityName];
+        const fileValue = fileCaps?.[capabilityName];
+        if (typeof fileValue === "boolean") {
+            return fileValue;
         }
         return true;
     }
@@ -52,8 +56,9 @@ export function isCapabilityEnabled(configOrOptions, capabilityName) {
             return direct;
         }
         const caps = configOrOptions.capabilities;
-        if (caps && typeof caps === "object" && typeof caps[capabilityName] === "boolean") {
-            return caps[capabilityName];
+        const capValue = caps && typeof caps === "object" ? caps[capabilityName] : undefined;
+        if (typeof capValue === "boolean") {
+            return capValue;
         }
     }
     return true;
@@ -84,7 +89,8 @@ export function getEnabledCapabilities(configOrOptions) {
         const caps = configOrOptions.capabilities ?? configOrOptions;
         if (typeof caps === "object" && caps !== null) {
             for (const k of Object.keys(caps)) {
-                if (!standardKeys.includes(k) && typeof caps[k] === "boolean") {
+                if (!standardKeys.includes(k) &&
+                    typeof caps[k] === "boolean") {
                     extraKeys.push(k);
                 }
             }

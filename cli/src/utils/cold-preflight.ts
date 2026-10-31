@@ -258,7 +258,8 @@ export async function runColdPreflight(
       : { id: "bun", ok: true, message: "Bun not needed: no generated JS services" },
   );
   // The host port plan places the gateway and Postgres, which only the container runtime starts.
-  if (scope !== "native") items.push(await hostPortsItem(projectRoot ?? cwd, scope, gatewayEnabled));
+  if (scope !== "native")
+    items.push(await hostPortsItem(projectRoot ?? cwd, scope, gatewayEnabled));
 
   // Project wiring (NATS, Prisma database) describes a running stack, so it is
   // only probed for the runtime scope.

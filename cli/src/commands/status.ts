@@ -15,7 +15,12 @@ import { nativeServiceStates } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
-import { getEnabledCapabilities, groupSharedPostgres, isGatewayEnabled, readProjectName } from "../utils/shared-infra.js";
+import {
+  getEnabledCapabilities,
+  groupSharedPostgres,
+  isGatewayEnabled,
+  readProjectName,
+} from "../utils/shared-infra.js";
 import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";

@@ -18,7 +18,6 @@ import { formatFixFirst, rankDoctorFixes } from "../utils/doctor-fix-first.js";
 import { checkDiskSpace, dockerDesktopStuck } from "../utils/doctor-host.js";
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
 import { collectDoctorChecks, createDoctorReport, getDoctorExitCode, } from "../utils/doctor-report.js";
-import { getEnabledCapabilities } from "../utils/shared-infra.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, summarizeAdvertisedProbes, summarizeServiceProbes, summarizeSmokeResults, } from "../utils/doctor-runtime.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
@@ -36,6 +35,7 @@ import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from
 import { checkCircularDependencies, checkDependsOnShape, checkSchemaVersions, checkServicePorts, } from "../utils/service-config-checks.js";
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
+import { getEnabledCapabilities } from "../utils/shared-infra.js";
 import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { findOnPath } from "../utils/which.js";
 import { checkWindowsDockerMode, checkWindowsHostConfiguration, checkWindowsRuntimeTools, } from "../utils/windows-doctor.js";
