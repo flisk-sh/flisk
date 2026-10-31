@@ -6,7 +6,7 @@ import { JsonCommandError } from "../utils/json-command.js";
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export declare const IMPORT_PACKAGE = "flisk-import@0.5.0";
+export declare const IMPORT_PACKAGE = "flisk-import@0.6.0";
 /** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.1 or later), forwarded as its first argument. */
 export declare const TILTFILE_IMPORTER = "tiltfile";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
