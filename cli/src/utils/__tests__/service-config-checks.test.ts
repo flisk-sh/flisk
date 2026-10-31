@@ -13,6 +13,7 @@ import {
   checkServiceFields,
   checkServicePorts,
   checkSidecars,
+  checkVolumes,
   enforceServiceConfigGate,
   warnSchemaVersions,
 } from "../service-config-checks.js";
@@ -644,6 +645,32 @@ describe("checkSidecars", () => {
 
   it("stops flisk up through the config gate", () => {
     service("bgutil", { ...byo, sidecarOf: "missing" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.fn() as never;
+    enforceServiceConfigGate(root, {}, exit);
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("checkVolumes", () => {
+  const byo = { appType: "bring-your-own", image: "example/x:1" };
+
+  it("passes for named volumes and bind mounts inside the project", () => {
+    service("api", {
+      ...byo,
+      volumes: [
+        { source: "data", target: "/data" },
+        { source: "../../../web", target: "/srv/web", readOnly: true },
+      ],
+    });
+    expect(checkVolumes(root).didPass).toBe(true);
+  });
+
+  it("refuses a bind mount that leaves the project and stops flisk up", () => {
+    service("api", { ...byo, volumes: [{ source: "../../../../etc", target: "/host-etc" }] });
+    const result = checkVolumes(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("volumes[0].source: must stay inside the project");
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exit = vi.fn() as never;
     enforceServiceConfigGate(root, {}, exit);

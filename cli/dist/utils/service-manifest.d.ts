@@ -35,6 +35,12 @@ export declare function extraPortsErrors(manifest: Record<string, unknown>, disp
  * engine/.../compose/byo_sidecar.star. Whether the host exists in the same stack is checked across services (checkSidecars).
  */
 export declare function sidecarErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `volumes` (#1748): named volumes and bind mounts for a bring-your-own resource. Mirrors engine/.../compose/byo_volumes.star,
+ * which refuses the same values. A bind mount's `source` is relative to the service directory and must stay inside the project;
+ * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
+ */
+export declare function volumesErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];

@@ -20,6 +20,11 @@ export declare function checkCustomDockerfiles(projectRoot?: string, resources?:
  * the same stack. Otherwise Compose stops with "service ... depends on undefined service", after `flisk up` has said yes.
  */
 export declare function checkSidecars(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+/**
+ * A bind mount in `volumes` (#1748) is relative to its service directory, and one that climbs out of the project would hand a
+ * container files Flisk was never asked to share. The generator refuses it too, after `flisk up` has said yes.
+ */
+export declare function checkVolumes(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export declare function checkServicePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**

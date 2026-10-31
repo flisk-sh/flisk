@@ -62,6 +62,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "toolchain",
     "traefik",
     "type",
+    "volumes",
 ]);
 /**
  * String fields written into the generated Docker Compose, Traefik and NATS config as they are. A newline or YAML syntax in one of
@@ -515,6 +516,69 @@ export function sidecarErrors(manifest, displayPath) {
     }
     return errors;
 }
+/**
+ * `volumes` (#1748): named volumes and bind mounts for a bring-your-own resource. Mirrors engine/.../compose/byo_volumes.star,
+ * which refuses the same values. A bind mount's `source` is relative to the service directory and must stay inside the project;
+ * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
+ */
+export function volumesErrors(manifest, displayPath, serviceDepth) {
+    const volumes = manifest.volumes;
+    if (volumes === undefined || volumes === null)
+        return [];
+    const field = `${displayPath}.volumes`;
+    if (!Array.isArray(volumes))
+        return [`${field}: expected a list such as [{ "source": "data", "target": "/data" }]`];
+    if (manifest.appType !== "bring-your-own") {
+        return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+    }
+    const errors = [];
+    const targets = new Set();
+    volumes.forEach((entry, i) => {
+        const at = `${field}[${i}]`;
+        if (!isPlainObject(entry)) {
+            errors.push(`${at}: expected an object such as { "source": "data", "target": "/data" }`);
+            return;
+        }
+        for (const key of Object.keys(entry)) {
+            if (!["source", "target", "readOnly"].includes(key)) {
+                errors.push(`${at}.${key}: unknown option (use source, target, readOnly)`);
+            }
+        }
+        const { source, target, readOnly } = entry;
+        if (typeof source !== "string" ||
+            !/^([a-z0-9][a-z0-9_-]*|\.{1,2}(\/[A-Za-z0-9_.-]+)*\/?)$/.test(source)) {
+            errors.push(`${at}.source: expected a volume name such as data, or a path starting with ./ such as ./config`);
+        }
+        else if (serviceDepth !== undefined && source.startsWith(".")) {
+            let depth = serviceDepth;
+            for (const segment of source.split("/")) {
+                if (segment === "..")
+                    depth -= 1;
+                else if (segment !== "." && segment !== "")
+                    depth += 1;
+                if (depth < 0)
+                    break;
+            }
+            if (depth < 0)
+                errors.push(`${at}.source: must stay inside the project`);
+        }
+        if (typeof target !== "string" ||
+            !/^\/[A-Za-z0-9_./-]*$/.test(target) ||
+            `${target}/`.includes("/../")) {
+            errors.push(`${at}.target: expected an absolute path in the container such as /data`);
+        }
+        else if (targets.has(target)) {
+            errors.push(`${at}.target: ${target} is mounted twice`);
+        }
+        else {
+            targets.add(target);
+        }
+        if (readOnly !== undefined && typeof readOnly !== "boolean") {
+            errors.push(`${at}.readOnly: expected true or false`);
+        }
+    });
+    return errors;
+}
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export function secretsErrors(manifest, displayPath) {
     const secrets = manifest.secrets;
@@ -738,6 +802,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...containerErrors(manifest, displayPath));
     errors.push(...extraPortsErrors(manifest, displayPath));
     errors.push(...sidecarErrors(manifest, displayPath));
+    errors.push(...volumesErrors(manifest, displayPath));
     errors.push(...healthCheckErrors(manifest, displayPath));
     if ("profiles" in manifest) {
         const profiles = manifest.profiles;
