@@ -41,6 +41,12 @@ export declare function sidecarErrors(manifest: Record<string, unknown>, display
  * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
  */
 export declare function volumesErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
+/**
+ * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
+ * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
+ * engine/.../compose/byo_env.star.
+ */
+export declare function byoEnvErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];

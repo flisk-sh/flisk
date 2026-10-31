@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  byoEnvErrors,
   containerErrors,
   dockerNameErrors,
   extraPortsErrors,
@@ -1010,5 +1011,47 @@ describe("volumesErrors", () => {
       `${file}.volumes[0].source: must stay inside the project`,
     ]);
     expect(volumesErrors(byo([{ source: "../../..", target: "/project" }]), file, 3)).toEqual([]);
+  });
+});
+
+describe("byoEnvErrors", () => {
+  const file = "services/tube/companion/service.json";
+  const byo = (env: unknown) => ({ appType: "bring-your-own", image: "example/x:1", env });
+
+  it("accepts plain values and ${VAR} references, and ignores other resource types", () => {
+    expect(
+      byoEnvErrors(
+        byo({ PROXY: "socks5://tubehaus:1080", URL: "${TUBEHAUS_URL:-http://localhost:8081}" }),
+        file,
+      ),
+    ).toEqual([]);
+    expect(byoEnvErrors({ appType: "backend", env: { A: 1 } }, file)).toEqual([]);
+  });
+
+  it.each([
+    [byo(["A=1"]), "env: expected an object"],
+    [byo({ "1BAD": "x" }), "env.1BAD: names must be letters"],
+    [byo({ A: 1 }), "env.A: expected a string"],
+    [byo({ A: "x\nprivileged: true" }), "env.A: must not contain line breaks"],
+  ])("reports %j", (manifest, message) => {
+    const errors = byoEnvErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("is part of validateServiceManifest for a bring-your-own resource", () => {
+    const result = validateServiceManifest(
+      {
+        appName: "companion",
+        appType: "bring-your-own",
+        stack: "tube",
+        schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+        image: "example/x:1",
+        env: { PROXY: "socks5://tubehaus:1080" },
+      },
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
   });
 });
