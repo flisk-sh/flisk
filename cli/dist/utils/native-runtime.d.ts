@@ -90,6 +90,11 @@ export declare function readNativeRunState(projectRoot: string): NativeRunState 
 /** True while the process exists (a zombie or another user's process counts as existing). */
 export declare function isProcessAlive(pid: number): boolean;
 /**
+ * Signals a service's whole process group (the shell and what it started), falling back to the process alone. On Windows a
+ * kill reaches only the shell (cmd.exe) and leaves the service it started running, so the whole process tree is ended instead.
+ */
+export declare function signalGroup(pid: number, signal: NodeJS.Signals, platform?: NodeJS.Platform, killTree?: (pid: number) => void): void;
+/**
  * Stops the native run recorded for this project: asks the supervising `flisk up` to stop its services, then stops any service
  * process still alive (a supervisor killed with SIGKILL cannot stop them itself). Returns the services that were stopped.
  */
