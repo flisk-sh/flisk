@@ -55,7 +55,7 @@ describe("runMcpCheck", () => {
       "prompts/get explain",
       "unknown method is refused (-32601)",
       "bad JSON is refused (HTTP 400)",
-      "GET is refused (HTTP 405)",
+      "GET is refused (HTTP 405) or opens an event stream",
       "a JSON-only Accept header is served (not 406)",
       "icon-512.png is a PNG",
     ]);
@@ -114,10 +114,52 @@ describe("runMcpCheck", () => {
     });
     expect(failed(report)).toEqual([
       "bad JSON is refused (HTTP 400)",
-      "GET is refused (HTTP 405)",
+      "GET is refused (HTTP 405) or opens an event stream",
       "a JSON-only Accept header is served (not 406)",
       "icon-512.png is a PNG",
     ]);
+  });
+
+  it("fails initialize when the server serves prompts it does not declare", async () => {
+    const report = await check({ isPromptsUndeclared: true });
+    expect(failed(report)).toEqual(["initialize", "prompts/list"]);
+    expect(byName(report, "initialize")?.detail).toContain("does not declare prompts");
+  });
+
+  it("accepts a GET that opens an event stream, without waiting for it to end", async () => {
+    const report = await check({ isGetStream: true });
+    expect(failed(report)).toEqual([]);
+    expect(byName(report, "GET is refused (HTTP 405) or opens an event stream")?.detail).toContain(
+      "text/event-stream",
+    );
+  });
+
+  it("reports a redirect instead of following it, so the session id never leaves", async () => {
+    const elsewhere = await startFakeMcpServer();
+    try {
+      const report = await check({ redirectTo: elsewhere.url });
+      expect(byName(report, "initialize")).toMatchObject({ didPass: false });
+      expect(byName(report, "initialize")?.detail).toContain("redirects to");
+      expect(elsewhere.requests).toEqual([]);
+    } finally {
+      await elsewhere.close();
+    }
+  });
+
+  it("follows local $refs when it builds arguments for --call", async () => {
+    const report = await check({ hasRefTool: true }, { call: true });
+    expect(failed(report)).toEqual([]);
+    const call = server?.requests.find(
+      (r) => r.rpcMethod === "tools/call" && r.params?.name === "search",
+    );
+    expect(call?.params?.arguments).toEqual({ filter: { field: "title", page: 2 } });
+  });
+
+  it("skips, not fails, a tool call refused with invalid params", async () => {
+    const report = await check({ isCallInvalidParams: true }, { call: true });
+    expect(failed(report)).toEqual([]);
+    expect(byName(report, "tools/call lookup")).toMatchObject({ isSkipped: true });
+    expect(byName(report, "tools/call lookup")?.detail).toContain("may not match the schema");
   });
 
   it("skips the icon check with icon: false", async () => {

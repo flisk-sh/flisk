@@ -45,11 +45,14 @@ interface HttpResponse {
   contentType: string;
   body: Buffer;
   sessionId: string | null;
+  /** The Location of a 3xx answer, which is never followed. */
+  location?: string | null;
   error?: string;
 }
 
 interface RpcResponse {
   status: number;
+  location?: string | null;
   message: Record<string, unknown> | null;
   error?: string;
 }
@@ -124,16 +127,35 @@ function sampleNumber(schema: JsonObject, isInteger: boolean): number {
   return isInteger ? Math.ceil(value) : value;
 }
 
+/** The schema a local `$ref` (#/$defs/Name, #/definitions/Name or any other #/ pointer) names inside root, or {} when it names nothing. */
+function resolveRef(ref: string, root: JsonObject): JsonObject {
+  if (!ref.startsWith("#")) return {};
+  let node: unknown = root;
+  for (const raw of ref
+    .slice(1)
+    .split("/")
+    .filter((part) => part !== "")) {
+    const part = decodeURIComponent(raw).replace(/~1/g, "/").replace(/~0/g, "~");
+    node = asObject(node)[part];
+  }
+  return asObject(node);
+}
+
 /** A value that satisfies a JSON Schema in the common cases: the default, an example, the first enum value, or a typed sample. */
-export function sampleValue(schemaInput: unknown, depth = 0): unknown {
-  const schema = asObject(schemaInput);
+export function sampleValue(schemaInput: unknown, depth = 0, rootInput?: unknown): unknown {
+  const root = asObject(rootInput ?? schemaInput);
+  let schema = asObject(schemaInput);
+  // Follow local $refs, a bounded number of times so a cycle cannot loop.
+  for (let hops = 0; typeof schema.$ref === "string" && hops < MAX_SCHEMA_DEPTH; hops += 1) {
+    schema = resolveRef(schema.$ref, root);
+  }
   if ("const" in schema) return schema.const;
   if ("default" in schema) return schema.default;
   if (Array.isArray(schema.examples) && schema.examples.length > 0) return schema.examples[0];
   if (Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0];
   for (const key of ["anyOf", "oneOf", "allOf"] as const) {
     const options = asArray(schema[key]).filter((option) => asObject(option).type !== "null");
-    if (options.length > 0) return sampleValue(options[0], depth);
+    if (options.length > 0) return sampleValue(options[0], depth, root);
   }
   const types = Array.isArray(schema.type) ? schema.type : [schema.type];
   const type = types.find((candidate) => typeof candidate === "string" && candidate !== "null");
@@ -143,23 +165,31 @@ export function sampleValue(schemaInput: unknown, depth = 0): unknown {
   if (type === "array") {
     const count = typeof schema.minItems === "number" ? schema.minItems : 0;
     if (depth >= MAX_SCHEMA_DEPTH) return [];
-    return Array.from({ length: count }, () => sampleValue(schema.items, depth + 1));
+    return Array.from({ length: count }, () => sampleValue(schema.items, depth + 1, root));
   }
   if (type === "object" || "properties" in schema) {
-    return depth >= MAX_SCHEMA_DEPTH ? {} : buildSampleArguments(schema, depth + 1);
+    return depth >= MAX_SCHEMA_DEPTH ? {} : buildSampleArguments(schema, depth + 1, root);
   }
   return "example";
 }
 
 /** Arguments for one tools/call: a sample value for every required property of the tool's inputSchema. */
-export function buildSampleArguments(schemaInput: unknown, depth = 0): JsonObject {
-  const schema = asObject(schemaInput);
+export function buildSampleArguments(
+  schemaInput: unknown,
+  depth = 0,
+  rootInput?: unknown,
+): JsonObject {
+  const root = asObject(rootInput ?? schemaInput);
+  let schema = asObject(schemaInput);
+  for (let hops = 0; typeof schema.$ref === "string" && hops < MAX_SCHEMA_DEPTH; hops += 1) {
+    schema = resolveRef(schema.$ref, root);
+  }
   const properties = asObject(schema.properties);
   const required = asArray(schema.required).filter(
     (name): name is string => typeof name === "string",
   );
   const out: JsonObject = {};
-  for (const name of required) out[name] = sampleValue(properties[name], depth);
+  for (const name of required) out[name] = sampleValue(properties[name], depth, root);
   return out;
 }
 
@@ -209,14 +239,21 @@ class McpProbe {
           method,
           headers,
           body: method === "POST" ? request.body : undefined,
-          redirect: "follow",
+          // A redirect is reported, not followed: following one could leave https or this host and carry the session id.
+          redirect: "manual",
           signal: AbortSignal.timeout(this.options.timeoutMs),
         });
+        const location = response.headers.get("location");
+        const contentType = response.headers.get("content-type") ?? "";
+        // A GET that opens an event stream never ends, so its body is dropped unread.
+        const isOpenStream = method === "GET" && contentType.includes("text/event-stream");
+        if (isOpenStream) await response.body?.cancel();
         return {
           status: response.status,
-          contentType: response.headers.get("content-type") ?? "",
-          body: Buffer.from(await response.arrayBuffer()),
+          contentType,
+          body: isOpenStream ? Buffer.alloc(0) : Buffer.from(await response.arrayBuffer()),
           sessionId: response.headers.get("mcp-session-id"),
+          location: response.status >= 300 && response.status < 400 ? location : null,
         };
       } catch (error) {
         const cause = (error as { cause?: { code?: string; message?: string } }).cause;
@@ -234,6 +271,7 @@ class McpProbe {
     return {
       status: response.status,
       message: parseRpcBody(response.body.toString("utf8")),
+      location: response.location,
       error: response.error,
     };
   }
@@ -243,10 +281,15 @@ class McpProbe {
   }
 }
 
-function statusText(response: { status: number; error?: string }): string {
-  return response.status === 0
-    ? `no answer: ${response.error ?? "network error"}`
-    : `status ${response.status}`;
+function statusText(response: {
+  status: number;
+  error?: string;
+  location?: string | null;
+}): string {
+  if (response.status === 0) return `no answer: ${response.error ?? "network error"}`;
+  if (response.location)
+    return `status ${response.status}, redirects to ${response.location} (not followed)`;
+  return `status ${response.status}`;
 }
 
 export async function runMcpCheck(
@@ -285,6 +328,7 @@ export async function runMcpCheck(
       "tools" in capabilities,
     `${statusText(init)}, server ${typeof serverName === "string" ? serverName : "(none)"}, capabilities [${Object.keys(capabilities).join(", ")}]`,
   );
+  const initCheck = checks[checks.length - 1] as McpCheckResult;
   if (init.status === 0) {
     // Nothing answers at this address, so every other request would only repeat the same network error.
     return finish(url, iconUrl, null, checks);
@@ -322,6 +366,16 @@ export async function runMcpCheck(
       const content = asArray(result.content);
       const text = String(asObject(content[0]).text ?? "");
       const rpcError = call.message?.error;
+      if (asObject(rpcError).code === -32602) {
+        // Invalid params: the sample arguments did not fit the schema, which says more about the sample than the server.
+        skip(
+          `tools/call ${toolNames[index]}`,
+          clip(
+            `arguments may not match the schema: ${JSON.stringify(args)} refused with ${JSON.stringify(rpcError)}`,
+          ),
+        );
+        continue;
+      }
       add(
         `tools/call ${toolNames[index]}`,
         call.status === 200 && !rpcError && result.isError !== true && content.length > 0,
@@ -350,6 +404,11 @@ export async function runMcpCheck(
         ? `no prompts capability; refused with ${JSON.stringify(promptsList.message?.error)}`
         : `no prompts capability; ${statusText(promptsList)}, prompts [${promptNames.join(", ")}]${prompts.length > 0 ? ", but initialize did not declare prompts" : ""}`,
     );
+    if (prompts.length > 0) {
+      // Serving prompts without declaring them is an initialize fault: clients that read capabilities never ask.
+      initCheck.didPass = false;
+      initCheck.detail = clip(`${initCheck.detail}; serves prompts but does not declare prompts`);
+    }
   }
   for (const [index, prompt] of prompts.entries()) {
     const args = buildPromptArguments(prompt.arguments);
@@ -381,7 +440,13 @@ export async function runMcpCheck(
   );
 
   const get = await probe.http(url, { method: "GET", accept: null });
-  add("GET is refused (HTTP 405)", get.status === 405, statusText(get));
+  // Streamable HTTP lets a server either refuse GET or open an SSE stream on it.
+  const isGetStream = get.status === 200 && get.contentType.includes("text/event-stream");
+  add(
+    "GET is refused (HTTP 405) or opens an event stream",
+    get.status === 405 || isGetStream,
+    `${statusText(get)}${get.contentType ? `, ${get.contentType}` : ""}`,
+  );
 
   const jsonOnly = await probe.rpc("tools/list", undefined, { accept: "application/json" });
   add(

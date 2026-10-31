@@ -23,6 +23,16 @@ export interface FakeMcpServerOptions {
   isJsonOnlyRejected?: boolean;
   /** Serve a real PNG at icon-512.png beside the endpoint. Default true. */
   hasIcon?: boolean;
+  /** Serve prompts but leave prompts out of the initialize capabilities. */
+  isPromptsUndeclared?: boolean;
+  /** Answer GET on the endpoint with 200 and an event stream that stays open. */
+  isGetStream?: boolean;
+  /** Answer every POST to the endpoint with a 307 to this URL. */
+  redirectTo?: string;
+  /** Add a tool whose inputSchema reaches its required properties through $ref and $defs. */
+  hasRefTool?: boolean;
+  /** Refuse every tools/call with -32602 invalid params. */
+  isCallInvalidParams?: boolean;
   /** Reset the connection of this many requests before answering normally, to exercise the retries. */
   dropFirstRequests?: number;
 }
@@ -51,6 +61,28 @@ const PNG = Buffer.from(
   "89504e470d0a1a0a0000000d4948445200000001000000010806000000" + "1f15c4890000000049454e44ae426082",
   "hex",
 );
+
+const REF_TOOL = {
+  name: "search",
+  description: "Search with a filter given by reference",
+  inputSchema: {
+    type: "object",
+    $defs: {
+      Filter: {
+        type: "object",
+        properties: {
+          field: { type: "string", enum: ["title", "body"] },
+          page: { $ref: "#/$defs/Page" },
+        },
+        required: ["field", "page"],
+      },
+      Page: { type: "integer", minimum: 2 },
+    },
+    properties: { filter: { $ref: "#/$defs/Filter" } },
+    required: ["filter"],
+  },
+  annotations: { readOnlyHint: true },
+};
 
 const TOOLS = (isReadOnly: boolean) => [
   {
@@ -108,13 +140,22 @@ export async function startFakeMcpServer(
       return {
         result: {
           protocolVersion: "2025-03-26",
-          capabilities: { tools: {}, ...(hasPrompts ? { prompts: {} } : {}) },
+          capabilities: {
+            tools: {},
+            ...(hasPrompts && !options.isPromptsUndeclared ? { prompts: {} } : {}),
+          },
           serverInfo: { name: "fake-mcp", version: "1.0.0" },
         },
       };
     }
-    if (method === "tools/list") return { result: { tools: TOOLS(options.isReadOnly ?? true) } };
+    if (method === "tools/list") {
+      const tools = TOOLS(options.isReadOnly ?? true);
+      return { result: { tools: options.hasRefTool ? [...tools, REF_TOOL] : tools } };
+    }
     if (method === "tools/call") {
+      if (options.isCallInvalidParams) {
+        return { error: { code: -32602, message: "Invalid params" } };
+      }
       return { result: { content: [{ type: "text", text: `called ${String(params.name)}` }] } };
     }
     if (method === "prompts/list") {
@@ -168,6 +209,16 @@ export async function startFakeMcpServer(
     if (path !== endpoint) {
       res.writeHead(404, { "content-type": "application/json" });
       res.end('{"error":"not_found"}');
+      return;
+    }
+    if (req.method === "GET" && options.isGetStream) {
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      res.write(": open\n\n");
+      return;
+    }
+    if (options.redirectTo && req.method === "POST") {
+      res.writeHead(307, { location: options.redirectTo });
+      res.end();
       return;
     }
     if (req.method !== "POST") {

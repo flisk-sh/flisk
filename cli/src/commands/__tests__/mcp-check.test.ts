@@ -127,6 +127,15 @@ describe("flisk mcp check", () => {
     expect(parseEnvelope(insecure.stdout).errors[0]?.message).toContain("needs an https URL");
   }, 30_000);
 
+  it("refuses a resource that is not an MCP server", async () => {
+    const root = createTempProject({
+      stacks: { app: { api: { appType: "backend", port: 4200 } } },
+    });
+    const result = await runFliskAsync(["mcp", "check", "api", "--json"], { cwd: root });
+    expect(result.status).toBe(2);
+    expect(parseEnvelope(result.stdout).errors[0]?.message).toContain("not an MCP server");
+  }, 30_000);
+
   it("is listed under flisk mcp --help", async () => {
     const result = await runFliskAsync(["mcp", "--help"], { cwd: createTempDir() });
     expect(result.status).toBe(0);

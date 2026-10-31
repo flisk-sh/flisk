@@ -44,6 +44,13 @@ async function resolveResourceUrl(name) {
     if (!resource) {
         throw errorFactories.resourceNotFound(name, resources.map((candidate) => candidate.name));
     }
+    const kind = resource.config?.appType ?? resource.type;
+    if (kind !== "mcp") {
+        throw new FliskError(`Resource "${name}" is a ${kind ?? "resource of unknown type"}, not an MCP server`, [
+            "Pass the name of a resource created with `flisk resource <name> --type mcp`",
+            "Or pass the server's https URL instead of a resource name",
+        ], 2);
+    }
     let ingressHttp;
     try {
         ingressHttp = (await getHostPortPlan(projectRoot, { inspectDocker: false })).ingressHttp;

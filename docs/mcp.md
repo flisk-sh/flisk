@@ -53,7 +53,7 @@ flisk mcp check https://mcp.example.com/mcp --json
 ```
 
 It checks `initialize` (a server name and a `tools` capability), `tools/list` (every tool has `readOnlyHint: true`), `prompts/list`
-and one `prompts/get` per prompt, that an unknown method gets `-32601`, a body that is not JSON gets HTTP `400`, `GET` gets `405`,
+and one `prompts/get` per prompt, that an unknown method gets `-32601`, a body that is not JSON gets HTTP `400`, `GET` gets `405` (or opens an event stream),
 a client that accepts only `application/json` does not get `406`, and that `icon-512.png` beside the endpoint is a PNG (`--no-icon`
 skips that). It calls no tool unless you pass `--call`, because a tool call can reach the network; with `--call` it calls each tool
 once with arguments built from its `inputSchema`. A request that fails with a network error is retried twice. The exit code is `1`

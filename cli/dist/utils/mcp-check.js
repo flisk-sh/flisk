@@ -76,9 +76,28 @@ function sampleNumber(schema, isInteger) {
         value = schema.maximum;
     return isInteger ? Math.ceil(value) : value;
 }
+/** The schema a local `$ref` (#/$defs/Name, #/definitions/Name or any other #/ pointer) names inside root, or {} when it names nothing. */
+function resolveRef(ref, root) {
+    if (!ref.startsWith("#"))
+        return {};
+    let node = root;
+    for (const raw of ref
+        .slice(1)
+        .split("/")
+        .filter((part) => part !== "")) {
+        const part = decodeURIComponent(raw).replace(/~1/g, "/").replace(/~0/g, "~");
+        node = asObject(node)[part];
+    }
+    return asObject(node);
+}
 /** A value that satisfies a JSON Schema in the common cases: the default, an example, the first enum value, or a typed sample. */
-export function sampleValue(schemaInput, depth = 0) {
-    const schema = asObject(schemaInput);
+export function sampleValue(schemaInput, depth = 0, rootInput) {
+    const root = asObject(rootInput ?? schemaInput);
+    let schema = asObject(schemaInput);
+    // Follow local $refs, a bounded number of times so a cycle cannot loop.
+    for (let hops = 0; typeof schema.$ref === "string" && hops < MAX_SCHEMA_DEPTH; hops += 1) {
+        schema = resolveRef(schema.$ref, root);
+    }
     if ("const" in schema)
         return schema.const;
     if ("default" in schema)
@@ -90,7 +109,7 @@ export function sampleValue(schemaInput, depth = 0) {
     for (const key of ["anyOf", "oneOf", "allOf"]) {
         const options = asArray(schema[key]).filter((option) => asObject(option).type !== "null");
         if (options.length > 0)
-            return sampleValue(options[0], depth);
+            return sampleValue(options[0], depth, root);
     }
     const types = Array.isArray(schema.type) ? schema.type : [schema.type];
     const type = types.find((candidate) => typeof candidate === "string" && candidate !== "null");
@@ -104,21 +123,25 @@ export function sampleValue(schemaInput, depth = 0) {
         const count = typeof schema.minItems === "number" ? schema.minItems : 0;
         if (depth >= MAX_SCHEMA_DEPTH)
             return [];
-        return Array.from({ length: count }, () => sampleValue(schema.items, depth + 1));
+        return Array.from({ length: count }, () => sampleValue(schema.items, depth + 1, root));
     }
     if (type === "object" || "properties" in schema) {
-        return depth >= MAX_SCHEMA_DEPTH ? {} : buildSampleArguments(schema, depth + 1);
+        return depth >= MAX_SCHEMA_DEPTH ? {} : buildSampleArguments(schema, depth + 1, root);
     }
     return "example";
 }
 /** Arguments for one tools/call: a sample value for every required property of the tool's inputSchema. */
-export function buildSampleArguments(schemaInput, depth = 0) {
-    const schema = asObject(schemaInput);
+export function buildSampleArguments(schemaInput, depth = 0, rootInput) {
+    const root = asObject(rootInput ?? schemaInput);
+    let schema = asObject(schemaInput);
+    for (let hops = 0; typeof schema.$ref === "string" && hops < MAX_SCHEMA_DEPTH; hops += 1) {
+        schema = resolveRef(schema.$ref, root);
+    }
     const properties = asObject(schema.properties);
     const required = asArray(schema.required).filter((name) => typeof name === "string");
     const out = {};
     for (const name of required)
-        out[name] = sampleValue(properties[name], depth);
+        out[name] = sampleValue(properties[name], depth, root);
     return out;
 }
 /** Arguments for one prompts/get: "example" for every required prompt argument. */
@@ -167,14 +190,22 @@ class McpProbe {
                     method,
                     headers,
                     body: method === "POST" ? request.body : undefined,
-                    redirect: "follow",
+                    // A redirect is reported, not followed: following one could leave https or this host and carry the session id.
+                    redirect: "manual",
                     signal: AbortSignal.timeout(this.options.timeoutMs),
                 });
+                const location = response.headers.get("location");
+                const contentType = response.headers.get("content-type") ?? "";
+                // A GET that opens an event stream never ends, so its body is dropped unread.
+                const isOpenStream = method === "GET" && contentType.includes("text/event-stream");
+                if (isOpenStream)
+                    await response.body?.cancel();
                 return {
                     status: response.status,
-                    contentType: response.headers.get("content-type") ?? "",
-                    body: Buffer.from(await response.arrayBuffer()),
+                    contentType,
+                    body: isOpenStream ? Buffer.alloc(0) : Buffer.from(await response.arrayBuffer()),
                     sessionId: response.headers.get("mcp-session-id"),
+                    location: response.status >= 300 && response.status < 400 ? location : null,
                 };
             }
             catch (error) {
@@ -194,6 +225,7 @@ class McpProbe {
         return {
             status: response.status,
             message: parseRpcBody(response.body.toString("utf8")),
+            location: response.location,
             error: response.error,
         };
     }
@@ -202,9 +234,11 @@ class McpProbe {
     }
 }
 function statusText(response) {
-    return response.status === 0
-        ? `no answer: ${response.error ?? "network error"}`
-        : `status ${response.status}`;
+    if (response.status === 0)
+        return `no answer: ${response.error ?? "network error"}`;
+    if (response.location)
+        return `status ${response.status}, redirects to ${response.location} (not followed)`;
+    return `status ${response.status}`;
 }
 export async function runMcpCheck(url, options = {}) {
     const probe = new McpProbe(url, {
@@ -234,6 +268,7 @@ export async function runMcpCheck(url, options = {}) {
         typeof serverName === "string" &&
         serverName !== "" &&
         "tools" in capabilities, `${statusText(init)}, server ${typeof serverName === "string" ? serverName : "(none)"}, capabilities [${Object.keys(capabilities).join(", ")}]`);
+    const initCheck = checks[checks.length - 1];
     if (init.status === 0) {
         // Nothing answers at this address, so every other request would only repeat the same network error.
         return finish(url, iconUrl, null, checks);
@@ -263,6 +298,11 @@ export async function runMcpCheck(url, options = {}) {
             const content = asArray(result.content);
             const text = String(asObject(content[0]).text ?? "");
             const rpcError = call.message?.error;
+            if (asObject(rpcError).code === -32602) {
+                // Invalid params: the sample arguments did not fit the schema, which says more about the sample than the server.
+                skip(`tools/call ${toolNames[index]}`, clip(`arguments may not match the schema: ${JSON.stringify(args)} refused with ${JSON.stringify(rpcError)}`));
+                continue;
+            }
             add(`tools/call ${toolNames[index]}`, call.status === 200 && !rpcError && result.isError !== true && content.length > 0, `${statusText(call)}, arguments ${JSON.stringify(args)}, ${rpcError ? `error ${JSON.stringify(rpcError)}` : `isError ${String(result.isError ?? false)}, text ${text}`}`);
         }
     }
@@ -279,6 +319,11 @@ export async function runMcpCheck(url, options = {}) {
         add("prompts/list", promptsList.message !== null && (isRefused || prompts.length === 0), isRefused
             ? `no prompts capability; refused with ${JSON.stringify(promptsList.message?.error)}`
             : `no prompts capability; ${statusText(promptsList)}, prompts [${promptNames.join(", ")}]${prompts.length > 0 ? ", but initialize did not declare prompts" : ""}`);
+        if (prompts.length > 0) {
+            // Serving prompts without declaring them is an initialize fault: clients that read capabilities never ask.
+            initCheck.didPass = false;
+            initCheck.detail = clip(`${initCheck.detail}; serves prompts but does not declare prompts`);
+        }
     }
     for (const [index, prompt] of prompts.entries()) {
         const args = buildPromptArguments(prompt.arguments);
@@ -295,7 +340,9 @@ export async function runMcpCheck(url, options = {}) {
     const badJson = await probe.http(url, { body: "not json" });
     add("bad JSON is refused (HTTP 400)", badJson.status === 400, `${statusText(badJson)} ${badJson.body.toString("utf8").slice(0, 120)}`);
     const get = await probe.http(url, { method: "GET", accept: null });
-    add("GET is refused (HTTP 405)", get.status === 405, statusText(get));
+    // Streamable HTTP lets a server either refuse GET or open an SSE stream on it.
+    const isGetStream = get.status === 200 && get.contentType.includes("text/event-stream");
+    add("GET is refused (HTTP 405) or opens an event stream", get.status === 405 || isGetStream, `${statusText(get)}${get.contentType ? `, ${get.contentType}` : ""}`);
     const jsonOnly = await probe.rpc("tools/list", undefined, { accept: "application/json" });
     add("a JSON-only Accept header is served (not 406)", jsonOnly.status !== 406 && jsonOnly.status !== 0, statusText(jsonOnly));
     // 6. the icon a directory listing shows.
