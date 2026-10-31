@@ -221,6 +221,7 @@ The frontend provider owns root `index.html` and starter source. After Flisk gen
 | `flisk import [dir]` | 📥 Import the services in a directory's root `docker-compose.yml` (`--dry-run`, `--yes`, `--force`) |
 | `flisk eject` | 🚪 Write `EJECTED.md` describing the generated Tilt files; copies nothing (`--dry-run`, `--yes`) |
 | `flisk mcp` | 🤖 Run a Model Context Protocol server over stdio for coding agents |
+| `flisk mcp check <url\|resource>` | 🩺 Check an MCP server's protocol, local or remote: initialize, tools and `readOnlyHint`, prompts, error codes, HTTP rules, icon; read-only unless `--call` (`--no-icon`, `--json`; see [docs/mcp.md](../docs/mcp.md#checking-a-server)) |
 | `flisk connect <claude\|cursor\|codex>` | 🔌 Connect a coding agent: merge the `flisk mcp` entry into its MCP config and write the Flisk skills (`--dry-run`, `--global`, `--force`, `--json`; see [Flisk for AI agents](../docs/agents/flisk-for-agents.md)) |
 | `flisk config regenerate` | ♻️ Regenerate master config files from `.flisk/project.json` |
 | `flisk config verify` | ✅ Check generated files match `.flisk/project.json` |
