@@ -1,7 +1,7 @@
 {
   "group": "journeys",
   "suite": "demo",
-  "description": "P1: the one-command demo (`npx @flisk-sh/flisk demo`) on a clean machine. Run it twice: the first run must start the whole stack, and the second must too, after the first run's stack is down but its Docker volumes remain. The second run is where a new random DB_PASSWORD met the old Postgres data and the migrator failed with Prisma P1000.",
+  "description": "P1: the one-command demo (`npx @flisk-sh/flisk demo`) on a clean machine. Run it twice: the first run must start the whole stack, and the second must too, after the first run's stack is down but its Docker volumes remain. The second run is where a new random DB_PASSWORD met the old Postgres data and the migrator failed with Prisma P1000. N1-N3 run it on a machine where Docker is not running: the demo must fall back to the small two-service app as local processes, answer, reopen on a second run, and start again after flisk down.",
   "paths": [
     "cli/**",
     "runtime/engine/**",
@@ -13,6 +13,9 @@
     ".github/workflows/e2e-journeys.yml"
   ],
   "cases": [
+    "N1",
+    "N2",
+    "N3",
     "D1",
     "D2",
     "D3"
@@ -26,7 +29,7 @@
   ],
   "timeoutMinutes": 60,
   "needsSecrets": [],
-  "checkName": "🎬 Demo command, run twice",
+  "checkName": "\ud83c\udfac Demo command, run twice",
   "install": true,
   "freePostgres": true
 }
