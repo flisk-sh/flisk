@@ -35,6 +35,7 @@ import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
+import { assertGatewayOptOutIsConfigured } from "../utils/shared-infra.js";
 import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, formatStartupReport, isStartupStalled, machineProblemFixes, } from "../utils/startup-report.js";
@@ -513,6 +514,8 @@ export const upCommand = new Command("up")
     const action = async () => {
         const foundRoot = options.dryRun ? requireProjectRoot() : findProjectRoot();
         const projectRoot = foundRoot ?? process.cwd();
+        if (options.gateway === false)
+            assertGatewayOptOutIsConfigured(foundRoot);
         const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined);
         let discoveredStacks;
         let discoveredStackNames = [];
@@ -594,12 +597,11 @@ export const upCommand = new Command("up")
             }
             // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
             // Tilt fail on a missing Tiltfile.
-            const configOverrides = options.gateway === false ? { capabilities: { gateway: false } } : undefined;
             if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
                 if (!options.quiet) {
                     console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
                 }
-                await generateMasterConfigs(projectRoot, { quiet: options.quiet, configOverrides });
+                await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }
             const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
             if (copiedAssets.length > 0 && options.verbose && !options.quiet) {
@@ -609,7 +611,7 @@ export const upCommand = new Command("up")
             if (newlyEnabledStacks.length > 0) {
                 // project.json just changed, so the generated spec.master is now stale. Regenerate it here, or the next
                 // `flisk config verify` reports it out of sync.
-                await generateMasterConfigs(projectRoot, { quiet: options.quiet, configOverrides });
+                await generateMasterConfigs(projectRoot, { quiet: options.quiet });
                 if (!options.quiet) {
                     console.log(chalk.gray(`Added ${newlyEnabledStacks.join(", ")} to the pre_alpha phase in .flisk/project.json`));
                 }

@@ -51,6 +51,12 @@ export declare function isCapabilityEnabled(configOrOptions: CapabilityConfigInp
  */
 export declare function isGatewayEnabled(configOrOptions?: CapabilityConfigInput): boolean;
 /**
+ * `flisk up --no-gateway` must not be a silent no-op: the generated Tiltfile and compose files follow `.flisk/project.json`,
+ * so the flag is only honoured when the project already opts out there.
+ * @throws FliskError when the project still has the gateway on
+ */
+export declare function assertGatewayOptOutIsConfigured(projectRoot: string | null | undefined): void;
+/**
  * Returns a list of capability names that remain enabled.
  */
 export declare function getEnabledCapabilities(configOrOptions?: CapabilityConfigInput): string[];

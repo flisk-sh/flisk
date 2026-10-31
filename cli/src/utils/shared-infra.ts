@@ -11,6 +11,7 @@ import type {
   ProjectConfig,
 } from "../types/index.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
+import { FliskError } from "./errors.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
 
 /**
@@ -115,6 +116,22 @@ export function isCapabilityEnabled(
  */
 export function isGatewayEnabled(configOrOptions?: CapabilityConfigInput): boolean {
   return isCapabilityEnabled(configOrOptions, "gateway");
+}
+
+/**
+ * `flisk up --no-gateway` must not be a silent no-op: the generated Tiltfile and compose files follow `.flisk/project.json`,
+ * so the flag is only honoured when the project already opts out there.
+ * @throws FliskError when the project still has the gateway on
+ */
+export function assertGatewayOptOutIsConfigured(projectRoot: string | null | undefined): void {
+  if (projectRoot && !isGatewayEnabled(projectRoot)) return;
+  throw new FliskError(
+    "--no-gateway needs the gateway turned off in .flisk/project.json; the flag alone does not change the generated files.",
+    [
+      'Set "capabilities": { "gateway": false } in .flisk/project.json',
+      "Run flisk config regenerate, then flisk up",
+    ],
+  );
 }
 
 /**

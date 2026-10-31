@@ -10,7 +10,9 @@ import type { DiscoveredResource, HostPortPlan, ProjectConfig } from "../../type
 import { runColdPreflight } from "../cold-preflight.js";
 import { createDoctorReport } from "../doctor-report.js";
 import { checkIngressPorts } from "../doctor-runtime.js";
+import { FliskError } from "../errors.js";
 import {
+  assertGatewayOptOutIsConfigured,
   getEnabledCapabilities,
   getSharedInfrastructureItems,
   getSharedInfrastructureList,
@@ -227,5 +229,41 @@ describe("optional gateway capability", () => {
       expect(context.alwaysEnabledInfra).not.toContain("traefik");
       expect(context.alwaysEnabledInfra).toContain("database-management");
     });
+  });
+});
+
+describe("flisk up --no-gateway", () => {
+  const projectWith = (capabilities: Record<string, boolean> | undefined): string => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-gw-flag-"));
+    mkdirSync(join(root, ".flisk"), { recursive: true });
+    writeFileSync(join(root, ".flisk", "project.json"), JSON.stringify({ capabilities }));
+    return root;
+  };
+
+  it("is rejected when the project still has the gateway on (default)", () => {
+    const root = projectWith(undefined);
+    try {
+      expect(() => assertGatewayOptOutIsConfigured(root)).toThrow(/project\.json/);
+      expect(() => assertGatewayOptOutIsConfigured(null)).toThrow(FliskError);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("is accepted once project.json sets capabilities.gateway to false", () => {
+    const root = projectWith({ gateway: false });
+    try {
+      expect(() => assertGatewayOptOutIsConfigured(root)).not.toThrow();
+      expect(isGatewayEnabled(root)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps proxy and traefik in the default project's always-enabled infra", () => {
+    expect(getSharedInfrastructureList({})).toContain("traefik");
+    expect(getSharedInfrastructureList({ capabilities: { gateway: false } })).not.toContain(
+      "traefik",
+    );
   });
 });
