@@ -13,7 +13,7 @@
 	"mcp-parity": 100,
 	"mcp-tool-tests": 100,
 	"schema-coverage": 100,
-	"schema-surface": 44,
+	"schema-surface": 45,
 	"skills-parity": 100,
 	"steps-to-first-healthy": 7,
 	"tool-consistency": 0,
