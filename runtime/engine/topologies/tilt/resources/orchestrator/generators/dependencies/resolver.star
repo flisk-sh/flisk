@@ -105,6 +105,9 @@ def resolve_resource_port(resource_name):
 
     A provider's fallback (service.json `providers`) is reached at http://<name>:<port> on the Docker network.
     """
+    # Without FLISK_PROJECT_ROOT nothing was discovered, and a lookup would write to the registry's frozen state.
+    if not os.environ.get("FLISK_PROJECT_ROOT", ""):
+        return None
     resource = _find_backend_resource(resource_name)
     if not resource:
         return None
