@@ -32,6 +32,8 @@ export interface Channel {
   name: string;
   /** True when the channel only lists MCP servers. */
   isMcpOnly: boolean;
+  /** How a listing is submitted, in plain words. */
+  submit: string;
   /** Field limits and rules, in plain words. */
   limits: string[];
 }
@@ -39,54 +41,152 @@ export interface Channel {
 export const CHANNELS: readonly Channel[] = [
   {
     id: "claude-directory",
-    name: "Claude directory",
+    name: "Claude directory (connector)",
     isMcpOnly: true,
+    submit:
+      "Form at claude.ai/directory/manage (10 steps); the owner ticks the checks and presses Submit.",
     limits: [
-      "The slug cannot change after you submit.",
-      "Pick at most 5 categories.",
+      "Remote https MCP servers only; a local stdio server cannot be a connector.",
+      "The slug is permanent: it cannot change after you submit.",
+      "One-liner at most 200 characters.",
+      "Pick at most 5 categories (Development tools first).",
       "Every tool needs a title and read-only or destructive hints.",
-      "The server URL must be public https.",
+      "Needs docs, support and privacy URLs and a square icon.",
+      "Editing an approved listing sends it back to review.",
+    ],
+  },
+  {
+    id: "claude-plugin",
+    name: "Claude plugin directory",
+    isMcpOnly: false,
+    submit:
+      "Submit the GitHub folder that holds .claude-plugin/plugin.json; link it to its connector once that is approved.",
+    limits: [
+      "A folder in a public GitHub repo with .claude-plugin/plugin.json.",
+      "plugin.json name is the slug (lowercase, dashes).",
+      "Its .mcp.json and skills must match the connector it links to.",
     ],
   },
   {
     id: "toolradar",
     name: "Toolradar",
     isMcpOnly: false,
+    submit:
+      "Submit at toolradar.com/company/submit, or claim an existing profile at toolradar.com/claim?tool=<slug>.",
     limits: [
       "At most 2 submissions per hour.",
-      "Needs a public website, a short tagline and a logo.",
+      "Tagline at most 60 characters.",
+      "Needs a public website, category, pricing and a logo.",
+      "A personal email triggers a domain confirmation; use a company address.",
     ],
   },
   {
     id: "product-hunt",
     name: "Product Hunt",
     isMcpOnly: false,
+    submit: "Post by hand at producthunt.com/posts/new, in the owner's browser.",
     limits: [
       "Tagline at most 60 characters.",
-      "Description at most 500 characters.",
-      "Gallery images 1270x760.",
+      "Description at most 260 characters.",
+      "Gallery images 1270x760 (up to 8); thumbnail at least 240x240.",
+      "Video must be a YouTube or Loom link.",
     ],
   },
   {
     id: "mcp-registry",
     name: "Official MCP Registry",
     isMcpOnly: true,
+    submit:
+      "Publish server.json with mcp-publisher, signed in with GitHub; updates need a new version.",
     limits: [
-      "Name in reverse-DNS form, such as io.github.<owner>/<name>.",
+      "Name io.github.<githubOwner>/<slug>; the GitHub login must own it.",
       "Description at most 100 characters.",
-      "Publish server.json with mcp-publisher; it reads your GitHub login.",
+      "Every update needs a new version.",
     ],
   },
   {
     id: "glama",
     name: "Glama",
     isMcpOnly: true,
-    limits: ["Needs a public GitHub repository with a license.", "Glama scans the repository."],
+    submit:
+      "Add glama.json to the repo root, claim the server on glama.ai, then make a release from a passing build test.",
+    limits: [
+      "Needs a public GitHub repository with a license.",
+      "Glama builds a Dockerfile and checks the server answers the MCP handshake.",
+      "Re-release after server changes so the score refreshes.",
+    ],
+  },
+  {
+    id: "smithery",
+    name: "Smithery",
+    isMcpOnly: true,
+    submit: "Sign in at smithery.ai/new and point it at the repo; it reads smithery.yaml.",
+    limits: ["Needs smithery.yaml in the repo.", "Needs a login; the owner signs in."],
+  },
+  {
+    id: "mcp-so",
+    name: "mcp.so",
+    isMcpOnly: true,
+    submit: "Submit the GitHub URL at mcp.so/submit (form only; its repo takes no PRs).",
+    limits: ["Submit by link: the public GitHub URL.", "Needs a login."],
+  },
+  {
+    id: "pulsemcp",
+    name: "PulseMCP",
+    isMcpOnly: true,
+    submit: "Submit by link at pulsemcp.com; it also ingests the official MCP Registry.",
+    limits: [
+      "Submit by link.",
+      "Submissions were paused on 2026-10-07; list on the MCP Registry instead.",
+    ],
+  },
+  {
+    id: "cursor-directory",
+    name: "Cursor Directory",
+    isMcpOnly: true,
+    submit: "Submit the MCP server entry at cursor.directory, signed in.",
+    limits: ["Needs a login.", "One entry per MCP server, with its install config."],
+  },
+  {
+    id: "skills-sh",
+    name: "skills.sh",
+    isMcpOnly: false,
+    submit:
+      "Push a public GitHub repo of skills/<name>/SKILL.md; people install it with npx skills add <owner>/<repo>.",
+    limits: [
+      "Each skill is a SKILL.md with name and description front matter.",
+      "Installs straight from GitHub; check npx skills add works.",
+    ],
+  },
+  {
+    id: "apify",
+    name: "Apify Store",
+    isMcpOnly: false,
+    submit:
+      "apify push from the Actor folder (apify login first), then set icon, SEO fields and categories and make it public.",
+    limits: [
+      "Needs an Actor (.actor/actor.json and a Dockerfile).",
+      "Set icon, SEO title, SEO description and categories in the console.",
+      "Store search lags about a day.",
+    ],
+  },
+  {
+    id: "docker-hub",
+    name: "Docker Hub",
+    isMcpOnly: false,
+    submit:
+      "docker push to the organization namespace; the owner creates the organization and picks the plan.",
+    limits: [
+      "Needs a container image.",
+      "Push to the organization namespace, never a personal one.",
+    ],
   },
   {
     id: "github-actions",
     name: "GitHub Actions Marketplace",
     isMcpOnly: false,
+    submit:
+      'Edit the release, tick "Publish this Action to the GitHub Marketplace", pick two categories.',
     limits: [
       "One action.yml at the repository root.",
       "description under 125 characters, a unique name, and branding (icon and color).",
@@ -96,17 +196,32 @@ export const CHANNELS: readonly Channel[] = [
     id: "npm",
     name: "npm",
     isMcpOnly: false,
+    submit: "npm publish from the package folder.",
     limits: ["Package name lowercase, at most 214 characters.", "Needs a README and a license."],
   },
   {
     id: "openai",
     name: "OpenAI (ChatGPT, Codex)",
     isMcpOnly: true,
+    submit:
+      "Upload a plugin ZIP (.codex-plugin/plugin.json, .mcp.json, skills, assets), verify the domain, fill the review details.",
     limits: [
+      "Exactly one remote MCP server per plugin.",
       "displayName at most 30 characters.",
       "shortDescription at most 30 characters.",
       "longDescription at most 4000 characters.",
       "All URLs https; images square, at least 48 px, at most 5 MiB.",
+      "No credentials, hooks or apps in the package.",
+    ],
+  },
+  {
+    id: "awesome-lists",
+    name: "Awesome lists",
+    isMcpOnly: false,
+    submit: "One pull request per list, one at a time, disclosed as your own project.",
+    limits: [
+      "Submit by link: one list line per PR.",
+      "Read and meet each list's own rules (stars, focus, activity) first.",
     ],
   },
 ];
@@ -114,6 +229,9 @@ export const CHANNELS: readonly Channel[] = [
 export const TAGLINE_LIMIT = 60;
 export const REGISTRY_DESCRIPTION_LIMIT = 100;
 export const OPENAI_NAME_LIMIT = 30;
+export const OPENAI_SHORT_DESCRIPTION_LIMIT = 30;
+export const OPENAI_LONG_DESCRIPTION_LIMIT = 4000;
+export const PRODUCT_HUNT_DESCRIPTION_LIMIT = 260;
 
 export interface ChannelEntry {
   status: ChannelStatus;
@@ -143,6 +261,12 @@ export interface DistributionFile {
   launch?: string;
   why?: string;
   promise?: string;
+  /** How a release goes out (for example "tag v*, CI publishes"). */
+  release?: string;
+  /** License of the published app, such as MIT. */
+  license?: string;
+  /** Where users get help: a URL or an email. */
+  support?: string;
   apps: Record<string, DistributionApp>;
 }
 
@@ -176,7 +300,19 @@ export function readDistributionFile(projectRoot: string): DistributionFile | nu
     ]);
   }
   for (const [appName, app] of Object.entries(apps)) {
-    for (const [channel, entry] of Object.entries(app?.channels ?? {})) {
+    if (typeof app !== "object" || app === null || Array.isArray(app)) {
+      throw new FliskError(`${DISTRIBUTION_FILE}: app ${appName} must be an object`, [
+        'Write it as { "channels": { "<channel>": { "status": "todo" } } }',
+      ]);
+    }
+    const channels = (app as DistributionApp).channels ?? {};
+    if (typeof channels !== "object" || channels === null || Array.isArray(channels)) {
+      throw new FliskError(
+        `${DISTRIBUTION_FILE}: ${appName} "channels" must be an object keyed by channel id`,
+        [`Channel ids: ${CHANNELS.map((c) => c.id).join(", ")}`],
+      );
+    }
+    for (const [channel, entry] of Object.entries(channels)) {
       if (!CHANNEL_STATUSES.includes(entry?.status as ChannelStatus)) {
         throw new FliskError(
           `${DISTRIBUTION_FILE}: ${appName} / ${channel} has status ${JSON.stringify(entry?.status)}`,
@@ -186,6 +322,44 @@ export function readDistributionFile(projectRoot: string): DistributionFile | nu
     }
   }
   return { ...data, schemaVersion: 1, apps } as DistributionFile;
+}
+
+/** Warnings about a distribution.json that loads but looks wrong, such as an unknown channel id. */
+export function distributionWarnings(dist: DistributionFile | null): string[] {
+  if (!dist) return [];
+  const known = new Set(CHANNELS.map((c) => c.id));
+  const warnings: string[] = [];
+  for (const appName of Object.keys(dist.apps).sort()) {
+    for (const id of Object.keys(dist.apps[appName]?.channels ?? {}).sort()) {
+      if (!known.has(id)) {
+        warnings.push(
+          `${DISTRIBUTION_FILE}: ${appName} has unknown channel "${id}". Known channels: ${[...known].join(", ")}.`,
+        );
+      }
+    }
+  }
+  return warnings;
+}
+
+/** Adds the missing apps and channels to an existing distribution.json and keeps every entry already there. */
+export function mergeDistribution(
+  existing: DistributionFile,
+  resources: DiscoveredResource[],
+): DistributionFile {
+  const fresh = createInitialDistribution(resources);
+  const apps: Record<string, DistributionApp> = { ...existing.apps };
+  for (const [name, freshApp] of Object.entries(fresh.apps)) {
+    const old = apps[name];
+    apps[name] = old
+      ? { ...old, channels: { ...freshApp.channels, ...(old.channels ?? {}) } }
+      : freshApp;
+  }
+  const sorted = Object.fromEntries(
+    Object.keys(apps)
+      .sort()
+      .map((k) => [k, apps[k] as DistributionApp]),
+  );
+  return { ...existing, schemaVersion: 1, apps: sorted };
 }
 
 /** The empty distribution.json for these resources: every channel todo, MCP-only channels n/a for other types. */
@@ -206,9 +380,17 @@ export function createInitialDistribution(resources: DiscoveredResource[]): Dist
 // ---------------------------------------------------------------------------------------------
 // Board
 
-export const BOARD_ROWS = ["Idea", "Promise", "Shape", "Ship", "Listed", "Proof"] as const;
+/** Zachman's six perspectives, top to bottom, each with the lifecycle stage it answers for. */
+export const BOARD_ROWS = [
+  { perspective: "Planner", view: "Scope", stage: "Idea" },
+  { perspective: "Owner", view: "Business", stage: "Promise" },
+  { perspective: "Designer", view: "System", stage: "Shape" },
+  { perspective: "Builder", view: "Technology", stage: "Ship" },
+  { perspective: "Subcontractor", view: "Component", stage: "Listed" },
+  { perspective: "User", view: "Operations", stage: "Proof" },
+] as const;
 export const BOARD_COLUMNS = ["What", "How", "Where", "Who", "When", "Why"] as const;
-export type BoardRow = (typeof BOARD_ROWS)[number];
+export type BoardPerspective = (typeof BOARD_ROWS)[number]["perspective"];
 export type BoardColumn = (typeof BOARD_COLUMNS)[number];
 
 export interface BoardCell {
@@ -216,8 +398,15 @@ export interface BoardCell {
   isMissing: boolean;
 }
 
+export interface BoardRow {
+  perspective: BoardPerspective;
+  view: string;
+  stage: string;
+  cells: Record<BoardColumn, BoardCell>;
+}
+
 export interface Board {
-  rows: { stage: BoardRow; cells: Record<BoardColumn, BoardCell> }[];
+  rows: BoardRow[];
 }
 
 const filled = (text: string): BoardCell => ({ text, isMissing: false });
@@ -229,169 +418,209 @@ function listOr(values: string[], hint: string): BoardCell {
   return values.length > 0 ? filled(values.join(", ")) : missing(hint);
 }
 
-/** The channel entries of every app, flattened. */
-function allEntries(dist: DistributionFile | null): ChannelEntry[] {
-  return Object.values(dist?.apps ?? {}).flatMap((app) => Object.values(app.channels ?? {}));
-}
-
 function healthPath(resource: DiscoveredResource): string {
   return resource.config?.healthCheckPath ?? "/health";
 }
 
+function channelName(id: string): string {
+  return CHANNELS.find((c) => c.id === id)?.name ?? id;
+}
+
+/**
+ * The Zachman board. Rows are the six perspectives, columns the six questions. Every cell is read
+ * from service.json or distribution.json; a cell with no data says what to add.
+ */
 export function buildBoard(resources: DiscoveredResource[], dist: DistributionFile | null): Board {
   const sorted = [...resources].sort((a, b) => a.name.localeCompare(b.name));
   const apps = dist?.apps ?? {};
   const appOf = (name: string): DistributionApp => apps[name] ?? {};
   const mcp = sorted.filter(isMcpResource);
-  const entries = allEntries(dist);
-  const count = (status: ChannelStatus) => entries.filter((e) => e.status === status).length;
-  const dates = entries.flatMap((e) => (e.date ? [e.date] : [])).sort();
-  const liveUrls = entries.flatMap((e) => (e.status === "live" && e.url ? [e.url] : [])).sort();
   const noDist = `no ${DISTRIBUTION_FILE}; run flisk distribute status --init`;
   const distHint = (field: string) => (dist ? `add "${field}" to ${DISTRIBUTION_FILE}` : noDist);
   const appHint = (field: string) =>
     dist ? `add "${field}" to each app in ${DISTRIBUTION_FILE}` : noDist;
+  const svcHint = (field: string) => `no resource sets "${field}" in service.json`;
 
-  const taglines = sorted.flatMap((r) =>
-    appOf(r.name).tagline ? [`${r.name}: ${appOf(r.name).tagline}`] : [],
-  );
-  const descriptions = sorted.flatMap((r) =>
-    appOf(r.name).description ? [`${r.name}: ${appOf(r.name).description}`] : [],
-  );
-  const publicUrls = sorted.flatMap((r) => {
-    const url = appOf(r.name).url ?? appOf(r.name).homepage;
-    return url ? [`${r.name}: ${url}`] : [];
-  });
-  const versions = sorted.flatMap((r) =>
-    appOf(r.name).version ? [`${r.name} ${appOf(r.name).version}`] : [],
-  );
+  /** "app / channel" entries, sorted, with their channel entry. */
+  const entries = Object.keys(apps)
+    .sort()
+    .flatMap((app) =>
+      Object.keys(apps[app]?.channels ?? {})
+        .sort()
+        .map((id) => ({ app, id, entry: apps[app]?.channels?.[id] as ChannelEntry })),
+    );
+  const withStatus = (...statuses: ChannelStatus[]) =>
+    entries.filter((e) => statuses.includes(e.entry.status));
+  const perApp = (pick: (app: DistributionApp) => string | undefined) =>
+    sorted.flatMap((r) => {
+      const value = pick(appOf(r.name))?.trim();
+      return value ? [`${r.name}: ${value}`] : [];
+    });
+  const perResource = (pick: (r: DiscoveredResource) => string | undefined) =>
+    sorted.flatMap((r) => {
+      const value = pick(r);
+      return value ? [`${r.name}: ${value}`] : [];
+    });
+  const latest = (list: { entry: ChannelEntry }[]) =>
+    list
+      .flatMap((e) => (e.entry.date ? [e.entry.date] : []))
+      .sort()
+      .at(-1);
+  const countCell = (list: unknown[], label: string, hint: string) =>
+    list.length > 0 ? filled(`${list.length} ${label}`) : missing(hint);
 
-  const resourceList =
-    sorted.length > 0
-      ? filled(
-          `${sorted.length} ${sorted.length === 1 ? "resource" : "resources"}: ${sorted
-            .map((r) => `${r.name} (${r.config?.appType ?? "unknown"})`)
-            .join(", ")}`,
-        )
-      : missing("no service.json found; create one with flisk resource <name>");
-
-  const ports = sorted.flatMap((r) =>
-    (r.port ?? r.config?.port) ? [`${r.name}:${r.port ?? r.config?.port}`] : [],
-  );
-  const mcpRoutes = mcp.map(
-    (r) => `${r.name} ${appOf(r.name).url ?? `${r.config?.basePath ?? ""}/mcp`}`,
-  );
-  const types = [...new Set(sorted.map((r) => r.config?.appType ?? "unknown"))].sort();
-  const clients = [
-    ...(mcp.length > 0 ? ["AI clients over MCP (Claude, Codex, Gemini)"] : []),
-    ...(sorted.some((r) => r.config?.appType === "frontend") ? ["people in a browser"] : []),
-    ...(sorted.some((r) => r.config?.appType === "backend") ? ["other services over HTTP"] : []),
-  ];
-  const listedSummary =
-    entries.length > 0
-      ? filled(
-          (["live", "review", "draft", "blocked", "todo"] as const)
-            .map((s) => `${STATUS_ICONS[s]} ${count(s)} ${s}`)
-            .join(", "),
-        )
-      : missing(dist ? "no channels in the apps yet" : noDist);
-  const listedWhere = [
+  const planned = [
     ...new Set(
-      Object.values(apps).flatMap((app) =>
-        Object.entries(app.channels ?? {}).flatMap(([id, e]) =>
-          e.status === "live" || e.status === "review"
-            ? [CHANNELS.find((c) => c.id === id)?.name ?? id]
-            : [],
-        ),
-      ),
+      withStatus("live", "review", "draft", "blocked", "todo").map((e) => channelName(e.id)),
     ),
   ].sort();
+  const listedWhere = [
+    ...new Set(withStatus("live", "review").map((e) => channelName(e.id))),
+  ].sort();
+  const clients = [
+    ...(mcp.length > 0 ? ["AI clients over MCP"] : []),
+    ...(sorted.some((r) => r.config?.appType === "frontend") ? ["people in a browser"] : []),
+    ...(sorted.some((r) => r.config?.appType === "backend") ? ["other services over HTTP"] : []),
+    ...(sorted.some((r) => r.config?.appType === "agent") ? ["callers of an agent"] : []),
+  ];
+  const tools = mcp.flatMap((r) => readToolsAndPrompts(r.path).tools.map((t) => `${r.name}/${t}`));
+  const prompts = mcp.flatMap((r) =>
+    readToolsAndPrompts(r.path).prompts.map((p) => `${r.name}/${p}`),
+  );
+  const noted = (list: { app: string; id: string; entry: ChannelEntry }[]) =>
+    list.flatMap((e) => (e.entry.note ? [`${e.app}/${e.id}: ${e.entry.note}`] : []));
 
-  const row = (stage: BoardRow, cells: BoardCell[]) => ({
-    stage,
-    cells: Object.fromEntries(BOARD_COLUMNS.map((c, i) => [c, cells[i]])) as Record<
-      BoardColumn,
-      BoardCell
-    >,
-  });
+  const rows: BoardCell[][] = [
+    // Planner / Scope
+    [
+      sorted.length > 0
+        ? filled(
+            `${sorted.length} ${sorted.length === 1 ? "resource" : "resources"}: ${sorted
+              .map((r) => `${r.name} (${r.config?.appType ?? "unknown"})`)
+              .join(", ")}`,
+          )
+        : missing("no service.json found; create one with flisk resource <name>"),
+      orMissing(dist?.promise, distHint("promise")),
+      listOr(planned, dist ? "no channel is planned for any app" : noDist),
+      orMissing(dist?.audience, distHint("audience")),
+      orMissing(dist?.launch, distHint("launch")),
+      orMissing(dist?.why, distHint("why")),
+    ],
+    // Owner / Business
+    [
+      listOr(
+        perApp((a) => a.tagline),
+        appHint("tagline"),
+      ),
+      listOr(
+        perApp((a) => a.description),
+        appHint("description"),
+      ),
+      listOr(
+        perApp((a) => a.url ?? a.homepage),
+        appHint("url"),
+      ),
+      orMissing(dist?.owner, distHint("owner")),
+      listOr(
+        perApp((a) => a.version),
+        appHint("version"),
+      ),
+      listOr(
+        perApp((a) => (a.bestFor ?? []).join("; ")),
+        appHint("bestFor"),
+      ),
+    ],
+    // Designer / System
+    [
+      listOr(
+        [...new Set(sorted.flatMap((r) => (r.config?.appType ? [r.config.appType] : [])))].sort(),
+        svcHint("appType"),
+      ),
+      mcp.length > 0
+        ? filled(
+            `MCP routes: ${mcp.map((r) => `${r.name} ${r.config?.basePath ?? ""}/mcp`).join(", ")}`,
+          )
+        : missing("no MCP resource; tools reach AI clients through one"),
+      listOr(
+        sorted.flatMap((r) => {
+          const port = r.port ?? r.config?.port;
+          return port ? [`${r.name}:${port}`] : [];
+        }),
+        svcHint("port"),
+      ),
+      listOr(clients, "no resource people or AI clients can reach"),
+      listOr(
+        perResource((r) =>
+          r.config?.dependsOn?.length ? `after ${r.config.dependsOn.join(", ")}` : undefined,
+        ),
+        svcHint("dependsOn"),
+      ),
+      listOr(
+        perResource((r) => r.config?.healthCheckPath),
+        svcHint("healthCheckPath"),
+      ),
+    ],
+    // Builder / Technology
+    [
+      listOr(
+        perResource((r) => r.config?.image ?? r.config?.dockerfile ?? r.config?.runtime),
+        'no resource sets "image", "dockerfile" or "runtime" in service.json',
+      ),
+      listOr(
+        perResource((r) => r.config?.command ?? r.config?.dev?.command),
+        'no resource sets "command" in service.json',
+      ),
+      listOr(
+        perApp((a) => a.repository),
+        appHint("repository"),
+      ),
+      orMissing(dist?.githubOwner, distHint("githubOwner")),
+      orMissing(dist?.release, distHint("release")),
+      orMissing(dist?.license, distHint("license")),
+    ],
+    // Subcontractor / Component
+    [
+      listOr(tools, mcp.length > 0 ? "no tools found in the MCP source" : "no MCP resource"),
+      listOr(prompts, mcp.length > 0 ? "no prompts found in the MCP source" : "no MCP resource"),
+      listOr(listedWhere, dist ? "no channel is live or in review" : noDist),
+      listOr(
+        perApp((a) => a.reviewerNotes),
+        appHint("reviewerNotes"),
+      ),
+      orMissing(latest(entries), dist ? "no dates in the channel entries" : noDist),
+      listOr(noted(withStatus("blocked")), dist ? "no blocked channel with a note" : noDist),
+    ],
+    // User / Operations
+    [
+      countCell(withStatus("live"), "live listings", dist ? "no live listing yet" : noDist),
+      countCell(withStatus("review"), "in review", dist ? "no listing in review" : noDist),
+      listOr(
+        withStatus("live").flatMap((e) => (e.entry.url ? [e.entry.url] : [])),
+        dist ? "no url on a live channel entry" : noDist,
+      ),
+      orMissing(dist?.support, distHint("support")),
+      orMissing(latest(withStatus("live")), dist ? "no date on a live channel entry" : noDist),
+      listOr(noted(withStatus("live")), dist ? "no note on a live channel entry" : noDist),
+    ],
+  ];
 
   return {
-    rows: [
-      row("Idea", [
-        resourceList,
-        filled("flisk up runs the whole stack"),
-        filled("your computer (Docker and Tilt)"),
-        orMissing(dist?.audience, distHint("audience")),
-        orMissing(dist?.launch, distHint("launch")),
-        orMissing(dist?.why, distHint("why")),
-      ]),
-      row("Promise", [
-        listOr(taglines, appHint("tagline")),
-        orMissing(dist?.promise, distHint("promise")),
-        listOr(publicUrls, appHint("url")),
-        orMissing(dist?.owner, distHint("owner")),
-        filled("per listing, see flisk distribute status"),
-        listOr(descriptions, appHint("description")),
-      ]),
-      row("Shape", [
-        types.length > 0 ? filled(types.join(", ")) : missing("no resources"),
-        mcp.length > 0
-          ? filled(`MCP routes: ${mcpRoutes.join(", ")}`)
-          : missing("no MCP resource; tools reach AI clients through one"),
-        listOr(ports, "no ports in service.json"),
-        listOr(clients, "no resource people or AI clients can reach"),
-        listOr(versions, appHint("version")),
-        listOr(
-          sorted.map((r) => appOf(r.name).name ?? r.name),
-          "no resources to name",
-        ),
-      ]),
-      row("Ship", [
-        listOr(
-          sorted.map((r) => `${r.name} ${healthPath(r)}`),
-          "no resources",
-        ),
-        filled("container images built by flisk; deploy them with your own workflow"),
-        listOr(publicUrls, appHint("url")),
-        orMissing(dist?.owner, distHint("owner")),
-        missing("say when a release goes out; flisk never deploys"),
-        filled("small services that each answer a health check"),
-      ]),
-      row("Listed", [
-        listedSummary,
-        filled("forms and reviews, by hand; flisk distribute kit writes the text"),
-        listOr(listedWhere, "no channel is live or in review"),
-        filled("each channel's reviewers"),
-        listOr(
-          dates.length > 0 ? [`last change ${dates[dates.length - 1]}`] : [],
-          "no dates in the channel entries",
-        ),
-        filled("each channel's own rules, see listing.md in the kit"),
-      ]),
-      row("Proof", [
-        count("live") > 0
-          ? filled(`${count("live")} live listings`)
-          : missing("no live listing yet"),
-        filled("flisk doctor and flisk status check the running stack"),
-        listOr(liveUrls, "no url on a live channel entry"),
-        orMissing(dist?.audience, distHint("audience")),
-        listOr(
-          dates.length > 0 ? [dates[dates.length - 1] as string] : [],
-          "no dates in the channel entries",
-        ),
-        filled("shows what to fix next"),
-      ]),
-    ],
+    rows: BOARD_ROWS.map((r, i) => ({
+      ...r,
+      cells: Object.fromEntries(
+        BOARD_COLUMNS.map((c, j) => [c, (rows[i] as BoardCell[])[j] as BoardCell]),
+      ) as Record<BoardColumn, BoardCell>,
+    })),
   };
 }
 
 export function formatBoard(board: Board): string {
   const lines: string[] = [
-    "Distribution board (rows are stages, columns are the six questions)",
+    "Zachman board: rows are the six perspectives, columns the six questions",
     "",
   ];
-  for (const { stage, cells } of board.rows) {
-    lines.push(stage);
+  for (const { perspective, view, stage, cells } of board.rows) {
+    lines.push(`${perspective} / ${view}  (stage: ${stage})`);
     for (const column of BOARD_COLUMNS) {
       const cell = cells[column];
       lines.push(`  ${column.padEnd(6)} ${cell.isMissing ? "⬜" : "✅"} ${cell.text}`);
@@ -491,29 +720,46 @@ function listSourceFiles(dir: string, out: string[] = [], depth = 0): string[] {
   return out;
 }
 
-/** Tool and prompt names a resource registers, read from its source (registerTool("x"), server.tool("x"), @mcp.tool). */
+/**
+ * Tool and prompt names a resource registers, read from its source: registerTool("x"),
+ * registerTool({ name: "x" }), server.tool("x") or mcp.tool("x") on an MCP server object, and
+ * Python @mcp.tool / @mcp.tool(...) decorators. A .tool("x") call on any other object is not counted.
+ */
 export function readToolsAndPrompts(resourceDir: string): { tools: string[]; prompts: string[] } {
   const tools = new Set<string>();
   const prompts = new Set<string>();
-  const toolRe = /\b(?:registerTool|\.tool)\(\s*["'`]([\w.-]+)["'`]/g;
-  const promptRe = /\b(?:registerPrompt|\.prompt)\(\s*["'`]([\w.-]+)["'`]/g;
-  const pyToolRe = /@\w+\.tool\([^)]*\)\s*\n\s*(?:async\s+)?def\s+(\w+)/g;
-  const pyPromptRe = /@\w+\.prompt\([^)]*\)\s*\n\s*(?:async\s+)?def\s+(\w+)/g;
+  const patterns = (kind: "Tool" | "Prompt", short: "tool" | "prompt") => [
+    new RegExp(`\\bregister${kind}\\(\\s*["'\`]([\\w.-]+)["'\`]`, "g"),
+    new RegExp(`\\bregister${kind}\\(\\s*\\{[^}]*?\\bname\\s*:\\s*["'\`]([\\w.-]+)["'\`]`, "g"),
+    new RegExp(
+      `\\b(?:server|mcp|mcpServer|mcp_server)\\.${short}\\(\\s*["'\`]([\\w.-]+)["'\`]`,
+      "g",
+    ),
+    new RegExp(`@\\w+\\.${short}\\b(?:\\([^)]*\\))?\\s*\\n\\s*(?:async\\s+)?def\\s+(\\w+)`, "g"),
+  ];
+  const toolPatterns = patterns("Tool", "tool");
+  const promptPatterns = patterns("Prompt", "prompt");
   for (const file of listSourceFiles(resourceDir)) {
     const text = fs.readFileSync(file, "utf-8");
-    for (const m of text.matchAll(toolRe)) tools.add(m[1] as string);
-    for (const m of text.matchAll(promptRe)) prompts.add(m[1] as string);
-    for (const m of text.matchAll(pyToolRe)) tools.add(m[1] as string);
-    for (const m of text.matchAll(pyPromptRe)) prompts.add(m[1] as string);
+    for (const re of toolPatterns) for (const m of text.matchAll(re)) tools.add(m[1] as string);
+    for (const re of promptPatterns) for (const m of text.matchAll(re)) prompts.add(m[1] as string);
   }
   return { tools: [...tools].sort(), prompts: [...prompts].sort() };
 }
 
 export const URL_PLACEHOLDER = "https://REPLACE-ME.example.com/mcp";
 
+/** A listing slug: lowercase letters, digits and single dashes. */
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function buildKit(resource: DiscoveredResource, dist: DistributionFile | null): Kit {
   const app = dist?.apps[resource.name] ?? {};
-  const slug = resource.name.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+  const slug = slugify(resource.name) || "app";
   const name = app.name?.trim() || resource.name;
   const tagline = app.tagline?.trim() ?? "";
   const description = app.description?.trim() ?? "";
@@ -522,13 +768,31 @@ export function buildKit(resource: DiscoveredResource, dist: DistributionFile | 
   const version = app.version?.trim() || "0.1.0";
   const owner = dist?.owner?.trim() || "REPLACE-ME";
   const githubOwner = dist?.githubOwner?.trim() || "REPLACE-ME";
-  const { tools, prompts } = readToolsAndPrompts(resource.path);
+  const { tools, prompts } = isMcp
+    ? readToolsAndPrompts(resource.path)
+    : { tools: [] as string[], prompts: [] as string[] };
   const warnings: string[] = [];
 
   if (!tagline)
     warnings.push(`No tagline: add "tagline" for ${resource.name} in ${DISTRIBUTION_FILE}.`);
-  else if (tagline.length > TAGLINE_LIMIT)
-    warnings.push(`Tagline is ${tagline.length} characters; Product Hunt allows ${TAGLINE_LIMIT}.`);
+  else {
+    if (tagline.length > TAGLINE_LIMIT)
+      warnings.push(
+        `Tagline is ${tagline.length} characters; Product Hunt and Toolradar allow ${TAGLINE_LIMIT}.`,
+      );
+    if (isMcp && tagline.length > OPENAI_SHORT_DESCRIPTION_LIMIT)
+      warnings.push(
+        `Tagline is ${tagline.length} characters; OpenAI allows ${OPENAI_SHORT_DESCRIPTION_LIMIT} for shortDescription.`,
+      );
+  }
+  if (description.length > PRODUCT_HUNT_DESCRIPTION_LIMIT)
+    warnings.push(
+      `Description is ${description.length} characters; Product Hunt allows ${PRODUCT_HUNT_DESCRIPTION_LIMIT}.`,
+    );
+  if (isMcp && description.length > OPENAI_LONG_DESCRIPTION_LIMIT)
+    warnings.push(
+      `Description is ${description.length} characters; OpenAI allows ${OPENAI_LONG_DESCRIPTION_LIMIT} for longDescription.`,
+    );
   if (!description)
     warnings.push(
       `No description: add "description" for ${resource.name} in ${DISTRIBUTION_FILE}.`,
@@ -544,14 +808,16 @@ export function buildKit(resource: DiscoveredResource, dist: DistributionFile | 
     warnings.push(
       `server.json description is ${registryDescription.length} characters; the MCP Registry allows ${REGISTRY_DESCRIPTION_LIMIT}. It was cut.`,
     );
-  if (name.length > OPENAI_NAME_LIMIT)
+  if (isMcp && name.length > OPENAI_NAME_LIMIT)
     warnings.push(
       `Name is ${name.length} characters; OpenAI allows ${OPENAI_NAME_LIMIT} for displayName.`,
     );
   if (githubOwner === "REPLACE-ME" && isMcp)
     warnings.push(
-      `No GitHub owner: add "githubOwner" to ${DISTRIBUTION_FILE} for the MCP Registry name.`,
+      `No GitHub owner: add "githubOwner" to ${DISTRIBUTION_FILE}; the MCP Registry name is io.github.<githubOwner>/${slug}.`,
     );
+  if (owner === "REPLACE-ME")
+    warnings.push(`No owner: add "owner" to ${DISTRIBUTION_FILE} for the plugin author.`);
 
   const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
   const plugin: Record<string, unknown> = {
@@ -562,7 +828,7 @@ export function buildKit(resource: DiscoveredResource, dist: DistributionFile | 
     author: { name: owner },
     ...(app.homepage ? { homepage: app.homepage } : {}),
     ...(app.repository ? { repository: app.repository } : {}),
-    license: "MIT",
+    license: dist?.license?.trim() || "MIT",
     keywords: [slug, ...(isMcp ? ["mcp"] : [])],
   };
   const files: KitFile[] = [{ path: ".claude-plugin/plugin.json", content: json(plugin) }];
@@ -593,6 +859,7 @@ export function buildKit(resource: DiscoveredResource, dist: DistributionFile | 
     return [
       `### ${STATUS_ICONS[status]} ${channel.name}`,
       "",
+      ...(applies ? [`How to submit: ${channel.submit}`, ""] : []),
       ...(applies
         ? channel.limits.map((l) => `- [ ] ${l}`)
         : ["- Not for this resource: it lists MCP servers only."]),
