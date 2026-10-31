@@ -19,7 +19,7 @@ import { chooseResourcePath, isPathDiscovered, readDiscoveryPaths, } from "../ut
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
-import { createInfraServiceJson, INFRA_PRESETS, isInfraPreset } from "../utils/infra-presets.js";
+import { createInfraDockerfile, createInfraServiceJson, INFRA_PRESETS, isInfraPreset, } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
@@ -370,8 +370,8 @@ export const TSCONFIG_TEMPLATE = {
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 /**
- * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`
- * and `rabbitmq` are presets of it.
+ * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`,
+ * `rabbitmq`, `minio` and `mlflow` are presets of it.
  */
 export function parseResourceType(type) {
     const normalized = type === "byo" || type === INFERENCE_TYPE || isInfraPreset(type) ? BRING_YOUR_OWN_TYPE : type;
@@ -502,7 +502,7 @@ function printFrontendFrameworks() {
 export const resourceCommand = addYesOption(new Command("resource"))
     .description("Create a new resource (service) from scratch, or register an existing one")
     .argument("[name]", "Resource name (kebab-case)")
-    .option("-t, --type <type>", "Resource type: backend, frontend, worker, mcp, agent, inference, redis, qdrant, rabbitmq, bring-your-own, database, sdk", "backend")
+    .option("-t, --type <type>", "Resource type: backend, frontend, worker, mcp, agent, inference, redis, qdrant, rabbitmq, minio, mlflow, bring-your-own, database, sdk", "backend")
     .option("--framework <id>", "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks)")
     .option("--frameworks", "List registered frameworks for the resource type and exit (--type frontend, --type backend)")
     .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
@@ -887,6 +887,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
             mkdirSync(fullPath, { recursive: true });
             const serviceJson = createInfraServiceJson(resourceName, stackName, infraPreset, options.image);
             writeFileSync(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
+            const dockerfile = createInfraDockerfile(infraPreset, options.image);
+            if (dockerfile)
+                writeFileSync(resolve(fullPath, "Dockerfile"), dockerfile);
             const agentsPath = resolve(fullPath, "AGENTS.md");
             if (!existsSync(agentsPath)) {
                 writeFileSync(agentsPath, `# AGENTS.md\n\nDO NOT DELETE service.json\n\n${preset.description} for Flisk. Services that list "${resourceName}" in dependsOn get its \`provides\` settings in their environment.\n`);

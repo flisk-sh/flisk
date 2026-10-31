@@ -190,8 +190,8 @@ export const RESOURCE_TYPE_VALUES = [
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export const INFERENCE_RESOURCE_TYPE = "inference";
 
-/** `--type redis|qdrant|rabbitmq`: bring-your-own presets for infrastructure (utils/infra-presets.ts). */
-export const INFRA_RESOURCE_TYPES = ["redis", "qdrant", "rabbitmq"] as const;
+/** `--type redis|qdrant|rabbitmq|minio|mlflow`: bring-your-own presets for infrastructure (utils/infra-presets.ts). */
+export const INFRA_RESOURCE_TYPES = ["redis", "qdrant", "rabbitmq", "minio", "mlflow"] as const;
 export type InfraResourceType = (typeof INFRA_RESOURCE_TYPES)[number];
 
 /**

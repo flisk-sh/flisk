@@ -18,7 +18,7 @@ import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 
 const originalCwd = process.cwd();
 
-describe("infrastructure presets (redis, qdrant, rabbitmq)", () => {
+describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () => {
   let tempDir: string;
 
   beforeEach(() => {
@@ -70,9 +70,12 @@ describe("infrastructure presets (redis, qdrant, rabbitmq)", () => {
     return JSON.parse(readFileSync(join(dir, "service.json"), "utf-8")) as Record<string, unknown>;
   }
 
-  it.each(["redis", "qdrant", "rabbitmq"])("%s is a bring-your-own preset", (type) => {
-    expect(parseResourceType(type)).toBe("bring-your-own");
-  });
+  it.each(["redis", "qdrant", "rabbitmq", "minio", "mlflow"])(
+    "%s is a bring-your-own preset",
+    (type) => {
+      expect(parseResourceType(type)).toBe("bring-your-own");
+    },
+  );
 
   it("writes a Redis with a probe, its own data volume and the REDIS_URL it provides", async () => {
     const service = await create("cache", "redis");
@@ -110,11 +113,47 @@ describe("infrastructure presets (redis, qdrant, rabbitmq)", () => {
     });
   });
 
+  it("writes MinIO and MLflow with a Dockerfile that supplies the start command", async () => {
+    const store = await create("store", "minio");
+    const tracking = await create("tracking", "mlflow");
+    expect(store).toMatchObject({
+      port: 9000,
+      dockerfile: "./Dockerfile",
+      healthCheck: { port: 9000 },
+      volumes: [{ source: "store-data", target: "/data" }],
+      provides: { MINIO_ENDPOINT_URL: "http://store:9000" },
+    });
+    expect(store).not.toHaveProperty("image");
+    expect(tracking).toMatchObject({
+      port: 5000,
+      dockerfile: "./Dockerfile",
+      volumes: [{ source: "tracking-data", target: "/mlflow" }],
+      provides: { MLFLOW_TRACKING_URI: "http://tracking:5000" },
+    });
+    const dockerfile = (name: string) =>
+      readFileSync(join(tempDir, "services", "hqc", name, "Dockerfile"), "utf-8");
+    expect(dockerfile("store")).toBe(
+      'FROM cgr.dev/chainguard/minio:latest\nCMD ["server","/data","--console-address",":9001"]\n',
+    );
+    expect(dockerfile("tracking")).toMatch(
+      /^FROM ghcr\.io\/mlflow\/mlflow:v[\d.]+\nCMD \["mlflow","server"/,
+    );
+  });
+
+  it("lets --image replace the image a Dockerfile preset builds from", async () => {
+    await create("store", "minio", ["--image", "minio/minio:latest"]);
+    expect(readFileSync(join(tempDir, "services", "hqc", "store", "Dockerfile"), "utf-8")).toMatch(
+      /^FROM minio\/minio:latest\n/,
+    );
+  });
+
   it("writes a service.json that validates", async () => {
     for (const [name, type] of [
       ["cache", "redis"],
       ["vectors", "qdrant"],
       ["queue", "rabbitmq"],
+      ["store", "minio"],
+      ["tracking", "mlflow"],
     ]) {
       const service = await create(name, type);
       expect(validateServiceManifest(service, `services/hqc/${name}/service.json`).errors).toEqual(
