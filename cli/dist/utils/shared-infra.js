@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { getEnabledCapabilities, isDatabaseCapabilityEnabled, resolveProjectCapabilities, } from "./capabilities.js";
+import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
-export { getEnabledCapabilities, isDatabaseCapabilityEnabled };
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export function usesSharedPostgres(resource) {
     const config = resource.config;
@@ -19,9 +18,9 @@ export function usesSharedPostgres(resource) {
     return dependsOn.some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name));
 }
 export function groupSharedPostgres(projectName, stacks, options) {
-    if (options && !isDatabaseCapabilityEnabled(options.projectRoot, options)) {
+    // A project that opted out of the shared Postgres has none to show.
+    if (options && !isDatabaseCapabilityEnabled(options.projectRoot, { ...options }))
         return null;
-    }
     const prefix = projectName.replace(/-/g, "_");
     const databases = [];
     for (const stack of [...stacks].sort((a, b) => a.name.localeCompare(b.name))) {
@@ -37,38 +36,6 @@ export function groupSharedPostgres(projectName, stacks, options) {
     if (databases.length === 0)
         return null;
     return { name: "postgres", databases };
-}
-/**
- * Returns the list of shared infrastructure services for the project.
- * Excludes Postgres when the database capability is disabled.
- */
-export function getSharedInfrastructureList(projectNameOrRootOrOptions, stacksOrOptions, options) {
-    let opts;
-    let rootOrConfig;
-    if (typeof projectNameOrRootOrOptions === "string") {
-        rootOrConfig = projectNameOrRootOrOptions;
-    }
-    else if (projectNameOrRootOrOptions && typeof projectNameOrRootOrOptions === "object") {
-        if ("capabilities" in projectNameOrRootOrOptions || "project" in projectNameOrRootOrOptions) {
-            rootOrConfig = projectNameOrRootOrOptions;
-        }
-        opts = projectNameOrRootOrOptions;
-    }
-    if (stacksOrOptions && !Array.isArray(stacksOrOptions) && typeof stacksOrOptions === "object") {
-        opts = { ...opts, ...stacksOrOptions };
-    }
-    if (options && typeof options === "object") {
-        opts = { ...opts, ...options };
-    }
-    const caps = resolveProjectCapabilities(rootOrConfig, opts);
-    const items = [];
-    if (caps.gateway !== false) {
-        items.push("gateway");
-    }
-    if (caps.database !== false) {
-        items.push("postgres");
-    }
-    return items;
 }
 /** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */
 export function readProjectName(projectRoot) {

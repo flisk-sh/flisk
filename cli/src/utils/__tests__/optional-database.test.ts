@@ -1,11 +1,16 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { TemplateEngine } from "../../generator/template-engine.js";
+import {
+  generateMasterConfigs,
+  TemplateEngine,
+  verifyMasterConfigs,
+} from "../../generator/template-engine.js";
 import type {
   DiscoveredResource,
   DiscoveredStack,
@@ -13,6 +18,7 @@ import type {
   ResourceConfig,
 } from "../../types/index.js";
 import {
+  disableDatabaseCapability,
   getEnabledCapabilities,
   isDatabaseCapabilityEnabled,
   resolveProjectCapabilities,
@@ -20,10 +26,7 @@ import {
 import { createDoctorReport } from "../doctor-report.js";
 import { checkHostPorts } from "../doctor-runtime.js";
 import { checkPostgresCredentials, checkSharedPlatformPostgres } from "../doctor-wiring.js";
-import {
-  getSharedInfrastructureList,
-  groupSharedPostgres,
-} from "../shared-infra.js";
+import { groupSharedPostgres } from "../shared-infra.js";
 import {
   databaseManagementEnabled,
   evaluateSharedPlatformPostgres,
@@ -101,30 +104,17 @@ describe("Optional Database Capability", () => {
     it("is enabled by default", () => {
       expect(isDatabaseCapabilityEnabled()).toBe(true);
       expect(isDatabaseCapabilityEnabled({})).toBe(true);
-      expect(getEnabledCapabilities()).toContain("database");
-      expect(getEnabledCapabilities()).toContain("gateway");
+      expect(getEnabledCapabilities({})).toEqual(["database"]);
     });
 
     it("detects database disabled in top-level capabilities", () => {
       const config = { capabilities: { database: false } };
       expect(isDatabaseCapabilityEnabled(config)).toBe(false);
-      const enabled = getEnabledCapabilities(config);
-      expect(enabled).not.toContain("database");
-      expect(enabled).toContain("gateway");
-    });
-
-    it("detects database disabled in project.capabilities", () => {
-      const config = {
-        project: { name: "demo", version: "1.0.0", capabilities: { database: false } },
-      };
-      expect(isDatabaseCapabilityEnabled(config)).toBe(false);
-      const enabled = getEnabledCapabilities(config);
-      expect(enabled).not.toContain("database");
+      expect(getEnabledCapabilities(config)).toEqual([]);
     });
 
     it("detects database disabled via CLI options", () => {
       expect(isDatabaseCapabilityEnabled(null, { database: false })).toBe(false);
-      expect(isDatabaseCapabilityEnabled(null, { "no-database": true })).toBe(false);
       expect(isDatabaseCapabilityEnabled(null, { capabilities: { database: false } })).toBe(false);
       const enabled = getEnabledCapabilities(null, { database: false });
       expect(enabled).not.toContain("database");
@@ -150,31 +140,18 @@ describe("Optional Database Capability", () => {
       }
     });
 
-    it("reports only enabled capabilities when database is disabled", () => {
-      const caps = resolveProjectCapabilities({ capabilities: { database: false } });
-      expect(caps.database).toBe(false);
-      expect(caps.gateway).toBe(true);
-      const report = getEnabledCapabilities({ capabilities: { database: false } });
-      expect(report).toEqual(["gateway", "watch", "healthcheck"]);
+    it("a flag left at its Commander default does not undo a project's opt-out", () => {
+      // Commander sets database: true whenever --no-database is not given.
+      const config = { capabilities: { database: false } };
+      expect(isDatabaseCapabilityEnabled(config, { database: true })).toBe(false);
+      expect(
+        resolveProjectCapabilities(config, { capabilities: { database: true } }).database,
+      ).toBe(false);
+      expect(isDatabaseCapabilityEnabled({}, { database: true })).toBe(true);
     });
   });
 
   describe("Shared Infrastructure with database disabled", () => {
-    it("omits postgres from getSharedInfrastructureList when database capability is disabled", () => {
-      const defaultList = getSharedInfrastructureList();
-      expect(defaultList).toContain("postgres");
-
-      const disabledList = getSharedInfrastructureList({ capabilities: { database: false } });
-      expect(disabledList).not.toContain("postgres");
-      expect(disabledList).toContain("gateway");
-    });
-
-    it("omits postgres from getSharedInfrastructureList with CLI options", () => {
-      const disabledList = getSharedInfrastructureList("proj", [], { database: false });
-      expect(disabledList).not.toContain("postgres");
-      expect(disabledList).toContain("gateway");
-    });
-
     it("groupSharedPostgres returns null when database capability is disabled", () => {
       const stacks = [
         makeStack("shop", [makeResource("api", "shop", { dependsOn: ["postgres"] })]),
@@ -278,9 +255,9 @@ describe("Optional Database Capability", () => {
           reason: { ingressHttp: "free", ingressHttps: "free", postgres: "free" },
         },
         undefined,
-        ["gateway", "watch", "healthcheck"],
+        [],
       );
-      expect(report.data.capabilities).toEqual(["gateway", "watch", "healthcheck"]);
+      expect(report.data.capabilities).toEqual([]);
       expect(report.data.ports?.postgres).toBeUndefined();
       expect(report.data.ports?.http).toBeDefined();
       expect(report.data.ports?.https).toBeDefined();
@@ -298,6 +275,75 @@ describe("Optional Database Capability", () => {
       expect(context.alwaysEnabledInfra).toContain("proxy");
       expect(context.phases.pre_alpha.enabledStacks).not.toContain("database-management");
       expect(context.phases.pre_alpha.enabledStacks).toContain("proxy");
+    });
+  });
+
+  describe("Opting out on an already-generated project (flisk up --no-database)", () => {
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+    function writeProject(root: string): void {
+      mkdirSync(join(root, ".flisk"), { recursive: true });
+      writeFileSync(
+        join(root, ".flisk", "project.json"),
+        JSON.stringify(
+          makeProjectConfig({
+            project: { name: "optout-project", version: "1.0.0" },
+            overrides: { keep: "me" },
+          }),
+        ),
+      );
+    }
+
+    it("saves capabilities.database=false once and keeps the rest of project.json", () => {
+      const root = mkdtempSync(join(tmpdir(), "flisk-test-disable-db-"));
+      try {
+        writeProject(root);
+        expect(disableDatabaseCapability(root)).toBe(true);
+        const saved = JSON.parse(readFileSync(join(root, ".flisk", "project.json"), "utf-8"));
+        expect(saved.capabilities).toEqual({ database: false });
+        expect(saved.overrides).toEqual({ keep: "me" });
+        expect(saved.phases.pre_alpha.enabledStacks).toContain("database-management");
+        expect(isDatabaseCapabilityEnabled(root)).toBe(false);
+        // A second run has nothing to change, so it does not regenerate again.
+        expect(disableDatabaseCapability(root)).toBe(false);
+        // No project.json: nothing to save.
+        expect(disableDatabaseCapability(join(root, "missing"))).toBe(false);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("regenerating after the opt-out drops Postgres from spec.master and stays in sync", async () => {
+      const root = mkdtempSync(join(tmpdir(), "flisk-test-regen-db-"));
+      const oldExtensionSource = process.env.FLISK_EXTENSION_SOURCE;
+      process.env.FLISK_EXTENSION_SOURCE = repoRoot;
+      try {
+        writeProject(root);
+        const specPath = join(root, ".flisk", ".flisk-out", "spec.master");
+        const composePath = join(
+          root,
+          "services",
+          "platform",
+          "database-management",
+          "docker-compose.yml",
+        );
+
+        // The default project gets Postgres.
+        await generateMasterConfigs(root, { quiet: true });
+        expect(readFileSync(specPath, "utf-8")).toContain("database-management");
+        expect(existsSync(composePath)).toBe(true);
+        rmSync(composePath);
+
+        expect(disableDatabaseCapability(root)).toBe(true);
+        await generateMasterConfigs(root, { quiet: true });
+        expect(readFileSync(specPath, "utf-8")).not.toContain("database-management");
+        expect(existsSync(composePath)).toBe(false);
+        expect(verifyMasterConfigs(root).errors).toEqual([]);
+      } finally {
+        if (oldExtensionSource === undefined) delete process.env.FLISK_EXTENSION_SOURCE;
+        else process.env.FLISK_EXTENSION_SOURCE = oldExtensionSource;
+        rmSync(root, { recursive: true, force: true });
+      }
     });
   });
 });

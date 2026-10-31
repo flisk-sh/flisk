@@ -186,11 +186,10 @@ export interface ProjectOptionalInfra {
 export interface ProjectDiscovery {
     paths: string[];
 }
+/** `capabilities` in `.flisk/project.json`: a capability set to false is not provisioned. */
 export interface ProjectCapabilities {
+    /** The bundled shared Postgres (`database-management`). On unless set to false. */
     database?: boolean;
-    gateway?: boolean;
-    watch?: boolean;
-    healthcheck?: boolean;
     [key: string]: boolean | undefined;
 }
 export interface ProjectConfig {
@@ -198,7 +197,6 @@ export interface ProjectConfig {
     project: {
         name: string;
         version: string;
-        capabilities?: ProjectCapabilities;
     };
     capabilities?: ProjectCapabilities;
     phases: {

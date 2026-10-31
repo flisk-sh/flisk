@@ -1,11 +1,9 @@
-import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities, ProjectConfig } from "../types/index.js";
-import { getEnabledCapabilities, isDatabaseCapabilityEnabled } from "./capabilities.js";
-export { getEnabledCapabilities, isDatabaseCapabilityEnabled };
+import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities } from "../types/index.js";
+/** Where `groupSharedPostgres` reads the database capability: the project root, or a flag such as `--no-database`. */
 export interface SharedInfraOptions {
     capabilities?: ProjectCapabilities;
     database?: boolean;
     projectRoot?: string;
-    [key: string]: unknown;
 }
 /**
  * Groups the shared platform Postgres for `flisk status`.
@@ -27,10 +25,5 @@ export interface SharedPostgresInstance {
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export declare function usesSharedPostgres(resource: DiscoveredResource): boolean;
 export declare function groupSharedPostgres(projectName: string, stacks: DiscoveredStack[], options?: SharedInfraOptions): SharedPostgresInstance | null;
-/**
- * Returns the list of shared infrastructure services for the project.
- * Excludes Postgres when the database capability is disabled.
- */
-export declare function getSharedInfrastructureList(projectNameOrRootOrOptions?: string | ProjectConfig | SharedInfraOptions, stacksOrOptions?: DiscoveredStack[] | SharedInfraOptions, options?: SharedInfraOptions): string[];
 /** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */
 export declare function readProjectName(projectRoot: string): string | null;

@@ -165,13 +165,6 @@ const RUNTIME = {
         env: { NODE_ENV: "development" },
     },
 };
-const CAPABILITIES = {
-    gateway: true,
-    database: true,
-    watch: true,
-    healthcheck: true,
-};
-export const DEFAULT_CAPABILITIES = { ...CAPABILITIES };
 export const PLATFORM_STANDARDS = {
     version: PLATFORM_VERSION,
     tech: TECH_STACK,
@@ -186,5 +179,4 @@ export const PLATFORM_STANDARDS = {
     discovery: DISCOVERY,
     docker: DOCKER,
     runtime: RUNTIME,
-    capabilities: CAPABILITIES,
 };

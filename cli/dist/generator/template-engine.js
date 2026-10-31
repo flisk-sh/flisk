@@ -372,8 +372,9 @@ function normalizeProjectConfig(value) {
     if (!Array.isArray(discovery.paths)) {
         return null;
     }
-    const capabilities = (config.capabilities ??
-        config.project?.capabilities);
+    const capabilities = config.capabilities && typeof config.capabilities === "object"
+        ? config.capabilities
+        : undefined;
     return {
         version: config.version,
         project: config.project,

@@ -460,10 +460,10 @@ function normalizeProjectConfig(value: unknown): ProjectConfig | null {
     return null;
   }
 
-  const capabilities = (config.capabilities ??
-    (config.project as Record<string, unknown> | undefined)?.capabilities) as
-    | ProjectConfig["capabilities"]
-    | undefined;
+  const capabilities =
+    config.capabilities && typeof config.capabilities === "object"
+      ? (config.capabilities as ProjectConfig["capabilities"])
+      : undefined;
 
   return {
     version: config.version,

@@ -4,6 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { HostPortPlan, ServiceRuntimeState } from "../types/index.js";
+import { getEnabledCapabilities } from "../utils/capabilities.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -15,11 +16,7 @@ import { nativeServiceStates } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
-import {
-  getEnabledCapabilities,
-  groupSharedPostgres,
-  readProjectName,
-} from "../utils/shared-infra.js";
+import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
 import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
