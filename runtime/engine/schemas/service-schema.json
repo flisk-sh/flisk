@@ -436,7 +436,7 @@
       "type": "string"
     },
     "healthCheck": {
-      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set path (replaces healthCheckPath) and, for container services, interval and timeout in seconds and retries for the Docker health check.",
+      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0), and, for container services, interval and timeout in seconds and retries for the Docker health check.",
       "oneOf": [
         {
           "type": "boolean"
@@ -448,7 +448,16 @@
             "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between container health probes." },
             "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
             "retries": { "type": "integer", "minimum": 0, "description": "Failed container probes before the container is unhealthy." },
-            "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "description": "HTTP path to probe; replaces healthCheckPath." }
+            "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "description": "HTTP path to probe; replaces healthCheckPath." },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Ready when this TCP port accepts a connection, for a service with no HTTP route (a gRPC server, a database proxy). Replaces the HTTP probe." },
+            "command": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Ready when this command exits 0, such as [\"grpc_health_probe\", \"-addr=:9090\"]. It runs inside the container (exec form, no shell), or on the host from the service folder for a local process. Replaces the HTTP probe." }
+          },
+          "not": {
+            "anyOf": [
+              { "required": ["path", "port"] },
+              { "required": ["path", "command"] },
+              { "required": ["port", "command"] }
+            ]
           },
           "additionalProperties": false
         }

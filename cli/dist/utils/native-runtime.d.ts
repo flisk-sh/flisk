@@ -1,4 +1,5 @@
 import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
+import { type ReadinessProbe } from "./service-manifest.js";
 /**
  * The native runtime (#2229): `flisk up` starts every selected `command` service as a local process and supervises it, with no
  * Docker and no Tilt. It runs in the foreground like `tilt up` does: Ctrl+C (or `flisk down` from another terminal) stops it.
@@ -28,6 +29,8 @@ export interface NativeServicePlan {
     restart: boolean;
     /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
     healthCheckDisabled?: boolean;
+    /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
+    readiness?: ReadinessProbe;
     /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
     job?: boolean;
 }
@@ -71,7 +74,7 @@ export declare function findMissingPrograms(plans: readonly NativeServicePlan[],
 /** True when something accepts TCP connections on localhost:port. */
 export declare function isPortListening(port: number, timeoutMs?: number): Promise<boolean>;
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
-export declare function waitForServiceReady(plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled">, options: {
+export declare function waitForServiceReady(plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled"> & Partial<Pick<NativeServicePlan, "readiness" | "cwd" | "env">>, options: {
     isAlive: () => boolean;
     timeoutMs?: number;
     intervalMs?: number;

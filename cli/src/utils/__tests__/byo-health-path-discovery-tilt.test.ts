@@ -220,7 +220,7 @@ describe("Starlark BYO healthCheckPath discovery contract", () => {
   it("inherits root healthCheckPath into traefik.healthCheck and cleans up None values", () => {
     // healthCheck.path wins over healthCheckPath, and "healthCheck": false leaves Traefik no health path.
     expect(loadingStarContent).toContain(
-      "'healthCheck': None if health_check.disabled else (health_check.path or result.get('healthCheckPath') or default_health_path),",
+      "'healthCheck': None if (health_check.disabled or health_check.port or health_check.command) else (health_check.path or result.get('healthCheckPath') or default_health_path),",
     );
     expect(loadingStarContent).toContain("if result['traefik']['healthCheck'] == None:");
     expect(loadingStarContent).toContain("result['traefik'].pop('healthCheck')");

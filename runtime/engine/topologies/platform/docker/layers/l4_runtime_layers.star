@@ -112,7 +112,8 @@ def _backend_healthcheck_instruction(port, manifest = None):
     # Workers and bring-your-own services without healthCheckPath serve no HTTP, so they get no probe (HEALTHCHECK NONE).
     # `"healthCheck": false` in service.json turns the probe off too.
     health_check = manifest_health_check(manifest)
-    if health_check.disabled:
+    # A port or command probe (#2875) lives in the generated compose healthcheck, which replaces the image's.
+    if health_check.disabled or health_check.port or health_check.command:
         return "HEALTHCHECK NONE\n"
     if manifest and (manifest.get('appType') == 'worker' or (manifest.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath') and not health_check.path)):
         return "HEALTHCHECK NONE\n"

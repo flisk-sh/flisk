@@ -38,6 +38,16 @@ export interface ParsedHealthCheckConfig {
  * configuring enabled, interval, timeout, retries, and path.
  */
 export declare function healthCheckErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/** How a service shows it is ready: an HTTP path, an open TCP port, or a command that exits 0 (#2875). */
+export type ReadinessProbe = {
+    kind: "port";
+    port: number;
+} | {
+    kind: "command";
+    command: string[];
+};
+/** `healthCheck.port` or `healthCheck.command`, when the service set one instead of an HTTP path. */
+export declare function readinessProbeOf(manifest?: HealthCheckSource): ReadinessProbe | undefined;
 /** A manifest, or the `config` of a discovered resource, as the health check helpers read it. */
 type HealthCheckSource = {
     healthCheck?: unknown;

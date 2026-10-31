@@ -63,6 +63,11 @@ const COMMAND_GROUPS = [
       { name: "up, deploy", desc: "Start services (optionally by stack)", alias: "[stack-name]" },
       { name: "down", desc: "Stop all tilt resources", alias: "" },
       { name: "restart", desc: "Restart a running resource in the stack", alias: "<resource>" },
+      {
+        name: "run",
+        desc: "Run a one-off command with a service's stack environment",
+        alias: "<service> -- <command>",
+      },
       { name: "status", desc: "Show status of services and stacks", alias: "" },
       { name: "open", desc: "Open the first ready frontend in your browser", alias: "" },
       { name: "logs", desc: "Print recent logs from the running stack", alias: "--json" },

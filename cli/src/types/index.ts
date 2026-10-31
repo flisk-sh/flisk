@@ -32,6 +32,10 @@ export interface HealthCheckObjectConfig {
   timeout?: number;
   retries?: number;
   path?: string;
+  /** Ready when this TCP port accepts a connection (#2875). */
+  port?: number;
+  /** Ready when this command exits 0: the program and its arguments (#2875). */
+  command?: string[];
 }
 
 export type HealthCheckConfig = boolean | HealthCheckObjectConfig;

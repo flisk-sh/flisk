@@ -28,7 +28,7 @@ load("../secrets/env_secrets.star", "get_secret_environment_lines")
 load("../auth/auth.star", "AuthConfig")
 
 load("../constants.star", "PlatformDockerConstants")
-load("../config/healthcheck.star", "DOCKER_HEALTHCHECK", "compose_healthcheck_timing", "manifest_health_check")
+load("../config/healthcheck.star", "DOCKER_HEALTHCHECK", "compose_healthcheck_timing", "compose_probe_test", "manifest_health_check")
 
 # Load project name for dynamic host naming
 # Use FLISK_PROJECT_ROOT env var set by Tilt, fallback to current directory
@@ -222,6 +222,10 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         health_path = reject_unsafe_value(health_check.path, 'healthCheck.path')
     if is_migrator or health_check.disabled:
         health_path = None
+    # `healthCheck.port` / `healthCheck.command` replace the HTTP probe (#2875): no curl, no Traefik HTTP health path.
+    probe_test = None if (is_migrator or health_check.disabled) else compose_probe_test(health_check)
+    if probe_test:
+        health_path = None
     
     traefik_cfg = manifest.get('traefik', {}) if manifest else {}
     traefik_host = reject_unsafe_value(traefik_cfg.get('host', stack + '.backend.' + _PROJECT_NAME + '.local'), 'traefik.host')
@@ -349,6 +353,8 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         healthcheck_section = no_http_healthcheck_section if no_http_healthcheck_section else "" if is_byo else """    healthcheck:
       test: ["CMD", "curl", "-f", "--max-time", "5", "http://localhost:{internal_port}{health_path}"]
 """.format(internal_port=internal_port, health_path=health_path) + compose_healthcheck_timing(overrides=health_check.timing)
+    if probe_test:
+        healthcheck_section = "    healthcheck:\n      test: {}\n".format(probe_test) + compose_healthcheck_timing(overrides=health_check.timing)
     infisical_env = get_infisical_environment_vars(as_array=True, resource_name=res_name, resource_type='migrator' if is_migrator else 'backend')
     
     # Build auth environment variables section using centralized auth utilities
