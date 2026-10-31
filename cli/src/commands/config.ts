@@ -61,7 +61,9 @@ export interface RegenerateChange {
 
 /** The change `flisk config regenerate` makes to each master file, from the same generator its dry run compares with. */
 export function regeneratePlan(projectRoot: string): RegenerateChange[] {
-  const newFiles = new TemplateEngine().generateAll(readProjectConfig(projectRoot));
+  const newFiles = new TemplateEngine().generateAll(readProjectConfig(projectRoot), {
+    projectRoot,
+  });
   const outputDir = join(projectRoot, ".flisk", ".flisk-out");
   return MASTER_CONFIG_FILES.map((file): RegenerateChange => {
     const filePath = join(outputDir, file);
@@ -128,7 +130,7 @@ export const configCommand = new Command("config")
 
               const projectConfig = readProjectConfig(projectRoot);
               const engine = new TemplateEngine();
-              const newFiles = engine.generateAll(projectConfig);
+              const newFiles = engine.generateAll(projectConfig, { projectRoot });
 
               const outputDir = join(projectRoot, ".flisk", ".flisk-out");
               const filesToCheck = MASTER_CONFIG_FILES;

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CAPABILITIES } from "../../config/platform-standards.js";
 import {
   generateMasterConfigs,
   TemplateEngine,
@@ -86,13 +87,18 @@ describe("Optional Database Capability", () => {
     it("is enabled by default", () => {
       expect(isDatabaseCapabilityEnabled()).toBe(true);
       expect(isDatabaseCapabilityEnabled({})).toBe(true);
-      expect(getEnabledCapabilities({})).toEqual(["database"]);
+      // Every capability is on by default, the database among them.
+      expect(getEnabledCapabilities({})).toEqual(Object.keys(DEFAULT_CAPABILITIES));
+      expect(getEnabledCapabilities({})).toContain("database");
     });
 
     it("detects database disabled in top-level capabilities", () => {
       const config = { capabilities: { database: false } };
       expect(isDatabaseCapabilityEnabled(config)).toBe(false);
-      expect(getEnabledCapabilities(config)).toEqual([]);
+      // Only the database is off: the other capabilities, such as the gateway, stay on.
+      expect(getEnabledCapabilities(config)).toEqual(
+        Object.keys(DEFAULT_CAPABILITIES).filter((name) => name !== "database"),
+      );
     });
 
     it("detects database disabled via CLI options", () => {

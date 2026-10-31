@@ -82,6 +82,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk project [template]` | `init` | Create or check the project's master configs, or clone a starter |
 | `flisk projects` | `info` | Show project info and config status |
 | `flisk import [dir]` | | Import the services in a directory's root `docker-compose.yml` |
+| `flisk import tiltfile [path]` | | Make `flisk up` run an existing Tiltfile without changing it |
 | `flisk eject` | | Write `EJECTED.md` describing the generated Tilt files |
 | `flisk resource [name]` | | Create a resource, or register an existing one |
 | `flisk resources` | | List resources |
@@ -155,6 +156,23 @@ flisk import compose ./legacy --yes
 | `--json` | One JSON object on stdout with the files written; the importer's output goes to stderr. Implies `--yes` |
 
 See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-flisk.md).
+
+### `flisk import tiltfile [path]`
+
+Register an existing Tiltfile (default `./Tiltfile`, or a folder that holds one) as the project's orchestration source. It runs `flisk-import tiltfile`, like `flisk import compose` runs the Compose importer, and needs flisk-import 0.4.1 or later. It writes `orchestration: { "source": "tiltfile", "path": "<path>" }` to `.flisk/project.json` (creating it with the defaults when missing) and nothing else. It refuses a missing Tiltfile, a path inside `.flisk/`, a path with a quote or control character, and, without `--force`, a `.flisk/project.json` that already names an orchestration source. From then on `flisk up` generates a `.flisk/.flisk-out/Tiltfile` that only `include()`s yours, so Tilt runs it unchanged, from its own folder. Flisk never writes to your Tiltfile.
+
+```bash
+flisk import tiltfile --dry-run        # print the plan, write nothing
+flisk import tiltfile infra/Tiltfile
+flisk up
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--dry-run` | Print the plan and write nothing |
+| `--yes` | Write without prompting |
+| `--force` | Replace an orchestration source that `.flisk/project.json` already names |
+| `--json` | One JSON object on stdout with the importer's output and what it wrote; implies `--yes` |
 
 ### `flisk eject`
 

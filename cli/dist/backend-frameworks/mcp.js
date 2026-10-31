@@ -97,14 +97,38 @@ export const httpServer = createServer(async (req, res) => {
       return;
     }
 
+    // A body that is not JSON gets a JSON-RPC parse error. Throwing here would end the process, since nothing awaits
+    // this handler.
+    let body: unknown;
+    try {
+      body = await readBody(req);
+    } catch {
+      res.statusCode = 400;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }));
+      return;
+    }
+
+    // A client that accepts only application/json gets a plain JSON response. The SDK refuses with 406 unless Accept also
+    // lists text/event-stream, so add it to both header copies (the transport reads rawHeaders) and turn SSE off.
+    const accept = String(req.headers.accept ?? '');
+    const jsonOnly = accept.includes('application/json') && !accept.includes('text/event-stream');
+    if (jsonOnly) {
+      const widened = accept + ', text/event-stream';
+      req.headers.accept = widened;
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        if (req.rawHeaders[i].toLowerCase() === 'accept') req.rawHeaders[i + 1] = widened;
+      }
+    }
+
     const server = buildServer();
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: jsonOnly });
     res.on('close', () => {
       transport.close();
       server.close();
     });
     await server.connect(transport);
-    await transport.handleRequest(req, res, await readBody(req));
+    await transport.handleRequest(req, res, body);
     return;
   }
 
@@ -211,6 +235,29 @@ describe('${name} MCP protocol', () => {
     const result = await rpc('tools/call', { name: 'echo', arguments: { message: 'hello' } });
     expect(result.isError).toBeFalsy();
     expect(result.content).toEqual([{ type: 'text', text: 'hello' }]);
+  });
+
+  it('answers a body that is not JSON with a parse error and keeps serving', async () => {
+    const res = await fetch(baseUrl + '/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: 'not json',
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe(-32700);
+    expect((await fetch(baseUrl + '/health')).status).toBe(200);
+  });
+
+  it('answers a client that accepts only JSON with a JSON response', async () => {
+    const res = await fetch(baseUrl + '/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: nextId++, method: 'tools/list', params: {} }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    const message = await res.json();
+    expect(message.result.tools.map((tool: { name: string }) => tool.name)).toContain('echo');
   });
 
   it('answers GET /mcp with 405 and an Allow header', async () => {

@@ -5,10 +5,10 @@ import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { ensureProjectRuntimeAssets, generateMasterConfigs, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isWrappedTiltfileStale, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
-import { disableDatabaseCapability, isDatabaseCapabilityEnabled } from "../utils/capabilities.js";
+import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, } from "../utils/capabilities.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
@@ -251,12 +251,16 @@ function envFileFailure(error) {
 /**
  * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which
  * a project without any `command` service always takes. Outside a project, a directory whose services all declare `command`
- * becomes the project. Refuses (through `fail`) an unknown stack or service, an invalid service.json, and a run that would mix
- * native and container services.
+ * becomes the project. A project whose .flisk/project.json selects its own Tiltfile (`flisk import tiltfile`) also returns null:
+ * Tilt runs that Tiltfile through the generated wrapper, whatever its services declare. Refuses (through `fail`) an unknown
+ * stack or service, an invalid service.json, and a run that would mix native and container services.
  */
 export function selectNativeRun(stackName, only, fail, cwd = process.cwd()) {
     const foundRoot = findProjectRoot(cwd);
     if (!foundRoot && !hasNearbyServiceJson(cwd))
+        return null;
+    // The imported Tiltfile is the orchestration: the wrapper only include()s it and never reads `command`, so run Tilt.
+    if (foundRoot && isTiltfileOrchestration(foundRoot))
         return null;
     const projectRoot = foundRoot ?? cwd;
     let discovered;
@@ -372,6 +376,7 @@ export const upCommand = new Command("up")
     .option("--no-database", "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)")
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
     .option("--env-file <path>", "Use this project env file for the run instead of .env (for example: --env-file .env.integration)")
+    .option("--no-gateway", 'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it')
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
     .option("--wait", "Start the stack in the background and return once every service is healthy (exit 0), or when it fails or --wait-timeout passes (exit 1). The stack keeps running; `flisk down` stops it", false)
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
@@ -514,6 +519,10 @@ export const upCommand = new Command("up")
     const action = async () => {
         const foundRoot = options.dryRun ? requireProjectRoot() : findProjectRoot();
         const projectRoot = foundRoot ?? process.cwd();
+        if (options.gateway === false)
+            assertGatewayOptOutIsConfigured(foundRoot);
+        // With the gateway off nothing publishes the routed URLs, so none is printed or smoke-checked.
+        const gatewayEnabled = isGatewayEnabled(projectRoot, options);
         const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined);
         let discoveredStacks;
         let discoveredStackNames = [];
@@ -583,6 +592,7 @@ export const upCommand = new Command("up")
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,
             database: options.database,
+            gateway: gatewayEnabled,
         });
         if (!options.dryRun) {
             // An older project's .env predates keys such as JWT_SECRET, which Compose now requires. Add what is missing (never
@@ -600,14 +610,26 @@ export const upCommand = new Command("up")
                 options.database === false &&
                 disableDatabaseCapability(projectRoot);
             // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
-            // Tilt fail on a missing Tiltfile.
+            // Tilt fail on a missing Tiltfile. After `flisk import tiltfile` the generated Tiltfile must be the wrapper that
+            // includes the project's own one, so an older generated Tiltfile is replaced too (the user's Tiltfile is never written),
+            // and a wrapper is replaced by the full Tiltfile once project.json no longer selects one.
             if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
                 if (!options.quiet) {
                     console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
                 }
                 await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }
-            else if (databaseTurnedOff) {
+            else if (foundRoot && isWrappedTiltfileStale(projectRoot)) {
+                // The capability opt-outs above are already saved, so this regeneration also honours them.
+                if (!options.quiet) {
+                    console.log(chalk.gray(isTiltfileOrchestration(projectRoot)
+                        ? "Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."
+                        : "project.json no longer wraps a Tiltfile; regenerating .flisk/.flisk-out/ ..."));
+                }
+                await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+            }
+            else if (databaseTurnedOff || options.gateway === false) {
+                // `--no-gateway` regenerates too: outputs generated before project.json turned the gateway off still start Traefik.
                 await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }
             if (databaseTurnedOff && !options.quiet) {
@@ -676,8 +698,9 @@ export const upCommand = new Command("up")
                 console.log(chalk.gray(`  - ${name}`));
             }
             const { appBase, apiBase } = resolveSubdomainBases(hostPortPlan.ingressHttp);
-            const frontends = servicesToStart.filter((s) => s.config?.appType === "frontend");
-            const backends = servicesToStart.filter((s) => isApiServiceType(s.config?.appType));
+            const routed = gatewayEnabled ? servicesToStart : [];
+            const frontends = routed.filter((s) => s.config?.appType === "frontend");
+            const backends = routed.filter((s) => isApiServiceType(s.config?.appType));
             if (frontends.length > 0) {
                 console.log(chalk.blue("\n🌍 Frontend URLs:"));
                 for (const svc of frontends) {
@@ -810,7 +833,9 @@ export const upCommand = new Command("up")
         });
         // Services that declare `smoke` are checked through the public URL once Tilt is up. A miss stops Tilt (containers stay for
         // inspection; `flisk down` removes them) and fails the command.
-        const smokePlans = buildSmokePlans(servicesToStart, hostPortPlan.ingressHttp);
+        const smokePlans = buildSmokePlans(servicesToStart, hostPortPlan.ingressHttp, {
+            gateway: gatewayEnabled,
+        });
         let smokeFailed = false;
         let printedSuccess = false;
         let startupFailed = false;
@@ -924,7 +949,7 @@ export const upCommand = new Command("up")
                     const svc = discoveredResources.find((r) => r.name === name);
                     const isReady = !failed && !readiness.failures.some((f) => f.name === name);
                     const isStarting = !isReady && !failed;
-                    const url = svc ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
+                    const url = svc && gatewayEnabled ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
                     return {
                         name,
                         status: failed ? "failed" : isStarting ? "starting" : "ready",
@@ -1014,7 +1039,7 @@ export const upCommand = new Command("up")
                 const svc = discoveredResources.find((r) => r.name === name);
                 const isReady = !failed && !readiness.failures.some((f) => f.name === name);
                 const isStarting = !isReady && !failed;
-                const url = svc ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
+                const url = svc && gatewayEnabled ? resolveServiceUrl(svc, hostPortPlan.ingressHttp) : undefined;
                 return {
                     name,
                     status: failed ? "failed" : isStarting ? "starting" : "ready",

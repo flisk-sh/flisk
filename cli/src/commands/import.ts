@@ -11,14 +11,17 @@ import { getPackageVersion } from "../utils/paths.js";
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "flisk-import@0.3.0";
+export const IMPORT_PACKAGE = "flisk-import@0.4.1";
+
+/** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.1 or later), forwarded as its first argument. */
+export const TILTFILE_IMPORTER = "tiltfile";
 
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export const MIN_CORE_VERSION = "1.3.104";
 
 /**
  * Recommended core for imported stacks: 1.4.11 (#2646) runs a bring-your-own port outside 4000-5999 and two-letter
- * names, which flisk-import 0.3.0 writes. The pin ships in the CLI itself, so a CLI that runs 0.3.0 is already newer.
+ * names, which flisk-import 0.3.0 and later write. The pin ships in the CLI itself, so a CLI that runs it is already newer.
  */
 export const RECOMMENDED_CORE_VERSION = "1.4.11";
 
@@ -217,7 +220,8 @@ export function buildForwardedImportArgs(
   let force = Boolean(options.force);
 
   const filtered: string[] = [];
-  let strippedCompose = false;
+  // `tiltfile` forwards its own path, which may be any name, so only the Compose keyword is ever stripped.
+  let strippedCompose = args[0] === TILTFILE_IMPORTER;
   for (const arg of args) {
     if (arg === "--yes" || arg === "-y") {
       yes = true;
@@ -251,22 +255,43 @@ export interface ImportReport {
   output: string;
 }
 
+/**
+ * What `flisk import tiltfile --json` reports. `path` is the path argument as given (`Tiltfile` when omitted); `written`
+ * lists the files the importer says it wrote (`.flisk/project.json`).
+ */
+export interface TiltfileImportReport {
+  path: string;
+  dryRun: boolean;
+  force: boolean;
+  written: string[];
+  output: string;
+}
+
 /** The report of a successful run, read from the forwarded arguments and the importer's "  wrote <path>" lines. */
-export function importReport(forwardedArgs: string[], run: ImportRun): ImportReport {
-  return {
-    dir: forwardedArgs.find((arg) => !arg.startsWith("-")) ?? ".",
+export function importReport(
+  forwardedArgs: string[],
+  run: ImportRun,
+): ImportReport | TiltfileImportReport {
+  const isTiltfile = forwardedArgs[0] === TILTFILE_IMPORTER;
+  const positional = (isTiltfile ? forwardedArgs.slice(1) : forwardedArgs).find(
+    (arg) => !arg.startsWith("-"),
+  );
+  const common = {
     dryRun: forwardedArgs.includes("--dry-run"),
     force: forwardedArgs.includes("--force"),
     written: [...run.stdout.matchAll(/^\s+wrote (.+)$/gm)].map((match) => match[1].trim()),
     output: run.stdout.trim(),
   };
+  return isTiltfile
+    ? { path: positional ?? "Tiltfile", ...common }
+    : { dir: positional ?? ".", ...common };
 }
 
 /**
  * The error of a failed run: the importer's "Error: ..." line (or whatever it printed last) and its "-> ..." hints. The
  * importer prints "Nothing to import: ..." on stdout, so stdout is read when stderr says nothing.
  */
-export function importFailure(run: ImportRun): JsonCommandError {
+export function importFailure(run: ImportRun, commandName = "flisk import"): JsonCommandError {
   const lines = (text: string) =>
     text
       .split("\n")
@@ -285,7 +310,7 @@ export function importFailure(run: ImportRun): JsonCommandError {
   const fallback =
     run.exitCode === 127
       ? "Install Node.js 22.12 or later, which provides npx, then run the command again"
-      : "Run `flisk import --dry-run` to see the plan without writing anything";
+      : `Run \`${commandName} --dry-run\` to see the plan without writing anything`;
   const suggestions = hints.length > 0 ? hints : [fallback];
   return new JsonCommandError("IMPORT_FAILED", message, suggestions, run.exitCode);
 }
@@ -321,7 +346,7 @@ export async function executeImport(
       // The importer's own text is for a person; stdout carries only the envelope.
       if (run.stdout.trim()) console.log(run.stdout.trimEnd());
       if (run.stderr.trim()) console.error(run.stderr.trimEnd());
-      if (run.exitCode !== 0) throw importFailure(run);
+      if (run.exitCode !== 0) throw importFailure(run, commandName);
       return { data: importReport(forwardedArgs, run) };
     });
     return;
@@ -349,6 +374,29 @@ export const composeCommand = addYesOption(new Command("compose"))
     await executeImport(args, resolved, "flisk import compose");
   });
 
+/**
+ * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.1 or later)
+ * does the import, like `compose`; core only wraps the registered Tiltfile at `flisk up` (see wrappedTiltfilePath).
+ */
+export const tiltfileCommand = addYesOption(new Command("tiltfile"))
+  .description(
+    "Register an existing Tiltfile so flisk up runs it unchanged (writes .flisk/project.json)",
+  )
+  .argument("[args...]", "Passed to flisk-import tiltfile: [path] --dry-run --yes --force")
+  .option("-f, --force", "Overwrite existing orchestration configuration", false)
+  .option("--dry-run", "Print the plan and write nothing", false)
+  .option(
+    "--json",
+    "Print one JSON envelope on stdout with the importer's output; implies --yes",
+    false,
+  )
+  .allowUnknownOption()
+  .helpOption(false)
+  .action(async (args: string[], options: ImportOptions, cmd: Command) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport([TILTFILE_IMPORTER, ...args], resolved, "flisk import tiltfile");
+  });
+
 export const importCommand = addYesOption(new Command("import"))
   .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
   .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
@@ -362,6 +410,7 @@ export const importCommand = addYesOption(new Command("import"))
   .allowUnknownOption()
   .helpOption(false)
   .addCommand(composeCommand)
+  .addCommand(tiltfileCommand)
   .action(async (args: string[], options: ImportOptions, cmd: Command) => {
     const resolved = resolveImportOptions(options, cmd);
     await executeImport(args, resolved, "flisk import");

@@ -337,6 +337,9 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
     # service it declares is loaded via docker_compose() in infra-loader.star,
     # so it must be enabled here too, or it is silently disabled the same way.
     _ALWAYS_ENABLED_INFRA_RESOURCES = ['init-networks', 'traefik', 'golden-layers-build']
+    if not should_enable('proxy') and not should_enable('traefik'):
+        if 'traefik' in _ALWAYS_ENABLED_INFRA_RESOURCES:
+            _ALWAYS_ENABLED_INFRA_RESOURCES.remove('traefik')
     # The discovery daemon is what reloads this Tiltfile when a service.json is added (Tilt watches the files it has read, and a new
     # file is not one of them). Left off this list it is created but stays Disabled in every focus run, which is every `flisk up`.
     if _AUTO_DISCOVER_ENABLED:

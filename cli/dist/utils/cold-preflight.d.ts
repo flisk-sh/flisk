@@ -43,8 +43,9 @@ export declare function usesPrisma(projectRoot: string): boolean;
 export declare function runColdPreflight(opts?: {
     cwd?: string;
     scope?: PreflightScope;
-    database?: boolean;
     capabilities?: ProjectCapabilities;
+    database?: boolean;
+    gateway?: boolean;
     [key: string]: unknown;
 }): Promise<PreflightResult>;
 /** Formats only failed preflight checks and the applicable readiness message. */

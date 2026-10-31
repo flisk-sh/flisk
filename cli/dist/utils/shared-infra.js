@@ -2,9 +2,44 @@
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { isDatabaseCapabilityEnabled } from "./capabilities.js";
+import { isDatabaseCapabilityEnabled, isGatewayEnabled, } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
+export const SHARED_INFRA_SERVICES = {
+    traefik: {
+        name: "traefik",
+        capability: "gateway",
+        description: "Traefik reverse proxy",
+    },
+    postgres: {
+        name: "postgres",
+        capability: "database",
+        description: "PostgreSQL database",
+    },
+};
+/**
+ * Returns the list of shared infrastructure service names based on enabled capabilities.
+ * When gateway is disabled, Traefik is excluded.
+ */
+export function getSharedInfrastructureList(configOrOptions) {
+    const list = [];
+    if (isGatewayEnabled(configOrOptions)) {
+        list.push(SHARED_INFRA_SERVICES.traefik.name);
+    }
+    if (isDatabaseCapabilityEnabled(configOrOptions)) {
+        list.push(SHARED_INFRA_SERVICES.postgres.name);
+    }
+    return list;
+}
+/**
+ * Returns detailed shared infrastructure items based on enabled capabilities.
+ */
+export function getSharedInfrastructureItems(configOrOptions) {
+    const list = getSharedInfrastructureList(configOrOptions);
+    return list
+        .map((name) => SHARED_INFRA_SERVICES[name])
+        .filter(Boolean);
+}
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export function usesSharedPostgres(resource) {
     return usesSharedPostgresAmong(resource, []);

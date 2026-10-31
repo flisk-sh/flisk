@@ -11,8 +11,13 @@ export interface HostPortPlanOptions {
   isAvailable?: (port: number) => Promise<boolean>;
   ranges?: Partial<Record<keyof HostPortPlan["explicit"], { start: number; end: number }>>;
   database?: boolean;
-  capabilities?: { database?: boolean; [key: string]: boolean | undefined };
+  /** False when the gateway capability is off: no Traefik, so HTTP and HTTPS are neither planned nor probed. */
+  gateway?: boolean;
+  capabilities?: { database?: boolean; gateway?: boolean; [key: string]: boolean | undefined };
 }
+
+/** The `reason` a plan gives for the HTTP and HTTPS ports when the gateway capability is off. */
+export const GATEWAY_DISABLED_REASON = "gateway capability disabled";
 
 export const DEFAULT_HOST_PORT_RANGES = {
   ingressHttp: { start: 8080, end: 8180 },
@@ -79,14 +84,22 @@ export async function createHostPortPlan(options: HostPortPlanOptions = {}): Pro
   const reserved = new Set<number>();
 
   const dbEnabled = options.database !== false && options.capabilities?.database !== false;
-  const keys = dbEnabled
-    ? (["ingressHttp", "ingressHttps", "postgres"] as const)
-    : (["ingressHttp", "ingressHttps"] as const);
+  const gatewayEnabled = options.gateway !== false && options.capabilities?.gateway !== false;
+  const keys = [
+    ...(gatewayEnabled ? (["ingressHttp", "ingressHttps"] as const) : []),
+    ...(dbEnabled ? (["postgres"] as const) : []),
+  ];
 
   if (!dbEnabled) {
     selected.postgres = 5432;
     explicitFlags.postgres = false;
     reasons.postgres = "database capability disabled";
+  }
+  if (!gatewayEnabled) {
+    selected.ingressHttp = REQUESTED_PORTS.ingressHttp;
+    selected.ingressHttps = REQUESTED_PORTS.ingressHttps;
+    reasons.ingressHttp = GATEWAY_DISABLED_REASON;
+    reasons.ingressHttps = GATEWAY_DISABLED_REASON;
   }
 
   for (const key of keys) {
@@ -145,8 +158,28 @@ export async function createHostPortPlan(options: HostPortPlanOptions = {}): Pro
 }
 
 export function formatHostPortPlan(plan: HostPortPlan): string {
-  if (plan.reason?.postgres === "database capability disabled") {
-    return `Host ports: HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}`;
-  }
-  return `Host ports: HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`;
+  const parts = [
+    ...(plan.reason?.ingressHttp === GATEWAY_DISABLED_REASON
+      ? []
+      : [`HTTP ${plan.ingressHttp}`, `HTTPS ${plan.ingressHttps}`]),
+    ...(plan.reason?.postgres === "database capability disabled"
+      ? []
+      : [`Postgres ${plan.postgres}`]),
+  ];
+  return parts.length > 0 ? `Host ports: ${parts.join(", ")}` : "Host ports: none needed";
+}
+
+/** The plan with HTTP and HTTPS marked as not needed, for a project whose gateway capability is off. */
+export function withoutGatewayPorts(plan: HostPortPlan): HostPortPlan {
+  return {
+    ...plan,
+    ingressHttp: REQUESTED_PORTS.ingressHttp,
+    ingressHttps: REQUESTED_PORTS.ingressHttps,
+    explicit: { ...plan.explicit, ingressHttp: false, ingressHttps: false },
+    reason: {
+      ...plan.reason,
+      ingressHttp: GATEWAY_DISABLED_REASON,
+      ingressHttps: GATEWAY_DISABLED_REASON,
+    },
+  };
 }
