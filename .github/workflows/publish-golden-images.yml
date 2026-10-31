@@ -1,0 +1,48 @@
+name: 🐳 Release | Publish golden images
+
+# Builds the eight golden layers from the Dockerfile that `flisk up` generates and pushes them to Docker Hub
+# (docker.io/flisk-sh/golden-<layer>:<hash12>). A project with FLISK_GOLDEN_REGISTRY=docker.io/flisk-sh pulls
+# these instead of building them. Run it by hand after a change to the golden layers; it does nothing else.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    env:
+      # Repository secrets: the flisk-sh Docker Hub user and an access token that can push to flisk-sh/golden-*.
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      REGISTRY: docker.io/flisk-sh
+    steps:
+      - name: Stop when Docker Hub is not configured
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::error::DOCKERHUB_USERNAME and DOCKERHUB_TOKEN must be set to publish golden images."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+        with:
+          bun-version: latest
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Render the golden Dockerfile with the repository's generator
+        run: bash scripts/golden/render-golden-dockerfile.sh "$RUNNER_TEMP/golden"
+
+      - name: Build and push the eight golden layers
+        run: bash scripts/golden/push-golden-images.sh "$RUNNER_TEMP/golden" "$REGISTRY"
