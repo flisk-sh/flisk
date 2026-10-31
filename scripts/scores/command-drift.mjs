@@ -35,7 +35,6 @@ export const INTENTIONAL = [
 	},
 	{ file: "docs/data.md", command: "flisk db reset", reason: "says the command does not exist" },
 	{ file: "docs/data.md", command: "flisk db seed", reason: "says the command does not exist" },
-	{ file: "docs/project/DELIVERY.md", command: "flisk export helm", reason: "listed as not shipped" },
 ];
 
 // A word that stands for something the reader fills in: <name>, [stack], {id}, $VAR, ... or …
