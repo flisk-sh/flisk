@@ -15,6 +15,10 @@
 
 </div>
 
+<p align="center">
+<img src="docs/assets/building-apps-loader.svg" alt="Flisk is building your app: an API, a website, a worker, an AI agent, MCP tools and Postgres" width="722" />
+</p>
+
 ## What is Flisk?
 
 Flisk is a command-line tool for local development. It runs every part of your app (API, website, workers, AI agents, database) locally on your computer, with routes behind one address, and rebuilds a part when you save it. Have a `docker-compose.yml`? `flisk import` reads it. Otherwise describe each part in a small `service.json`; Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. An MCP server lets your AI agent run it too. It does not deploy: production stays with your own tools.
