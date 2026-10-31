@@ -15,9 +15,9 @@ on:
         description: "Runner label for every job (default ubuntu-latest); try ubuntu-26.04 before ubuntu-latest moves to it (#1277)"
         type: string
         default: "ubuntu-latest"
-  # Pull requests run only the legs their changed files touch (the plan job below): a change to one frontend framework runs
-  # that framework's leg, a change to the shared frontend code runs every frontend leg. A PR that touches none of them runs
-  # no legs, and the gate passes. The full set runs on the merge queue, nightly and release candidates.
+  # Pull requests run only the legs their changed files touch (the plan job below, tests/e2e/lib/pr-legs.mjs): a change to
+  # one frontend framework runs that framework's leg, a change to shared code runs every leg. A PR that touches none of them
+  # runs no legs, and the gate passes. The merge queue runs the full pull request set; nightly and release run every axis.
   pull_request:
   merge_group:
   schedule:
@@ -71,39 +71,21 @@ jobs:
           if [ "$trigger" = "pr" ]; then
             languages="bun,python,rust,go,node"
             frameworks=""
-            # Frontend legs follow the changed files: cli/src/frontend-frameworks/<name>.ts runs <name>; any shared frontend
-            # code (the engine's Dockerfile and Traefik templates, the frontend suite itself) runs them all.
-            git fetch --no-tags --depth=1 origin "$BASE_SHA"
-            pr_files="$(git diff --name-only "$BASE_SHA" HEAD)"
-            all_frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
-            if printf '%s\n' "$pr_files" | grep -qE '^(runtime/engine/topologies/platform/docker/dockerfile/|cli/src/frontend-frameworks/(registry|types)\.ts$|tests/e2e/resource-types/frontend/|tests/e2e/lib/|cli/src/commands/resource\.ts$)'; then
-              frontends="$all_frontends"
-            else
-              frontends="$(printf '%s\n' "$pr_files" | sed -n -E 's#^cli/src/frontend-frameworks/([a-z-]+)\.ts$#\1#p' | sort -u | paste -sd, -)"
-            fi
           else
             languages="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.language | join(",")')"
             frameworks="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.httpFramework | join(",")')"
-            frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
           fi
+          frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
           matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types,orm "$trigger" "$languages" "$frameworks" "$frontends")"
-          # A pull request that changes only inside one suite's directory (tests/e2e/<group>/<suite>/) runs only that suite's
-          # legs (#1290, #1493). Any other changed file (the CLI, the engine, shared lib, common.sh, this workflow) runs them all.
-          if [ "$trigger" = "pr" ]; then
+          # A pull request runs only the legs its changed files touch (the rules are in tests/e2e/lib/pr-legs.mjs): one frontend
+          # framework, backend language, agent runtime or bring-your-own template runs only its own legs; shared code (the
+          # registries, resource.ts, the engine, tests/e2e/lib, common.sh, this workflow) runs them all; a change none of the
+          # suites read runs none, and the gate passes. The merge queue keeps the full pull request set.
+          if [ "$EVENT" = "pull_request" ]; then
             git fetch --no-tags --depth=1 origin "$BASE_SHA"
-            files="$(git diff --name-only "$BASE_SHA" HEAD)"
-            # A pull request that touches none of these paths runs no legs, and the gate passes. Keep this list in step with
-            # the paths the workflow used to filter on (the gate job must report on every pull request, so it is not in `on:`).
-            PR_PATHS='^(cli/src/commands/(agent|restart)\.ts|cli/src/mcp/|cli/src/agent-runtimes/|cli/src/frontend-frameworks/|runtime/engine/|\.claude/skills/|scripts/sync-flisk-skills\.sh|tests/e2e/(lib|resource-types|orm)/|\.github/workflows/e2e-resource-types\.yml$)'
-            if [ -z "$(printf '%s\n' "$files" | grep -E "$PR_PATHS" || true)" ]; then
-              matrix='{"include":[]}'
-              files=""
-            fi
-            outside="$(printf '%s\n' "$files" | grep -v -E '^tests/e2e/(resource-types|orm)/[^/]+/' || true)"
-            dirs="$(printf '%s\n' "$files" | sed -n -E 's#^tests/e2e/((resource-types|orm)/[^/]+)/.*#\1#p' | sort -u | paste -sd, -)"
-            if [ -z "$outside" ] && [ -n "$dirs" ]; then
-              matrix="$(printf '%s' "$matrix" | jq -c --arg dirs ",$dirs," '{include: [.include[] | .dir as $d | select($dirs | contains("," + $d + ","))]}')"
-            fi
+            before="$RUNNER_TEMP/byo-templates-before.json"
+            git show "$BASE_SHA:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
+            matrix="$(git diff --name-only "$BASE_SHA" HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before")"
           fi
           echo "trigger=$trigger"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
