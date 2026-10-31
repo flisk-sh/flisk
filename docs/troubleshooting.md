@@ -217,6 +217,34 @@ $ flisk doctor --no-ping      # no .env file
 - **Fix:** rotate any leaked credential immediately. Move calls that require secrets to server routes, API endpoints, or a backend-for-frontend (BFF) proxy so client code never receives secret tokens.
 - **Defined in:** [`public-env-secrets.ts`](../cli/src/utils/public-env-secrets.ts) and [`doctor.ts`](../cli/src/commands/doctor.ts) (`checkPublicEnvSecrets`).
 
+### `TOOLCHAIN_MISMATCH`: a service needs another runtime version
+
+```text
+✗ api: wants node@24 (service.json), node 20.11.0 is on PATH
+Switch to that version with your version manager, or change "toolchain" in the service.json.
+```
+
+- **Cause:** a local-process service declares `"toolchain": "node@24"` (or `python@3.12`, ...) in its `service.json`, and the program on `PATH` is another version, is missing, or did not report a version. `flisk up` stops before starting anything; `flisk doctor` fails the **Service toolchains** check.
+- **Hints:** without `toolchain`, a `.nvmrc`, `.node-version` or `.python-version` in the service folder is compared too, but a mismatch there is only a warning in `flisk doctor` and never stops `flisk up`.
+- **Fix:** switch versions with your version manager (nvm, fnm, mise, pyenv, ...), or change `toolchain`. Container services are not checked: their image decides the runtime.
+- **Defined in:** [`toolchain.ts`](../cli/src/utils/toolchain.ts).
+
+### Env values that point outside the local stack
+
+```text
+⚠ 2 values point outside the local stack:
+    orders-api DATABASE_URL -> db.shared.example.com (services/shop/orders-api/.env.local)
+    (project) AUTH_ISSUER -> auth.dev.example.com (.env)
+ℹ Fix: Point them at a local service (http://<service>:<port>, *.localhost), or list hosts that are meant to be remote in "allowedHosts" in .flisk/project.json
+```
+
+- **Cause:** a URL, or a `*_HOST` / `*_HOSTNAME` / `*_DOMAIN` value, names a host that is not part of the local stack. Flisk reads the project `.env`, each service's `env` and `params` in `service.json`, and `.env`, `.env.local`, `.env.development` and `.env.development.local` in each service folder. The service then talks to a shared or production system while you think it runs locally, which shows up as data in shared environments or unexplained 401s.
+- **Local:** `localhost`, `*.localhost`, `*.local`, `*.internal`, loopback and private IP addresses, one-word names (Compose services and containers on the stack network), and the names of the project's services and stacks.
+- **Warning-only:** a warning (`⚠`) by default; `flisk doctor --strict` fails on it.
+- **Redaction:** only the service, the variable name, the host and the file are printed, never the value.
+- **Fix:** point the value at the local service, or add the host to `allowedHosts` in `.flisk/project.json` when it is meant to be remote (`"*.stripe.com"` matches every subdomain).
+- **Defined in:** [`remote-env-hosts.ts`](../cli/src/utils/remote-env-hosts.ts) (`checkRemoteEnvHosts`).
+
 ### Project files that do not match what Flisk expects
 
 ```text

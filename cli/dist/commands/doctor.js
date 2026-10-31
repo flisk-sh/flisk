@@ -32,11 +32,13 @@ import { findNativeProject } from "../utils/native-project.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
+import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
 import { EnvUnreadableError, envSecretValues, redactSecrets, redactValue, } from "../utils/secret-redaction.js";
 import { checkCircularDependencies, checkDependsOnShape, checkSchemaVersions, checkServicePorts, } from "../utils/service-config-checks.js";
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
+import { checkToolchains } from "../utils/toolchain.js";
 import { findOnPath } from "../utils/which.js";
 import { checkWindowsDockerMode, checkWindowsHostConfiguration, checkWindowsRuntimeTools, } from "../utils/windows-doctor.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
@@ -1531,6 +1533,7 @@ export const doctorCommand = new Command("doctor")
         () => checkTiltInstances(),
         checkEnvironmentVariables,
         () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
+        () => checkRemoteEnvHosts(projectRoot ?? process.cwd(), options.strict),
         // Preflight: Verdaccio down causes ImageBuild bun install ConnectionRefused.
         async () => {
             const root = findProjectRoot() ?? process.cwd();
@@ -1566,6 +1569,7 @@ export const doctorCommand = new Command("doctor")
         ? [
             () => checkNativeRuntime(nativeResources),
             () => checkNativeCommands(nativeResources),
+            () => checkToolchains(nativeResources),
             () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
             () => checkDuplicateFliskInstalls(),
         ]
@@ -1581,6 +1585,7 @@ export const doctorCommand = new Command("doctor")
             () => checkSchemaVersions(undefined, options.strict),
             () => checkDuplicateResourcePorts(),
             () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
+            () => checkRemoteEnvHosts(projectRoot ?? process.cwd(), options.strict),
         ]
         : containerProjectChecks;
     if (options.ping && nativeResources && projectRoot) {

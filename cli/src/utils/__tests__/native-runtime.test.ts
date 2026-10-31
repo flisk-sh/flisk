@@ -302,7 +302,59 @@ describe("native supervisor", () => {
     });
     supervisors.push(supervisor);
     await supervisor.start();
-    expect(notes).toContain('exited with code 0; not restarting ("restart": "no")');
+    // A bring-your-own resource with "restart": "no" and no port is a one-shot job: done once it exits 0.
+    expect(notes).toContain("finished (exit code 0)");
+  });
+
+  it("starts a dependent only after its one-shot job exited 0 (#2871)", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "server.mjs"), SERVER);
+    const port = await freePort();
+    const plan = planNativeRun([
+      // Takes long enough that a dependent started on "process alive" would come first.
+      nativeService(root, "migrate", { appType: "migrator", command: "sleep 2" }),
+      nativeService(root, "api", {
+        command: `${NODE} server.mjs`,
+        port,
+        healthCheckPath: "/health",
+        dependsOn: ["migrate"],
+      }),
+    ]);
+    expect(plan.services.find((service) => service.name === "migrate")).toMatchObject({
+      job: true,
+      restart: false,
+    });
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onNote: (name, message) => notes.push(`${name}: ${message}`),
+    });
+    supervisors.push(supervisor);
+
+    expect(await supervisor.start()).toEqual([]);
+    expect(notes.findIndex((note) => note.startsWith("api: started"))).toBeGreaterThan(
+      notes.indexOf("migrate: finished (exit code 0)"),
+    );
+    expect((await fetch(localUrl(port, "/health"))).status).toBe(200);
+  });
+
+  it("does not start a dependent when its job fails, and does not restart the job", async () => {
+    const root = createTempDir();
+    const port = await freePort();
+    const plan = planNativeRun([
+      nativeService(root, "migrate", { appType: "migrator", command: "exit 3" }),
+      nativeService(root, "api", { command: "sleep 30", port, dependsOn: ["migrate"] }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onNote: (name, message) => notes.push(`${name}: ${message}`),
+    });
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([
+      { name: "migrate", reason: "the job did not exit 0; see its output above" },
+      { name: "api", reason: "not started: migrate did not start" },
+    ]);
+    expect(supervisor.pidOf("api")).toBeUndefined();
+    expect(notes).toContain("migrate: exited with code 3; a job is not restarted");
   });
 
   it("stops what the shell started too, not only the shell", async () => {

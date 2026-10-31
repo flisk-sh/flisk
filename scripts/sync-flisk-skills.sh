@@ -25,6 +25,7 @@ fi
 # by scripts/agent-plugin.mjs); the flisk-cli plugin stays a flisk-skills marketplace entry.
 mkdir -p "$repo_root/.claude/skills" "$repo_root/.agents/skills"
 for dir in "$repo_root"/.claude/skills/*/; do
+  [[ -d "$dir" ]] || continue
   name="$(basename "$dir")"
   [[ " ${local_skills[*]-} " == *" $name "* ]] || rm -rf "$dir"
 done

@@ -7,9 +7,13 @@
 // Run: node scripts/journey-map.mjs [owner/repo]
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
+import path from "node:path";
 
 const repo = process.argv[2] ?? "flisk-sh/flisk";
-const outFile = (name) => new URL(`../docs/journey/${name}`, import.meta.url);
+const outFile = (name) =>
+  process.env.JOURNEY_MAP_OUT_DIR
+    ? path.join(process.env.JOURNEY_MAP_OUT_DIR, name)
+    : new URL(`../docs/journey/${name}`, import.meta.url);
 
 // Listed in the order the dotted route visits them (a snake, four per row, the flag takes the first slot).
 const ISLANDS = [
