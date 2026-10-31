@@ -613,6 +613,10 @@ networks:
         volumes_section=volumes_section,
     )
 
+    # A stack with no app containers (only `database` resources, libraries or SDKs) still gets a valid file: Compose refuses an
+    # empty `services:` key ("services must be a mapping"), and accepts an empty mapping (#2894).
+    if not resource_entries:
+        header = header.rstrip("\n") + " {}\n"
     content = header + "\n".join(resource_entries) + footer
 
     if write_fn:
