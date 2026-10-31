@@ -200,6 +200,16 @@ if (templateArg) {
     // project may hold the default), so the ports that answer are looked at.
     const startStarted = Date.now();
     setPhase("start", "active");
+    // Docker out of network ranges fails `init-networks` at once and blocks every service behind it, so make room first.
+    const { ensureNetworkCapacity } = await import("./utils/demo-networks.js");
+    const capacity = await ensureNetworkCapacity();
+    if (capacity.removed.length > 0)
+        logLines.push(`removed unused networks: ${capacity.removed.join(", ")}`);
+    if (!capacity.ok) {
+        stage.fail("Docker has no free network ranges left, so the demo cannot start.", "Run `docker network prune`, or `flisk down --prune-networks` in your other Flisk projects, then run the demo again.", writeLog(logLines));
+        stage.stop();
+        process.exit(1);
+    }
     const { readStackProgress } = await import("./utils/stack-progress.js");
     const { classifyTiltPorts } = await import("./utils/tilt-port-owner.js");
     const candidates = Array.from({ length: 10 }, (_, index) => 10350 + index);
