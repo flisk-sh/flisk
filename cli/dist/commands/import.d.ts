@@ -98,5 +98,4 @@ export interface ImportTiltfileReport {
     written: string[];
 }
 export declare function importTiltfile(pathArg?: string, options?: ImportTiltfileOptions): Promise<ImportTiltfileReport>;
-export declare const tiltfileCommand: Command;
 export {};

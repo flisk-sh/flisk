@@ -225,6 +225,10 @@ const EXEMPT: Record<string, string> = {
     "spawns npx flisk-import over the network; import.test.ts checks that it is forwarded",
   "import --json":
     "spawns npx flisk-import over the network; import.test.ts covers the envelope with a spawn double",
+  "import tiltfile --dry-run":
+    "imports an existing Tiltfile without writing; import-tiltfile.test.ts covers it",
+  "import tiltfile --json":
+    "prints JSON envelope of import; import-tiltfile.test.ts covers it",
   "project --json":
     "creates a project outside one instead of failing, so the outside-project row does not apply; json-scaffold-commands.test.ts covers it",
   "logs --json":

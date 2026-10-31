@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createTempDir, runCommandInProcess } from "../../test-support/index.js";
 import type { ProjectConfig } from "../../types/index.js";
-import { importCommand, importTiltfile, tiltfileCommand } from "../import.js";
+import { importCommand, importTiltfile } from "../import.js";
+
+const tiltfileCommand = importCommand.commands.find((c) => c.name() === "tiltfile")!;
 
 function resetCommandOptions(): void {
   for (const name of ["force", "dryRun", "json", "yes"]) {

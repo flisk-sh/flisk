@@ -330,7 +330,7 @@ export async function importTiltfile(pathArg, options = {}) {
         written,
     };
 }
-export const tiltfileCommand = importCommand
+const tiltfileCommand = importCommand
     .command("tiltfile [path]")
     .description("Import an existing Tiltfile as the project orchestration source")
     .helpOption("-h, --help", "display help for command")
