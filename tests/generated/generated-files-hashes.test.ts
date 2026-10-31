@@ -68,7 +68,7 @@ const GENERATED: Array<{ file: string; sha256: string; contains: string[] }> = [
       "2655a4c8e3d3bf804ad38c1c4c600d4d54b11c492854b6fdb60bf1bd0fe142c9",
     ],
     ["infisical-entrypoint.sh", "7e273f36ac4e50bdd2d75d74223d6a41b2cdca128805c3cc843871d669c167d0"],
-    ["install-deps.sh", "40f31ca2b117524973d669f3e83a902ea7a43da5194f48ef451f909f20946a3c"],
+    ["install-deps.sh", "794d0153b8437891aeafa40b9fd74d954b599c61d8560b9ecf8c0a69c4e2820f"],
     [
       "prisma-bun-client-link-fix.sh",
       "d3cacdec2fdf072fcd0eae548283bdef1bbdadfcbd9924002a48732bf65984ad",
