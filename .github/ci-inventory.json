@@ -432,6 +432,17 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "publish-golden-images.yml",
+			"job": "publish",
+			"tier": "release",
+			"required": false,
+			"reason": "Manual push of the golden base images to a registry (#2827, #2828)",
+			"owner": "maintainers",
+			"exempt": {
+				"check-name": "#1279"
+			}
+		},
+		{
 			"workflow": "publish-service-schema.yml",
 			"job": "publish",
 			"tier": "release",
