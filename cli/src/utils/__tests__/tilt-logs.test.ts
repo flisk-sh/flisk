@@ -90,7 +90,7 @@ describe("option validation", () => {
   });
   it("accepts ports 1-65535 only", () => {
     for (const ok of ["1", "10350", "65535"]) expect(isValidPort(ok)).toBe(true);
-    for (const bad of ["0", "65536", "99999", "100000", "abc", ""])
+    for (const bad of ["0", "01", "65536", "99999", "100000", "abc", ""])
       expect(isValidPort(bad)).toBe(false);
   });
   it("accepts positive integer tails only", () => {

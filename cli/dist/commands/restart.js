@@ -7,8 +7,9 @@ import { errorFactories, FliskError, ProcessExitError, runCommand, showErrorAndE
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
-import { isTiltConnectionFailure, isValidPort } from "../utils/tilt-logs.js";
+import { isTiltConnectionFailure } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
+import { isValidPort } from "../utils/validation.js";
 export const restartCommand = new Command("restart")
     .description("Restart a running resource in the stack")
     .argument("<resource>", "Name of the resource (service) to restart")

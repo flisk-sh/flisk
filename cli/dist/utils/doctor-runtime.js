@@ -215,7 +215,7 @@ export function findStaleDisabledResources(jsonText, projectRoot = findProjectRo
     for (const baseName of [...expectedEnabled, ...enabledNames]) {
         if (baseName === "(Tiltfile)")
             continue;
-        for (const suffix of ["-run-only", "-config-gen", "-typecheck", "-image"]) {
+        for (const suffix of ["-run-only", "-config-gen", "-typecheck", "-image", "-done"]) {
             expectedEnabled.add(`${baseName}${suffix}`);
         }
     }

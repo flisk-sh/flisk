@@ -34,9 +34,7 @@ export function sinceMilliseconds(value) {
     }
     return total / 1e6;
 }
-export function isValidPort(value) {
-    return /^[1-9]\d{0,4}$/.test(value) && Number(value) <= 65535;
-}
+export { isValidPort } from "./validation.js";
 export function isValidTail(value) {
     return /^[1-9]\d*$/.test(value) && Number(value) <= MAX_LOG_TAIL;
 }

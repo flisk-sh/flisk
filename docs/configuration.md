@@ -102,6 +102,7 @@ A short drawing of the pass and fail paths: [Smoke check](smoke.md).
 - `phases`: all four phases (`pre_alpha`, `alpha`, `beta`, `out_of_scope`) are required, and `enabledStacks` lists the stacks assigned to each phase.
 - `optional_infra`: switches for optional platform services such as monitoring and the golden image.
 - `discovery.paths`: where Flisk looks for each service's `service.json`. `services/*/*` matches `services/<stack>/<resource>/service.json`.
+- `allowedHosts` (optional): hosts outside the local stack that env values may point at on purpose, such as `["api.stripe.com", "*.openai.com"]`. `flisk doctor` reports every other remote host it finds in the env (see [troubleshooting](troubleshooting.md#env-values-that-point-outside-the-local-stack)).
 
 The schema only gives your editor completion and hints. The CLI stays the source of truth when it reads this file at runtime.
 

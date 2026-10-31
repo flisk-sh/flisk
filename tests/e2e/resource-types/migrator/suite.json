@@ -13,7 +13,8 @@
     "cli/src/utils/doctor-wiring.ts",
     "cli/src/utils/resource-features.ts",
     "cli/src/utils/shared-platform-postgres.ts",
-    "cli/templates/Tiltfile.hbs"
+    "cli/templates/Tiltfile.hbs",
+    "runtime/engine/topologies/platform/docker/compose/one_shot_job.star"
   ],
   "cases": [
     "M1",

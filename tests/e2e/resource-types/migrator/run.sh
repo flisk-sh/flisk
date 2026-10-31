@@ -97,6 +97,13 @@ M3() { # flisk up starts Postgres, runs the migrator to completion, then starts 
   echo "$MIGRATOR completed its migration at ${mig_done}ms; $API reported running at ${api_start}ms"
   [ -n "$mig_done" ] && [ -n "$api_start" ] || die "could not find the migration-complete or API running log line"
   [ "$mig_done" -le "$api_start" ] || die "$API started before $MIGRATOR finished (ordering broken)"
+  # The log lines above can be in order only because the API image took longer to build than the migration ran. Compare the
+  # containers themselves: the API container must start after the migrator container exited (#2871, the `-done` resource).
+  local mig_finished api_started
+  mig_finished="$(docker inspect -f '{{.State.FinishedAt}}' "$mig" | xargs -I{} node -p "Date.parse('{}')")"
+  api_started="$(docker inspect -f '{{.State.StartedAt}}' "$api" | xargs -I{} node -p "Date.parse('{}')")"
+  echo "$MIGRATOR container finished at ${mig_finished}ms; $API container started at ${api_started}ms"
+  [ "$mig_finished" -le "$api_started" ] || die "$API container started before $MIGRATOR exited (it must wait for $MIGRATOR-done)"
 }
 
 DB=shop-db
