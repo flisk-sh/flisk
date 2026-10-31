@@ -207,7 +207,7 @@ describe("flisk up success output", () => {
 describe("flisk up platform contract", () => {
   it("refuses native Windows unless the explicit escape hatch is set", () => {
     expect(nativeWindowsUpRefusal("win32")).toBe(
-      "Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.",
+      "Landscape startup needs Ubuntu on WSL2. Native Windows runs only services that declare a command, as local processes.",
     );
     expect(nativeWindowsUpRefusal("win32", "0")).not.toBeNull();
     expect(nativeWindowsUpRefusal("win32", "1")).toBeNull();
@@ -232,7 +232,7 @@ describe("flisk up platform contract", () => {
       expect(exit).toHaveBeenCalledWith(1);
       expect(error).toHaveBeenCalledWith(
         expect.stringContaining(
-          "❌ Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.",
+          "❌ Landscape startup needs Ubuntu on WSL2. Native Windows runs only services that declare a command, as local processes.",
         ),
       );
       expect(log).not.toHaveBeenCalled();

@@ -84,6 +84,7 @@ _PATH_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789/-"
 _GENERATED_STRING_RULES = [
     # (field path, allowed characters, required first character or "")
     (['healthCheckPath'], _PATH_CHARS, '/'),
+    (['healthCheck', 'path'], _PATH_CHARS, '/'),
     (['traefik', 'host'], _ALPHANUM + '.-', ''),
     (['traefik', 'pathPrefix'], _PATH_CHARS, '/'),
     (['traefik', 'healthCheck'], _PATH_CHARS, '/'),

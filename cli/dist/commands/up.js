@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { ensureProjectRuntimeAssets, generateMasterConfigs, isWrappedTiltfileStale, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
+import { disableDatabaseCapability, isDatabaseCapabilityEnabled } from "../utils/capabilities.js";
 import { handleDryRun } from "../utils/command-helpers.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf, unknownBackendNames } from "../utils/dependency-graph.js";
@@ -35,7 +36,7 @@ import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
-import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
+import { evaluateSharedPlatformPostgres, POSTGRES_DEPENDENCY_NAMES, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, formatStartupReport, isStartupStalled, machineProblemFixes, } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
@@ -368,6 +369,7 @@ export const upCommand = new Command("up")
     .option("-f, --force", "Kill existing Tilt process before starting", false)
     .option("--ignore-drift", "Start even if generated files differ from service.json", false)
     .option("--ignore-version", "Start even if this flisk is older than minFliskVersion in .flisk/project.json", false)
+    .option("--no-database", "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)")
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
     .option("--env-file <path>", "Use this project env file for the run instead of .env (for example: --env-file .env.integration)")
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
@@ -580,6 +582,7 @@ export const upCommand = new Command("up")
         }
         const hostPortPlan = await getHostPortPlan(projectRoot, {
             inspectDocker: !options.dryRun,
+            database: options.database,
         });
         if (!options.dryRun) {
             // An older project's .env predates keys such as JWT_SECRET, which Compose now requires. Add what is missing (never
@@ -591,6 +594,11 @@ export const upCommand = new Command("up")
                     console.log(chalk.gray(`Added ${addedEnvKeys.join(", ")} to .env (generated; existing values unchanged)`));
                 }
             }
+            // `--no-database` is saved in project.json and the generated files are rebuilt from it, so the flag also takes effect on a
+            // project generated with Postgres, and the next `flisk up` and `flisk config verify` agree with this run.
+            const databaseTurnedOff = Boolean(foundRoot) &&
+                options.database === false &&
+                disableDatabaseCapability(projectRoot);
             // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
             // Tilt fail on a missing Tiltfile. After `flisk import tiltfile` the generated Tiltfile must be the wrapper that
             // includes the project's own one, so an older generated Tiltfile is replaced too (the user's Tiltfile is never written).
@@ -601,10 +609,26 @@ export const upCommand = new Command("up")
                 await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }
             else if (foundRoot && isWrappedTiltfileStale(projectRoot)) {
+                // The capability opt-out above is already saved, so this regeneration also drops the shared Postgres.
                 if (!options.quiet) {
                     console.log(chalk.gray("Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."));
                 }
                 await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+            }
+            else if (databaseTurnedOff) {
+                await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+            }
+            if (databaseTurnedOff && !options.quiet) {
+                console.log(chalk.gray("Set capabilities.database to false in .flisk/project.json; regenerated .flisk/.flisk-out/ without the shared Postgres"));
+            }
+            if (foundRoot && !isDatabaseCapabilityEnabled(projectRoot)) {
+                // The Tiltfile still force-starts the shared Postgres for a dependsOn on it, so say so rather than look ignored.
+                const postgresUsers = discoveredResources
+                    .filter((r) => dependsOnOf(r.config).some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name)))
+                    .map((r) => r.name);
+                if (postgresUsers.length > 0 && !options.quiet) {
+                    console.warn(chalk.yellow(`Database capability is off, but ${postgresUsers.join(", ")} depend on postgres; the shared Postgres still starts for them.`));
+                }
             }
             const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
             if (copiedAssets.length > 0 && options.verbose && !options.quiet) {

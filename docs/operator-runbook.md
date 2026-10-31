@@ -9,9 +9,9 @@ One page for whoever installs, supports, or releases the Flisk CLI. Details live
 | macOS | supported | supported |
 | Linux | supported | supported |
 | WSL2 Ubuntu | supported (see [wsl2.md](wsl2.md)) | supported |
-| Native Windows | not supported; refuses with "Native Windows is inspect-only" (see [decision](design/native-windows-runtime-decision.md)) | inspect-only |
+| Native Windows | local-process projects and `flisk demo` supported; Docker stacks refuse with "Landscape startup needs Ubuntu on WSL2" (see [decision](design/native-windows-runtime-decision.md)) | inspect-only for Docker stacks |
 
-`flisk up` needs Docker and Tilt on the host. Run `flisk doctor` to check them.
+`flisk up` for a container stack needs Docker and Tilt on the host; services that declare a `command` need only their runtime. Run `flisk doctor` to check what your project uses.
 
 ## Versions `flisk doctor` checks
 

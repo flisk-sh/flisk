@@ -12,7 +12,7 @@ The startup routine begins in [cli/src/commands/up.ts](../cli/src/commands/up.ts
 
 1. **Locating the Project**: `findProjectRoot()` traverses up the filesystem from the current working directory to locate `.flisk/project.json`. If no project file is found, the command exits with `NOT_IN_PROJECT`.
 2. **Platform & Host Preflight**:
-   - **Native Windows**: Flisk startup requires Linux containers on Docker (typically via Ubuntu on WSL2). Running directly under native Windows CMD or PowerShell without WSL2 is inspect-only unless `FLISK_ALLOW_NATIVE_WINDOWS=1` is set.
+   - **Native Windows**: a project whose services each declare a `command` starts as local processes in CMD or PowerShell. A container stack requires Linux containers on Docker (typically via Ubuntu on WSL2); without WSL2 it is inspect-only unless `FLISK_ALLOW_NATIVE_WINDOWS=1` is set.
    - **Container Hosts**: If running inside Dev Containers or Codespaces, Flisk probes the Docker daemon socket to ensure container-in-container execution is viable.
 3. **Environment Secrets Synchronization**: An older project may lack newly required secrets (such as `JWT_SECRET`). `completeEnvFile()` scans the project `.env` and generates any missing keys without overwriting existing secrets.
 4. **Master Configs Generation**: If `.flisk/.flisk-out/Tiltfile` does not exist (for example, right after cloning or running `flisk import`), `flisk up` automatically calls `generateMasterConfigs()` to generate the Tiltfile, `spec.master`, and Starlark defaults from Handlebars templates.

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "./project-config-defaults.js";
@@ -118,7 +119,9 @@ function projectJsonFeatureOn(projectRoot) {
  * True when database-management is on for this project from project.json
  * **or** the generated Tiltfile/spec.master when those files exist.
  */
-export function databaseManagementEnabled(projectRoot) {
+export function databaseManagementEnabled(projectRoot, options) {
+    if (!isDatabaseCapabilityEnabled(projectRoot, options))
+        return false;
     if (projectJsonFeatureOn(projectRoot))
         return true;
     const fromTilt = tiltfileAlwaysEnabledInfra(projectRoot);
@@ -171,7 +174,20 @@ function knownDependsonNames(projectRoot, resources) {
  * default focus expands CORE_INFRA → database-management even when project.json
  * says the feature is off (the 7.1 gap).
  */
-export function evaluateSharedPlatformPostgres(projectRoot, resources = discoverResourcesFromRoot(projectRoot)) {
+export function evaluateSharedPlatformPostgres(projectRoot, resources = discoverResourcesFromRoot(projectRoot), options) {
+    if (!isDatabaseCapabilityEnabled(projectRoot, options)) {
+        return {
+            featureOn: false,
+            featureOnFromProjectJson: false,
+            featureOnFromTiltfile: false,
+            featureOnFromSpecMaster: false,
+            focusWouldEnableDatabaseManagement: false,
+            dependsOnUsers: [],
+            willStart: false,
+            reason: "none",
+            unknownDependsOnNames: [],
+        };
+    }
     const featureOnFromProjectJson = projectJsonFeatureOn(projectRoot);
     const fromTilt = tiltfileAlwaysEnabledInfra(projectRoot);
     const featureOnFromTiltfile = Array.isArray(fromTilt) && fromTilt.includes(DATABASE_MANAGEMENT_FEATURE);

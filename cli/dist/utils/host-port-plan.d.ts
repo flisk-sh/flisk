@@ -6,6 +6,11 @@ export interface HostPortPlanOptions {
         start: number;
         end: number;
     }>>;
+    database?: boolean;
+    capabilities?: {
+        database?: boolean;
+        [key: string]: boolean | undefined;
+    };
 }
 export declare const DEFAULT_HOST_PORT_RANGES: {
     readonly ingressHttp: {

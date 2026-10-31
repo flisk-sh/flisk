@@ -10,6 +10,14 @@ export interface DiscoveredResource {
     type?: ResourceType;
 }
 export declare const RESOURCE_CONFIG_APP_TYPES: readonly ["backend", "frontend", "library", "sdk", "worker", "migrator", "mcp", "agent", "bring-your-own"];
+export interface HealthCheckObjectConfig {
+    enabled?: boolean;
+    interval?: number;
+    timeout?: number;
+    retries?: number;
+    path?: string;
+}
+export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
 export interface ResourceConfigFields {
     appName: string;
     appType: (typeof RESOURCE_CONFIG_APP_TYPES)[number];
@@ -26,6 +34,8 @@ export interface ResourceConfigFields {
     basePath?: string;
     backendName?: string;
     apiPath?: string;
+    /** Optional health check configuration: false or { enabled: false } disables health checks; or custom interval, timeout, retries, path. */
+    healthCheck?: HealthCheckConfig;
     /** Path the container healthcheck probes (and Traefik too, unless traefik.healthCheck is set). Defaults to /health. */
     healthCheckPath?: string;
     /** Post-start check through the public proxy URL, run by `flisk up`. See utils/smoke.ts. */
@@ -191,12 +201,19 @@ export interface ProjectOrchestration {
     path?: string;
     [key: string]: unknown;
 }
+/** `capabilities` in `.flisk/project.json`: a capability set to false is not provisioned. */
+export interface ProjectCapabilities {
+    /** The bundled shared Postgres (`database-management`). On unless set to false. */
+    database?: boolean;
+    [key: string]: boolean | undefined;
+}
 export interface ProjectConfig {
     version: string;
     project: {
         name: string;
         version: string;
     };
+    capabilities?: ProjectCapabilities;
     phases: {
         pre_alpha: ProjectPhaseDefinition;
         alpha: ProjectPhaseDefinition;

@@ -404,6 +404,25 @@
       "pattern": "^[a-z][a-z0-9-]*$",
       "type": "string"
     },
+    "healthCheck": {
+      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set path (replaces healthCheckPath) and, for container services, interval and timeout in seconds and retries for the Docker health check.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between container health probes." },
+            "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
+            "retries": { "type": "integer", "minimum": 0, "description": "Failed container probes before the container is unhealthy." },
+            "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "description": "HTTP path to probe; replaces healthCheckPath." }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "healthCheckPath": {
       "default": "/health",
       "description": "HTTP endpoint for health checks. Must return 200 OK. Optional for bring-your-own: omit it for a service that does not speak HTTP (Postgres, Redis, SMTP, ...), and Flisk then skips the HTTP health probes for it.",

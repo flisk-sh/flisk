@@ -43,7 +43,7 @@ To check by hand: download the asset and `checksums.txt` from the same release a
 
 ## Platforms
 
-macOS, Linux, and Windows through WSL2 Ubuntu. Native Windows supports inspection only (`flisk --version`, `flisk doctor`, `flisk up --dry-run`).
+macOS, Linux, and Windows. Native Windows runs local-process projects and `flisk demo`; a Docker stack runs through WSL2 Ubuntu, and native Windows supports inspection only for it (`flisk --version`, `flisk doctor`, `flisk up --dry-run`).
 
 ## Non-claims
 
