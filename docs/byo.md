@@ -216,6 +216,51 @@ Checked by `tests/e2e/resource-types/bring-your-own/verify-byo-infra.sh` (e2e BY
 that lists the three presets in `dependsOn` reads their URLs from its environment and does a round trip to each (SET and GET,
 a Qdrant collection, a RabbitMQ message as `guest`), and each preset is healthy with its data in its own named volume.
 
+## External providers (IBM Quantum, Amazon Braket, hosted APIs)
+
+A service that calls a cloud endpoint with a token, and that should use a local stand-in while no token is configured (a
+Qiskit Aer simulator instead of a real QPU, a local model server instead of a hosted API), declares it in `providers`:
+
+```json
+"dependsOn": ["quantum-sim"],
+"providers": {
+  "ibm-quantum": {
+    "url": "https://quantum.cloud.ibm.com/api",
+    "tokenSecret": "IBM_QUANTUM_TOKEN",
+    "fallback": "quantum-sim"
+  },
+  "braket": { "url": "https://braket.us-east-1.amazonaws.com", "tokenSecret": "AWS_BRAKET_TOKEN" }
+}
+```
+
+For each provider (`ibm-quantum` becomes `PROVIDER_IBM_QUANTUM_…`) the container gets:
+
+| Variable | Value |
+| --- | --- |
+| `PROVIDER_IBM_QUANTUM_URL` | `url` (in the generated env file) |
+| `PROVIDER_IBM_QUANTUM_FALLBACK_URL` | `http://<fallback>:<its port>`, when `fallback` is set (in the generated env file) |
+| `IBM_QUANTUM_TOKEN` | the token, from the project `.env` (gitignored), like `secrets` |
+| `PROVIDER_IBM_QUANTUM_REMOTE` | `true` while the token has a value, empty otherwise |
+
+The code calls the remote URL when `PROVIDER_…_REMOTE` is `true` and the fallback URL otherwise. The token reaches the container
+through Compose interpolation and is never written to a generated file. A provider without a `fallback` needs its token:
+`flisk up` (and `--dry-run`) stops before anything starts and names it, as it does for `secrets.required`. Set
+`"required": false` to start without it, or `"required": true` to need it even with a fallback. List the fallback in
+`dependsOn` too; `flisk config verify` reports it when it is missing.
+
+To add, rotate or remove a token, edit the project `.env` and run `flisk restart <service>`. The container is recreated with
+the new value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
+the flag still follows the variable.
+
+`providers` applies to backend, worker, mcp, agent and bring-your-own services running in containers. It does not start a
+proxy in front of the provider; the service calls the URL itself.
+
+Checked by `tests/tilt-engine/test_providers.py` (the generators) and
+`tests/e2e/resource-types/bring-your-own/verify-byo-providers.sh` (e2e BY9): `flisk up --dry-run` refuses a required provider
+token that is missing; without the token the service sees an empty `REMOTE` and reaches the simulator through its fallback
+URL; after the token is added to `.env` and `flisk restart`, it sees `REMOTE=true` and the new token, and no generated file
+holds it.
+
 ## Bringing a framework app (Node, Go, Rust, ...)
 
 Any app that fits the contract below can run as a bring-your-own resource. Fastify is the worked example because it needs nothing beyond the framework.

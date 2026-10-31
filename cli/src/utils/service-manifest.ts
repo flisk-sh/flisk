@@ -55,6 +55,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "profiles",
   "playwright",
   "provides",
+  "providers",
   "port",
   "replicas",
   "restart",
@@ -700,6 +701,93 @@ export function providesErrors(manifest: Record<string, unknown>, displayPath: s
   return errors;
 }
 
+const PROVIDER_KEYS = ["url", "tokenSecret", "fallback", "required"];
+const PROVIDER_TYPES = new Set(["backend", "worker", "mcp", "agent", "bring-your-own"]);
+
+/** One entry of `providers`, with `required` resolved: a token is required unless the provider has a local fallback. */
+export interface ProviderSpec {
+  id: string;
+  url: string;
+  tokenSecret?: string;
+  fallback?: string;
+  required: boolean;
+}
+
+/** The well-formed entries of `providers` (malformed ones are reported by {@link providersErrors}). */
+export function providersOf(manifest: Record<string, unknown> | undefined): ProviderSpec[] {
+  const providers = manifest?.providers;
+  if (!isPlainObject(providers)) return [];
+  return Object.entries(providers).flatMap(([id, entry]) => {
+    if (!isPlainObject(entry) || typeof entry.url !== "string") return [];
+    const tokenSecret = typeof entry.tokenSecret === "string" ? entry.tokenSecret : undefined;
+    const fallback = typeof entry.fallback === "string" ? entry.fallback : undefined;
+    const required =
+      typeof entry.required === "boolean"
+        ? entry.required
+        : tokenSecret !== undefined && fallback === undefined;
+    return [{ id, url: entry.url, tokenSecret, fallback, required }];
+  });
+}
+
+/**
+ * `providers`: external endpoints a service calls (IBM Quantum, Amazon Braket, a hosted model API) with the secret that holds
+ * their token, and optionally a local resource to use while the token is missing. Mirrors
+ * engine/.../docker/secrets/providers.star, which refuses the same values.
+ */
+export function providersErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const providers = manifest.providers;
+  if (providers === undefined || providers === null) return [];
+  const field = `${displayPath}.providers`;
+  if (!isPlainObject(providers)) {
+    return [`${field}: expected an object such as { "ibm-quantum": { "url": "https://..." } }`];
+  }
+  if (typeof manifest.command === "string" || !PROVIDER_TYPES.has(String(manifest.appType))) {
+    return [
+      `${field}: only applies to container services (backend, worker, mcp, agent, bring-your-own)`,
+    ];
+  }
+  const dependsOn = Array.isArray(manifest.dependsOn) ? manifest.dependsOn : [];
+  const errors: string[] = [];
+  for (const [id, entry] of Object.entries(providers)) {
+    const at = `${field}.${id}`;
+    if (!/^[a-z][a-z0-9-]*$/.test(id)) {
+      errors.push(`${at}: name it in lowercase letters, digits and '-', such as ibm-quantum`);
+    }
+    if (!isPlainObject(entry)) {
+      errors.push(`${at}: expected an object such as { "url": "https://..." }`);
+      continue;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!PROVIDER_KEYS.includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use ${PROVIDER_KEYS.join(", ")})`);
+      }
+    }
+    if (typeof entry.url !== "string" || !/^https?:\/\/[A-Za-z0-9_\-./:@%+=,~]+$/.test(entry.url)) {
+      errors.push(`${at}.url: expected an http(s) URL without spaces, quotes or $`);
+    }
+    const token = entry.tokenSecret;
+    if (token !== undefined && !(typeof token === "string" && ENV_NAME_PATTERN.test(token))) {
+      errors.push(
+        `${at}.tokenSecret: expected an environment variable name such as IBM_QUANTUM_TOKEN`,
+      );
+    }
+    const fallback = entry.fallback;
+    if (fallback !== undefined) {
+      if (!(typeof fallback === "string" && /^[a-z][a-z0-9-]*$/.test(fallback))) {
+        errors.push(`${at}.fallback: expected a resource name such as quantum-sim`);
+      } else if (!dependsOn.includes(fallback)) {
+        errors.push(`${at}.fallback: list ${fallback} in dependsOn too, so it starts first`);
+      }
+    }
+    if (entry.required !== undefined && typeof entry.required !== "boolean") {
+      errors.push(`${at}.required: expected true or false`);
+    } else if (entry.required === true && token === undefined) {
+      errors.push(`${at}.required: needs a tokenSecret`);
+    }
+  }
+  return errors;
+}
+
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
   const secrets = manifest.secrets;
@@ -973,6 +1061,7 @@ export function validateServiceManifest(
   errors.push(...containerErrors(manifest, displayPath));
   errors.push(...extraPortsErrors(manifest, displayPath));
   errors.push(...providesErrors(manifest, displayPath));
+  errors.push(...providersErrors(manifest, displayPath));
   errors.push(...sidecarErrors(manifest, displayPath));
   errors.push(...volumesErrors(manifest, displayPath));
   errors.push(...byoEnvErrors(manifest, displayPath));

@@ -100,6 +100,17 @@ def resolve_dependency_provides(manifest):
     return pairs
 
 
+def resolve_resource_port(resource_name):
+    """The port a discovered resource listens on (its service.json `port`), or None when there is no such resource.
+
+    A provider's fallback (service.json `providers`) is reached at http://<name>:<port> on the Docker network.
+    """
+    resource = _find_backend_resource(resource_name)
+    if not resource:
+        return None
+    return resource.get("_manifest", {}).get("port")
+
+
 def resolve_dependency_api_urls(manifest):
     """Resolve all API URLs from dependsOn.
     

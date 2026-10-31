@@ -9,6 +9,7 @@
 #   BYO_VARIANT=job tests/e2e/resource-types/bring-your-own/run.sh all        a one-shot job through flisk up (BY3)
 #   BYO_VARIANT=pair tests/e2e/resource-types/bring-your-own/run.sh all       a dependency and an app through flisk up (BY4)
 #   BYO_VARIANT=infra tests/e2e/resource-types/bring-your-own/run.sh all      redis, qdrant and rabbitmq presets (BY8)
+#   BYO_VARIANT=providers tests/e2e/resource-types/bring-your-own/run.sh all  external providers and their tokens (BY9)
 #   tests/e2e/resource-types/bring-your-own/run.sh BY1                         a single case
 #
 # The verify scripts build images, run them and clean up after themselves, so this suite has no resources of its own.
@@ -71,6 +72,7 @@ BY6() {
   bash "$SUITE_DIR/verify-byo-python-boot.sh"
 }
 BY8() { run_verify verify-byo-infra.sh "BY8 redis, qdrant and rabbitmq presets reached through the settings they provide"; }
+BY9() { run_verify verify-byo-providers.sh "BY9 an external provider falls back to a local simulator, then uses its rotated token"; }
 
 # \`all\` runs only this variant's case: every leg of this suite is one variant, not every case in suite.json.
 args=()

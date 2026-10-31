@@ -12,6 +12,8 @@ import {
   generatedFieldErrorsForFile,
   getInvalidServiceRoutePathFields,
   isDockerSafeName,
+  providersErrors,
+  providersOf,
   SERVICE_MANIFEST_SCHEMA_URL,
   SERVICE_MANIFEST_SCHEMA_VERSION,
   secretConflictWarnings,
@@ -1053,5 +1055,95 @@ describe("byoEnvErrors", () => {
     );
     expect(result.errors).toEqual([]);
     expect(result.warnings).toEqual([]);
+  });
+});
+
+describe("providersErrors", () => {
+  const file = "services/hqc/research-agent/service.json";
+  const agent = (providers: unknown, more: Record<string, unknown> = {}) => ({
+    appType: "agent",
+    dependsOn: ["quantum-sim"],
+    providers,
+    ...more,
+  });
+
+  it("accepts a remote endpoint with a token and a local fallback, and an absent value", () => {
+    expect(providersErrors({ appType: "agent" }, file)).toEqual([]);
+    expect(
+      providersErrors(
+        agent({
+          "ibm-quantum": {
+            url: "https://quantum.cloud.ibm.com/api",
+            tokenSecret: "IBM_QUANTUM_TOKEN",
+            fallback: "quantum-sim",
+          },
+          braket: {
+            url: "https://braket.us-east-1.amazonaws.com",
+            tokenSecret: "AWS_BRAKET_TOKEN",
+          },
+          docs: { url: "https://docs.quantum.ibm.com", required: false },
+        }),
+        file,
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [agent(["ibm"]), "providers: expected an object"],
+    [
+      agent({ ibm: { url: "https://x" } }, { appType: "frontend" }),
+      "only applies to container services",
+    ],
+    [
+      agent({ ibm: { url: "https://x" } }, { command: "python main.py" }),
+      "only applies to container services",
+    ],
+    [agent({ IBM: { url: "https://x" } }), "providers.IBM: name it in lowercase"],
+    [agent({ ibm: "https://x" }), "providers.ibm: expected an object"],
+    [agent({ ibm: { url: "ftp://x" } }), "providers.ibm.url: expected an http(s) URL"],
+    [agent({ ibm: { url: "https://x y" } }), "providers.ibm.url: expected an http(s) URL"],
+    [
+      agent({ ibm: { url: "https://x", tokenSecret: "ibm-token" } }),
+      "providers.ibm.tokenSecret: expected",
+    ],
+    [
+      agent({ ibm: { url: "https://x", fallback: "other-sim" } }),
+      "list other-sim in dependsOn too",
+    ],
+    [
+      agent({ ibm: { url: "https://x", fallback: "Sim" } }),
+      "providers.ibm.fallback: expected a resource name",
+    ],
+    [
+      agent({ ibm: { url: "https://x", required: true } }),
+      "providers.ibm.required: needs a tokenSecret",
+    ],
+    [
+      agent({ ibm: { url: "https://x", required: "yes" } }),
+      "providers.ibm.required: expected true or false",
+    ],
+    [agent({ ibm: { url: "https://x", proxy: true } }), "providers.ibm.proxy: unknown option"],
+  ])("refuses %j", (manifest, message) => {
+    const errors = providersErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("resolves required: a token is required unless there is a fallback", () => {
+    expect(
+      providersOf(
+        agent({
+          a: { url: "https://a", tokenSecret: "A_TOKEN" },
+          b: { url: "https://b", tokenSecret: "B_TOKEN", fallback: "quantum-sim" },
+          c: { url: "https://c", tokenSecret: "C_TOKEN", fallback: "quantum-sim", required: true },
+          d: { url: "https://d" },
+        }),
+      ).map(({ id, required }) => [id, required]),
+    ).toEqual([
+      ["a", true],
+      ["b", false],
+      ["c", true],
+      ["d", false],
+    ]);
   });
 });

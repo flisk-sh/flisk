@@ -54,6 +54,22 @@ export declare function byoEnvErrors(manifest: Record<string, unknown>, displayP
  * engine/.../orchestrator/generators/env.star.
  */
 export declare function providesErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/** One entry of `providers`, with `required` resolved: a token is required unless the provider has a local fallback. */
+export interface ProviderSpec {
+    id: string;
+    url: string;
+    tokenSecret?: string;
+    fallback?: string;
+    required: boolean;
+}
+/** The well-formed entries of `providers` (malformed ones are reported by {@link providersErrors}). */
+export declare function providersOf(manifest: Record<string, unknown> | undefined): ProviderSpec[];
+/**
+ * `providers`: external endpoints a service calls (IBM Quantum, Amazon Braket, a hosted model API) with the secret that holds
+ * their token, and optionally a local resource to use while the token is missing. Mirrors
+ * engine/.../docker/secrets/providers.star, which refuses the same values.
+ */
+export declare function providersErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];
