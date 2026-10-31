@@ -128,22 +128,43 @@ describe("validateOptionalInfraService", () => {
 
 describe("isValidPort", () => {
   it.each([
-    ["lowest", 1],
+    ["lowest number", 1],
     ["1024", 1024],
     ["3000", 3000],
     ["8080", 8080],
-    ["highest", 65535],
+    ["highest number", 65535],
+    ["lowest string", "1"],
+    ["string 1024", "1024"],
+    ["string 3000", "3000"],
+    ["string 8080", "8080"],
+    ["string 10350", "10350"],
+    ["highest string", "65535"],
   ])("should accept valid port (%s): %s", (_label, port) => {
     expect(isValidPort(port)).toBe(true);
   });
 
   it.each([
-    ["port 0", 0],
-    ["negative port", -1],
-    ["port above 65535", 65536],
+    ["number 0", 0],
+    ["negative number", -1],
+    ["number above 65535", 65536],
     ["NaN", NaN],
-    ["non-integer port", 80.5],
-  ])("should reject %s: %s", (_label, port) => {
+    ["positive infinity", Infinity],
+    ["negative infinity", -Infinity],
+    ["non-integer number", 80.5],
+    ["string 0", "0"],
+    ["leading zero '01'", "01"],
+    ["leading zeros '00123'", "00123"],
+    ["string above 65535", "65536"],
+    ["large string port", "99999"],
+    ["six-digit string port", "100000"],
+    ["empty string", ""],
+    ["whitespace string", "   "],
+    ["string with leading space", " 10350"],
+    ["string with trailing space", "10350 "],
+    ["non-numeric string", "abc"],
+    ["negative string", "-1"],
+    ["decimal string", "80.5"],
+  ])("should reject %s: %j", (_label, port) => {
     expect(isValidPort(port)).toBe(false);
   });
 });

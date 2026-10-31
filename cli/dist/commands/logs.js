@@ -14,8 +14,9 @@ import { deriveServiceStates } from "../utils/service-runtime-state.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { unhealthyServiceNames } from "../utils/status-groups.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
-import { DEFAULT_LOG_TAIL, isTiltConnectionFailure, isValidPort, isValidSince, isValidTail, MAX_LOG_TAIL, parseTiltLogLines, sinceMilliseconds, } from "../utils/tilt-logs.js";
+import { DEFAULT_LOG_TAIL, isTiltConnectionFailure, isValidSince, isValidTail, MAX_LOG_TAIL, parseTiltLogLines, sinceMilliseconds, } from "../utils/tilt-logs.js";
 import { tiltUnreachableMessage } from "../utils/tilt-unreachable-message.js";
+import { isValidPort } from "../utils/validation.js";
 /** Resource names Tilt knows about, or null when they cannot be listed (the logs call then reports the real error). */
 async function tiltResourceNames(port) {
     try {
