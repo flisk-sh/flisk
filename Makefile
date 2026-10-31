@@ -40,11 +40,14 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/check-ci-inventory.test.mjs
 	node --test scripts/check-ruleset-snapshots.test.mjs
 	node --test scripts/check-test-helper-allowlist.test.mjs
+	node --test cli/scripts/pin-module-location.test.mjs
 	node --test scripts/check-published-service-schema.test.mjs
 	node --test scripts/pilot-scorecard.test.mjs
 	node --test scripts/package-lifecycle-smoke.test.mjs
 	node --test scripts/wsl2-demo.test.mjs
+	node --test scripts/wsl2-smoke.test.mjs
 	node --test scripts/install-git-hooks.test.mjs
+	node --test scripts/setup-pre-commit.test.mjs
 	node --test scripts/cold-boot-notes.test.mjs
 	node --test scripts/install-git-hooks.test.mjs
 	node --test scripts/release-binaries.test.mjs
@@ -73,6 +76,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 	node --test scripts/ai-conflict-buttons-comment.test.mjs
 	node --test scripts/hacktoberfest-embed.test.mjs
+	node --test scripts/demo-svgs.test.mjs
 
 ade-score: ## Print the deterministic ADE score (no AI, files only); add ARGS="--markdown" or ARGS="--json"
 	node scripts/ade-score.mjs $(ARGS)
