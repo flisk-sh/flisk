@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import chalk from "chalk";
 import { loadTemplate } from "../generator/template-engine.js";
 import { createDemoStage } from "./demo-stage.js";
+import { FliskError } from "./errors.js";
 import { isPortListening, isProcessAlive, readNativeRunState } from "./native-runtime.js";
 import { parseStackEnvelope } from "./one-command.js";
 import { openUrl } from "./url-actions.js";
@@ -60,7 +61,9 @@ export async function findFreePort(start, isTaken = isPortListening, exclude = [
         if (!exclude.includes(port) && !(await isTaken(port)))
             return port;
     }
-    throw new Error(`No free port between ${start} and ${start + attempts - 1}`);
+    throw new FliskError(`No free port between ${start} and ${start + attempts - 1}`, [
+        "Stop a program that listens on one of these ports, then run flisk demo again",
+    ]);
 }
 /** Free ports for the two services, starting from 4000 for the API and 3000 for the website. */
 export async function pickDemoPorts(isTaken = isPortListening) {

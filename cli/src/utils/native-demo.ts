@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import chalk from "chalk";
 import { loadTemplate } from "../generator/template-engine.js";
 import { createDemoStage, type DemoPhase, type DemoPhaseStatus } from "./demo-stage.js";
+import { FliskError } from "./errors.js";
 import { isPortListening, isProcessAlive, readNativeRunState } from "./native-runtime.js";
 import { parseStackEnvelope, type StackOutcome } from "./one-command.js";
 import { openUrl } from "./url-actions.js";
@@ -93,7 +94,9 @@ export async function findFreePort(
   for (let port = start; port < start + attempts; port += 1) {
     if (!exclude.includes(port) && !(await isTaken(port))) return port;
   }
-  throw new Error(`No free port between ${start} and ${start + attempts - 1}`);
+  throw new FliskError(`No free port between ${start} and ${start + attempts - 1}`, [
+    "Stop a program that listens on one of these ports, then run flisk demo again",
+  ]);
 }
 
 /** Free ports for the two services, starting from 4000 for the API and 3000 for the website. */
