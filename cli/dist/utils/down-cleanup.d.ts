@@ -37,4 +37,22 @@ export declare function findRunningFliskProjects(platform?: NodeJS.Platform, com
 export declare function stopProjectTiltUp(tiltfilePath: string, platform?: NodeJS.Platform, commandRunner?: CommandRunner): number[];
 /** Wait (up to `timeoutMs`) for the `tilt up` processes to exit after TERM, so `tilt down` does not race a live Tilt. */
 export declare function waitForTiltUpExit(tiltfilePath: string, timeoutMs?: number, findPids?: (tiltfilePath: string) => number[]): Promise<boolean>;
+/**
+ * The Compose projects whose files live in this project, read from the containers' `com.docker.compose.project.working_dir`
+ * label (the folder of the first compose file). Matching the folder, not the project name, keeps a project named `shop`
+ * from taking `shop-admin`'s containers.
+ */
+export declare function projectComposeProjects(projectRoot: string, commandRunner?: CommandRunner): string[];
+export interface ComposeFallbackResult {
+    stopped: string[];
+    failed: {
+        name: string;
+        reason: string;
+    }[];
+}
+/**
+ * Stops and removes this project's containers with `docker compose -p <name> down`, for when `tilt down` cannot (its Tiltfile
+ * fails to evaluate, #2899). Volumes are kept, as `tilt down` keeps them.
+ */
+export declare function stopProjectComposeProjects(projectRoot: string, commandRunner?: CommandRunner): ComposeFallbackResult;
 export {};

@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { join, resolve as resolvePath, sep } from "node:path";
 const run = (command, args) => execFileSync(command, args, { encoding: "utf-8", stdio: "pipe", windowsHide: true });
 /** Network names the engine creates per project (see engine/.../docker/constants.star and init-networks). */
 const PROJECT_NETWORK_SUFFIXES = [
@@ -155,4 +155,54 @@ export async function waitForTiltUpExit(tiltfilePath, timeoutMs = 8000, findPids
         await new Promise((resolve) => setTimeout(resolve, 250));
     }
     return true;
+}
+function realPathOrSelf(dir) {
+    try {
+        return realpathSync(dir);
+    }
+    catch {
+        return resolvePath(dir);
+    }
+}
+/**
+ * The Compose projects whose files live in this project, read from the containers' `com.docker.compose.project.working_dir`
+ * label (the folder of the first compose file). Matching the folder, not the project name, keeps a project named `shop`
+ * from taking `shop-admin`'s containers.
+ */
+export function projectComposeProjects(projectRoot, commandRunner = run) {
+    const root = realPathOrSelf(projectRoot);
+    const output = commandRunner("docker", [
+        "ps",
+        "-a",
+        "--format",
+        '{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.project.working_dir"}}',
+    ]);
+    const names = new Set();
+    for (const line of output.split(/\r?\n/)) {
+        const [name, workingDir] = line.split("\t");
+        if (!name || !workingDir)
+            continue;
+        const dir = realPathOrSelf(workingDir.trim());
+        if (dir === root || dir.startsWith(root + sep))
+            names.add(name.trim());
+    }
+    return [...names].sort();
+}
+/**
+ * Stops and removes this project's containers with `docker compose -p <name> down`, for when `tilt down` cannot (its Tiltfile
+ * fails to evaluate, #2899). Volumes are kept, as `tilt down` keeps them.
+ */
+export function stopProjectComposeProjects(projectRoot, commandRunner = run) {
+    const result = { stopped: [], failed: [] };
+    for (const name of projectComposeProjects(projectRoot, commandRunner)) {
+        try {
+            commandRunner("docker", ["compose", "-p", name, "down", "--remove-orphans"]);
+            result.stopped.push(name);
+        }
+        catch (err) {
+            const stderr = String(err.stderr ?? err).trim();
+            result.failed.push({ name, reason: stderr.split(/\r?\n/)[0] ?? "" });
+        }
+    }
+    return result;
 }

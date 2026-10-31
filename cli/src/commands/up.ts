@@ -10,6 +10,7 @@ import {
   ensureProjectRuntimeAssets,
   generateMasterConfigs,
   isTiltfileOrchestration,
+  isVendoredEngineStale,
   isWrappedTiltfileStale,
   ProjectConfigNotFoundError,
   verifyMasterConfigs,
@@ -866,6 +867,17 @@ export const upCommand = new Command("up")
                 isTiltfileOrchestration(projectRoot)
                   ? "Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."
                   : "project.json no longer wraps a Tiltfile; regenerating .flisk/.flisk-out/ ...",
+              ),
+            );
+          }
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && isVendoredEngineStale(projectRoot)) {
+          // After an upgrade (or a checkout on another commit) the vendored engine and the Tiltfile are the old ones, and a
+          // running Tilt keeps loading them. Regenerating replaces both; a running Tilt reloads them on its own (#2899).
+          if (!options.quiet) {
+            console.log(
+              chalk.gray(
+                "This Flisk ships a different engine or templates than .flisk/.flisk-out/ was generated with; regenerating ...",
               ),
             );
           }
