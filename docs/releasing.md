@@ -74,10 +74,12 @@ The publish gate refuses a commit no passing candidate covers. `main` moves ever
 # a fresh branch per attempt: a retry after a fix on main needs a new name (release/<version>-rc2, ...)
 gh api repos/flisk-sh/flisk/git/refs -f ref=refs/heads/release/<version>-rc<n> -f sha=<commit>
 gh workflow run release-candidate.yml --ref release/<version>-rc<n>
+# or the same, and release as soon as it passes (step 3 then happens on its own):
+gh workflow run release-candidate.yml --ref release/<version>-rc<n> -f release=true
 # or: an rc tag at the commit
 git tag rc-<version> <commit> && git push origin refs/tags/rc-<version>
 
-gh run watch <candidate-run-id> --exit-status   # ~25 min: 30 jobs, quickstart + every resource type
+gh run watch <candidate-run-id> --exit-status   # ~6-10 min: 30 jobs, 10 at a time, the longest suites first
 ```
 
 Cut the branch from the newest green `main`, not from an older release branch: a fix that landed after the branch was cut (for example #2498, which made `flisk up` print ingress URLs instead of the Tilt UI port) is not in the candidate, and a candidate failure that `main` already fixed costs a full cycle.
@@ -94,7 +96,8 @@ It accepts an **exact** candidate, or an **ancestor** candidate when no commit s
 
 ### 3. Dispatch the release
 
-Dispatch it on the candidate's own branch, so it publishes exactly the commit the candidate tested:
+A candidate started with `-f release=true` does this itself when every job passed (its `dispatch release` job). Otherwise,
+dispatch it on the candidate's own branch, so it publishes exactly the commit the candidate tested:
 
 ```bash
 gh workflow run release-binaries.yml --ref release/<version>-rc<n>
