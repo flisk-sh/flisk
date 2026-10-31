@@ -218,6 +218,8 @@ const EXEMPT: Record<string, string> = {
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
   "down --yes":
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "export --dry-run":
+    "spawns npx @flisk-sh/flisk-export over the network; export.test.ts checks that it is forwarded",
   "import --yes": "spawns npx flisk-import over the network",
   "import --dry-run":
     "spawns npx flisk-import over the network; import.test.ts checks that it is forwarded",
