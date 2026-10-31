@@ -458,6 +458,12 @@
       "description": "Non-secret configuration parameters (BASE_URL, PORT, etc.). Secrets use 'secrets' section below.",
       "type": "object"
     },
+    "provides": {
+      "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type redis, qdrant and rabbitmq write it.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^[A-Za-z0-9_\\-./:@%+=,]+$" }
+    },
     "secrets": {
       "description": "Names of secrets the resource needs. By default each is read from the project .env (gitignored) and injected into the container; with FLISK_SECRET_PROVIDER=infisical they are left to Infisical. NO secret values in params/envVars or anywhere in service.json.",
       "properties": {

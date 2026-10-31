@@ -83,6 +83,27 @@ def resolve_dependency_api_path(dep_name):
     return cli_api_path(dep_name, dep_manifest)
 
 
+def resolve_dependency_provides(manifest):
+    """The `provides` settings of each declared dependency that has them, as (name, provides) pairs in dependsOn order.
+
+    A Redis, Qdrant or RabbitMQ preset provides its connection URL (REDIS_URL, QDRANT_URL, AMQP_URL), so a service that
+    lists it in dependsOn reaches it without writing the URL itself. A name that is not a discovered resource has none.
+    """
+    # Without FLISK_PROJECT_ROOT the registry did not discover at load time, and discovering now would write to its frozen
+    # state (a generator loaded on its own, as in the unit tests). There is nothing to provide then.
+    if not os.environ.get("FLISK_PROJECT_ROOT", "") or not declared_dependencies(manifest):
+        return []
+    pairs = []
+    for dep_name in declared_dependencies(manifest):
+        dep = _find_backend_resource(dep_name)
+        if not dep:
+            continue
+        provides = dep.get("_manifest", {}).get("provides")
+        if provides != None:
+            pairs.append((dep_name, provides))
+    return pairs
+
+
 def resolve_dependency_api_urls(manifest):
     """Resolve all API URLs from dependsOn.
     

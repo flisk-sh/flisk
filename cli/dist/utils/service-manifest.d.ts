@@ -47,6 +47,13 @@ export declare function volumesErrors(manifest: Record<string, unknown>, display
  * engine/.../compose/byo_env.star.
  */
 export declare function byoEnvErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `provides`: the connection settings a resource gives the services that list it in `dependsOn` (REDIS_URL for a Redis).
+ * Each one is written into the dependent's generated env file, which `flisk config verify` checks and which must hold no
+ * secret, so the values are plain URLs and names. Mirrors _dependency_provides_lines in
+ * engine/.../orchestrator/generators/env.star.
+ */
+export declare function providesErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];

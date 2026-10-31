@@ -190,15 +190,20 @@ export const RESOURCE_TYPE_VALUES = [
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export const INFERENCE_RESOURCE_TYPE = "inference";
 
+/** `--type redis|qdrant|rabbitmq`: bring-your-own presets for infrastructure (utils/infra-presets.ts). */
+export const INFRA_RESOURCE_TYPES = ["redis", "qdrant", "rabbitmq"] as const;
+export type InfraResourceType = (typeof INFRA_RESOURCE_TYPES)[number];
+
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
- * the `inference` preset and `database`. `sdk` is left out because it only registers a package that
+ * the `inference` and infrastructure presets and `database`. `sdk` is left out because it only registers a package that
  * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
  * `resource_create` tool builds its type enum from this list.
  */
 export const RESOURCE_CREATE_TYPE_VALUES = [
   ...CREATABLE_RESOURCE_TYPES,
   INFERENCE_RESOURCE_TYPE,
+  ...INFRA_RESOURCE_TYPES,
   DATABASE_RESOURCE_TYPE,
 ] as const;
 

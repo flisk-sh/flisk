@@ -207,6 +207,47 @@ Checked by `tests/tilt-engine/test_byo_gpu_resources.py` (the generator) and
 `/dev/shm` settings, and `docker compose config` accepts the generated GPU reservation; the live GPU check runs only on a host
 with the NVIDIA runtime).
 
+## Redis, Qdrant and RabbitMQ (infrastructure presets)
+
+Postgres and NATS come with every project. For a cache or job queue, a vector store or a message broker, create a preset:
+
+```bash
+flisk resource cache --type redis --stack hqc
+flisk resource vectors --type qdrant --stack hqc
+flisk resource queue --type rabbitmq --stack hqc
+```
+
+Each one writes a bring-your-own `service.json` with a pinned image, a readiness probe that runs inside the container, and a
+named volume `<name>-data` for its data, which `flisk down` keeps. None of them is published on the host or routed through
+Traefik; the containers in the stack reach them on the Docker network by name.
+
+| Type | Image | Port | Data | Provides |
+| --- | --- | --- | --- | --- |
+| `redis` | `redis:7.4-alpine` | 6379 | `/data` | `REDIS_URL=redis://<name>:6379` |
+| `qdrant` | `qdrant/qdrant:v1.12.5` | 6333 | `/qdrant/storage` | `QDRANT_URL=http://<name>:6333` |
+| `rabbitmq` | `rabbitmq:4.1-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
+
+`--image` replaces the pinned image (`--image redis:8-alpine`); `--port` is refused, because the image listens on its own port.
+The RabbitMQ preset lets the default `guest` account connect from the other containers, which RabbitMQ allows only from
+localhost by default; the broker is not reachable from outside the stack's Docker network. None of the presets sets a
+password, so do not publish them on the host.
+
+### Connection settings for the services that depend on it (`provides`)
+
+`provides` in a service.json lists settings that every service naming it in `dependsOn` gets in its generated env file:
+
+```json
+"provides": { "REDIS_URL": "redis://cache:6379" }
+```
+
+A service that sets the same name in its own `params` keeps its value. The values land in a generated file that
+`flisk config verify` checks, so they must be plain values without spaces, quotes or `$`: never put a secret in `provides`.
+Any resource can set it; the presets write it for you.
+
+Checked by `tests/e2e/resource-types/bring-your-own/verify-byo-infra.sh` (e2e BY8): through `flisk up` and Traefik, a probe
+that lists the three presets in `dependsOn` reads their URLs from its environment and does a round trip to each (SET and GET,
+a Qdrant collection, a RabbitMQ message as `guest`), and each preset is healthy with its data in its own named volume.
+
 ## Bringing a framework app (Node, Go, Rust, ...)
 
 Any app that fits the contract below can run as a bring-your-own resource. Fastify is the worked example because it needs nothing beyond the framework.

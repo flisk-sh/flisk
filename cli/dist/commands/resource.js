@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -19,6 +19,7 @@ import { chooseResourcePath, isPathDiscovered, readDiscoveryPaths, } from "../ut
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
+import { createInfraServiceJson, INFRA_PRESETS, isInfraPreset } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
@@ -82,6 +83,12 @@ function readServiceJsonPort(path) {
     }
     catch {
         return undefined;
+    }
+}
+/** Options an infrastructure preset cannot take: its image listens on a fixed port inside the container. */
+export function assertInfraPresetOptions(preset, options) {
+    if (options.port !== undefined) {
+        throw new FliskError(`--port cannot be used with --type ${preset}: the image listens on ${INFRA_PRESETS[preset].port}.`, ["Drop --port; other services reach it on the Docker network by its name"]);
     }
 }
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
@@ -362,9 +369,12 @@ export const TSCONFIG_TEMPLATE = {
     exclude: ["node_modules", "dist"],
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
-/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` a preset of it. */
+/**
+ * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`
+ * and `rabbitmq` are presets of it.
+ */
 export function parseResourceType(type) {
-    const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
+    const normalized = type === "byo" || type === INFERENCE_TYPE || isInfraPreset(type) ? BRING_YOUR_OWN_TYPE : type;
     const validTypes = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
     if (!validTypes.includes(normalized)) {
         throw new FliskError(`Unknown resource type "${type}". Supported types: ${validTypes.join(", ")}.`, [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"]);
@@ -492,7 +502,7 @@ function printFrontendFrameworks() {
 export const resourceCommand = addYesOption(new Command("resource"))
     .description("Create a new resource (service) from scratch, or register an existing one")
     .argument("[name]", "Resource name (kebab-case)")
-    .option("-t, --type <type>", "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, sdk", "backend")
+    .option("-t, --type <type>", "Resource type: backend, frontend, worker, mcp, agent, inference, redis, qdrant, rabbitmq, bring-your-own, database, sdk", "backend")
     .option("--framework <id>", "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks)")
     .option("--frameworks", "List registered frameworks for the resource type and exit (--type frontend, --type backend)")
     .option("--language <id>", "Backend language: bun (default), python, go, rust, node")
@@ -559,6 +569,9 @@ export const resourceCommand = addYesOption(new Command("resource"))
         }
         const resourceType = parseResourceType(options.type);
         const isInference = options.type === INFERENCE_TYPE;
+        const infraPreset = isInfraPreset(options.type)
+            ? options.type
+            : undefined;
         const isDatabase = resourceType === DATABASE_RESOURCE_TYPE;
         if (isDatabase)
             assertDatabaseOptions(options);
@@ -758,7 +771,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
         if (sameName) {
             throw new FliskError(`A resource named "${resourceName}" already exists at ${relative(projectRoot, resolve(sameName.path))}.`, ["Pick another name, or remove or rename the existing resource first"]);
         }
-        const nextPort = resourceType === "sdk" || isInference || isDatabase
+        const nextPort = resourceType === "sdk" || isInference || infraPreset || isDatabase
             ? 0
             : assignPort(resourceType, allResources);
         if (options.restart !== undefined) {
@@ -785,11 +798,15 @@ export const resourceCommand = addYesOption(new Command("resource"))
         const existingInferencePort = isInference && !options.port && shouldRegisterExisting && hasServiceJson
             ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
             : undefined;
-        const assignedPort = isInference
-            ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
-            : resourceType === "sdk" || isDatabase
-                ? 0
-                : resolveResourcePort(resourceType, options.port, nextPort, allResources);
+        if (infraPreset)
+            assertInfraPresetOptions(infraPreset, options);
+        const assignedPort = infraPreset
+            ? INFRA_PRESETS[infraPreset].port
+            : isInference
+                ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
+                : resourceType === "sdk" || isDatabase
+                    ? 0
+                    : resolveResourcePort(resourceType, options.port, nextPort, allResources);
         console.log(chalk.gray("\nResource details:"));
         console.log(chalk.gray(`  Name:  ${resourceName}`));
         console.log(chalk.gray(`  Type:  ${resourceType}`));
@@ -860,6 +877,28 @@ export const resourceCommand = addYesOption(new Command("resource"))
             console.log(chalk.gray(`\nLocation: ${fullPath}`));
             console.log(chalk.gray(`\nNext steps:`));
             console.log(chalk.gray(`  Add "${resourceName}" to dependsOn in the services that use the database`));
+            console.log(chalk.gray(`  flisk up ${stackName}`));
+            return report("created");
+        }
+        // An infrastructure preset is a pinned image with a probe, a data volume and the connection settings it provides.
+        if (infraPreset) {
+            const preset = INFRA_PRESETS[infraPreset];
+            console.log(chalk.blue(`\n📁 Creating ${preset.description}...`));
+            mkdirSync(fullPath, { recursive: true });
+            const serviceJson = createInfraServiceJson(resourceName, stackName, infraPreset, options.image);
+            writeFileSync(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
+            const agentsPath = resolve(fullPath, "AGENTS.md");
+            if (!existsSync(agentsPath)) {
+                writeFileSync(agentsPath, `# AGENTS.md\n\nDO NOT DELETE service.json\n\n${preset.description} for Flisk. Services that list "${resourceName}" in dependsOn get its \`provides\` settings in their environment.\n`);
+            }
+            clearDiscoveryCache();
+            console.log(chalk.green(`\n✅ ${preset.description} created.`));
+            console.log(chalk.gray(`\nLocation: ${fullPath}`));
+            console.log(chalk.gray(`\nServices that list "${resourceName}" in dependsOn get:`));
+            for (const [key, value] of Object.entries(serviceJson.provides)) {
+                console.log(chalk.gray(`  ${key}=${value}`));
+            }
+            console.log(chalk.gray(`\nNext steps:`));
             console.log(chalk.gray(`  flisk up ${stackName}`));
             return report("created");
         }

@@ -71,7 +71,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
-          bun-version: latest
+          bun-version: "1.4.4" # pinned: the compiled binaries are byte-identical only for one Bun version; bump on purpose
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
