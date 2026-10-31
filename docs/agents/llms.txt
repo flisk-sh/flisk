@@ -14,7 +14,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - **AI Agent Systems**:
   - `agent` resource type: Long-running agent process with `files` durability (named volume surviving `flisk down`), sticky session routing via `x-session-id`, graceful SIGTERM turn draining, `/health` (liveness) and `/ready` (application readiness for callers).
   - `mcp` resource type: Standard Model Context Protocol servers over Streamable HTTP (`/mcp`) routed via Traefik.
-  - `flisk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate Flisk (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`):
+  - `flisk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate Flisk (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `resource_run`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`):
     - `doctor`: Check whether this machine can run the Flisk stack and optionally validate a project.
     - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
     - `down`: Stop the running stack.
@@ -22,6 +22,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
     - `logs`: Fetch a bounded snapshot of recent logs from the running stack.
     - `resource_list`: List the project's services with their stack, type, and port.
     - `resource_restart`: Restart a running resource in the stack (or trigger its rebuild).
+    - `resource_run`: Run a one-off command with the environment one resource has in the stack; returns the exit code, stdout and stderr. A container resource must be running.
     - `agent_list`: List AI agent resources (`appType: "agent"`) with their stack, runtime, durability, and port.
     - `agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
     - `stack_list`: List the project's stacks with their resource counts (`services` adds service names, `verbose` descriptions).
@@ -64,6 +65,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.
 - `flisk stacks [--json]`: List the project's stacks (alias `ls`).
 - `flisk restart <resource>`: Restart one running resource, or trigger its rebuild.
+- `flisk run <service> <command...>`: Run a one-off command with the environment the service has in the stack (`docker exec` in its running container, or on the host for a local process); put `--` before a command that has flags of its own. The exit code is the command's. `--json` runs it without input and returns `exitCode`, `stdout` and `stderr`.
 - `flisk networks [--json]`: Show the Traefik URL of every frontend and API service (aliases `urls`, `traefik`).
 - `flisk agent sessions <resource>`: List the stored sessions of an agent resource (`--session-id <id>` reads one checkpoint).
 - `flisk runtime`: Check that the installed CLI has its bundled runtime assets.

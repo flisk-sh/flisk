@@ -18,6 +18,9 @@ export interface NativeUpInput {
     readyTimeoutMs?: number;
     exit?: (code: number) => never;
 }
+/** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
+/** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
+export declare function runVariables(projectRoot: string, envFilePath?: string): Record<string, string>;
 /**
  * `flisk up` for a selection where every service declares `command`: no Docker, no Compose, no Tilt and no generated files.
  * Resolves only when the run ends (Ctrl+C, `flisk down`, or a failed start, which exits 1).

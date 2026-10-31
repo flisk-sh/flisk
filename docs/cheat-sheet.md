@@ -354,6 +354,21 @@ flisk logs --since 5m --json
 | `--port <n>` | Tilt UI port (default `TILT_PORT` or 10350) |
 | `--json` | One JSON object |
 
+### `flisk run <service> -- <command>`
+
+Runs a one-off command (a seed script, a test-data generator, a shell, a migration status check) with the environment the service has in the stack, so nothing is copied by hand from `.env` files. A container service must be running: the command runs in its container with `docker exec`. A local-process service (one with a `command`) runs it on this machine from the service folder, with the project `.env`, its `env` and `PORT`. Nothing is started or restarted. The exit code is the command's.
+
+```bash
+flisk run orders-api -- printenv DATABASE_URL
+flisk run orders-api -- bun run seed
+flisk run orders-api -- sh
+flisk run orders-api --json -- bun run migrate:status
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | Run without input and print one JSON object: `exitCode`, `stdout` and `stderr` (the last 64 KB of each) |
+
 ### `flisk networks` (aliases `urls`, `traefik`)
 
 | Flag | Effect |

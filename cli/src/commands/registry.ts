@@ -33,6 +33,7 @@ import { projectsCommand } from "./projects.js";
 import { resourceCommand } from "./resource.js";
 import { resourcesCommand } from "./resources.js";
 import { restartCommand } from "./restart.js";
+import { runServiceCommand } from "./run.js";
 import { runtimeCommand } from "./runtime.js";
 import { stackCommand } from "./stack.js";
 import { stacksCommand } from "./stacks.js";
@@ -73,6 +74,7 @@ export function getRegisteredCommands(): readonly Command[] {
     networksCommand,
     agentCommand,
     restartCommand,
+    runServiceCommand,
     distributeCommand,
   ];
 }
