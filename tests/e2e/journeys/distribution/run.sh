@@ -5,7 +5,7 @@
 # the distribution commands or this suite change (suite.json paths), and nightly.
 #   DS1 flisk project --list --json lists the launch, portal and fullstack starters, each pinned to a commit
 #   DS2 a fresh project with an mcp resource
-#   DS3 flisk distribute status --init, status --json and board --json (6 stages by the six Zachman questions)
+#   DS3 flisk distribute status --init, status --json and board --json (6 Zachman perspectives, each with its stage, by the six questions)
 #   DS4 flisk distribute kit <mcp resource> --dry-run prints the kit and writes nothing
 #   DS5 flisk export render --dry-run and flisk export wrangler --resource <mcp resource> --dry-run write nothing (npx fetches
 #       @flisk-sh/flisk-export, so this needs network access)
@@ -69,6 +69,7 @@ DS3() {
   [ "$RC" -eq 0 ] || die "flisk distribute board --json exited $RC"
   jq -e '.schemaVersion == 1 and .errors == []
       and ([.data.board.rows[].stage] == ["Idea", "Promise", "Shape", "Ship", "Listed", "Proof"])
+      and ([.data.board.rows[].perspective] == ["Planner", "Owner", "Designer", "Builder", "Subcontractor", "User"])
       and all(.data.board.rows[]; (.cells | keys | sort) == (["How", "What", "When", "Where", "Who", "Why"]))
       and all(.data.board.rows[].cells[]; (.text | type) == "string" and (.isMissing | type) == "boolean")' \
     "$OUT/board.out" >/dev/null || die "flisk distribute board --json is not 6 stages by What, How, Where, Who, When and Why"
