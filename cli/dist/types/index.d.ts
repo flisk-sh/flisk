@@ -196,6 +196,11 @@ export interface ProjectOptionalInfra {
 export interface ProjectDiscovery {
     paths: string[];
 }
+export interface ProjectOrchestration {
+    source: "tiltfile" | string;
+    path?: string;
+    [key: string]: unknown;
+}
 /** `capabilities` in `.flisk/project.json`: a capability set to false is not provisioned. Every capability is on unless set to false. */
 export interface ProjectCapabilities {
     /** The Traefik reverse proxy and gateway routing (`proxy`). */
@@ -227,6 +232,7 @@ export interface ProjectConfig {
     optional_infra: ProjectOptionalInfra;
     discovery: ProjectDiscovery;
     overrides?: Record<string, JsonValue>;
+    orchestration?: ProjectOrchestration;
 }
 export type TabId = "overview" | "resources" | "events" | "files" | "config";
 export interface Tab {

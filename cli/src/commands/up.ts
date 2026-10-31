@@ -9,6 +9,7 @@ import { Command } from "commander";
 import {
   ensureProjectRuntimeAssets,
   generateMasterConfigs,
+  isWrappedTiltfileStale,
   ProjectConfigNotFoundError,
   verifyMasterConfigs,
 } from "../generator/template-engine.js";
@@ -825,10 +826,17 @@ export const upCommand = new Command("up")
           options.database === false &&
           disableDatabaseCapability(projectRoot);
         // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
-        // Tilt fail on a missing Tiltfile.
+        // Tilt fail on a missing Tiltfile. After `flisk import tiltfile` the generated Tiltfile must be the wrapper that
+        // includes the project's own one, so an older generated Tiltfile is replaced too (the user's Tiltfile is never written).
         if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
           if (!options.quiet) {
             console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
+          }
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && isWrappedTiltfileStale(projectRoot)) {
+          // The capability opt-outs above are already saved, so this regeneration also honours them.
+          if (!options.quiet) {
+            console.log(chalk.gray("Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."));
           }
           await generateMasterConfigs(projectRoot, { quiet: options.quiet });
         } else if (databaseTurnedOff || options.gateway === false) {

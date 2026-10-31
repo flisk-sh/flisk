@@ -30,9 +30,9 @@ Tracked as epics and sub-tasks in flisk-sh/flisk: #2216 (audit), #2217 (minimal 
 ## 4. Support existing workflows
 
 - [ ] 4.1 Add `flisk import compose`
-- [ ] 4.2 Add `flisk import tiltfile`
+- [x] 4.2 Add `flisk import tiltfile` (#2239)
 - [ ] 4.3 Allow Flisk to orchestrate an existing Compose project without rewriting it
-- [ ] 4.4 Allow Flisk to wrap an existing Tiltfile without replacing it
+- [x] 4.4 Allow Flisk to wrap an existing Tiltfile without replacing it (#2239: with `orchestration.source: "tiltfile"`, the generated `.flisk/.flisk-out/Tiltfile` only `include()`s it)
 - [ ] 4.5 Add `--no-generate` mode for orchestration only
 - [ ] 4.6 Add `--dry-run --explain` output showing what Flisk would create or change
 
