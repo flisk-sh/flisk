@@ -167,6 +167,17 @@ All **read from source, not reproduced** except where stated. Defined in [`docto
 
 Podman: doctor prints `Podman is running` when it is the runtime it finds, and `Docker daemon is not running` otherwise. Whether a Podman setup can run a whole stack was not checked.
 
+### `Docker build cache exceeds 10 GB threshold`
+
+```text
+⚠ 11.82GB across 780 entries: Docker build cache exceeds 10 GB threshold. Cache is shared across all projects on this machine
+ℹ Fix: Prune old build cache: flisk down --prune-cache (or docker builder prune --filter until=24h). Note: this affects other projects on this machine.
+```
+
+- **Cause:** Starting stacks builds golden base image layers and mounts package caches (`RUN --mount=type=cache,target=/cache/bun`) so builds take seconds instead of minutes. Over time, Docker build cache grows by several gigabytes. Because Docker build cache is daemon-global, it is shared across all projects on the machine.
+- **Fix:** Run `flisk down --prune-cache` when stopping your stack. It safely prunes cache older than 24 hours (`docker builder prune -f --filter until=24h`), preserving warm cache for recent builds while reclaiming gigabytes of disk space. Customize the retention window with `--cache-until <age>` (e.g. `flisk down --prune-cache --cache-until 7d`). In interactive terminals, it prompts for confirmation; pass `-y` / `--yes` in scripts. Or run `flisk doctor --fix` when host disk space is low (< 10 GB).
+- **Checked:** tested with mocked `docker system df` and unit tests pinning the 10 GB threshold and guarded pruning.
+
 ### `Docker cannot create another network: all predefined address pools are in use`
 
 ```text

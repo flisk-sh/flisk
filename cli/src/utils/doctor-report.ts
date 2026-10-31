@@ -3,6 +3,7 @@
 import type { CheckResult, DoctorAction, HostPortPlan } from "../types/index.js";
 import type { HostInfo } from "./agent-host.js";
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
+import type { DockerBuildCacheReport } from "./docker-build-cache.js";
 import { type RankedFix, rankDoctorFixes } from "./doctor-fix-first.js";
 import { SCHEMA_VERSION } from "./machine-output.js";
 
@@ -23,6 +24,7 @@ export interface DoctorReport {
     /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
     actions?: DoctorAction[];
     host?: HostInfo & { containerRuntimeReachable: boolean | null };
+    buildCache?: DockerBuildCacheReport;
     ports?: {
       http: { requested: number; chosen: number | null; explicit: boolean; reason: string };
       https: { requested: number; chosen: number | null; explicit: boolean; reason: string };
@@ -73,8 +75,16 @@ export function createDoctorReport(
   portPlan?: HostPortPlan | null,
   host?: HostInfo,
   capabilities?: string[],
+  buildCache?: DockerBuildCacheReport,
 ): DoctorReport {
   const fixFirst = rankDoctorFixes(checks);
+  const detectedBuildCache =
+    buildCache ??
+    (
+      checks.find((check) => check.name === "Docker Build Cache") as
+        | (CheckResult & { buildCache?: DockerBuildCacheReport })
+        | undefined
+    )?.buildCache;
   return {
     schemaVersion: SCHEMA_VERSION,
     data: {
@@ -85,6 +95,7 @@ export function createDoctorReport(
       checks,
       ...(capabilities ? { capabilities } : {}),
       ...(fixFirst.length > 0 ? { fixFirst } : {}),
+      ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
       ...(host
         ? {
             host: {

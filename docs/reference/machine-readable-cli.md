@@ -271,6 +271,25 @@ Example output for `flisk down --json`:
 }
 ```
 
+With `--prune-cache` (`flisk down --json --prune-cache -y`), the response also reports what was pruned from Docker's build cache:
+
+```json
+{
+  "schemaVersion": 1,
+  "data": {
+    "ok": true,
+    "stoppedTilt": [],
+    "prunedCache": {
+      "until": "24h",
+      "reclaimed": "2.6GB"
+    }
+  },
+  "errors": []
+}
+```
+
+With `--dry-run --prune-cache` (`flisk down --json --dry-run --prune-cache`), `data.wouldPruneCache` reports `{ "until": "24h" }` without executing pruning.
+
 With `--prune-networks` (`flisk down --json --prune-networks`), the response also lists what happened to the project's Docker networks. A network that still has a container attached is kept, and `reason` is the first line of the Docker error:
 
 ```json
