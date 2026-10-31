@@ -11,7 +11,7 @@ import { getPackageVersion } from "../utils/paths.js";
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "flisk-import@0.3.0";
+export const IMPORT_PACKAGE = "flisk-import@0.4.0";
 
 /** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.0 or later), forwarded as its first argument. */
 export const TILTFILE_IMPORTER = "tiltfile";
@@ -21,7 +21,7 @@ export const MIN_CORE_VERSION = "1.3.104";
 
 /**
  * Recommended core for imported stacks: 1.4.11 (#2646) runs a bring-your-own port outside 4000-5999 and two-letter
- * names, which flisk-import 0.3.0 writes. The pin ships in the CLI itself, so a CLI that runs 0.3.0 is already newer.
+ * names, which flisk-import 0.3.0 and later write. The pin ships in the CLI itself, so a CLI that runs it is already newer.
  */
 export const RECOMMENDED_CORE_VERSION = "1.4.11";
 
