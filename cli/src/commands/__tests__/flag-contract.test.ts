@@ -221,6 +221,8 @@ const EXEMPT: Record<string, string> = {
     "creates a project outside one instead of failing, so the outside-project row does not apply; json-scaffold-commands.test.ts covers it",
   "logs --json":
     "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
+  "mcp check --json":
+    "takes a required <target> argument (a URL or a resource name) and talks to an MCP server over HTTP, so the matrix's argument-less run cannot exercise it; mcp-check.test.ts covers the envelope against a local fake server",
   "os --json":
     "starts the host's fliskos command (or FliskOS.app) and keeps running until it stops, so a matrix run would launch a server; os.test.ts covers the envelope with a stub fliskos and spawn doubles",
   "restart --json":
