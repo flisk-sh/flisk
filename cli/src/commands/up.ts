@@ -760,14 +760,11 @@ export const upCommand = new Command("up")
             }
           }
         } catch (error) {
-          if (!(error instanceof ProjectConfigNotFoundError)) {
-            const fliskErr =
-              error instanceof FliskError
-                ? error
-                : new FliskError(error instanceof Error ? error.message : String(error));
-            if (emit) emit({ ok: false }, [toMachineError(fliskErr).error]);
-            return fliskErr.exit();
+          if (error instanceof FliskError) {
+            if (emit) emit({ ok: false }, [toMachineError(error).error]);
+            return error.exit();
           }
+          // Non-FliskErrors (e.g. invalid project.json schema) are deferred to discoverResourcesStrict
         }
       }
 

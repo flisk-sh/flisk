@@ -200,6 +200,8 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
+  "repos clone --json":
+    "a subcommand of repos that clones git repos; repos.test.ts covers the envelope",
   "distribute board --json":
     "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
   "distribute status --json":
