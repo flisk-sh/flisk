@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- `flisk doctor` warns about env values that point outside the local stack (#2874): a URL or `*_HOST` value in the project `.env`, a service's `env`/`params`, or a service folder's `.env`, `.env.local` or `.env.development`, whose host is not local. It prints the service, variable, host and file, never the value; `--strict` makes it fail; hosts that are meant to be remote go in `allowedHosts` in `.flisk/project.json`.
+
 - A service that depends on a migrator, or on a bring-your-own job with `"restart": "no"`, now starts only after the job exited 0 (#2871). Tilt counted the job ready as soon as its container ran, so with cached images an API could start while its migrations were still running. Each such job gets a `<job>-done` resource that waits for it and fails when the job does, so the services after a failed job are not started. For local processes, a one-shot job with no port now counts as ready when it exits 0 and is never restarted, so services can depend on it.
 
 - New resource type `database` (#2863): `flisk resource shop-db --type database` writes a `service.json` with `"appType": "database"` and `"framework": "postgres"` for the project's Postgres, so it shows up next to the services and they wait for it by name (`"dependsOn": ["shop-db"]`) instead of the magic name `postgres`. It is the same shared Postgres with one database per stack, and declaring it starts Postgres even with the database capability off. `postgres` and `database-management` in `dependsOn` keep working.

@@ -217,6 +217,22 @@ $ flisk doctor --no-ping      # no .env file
 - **Fix:** rotate any leaked credential immediately. Move calls that require secrets to server routes, API endpoints, or a backend-for-frontend (BFF) proxy so client code never receives secret tokens.
 - **Defined in:** [`public-env-secrets.ts`](../cli/src/utils/public-env-secrets.ts) and [`doctor.ts`](../cli/src/commands/doctor.ts) (`checkPublicEnvSecrets`).
 
+### Env values that point outside the local stack
+
+```text
+⚠ 2 values point outside the local stack:
+    orders-api DATABASE_URL -> db.shared.example.com (services/shop/orders-api/.env.local)
+    (project) AUTH_ISSUER -> auth.dev.example.com (.env)
+ℹ Fix: Point them at a local service (http://<service>:<port>, *.localhost), or list hosts that are meant to be remote in "allowedHosts" in .flisk/project.json
+```
+
+- **Cause:** a URL, or a `*_HOST` / `*_HOSTNAME` / `*_DOMAIN` value, names a host that is not part of the local stack. Flisk reads the project `.env`, each service's `env` and `params` in `service.json`, and `.env`, `.env.local`, `.env.development` and `.env.development.local` in each service folder. The service then talks to a shared or production system while you think it runs locally, which shows up as data in shared environments or unexplained 401s.
+- **Local:** `localhost`, `*.localhost`, `*.local`, `*.internal`, loopback and private IP addresses, one-word names (Compose services and containers on the stack network), and the names of the project's services and stacks.
+- **Warning-only:** a warning (`⚠`) by default; `flisk doctor --strict` fails on it.
+- **Redaction:** only the service, the variable name, the host and the file are printed, never the value.
+- **Fix:** point the value at the local service, or add the host to `allowedHosts` in `.flisk/project.json` when it is meant to be remote (`"*.stripe.com"` matches every subdomain).
+- **Defined in:** [`remote-env-hosts.ts`](../cli/src/utils/remote-env-hosts.ts) (`checkRemoteEnvHosts`).
+
 ### Project files that do not match what Flisk expects
 
 ```text

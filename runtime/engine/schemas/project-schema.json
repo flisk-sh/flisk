@@ -71,6 +71,14 @@
         "type": "string"
       }
     },
+    "allowedHosts": {
+      "type": "array",
+      "description": "Hosts outside the local stack that env values may point at on purpose (a payment sandbox, a model API). flisk doctor does not report them. \"*.example.com\" matches every subdomain.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "capabilities": {
       "type": "object",
       "additionalProperties": {
