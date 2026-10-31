@@ -39,6 +39,10 @@ function findBash() {
     for (const candidate of candidates) {
       if (isBash(candidate)) return candidate;
     }
+  } else {
+    for (const candidate of [process.env.SHELL, "/bin/bash", "/usr/bin/bash"]) {
+      if (candidate && existsSync(candidate)) return candidate;
+    }
   }
   return "bash";
 }
@@ -107,18 +111,16 @@ exit 0
       mockBin,
       ...(process.env.PATH || "")
         .split(delimiter)
-        .filter(
-          (d) =>
-            !existsSync(join(d, "pre-commit")) &&
-            !existsSync(join(d, "pre-commit.cmd")) &&
-            !existsSync(join(d, "pre-commit.exe")) &&
-            !existsSync(join(d, "pip")) &&
-            !existsSync(join(d, "pip.cmd")) &&
-            !existsSync(join(d, "pip.exe")) &&
-            !existsSync(join(d, "python3")) &&
-            !existsSync(join(d, "python3.cmd")) &&
-            !existsSync(join(d, "python3.exe")),
-        ),
+        .filter((d) => {
+          if (!preCommitPresent) {
+            return (
+              !existsSync(join(d, "pre-commit")) &&
+              !existsSync(join(d, "pre-commit.cmd")) &&
+              !existsSync(join(d, "pre-commit.exe"))
+            );
+          }
+          return true;
+        }),
     ].join(delimiter);
 
     const result = spawnSync(bashExecutable, [posixPath(scriptPath)], {
