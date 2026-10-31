@@ -101,6 +101,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-web.rule": "Host(`web.localhost`) || (Host(`app.testproj.localhost`) && PathPrefix(`/web`)) || (Host(`localhost`) && PathPrefix(`/web`))",
         "traefik.http.routers.testproj-web.entrypoints": "web,websecure",
         "traefik.http.routers.testproj-web.priority": "104",
@@ -138,6 +139,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-shop-web.rule": "Host(`shop-web.localhost`) || Host(`shop.testproj.local`) || (Host(`app.testproj.localhost`) && PathPrefix(`/shop`)) || (Host(`localhost`) && PathPrefix(`/shop`))",
         "traefik.http.routers.testproj-shop-web.entrypoints": "web,websecure",
         "traefik.http.routers.testproj-shop-web.priority": "105",
@@ -167,6 +169,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-web.rule": "Host(`web.localhost`) || (Host(`app.testproj.localhost`) && PathPrefix(`/`)) || (Host(`localhost`) && PathPrefix(`/`))",
         "traefik.http.routers.testproj-web.entrypoints": "web,websecure",
         "traefik.http.routers.testproj-web.priority": "101",
@@ -202,6 +205,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-next-web.rule": "Host(`next-web.localhost`) || (Host(`app.testproj.localhost`) && PathPrefix(`/web`)) || (Host(`localhost`) && PathPrefix(`/web`))",
         "traefik.http.routers.testproj-next-web.entrypoints": "web,websecure",
         "traefik.http.routers.testproj-next-web.priority": "104",

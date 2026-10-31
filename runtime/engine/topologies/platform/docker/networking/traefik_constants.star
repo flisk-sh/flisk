@@ -66,6 +66,11 @@ load("./api_path_constants.star",
      "build_health_endpoint")
 
 TRAEFIK_ENABLE_LABEL = "traefik.enable=true"
+# Every container Flisk routes carries its project, and each project's Traefik reads only containers with its own value
+# (#2906): the Docker provider otherwise picks up the routed containers of every other Flisk project on the machine.
+TRAEFIK_PROJECT_LABEL_KEY = "flisk.project"
+TRAEFIK_PROJECT_LABEL = TRAEFIK_PROJECT_LABEL_KEY + "=" + PlatformDockerConstants.PROJECT_NAME_HYPHEN
+TRAEFIK_PROJECT_CONSTRAINT = "Label(`{}`,`{}`)".format(TRAEFIK_PROJECT_LABEL_KEY, PlatformDockerConstants.PROJECT_NAME_HYPHEN)
 TRAEFIK_DOCKER_NETWORK = PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC
 
 # Entrypoints from master config
