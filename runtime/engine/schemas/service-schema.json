@@ -393,6 +393,11 @@
         }
       }
     },
+    "sidecarOf": {
+      "description": "appName of another resource in the same stack whose network namespace this bring-your-own resource shares (Compose network_mode: service:<name>). Each reaches the other on 127.0.0.1. A sidecar has no ports, route or networks of its own, starts after its host, and runs as one container.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+    },
     "image": {
       "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type.",
       "type": "string"

@@ -12,12 +12,15 @@ export declare function declaredDependsOn(config: {
     dependsOn?: unknown;
 } | undefined): string[] | null;
 /**
- * The dependency names that can be followed: `dependsOn`, plus the deprecated `dependencies` key the generators still read.
- * A wrong-typed value reads as none (the shape check reports it).
+ * The dependency names that can be followed: `dependsOn`, plus the deprecated `dependencies` key the generators still read, plus
+ * a bring-your-own sidecar's host (`sidecarOf`, #2908), which has to be up first. A wrong-typed value reads as none (the shape
+ * check reports it). Keep in step with declared_dependencies in runtime/engine/topologies/tilt/common/dependencies.star.
  */
 export declare function dependsOnOf(config: {
     dependsOn?: unknown;
     dependencies?: unknown;
+    appType?: unknown;
+    sidecarOf?: unknown;
 } | undefined): string[];
 /** service name -> the services it waits for, sorted. A self entry stays, so the cycle check can report it. */
 export declare function dependencyEdges(resources: DiscoveredResource[]): Map<string, string[]>;

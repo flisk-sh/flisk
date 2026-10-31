@@ -15,6 +15,11 @@ export declare function checkServiceFields(projectRoot?: string, resources?: Dis
  * "CUSTOM DOCKERFILE NOT FOUND" (discovery/manifest/loading.star), after `flisk up` has said yes.
  */
 export declare function checkCustomDockerfiles(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+/**
+ * A `sidecarOf` (#2908) becomes `network_mode: "service:<host>"` in the stack's Compose file, so the host must be a resource in
+ * the same stack. Otherwise Compose stops with "service ... depends on undefined service", after `flisk up` has said yes.
+ */
+export declare function checkSidecars(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export declare function checkServicePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**

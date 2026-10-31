@@ -15,6 +15,7 @@ import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
   secretConflictWarnings,
   secretsErrors,
+  sidecarErrors,
   validateGeneratedStringFields,
   validateServiceManifest,
   validateServiceManifestFile,
@@ -910,6 +911,34 @@ describe("extraPortsErrors", () => {
     [byo([{ port: 80 }], { replicas: 2 }), "extraPorts: needs a single container"],
   ])("reports %j", (manifest, message) => {
     const errors = extraPortsErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+});
+
+describe("sidecarErrors", () => {
+  const file = "services/main/bgutil/service.json";
+  const byo = (more: Record<string, unknown>) => ({
+    appName: "bgutil",
+    appType: "bring-your-own",
+    ...more,
+  });
+
+  it("accepts a sidecar of another resource, and an absent value", () => {
+    expect(sidecarErrors(byo({}), file)).toEqual([]);
+    expect(sidecarErrors(byo({ sidecarOf: "tubehaus" }), file)).toEqual([]);
+  });
+
+  it.each([
+    [{ appType: "backend", sidecarOf: "tubehaus" }, "only applies to bring-your-own"],
+    [byo({ sidecarOf: 7 }), "expected the appName"],
+    [byo({ sidecarOf: "Tube Haus" }), "expected the appName"],
+    [byo({ sidecarOf: 'x"\nprivileged: true' }), "expected the appName"],
+    [byo({ sidecarOf: "bgutil" }), "cannot name the resource itself"],
+    [byo({ sidecarOf: "tubehaus", extraPorts: [{ port: 4416 }] }), "has no ports of its own"],
+    [byo({ sidecarOf: "tubehaus", replicas: 2 }), "needs a single container"],
+  ])("reports %j", (manifest, message) => {
+    const errors = sidecarErrors(manifest, file);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(message);
   });

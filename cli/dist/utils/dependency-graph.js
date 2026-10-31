@@ -16,13 +16,16 @@ export function declaredDependsOn(config) {
     return null;
 }
 /**
- * The dependency names that can be followed: `dependsOn`, plus the deprecated `dependencies` key the generators still read.
- * A wrong-typed value reads as none (the shape check reports it).
+ * The dependency names that can be followed: `dependsOn`, plus the deprecated `dependencies` key the generators still read, plus
+ * a bring-your-own sidecar's host (`sidecarOf`, #2908), which has to be up first. A wrong-typed value reads as none (the shape
+ * check reports it). Keep in step with declared_dependencies in runtime/engine/topologies/tilt/common/dependencies.star.
  */
 export function dependsOnOf(config) {
     const legacy = config?.dependencies;
     const old = Array.isArray(legacy) && legacy.every((entry) => typeof entry === "string") ? legacy : [];
-    return [...new Set([...(declaredDependsOn(config) ?? []), ...old])];
+    const host = config?.appType === "bring-your-own" ? config.sidecarOf : undefined;
+    const sidecar = typeof host === "string" && host !== "" ? [host] : [];
+    return [...new Set([...(declaredDependsOn(config) ?? []), ...old, ...sidecar])];
 }
 /** service name -> the services it waits for, sorted. A self entry stays, so the cycle check can report it. */
 export function dependencyEdges(resources) {

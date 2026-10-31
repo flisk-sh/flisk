@@ -12,6 +12,7 @@ import {
   checkSchemaVersions,
   checkServiceFields,
   checkServicePorts,
+  checkSidecars,
   enforceServiceConfigGate,
   warnSchemaVersions,
 } from "../service-config-checks.js";
@@ -611,5 +612,41 @@ describe("checkRequiredSecrets", () => {
     ).toThrow("exit 1");
     if (saved !== undefined) process.env.A_KEY = saved;
     expect(messages.join("\n")).toContain("secret A_KEY has no value");
+  });
+});
+
+describe("checkSidecars", () => {
+  const byo = { appType: "bring-your-own", image: "example/x:1" };
+
+  it("passes for a sidecar of a resource in the same stack, and when there are none", () => {
+    service("api");
+    expect(checkSidecars(root).didPass).toBe(true);
+    service("tubehaus", byo);
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    expect(checkSidecars(root).didPass).toBe(true);
+  });
+
+  it("names a host that does not exist", () => {
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    const result = checkSidecars(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain('sidecarOf "tubehaus": no resource has that name');
+    expect(result.fix).toContain("same stack");
+  });
+
+  it("names a host in another stack", () => {
+    service("tubehaus", { ...byo, stack: "media" }, "media/tubehaus");
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    const result = checkSidecars(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain('is in stack "media", not "app"');
+  });
+
+  it("stops flisk up through the config gate", () => {
+    service("bgutil", { ...byo, sidecarOf: "missing" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.fn() as never;
+    enforceServiceConfigGate(root, {}, exit);
+    expect(exit).toHaveBeenCalledWith(1);
   });
 });
