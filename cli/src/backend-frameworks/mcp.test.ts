@@ -90,10 +90,11 @@ describe("getMcpIndexTemplate", () => {
   it("serves health and a stateless streamable HTTP MCP endpoint", () => {
     expect(index).toContain("if (path === '/health')");
     expect(index).toContain("if (path === '/mcp')");
-    expect(index).toContain("new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })");
+    expect(index).toContain("new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: jsonOnly })");
     expect(index).toContain("body = await readBody(req);");
     expect(index).toContain("code: -32700, message: 'Parse error'");
     expect(index).toContain("await transport.handleRequest(req, res, body);");
+    expect(index).toContain("enableJsonResponse: jsonOnly");
   });
 
   it("answers non-POST MCP requests with 405 and unknown paths with 404", () => {
