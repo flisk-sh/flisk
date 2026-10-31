@@ -80,7 +80,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-async function runCli(root: string, args: string[]): Promise<string> {
+async function runDistribute(root: string, args: string[]): Promise<string> {
   process.chdir(root);
   const { distributeCommand } = await import("../distribute.js");
   await distributeCommand.parseAsync(args, { from: "user" });
@@ -130,7 +130,7 @@ describe("distribute board", () => {
   });
 
   it("--json prints one envelope with six rows of six columns", async () => {
-    const out = await runCli(project(), ["board", "--json"]);
+    const out = await runDistribute(project(), ["board", "--json"]);
     const envelope = JSON.parse(out);
     expect(Object.keys(envelope).sort()).toEqual(["data", "errors", "schemaVersion"]);
     expect(envelope.data.board.rows).toHaveLength(6);
@@ -306,7 +306,7 @@ describe("distribute kit", () => {
   it("--dry-run prints the kit and writes nothing", async () => {
     const root = project(fullDist);
     const before = fs.readdirSync(root).sort();
-    const out = await runCli(root, ["kit", "helper", "--dry-run"]);
+    const out = await runDistribute(root, ["kit", "helper", "--dry-run"]);
     expect(fs.readdirSync(root).sort()).toEqual(before);
     expect(out).toContain("Dry run - would write 4 files");
     expect(out).toContain("--- server.json ---");
@@ -315,7 +315,7 @@ describe("distribute kit", () => {
 
   it("writes to distribution/<resource> by default", async () => {
     const root = project(fullDist);
-    await runCli(root, ["kit", "helper"]);
+    await runDistribute(root, ["kit", "helper"]);
     expect(fs.existsSync(path.join(root, "distribution", "helper", "listing.md"))).toBe(true);
     expect(
       fs.existsSync(path.join(root, "distribution", "helper", ".claude-plugin", "plugin.json")),
@@ -336,7 +336,7 @@ describe("distribute status", () => {
 
   it("--init lists resources and channels, MCP-only channels n/a for a backend", async () => {
     const root = project();
-    await runCli(root, ["status", "--init"]);
+    await runDistribute(root, ["status", "--init"]);
     const written = readDistributionFile(root);
     expect(written).toEqual(createInitialDistribution(discoverResourcesFromRoot(root)));
     expect(Object.keys(written?.apps ?? {})).toEqual(["api", "helper"]);
@@ -346,7 +346,7 @@ describe("distribute status", () => {
   });
 
   it("--json prints the grid envelope", async () => {
-    const out = await runCli(project(fullDist), ["status", "--json"]);
+    const out = await runDistribute(project(fullDist), ["status", "--json"]);
     const envelope = JSON.parse(out);
     expect(envelope.errors).toEqual([]);
     expect(envelope.data.grid.apps).toEqual(["helper"]);
@@ -370,9 +370,9 @@ describe("distribute status", () => {
       }),
     );
     const before = fs.readFileSync(file, "utf-8");
-    await expect(runCli(root, ["status", "--init"])).rejects.toThrow();
+    await expect(runDistribute(root, ["status", "--init"])).rejects.toThrow();
     expect(fs.readFileSync(file, "utf-8")).toBe(before);
-    await runCli(root, ["status", "--init", "--force"]);
+    await runDistribute(root, ["status", "--init", "--force"]);
     const merged = readDistributionFile(root);
     expect(merged?.owner).toBe("Flisk");
     expect(merged?.apps.helper?.tagline).toBe("kept");
