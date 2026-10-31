@@ -15,7 +15,9 @@ export interface ExtraPort {
     containerPort: number;
     hostPort: number;
     protocol: "tcp" | "udp";
-    /** Loopback address, such as 127.0.0.1:443/tcp. */
+    /** Host address it is published on: 127.0.0.1, or 0.0.0.0 when service.json opts in to every interface. */
+    bind: "127.0.0.1" | "0.0.0.0";
+    /** Published address, such as 127.0.0.1:443/tcp. */
     address: string;
 }
 /** The `extraPorts` of a bring-your-own resource as Compose publishes them (engine/.../compose/byo_ports.star). Invalid entries are skipped. */

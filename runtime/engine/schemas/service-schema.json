@@ -403,7 +403,7 @@
       }
     },
     "extraPorts": {
-      "description": "Plain host ports for this bring-your-own resource, next to the routed port: a reverse proxy on 80 and 443, or a second listener such as a SOCKS proxy. Each is published on 127.0.0.1 only. port stays the one Flisk health-checks and routes. Not allowed with replicas.",
+      "description": "Plain host ports for this bring-your-own resource, next to the routed port: a reverse proxy on 80 and 443, or a second listener such as a SOCKS proxy. Each is published on 127.0.0.1 unless it sets bind to 0.0.0.0. port stays the one Flisk health-checks and routes. Not allowed with replicas.",
       "type": "array",
       "items": {
         "type": "object",
@@ -412,7 +412,11 @@
         "properties": {
           "port": { "description": "Port the container listens on.", "type": "integer", "minimum": 1, "maximum": 65535 },
           "hostPort": { "description": "Port on 127.0.0.1 it is published on. Defaults to port.", "type": "integer", "minimum": 1, "maximum": 65535 },
-          "protocol": { "description": "tcp (default) or udp.", "enum": ["tcp", "udp"] }
+          "protocol": { "description": "tcp (default) or udp.", "enum": ["tcp", "udp"] },
+          "bind": {
+            "description": "Host address the port is published on: 127.0.0.1 (default, this machine only) or 0.0.0.0 (every interface, so other devices on the network can reach it).",
+            "enum": ["127.0.0.1", "0.0.0.0"]
+          }
         }
       }
     },

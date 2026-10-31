@@ -3,12 +3,15 @@
 # =============================================================================
 # Extra published ports for a bring-your-own resource (service.json `extraPorts`, #2909).
 # `port` stays the one Flisk health-checks and routes through Traefik. A reverse proxy (Caddy on 80 and 443) or a service with a
-# second listener (a SOCKS proxy next to HTTP) also needs plain host ports. They are published on 127.0.0.1 only, so nothing is
-# reachable from the network, and the host port defaults to the container port. Keep in step with extraPortsErrors in
+# second listener (a SOCKS proxy next to HTTP) also needs plain host ports. They are published on 127.0.0.1 unless an entry opts
+# in with "bind": "0.0.0.0", which a self-hosted app needs so phones and TVs on the same network can reach it. The host port
+# defaults to the container port. Keep in step with extraPortsErrors in
 # cli/src/utils/service-manifest.ts and extraPortsOf in cli/src/utils/status-ports.ts. This file has no load() on purpose.
 # =============================================================================
 
 _PROTOCOLS = ["tcp", "udp"]
+# Loopback by default; every interface only when service.json asks (#2935).
+_BINDS = ["127.0.0.1", "0.0.0.0"]
 
 
 def _port_number(value, field):
@@ -41,11 +44,14 @@ def byo_extra_ports(manifest):
         protocol = entry.get('protocol', 'tcp')
         if protocol not in _PROTOCOLS:
             fail("MANIFEST ERROR: '{}.protocol' must be tcp or udp".format(field))
+        bind = entry.get('bind', '127.0.0.1')
+        if bind not in _BINDS:
+            fail("MANIFEST ERROR: '{}.bind' must be 127.0.0.1 or 0.0.0.0".format(field))
         key = "{}/{}".format(host_port, protocol)
         if key in seen:
             fail("MANIFEST ERROR: '{}.hostPort' {} is published twice".format(field, key))
         seen.append(key)
-        lines.append('      - "127.0.0.1:{}:{}/{}"'.format(host_port, port, protocol))
+        lines.append('      - "{}:{}:{}/{}"'.format(bind, host_port, port, protocol))
 
     if not lines:
         return ""

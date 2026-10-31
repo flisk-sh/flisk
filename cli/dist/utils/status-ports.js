@@ -8,17 +8,19 @@ export function extraPortsOf(resource) {
     return config.extraPorts.flatMap((entry) => {
         if (!entry || typeof entry !== "object")
             return [];
-        const { port, hostPort, protocol } = entry;
+        const { port, hostPort, protocol, bind } = entry;
         if (typeof port !== "number")
             return [];
         const host = typeof hostPort === "number" ? hostPort : port;
         const proto = protocol === "udp" ? "udp" : "tcp";
+        const address = bind === "0.0.0.0" ? "0.0.0.0" : "127.0.0.1";
         return [
             {
                 containerPort: port,
                 hostPort: host,
                 protocol: proto,
-                address: `127.0.0.1:${host}/${proto}`,
+                bind: address,
+                address: `${address}:${host}/${proto}`,
             },
         ];
     });

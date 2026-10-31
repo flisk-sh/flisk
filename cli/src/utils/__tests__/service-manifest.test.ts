@@ -934,7 +934,8 @@ describe("extraPortsErrors", () => {
     [byo([{ port: "80" }]), "extraPorts[0].port: expected a port number"],
     [byo([{ port: 80, hostPort: 70000 }]), "extraPorts[0].hostPort: expected a port number"],
     [byo([{ port: 53, protocol: "sctp" }]), "extraPorts[0].protocol: expected tcp or udp"],
-    [byo([{ port: 80, bind: "0.0.0.0" }]), "extraPorts[0].bind: unknown option"],
+    [byo([{ port: 80, bind: "192.168.1.5" }]), "extraPorts[0].bind: expected 127.0.0.1 or 0.0.0.0"],
+    [byo([{ port: 80, host: "0.0.0.0" }]), "extraPorts[0].host: unknown option"],
     [
       byo([{ port: 80 }, { port: 8080, hostPort: 80 }]),
       "extraPorts[1].hostPort: 80/tcp is published twice",
