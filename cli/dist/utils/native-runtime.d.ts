@@ -1,4 +1,4 @@
-import type { DiscoveredResource } from "../types/index.js";
+import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
 /**
  * The native runtime (#2229): `flisk up` starts every selected `command` service as a local process and supervises it, with no
  * Docker and no Tilt. It runs in the foreground like `tilt up` does: Ctrl+C (or `flisk down` from another terminal) stops it.
@@ -28,7 +28,11 @@ export interface NativeServicePlan {
     restart: boolean;
     /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
     healthCheckDisabled?: boolean;
+    /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
+    job?: boolean;
 }
+/** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
+export declare function isOneShotJob(config: ResourceConfig | undefined): boolean;
 /** The directory, under the project's .flisk/, that holds the run state and log files. */
 export declare const NATIVE_DIR: string;
 /** `http://localhost:<port>` for display and health checks. Built here so callers never hold a URL literal. */

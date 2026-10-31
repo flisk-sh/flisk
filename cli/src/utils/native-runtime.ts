@@ -12,7 +12,7 @@ import {
 import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
-import type { DiscoveredResource } from "../types/index.js";
+import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { FliskError } from "./errors.js";
 import { commandProgram } from "./native-service.js";
@@ -49,6 +49,15 @@ export interface NativeServicePlan {
   restart: boolean;
   /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
   healthCheckDisabled?: boolean;
+  /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
+  job?: boolean;
+}
+
+/** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
+export function isOneShotJob(config: ResourceConfig | undefined): boolean {
+  if (!config) return false;
+  if (config.appType === "migrator") return true;
+  return config.appType === "bring-your-own" && config.restart === "no";
 }
 
 /** The directory, under the project's .flisk/, that holds the run state and log files. */
@@ -179,6 +188,9 @@ export function planNativeRun(
     // Without a health path a service is ready once its port listens, which is what gates its dependents.
     const healthDisabled = isHealthCheckDisabled(config);
     const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
+    // A one-shot job with no port (every migrator, and a "restart": "no" process that serves nothing) is ready once it exits 0.
+    // One that has a port keeps the port or health check as its readiness, like any other service.
+    const job = isOneShotJob(config) && port === undefined;
     return {
       name: resource.name,
       command: String(config.command),
@@ -188,8 +200,9 @@ export function planNativeRun(
       dependsOn: [...new Set(dependsOn)],
       healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
       url: port !== undefined ? localUrl(port) : undefined,
-      restart: config.restart !== "no",
+      restart: config.restart !== "no" && !job,
       ...(healthDisabled ? { healthCheckDisabled: true } : {}),
+      ...(job ? { job: true } : {}),
     };
   });
   try {
@@ -473,6 +486,8 @@ interface RunningService {
   isReady: boolean;
   gaveUp: boolean;
   restartTimer?: NodeJS.Timeout;
+  /** Resolves with the exit code of the current process (null when a signal ended it). */
+  exited?: Promise<number | null>;
 }
 
 /** Starts and supervises the planned services. One instance per `flisk up`. */
@@ -549,10 +564,13 @@ export class NativeSupervisor {
           }
           if (this.stopping) return false;
           this.spawn(service);
-          const isReady = await waitForServiceReady(service.plan, {
-            isAlive: () => !this.stopping && !service.gaveUp,
-            timeoutMs: this.options.readyTimeoutMs,
-          });
+          // A one-shot job is ready when it has run to completion with exit code 0.
+          const isReady = service.plan.job
+            ? (await service.exited) === 0 && !this.stopping
+            : await waitForServiceReady(service.plan, {
+                isAlive: () => !this.stopping && !service.gaveUp,
+                timeoutMs: this.options.readyTimeoutMs,
+              });
           if (isReady) {
             service.isReady = true;
             this.saveState();
@@ -560,9 +578,11 @@ export class NativeSupervisor {
           } else if (!this.stopping) {
             failures.push({
               name,
-              reason: service.gaveUp
-                ? "kept exiting; see its output above"
-                : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${service.plan.healthUrl ? `no answer from ${service.plan.healthUrl}` : `nothing listening on port ${service.plan.port}`})`,
+              reason: service.plan.job
+                ? "the job did not exit 0; see its output above"
+                : service.gaveUp
+                  ? "kept exiting; see its output above"
+                  : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${service.plan.healthUrl ? `no answer from ${service.plan.healthUrl}` : `nothing listening on port ${service.plan.port}`})`,
             });
           }
           return isReady;
@@ -612,6 +632,10 @@ export class NativeSupervisor {
       stdio: ["ignore", "pipe", "pipe"],
     });
     service.child = child;
+    service.exited = new Promise((resolve) => {
+      child.once("exit", (code) => resolve(code));
+      child.once("error", () => resolve(null));
+    });
     this.events.onNote?.(
       plan.name,
       `started: ${plan.command}${child.pid ? ` (pid ${child.pid})` : ""}`,
@@ -635,6 +659,16 @@ export class NativeSupervisor {
     service.isReady = false;
     this.saveState();
     const how = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
+    if (service.plan.job) {
+      service.gaveUp = code !== 0;
+      service.isReady = code === 0;
+      this.saveState();
+      this.events.onNote?.(
+        service.plan.name,
+        code === 0 ? "finished (exit code 0)" : `${how}; a job is not restarted`,
+      );
+      return;
+    }
     if (!service.plan.restart) {
       service.gaveUp = true;
       this.events.onNote?.(service.plan.name, `${how}; not restarting ("restart": "no")`);

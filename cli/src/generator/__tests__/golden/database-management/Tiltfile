@@ -278,6 +278,9 @@ for _KNOWN_SVC in _app_resources_list:
                     if FrontendBuildPlan(_KNOWN_RES_DIR + '/package.json')['typecheck']:
                         _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-typecheck')
                 _KNOWN_RES_MANIFEST = _KNOWN_RES.get('_manifest', {})
+                # A one-shot job (a migrator, or bring-your-own with "restart": "no") has a `<name>-done` resource that waits for it to exit.
+                if _KNOWN_RES_MANIFEST.get('appType', '') == 'migrator' or (_KNOWN_RES_MANIFEST.get('appType', '') == 'bring-your-own' and _KNOWN_RES_MANIFEST.get('restart', '') == 'no'):
+                    _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-done')
                 _KNOWN_RES_SABLIER = _KNOWN_RES_MANIFEST.get('sablier', {})
                 # Mirrors _register_single_resource: the prebuild only exists for
                 # a resource that gets a docker_build (has syncs, not a library/sdk/BYO).
@@ -298,6 +301,8 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
             _FILTERED_RESOURCES.append(_R)
             if _R + '-typecheck' in _KNOWN_TILT_RESOURCES:
                 _FILTERED_RESOURCES.append(_R + '-typecheck')
+            if _R + '-done' in _KNOWN_TILT_RESOURCES:
+                _FILTERED_RESOURCES.append(_R + '-done')
             # Focus expansion normally resolves stack names to concrete
             # resources before this loop, so the stack branch below is not
             # reached for the common `flisk up <stack>` path. Keep a deferred
@@ -321,6 +326,8 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
                     _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-image')
                 if _STACK_RES_NAME + '-typecheck' in _KNOWN_TILT_RESOURCES:
                     _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-typecheck')
+                if _STACK_RES_NAME + '-done' in _KNOWN_TILT_RESOURCES:
+                    _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-done')
         else:
             _MATCHED = [kr for kr in _KNOWN_TILT_RESOURCES if kr != 'service-discovery-daemon' and kr.startswith(_R + '-')]
             _FILTERED_RESOURCES.extend(_MATCHED)
