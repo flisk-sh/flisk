@@ -28,6 +28,7 @@ if [ -z "$FLISK_GOLDEN_REBUILD" ]; then
   fi
 fi
 
+@@PULL_GOLDEN@@
 echo "🏗️  Building golden layered images (@@COUNT@@ total)..."
 if docker buildx version >/dev/null 2>&1; then
   echo "  🧩 Building all golden targets with one docker buildx bake (independent stages run in parallel)"
@@ -87,6 +88,32 @@ echo "✅ Golden layers built (@@COUNT@@ images):"
 '''
 
 
+def _pull_line(key, ref):
+    """Pulls golden-<key>:<hash12> from FLISK_GOLDEN_REGISTRY and tags it as this project's image; any failure clears `pulled`."""
+    line = 'docker pull -q "$FLISK_GOLDEN_REGISTRY/golden-{key}:$TAG12" >/dev/null 2>&1'
+    line += ' && docker tag "$FLISK_GOLDEN_REGISTRY/golden-{key}:$TAG12" {ref} || pulled=0'
+    return line.format(key=key, ref=ref)
+
+
+def _pull_block(pull_lines):
+    """
+    Opt-in prebuilt images. With FLISK_GOLDEN_REGISTRY set (for example docker.io/flisk-sh), every golden image is pulled
+    for this Dockerfile's hash before anything is built. If any pull is missing, the local build runs as before.
+    """
+    return '\n'.join([
+        'if [ -n "$FLISK_GOLDEN_REGISTRY" ] && [ -z "$FLISK_GOLDEN_REBUILD" ]; then',
+        '  TAG12="$(printf \'%s\' "$HASH" | cut -c1-12)"',
+        '  pulled=1',
+    ] + ['  ' + line for line in pull_lines] + [
+        '  if [ "$pulled" = 1 ]; then',
+        '    echo "✅ Golden images pulled from $FLISK_GOLDEN_REGISTRY (hash $TAG12)"',
+        '    exit 0',
+        '  fi',
+        '  echo "ℹ️  No prebuilt golden images for $TAG12 in $FLISK_GOLDEN_REGISTRY; building them here"',
+        'fi',
+    ]) + '\n'
+
+
 def _sh_quote(text):
     return "'" + text.replace("'", "'\\''") + "'"
 
@@ -121,10 +148,12 @@ def build_golden_layers(project_root='.'):
     bake_targets = []
     serial_builds = []
     target_names = []
+    pull_lines = []
     for key in GOLDEN_LAYERS:
         layer = GOLDEN_LAYERS[key]
         ref = layer['name'] + ':' + layer['tag']
         images.append(ref)
+        pull_lines.append(_pull_line(key, ref))
         summary.append('echo "  ✓ ' + ref + '"')
         target_names.append('"' + key + '"')
         bake_targets.append('''target "{key}" {{
@@ -150,6 +179,7 @@ def build_golden_layers(project_root='.'):
         .replace('@@LEGACY_IMAGES@@', ' '.join(LEGACY_GOLDEN_IMAGES))
         .replace('@@HASH_LABEL@@', GOLDEN_HASH_LABEL)
         .replace('@@COUNT@@', str(len(images)))
+        .replace('@@PULL_GOLDEN@@', _pull_block(pull_lines))
         .replace('@@TARGET_NAMES@@', ', '.join(target_names))
         .replace('@@BAKE_TARGETS@@', '\n'.join(bake_targets))
         .replace('@@SERIAL_BUILDS@@', '\n  '.join(serial_builds))

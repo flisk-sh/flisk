@@ -21,9 +21,13 @@ def _load_golden_prefix():
 
 _GOLDEN_PREFIX = _load_golden_prefix()
 
+SHARED_GOLDEN_NAME = 'flisk-golden'
+
 def generate_golden_dockerfile():
     """Generate the multi-stage golden-layers.Dockerfile."""
-    prefix = _GOLDEN_PREFIX
+    # The Dockerfile names no project: its header, comments and labels use one shared name, so every project on the
+    # same Flisk version gets the same hash and can pull the same prebuilt images (FLISK_GOLDEN_REGISTRY).
+    prefix = SHARED_GOLDEN_NAME
     header = Utils.get_template_header(
         'dockerfile',
         'GoldenImage.generate_layered_dockerfile()',
@@ -259,5 +263,5 @@ WORKDIR /app
 """.format(
     hc_flags=dockerfile_healthcheck_flags(),
     hc_flags_frontend=dockerfile_healthcheck_flags(DOCKER_HEALTHCHECK["frontend_start_period_seconds"]),
-    prefix=_GOLDEN_PREFIX,
+    prefix=SHARED_GOLDEN_NAME,
 )
