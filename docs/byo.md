@@ -175,6 +175,38 @@ reach the container as written. `flisk config verify` refuses a name that is not
 not a string, and a line break. Checked by `tests/tilt-engine/test_byo_env.py`, which also runs `docker compose config` on the
 generated file.
 
+## GPUs, CPU and memory (model servers and simulators)
+
+Every container Flisk generates is limited to 0.5 CPU and 512M of memory. A model server (vLLM, Ollama, llama.cpp) or a
+scientific workload (a cuQuantum or Qiskit Aer GPU simulator, a tensor-network or large state-vector simulation) needs more,
+and needs the GPU. Add these keys to the same `container` block:
+
+```json
+"container": {
+  "gpus": "all",
+  "cpus": 8,
+  "memory": "32g",
+  "ipc": "host",
+  "shmSize": "16g"
+}
+```
+
+- `gpus`: `"all"` or a count. It becomes an NVIDIA device reservation (`deploy.resources.reservations.devices` with
+  `driver: nvidia` and `capabilities: [gpu]`). The host needs an NVIDIA GPU and the NVIDIA Container Toolkit (Linux, or
+  Windows with WSL 2); without them Docker refuses to start the container.
+- `cpus` and `memory`: replace Flisk's limits (`deploy.resources.limits`). A reservation never exceeds its limit.
+- `ipc`: `host`, `private`, `shareable` or `none`. vLLM tensor parallelism and PyTorch data loaders use `host`, or a large
+  `shmSize`.
+
+Docker on macOS cannot reach the Apple GPU (Metal). There, run the model server as a local process instead: a service.json
+with a top-level `command` (for example `ollama serve`) runs on the host with no Docker, and the containers in the stack reach it
+like any other service.
+
+Checked by `tests/tilt-engine/test_byo_gpu_resources.py` (the generator) and
+`tests/e2e/resource-types/bring-your-own/verify-byo-hpc.sh` (a container started by `flisk up` gets the CPU, memory, IPC and
+`/dev/shm` settings, and `docker compose config` accepts the generated GPU reservation; the live GPU check runs only on a host
+with the NVIDIA runtime).
+
 ## Redis, Qdrant and RabbitMQ (infrastructure presets)
 
 Postgres and NATS come with every project. For a cache or job queue, a vector store or a message broker, create a preset:

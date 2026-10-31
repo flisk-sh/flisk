@@ -8,6 +8,7 @@
 #   BYO_VARIANT=flisk tests/e2e/resource-types/bring-your-own/run.sh all        through flisk up and Traefik (BY2)
 #   BYO_VARIANT=job tests/e2e/resource-types/bring-your-own/run.sh all        a one-shot job through flisk up (BY3)
 #   BYO_VARIANT=pair tests/e2e/resource-types/bring-your-own/run.sh all       a dependency and an app through flisk up (BY4)
+#   BYO_VARIANT=hpc tests/e2e/resource-types/bring-your-own/run.sh all        GPU, CPU, memory and IPC options (BY7)
 #   BYO_VARIANT=infra tests/e2e/resource-types/bring-your-own/run.sh all      redis, qdrant and rabbitmq presets (BY8)
 #   tests/e2e/resource-types/bring-your-own/run.sh BY1                         a single case
 #
@@ -70,6 +71,7 @@ BY6() {
   ensure_ajv
   bash "$SUITE_DIR/verify-byo-python-boot.sh"
 }
+BY7() { run_verify verify-byo-hpc.sh "BY7 GPUs, CPU and memory limits and IPC reach the container and the generated Compose file"; }
 BY8() { run_verify verify-byo-infra.sh "BY8 redis, qdrant and rabbitmq presets reached through the settings they provide"; }
 
 # \`all\` runs only this variant's case: every leg of this suite is one variant, not every case in suite.json.

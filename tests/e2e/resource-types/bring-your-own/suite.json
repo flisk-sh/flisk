@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "bring-your-own",
-  "description": "A bring-your-own app, job, pair or Python service in each byoVariant on its own check: example (the container alone), flisk (through flisk up and Traefik with Flisk's Postgres), job (a one-shot through flisk up), pair (a dependency and an app through flisk up), python-dry-run (the resource contract and up --dry-run, no Docker) and python-boot (the Python fixture boots and answers its health route) and infra (the redis, qdrant and rabbitmq presets, reached by a service that depends on them through the settings they provide). The matrix runs one leg per variant (#1297).",
+  "description": "A bring-your-own app, job, pair or Python service in each byoVariant on its own check: example (the container alone), flisk (through flisk up and Traefik with Flisk's Postgres), job (a one-shot through flisk up), pair (a dependency and an app through flisk up), python-dry-run (the resource contract and up --dry-run, no Docker) and python-boot (the Python fixture boots and answers its health route), hpc (GPUs, CPU and memory limits and IPC from the container block reach the container and the generated Compose file) and infra (the redis, qdrant and rabbitmq presets, reached by a service that depends on them through the settings they provide). The matrix runs one leg per variant (#1297).",
   "paths": [
     "docs/byo.md",
     "cli/src/commands/resource.ts",
@@ -26,6 +26,7 @@
     "BY4",
     "BY5",
     "BY6",
+    "BY7",
     "BY8"
   ],
   "variants": [
@@ -93,6 +94,11 @@
     {
       "id": "python-boot",
       "case": "BY6",
+      "args": ""
+    },
+    {
+      "id": "hpc",
+      "case": "BY7",
       "args": ""
     },
     {
