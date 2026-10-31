@@ -115,6 +115,7 @@ A service that declares `command` needs `schemaVersion`, `appName` and `appType`
 | Field | Type and default | Applies to | Description |
 | --- | --- | --- | --- |
 | `command` | shell command; optional | local processes | Runs the service as a local process instead of a container: `flisk up` starts it from the service directory with `PORT` set to `port`, waits for it, restarts it when it exits, and stops it on `flisk down`. Cannot be combined with `image` or `dockerfile`. All services that `flisk up` starts must declare it (or none). Not the same as `dev.command`, the dev command inside a generated container. |
+| `toolchain` | `<tool>@<version>`; optional | local processes | The runtime the command needs: `node@24`, `bun@1.3`, `python@3.12`, `go@1.23`, `deno@2` or `ruby@3.3`. `flisk doctor` and `flisk up` compare it with the program on `PATH` (every part given must match, so `node@24` accepts 24.1.0) and refuse to start on a mismatch, naming the service and both versions. Without it, a `.nvmrc`, `.node-version` or `.python-version` in the service folder is a hint: a mismatch only warns. Flisk installs nothing. |
 | `env` | string map; optional | local processes | Environment variables for the command. Values may use `${VAR}` or `${VAR:-default}` from the project `.env` or the shell. |
 
 For a local process, `port`, `healthCheckPath`, `dependsOn` and `restart: "no"` keep their meaning, without the container port ranges.

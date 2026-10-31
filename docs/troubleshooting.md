@@ -217,6 +217,18 @@ $ flisk doctor --no-ping      # no .env file
 - **Fix:** rotate any leaked credential immediately. Move calls that require secrets to server routes, API endpoints, or a backend-for-frontend (BFF) proxy so client code never receives secret tokens.
 - **Defined in:** [`public-env-secrets.ts`](../cli/src/utils/public-env-secrets.ts) and [`doctor.ts`](../cli/src/commands/doctor.ts) (`checkPublicEnvSecrets`).
 
+### `TOOLCHAIN_MISMATCH`: a service needs another runtime version
+
+```text
+✗ api: wants node@24 (service.json), node 20.11.0 is on PATH
+Switch to that version with your version manager, or change "toolchain" in the service.json.
+```
+
+- **Cause:** a local-process service declares `"toolchain": "node@24"` (or `python@3.12`, ...) in its `service.json`, and the program on `PATH` is another version, is missing, or did not report a version. `flisk up` stops before starting anything; `flisk doctor` fails the **Service toolchains** check.
+- **Hints:** without `toolchain`, a `.nvmrc`, `.node-version` or `.python-version` in the service folder is compared too, but a mismatch there is only a warning in `flisk doctor` and never stops `flisk up`.
+- **Fix:** switch versions with your version manager (nvm, fnm, mise, pyenv, ...), or change `toolchain`. Container services are not checked: their image decides the runtime.
+- **Defined in:** [`toolchain.ts`](../cli/src/utils/toolchain.ts).
+
 ### Env values that point outside the local stack
 
 ```text

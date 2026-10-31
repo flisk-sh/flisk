@@ -55,6 +55,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "smoke",
     "stack",
     "syncs",
+    "toolchain",
     "traefik",
     "type",
 ]);

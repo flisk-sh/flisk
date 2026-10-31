@@ -120,6 +120,7 @@ import {
   runSmokePlans,
   safeSmokeDeps,
 } from "../utils/smoke.js";
+import { checkToolchains } from "../utils/toolchain.js";
 import { findOnPath } from "../utils/which.js";
 import {
   checkWindowsDockerMode,
@@ -1885,6 +1886,7 @@ export const doctorCommand = new Command("doctor")
       ? [
           () => checkNativeRuntime(nativeResources),
           () => checkNativeCommands(nativeResources),
+          () => checkToolchains(nativeResources),
           () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
           () => checkDuplicateFliskInstalls(),
         ]

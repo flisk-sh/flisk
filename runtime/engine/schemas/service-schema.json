@@ -628,6 +628,12 @@
         }
       }
     },
+    "toolchain": {
+      "description": "The runtime a local-process service (one with a command) needs, as <tool>@<version>: node@24, bun@1.3, python@3.12, go@1.23, deno@2, ruby@3.3. flisk doctor and flisk up compare it with the program on PATH; every part given must match (node@24 accepts 24.1.0). Container services get their runtime from the image, so it is not checked for them.",
+      "pattern": "^[a-z]+@[0-9]+(\\.[0-9]+){0,2}$",
+      "type": "string",
+      "examples": ["node@24", "python@3.12"]
+    },
     "traefik": {
       "description": "Custom Traefik routing. Auto-generated if not specified.",
       "properties": {
