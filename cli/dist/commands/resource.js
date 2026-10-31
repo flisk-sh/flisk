@@ -1014,7 +1014,7 @@ This file contains the resource configuration for Flisk.
         tasks.push({
             type: "text",
             filename: `tests/${resourceName}.test.ts`,
-            content: getTestTemplate(resourceName),
+            content: (backendFramework?.createTest ?? getTestTemplate)(resourceName),
             description: "Generating test file",
             emoji: "🧪",
         });
