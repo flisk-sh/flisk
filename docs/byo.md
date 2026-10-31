@@ -91,6 +91,27 @@ unknown key or a value with characters Compose would read as YAML is refused bef
 `tests/tilt-engine/test_byo_container_options.py`, which runs the generator through Tilt; a container started with these options
 was not part of that test.
 
+## Extra ports (a proxy on 80 and 443, a second listener)
+
+`port` is the one port Flisk health-checks and routes through Traefik. A reverse proxy such as Caddy listens on 80 and 443,
+and some services have a second listener next to HTTP (a SOCKS proxy, a metrics port). List those as `extraPorts`:
+
+```json
+"port": 8080,
+"extraPorts": [
+  { "port": 80, "hostPort": 8081 },
+  { "port": 443 },
+  { "port": 443, "protocol": "udp" }
+]
+```
+
+Each entry is published on `127.0.0.1` only (`"127.0.0.1:8081:80/tcp"` in the generated Compose file), so nothing is reachable
+from the network. `hostPort` defaults to `port` and `protocol` to `tcp`. A host port that is already taken makes the container
+fail to start, so pick a free one with `hostPort`. `flisk status` prints the addresses next to the service. `extraPorts` applies
+to bring-your-own resources with one container: `flisk config verify` refuses it with `replicas`, on another resource type, or
+when two entries ask for the same host port. Checked by `tests/tilt-engine/test_byo_extra_ports.py` (the generator, run through
+Tilt); a container listening on those ports was not part of that test.
+
 ## Bringing a framework app (Node, Go, Rust, ...)
 
 Any app that fits the contract below can run as a bring-your-own resource. Fastify is the worked example because it needs nothing beyond the framework.

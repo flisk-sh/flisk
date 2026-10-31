@@ -307,8 +307,11 @@ export const statusCommand = new Command("status")
               gateway: gatewayEnabled,
             });
             const urlPart = ports.url ? ` → ${ports.url}` : "";
+            const extraPart = ports.extraPorts.length
+              ? `  ${chalk.dim(ports.extraPorts.map((p) => p.address).join(", "))}`
+              : "";
             showDetail(
-              `${mark} ${resource.name}${urlPart}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`,
+              `${mark} ${resource.name}${urlPart}${extraPart}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`,
               6,
             );
           }

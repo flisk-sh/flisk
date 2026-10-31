@@ -1,5 +1,28 @@
 import { BRING_YOUR_OWN_TYPE, STANDARD_PORTS } from "./constants.js";
 import { resolveServicePath, resolveSubdomainBases, routesAsApi } from "./service-urls.js";
+/** The `extraPorts` of a bring-your-own resource as Compose publishes them (engine/.../compose/byo_ports.star). Invalid entries are skipped. */
+export function extraPortsOf(resource) {
+    const config = resource.config;
+    if (config?.appType !== BRING_YOUR_OWN_TYPE || !Array.isArray(config.extraPorts))
+        return [];
+    return config.extraPorts.flatMap((entry) => {
+        if (!entry || typeof entry !== "object")
+            return [];
+        const { port, hostPort, protocol } = entry;
+        if (typeof port !== "number")
+            return [];
+        const host = typeof hostPort === "number" ? hostPort : port;
+        const proto = protocol === "udp" ? "udp" : "tcp";
+        return [
+            {
+                containerPort: port,
+                hostPort: host,
+                protocol: proto,
+                address: `127.0.0.1:${host}/${proto}`,
+            },
+        ];
+    });
+}
 function resolveGatewayOption(options) {
     if (options === undefined || options === null)
         return true;
@@ -31,7 +54,7 @@ export function buildServicePorts(resource, ingressHttp, options) {
     const directUrl = !routedByType && containerPort && appType !== BRING_YOUR_OWN_TYPE
         ? `http://localhost:${containerPort}`
         : null;
-    return { url, containerPort, hostPort: null, directUrl };
+    return { url, containerPort, hostPort: null, directUrl, extraPorts: extraPortsOf(resource) };
 }
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */
 export function buildStackPorts(plan, tiltPort, options) {
