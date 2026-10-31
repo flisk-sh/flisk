@@ -143,13 +143,19 @@ function undeclaredArguments(args: string[], commands: Map<string, Command>): st
   const declared = new Set(
     target.options.flatMap((opt) => [opt.long, opt.short].filter((f): f is string => Boolean(f))),
   );
-  const problems = tokens
+  // Everything after `--` is an argument, never an option (`flisk run api -- printenv -0`).
+  const end = tokens.indexOf("--");
+  const options = end === -1 ? tokens : tokens.slice(0, end);
+  const afterEnd = end === -1 ? [] : tokens.slice(end + 1);
+  const problems = options
     .filter((token) => token.startsWith("-"))
     .map((token) => token.split("=")[0] ?? token)
     .filter((option) => !declared.has(option))
     .map((option) => `flisk ${target.name()}: unknown option "${option}"`);
-  const positionals = tokens.filter((token) => !token.startsWith("-")).length;
-  if (positionals > target.registeredArguments.length) {
+  const positionals = options.filter((token) => !token.startsWith("-")).length + afterEnd.length;
+  // A variadic last argument (`[command...]`) takes any number of values.
+  const isVariadic = target.registeredArguments.at(-1)?.variadic === true;
+  if (!isVariadic && positionals > target.registeredArguments.length) {
     problems.push(
       `flisk ${target.name()} takes ${target.registeredArguments.length} positional argument(s), got ${positionals}`,
     );
@@ -603,6 +609,7 @@ describe("tool list", () => {
       "logs",
       "resource_list",
       "resource_restart",
+      "resource_run",
       "agent_list",
       "agent_sessions",
       "stack_list",
@@ -656,6 +663,9 @@ describe("tool list", () => {
     await tools.find((t) => t.name === "status")?.handler({});
     await tools.find((t) => t.name === "down")?.handler({ dryRun: true });
     await tools.find((t) => t.name === "resource_restart")?.handler({ resource: "api" });
+    await tools
+      .find((t) => t.name === "resource_run")
+      ?.handler({ resource: "api", command: ["printenv", "DATABASE_URL"] });
     await tools.find((t) => t.name === "agent_list")?.handler({ stack: "shop" });
     await tools
       .find((t) => t.name === "agent_sessions")
@@ -667,6 +677,7 @@ describe("tool list", () => {
       { args: ["status", "--json"], cwd: undefined },
       { args: ["down", "--json", "--dry-run"], cwd: undefined },
       { args: ["restart", "api", "--json"], cwd: undefined },
+      { args: ["run", "api", "--json", "--", "printenv", "DATABASE_URL"], cwd: undefined },
       { args: ["resources", "--type=agent", "--json", "--stack=shop"], cwd: undefined },
       { args: ["agent", "sessions", "bot", "--session-id=sess-1", "--json"], cwd: undefined },
       { args: ["agent", "sessions", "bot", "--json"], cwd: undefined },
@@ -891,6 +902,9 @@ describe("tool list", () => {
     const rejected: [string, Record<string, unknown>, string][] = [
       ["resource_restart", {}, "resource is required"],
       ["resource_restart", { resource: "-x" }, "resource must be a name"],
+      ["resource_run", { command: ["true"] }, "resource is required"],
+      ["resource_run", { resource: "api" }, "command is required"],
+      ["resource_run", { resource: "api", command: [] }, "command is required"],
       ["agent_sessions", {}, "resource is required"],
       ["agent_list", { stack: "a b" }, "stack must be a name"],
       ["logs", { services: ["ok", "-bad"] }, "services must be an array of names"],
@@ -994,6 +1008,7 @@ describe("tool list", () => {
       logs: { services: ["api"], tail: 5, since: "5m" },
       resource_list: { stack: "shop" },
       resource_restart: { resource: "api" },
+      resource_run: { resource: "api", command: ["printenv", "DATABASE_URL"] },
       agent_list: { stack: "shop" },
       agent_sessions: { resource: "bot", sessionId: "s1" },
       stack_list: { services: true, verbose: true },

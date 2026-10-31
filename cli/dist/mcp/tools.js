@@ -450,6 +450,8 @@ const TOOL_ANNOTATIONS = {
     up: WRITES_LOCALLY,
     down: { ...WRITES_LOCALLY, destructiveHint: true, idempotentHint: true },
     resource_restart: WRITES_LOCALLY,
+    // An arbitrary command in the resource's environment: it may change data or reach the network.
+    resource_run: { ...WRITES_LOCALLY, destructiveHint: true, openWorldHint: true },
     // dryRun is the default; dryRun: false overwrites the generated files and discards hand edits in them.
     config_regenerate: { ...WRITES_LOCALLY, destructiveHint: true, idempotentHint: true },
     // Running it again on an existing resource rewrites its service.json.
@@ -559,6 +561,42 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
                     ]);
                 }
                 return ["restart", resource, "--json"];
+            }),
+        },
+        {
+            name: "resource_run",
+            description: "Run a one-off command (a seed script, a status check, printenv) with the environment one resource has in the stack, and return its exit code, stdout and stderr (the last 64 KB of each). A container resource must be running (start it with `up`); a local-process resource runs from its folder. No input is passed. Names come from `resource_list`. Set projectPath when the MCP server is not running from the project root.",
+            inputSchema: {
+                ...OBJECT({
+                    projectPath: PROJECT_PATH,
+                    resource: {
+                        type: "string",
+                        description: "Name of the resource whose environment the command gets",
+                    },
+                    command: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: 'The program and its arguments, for example ["printenv", "DATABASE_URL"]',
+                    },
+                }),
+                required: ["resource", "command"],
+            },
+            handler: viaCli((args) => {
+                const resource = optionalName(args.resource, "resource");
+                if (!resource) {
+                    throw new FliskError("resource is required", [
+                        "Pass the resource name; resource_list shows them",
+                    ]);
+                }
+                const command = Array.isArray(args.command)
+                    ? args.command.filter((part) => typeof part === "string")
+                    : [];
+                if (command.length === 0) {
+                    throw new FliskError("command is required", [
+                        'Pass the program and its arguments, for example ["printenv", "DATABASE_URL"]',
+                    ]);
+                }
+                return ["run", resource, "--json", "--", ...command];
             }),
         },
         {

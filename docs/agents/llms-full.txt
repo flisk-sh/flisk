@@ -60,7 +60,7 @@ flisk resource <name> --type mcp --stack <stack>
 ### 3. Agent Host & Control Plane (`flisk mcp`)
 - stdio MCP server for AI coding assistants.
 - Connect a host in one command with `flisk connect <claude|cursor|codex>`: it merges the `flisk` server entry into `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `.codex/config.toml` (Codex, `cwd` pinned to the project), keeps other servers, and writes the Flisk skills to `.claude/skills` (Claude Code) or `.agents/skills` (Cursor, Codex). A second run changes nothing; `--dry-run` writes nothing; `--global` writes only the user config (`~/.cursor/mcp.json`, `~/.codex/config.toml`; Claude Code: `claude mcp add --scope user flisk -- flisk mcp`); `--force` replaces a different `flisk` entry or an edited skill; `--json` prints the `{schemaVersion, data, errors}` envelope with every file and its action (`create`, `update`, `unchanged`, `kept`).
-- Tools: `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`.
+- Tools: `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `resource_run`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`.
   - `doctor`: Check whether this machine can run the Flisk stack and optionally validate a project.
   - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
   - `down`: Stop the running stack.
@@ -68,6 +68,7 @@ flisk resource <name> --type mcp --stack <stack>
   - `logs`: Fetch a bounded snapshot of recent logs from the running stack.
   - `resource_list`: List the project's services with their stack, type, and port.
   - `resource_restart`: Restart a running resource in the stack (or trigger its rebuild).
+  - `resource_run`: Run a one-off command with the environment one resource has in the stack; returns the exit code, stdout and stderr. A container resource must be running.
   - `agent_list`: List AI agent resources (`appType: "agent"`) with their stack, runtime, durability, and port.
   - `agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
   - `stack_list`: List the project's stacks with their resource counts (`services` adds service names, `verbose` descriptions).
@@ -172,6 +173,7 @@ All inspection and lifecycle commands support `--json`:
 - `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.
 - `flisk stacks [--json]`: List the project's stacks (alias `ls`).
 - `flisk restart <resource>`: Restart one running resource, or trigger its rebuild.
+- `flisk run <service> <command...>`: Run a one-off command with the environment the service has in the stack (`docker exec` in its running container, or on the host for a local process); put `--` before a command that has flags of its own. The exit code is the command's. `--json` runs it without input and returns `exitCode`, `stdout` and `stderr`.
 - `flisk networks [--json]`: Show the Traefik URL of every frontend and API service (aliases `urls`, `traefik`).
 - `flisk agent sessions <resource>`: List the stored sessions of an agent resource (`--session-id <id>` reads one checkpoint).
 - `flisk runtime`: Check that the installed CLI has its bundled runtime assets.

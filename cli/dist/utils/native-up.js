@@ -10,7 +10,8 @@ import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, is
 import { findPortOccupant } from "./port-occupant.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
-function runVariables(projectRoot, envFilePath) {
+/** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
+export function runVariables(projectRoot, envFilePath) {
     const path = envFilePath ?? join(projectRoot, ".env");
     const fromFile = existsSync(path) ? Object.fromEntries(readEnvFileValues(path)) : {};
     const fromShell = Object.fromEntries(Object.entries(process.env).filter((entry) => entry[1] !== undefined));

@@ -256,6 +256,8 @@ const EXEMPT: Record<string, string> = {
     "starts the host's fliskos command (or FliskOS.app) and keeps running until it stops, so a matrix run would launch a server; os.test.ts covers the envelope with a stub fliskos and spawn doubles",
   "restart --json":
     "triggers a resource on the host's Tilt UI port, and isTiltAvailable checks the host's tilt binary; needs Tilt and a running stack",
+  "run --json":
+    "takes a required <service> and a command after --, and runs it in the service's container or as a local process, so the matrix's argument-less run cannot exercise it; run.test.ts covers the envelope with a local-process service",
   "runtime --json":
     "checks the packaged install's bundled assets, so a source checkout reports ok: false; prints {ok, assetRoot, missing, templateErrors}, not the envelope",
   "up --json": "starts containers through the host's Docker, Compose and Tilt; needs Docker",

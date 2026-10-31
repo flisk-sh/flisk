@@ -44,7 +44,8 @@ export interface NativeUpInput {
 }
 
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
-function runVariables(projectRoot: string, envFilePath?: string): Record<string, string> {
+/** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
+export function runVariables(projectRoot: string, envFilePath?: string): Record<string, string> {
   const path = envFilePath ?? join(projectRoot, ".env");
   const fromFile = existsSync(path) ? Object.fromEntries(readEnvFileValues(path)) : {};
   const fromShell = Object.fromEntries(
