@@ -106,7 +106,9 @@ and some services have a second listener next to HTTP (a SOCKS proxy, a metrics 
 ```
 
 Each entry is published on `127.0.0.1` only (`"127.0.0.1:8081:80/tcp"` in the generated Compose file), so nothing is reachable
-from the network. `hostPort` defaults to `port` and `protocol` to `tcp`. A host port that is already taken makes the container
+from the network, unless the entry opts in with `"bind": "0.0.0.0"`: a self-hosted app that phones and TVs on your Wi-Fi must
+open needs that, and `flisk doctor` then lists the port under "Network ports" as a warning, so it stays a visible choice.
+`hostPort` defaults to `port` and `protocol` to `tcp`. A host port that is already taken makes the container
 fail to start, so pick a free one with `hostPort`. `flisk status` prints the addresses next to the service. `extraPorts` applies
 to bring-your-own resources with one container: `flisk config verify` refuses it with `replicas`, on another resource type, or
 when two entries ask for the same host port. Checked by `tests/tilt-engine/test_byo_extra_ports.py` (the generator, run through
