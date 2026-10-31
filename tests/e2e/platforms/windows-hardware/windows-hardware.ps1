@@ -545,7 +545,8 @@ function Invoke-Wh4 {
     if ($result.ExitCode -eq 0) { throw "$label succeeded on native Windows; it must refuse" }
     Assert-Text $result.Text 'WSL2' "$label did not point at WSL2"
     Assert-Text $result.Text 'Ubuntu' "$label did not point at WSL2 Ubuntu"
-    Assert-Text $result.Text '(?i)declare a command' "$label did not say that native Windows runs only services that declare a command"
+    # The published release may predate the wording change of #2857; up.test.ts asserts the current wording on the source build.
+    Assert-Text $result.Text '(?i)declare a command|inspect-only' "$label did not say what native Windows runs"
     Assert-Text $result.Text '(?im)^(Starting|Running tilt up)' "$label printed a landscape startup message" -NotMatch
   }
 
