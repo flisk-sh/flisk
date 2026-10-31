@@ -28,6 +28,7 @@ export const HUMAN_ONLY = {
 	open: "opens a browser for a person to look at",
 	os: "starts a desktop app for a person to look at; it runs until the person closes it",
 	upgrade: "replaces the installed CLI, a person's call",
+	distribute: "writes listing text and a channel grid that a person reviews and submits by hand",
 };
 
 // Whether a command path ("maintainers check") belongs to a human-only command.
