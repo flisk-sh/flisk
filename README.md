@@ -769,7 +769,7 @@ Contributions are welcome. **First step: [say hello on Discord](https://discord.
     <img src="https://www.bestpractices.dev/assets/openssf_bestpracticesbadge-a908f4124737f3d6b2c5abc82756bd2a435cff474b45615ce469746c31a4288c.svg" alt="OpenSSF Best Practices" height="80" align="middle" style="vertical-align: middle" />
   </a>
   <a href="https://www.bestpractices.dev/projects/15310">
-    <img src="https://img.shields.io/badge/OpenSSF%20Silver-95%25-yellow" alt="OpenSSF Silver: 95%" height="40" align="middle" style="vertical-align: middle" />
+    <img src="https://www.bestpractices.dev/projects/15310/badge" alt="OpenSSF Best Practices: Silver (100%)" height="40" align="middle" style="vertical-align: middle" />
   </a>
 </p>
 
