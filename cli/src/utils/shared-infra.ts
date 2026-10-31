@@ -3,9 +3,17 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { DiscoveredResource, DiscoveredStack } from "../types/index.js";
+import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities } from "../types/index.js";
+import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
+
+/** Where `groupSharedPostgres` reads the database capability: the project root, or a flag such as `--no-database`. */
+export interface SharedInfraOptions {
+  capabilities?: ProjectCapabilities;
+  database?: boolean;
+  projectRoot?: string;
+}
 
 /**
  * Groups the shared platform Postgres for `flisk status`.
@@ -44,7 +52,10 @@ export function usesSharedPostgres(resource: DiscoveredResource): boolean {
 export function groupSharedPostgres(
   projectName: string,
   stacks: DiscoveredStack[],
+  options?: SharedInfraOptions,
 ): SharedPostgresInstance | null {
+  // A project that opted out of the shared Postgres has none to show.
+  if (options && !isDatabaseCapabilityEnabled(options.projectRoot, { ...options })) return null;
   const prefix = projectName.replace(/-/g, "_");
   const databases: SharedInfraDatabase[] = [];
 

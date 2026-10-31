@@ -17,6 +17,7 @@ export interface DoctorReport {
     ready: boolean;
     inProject: boolean;
     checks: CheckResult[];
+    capabilities?: string[];
     /** Present only when a failing check has a runnable command: most blocking first. */
     fixFirst?: RankedFix[];
     /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
@@ -25,7 +26,7 @@ export interface DoctorReport {
     ports?: {
       http: { requested: number; chosen: number | null; explicit: boolean; reason: string };
       https: { requested: number; chosen: number | null; explicit: boolean; reason: string };
-      postgres: { requested: number; chosen: number | null; explicit: boolean; reason: string };
+      postgres?: { requested: number; chosen: number | null; explicit: boolean; reason: string };
     };
   };
   errors: DoctorError[];
@@ -71,6 +72,7 @@ export function createDoctorReport(
   errors: DoctorError[] = [],
   portPlan?: HostPortPlan | null,
   host?: HostInfo,
+  capabilities?: string[],
 ): DoctorReport {
   const fixFirst = rankDoctorFixes(checks);
   return {
@@ -81,6 +83,7 @@ export function createDoctorReport(
         checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
       inProject,
       checks,
+      ...(capabilities ? { capabilities } : {}),
       ...(fixFirst.length > 0 ? { fixFirst } : {}),
       ...(host
         ? {
@@ -106,12 +109,17 @@ export function createDoctorReport(
                 explicit: portPlan?.explicit.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
                 reason: portPlan?.reason.ingressHttps ?? "port planning failed",
               },
-              postgres: {
-                requested: portPlan?.requested.postgres ?? 5432,
-                chosen: portPlan?.postgres ?? null,
-                explicit: portPlan?.explicit.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
-                reason: portPlan?.reason.postgres ?? "port planning failed",
-              },
+              ...(capabilities && !capabilities.includes("database")
+                ? {}
+                : {
+                    postgres: {
+                      requested: portPlan?.requested.postgres ?? 5432,
+                      chosen: portPlan?.postgres ?? null,
+                      explicit:
+                        portPlan?.explicit.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
+                      reason: portPlan?.reason.postgres ?? "port planning failed",
+                    },
+                  }),
             },
           }
         : {}),

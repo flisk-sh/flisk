@@ -55,7 +55,16 @@ export async function createHostPortPlan(options = {}) {
     const reasons = { ingressHttp: "", ingressHttps: "", postgres: "" };
     const selected = { explicit: explicitFlags };
     const reserved = new Set();
-    for (const key of ["ingressHttp", "ingressHttps", "postgres"]) {
+    const dbEnabled = options.database !== false && options.capabilities?.database !== false;
+    const keys = dbEnabled
+        ? ["ingressHttp", "ingressHttps", "postgres"]
+        : ["ingressHttp", "ingressHttps"];
+    if (!dbEnabled) {
+        selected.postgres = 5432;
+        explicitFlags.postgres = false;
+        reasons.postgres = "database capability disabled";
+    }
+    for (const key of keys) {
         const envValue = env[ENV_KEYS[key]];
         const explicit = envValue !== undefined && envValue.trim() !== "";
         const range = options.ranges?.[key] ?? DEFAULT_HOST_PORT_RANGES[key];
@@ -101,5 +110,8 @@ export async function createHostPortPlan(options = {}) {
     };
 }
 export function formatHostPortPlan(plan) {
+    if (plan.reason?.postgres === "database capability disabled") {
+        return `Host ports: HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}`;
+    }
     return `Host ports: HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`;
 }

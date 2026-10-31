@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import chalk from "chalk";
 import { Command } from "commander";
+import { getEnabledCapabilities } from "../utils/capabilities.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -34,7 +35,9 @@ export const statusCommand = new Command("status")
         const projectRoot = findProjectRoot();
         const projectName = projectRoot ? readProjectName(projectRoot) : null;
         const sharedInfraGroup = projectName
-            ? groupSharedPostgres(projectName, discovery.stacks)
+            ? groupSharedPostgres(projectName, discovery.stacks, {
+                projectRoot: projectRoot ?? undefined,
+            })
             : null;
         // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
         const nativeStates = projectRoot && isNativeProject(discovery.resources)
@@ -171,6 +174,7 @@ export const statusCommand = new Command("status")
                 })),
                 unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
                 sharedInfra: sharedInfraGroup,
+                capabilities: getEnabledCapabilities(projectRoot),
                 // Names of the failing or pending services, so a caller need not filter `resources` itself.
                 unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
             };

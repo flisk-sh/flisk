@@ -1,4 +1,10 @@
-import type { DiscoveredResource, DiscoveredStack } from "../types/index.js";
+import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities } from "../types/index.js";
+/** Where `groupSharedPostgres` reads the database capability: the project root, or a flag such as `--no-database`. */
+export interface SharedInfraOptions {
+    capabilities?: ProjectCapabilities;
+    database?: boolean;
+    projectRoot?: string;
+}
 /**
  * Groups the shared platform Postgres for `flisk status`.
  *
@@ -18,6 +24,6 @@ export interface SharedPostgresInstance {
 }
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export declare function usesSharedPostgres(resource: DiscoveredResource): boolean;
-export declare function groupSharedPostgres(projectName: string, stacks: DiscoveredStack[]): SharedPostgresInstance | null;
+export declare function groupSharedPostgres(projectName: string, stacks: DiscoveredStack[], options?: SharedInfraOptions): SharedPostgresInstance | null;
 /** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */
 export declare function readProjectName(projectRoot: string): string | null;

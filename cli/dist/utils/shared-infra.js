@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
 /** A resource uses the shared database when its features or dependsOn ask for it. */
@@ -16,7 +17,10 @@ export function usesSharedPostgres(resource) {
     const dependsOn = Array.isArray(config.dependsOn) ? config.dependsOn : [];
     return dependsOn.some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name));
 }
-export function groupSharedPostgres(projectName, stacks) {
+export function groupSharedPostgres(projectName, stacks, options) {
+    // A project that opted out of the shared Postgres has none to show.
+    if (options && !isDatabaseCapabilityEnabled(options.projectRoot, { ...options }))
+        return null;
     const prefix = projectName.replace(/-/g, "_");
     const databases = [];
     for (const stack of [...stacks].sort((a, b) => a.name.localeCompare(b.name))) {

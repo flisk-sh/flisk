@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
+import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { PROJECT_JSON } from "./constants.js";
 import { createHostPortPlan, isHostPortAvailable, PREFERRED_HOST_PORTS } from "./host-port-plan.js";
 const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
@@ -90,6 +91,7 @@ export function resolveRuntimeIngressPort(projectRoot, plannedPort, readDockerPs
 }
 /** Reuse this project's last selection when its ports are still free or held by its own containers. */
 export async function getHostPortPlan(projectRoot, options = {}) {
+    const dbEnabled = isDatabaseCapabilityEnabled(projectRoot, options);
     const saved = readSavedHostPortPlan(projectRoot);
     const hasOverride = ["FLISK_HTTP_PORT", "FLISK_HTTPS_PORT", "FLISK_POSTGRES_PORT"].some((key) => process.env[key]);
     // Dry-run must not call Docker. A saved plan is the best representation of
@@ -122,19 +124,37 @@ export async function getHostPortPlan(projectRoot, options = {}) {
     const isPortFree = options.isPortFree ?? isHostPortAvailable;
     const isAvailable = async (port) => (await isPortFree(port)) || ownedByProject(port);
     if (saved && !hasOverride) {
-        for (const port of [saved.ingressHttp, saved.ingressHttps, saved.postgres]) {
-            if (!(await isAvailable(port)))
-                return createHostPortPlan({ isAvailable });
+        const checkedPorts = dbEnabled
+            ? [saved.ingressHttp, saved.ingressHttps, saved.postgres]
+            : [saved.ingressHttp, saved.ingressHttps];
+        for (const port of checkedPorts) {
+            if (!(await isAvailable(port))) {
+                return createHostPortPlan({
+                    isAvailable,
+                    database: dbEnabled,
+                    capabilities: options.capabilities,
+                });
+            }
         }
         // A plan saved on a fallback port (8080) moves back to the preferred one (80)
         // once that is free, so URLs lose the port without deleting host-ports.json.
         for (const [key, preferred] of Object.entries(PREFERRED_HOST_PORTS)) {
+            if (!dbEnabled && key === "postgres")
+                continue;
             const savedPort = saved[key];
             if (preferred !== undefined && savedPort !== preferred && (await isAvailable(preferred))) {
-                return createHostPortPlan({ isAvailable });
+                return createHostPortPlan({
+                    isAvailable,
+                    database: dbEnabled,
+                    capabilities: options.capabilities,
+                });
             }
         }
         return saved;
     }
-    return createHostPortPlan({ isAvailable });
+    return createHostPortPlan({
+        isAvailable,
+        database: dbEnabled,
+        capabilities: options.capabilities,
+    });
 }

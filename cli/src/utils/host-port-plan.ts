@@ -10,6 +10,8 @@ export interface HostPortPlanOptions {
   env?: NodeJS.ProcessEnv;
   isAvailable?: (port: number) => Promise<boolean>;
   ranges?: Partial<Record<keyof HostPortPlan["explicit"], { start: number; end: number }>>;
+  database?: boolean;
+  capabilities?: { database?: boolean; [key: string]: boolean | undefined };
 }
 
 export const DEFAULT_HOST_PORT_RANGES = {
@@ -76,7 +78,18 @@ export async function createHostPortPlan(options: HostPortPlanOptions = {}): Pro
   const selected: Partial<HostPortPlan> = { explicit: explicitFlags };
   const reserved = new Set<number>();
 
-  for (const key of ["ingressHttp", "ingressHttps", "postgres"] as const) {
+  const dbEnabled = options.database !== false && options.capabilities?.database !== false;
+  const keys = dbEnabled
+    ? (["ingressHttp", "ingressHttps", "postgres"] as const)
+    : (["ingressHttp", "ingressHttps"] as const);
+
+  if (!dbEnabled) {
+    selected.postgres = 5432;
+    explicitFlags.postgres = false;
+    reasons.postgres = "database capability disabled";
+  }
+
+  for (const key of keys) {
     const envValue = env[ENV_KEYS[key]];
     const explicit = envValue !== undefined && envValue.trim() !== "";
     const range = options.ranges?.[key] ?? DEFAULT_HOST_PORT_RANGES[key];
@@ -132,5 +145,8 @@ export async function createHostPortPlan(options: HostPortPlanOptions = {}): Pro
 }
 
 export function formatHostPortPlan(plan: HostPortPlan): string {
+  if (plan.reason?.postgres === "database capability disabled") {
+    return `Host ports: HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}`;
+  }
   return `Host ports: HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`;
 }

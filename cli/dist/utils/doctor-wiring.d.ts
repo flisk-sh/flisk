@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import type { CheckResult, DiscoveredResource } from "../types/index.js";
 import { type ExecAsync } from "./exec-async.js";
 /** Enforces the Prisma 7 project contract before `flisk up` can run. */
-export declare function checkPrismaConsistency(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+export declare function checkPrismaConsistency(projectRoot?: string, resources?: DiscoveredResource[], options?: Record<string, unknown>): CheckResult;
 export declare function checkResourcePackageJson(projectRoot?: string): CheckResult;
 /**
  * Two resources with one appName share a Compose service name and Traefik router and service names
@@ -51,7 +51,7 @@ export declare function checkNatsBroker(projectRoot?: string): CheckResult;
  * Preflight loop: edit service.json → `flisk config regenerate` → `flisk doctor`.
  * Doctor is the gate; one real `flisk up` after doctor is green confirms the run.
  */
-export declare function checkSharedPlatformPostgres(projectRoot?: string): CheckResult;
+export declare function checkSharedPlatformPostgres(projectRoot?: string, options?: Record<string, unknown>): CheckResult;
 /**
  * Whether the shared Postgres still accepts the DB_PASSWORD in the project .env.
  *
@@ -63,7 +63,7 @@ export declare function checkSharedPlatformPostgres(projectRoot?: string): Check
  * loopback test would pass whatever the password. PGPASSWORD is handed to docker through this process's environment, so the
  * password never appears in a command line.
  */
-export declare function checkPostgresCredentials(projectRoot?: string, exec?: ExecAsync): Promise<CheckResult>;
+export declare function checkPostgresCredentials(projectRoot?: string, exec?: ExecAsync, options?: Record<string, unknown>): Promise<CheckResult>;
 interface TiltProcess {
     pid: number;
     root: string;
