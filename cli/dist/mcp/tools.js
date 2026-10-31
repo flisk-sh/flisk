@@ -7,7 +7,7 @@ import { isAbsolute, join } from "node:path";
 import { RESOURCE_CREATE_TYPE_VALUES } from "../types/index.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
-import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SINCE = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
@@ -442,6 +442,7 @@ const TOOL_ANNOTATIONS = {
     agent_sessions: READ_ONLY,
     stack_list: READ_ONLY,
     project_info: READ_ONLY,
+    project_templates: READ_ONLY,
     network_list: READ_ONLY,
     config_verify: READ_ONLY,
     config_explain: READ_ONLY,
@@ -621,6 +622,12 @@ export function createFliskTools(run = runFliskCli, up = defaultUpDeps) {
             description: "Project root, whether the generated master files exist (data.configured, data.missingFiles), and resource and stack counts. Read-only; a quick first call to learn whether a folder is a configured Flisk project. Use `config_verify` to check that the generated files match, and `status` for the running stack. Set projectPath when the MCP server is not running from the project root.",
             inputSchema: OBJECT({ projectPath: PROJECT_PATH }),
             handler: viaCli(() => ["projects", "--json"]),
+        },
+        {
+            name: "project_templates",
+            description: "List the starter templates project_init can clone (data.templates): each one's key, repo, description and, for a template pinned to a commit, the ref it checks out. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
+            inputSchema: OBJECT({}),
+            handler: async () => ({ data: { templates: listProjectTemplates() }, isError: false }),
         },
         {
             name: "network_list",
