@@ -34,7 +34,43 @@ export const PROJECT_TEMPLATES = {
         repo: "https://github.com/flisk-sh/flisk-agent-stack.git",
         description: "AI agent stack: Bun agent + MCP tool server + Postgres + NATS",
     },
+    launch: {
+        repo: "https://github.com/flisk-sh/flisk-template-launch.git",
+        ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
+        description: "Launch-ready web tool: one Bun + Hono service with SEO, icons, a JSON API and an /mcp endpoint; no database",
+    },
+    portal: {
+        repo: "https://github.com/flisk-sh/flisk-template-portal.git",
+        ref: "0d57988acca78ff6649d861edcc683ece2afff22",
+        description: "API portal and model gateway: GitHub sign-in, API keys, usage and a metered OpenAI-style /v1 proxy (one Bun service)",
+    },
+    // Not "stack": that is a command name, and `flisk <template>` is the one-command flow.
+    fullstack: {
+        repo: "https://github.com/flisk-sh/flisk-stack.git",
+        ref: "fff53f3c77d0daea1f34498c70fe48a9e372b682",
+        description: "Full-stack app skeleton: Hono API, Postgres job worker, Prisma migrator and Vue 3 web app",
+    },
 };
+/** The template catalog in registration order: key, repo, description and, for a pinned template, its ref. */
+export function listProjectTemplates() {
+    return Object.entries(PROJECT_TEMPLATES).map(([key, template]) => ({
+        key,
+        repo: template.repo,
+        description: template.description,
+        ...(template.ref ? { ref: template.ref } : {}),
+    }));
+}
+/**
+ * The git invocations that fetch a repository template into `destination`: a clone and, for a pinned template, a
+ * detached checkout of its exact commit.
+ */
+export function templateGitCommands(template, destination) {
+    const commands = [["clone", template.repo, destination]];
+    if (template.ref) {
+        commands.push(["-C", destination, "checkout", "--quiet", "--detach", template.ref]);
+    }
+    return commands;
+}
 /**
  * The template of the one-command flow (`flisk demo`), read from the raw arguments.
  *

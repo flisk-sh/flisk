@@ -4,7 +4,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { bareTemplateArg, PROJECT_TEMPLATES } from "../project-templates.js";
+import { createProgram } from "../../program.js";
+import {
+  bareTemplateArg,
+  listProjectTemplates,
+  PROJECT_TEMPLATES,
+  templateGitCommands,
+} from "../project-templates.js";
 
 const exampleRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -19,6 +25,9 @@ describe("PROJECT_TEMPLATES", () => {
       "ecommerce",
       "erp",
       "example",
+      "fullstack",
+      "launch",
+      "portal",
       "restaurant",
       "saas",
       "user-management",
@@ -71,11 +80,75 @@ describe("PROJECT_TEMPLATES", () => {
       expect(t.description, name).not.toBe("");
     }
   });
+
+  it("pins launch, portal and fullstack to a full commit SHA", () => {
+    expect(PROJECT_TEMPLATES.launch).toMatchObject({
+      repo: "https://github.com/flisk-sh/flisk-template-launch.git",
+      ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
+    });
+    expect(PROJECT_TEMPLATES.portal).toMatchObject({
+      repo: "https://github.com/flisk-sh/flisk-template-portal.git",
+      ref: "0d57988acca78ff6649d861edcc683ece2afff22",
+    });
+    expect(PROJECT_TEMPLATES.fullstack).toMatchObject({
+      repo: "https://github.com/flisk-sh/flisk-stack.git",
+      ref: "fff53f3c77d0daea1f34498c70fe48a9e372b682",
+    });
+    for (const [name, t] of Object.entries(PROJECT_TEMPLATES)) {
+      if (t.ref !== undefined) expect(t.ref, name).toMatch(/^[0-9a-f]{40}$/);
+    }
+  });
+
+  it("never names a template after a top-level command", () => {
+    // `flisk <template>` is the one-command flow, so a template named like a command would shadow it.
+    const program = createProgram();
+    const commandNames = new Set([
+      "help",
+      ...program.commands.flatMap((command) => [command.name(), ...command.aliases()]),
+    ]);
+    expect(commandNames).toContain("stack");
+    expect(commandNames).toContain("project");
+    const clashes = Object.keys(PROJECT_TEMPLATES).filter((key) => commandNames.has(key));
+    expect(clashes).toEqual([]);
+  });
+});
+
+describe("listProjectTemplates", () => {
+  it("lists every template in registration order with key, repo, description and its ref only when pinned", () => {
+    const rows = listProjectTemplates();
+    expect(rows.map((row) => row.key)).toEqual(Object.keys(PROJECT_TEMPLATES));
+    for (const row of rows) {
+      const template = PROJECT_TEMPLATES[row.key];
+      expect(row).toEqual({
+        key: row.key,
+        repo: template?.repo,
+        description: template?.description,
+        ...(template?.ref ? { ref: template.ref } : {}),
+      });
+    }
+    expect(rows.find((row) => row.key === "saas")).not.toHaveProperty("ref");
+  });
+});
+
+describe("templateGitCommands", () => {
+  it("clones and then checks out the pinned commit", () => {
+    expect(templateGitCommands({ repo: "r.git", description: "", ref: "abc" }, "/tmp/x")).toEqual([
+      ["clone", "r.git", "/tmp/x"],
+      ["-C", "/tmp/x", "checkout", "--quiet", "--detach", "abc"],
+    ]);
+  });
+
+  it("only clones an unpinned template", () => {
+    expect(templateGitCommands({ repo: "r.git", description: "" }, "/tmp/x")).toEqual([
+      ["clone", "r.git", "/tmp/x"],
+    ]);
+  });
 });
 
 describe("bareTemplateArg", () => {
   it("reads the one-command form", () => {
     expect(bareTemplateArg(["node", "flisk", "demo"])).toBe("demo");
+    expect(bareTemplateArg(["node", "flisk", "fullstack"])).toBe("fullstack");
     expect(bareTemplateArg(["node", "flisk", "restaurant", "--project=my-stack"])).toBe(
       "restaurant",
     );

@@ -4,10 +4,10 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { CREATABLE_RESOURCE_TYPES } from "../types/index.js";
+import { RESOURCE_CREATE_TYPE_VALUES } from "../types/index.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
-import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import { listProjectTemplates, PROJECT_TEMPLATES } from "../utils/project-templates.js";
 import type { McpTool, McpToolAnnotations, McpToolResult } from "./server.js";
 
 /** A service or stack name. A leading "-" is rejected so a value can never be read as a flag. */
@@ -346,7 +346,7 @@ export function buildResourceCreateArgs(args: Record<string, unknown>): string[]
   if (!name) {
     throw new FliskError("name is required", ["Pass a kebab-case name, for example orders-api"]);
   }
-  const type = optionalChoice(args.type, "type", CREATABLE_RESOURCE_TYPES);
+  const type = optionalChoice(args.type, "type", RESOURCE_CREATE_TYPE_VALUES);
   const stack = optionalName(args.stack, "stack");
   const framework = optionalName(args.framework, "framework");
   const language = optionalName(args.language, "language");
@@ -481,6 +481,7 @@ const TOOL_ANNOTATIONS: Record<string, McpToolAnnotations> = {
   agent_sessions: READ_ONLY,
   stack_list: READ_ONLY,
   project_info: READ_ONLY,
+  project_templates: READ_ONLY,
   network_list: READ_ONLY,
   config_verify: READ_ONLY,
   config_explain: READ_ONLY,
@@ -686,6 +687,13 @@ export function createFliskTools(
       handler: viaCli(() => ["projects", "--json"]),
     },
     {
+      name: "project_templates",
+      description:
+        "List the starter templates project_init can clone (data.templates): each one's key, repo, description and, for a template pinned to a commit, the ref it checks out. Read-only; the same rows as `flisk project --list --json`. Pass a key as project_init's template.",
+      inputSchema: OBJECT({}),
+      handler: async () => ({ data: { templates: listProjectTemplates() }, isError: false }),
+    },
+    {
       name: "network_list",
       description:
         "The Traefik URL of every frontend and API service, with its base path, port and whether it answers (running, stopped). Read-only. Use it to find where to open a service; use `status` for full readiness. Set projectPath when the MCP server is not running from the project root.",
@@ -761,7 +769,7 @@ export function createFliskTools(
           name: { type: "string", description: "Resource name (kebab-case)" },
           type: {
             type: "string",
-            enum: [...CREATABLE_RESOURCE_TYPES],
+            enum: [...RESOURCE_CREATE_TYPE_VALUES],
             description: "Resource type (default backend)",
           },
           stack: { type: "string", description: "Stack to assign the resource to" },

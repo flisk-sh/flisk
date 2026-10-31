@@ -19,7 +19,7 @@ import { showCancelled, showCommandHeader, showDetail, showStep, showSuccess, } 
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
-import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
+import { listProjectTemplates, PROJECT_TEMPLATES, templateGitCommands, } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { discoverStackNames } from "../utils/services.js";
 import { isPathSafe } from "../utils/validation.js";
@@ -122,8 +122,11 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         showCommandHeader(`Cloning template: ${templateName}`);
         showDetail(`${template.description}\n`, 0);
         showDetail(`Source: ${template.bundledPath ? "bundled Flisk example" : template.repo}`, 0);
+        if (template.ref)
+            showDetail(`Commit: ${template.ref}`, 0);
         showDetail(`Destination: ${destination}\n`, 0);
     }
+    let gitStep = "clone";
     try {
         if (template.bundledPath) {
             const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
@@ -144,17 +147,22 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         else {
             // Piped, not inherited: a raw git progress dump is noise for the caller and, in the
             // one-command flow, it interleaves with the frame that is already on screen.
-            execFileSync("git", ["clone", template.repo, destination], {
-                stdio: ["ignore", "pipe", "pipe"],
-                encoding: "utf-8",
-            });
+            for (const gitArgs of templateGitCommands(template, destination)) {
+                gitStep = gitArgs[0] === "clone" ? "clone" : "checkout";
+                execFileSync("git", gitArgs, {
+                    stdio: ["ignore", "pipe", "pipe"],
+                    encoding: "utf-8",
+                });
+            }
         }
     }
     catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         const message = template.bundledPath
             ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
-            : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
+            : gitStep === "checkout"
+                ? `git checkout of the pinned commit ${template.ref} failed: ${lastLine(detail)}. ${destination} is left at the default branch; delete it before trying again.`
+                : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
         // A caller that paints its own surface (the one-command flow) needs to report the
         // failure itself instead of having the process die mid-paint.
         if (options.quiet) {
@@ -233,6 +241,24 @@ export function writeDefaultProjectConfig(projectRoot) {
     ensureDirectory(join(projectRoot, ".flisk"));
     writeJsonFile(join(projectRoot, ".flisk", PROJECT_JSON), projectConfig);
 }
+/**
+ * Prints the template catalog: with `json`, one stable JSON array on stdout (the same rows as the `project_templates`
+ * MCP tool); otherwise one block per template for a person to read.
+ */
+export function printTemplateCatalog(json) {
+    const templates = listProjectTemplates();
+    if (json) {
+        process.stdout.write(`${JSON.stringify(templates, null, 2)}\n`);
+        return;
+    }
+    console.log(chalk.bold("Starter templates (flisk project <key>):\n"));
+    for (const { key, repo, description, ref } of templates) {
+        console.log(`  ${chalk.cyan(key)}  ${description}`);
+        console.log(chalk.gray(`    ${repo}`));
+        if (ref)
+            console.log(chalk.gray(`    ref ${ref}`));
+    }
+}
 export const projectCommand = addYesOption(new Command("project"))
     .alias("init")
     .description("Initialize or validate project-level master configuration")
@@ -243,9 +269,14 @@ export const projectCommand = addYesOption(new Command("project"))
     .option("--config-file <path>", "Load project config from existing JSON file")
     .option("-q, --quiet", "Only print what fails; used by `flisk demo`", false)
     .option("--no-agent-skills", "Do not write the Flisk agent skills (.claude/skills, .agents/skills) and AGENTS.md")
+    .option("--list", "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
     .action(async (template, options) => {
     const json = Boolean(options.json);
+    if (options.list) {
+        printTemplateCatalog(json);
+        return;
+    }
     // --json never prompts and prints no progress: it takes the defaults --yes takes.
     const yes = Boolean(options.yes || json);
     const quiet = Boolean(options.quiet || json);

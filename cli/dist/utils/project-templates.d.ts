@@ -3,9 +3,25 @@ export interface ProjectTemplate {
     description: string;
     bundledPath?: string;
     fixedDir?: string;
+    /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
+    ref?: string;
+}
+/** One row of the template catalog that `flisk project --list --json` and the `project_templates` MCP tool return. */
+export interface ProjectTemplateEntry {
+    key: string;
+    repo: string;
+    description: string;
+    ref?: string;
 }
 /** Public starter repositories plus the bundled default product example. */
 export declare const PROJECT_TEMPLATES: Record<string, ProjectTemplate>;
+/** The template catalog in registration order: key, repo, description and, for a pinned template, its ref. */
+export declare function listProjectTemplates(): ProjectTemplateEntry[];
+/**
+ * The git invocations that fetch a repository template into `destination`: a clone and, for a pinned template, a
+ * detached checkout of its exact commit.
+ */
+export declare function templateGitCommands(template: ProjectTemplate, destination: string): string[][];
 /**
  * The template of the one-command flow (`flisk demo`), read from the raw arguments.
  *

@@ -200,6 +200,12 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
+  "distribute board --json":
+    "a subcommand of distribute; distribute.test.ts covers the envelope with a temp project",
+  "distribute status --json":
+    "a subcommand of distribute that needs a distribution.json; distribute.test.ts covers the envelope and --init",
+  "distribute kit --dry-run":
+    "takes a required <resource> argument and prints the kit instead of 'Dry run -' lines only; distribute.test.ts proves it writes nothing",
   "connect --json":
     "takes a required <host> argument and works outside a project, so the matrix's argument-less, project-required rows do not fit; connect.test.ts covers the envelope and its error cases",
   "config explain --json":
@@ -223,6 +229,8 @@ const EXEMPT: Record<string, string> = {
     "creates a project outside one instead of failing, so the outside-project row does not apply; json-scaffold-commands.test.ts covers it",
   "logs --json":
     "reads logs through the host's Tilt UI port; needs Tilt, and the output depends on whether a stack is running",
+  "mcp check --json":
+    "takes a required <target> argument (a URL or a resource name) and talks to an MCP server over HTTP, so the matrix's argument-less run cannot exercise it; mcp-check.test.ts covers the envelope against a local fake server",
   "os --json":
     "starts the host's fliskos command (or FliskOS.app) and keeps running until it stops, so a matrix run would launch a server; os.test.ts covers the envelope with a stub fliskos and spawn doubles",
   "restart --json":

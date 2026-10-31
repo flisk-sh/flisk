@@ -2,6 +2,7 @@ import { agentCommand } from "./agent.js";
 import { completionCommand } from "./completion.js";
 import { configCommand } from "./config.js";
 import { connectCommand } from "./connect.js";
+import { distributeCommand } from "./distribute.js";
 import { doctorCommand } from "./doctor.js";
 import { downCommand } from "./down.js";
 import { ejectCommand } from "./eject.js";
@@ -57,5 +58,6 @@ export function getRegisteredCommands() {
         networksCommand,
         agentCommand,
         restartCommand,
+        distributeCommand,
     ];
 }

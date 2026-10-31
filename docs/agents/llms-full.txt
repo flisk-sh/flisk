@@ -59,7 +59,7 @@ flisk resource <name> --type mcp --stack <stack>
 ### 3. Agent Host & Control Plane (`flisk mcp`)
 - stdio MCP server for AI coding assistants.
 - Connect a host in one command with `flisk connect <claude|cursor|codex>`: it merges the `flisk` server entry into `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `.codex/config.toml` (Codex, `cwd` pinned to the project), keeps other servers, and writes the Flisk skills to `.claude/skills` (Claude Code) or `.agents/skills` (Cursor, Codex). A second run changes nothing; `--dry-run` writes nothing; `--global` writes only the user config (`~/.cursor/mcp.json`, `~/.codex/config.toml`; Claude Code: `claude mcp add --scope user flisk -- flisk mcp`); `--force` replaces a different `flisk` entry or an edited skill; `--json` prints the `{schemaVersion, data, errors}` envelope with every file and its action (`create`, `update`, `unchanged`, `kept`).
-- Tools: `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`.
+- Tools: `doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`.
   - `doctor`: Check whether this machine can run the Flisk stack and optionally validate a project.
   - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
   - `down`: Stop the running stack.
@@ -71,6 +71,7 @@ flisk resource <name> --type mcp --stack <stack>
   - `agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
   - `stack_list`: List the project's stacks with their resource counts (`services` adds service names, `verbose` descriptions).
   - `project_info`: Show the project root, whether the generated master files exist, and resource and stack counts.
+  - `project_templates`: List the starter templates `project_init` can clone (`data.templates`: key, repo, description, and the pinned commit `ref` when set); the same rows as `flisk project --list --json`.
   - `network_list`: List the Traefik URL of every frontend and API service and whether it answers (`stack` optional).
   - `config_verify`: Check that the generated files match `.flisk/project.json` and that every `service.json` is valid.
   - `config_explain`: Say whether a project file is generated or user-owned and what editing it does on `up` (`file` required).
@@ -81,7 +82,7 @@ flisk resource <name> --type mcp --stack <stack>
   - `project_init`: Create a Flisk project in `projectPath`, or clone a starter `template` there; it never overwrites an existing `.flisk/project.json`.
   - `project_eject`: Write `EJECTED.md` with `flisk eject --json`. Leaving Flisk is the user's decision, so the tool is refused unless `confirm` is `true`; `dryRun` returns the plan (`data.generatedFiles`, `data.created`) without it.
   - `project_import`: Import a directory's root `docker-compose.yml` as bring-your-own `service.json` files with `flisk import --json`. It downloads and runs the pinned `flisk-import` package from npm, and writes without asking unless `dryRun` is set (`dir` and `force` optional).
-- The read-only, lifecycle, eject and import tools return the command's structured, versioned `--json` envelope. The scaffolding tools (`config_regenerate`, `resource_create`, `stack_assign`, `project_init`) return its text output as `exitCode`, `output` and `stderr`.
+- The read-only, lifecycle, eject and import tools return the command's structured, versioned `--json` envelope, except `project_templates`, which returns the CLI's template catalog without running a command. The scaffolding tools (`config_regenerate`, `resource_create`, `stack_assign`, `project_init`) return its text output as `exitCode`, `output` and `stderr`.
 - No tool runs `config migrate`, `config enable-infra` or `config disable-infra` (they rewrite `service.json` or `.flisk/project.json` and have no dry run), or `config edit` (it opens an editor). Run them in a shell; all but `config edit` print one envelope with `--json`.
 - The former tool names `restart_resource`, `list_agents` and `get_agent_sessions` still work in `tools/call`, so older agent configurations keep running, but `tools/list` shows only the current names.
 
@@ -163,7 +164,8 @@ All inspection and lifecycle commands support `--json`:
 
 ## More CLI Commands
 
-- `flisk project [template] [--json]`: Create a project or clone a starter template (alias `flisk init`).
+- `flisk project [template] [--json]`: Create a project or clone a starter template (alias `flisk init`). A template pinned to a commit (`ref`) is checked out at exactly that commit.
+- `flisk project --list [--json]`: List the starter templates with their key, repo, description and pinned commit (`ref`); `--json` prints a JSON array.
 - `flisk projects [--json]`: List the projects Flisk knows about (alias `info`).
 - `flisk resources [--json]`: List the project's services with their stack, type, and port.
 - `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.

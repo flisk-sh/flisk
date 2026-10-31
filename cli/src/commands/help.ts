@@ -95,7 +95,17 @@ const COMMAND_GROUPS = [
         alias: "regenerate, verify, edit",
       },
       { name: "doctor", desc: "Check environment readiness", alias: "" },
+      {
+        name: "distribute",
+        desc: "Board, listing kit and channel status for getting an app to users",
+        alias: "board, kit, status",
+      },
       { name: "mcp", desc: "Run an MCP server over stdio for coding agents", alias: "" },
+      {
+        name: "mcp check",
+        desc: "Check an MCP server's protocol, local or remote (read-only)",
+        alias: "<url|resource> --call, --json",
+      },
       {
         name: "connect",
         desc: "Connect a coding agent: MCP server entry and Flisk skills",

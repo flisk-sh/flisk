@@ -42,6 +42,24 @@ curl -s -X POST http://api.shop.localhost/api/docs-mcp/mcp \
 
 The `accept` header must list both types: the transport answers in `text/event-stream` framing (`event: message` / `data: {...}`).
 
+## Checking a server
+
+`flisk mcp check` checks an MCP server's protocol, local or remote. Pass an https URL, or a resource name, which resolves to the
+address `flisk status` prints for it plus `/mcp`:
+
+```bash
+flisk mcp check docs-mcp
+flisk mcp check https://mcp.example.com/mcp --json
+```
+
+It checks `initialize` (a server name and a `tools` capability), `tools/list` (every tool has `readOnlyHint: true`), `prompts/list`
+and one `prompts/get` per prompt, that an unknown method gets `-32601`, a body that is not JSON gets HTTP `400`, `GET` gets `405`,
+a client that accepts only `application/json` does not get `406`, and that `icon-512.png` beside the endpoint is a PNG (`--no-icon`
+skips that). It calls no tool unless you pass `--call`, because a tool call can reach the network; with `--call` it calls each tool
+once with arguments built from its `inputSchema`. A request that fails with a network error is retried twice. The exit code is `1`
+when any check fails. Plain http is accepted only for localhost, `*.localhost` and loopback addresses. The scaffold's `echo` tool
+has no `readOnlyHint` and the scaffold serves no icon, so a fresh `--type mcp` resource fails those two checks until you add them.
+
 ## Adding tools
 
 Edit `buildServer()` in `src/index.ts`. Register tools, resources and prompts there with the SDK's `registerTool`,
