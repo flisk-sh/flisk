@@ -12,6 +12,7 @@ load(
     "TRAEFIK_PROJECT_API_HOST",
     "TRAEFIK_DOCKER_NETWORK",
     "TRAEFIK_ENABLE_LABEL",
+    "TRAEFIK_PROJECT_LABEL",
     "TRAEFIK_FRONTEND_ENABLE_HTTP",
     "TRAEFIK_FRONTEND_ENABLE_HTTPS",
     "TRAEFIK_FRONTEND_PRIORITY_BASE",
@@ -107,6 +108,7 @@ def get_frontend_traefik_labels(res_name, domain, base_path, port, traefik_host=
 """.format(router_name=router_name, middlewares=middlewares)
 
     labels = """        - "{traefik_enable_label}"
+        - "{traefik_project_label}"
         - 'traefik.http.routers.{router_name}.rule={frontend_route_rule}'
         - "traefik.http.routers.{router_name}.entrypoints={frontend_entrypoints}"
         - "traefik.http.routers.{router_name}.priority={router_priority}"
@@ -114,6 +116,7 @@ def get_frontend_traefik_labels(res_name, domain, base_path, port, traefik_host=
         - "traefik.docker.network={traefik_network}\"""".format(
         router_name=router_name,
         traefik_enable_label=TRAEFIK_ENABLE_LABEL,
+        traefik_project_label=TRAEFIK_PROJECT_LABEL,
         frontend_route_rule=frontend_route_rule,
         frontend_entrypoints=frontend_entrypoints,
         middleware_labels=middleware_labels,
@@ -238,11 +241,13 @@ def get_backend_traefik_labels(
         )
 
     labels = """      - "{traefik_enable_label}"
+      - "{traefik_project_label}"
 {backend_router_labels}      - "traefik.http.services.{service_name}.loadbalancer.server.port={internal_port}"
 {traefik_healthcheck_labels}      - "traefik.docker.network={traefik_network}"
 """.format(
         router_name=router_name,
         traefik_enable_label=TRAEFIK_ENABLE_LABEL,
+        traefik_project_label=TRAEFIK_PROJECT_LABEL,
         backend_router_labels=backend_router_labels,
         service_name=service_name,
         internal_port=internal_port,

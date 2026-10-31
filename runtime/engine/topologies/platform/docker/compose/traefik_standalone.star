@@ -10,6 +10,7 @@
 load("../constants.star", "PlatformDockerConstants")
 load("../config/healthcheck.star", "compose_healthcheck_timing")
 load("../networking/traefik_static_routes.star", "normalize_abs_path")
+load("../networking/traefik_constants.star", "TRAEFIK_PROJECT_CONSTRAINT")
 
 
 def generate_standalone_traefik_compose(sablier_enabled = False, http_host_port = "8080", https_host_port = "8443", bind_address = "127.0.0.1"):
@@ -55,6 +56,8 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.watch=true"
       - "--providers.docker.network={network}"
+      # Only this project's containers (#2906); see TRAEFIK_PROJECT_CONSTRAINT.
+      - "--providers.docker.constraints={project_constraint}"
       # Static routes for sablier.deferStart resources (openspec/changes/
       # prioritized-cold-start): a never-created resource has no container
       # and thus no Docker labels for the provider above to discover, so its
@@ -83,6 +86,7 @@ volumes:
 """.format(
         name=name,
         network=network,
+        project_constraint=TRAEFIK_PROJECT_CONSTRAINT,
         http_host_port=http_host_port,
         https_host_port=https_host_port,
         bind_address=bind_address,
