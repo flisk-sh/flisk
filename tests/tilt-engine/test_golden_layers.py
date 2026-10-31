@@ -101,3 +101,24 @@ def test_every_layer_target_and_copy_source_is_a_defined_stage(golden):
 def test_every_layer_builds_a_distinct_stage(golden):
     targets = [layer["target"] for layer in golden["layers"].values()]
     assert len(targets) == len(set(targets))
+
+
+def test_golden_dockerfile_is_the_same_for_every_project(tmp_path):
+    """
+    The hash that names a golden image is the hash of this Dockerfile, so two projects with different names must
+    generate the same text. Otherwise no prebuilt image from a registry (FLISK_GOLDEN_REGISTRY) could match another project.
+    """
+    texts = []
+    for name in ("alpha-shop", "beta-clinic"):
+        project = tmp_path / name
+        (project / ".flisk").mkdir(parents=True)
+        (project / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": name}}))
+        texts.append(
+            run_starlark(
+                project,
+                "load('@DOCKER/build/golden_image_dockerfile.star', 'generate_golden_dockerfile')\n"
+                "r = {'df': generate_golden_dockerfile()}\n",
+            )["df"]
+        )
+    assert texts[0] == texts[1]
+    assert "alpha-shop" not in texts[0] and "beta-clinic" not in texts[0]
