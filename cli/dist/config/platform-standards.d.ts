@@ -1,3 +1,11 @@
+/**
+ * The capabilities Flisk can turn off, all on by default. Only list one here once something reads it: `flisk status --json`
+ * reports these as enabled, and `.flisk/project.json` setting one to false must change what Flisk provisions.
+ */
+export declare const DEFAULT_CAPABILITIES: {
+    readonly gateway: true;
+    readonly database: true;
+};
 export declare const PLATFORM_STANDARDS: {
     readonly version: "1.0.0";
     readonly tech: {
@@ -82,6 +90,10 @@ export declare const PLATFORM_STANDARDS: {
         readonly healthcheckInterval: "10s";
         readonly healthcheckTimeout: "5s";
         readonly frontendPriorityBase: 100;
+    };
+    readonly capabilities: {
+        readonly gateway: true;
+        readonly database: true;
     };
     readonly filewatchIgnores: readonly ["node_modules", "dist", "build", ".git", ".prisma", ".turbo", "coverage", "tmp", "temp", "__tests__", "test", "tests"];
     readonly serviceTypes: {

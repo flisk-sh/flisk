@@ -6,12 +6,12 @@ import { join } from "node:path";
 import { checkDockerCompose, checkDockerRuntime, checkDockerVersions, checkTilt, DOCTOR_FIXES, } from "../commands/doctor.js";
 import { BUN_FLOOR_LABEL, bunMeetsFloor } from "./bun-floor.js";
 import { projectNeedsBun } from "./bun-requirement.js";
-import { isDatabaseCapabilityEnabled } from "./capabilities.js";
+import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { readyNextStep } from "./cli-command.js";
 import { checkColima } from "./colima.js";
 import { PROJECT_JSON } from "./constants.js";
 import { checkNatsBroker } from "./doctor-wiring.js";
-import { getHostPortPlan } from "./host-port-config.js";
+import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix } from "./host-port-config.js";
 import { isNativeProject } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { discoverResourcesFromRoot } from "./services.js";
@@ -83,20 +83,22 @@ export function usesPrisma(projectRoot) {
     }
 }
 async function hostPortsItem(root, scope, opts) {
-    const dbEnabled = isDatabaseCapabilityEnabled(root, opts);
+    const caps = {
+        gateway: isGatewayEnabled(root, opts),
+        database: isDatabaseCapabilityEnabled(root, opts),
+    };
     try {
         // Scaffolding must not talk to Docker at all, so the port plan is planned
         // from the host ports alone.
         const plan = await getHostPortPlan(root, {
             ...(scope === "scaffold" ? { inspectDocker: false } : {}),
-            database: dbEnabled,
+            database: caps.database,
+            gateway: caps.gateway,
         });
         return {
             id: "ports",
             ok: true,
-            message: dbEnabled
-                ? `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`
-                : `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}`,
+            message: describeHostPortPlan(plan, caps),
         };
     }
     catch (error) {
@@ -104,9 +106,7 @@ async function hostPortsItem(root, scope, opts) {
             id: "ports",
             ok: false,
             message: error instanceof Error ? error.message : String(error),
-            fix: dbEnabled
-                ? "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports."
-                : "Set FLISK_HTTP_PORT or FLISK_HTTPS_PORT to available host ports.",
+            fix: hostPortPlanFix(caps),
         };
     }
 }

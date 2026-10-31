@@ -19,6 +19,7 @@ export type {
   JsonObject,
   JsonValue,
   LoadingScreenProps,
+  ProjectCapabilities,
   ProjectConfig,
   ProjectDiscovery,
   ProjectOptionalInfra,
