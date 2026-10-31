@@ -277,14 +277,19 @@ describe("flisk status", () => {
     const log = vi.spyOn(console, "log").mockImplementation((...parts: unknown[]) => {
       lines.push(parts.map(String).join(" "));
     });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {}) as never);
     try {
       // A status with errors exits non-zero; the JSON envelope is still printed first.
-      await statusCommand.parseAsync(["--json", "--tilt"], { from: "user" }).catch(() => undefined);
+      await statusCommand.parseAsync(["--json", "--tilt"], { from: "user" });
+      expect(exit).toHaveBeenCalledWith(1);
     } finally {
       log.mockRestore();
+      error.mockRestore();
+      exit.mockRestore();
     }
-    // The status envelope comes first; vitest turns the following process.exit into an error that prints a second one.
-    const envelope = JSON.parse(stripVTControlCharacters(lines.filter(Boolean)[0] ?? "{}"));
+    expect(lines).toHaveLength(1);
+    const envelope = JSON.parse(stripVTControlCharacters(lines[0] ?? "{}"));
     expect(envelope.errors?.[0]).toMatchObject({
       code: "TILT_STATUS_UNAVAILABLE",
     });
