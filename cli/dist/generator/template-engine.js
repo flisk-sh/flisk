@@ -147,7 +147,7 @@ export class TemplateEngine {
             json: { raw: false, fn: (value) => JSON.stringify(value) },
         };
     }
-    buildContext(projectConfig) {
+    buildContext(projectConfig, options = {}) {
         const dbEnabled = isDatabaseCapabilityEnabled(projectConfig);
         const gatewayEnabled = isGatewayEnabled(projectConfig);
         // A capability that is off is dropped from the phases as well as from always_enabled_infra: a phase entry reaches
@@ -188,6 +188,7 @@ export class TemplateEngine {
             serviceDescriptions: RESOURCE_DESCRIPTIONS,
             infraDescriptions: INFRA_DESCRIPTIONS,
             orchestration: projectConfig.orchestration,
+            ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}),
         };
     }
     loadTemplate(templateName) {
@@ -216,7 +217,7 @@ export class TemplateEngine {
         return template(context);
     }
     generateTiltfile(context) {
-        const userTiltfile = wrappedTiltfilePath(context.orchestration);
+        const userTiltfile = wrappedTiltfilePath(context.orchestration, context.projectRoot);
         if (userTiltfile)
             return renderTiltfileWrapper(context.project.name, userTiltfile);
         const template = this.loadTemplate("Tiltfile");
@@ -226,8 +227,9 @@ export class TemplateEngine {
         const template = this.loadTemplate(".tiltignore");
         return template(context);
     }
-    generateAll(projectConfig) {
-        const context = this.buildContext(projectConfig);
+    /** `projectRoot` is the project the files are generated for, when there is one on disk. */
+    generateAll(projectConfig, options = {}) {
+        const context = this.buildContext(projectConfig, options);
         return {
             "TILT_TECH_STACK.star": this.generateTechStack(context),
             "TILT_RESOURCE_DEFAULTS.star": this.generateServiceDefaults(context),
@@ -238,26 +240,81 @@ export class TemplateEngine {
         };
     }
 }
+/** The header line that marks .flisk/.flisk-out/Tiltfile as a wrapper written by renderTiltfileWrapper. */
+const TILTFILE_WRAPPER_MARKER = '# Source: .flisk/project.json (orchestration.source = "tiltfile")';
 /**
  * The project's own Tiltfile when .flisk/project.json sets `orchestration.source` to "tiltfile" (`flisk import tiltfile`),
- * relative to the project root (or absolute), or null when Flisk generates the whole Tiltfile itself.
+ * relative to the project root (or absolute), or null when Flisk generates the whole Tiltfile itself. The path is used as
+ * stored (backslashes become slashes), and defaults to `Tiltfile` when it is missing or empty.
+ *
+ * With `projectRoot`, a path that resolves through a symlink into the project's .flisk/ directory is refused as well. Without
+ * it the check is lexical only and reads nothing from disk.
  */
-export function wrappedTiltfilePath(orchestration) {
+export function wrappedTiltfilePath(orchestration, projectRoot) {
     if (orchestration?.source !== "tiltfile")
         return null;
-    const raw = typeof orchestration.path === "string" ? orchestration.path.trim() : "";
+    const raw = typeof orchestration.path === "string" ? orchestration.path : "";
     const tiltfilePath = path.posix.normalize((raw || "Tiltfile").replace(/\\/g, "/"));
     if ([...tiltfilePath].some((char) => char === '"' || char.charCodeAt(0) < 0x20)) {
         throw new FliskError(`orchestration.path in .flisk/project.json has a quote or control character: ${JSON.stringify(tiltfilePath)}`, ["Rename the Tiltfile, then run: flisk import tiltfile <path> --force"]);
     }
-    if (tiltfilePath === ".flisk" || tiltfilePath.startsWith(".flisk/")) {
+    const isInsideFliskDir = tiltfilePath === ".flisk" ||
+        tiltfilePath.startsWith(".flisk/") ||
+        (projectRoot !== undefined && resolvesInsideFliskDir(projectRoot, tiltfilePath));
+    if (isInsideFliskDir) {
         throw new FliskError(`orchestration.path in .flisk/project.json points inside .flisk/ (${tiltfilePath}), where Flisk writes its generated files`, ["Point it at your own Tiltfile: flisk import tiltfile <path> --force"]);
     }
     return tiltfilePath;
 }
 /**
- * True when project.json wraps the project's own Tiltfile but .flisk/.flisk-out/Tiltfile is not that wrapper (missing, or
- * generated before `flisk import tiltfile`), so `flisk up` has to regenerate it before starting Tilt.
+ * The real path of `target`, also when it does not exist yet: existing parts go through realpath, and a dangling symlink is
+ * followed to where it points, so a link to a file Flisk has not generated yet still resolves to that file.
+ */
+function realPathOfExistingPart(target, linkHops = 0) {
+    const resolved = path.resolve(target);
+    if (fs.existsSync(resolved))
+        return fs.realpathSync(resolved);
+    const parent = path.dirname(resolved);
+    if (parent === resolved)
+        return resolved;
+    const realParent = realPathOfExistingPart(parent, linkHops);
+    const candidate = path.join(realParent, path.basename(resolved));
+    let linkTarget;
+    try {
+        if (fs.lstatSync(candidate).isSymbolicLink())
+            linkTarget = fs.readlinkSync(candidate);
+    }
+    catch {
+        linkTarget = undefined;
+    }
+    if (linkTarget === undefined || linkHops >= 40)
+        return candidate;
+    return realPathOfExistingPart(path.resolve(realParent, linkTarget), linkHops + 1);
+}
+/** True when `tiltfilePath`, followed through symlinks, is the project's .flisk/ directory or inside it. */
+function resolvesInsideFliskDir(projectRoot, tiltfilePath) {
+    const fliskDir = realPathOfExistingPart(path.join(projectRoot, ".flisk"));
+    const target = realPathOfExistingPart(path.resolve(projectRoot, tiltfilePath));
+    const relative = path.relative(fliskDir, target);
+    const isOutside = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
+    return !isOutside;
+}
+/**
+ * True when .flisk/project.json makes the project's own Tiltfile its orchestration source (`flisk import tiltfile`), so
+ * `flisk up` runs Tilt with the wrapper. False when there is no readable project.json.
+ */
+export function isTiltfileOrchestration(projectRoot) {
+    try {
+        return readProjectConfig(projectRoot).orchestration?.source === "tiltfile";
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * True when .flisk/.flisk-out/Tiltfile does not match what project.json selects, so `flisk up` has to regenerate it before
+ * starting Tilt: project.json wraps the project's own Tiltfile but the generated one is not that wrapper (missing, or
+ * generated before `flisk import tiltfile`), or the generated one is a wrapper but project.json no longer selects one.
  */
 export function isWrappedTiltfileStale(projectRoot) {
     let projectConfig;
@@ -267,11 +324,11 @@ export function isWrappedTiltfileStale(projectRoot) {
     catch {
         return false;
     }
-    const userTiltfile = wrappedTiltfilePath(projectConfig.orchestration);
-    if (!userTiltfile)
-        return false;
+    const userTiltfile = wrappedTiltfilePath(projectConfig.orchestration, projectRoot);
     const generatedPath = path.join(projectRoot, ".flisk", ".flisk-out", "Tiltfile");
     const current = fs.existsSync(generatedPath) ? fs.readFileSync(generatedPath, "utf-8") : "";
+    if (!userTiltfile)
+        return current.split(/\r?\n/).includes(TILTFILE_WRAPPER_MARKER);
     return current !== renderTiltfileWrapper(projectConfig.project.name, userTiltfile);
 }
 /**
@@ -287,7 +344,7 @@ function renderTiltfileWrapper(projectName, tiltfilePath) {
 # ${projectName} - TILT ENTRYPOINT (wraps ${tiltfilePath})
 # =============================================================================
 # SYSTEM-GENERATED BY Flisk CLI - DO NOT EDIT
-# Source: .flisk/project.json (orchestration.source = "tiltfile")
+${TILTFILE_WRAPPER_MARKER}
 # Regenerate with: flisk config regenerate
 # =============================================================================
 # \`flisk import tiltfile\` registered ${tiltfilePath} as this project's
@@ -603,7 +660,7 @@ export async function generateMasterConfigs(projectRoot, options = {}) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
     const engine = new TemplateEngine();
-    const files = engine.generateAll(projectConfig);
+    const files = engine.generateAll(projectConfig, { projectRoot });
     for (const filename of ALL_GENERATED_FILES) {
         const content = files[filename];
         const filePath = assertFliskGeneratedPath(projectRoot, path.join(".flisk", ".flisk-out", filename));
@@ -847,7 +904,7 @@ export function verifyMasterConfigs(projectRoot, options) {
     };
     const projectConfig = readProjectConfig(projectRoot);
     const engine = new TemplateEngine();
-    const expectedFiles = engine.generateAll(projectConfig);
+    const expectedFiles = engine.generateAll(projectConfig, { projectRoot });
     const outputDir = path.join(projectRoot, ".flisk", ".flisk-out");
     for (const filename of ALL_GENERATED_FILES) {
         const expectedContent = expectedFiles[filename];

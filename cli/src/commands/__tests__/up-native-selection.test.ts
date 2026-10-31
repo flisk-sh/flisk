@@ -102,4 +102,58 @@ describe("choosing the native runtime for flisk up", () => {
       expect.objectContaining({ code: "MIXED_RUNTIME" }),
     );
   });
+  describe("a project that wraps its own Tiltfile", () => {
+    // What `flisk import tiltfile` (flisk-import) writes to .flisk/project.json.
+    const wrapsTiltfile = {
+      version: "1.0",
+      project: { name: "own-tiltfile", version: "1.0.0" },
+      phases: {
+        pre_alpha: { name: "Pre-Alpha", description: "", enabledStacks: [] },
+        alpha: { name: "Alpha", description: "", enabledStacks: [] },
+        beta: { name: "Beta", description: "", enabledStacks: [] },
+        out_of_scope: { name: "Out of Scope", description: "", enabledStacks: [] },
+      },
+      optional_infra: {
+        monitoring: false,
+        elk: false,
+        debezium: false,
+        golden_image: false,
+        verdaccio: false,
+      },
+      discovery: { paths: ["*"] },
+      orchestration: { source: "tiltfile", path: "Tiltfile" },
+    };
+
+    it("runs Tilt with the wrapper even when every service declares command", () => {
+      const root = createTempProject({
+        projectJson: wrapsTiltfile,
+        files: {
+          Tiltfile: "local_resource('api', serve_cmd='node server.js')\n",
+          "api/service.json": JSON.stringify(native("api")),
+        },
+      });
+      expect(selectNativeRun(undefined, undefined, fail, root)).toBeNull();
+      expect(selectNativeRun(undefined, ["api"], fail, root)).toBeNull();
+    });
+
+    it("does not refuse command services next to container ones, which the wrapper never reads", () => {
+      const root = createTempProject({
+        projectJson: wrapsTiltfile,
+        files: { "web/service.json": JSON.stringify(native("web")) },
+        stacks: { shop: { api: { appType: "backend", schemaVersion: 1, port: 4400 } } },
+      });
+      expect(selectNativeRun(undefined, undefined, fail, root)).toBeNull();
+    });
+
+    it("keeps the native path when the orchestration source is not a Tiltfile", () => {
+      const root = createTempProject({
+        projectJson: { ...wrapsTiltfile, orchestration: { source: "docker-compose" } },
+        files: { "api/service.json": JSON.stringify(native("api")) },
+      });
+      expect(selectNativeRun(undefined, undefined, fail, root)).toMatchObject({
+        isNewProject: false,
+        selected: [expect.objectContaining({ name: "api" })],
+      });
+    });
+  });
 });

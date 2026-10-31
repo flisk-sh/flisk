@@ -10,8 +10,8 @@ import { getPackageVersion } from "../utils/paths.js";
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "flisk-import@0.4.0";
-/** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.0 or later), forwarded as its first argument. */
+export const IMPORT_PACKAGE = "flisk-import@0.4.1";
+/** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.1 or later), forwarded as its first argument. */
 export const TILTFILE_IMPORTER = "tiltfile";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export const MIN_CORE_VERSION = "1.3.104";
@@ -280,7 +280,7 @@ export const composeCommand = addYesOption(new Command("compose"))
     await executeImport(args, resolved, "flisk import compose");
 });
 /**
- * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.0 or later)
+ * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.1 or later)
  * does the import, like `compose`; core only wraps the registered Tiltfile at `flisk up` (see wrappedTiltfilePath).
  */
 export const tiltfileCommand = addYesOption(new Command("tiltfile"))

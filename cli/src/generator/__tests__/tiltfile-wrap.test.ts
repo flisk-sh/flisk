@@ -96,6 +96,17 @@ describe("wrapping an existing Tiltfile", () => {
       );
     });
 
+    it("uses the stored path as it is, without trimming it", () => {
+      expect(wrappedTiltfilePath({ source: "tiltfile", path: "Tiltfile " })).toBe("Tiltfile ");
+      expect(wrappedTiltfilePath({ source: "tiltfile", path: " infra\\Tiltfile" })).toBe(
+        " infra/Tiltfile",
+      );
+      expect(wrappedTiltfilePath({ source: "tiltfile", path: "" })).toBe("Tiltfile");
+      expect(
+        renderTiltfile(projectConfig({ orchestration: { source: "tiltfile", path: "Tiltfile " } })),
+      ).toContain('include("../../Tiltfile ")');
+    });
+
     it("refuses a path inside .flisk/, where the wrapper itself is written", () => {
       expect(() =>
         wrappedTiltfilePath({ source: "tiltfile", path: ".flisk/.flisk-out/Tiltfile" }),
@@ -168,6 +179,81 @@ describe("wrapping an existing Tiltfile", () => {
       expect(generatedTiltfile()).toContain('include("../../Tiltfile")');
       expect(fs.readFileSync(path.join(projectRoot, "Tiltfile"), "utf-8")).toBe(USER_TILTFILE);
     }, 15000);
+
+    it("reports the wrapper as stale once project.json no longer selects a Tiltfile", async () => {
+      fs.writeFileSync(path.join(projectRoot, "Tiltfile"), USER_TILTFILE);
+      writeProjectJson(projectConfig({ orchestration: { source: "tiltfile", path: "Tiltfile" } }));
+      await generateMasterConfigs(projectRoot, { quiet: true });
+      expect(generatedTiltfile()).toContain('include("../../Tiltfile")');
+
+      // orchestration removed: the wrapper must give way to the full generated Tiltfile.
+      writeProjectJson(projectConfig());
+      expect(isWrappedTiltfileStale(projectRoot)).toBe(true);
+      await generateMasterConfigs(projectRoot, { quiet: true });
+      expect(generatedTiltfile()).toContain("load('ext://flisk-cli'");
+      expect(isWrappedTiltfileStale(projectRoot)).toBe(false);
+
+      // A source other than tiltfile is not a wrapper either.
+      writeProjectJson(projectConfig({ orchestration: { source: "tiltfile", path: "Tiltfile" } }));
+      await generateMasterConfigs(projectRoot, { quiet: true });
+      writeProjectJson(
+        projectConfig({ orchestration: { source: "docker-compose", path: "docker-compose.yml" } }),
+      );
+      expect(isWrappedTiltfileStale(projectRoot)).toBe(true);
+      expect(fs.readFileSync(path.join(projectRoot, "Tiltfile"), "utf-8")).toBe(USER_TILTFILE);
+    }, 15000);
+
+    describe("a Tiltfile path that is a symlink into .flisk/", () => {
+      it("refuses a symlinked Tiltfile that points at the generated wrapper, before it exists", async () => {
+        // Dangling until generation writes .flisk/.flisk-out/Tiltfile, which would then include itself.
+        fs.symlinkSync(
+          path.join(".flisk", ".flisk-out", "Tiltfile"),
+          path.join(projectRoot, "Tiltfile"),
+        );
+        writeProjectJson(
+          projectConfig({ orchestration: { source: "tiltfile", path: "Tiltfile" } }),
+        );
+
+        expect(() =>
+          wrappedTiltfilePath({ source: "tiltfile", path: "Tiltfile" }, projectRoot),
+        ).toThrow(/points inside \.flisk\//);
+        expect(() => isWrappedTiltfileStale(projectRoot)).toThrow(/points inside \.flisk\//);
+        await expect(generateMasterConfigs(projectRoot, { quiet: true })).rejects.toThrow(
+          /points inside \.flisk\//,
+        );
+        expect(fs.existsSync(path.join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))).toBe(
+          false,
+        );
+      });
+
+      it("refuses a path through a symlinked folder that resolves inside .flisk/", () => {
+        fs.mkdirSync(path.join(projectRoot, ".flisk", ".flisk-out"), { recursive: true });
+        fs.writeFileSync(path.join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"), USER_TILTFILE);
+        fs.symlinkSync(path.join(projectRoot, ".flisk"), path.join(projectRoot, "infra"));
+
+        expect(() =>
+          wrappedTiltfilePath(
+            { source: "tiltfile", path: "infra/.flisk-out/Tiltfile" },
+            projectRoot,
+          ),
+        ).toThrow(/points inside \.flisk\//);
+        // Without a project root the check stays lexical and reads nothing from disk.
+        expect(wrappedTiltfilePath({ source: "tiltfile", path: "infra/.flisk-out/Tiltfile" })).toBe(
+          "infra/.flisk-out/Tiltfile",
+        );
+      });
+
+      it("accepts a symlink that points at a Tiltfile outside .flisk/", () => {
+        fs.mkdirSync(path.join(projectRoot, "infra"));
+        fs.writeFileSync(path.join(projectRoot, "infra", "Tiltfile"), USER_TILTFILE);
+        fs.mkdirSync(path.join(projectRoot, ".flisk"), { recursive: true });
+        fs.symlinkSync(path.join("infra", "Tiltfile"), path.join(projectRoot, "Tiltfile"));
+
+        expect(wrappedTiltfilePath({ source: "tiltfile", path: "Tiltfile" }, projectRoot)).toBe(
+          "Tiltfile",
+        );
+      });
+    });
 
     const hasTilt = spawnSync("tilt", ["version"], { stdio: "ignore" }).status === 0;
     it.skipIf(!hasTilt)(
