@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTempDir, runFlisk } from "../../test-support/index.js";
@@ -35,6 +35,12 @@ afterEach(() => {
 });
 
 describe("flisk project --list", () => {
+  it("rejects a template argument together with --list", () => {
+    const result = runFlisk(["project", "saas", "--list"], { cwd: createTempDir() });
+    expect(result.status).not.toBe(0);
+    expect(result.stdout + result.stderr).toContain("--list takes no template");
+  });
+
   it("prints the catalog as a stable JSON array with --json", () => {
     const result = runFlisk(["project", "--list", "--json"], { cwd: createTempDir() });
     expect(result.status, result.stderr).toBe(0);
@@ -93,10 +99,12 @@ describe("cloneProjectTemplate with a pinned ref", () => {
     const missing = "0".repeat(40);
     PROJECT_TEMPLATES[TEST_KEY] = { repo, ref: missing, description: "bad pin" };
     const destination = join(createTempDir(), "app");
-    const failure = cloneProjectTemplate(TEST_KEY, destination, [], { quiet: true });
-    await expect(failure).rejects.toBeInstanceOf(FliskError);
-    await expect(
-      cloneProjectTemplate(TEST_KEY, join(createTempDir(), "again"), [], { quiet: true }),
-    ).rejects.toThrow(`git checkout of the pinned commit ${missing} failed`);
+    const error = await cloneProjectTemplate(TEST_KEY, destination, [], { quiet: true }).catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(FliskError);
+    expect((error as Error).message).toContain(`pinned commit ${missing} not found in ${repo}`);
+    // The partial clone is removed so the same command can be run again.
+    expect(existsSync(destination)).toBe(false);
   });
 });

@@ -57,17 +57,19 @@ export function listProjectTemplates() {
         key,
         repo: template.repo,
         description: template.description,
-        ...(template.ref ? { ref: template.ref } : {}),
+        // A bundled template is copied, never cloned, so a ref on it would be a pin nothing uses.
+        ...(template.ref && !template.bundledPath ? { ref: template.ref } : {}),
     }));
 }
-/**
- * The git invocations that fetch a repository template into `destination`: a clone and, for a pinned template, a
- * detached checkout of its exact commit.
- */
 export function templateGitCommands(template, destination) {
-    const commands = [["clone", template.repo, destination]];
+    const commands = [
+        { step: "clone", args: ["clone", template.repo, destination] },
+    ];
     if (template.ref) {
-        commands.push(["-C", destination, "checkout", "--quiet", "--detach", template.ref]);
+        commands.push({
+            step: "checkout",
+            args: ["-C", destination, "checkout", "--quiet", "--detach", template.ref],
+        });
     }
     return commands;
 }

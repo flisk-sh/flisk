@@ -128,19 +128,25 @@ describe("listProjectTemplates", () => {
     }
     expect(rows.find((row) => row.key === "saas")).not.toHaveProperty("ref");
   });
+
+  it("never pins a bundled template, which is copied rather than cloned", () => {
+    for (const [key, template] of Object.entries(PROJECT_TEMPLATES)) {
+      expect(Boolean(template.bundledPath && template.ref), key).toBe(false);
+    }
+  });
 });
 
 describe("templateGitCommands", () => {
   it("clones and then checks out the pinned commit", () => {
     expect(templateGitCommands({ repo: "r.git", description: "", ref: "abc" }, "/tmp/x")).toEqual([
-      ["clone", "r.git", "/tmp/x"],
-      ["-C", "/tmp/x", "checkout", "--quiet", "--detach", "abc"],
+      { step: "clone", args: ["clone", "r.git", "/tmp/x"] },
+      { step: "checkout", args: ["-C", "/tmp/x", "checkout", "--quiet", "--detach", "abc"] },
     ]);
   });
 
   it("only clones an unpinned template", () => {
     expect(templateGitCommands({ repo: "r.git", description: "" }, "/tmp/x")).toEqual([
-      ["clone", "r.git", "/tmp/x"],
+      { step: "clone", args: ["clone", "r.git", "/tmp/x"] },
     ]);
   });
 });

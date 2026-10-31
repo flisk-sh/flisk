@@ -1,7 +1,15 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { cwd } from "node:process";
 import { fileURLToPath } from "node:url";
@@ -174,6 +182,8 @@ export async function cloneProjectTemplate(
     showDetail(`Destination: ${destination}\n`, 0);
   }
 
+  // Only a directory this call creates may be removed after a failed checkout.
+  const destinationExisted = existsSync(destination);
   let gitStep: "clone" | "checkout" = "clone";
   try {
     if (template.bundledPath) {
@@ -194,9 +204,9 @@ export async function cloneProjectTemplate(
     } else {
       // Piped, not inherited: a raw git progress dump is noise for the caller and, in the
       // one-command flow, it interleaves with the frame that is already on screen.
-      for (const gitArgs of templateGitCommands(template, destination)) {
-        gitStep = gitArgs[0] === "clone" ? "clone" : "checkout";
-        execFileSync("git", gitArgs, {
+      for (const { step, args } of templateGitCommands(template, destination)) {
+        gitStep = step;
+        execFileSync("git", args, {
           stdio: ["ignore", "pipe", "pipe"],
           encoding: "utf-8",
         });
@@ -204,10 +214,15 @@ export async function cloneProjectTemplate(
     }
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    if (!template.bundledPath && gitStep === "checkout") {
+      // A clone left on the default branch would block the retry with "directory exists".
+      rmSync(destination, { recursive: true, force: true });
+      if (destinationExisted) mkdirSync(destination, { recursive: true });
+    }
     const message = template.bundledPath
       ? `Bundled example copy failed (${lastLine(detail)}). Reinstall the Flisk CLI package and try again.`
       : gitStep === "checkout"
-        ? `git checkout of the pinned commit ${template.ref} failed: ${lastLine(detail)}. ${destination} is left at the default branch; delete it before trying again.`
+        ? `pinned commit ${template.ref} not found in ${template.repo} (${lastLine(detail)}); the partial clone was removed.`
         : `git clone failed: ${lastLine(detail)}. Check you have git installed and network access.`;
     // A caller that paints its own surface (the one-command flow) needs to report the
     // failure itself instead of having the process die mid-paint.
@@ -333,10 +348,20 @@ export const projectCommand = addYesOption(new Command("project"))
     "List the starter templates (key, repo, description, pinned ref); with --json, a JSON array",
     false,
   )
-  .option("--json", "Print one JSON envelope on stdout; implies --yes and --quiet", false)
+  .option(
+    "--json",
+    "Print one JSON envelope on stdout (with --list, a JSON array); implies --yes and --quiet",
+    false,
+  )
   .action(async (template, options) => {
     const json = Boolean(options.json);
     if (options.list) {
+      if (template) {
+        throw new FliskError(`--list takes no template, got "${template}"`, [
+          "Run `flisk project --list` to see the catalog",
+          `Or run \`flisk project ${template}\` to create it`,
+        ]);
+      }
       printTemplateCatalog(json);
       return;
     }
