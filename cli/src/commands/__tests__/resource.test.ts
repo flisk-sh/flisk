@@ -39,7 +39,11 @@ import {
   getFrontendFramework,
   resolveFrontendFramework,
 } from "../../frontend-frameworks/registry.js";
-import { CREATABLE_RESOURCE_TYPES, isCreatableResourceType } from "../../types/index.js";
+import {
+  CREATABLE_RESOURCE_TYPES,
+  isCreatableResourceType,
+  RESOURCE_CREATE_TYPE_VALUES,
+} from "../../types/index.js";
 import { FliskError } from "../../utils/errors.js";
 import { discoverResourcesFromRoot } from "../../utils/services.js";
 import { KEBAB_CASE_REGEX } from "../../utils/validation.js";
@@ -844,6 +848,17 @@ describe("parseResourceType", () => {
       expect(parseResourceType(type)).toBe(type);
     }
     expect(parseResourceType("byo")).toBe("bring-your-own");
+  });
+
+  it("accepts every type in the creation list the MCP resource_create tool offers", () => {
+    expect(RESOURCE_CREATE_TYPE_VALUES).toContain("inference");
+    expect(RESOURCE_CREATE_TYPE_VALUES).not.toContain("sdk");
+    for (const type of RESOURCE_CREATE_TYPE_VALUES) {
+      expect(() => parseResourceType(type), type).not.toThrow();
+    }
+    expect(() => parseResourceType("bogus")).toThrow(
+      new RegExp(`Supported types: ${[...RESOURCE_CREATE_TYPE_VALUES, "sdk"].join(", ")}\\.`),
+    );
   });
 
   it("rejects an unknown type with the supported list instead of prompting", () => {

@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRegisteredCommands } from "../../commands/registry.js";
-import { CREATABLE_RESOURCE_TYPES } from "../../types/index.js";
+import { parseResourceType } from "../../commands/resource.js";
+import { CREATABLE_RESOURCE_TYPES, RESOURCE_CREATE_TYPE_VALUES } from "../../types/index.js";
 import { FliskError } from "../../utils/errors.js";
 import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
 import {
@@ -770,7 +771,7 @@ describe("tool list", () => {
     ]);
     expect(tools.find((t) => t.name === "resource_create")?.inputSchema).toMatchObject({
       required: ["name"],
-      properties: { type: { enum: [...CREATABLE_RESOURCE_TYPES] } },
+      properties: { type: { enum: [...RESOURCE_CREATE_TYPE_VALUES] } },
     });
     expect(tools.find((t) => t.name === "stack_assign")?.inputSchema).toMatchObject({
       required: ["stack", "resources"],
@@ -780,6 +781,26 @@ describe("tool list", () => {
     });
     expect(JSON.stringify(tools.find((t) => t.name === "project_init")?.inputSchema)).not.toContain(
       "force",
+    );
+  });
+
+  it("offers resource_create every type the CLI scaffolds, inference included and sdk left out", async () => {
+    const { seen, tools } = recordingTools("");
+    const tool = tools.find((t) => t.name === "resource_create");
+    const schema = tool?.inputSchema as { properties: { type: { enum: string[] } } };
+    const offered = schema.properties.type.enum;
+    expect(offered).toEqual([...RESOURCE_CREATE_TYPE_VALUES]);
+    expect(offered).toEqual(expect.arrayContaining([...CREATABLE_RESOURCE_TYPES, "inference"]));
+    // sdk only registers a package that already has a service.json; byo is an alias of bring-your-own.
+    expect(offered).not.toContain("sdk");
+    expect(offered).not.toContain("byo");
+    for (const type of offered) {
+      // Every value the tool offers is one `flisk resource --type` accepts, so the two cannot drift.
+      expect(() => parseResourceType(type), type).not.toThrow();
+      await tool?.handler({ name: "api", type });
+    }
+    expect(seen.map((run) => run.args)).toEqual(
+      offered.map((type) => ["resource", "api", `--type=${type}`, "--yes"]),
     );
   });
 

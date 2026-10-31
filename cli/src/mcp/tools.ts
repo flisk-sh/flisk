@@ -4,7 +4,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { CREATABLE_RESOURCE_TYPES } from "../types/index.js";
+import { RESOURCE_CREATE_TYPE_VALUES } from "../types/index.js";
 import { FliskError } from "../utils/errors.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { PROJECT_TEMPLATES } from "../utils/project-templates.js";
@@ -346,7 +346,7 @@ export function buildResourceCreateArgs(args: Record<string, unknown>): string[]
   if (!name) {
     throw new FliskError("name is required", ["Pass a kebab-case name, for example orders-api"]);
   }
-  const type = optionalChoice(args.type, "type", CREATABLE_RESOURCE_TYPES);
+  const type = optionalChoice(args.type, "type", RESOURCE_CREATE_TYPE_VALUES);
   const stack = optionalName(args.stack, "stack");
   const framework = optionalName(args.framework, "framework");
   const language = optionalName(args.language, "language");
@@ -761,7 +761,7 @@ export function createFliskTools(
           name: { type: "string", description: "Resource name (kebab-case)" },
           type: {
             type: "string",
-            enum: [...CREATABLE_RESOURCE_TYPES],
+            enum: [...RESOURCE_CREATE_TYPE_VALUES],
             description: "Resource type (default backend)",
           },
           stack: { type: "string", description: "Stack to assign the resource to" },
