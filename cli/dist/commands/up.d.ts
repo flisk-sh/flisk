@@ -73,8 +73,9 @@ export interface NativeUpSelection {
 /**
  * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which
  * a project without any `command` service always takes. Outside a project, a directory whose services all declare `command`
- * becomes the project. Refuses (through `fail`) an unknown stack or service, an invalid service.json, and a run that would mix
- * native and container services.
+ * becomes the project. A project whose .flisk/project.json selects its own Tiltfile (`flisk import tiltfile`) also returns null:
+ * Tilt runs that Tiltfile through the generated wrapper, whatever its services declare. Refuses (through `fail`) an unknown
+ * stack or service, an invalid service.json, and a run that would mix native and container services.
  */
 export declare function selectNativeRun(stackName: string | undefined, only: string[] | undefined, fail: (code: string, message: string, suggestions?: string[]) => never, cwd?: string): NativeUpSelection | null;
 export declare const upCommand: Command;

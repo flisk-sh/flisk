@@ -9,6 +9,7 @@ import { Command } from "commander";
 import {
   ensureProjectRuntimeAssets,
   generateMasterConfigs,
+  isTiltfileOrchestration,
   isWrappedTiltfileStale,
   ProjectConfigNotFoundError,
   verifyMasterConfigs,
@@ -396,8 +397,9 @@ export interface NativeUpSelection {
 /**
  * Decides whether `flisk up` runs the selection as local processes (#2229). Returns null for today's Docker + Tilt path, which
  * a project without any `command` service always takes. Outside a project, a directory whose services all declare `command`
- * becomes the project. Refuses (through `fail`) an unknown stack or service, an invalid service.json, and a run that would mix
- * native and container services.
+ * becomes the project. A project whose .flisk/project.json selects its own Tiltfile (`flisk import tiltfile`) also returns null:
+ * Tilt runs that Tiltfile through the generated wrapper, whatever its services declare. Refuses (through `fail`) an unknown
+ * stack or service, an invalid service.json, and a run that would mix native and container services.
  */
 export function selectNativeRun(
   stackName: string | undefined,
@@ -407,6 +409,8 @@ export function selectNativeRun(
 ): NativeUpSelection | null {
   const foundRoot = findProjectRoot(cwd);
   if (!foundRoot && !hasNearbyServiceJson(cwd)) return null;
+  // The imported Tiltfile is the orchestration: the wrapper only include()s it and never reads `command`, so run Tilt.
+  if (foundRoot && isTiltfileOrchestration(foundRoot)) return null;
   const projectRoot = foundRoot ?? cwd;
   let discovered: ReturnType<typeof discoverResourcesWithProblems>;
   try {
@@ -827,7 +831,8 @@ export const upCommand = new Command("up")
           disableDatabaseCapability(projectRoot);
         // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
         // Tilt fail on a missing Tiltfile. After `flisk import tiltfile` the generated Tiltfile must be the wrapper that
-        // includes the project's own one, so an older generated Tiltfile is replaced too (the user's Tiltfile is never written).
+        // includes the project's own one, so an older generated Tiltfile is replaced too (the user's Tiltfile is never written),
+        // and a wrapper is replaced by the full Tiltfile once project.json no longer selects one.
         if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
           if (!options.quiet) {
             console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
@@ -836,7 +841,13 @@ export const upCommand = new Command("up")
         } else if (foundRoot && isWrappedTiltfileStale(projectRoot)) {
           // The capability opt-outs above are already saved, so this regeneration also honours them.
           if (!options.quiet) {
-            console.log(chalk.gray("Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."));
+            console.log(
+              chalk.gray(
+                isTiltfileOrchestration(projectRoot)
+                  ? "Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."
+                  : "project.json no longer wraps a Tiltfile; regenerating .flisk/.flisk-out/ ...",
+              ),
+            );
           }
           await generateMasterConfigs(projectRoot, { quiet: options.quiet });
         } else if (databaseTurnedOff || options.gateway === false) {
