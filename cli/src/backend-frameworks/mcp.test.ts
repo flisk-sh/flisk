@@ -91,7 +91,9 @@ describe("getMcpIndexTemplate", () => {
     expect(index).toContain("if (path === '/health')");
     expect(index).toContain("if (path === '/mcp')");
     expect(index).toContain("new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })");
-    expect(index).toContain("await transport.handleRequest(req, res, await readBody(req));");
+    expect(index).toContain("body = await readBody(req);");
+    expect(index).toContain("code: -32700, message: 'Parse error'");
+    expect(index).toContain("await transport.handleRequest(req, res, body);");
   });
 
   it("answers non-POST MCP requests with 405 and unknown paths with 404", () => {

@@ -101,6 +101,18 @@ export const httpServer = createServer(async (req, res) => {
       return;
     }
 
+    // A body that is not JSON gets a JSON-RPC parse error. Throwing here would end the process, since nothing awaits
+    // this handler.
+    let body: unknown;
+    try {
+      body = await readBody(req);
+    } catch {
+      res.statusCode = 400;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }));
+      return;
+    }
+
     const server = buildServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => {
@@ -108,7 +120,7 @@ export const httpServer = createServer(async (req, res) => {
       server.close();
     });
     await server.connect(transport);
-    await transport.handleRequest(req, res, await readBody(req));
+    await transport.handleRequest(req, res, body);
     return;
   }
 
@@ -216,6 +228,17 @@ describe('${name} MCP protocol', () => {
     const result = await rpc('tools/call', { name: 'echo', arguments: { message: 'hello' } });
     expect(result.isError).toBeFalsy();
     expect(result.content).toEqual([{ type: 'text', text: 'hello' }]);
+  });
+
+  it('answers a body that is not JSON with a parse error and keeps serving', async () => {
+    const res = await fetch(baseUrl + '/mcp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: 'not json',
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe(-32700);
+    expect((await fetch(baseUrl + '/health')).status).toBe(200);
   });
 
   it('answers GET /mcp with 405 and an Allow header', async () => {
