@@ -11,12 +11,8 @@ import {
   TemplateEngine,
   verifyMasterConfigs,
 } from "../../generator/template-engine.js";
-import type {
-  DiscoveredResource,
-  DiscoveredStack,
-  ProjectConfig,
-  ResourceConfig,
-} from "../../types/index.js";
+import { makeResource } from "../../test-support/index.js";
+import type { DiscoveredResource, DiscoveredStack, ProjectConfig } from "../../types/index.js";
 import {
   disableDatabaseCapability,
   getEnabledCapabilities,
@@ -31,20 +27,6 @@ import {
   databaseManagementEnabled,
   evaluateSharedPlatformPostgres,
 } from "../shared-platform-postgres.js";
-
-function makeResource(
-  name: string,
-  stack: string,
-  config: Partial<ResourceConfig> = {},
-): DiscoveredResource {
-  return {
-    name,
-    path: `/test/${name}`,
-    configPath: `/test/${name}/service.json`,
-    stack,
-    config: config as ResourceConfig,
-  };
-}
 
 function makeStack(name: string, resources: DiscoveredResource[]): DiscoveredStack {
   return { name, resources, resourceCount: resources.length };
@@ -154,7 +136,9 @@ describe("Optional Database Capability", () => {
   describe("Shared Infrastructure with database disabled", () => {
     it("groupSharedPostgres returns null when database capability is disabled", () => {
       const stacks = [
-        makeStack("shop", [makeResource("api", "shop", { dependsOn: ["postgres"] })]),
+        makeStack("shop", [
+          { ...makeResource("api", "backend", { dependsOn: ["postgres"] }), stack: "shop" },
+        ]),
       ];
       // Enabled case returns postgres
       const enabled = groupSharedPostgres("demo", stacks);
