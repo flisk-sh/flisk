@@ -90,7 +90,7 @@ if (templateArg) {
         }
         // Take the old stack down before its folder goes, so a Traefik left behind does not keep port 80.
         try {
-            stopDemoStack(destination);
+            await stopDemoStack(destination);
         }
         catch (error) {
             console.log(chalk.yellow(`Could not stop the previous demo stack: ${error.message}`));

@@ -6,13 +6,27 @@ import { join } from "node:path";
 /**
  * Stop the stack of an existing demo folder before the folder is deleted. Deleting the folder alone leaves its
  * containers running, and a standalone Traefik that stays up keeps port 80 for the next run.
- * Returns true when a Flisk project was found and its `flisk down` ran.
+ *
+ * The live `tilt up` goes first. `flisk down` needs the Tiltfile, and it can be gone or mid-rewrite while the old
+ * stack still runs; then `down` fails and the old Tilt keeps the ports and containers the new run needs, so the
+ * second demo sat at "0 of 7 services ready". Returns true when a Flisk project was found.
  */
-export function stopDemoStack(projectDir, runDown = runFliskDown) {
+export async function stopDemoStack(projectDir, runDown = runFliskDown, stopTilt = stopRunningTilt) {
     if (!existsSync(join(projectDir, ".flisk", "project.json")))
         return false;
+    const tiltfile = join(projectDir, ".flisk", ".flisk-out", "Tiltfile");
+    await stopTilt(tiltfile);
+    if (!existsSync(tiltfile))
+        return true;
     runDown(projectDir);
     return true;
+}
+async function stopRunningTilt(tiltfile) {
+    const { findProjectTiltUpPids, stopProjectTiltUp, waitForTiltUpExit } = await import("./down-cleanup.js");
+    if (findProjectTiltUpPids(tiltfile).length === 0)
+        return;
+    stopProjectTiltUp(tiltfile);
+    await waitForTiltUpExit(tiltfile);
 }
 function runFliskDown(projectDir) {
     execFileSync(process.execPath, [process.argv[1] ?? "flisk", "down", "--yes"], {
