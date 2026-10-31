@@ -6,6 +6,8 @@ Flisk runs your whole app on your computer with one command. It is not a deploy 
 
 New to contributing? Start with the [step-by-step contributor guide](../docs/contributing/README.md). To add a Vite frontend framework, see the [frontend provider guide](../docs/frontend-framework-providers.md).
 
+**Try it with no Docker:** `npx @flisk-sh/flisk demo` needs only Node.js 22.12+. Without Docker or Tilt (or on native Windows) it starts a small menu app as two local processes in about a second and opens it; with Docker and Tilt it starts the full restaurant demo. `flisk up --dry-run` previews any project without Docker or Tilt.
+
 ## Cheat sheet
 
 Run in a project with Bun, Docker, and Tilt, or, when every service's `service.json` declares a `command`, with only your app's runtime: `flisk up` then runs the services as local processes ([guide](../docs/run-without-docker.md)). On Windows, run the CLI in WSL2.

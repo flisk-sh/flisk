@@ -9,7 +9,10 @@
 
 See a whole example app run on your laptop, with no manual steps. Best for a first look or a throwaway test.
 
-**Before you start:** the demo runs each part of the app (each service) in its own [container](words.md#container), a sealed box, so your computer needs [Docker](words.md#docker) and [Tilt](words.md#tilt). See [set up your machine](../setup/macos.md). `flisk doctor` tells you what is missing. On Windows it works only inside Ubuntu on [WSL2](words.md#wsl2).
+**Before you start:** you need only [Node.js](words.md#nodejs) 22.12 or newer. The demo picks what your computer can run:
+
+- **No Docker (or Docker not running, Tilt missing, or plain Windows):** a small menu app, a menu API and a website, starts as two local processes in about a second and opens in your browser. Nothing is cloned or installed. It lands in `~/.flisk/flisk-demo-native`, and `flisk down` in that folder stops it. Add `--no-docker` to pick this one on purpose.
+- **Docker running and Tilt installed:** the full restaurant demo below, where each part of the app (each service) runs in its own [container](words.md#container), a sealed box. See [set up your machine](../setup/macos.md); `flisk doctor` tells you what is missing. On Windows the full demo runs inside Ubuntu on [WSL2](words.md#wsl2).
 
 Paste these lines into your [terminal](words.md#terminal) and press Enter. Lines that start with `#` are notes for you; the computer skips them.
 
@@ -21,7 +24,7 @@ npm install -g @flisk-sh/flisk
 flisk demo
 ```
 
-What happens:
+What happens in the full demo:
 
 1. Flisk copies a ready-made example app (it clones the starter) into `~/.flisk/flisk-demo`, a folder in your home folder.
 2. It installs what each part of the app needs (the service dependencies).
