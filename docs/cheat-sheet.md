@@ -141,7 +141,7 @@ Project setup does not need a running Docker daemon or an installed Tilt: `flisk
 
 ### `flisk import [dir]`
 
-Read the root `docker-compose.yml` of a directory (default `.`) and write one bring-your-own `service.json` per Compose service. Other Compose file names, override files, Dockerfiles and `package.json` are not read, and the plan names what was not translated.
+Read the root `docker-compose.yml` of a directory (default `.`) and write one bring-your-own `service.json` per Compose service. Volumes, container options (`cap_add`, `read_only`, `user`, ...), extra published ports, `network_mode: service:<name>` and `restart` are carried over as `volumes`, `container`, `extraPorts`, `sidecarOf` and `restart` (flisk-import 0.5.0, see [bring-your-own](byo.md)). Other Compose file names, override files, Dockerfiles and `package.json` are not read, and the plan names what was not translated.
 
 ```bash
 flisk import --dry-run                 # print the plan, write nothing
