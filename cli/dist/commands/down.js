@@ -6,7 +6,7 @@ import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
 import { pruneDockerBuildCache, validateCacheUntil } from "../utils/docker-build-cache.js";
-import { findRunningFliskProjects, pruneProjectNetworks, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
+import { findRunningFliskProjects, pruneProjectNetworks, stopProjectComposeProjects, stopProjectTiltUp, waitForTiltUpExit, } from "../utils/down-cleanup.js";
 import { errorFactories, FliskError, handleTiltFailure, withTiltCheck } from "../utils/errors.js";
 import { createJsonEmitter } from "../utils/json-output.js";
 import { writeMachineError } from "../utils/machine-output.js";
@@ -198,8 +198,29 @@ export const downCommand = addYesOption(new Command("down"))
             verbose: options.verbose && !options.json,
             inheritStdio: !options.json,
         });
+        // `tilt down` evaluates the Tiltfile, so a Tiltfile that fails (stale after an upgrade, a broken edit) leaves the stack
+        // running. Stop this project's Compose projects directly instead (#2899).
+        let composeFallback;
         if (result.exitCode !== 0) {
-            handleTiltFailure("down", result.exitCode);
+            let fallback;
+            try {
+                fallback = stopProjectComposeProjects(projectRoot);
+            }
+            catch {
+                handleTiltFailure("down", result.exitCode);
+            }
+            if (fallback.failed.length > 0) {
+                for (const failed of fallback.failed) {
+                    console.error(chalk.red(`Could not stop Compose project ${failed.name}: ${failed.reason}`));
+                }
+                handleTiltFailure("down", result.exitCode);
+            }
+            composeFallback = { ...fallback, tiltDownExitCode: result.exitCode };
+            if (!options.json) {
+                console.log(chalk.yellow(fallback.stopped.length > 0
+                    ? `tilt down failed (exit ${result.exitCode}); stopped this project's containers with docker compose down instead: ${fallback.stopped.join(", ")}`
+                    : `tilt down failed (exit ${result.exitCode}); no containers of this project are left to stop.`));
+            }
         }
         let networks;
         if (options.pruneNetworks) {
@@ -256,6 +277,14 @@ export const downCommand = addYesOption(new Command("down"))
         emit?.({
             ok: true,
             stoppedTilt,
+            ...(composeFallback
+                ? {
+                    composeFallback: {
+                        tiltDownExitCode: composeFallback.tiltDownExitCode,
+                        stopped: composeFallback.stopped,
+                    },
+                }
+                : {}),
             ...(networks ? { removedNetworks: networks.removed, keptNetworks: networks.kept } : {}),
             ...(cachePruneResult ? { prunedCache: cachePruneResult } : {}),
         });
