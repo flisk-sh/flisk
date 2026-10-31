@@ -461,7 +461,13 @@ const CONTAINER_KEYS = new Set([
   "readOnly",
   "user",
   "shmSize",
+  "gpus",
+  "cpus",
+  "memory",
+  "ipc",
 ]);
+const CONTAINER_IPC_MODES = ["host", "private", "shareable", "none"];
+const SIZE_PATTERN = /^[0-9]+([bkmg]b?)?$/i;
 
 /** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
 export function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
@@ -501,9 +507,29 @@ export function containerErrors(manifest: Record<string, unknown>, displayPath: 
   }
   if (
     container.shmSize !== undefined &&
-    !(typeof container.shmSize === "string" && /^[0-9]+([bkmg]b?)?$/i.test(container.shmSize))
+    !(typeof container.shmSize === "string" && SIZE_PATTERN.test(container.shmSize))
   ) {
     errors.push(`${field}.shmSize: expected a size such as 256mb or 1g`);
+  }
+  // GPU and HPC workloads: NVIDIA device reservations, CPU and memory limits (Flisk's defaults are 0.5 CPU and 512M) and IPC.
+  const { gpus, cpus, memory, ipc } = container;
+  if (gpus !== undefined && !(gpus === "all" || (Number.isInteger(gpus) && (gpus as number) > 0))) {
+    errors.push(`${field}.gpus: expected "all" or a GPU count of 1 or more`);
+  }
+  const cpusOk =
+    (Number.isInteger(cpus) && (cpus as number) > 0) ||
+    (typeof cpus === "string" && /^[0-9]+(\.[0-9]{1,2})?$/.test(cpus) && Number(cpus) > 0);
+  if (cpus !== undefined && !cpusOk) {
+    errors.push(`${field}.cpus: expected a CPU count above 0 such as 4 or "2.5"`);
+  }
+  if (
+    memory !== undefined &&
+    !(typeof memory === "string" && SIZE_PATTERN.test(memory) && Number.parseInt(memory, 10) > 0)
+  ) {
+    errors.push(`${field}.memory: expected a size such as 8g or 512mb`);
+  }
+  if (ipc !== undefined && !(typeof ipc === "string" && CONTAINER_IPC_MODES.includes(ipc))) {
+    errors.push(`${field}.ipc: expected one of ${CONTAINER_IPC_MODES.join(", ")}`);
   }
   return errors;
 }
