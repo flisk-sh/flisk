@@ -17,7 +17,8 @@ jobs:
       # Repository secrets: the flisk-sh Docker Hub user and an access token that can push to flisk-sh/golden-*.
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      REGISTRY: docker.io/flisk-sh
+      # Publishes under the personal namespace until docker.io/flisk-sh exists; then switch this one line.
+      REGISTRY: docker.io/alexdykyi
     steps:
       - name: Stop when Docker Hub is not configured
         run: |
