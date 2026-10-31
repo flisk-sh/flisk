@@ -19,6 +19,7 @@ import {
   validateGeneratedStringFields,
   validateServiceManifest,
   validateServiceManifestFile,
+  volumesErrors,
 } from "../service-manifest.js";
 
 function manifestBase(): Record<string, unknown> {
@@ -941,5 +942,73 @@ describe("sidecarErrors", () => {
     const errors = sidecarErrors(manifest, file);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(message);
+  });
+});
+
+describe("volumesErrors", () => {
+  const file = "services/tube/tubehaus/service.json";
+  const byo = (volumes: unknown) => ({ appType: "bring-your-own", volumes });
+
+  it("accepts named volumes, bind mounts and read-only, and an absent value", () => {
+    expect(volumesErrors({ appType: "bring-your-own" }, file)).toEqual([]);
+    expect(
+      volumesErrors(
+        byo([
+          { source: "tubehaus-data", target: "/data" },
+          { source: "./config", target: "/etc/app", readOnly: true },
+          { source: "../shared/web", target: "/srv/web", readOnly: true },
+        ]),
+        file,
+        3,
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [byo("data:/data"), "volumes: expected a list"],
+    [
+      { appType: "backend", volumes: [{ source: "data", target: "/data" }] },
+      "only applies to bring-your-own",
+    ],
+    [byo(["data:/data"]), "volumes[0]: expected an object"],
+    [byo([{ source: "/etc", target: "/etc" }]), "volumes[0].source: expected a volume name"],
+    [byo([{ source: "Data", target: "/data" }]), "volumes[0].source: expected a volume name"],
+    [
+      byo([{ source: "data\nprivileged: true", target: "/data" }]),
+      "volumes[0].source: expected a volume name",
+    ],
+    [byo([{ source: "data", target: "data" }]), "volumes[0].target: expected an absolute path"],
+    [
+      byo([{ source: "data", target: "/data/../etc" }]),
+      "volumes[0].target: expected an absolute path",
+    ],
+    [
+      byo([
+        { source: "a", target: "/data" },
+        { source: "b", target: "/data" },
+      ]),
+      "/data is mounted twice",
+    ],
+    [
+      byo([{ source: "data", target: "/data", readOnly: "yes" }]),
+      "volumes[0].readOnly: expected true or false",
+    ],
+    [
+      byo([{ source: "data", target: "/data", driver: "nfs" }]),
+      "volumes[0].driver: unknown option",
+    ],
+  ])("reports %j", (manifest, message) => {
+    const errors = volumesErrors(manifest, file, 3);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("refuses a bind mount that climbs out of the project, once its location is known", () => {
+    const climbing = byo([{ source: "../../../../etc", target: "/host-etc" }]);
+    expect(volumesErrors(climbing, file)).toEqual([]);
+    expect(volumesErrors(climbing, file, 3)).toEqual([
+      `${file}.volumes[0].source: must stay inside the project`,
+    ]);
+    expect(volumesErrors(byo([{ source: "../../..", target: "/project" }]), file, 3)).toEqual([]);
   });
 });

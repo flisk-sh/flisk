@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import chalk from "chalk";
 import type { CheckResult, DiscoveredResource } from "../types/index.js";
 import { declaredDependsOn, dependencyEdges } from "./dependency-graph.js";
@@ -14,6 +14,7 @@ import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
   secretConflictWarnings,
   validateServiceManifest,
+  volumesErrors,
 } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
 
@@ -210,6 +211,36 @@ export function checkSidecars(
   };
 }
 
+/**
+ * A bind mount in `volumes` (#1748) is relative to its service directory, and one that climbs out of the project would hand a
+ * container files Flisk was never asked to share. The generator refuses it too, after `flisk up` has said yes.
+ */
+export function checkVolumes(
+  projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+): CheckResult {
+  const problems = resources.flatMap((resource) => {
+    if (!resource.config || !("volumes" in resource.config)) return [];
+    const dir = relative(projectRoot, dirname(resource.configPath));
+    const depth = dir === "" ? 0 : dir.split(sep).length;
+    // The shape of each entry is reported with the other service.json fields (checkServiceFields); this check adds the location.
+    return volumesErrors(
+      resource.config as Record<string, unknown>,
+      filePath(projectRoot, resource),
+      depth,
+    ).filter((problem) => problem.endsWith("must stay inside the project"));
+  });
+  if (problems.length === 0) {
+    return { name: "Volumes", didPass: true, message: "Every bind mount stays inside the project" };
+  }
+  return {
+    name: "Volumes",
+    didPass: false,
+    message: `${formatCount(problems.length, "bind mount outside the project", "bind mounts outside the project")}:\n    ${problems.join("\n    ")}`,
+    fix: 'Mount a path inside the project, such as "./config", or use a named volume such as "data"',
+  };
+}
+
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export function checkServicePorts(
   projectRoot = findProjectRoot() ?? process.cwd(),
@@ -371,6 +402,7 @@ export function enforceServiceConfigGate(
     checkCircularDependencies(projectRoot, resources),
     checkServicePorts(projectRoot, resources),
     checkSidecars(projectRoot, resources),
+    checkVolumes(projectRoot, resources),
   ].filter((check) => !check.didPass);
   if (failed.length === 0) return;
 

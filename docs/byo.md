@@ -130,6 +130,31 @@ Traefik route (Compose refuses `networks` and `ports` next to `network_mode`). T
 with `extraPorts` or `replicas`. Checked by `tests/tilt-engine/test_byo_sidecar.py` (the generator and the start order, run
 through Tilt); two containers talking over a shared namespace under `flisk up` was not part of that test.
 
+## Volumes (data that survives a restart, config files)
+
+A container's filesystem is thrown away when it is recreated. Keep data in `volumes`:
+
+```json
+"volumes": [
+  { "source": "library", "target": "/data" },
+  { "source": "./Caddyfile", "target": "/etc/caddy/Caddyfile", "readOnly": true },
+  { "source": "../../../web", "target": "/srv/web", "readOnly": true }
+]
+```
+
+- **A name** (`"library"`) is a named Docker volume. It is declared once in the stack's generated Compose file, `flisk down`
+  keeps it, and two services that name the same volume share it. To start from empty, stop the stack with `flisk down` and
+  remove the volume: `docker volume ls --filter label=com.docker.compose.volume=library` shows its full name, then
+  `docker volume rm <that name>`.
+- **A path** starting with `./` or `../` is a bind mount, relative to the service directory (where its `service.json` is).
+  It must stay inside the project: `flisk up` and `flisk doctor` refuse one that climbs above the project root.
+- `target` is an absolute path in the container; `readOnly: true` mounts it read-only.
+
+`volumes` applies to bring-your-own resources. Checked by `tests/tilt-engine/test_byo_volumes.py` (the generator, run through
+Tilt). A five-service stack shaped like tubehaus's Compose file, generated with `container`, `extraPorts`, `sidecarOf` and
+`volumes`, passed `docker compose config`, which resolved the bind mounts to the project's folders; starting those containers
+was not part of the check.
+
 ## Bringing a framework app (Node, Go, Rust, ...)
 
 Any app that fits the contract below can run as a bring-your-own resource. Fastify is the worked example because it needs nothing beyond the framework.

@@ -108,6 +108,7 @@ import {
   checkSchemaVersions,
   checkServicePorts,
   checkSidecars,
+  checkVolumes,
 } from "../utils/service-config-checks.js";
 import {
   buildAdvertisedTargets,
@@ -1840,6 +1841,7 @@ export const doctorCommand = new Command("doctor")
       () => checkCircularDependencies(),
       () => checkServicePorts(),
       () => checkSidecars(),
+      () => checkVolumes(),
       () => checkSchemaVersions(undefined, options.strict),
       () => checkDuplicateResourcePorts(),
       () => checkServiceUrlPorts(),

@@ -398,6 +398,28 @@
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9_.-]*$"
     },
+    "volumes": {
+      "description": "Storage for this bring-your-own resource. A source that is a name (\"data\") is a named Docker volume: flisk down keeps it, and two services that name the same volume share it. A source starting with ./ or ../ is a bind mount of a path relative to the service directory, which must stay inside the project.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "target"],
+        "properties": {
+          "source": {
+            "description": "A volume name such as data, or a path such as ./config.",
+            "type": "string",
+            "pattern": "^([a-z0-9][a-z0-9_-]*|\\.{1,2}(/[A-Za-z0-9_.-]+)*/?)$"
+          },
+          "target": {
+            "description": "Absolute path in the container, such as /data.",
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9_./-]*$"
+          },
+          "readOnly": { "description": "Mount read-only. Defaults to false.", "type": "boolean" }
+        }
+      }
+    },
     "image": {
       "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type.",
       "type": "string"
