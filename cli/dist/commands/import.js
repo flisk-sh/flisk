@@ -170,12 +170,16 @@ export function buildForwardedImportArgs(args, options = {}) {
     let yes = Boolean(options.yes);
     let force = Boolean(options.force);
     const filtered = [];
+    let strippedCompose = false;
     for (const arg of args) {
         if (arg === "--yes" || arg === "-y") {
             yes = true;
         }
         else if (arg === "--force" || arg === "-f") {
             force = true;
+        }
+        else if (!strippedCompose && arg === "compose") {
+            strippedCompose = true;
         }
         else {
             filtered.push(arg);
@@ -226,17 +230,19 @@ export function importFailure(run) {
     const suggestions = hints.length > 0 ? hints : [fallback];
     return new JsonCommandError("IMPORT_FAILED", message, suggestions, run.exitCode);
 }
-export const importCommand = addYesOption(new Command("import"))
-    .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
-    .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
-    .option("-f, --force", "Overwrite an existing service.json", false)
-    .option("--dry-run", "Print the plan and write nothing", false)
-    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
-    .allowUnknownOption()
-    .helpOption(false)
-    .action(async (args, options) => {
+export function resolveImportOptions(options = {}, cmd) {
+    const parentOpts = (cmd?.parent?.opts() ?? {});
+    const cmdOpts = (cmd?.opts() ?? {});
+    return {
+        yes: Boolean(options.yes || cmdOpts.yes || parentOpts.yes),
+        force: Boolean(options.force || cmdOpts.force || parentOpts.force),
+        dryRun: Boolean(options.dryRun || cmdOpts.dryRun || parentOpts.dryRun),
+        json: Boolean(options.json || cmdOpts.json || parentOpts.json),
+    };
+}
+export async function executeImport(args, options = {}, commandName = "flisk import") {
     if (options.json) {
-        await runJsonCommand("IMPORT_FAILED", "flisk import", async () => {
+        await runJsonCommand("IMPORT_FAILED", commandName, async () => {
             // Without a terminal the importer cannot ask, so --json writes without a prompt, like --yes.
             const forwardedArgs = buildForwardedImportArgs(args, { ...options, yes: true });
             const run = await runImportCaptured(forwardedArgs);
@@ -253,4 +259,29 @@ export const importCommand = addYesOption(new Command("import"))
     }
     const forwardedArgs = buildForwardedImportArgs(args, options);
     process.exitCode = await runImport(forwardedArgs);
+}
+export const composeCommand = addYesOption(new Command("compose"))
+    .description("Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)")
+    .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
+    .option("-f, --force", "Overwrite an existing service.json", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .allowUnknownOption()
+    .helpOption(false)
+    .action(async (args, options, cmd) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport(args, resolved, "flisk import compose");
+});
+export const importCommand = addYesOption(new Command("import"))
+    .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
+    .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
+    .option("-f, --force", "Overwrite an existing service.json", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .allowUnknownOption()
+    .helpOption(false)
+    .addCommand(composeCommand)
+    .action(async (args, options, cmd) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport(args, resolved, "flisk import");
 });

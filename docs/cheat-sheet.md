@@ -144,7 +144,7 @@ Read the root `docker-compose.yml` of a directory (default `.`) and write one br
 
 ```bash
 flisk import --dry-run                 # print the plan, write nothing
-flisk import ./legacy --yes
+flisk import compose ./legacy --yes
 ```
 
 | Flag | Effect |

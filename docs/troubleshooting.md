@@ -425,7 +425,7 @@ src/index.ts(33,14): error TS2591: Cannot find name 'process'.
 
 ## Windows and WSL2
 
-Native Windows can run `flisk doctor` and inspect a project; starting needs WSL2. Setup and the smoke run are in [WSL2 setup](wsl2.md#troubleshooting). All entries here are **read from source, not reproduced** (no Windows machine was used).
+Native Windows can run `flisk doctor`, inspect a project, run `flisk demo` and start services that each declare a `command` ([without Docker](run-without-docker.md)); starting a Docker stack needs WSL2. Setup and the smoke run are in [WSL2 setup](wsl2.md#troubleshooting). All entries here are **read from source, not reproduced** (no Windows machine was used).
 
 | Message | Fix as printed | Defined in |
 | --- | --- | --- |

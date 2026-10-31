@@ -8,15 +8,15 @@ Just want the short version? [Set up Windows](setup/windows.md) has three steps.
 
 ## Support summary
 
-Which Flisk commands work where. In short: on Windows, use the Ubuntu app for everything. Windows on its own ("native Windows") can check your computer and show what Flisk would start, but cannot start your app.
+Which Flisk commands work where. In short: on Windows, use the Ubuntu app for the full Docker stack. Windows on its own ("native Windows") runs apps whose services each declare a `command` (local processes, no Docker), runs `flisk demo`, checks your computer and shows what Flisk would start; it cannot start a Docker stack.
 
 | Platform | `flisk up` | `flisk doctor` | `flisk --version` | `flisk up --dry-run` | Notes |
 |----------|------------|----------------|-------------------|----------------------|-------|
 | macOS / Linux | ✅ Full runtime | ✅ Full | ✅ | ✅ | Native support |
 | **WSL2 Ubuntu** | ✅ Full runtime | ✅ Full | ✅ | ✅ | **Recommended for Windows** |
-| Native Windows | ❌ Refused | ✅ Inspection only | ✅ | ✅ Inspection only | See below |
+| Native Windows | ✅ Local processes · ❌ Docker stack | ✅ Inspection only | ✅ | ✅ Inspection only | See below |
 
-**Bottom line**: Run Flisk from **Ubuntu inside WSL2** for the full stack. Native Windows runs only inspection commands (`flisk --version`, `flisk doctor`, `flisk up --dry-run`); `flisk up` exits with a clear refusal pointing to WSL2.
+**Bottom line**: Run Flisk from **Ubuntu inside WSL2** for the full Docker stack. Native Windows runs `flisk demo` and projects whose services each declare a `command` ([without Docker](run-without-docker.md)), plus the inspection commands (`flisk --version`, `flisk doctor`, `flisk up --dry-run`); `flisk up` on a Docker project exits with a clear refusal pointing to WSL2.
 
 ## Recommended setup: WSL2 Ubuntu with Docker Desktop
 
@@ -96,7 +96,7 @@ The shortest path to a running stack:
 flisk demo
 ```
 
-This clones the starter, installs dependencies, boots the stack, and opens the frontend. **Only works in WSL2 Ubuntu**; native Windows refuses with WSL2 guidance.
+In WSL2 Ubuntu with Docker running, this clones the starter, installs dependencies, boots the stack, and opens the frontend. On native Windows (or without Docker) it starts the small two-service demo as local processes instead.
 
 ## Native Windows: what works and what doesn't
 
@@ -105,10 +105,12 @@ This clones the starter, installs dependencies, boots the stack, and opens the f
 | `flisk --version` | ✅ Prints version | ✅ |
 | `flisk doctor` | ✅ Inspection checks | ✅ Full checks |
 | `flisk up --dry-run` | ✅ Shows what would start | ✅ |
-| `flisk up <stack>` | ❌ Exits 1 with WSL2 guidance | ✅ Boots stack |
-| `flisk demo` | ❌ Refuses before cloning | ✅ Full demo flow |
+| `flisk up` (services with `command`) | ✅ Local processes | ✅ |
+| `flisk up <stack>` (Docker) | ❌ Exits 1 with WSL2 guidance | ✅ Boots stack |
+| `flisk demo` | ✅ Small demo, local processes | ✅ Full demo flow |
+| `flisk restaurant` and other Docker starters | ❌ Refuses before cloning | ✅ |
 
-**Why?** `flisk up` needs Linux containers, Docker, and Tilt. Native Windows cannot run Linux containers without WSL2. The CLI refuses early to avoid partial/confusing state.
+**Why?** A Docker stack needs Linux containers, Docker, and Tilt. Native Windows cannot run Linux containers without WSL2, so the CLI refuses early to avoid partial or confusing state. Local processes need none of that.
 
 If you are on native Windows and see:
 ```
@@ -154,7 +156,7 @@ All should succeed without errors. If not, see [Troubleshooting](#troubleshootin
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Native Windows `flisk up` | Not supported | No Linux container runtime; use WSL2 |
+| Native Windows `flisk up` (Docker stack) | Not supported | No Linux container runtime; use WSL2. Local-process projects work |
 | Docker Desktop without WSL2 backend | Not supported | Hyper-V backend has different networking; use WSL2 backend |
 | Windows Containers | Not supported | Flisk generates Linux container configs only |
 | ARM64 Windows | Untested | AMD64 only for now |
