@@ -252,6 +252,12 @@ export interface ProjectDiscovery {
   paths: string[];
 }
 
+export interface ProjectOrchestration {
+  source: "tiltfile" | string;
+  path?: string;
+  [key: string]: unknown;
+}
+
 export interface ProjectConfig {
   version: string;
   project: {
@@ -274,6 +280,7 @@ export interface ProjectConfig {
   optional_infra: ProjectOptionalInfra;
   discovery: ProjectDiscovery;
   overrides?: Record<string, JsonValue>;
+  orchestration?: ProjectOrchestration;
 }
 
 export type TabId = "overview" | "resources" | "events" | "files" | "config";

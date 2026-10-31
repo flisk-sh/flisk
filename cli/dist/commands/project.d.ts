@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import type { DiscoveredResource } from "../types/index.js";
+import type { DiscoveredResource, ProjectConfig } from "../types/index.js";
 /**
  * Adds stacks that have service.json files but aren't in any phase to
  * pre_alpha, so a resource scaffolded after `flisk project` is picked up by
@@ -14,6 +14,10 @@ export declare function lastLine(text: string): string;
 export declare function cloneProjectTemplate(templateName: string, targetDir: string | undefined, runtimeNextSteps: string[], options?: {
     quiet?: boolean;
 }): Promise<string>;
+/**
+ * Creates default ProjectConfig in memory with defaults that `flisk project --yes` uses.
+ */
+export declare function createDefaultProjectConfig(projectRoot: string): ProjectConfig;
 /**
  * Writes .flisk/project.json with the defaults `flisk project --yes` uses, and nothing else: no generated Tiltfile, Compose file,
  * .env or engine copy. `flisk up` uses it to adopt a directory of `command` services as a project, so `flisk down` and

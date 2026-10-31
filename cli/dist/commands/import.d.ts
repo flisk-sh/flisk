@@ -78,4 +78,25 @@ export declare function importReport(forwardedArgs: string[], run: ImportRun): I
  */
 export declare function importFailure(run: ImportRun): JsonCommandError;
 export declare const importCommand: Command;
+export interface ImportTiltfileOptions {
+    force?: boolean;
+    dryRun?: boolean;
+    json?: boolean;
+    cwd?: string;
+}
+export interface ImportTiltfileReport {
+    tiltfile: string;
+    projectRoot: string;
+    projectJson: string;
+    orchestration: {
+        source: "tiltfile";
+        path: string;
+    };
+    dryRun: boolean;
+    force: boolean;
+    action: "created" | "updated";
+    written: string[];
+}
+export declare function importTiltfile(pathArg?: string, options?: ImportTiltfileOptions): Promise<ImportTiltfileReport>;
+export declare const tiltfileCommand: Command;
 export {};

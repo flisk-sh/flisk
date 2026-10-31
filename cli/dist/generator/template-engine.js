@@ -368,6 +368,7 @@ function normalizeProjectConfig(value) {
         optional_infra: config.optional_infra,
         discovery: config.discovery,
         overrides: config.overrides,
+        orchestration: config.orchestration,
     };
 }
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */

@@ -451,6 +451,7 @@ function normalizeProjectConfig(value: unknown): ProjectConfig | null {
     optional_infra: config.optional_infra as ProjectConfig["optional_infra"],
     discovery: config.discovery as ProjectConfig["discovery"],
     overrides: config.overrides as ProjectConfig["overrides"],
+    orchestration: config.orchestration as ProjectConfig["orchestration"],
   };
 }
 

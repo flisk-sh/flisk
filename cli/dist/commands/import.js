@@ -1,10 +1,18 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { spawn } from "node:child_process";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { cwd } from "node:process";
+import chalk from "chalk";
 import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
+import { PROJECT_JSON } from "../utils/constants.js";
+import { runCommand } from "../utils/errors.js";
+import { ensureDirectory, writeJsonFile } from "../utils/file-helpers.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
-import { getPackageVersion } from "../utils/paths.js";
+import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
+import { createDefaultProjectConfig } from "./project.js";
 /**
  * The importer lives in its own repo so it can ship without a CLI release, and is run from npm at a
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
@@ -253,4 +261,100 @@ export const importCommand = addYesOption(new Command("import"))
     }
     const forwardedArgs = buildForwardedImportArgs(args, options);
     process.exitCode = await runImport(forwardedArgs);
+});
+export async function importTiltfile(pathArg, options = {}) {
+    const workingDir = options.cwd ?? cwd();
+    const targetPath = pathArg ?? "Tiltfile";
+    let resolvedTiltfilePath = isAbsolute(targetPath) ? targetPath : resolve(workingDir, targetPath);
+    if (existsSync(resolvedTiltfilePath) && statSync(resolvedTiltfilePath).isDirectory()) {
+        const candidate = join(resolvedTiltfilePath, "Tiltfile");
+        if (existsSync(candidate)) {
+            resolvedTiltfilePath = candidate;
+        }
+    }
+    if (!existsSync(resolvedTiltfilePath) || statSync(resolvedTiltfilePath).isDirectory()) {
+        throw new JsonCommandError("IMPORT_FAILED", `Tiltfile not found at ${targetPath}`, [
+            "Specify a path to an existing Tiltfile",
+            "Run `flisk import tiltfile <path>`",
+        ]);
+    }
+    let projectRoot = findProjectRoot(workingDir);
+    if (!projectRoot) {
+        projectRoot = findProjectRoot(dirname(resolvedTiltfilePath)) ?? workingDir;
+    }
+    const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
+    const fliskDir = join(projectRoot, ".flisk");
+    const exists = existsSync(projectJsonPath);
+    let tiltfileRelPath = relative(projectRoot, resolvedTiltfilePath).replace(/\\/g, "/");
+    if (!tiltfileRelPath || tiltfileRelPath === ".") {
+        tiltfileRelPath = "Tiltfile";
+    }
+    let projectConfig;
+    if (exists) {
+        try {
+            const raw = readFileSync(projectJsonPath, "utf-8");
+            projectConfig = JSON.parse(raw);
+        }
+        catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+            throw new JsonCommandError("IMPORT_FAILED", `Could not read project.json at ${projectJsonPath}: ${reason}`);
+        }
+        if (projectConfig.orchestration && !options.force) {
+            throw new JsonCommandError("IMPORT_FAILED", `Orchestration source is already configured in .flisk/project.json (${projectConfig.orchestration.source}: ${projectConfig.orchestration.path ?? "default"}). Use --force to overwrite.`, ["Pass --force to overwrite the existing orchestration configuration"]);
+        }
+    }
+    else {
+        projectConfig = createDefaultProjectConfig(projectRoot);
+    }
+    projectConfig.orchestration = {
+        source: "tiltfile",
+        path: tiltfileRelPath,
+    };
+    const written = [];
+    if (!options.dryRun) {
+        ensureDirectory(fliskDir);
+        writeJsonFile(projectJsonPath, projectConfig);
+        written.push(join(".flisk", PROJECT_JSON).replace(/\\/g, "/"));
+    }
+    return {
+        tiltfile: tiltfileRelPath,
+        projectRoot,
+        projectJson: projectJsonPath,
+        orchestration: {
+            source: "tiltfile",
+            path: tiltfileRelPath,
+        },
+        dryRun: Boolean(options.dryRun),
+        force: Boolean(options.force),
+        action: exists ? "updated" : "created",
+        written,
+    };
+}
+export const tiltfileCommand = importCommand
+    .command("tiltfile [path]")
+    .description("Import an existing Tiltfile as the project orchestration source")
+    .helpOption("-h, --help", "display help for command")
+    .option("-f, --force", "Overwrite existing orchestration configuration", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout", false)
+    .action(async (pathArg, options) => {
+    const force = Boolean(options.force || importCommand.opts().force);
+    const dryRun = Boolean(options.dryRun || importCommand.opts().dryRun);
+    const json = Boolean(options.json || importCommand.opts().json);
+    if (json) {
+        await runJsonCommand("IMPORT_FAILED", "flisk import tiltfile", async () => {
+            const report = await importTiltfile(pathArg, { force, dryRun, json: true });
+            return { data: report };
+        });
+        return;
+    }
+    await runCommand(async () => {
+        const report = await importTiltfile(pathArg, { force, dryRun, json: false });
+        if (dryRun) {
+            console.log(chalk.yellow(`[dry-run] Would register ${report.orchestration.path} as orchestration source in .flisk/project.json`));
+        }
+        else {
+            console.log(chalk.green(`Registered ${report.orchestration.path} as orchestration source in .flisk/project.json`));
+        }
+    });
 });
