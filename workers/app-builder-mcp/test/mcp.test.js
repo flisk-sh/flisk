@@ -138,3 +138,57 @@ test("GET, preflight and the icons are not counted", withCache(async () => {
   for (let i = 0; i < 5; i += 1) assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/favicon.ico", { headers: { "cf-connecting-ip": "4.4.4.4" } }), e, { waitUntil() {} })).status, 200);
   assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/mcp", { method: "OPTIONS" }), e, { waitUntil() {} })).status, 204);
 }));
+
+// Fixes for the review findings on this worker.
+const planOf = async (what) => text(await call("plan_app", { what }));
+
+test("the bare word go does not pick a Go backend", async () => {
+  const out = await planOf("a place to go to see my orders");
+  assert.ok(out.steps.some((s) => s.includes("--feature prisma")), "still the Bun api with Prisma");
+  assert.ok(!out.steps.some((s) => s.includes("--language go")));
+  const golang = await planOf("an api in golang");
+  assert.ok(golang.steps.some((s) => s.includes("--language go")));
+});
+
+test("a request for a shop API does not treat shop as a vendor", async () => {
+  const out = await planOf("a shop API");
+  assert.ok(!JSON.stringify(out).includes("holding shop keys"));
+});
+
+test("every extra API gets the language the request named", async () => {
+  const out = await planOf("two apis in python");
+  assert.equal(out.steps.filter((s) => s.includes("--language python")).length, 2);
+});
+
+test("the indexer reaches the chain on the chain's own port, and the edits flisk resource cannot make are listed", async () => {
+  const out = await planOf("a web3 shop with an indexer");
+  const chain = out.parts.find((p) => p.name === "chain");
+  assert.match(chain.detail, /--port (\d+)/);
+  const port = chain.detail.match(/--port (\d+)/)[1];
+  const edit = out.then_edit.find((e) => e.file.endsWith("/indexer/service.json"));
+  assert.equal(edit.params.RPC_URL, `http://chain:${port}`);
+  assert.ok(edit.dependsOn.includes("chain"));
+});
+
+test("a ready-made app is offered only when the planner itself would start from one", async () => {
+  assert.equal((await planOf("Python online shop")).or_start_from_a_ready_made_app, undefined);
+  assert.equal((await planOf("an online shop")).or_start_from_a_ready_made_app.kind, "Online shop");
+});
+
+test("an unsupported vendor is reported, with the credentials to set", async () => {
+  const out = await planOf("an online shop connected to acmeerp");
+  assert.ok(out.integration, "integration is returned");
+  assert.ok(Array.isArray(out.env) && out.env.length > 0, "env names are returned");
+});
+
+test("a JSON-RPC id that is not a string, number or null is an invalid request", async () => {
+  for (const id of [{}, [1], true]) {
+    const res = await post({ jsonrpc: "2.0", id, method: "ping" });
+    assert.equal(res.status, 400, JSON.stringify(id));
+    const body = await res.json();
+    assert.equal(body.error.code, -32600);
+    assert.equal(body.id, null);
+  }
+  assert.equal((await post({ jsonrpc: "2.0", id: "abc", method: "ping" })).status, 200);
+  assert.equal((await post({ jsonrpc: "2.0", id: 0, method: "ping" })).status, 200);
+});

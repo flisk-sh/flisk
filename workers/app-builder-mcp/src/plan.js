@@ -29,7 +29,7 @@ export function countApis(w) {
   return Math.min(MAX_APIS, Math.max(1, n));
 }
 const FRONTENDS = ["react", "vue", "svelte", "solid", "preact", "lit", "qwik"];
-const LANGUAGES = { python: ["python", "fastapi", "django", "flask"], go: ["go", "golang"] };
+const LANGUAGES = { python: ["python", "fastapi", "django", "flask"], go: ["golang"] };
 
 // Platforms with a hand-built, working integration. Any other named platform
 // becomes an integration request: that wiring took days for Thor and is not
@@ -52,6 +52,8 @@ export const INTEGRATIONS = {
 };
 
 const NOT_VENDORS = new Set([
+  "shop",
+  "store",
   "the", "a", "an", "our", "my", "your", "their", "its", "this", "that", "same", "own", "rest", "graphql", "public",
   "admin", "storefront", "an", "any", "some", "new", "existing", "external", "third", "party", "backend", "web", "it",
 ]);
@@ -128,7 +130,7 @@ export function buildPlan({ user, q = "", parts = "", stack: wanted }) {
   // `flisk resource api --feature prisma` scaffolds this one alongside the api.
   // Extra APIs share the database and the migrator; each is its own service with its own service.json and route.
   for (let i = 2; i <= d.apis; i += 1) {
-    add({ name: `api-${i}`, appType: "backend", port: port(), healthCheckPath: "/health", ...(migrator && { dependsOn: ["api-migrator"] }), note: `API ${i} of ${d.apis}, Bun + Hono` });
+    add({ name: `api-${i}`, appType: "backend", port: port(), ...(language && { language }), healthCheckPath: "/health", ...(migrator && { dependsOn: ["api-migrator"] }), note: `API ${i} of ${d.apis}, ${language ?? "Bun + Hono"}` });
   }
   if (migrator) add({ name: "api-migrator", appType: "migrator", scaffoldedBy: "api", dependsOn: undefined, note: "runs Prisma migrations against the shared Postgres before the api starts" });
   // An admin panel is a second frontend on the same api: its own service, the same framework as the web app.
@@ -137,15 +139,16 @@ export function buildPlan({ user, q = "", parts = "", stack: wanted }) {
     add({ name: "jobs", appType: "worker", port: port(), featuresEnabled: ["nats"], ...(migrator && { dependsOn: ["api-migrator"] }), note: `background work: ${d.hits.jobs.join(", ")}` });
   }
   if (chain) {
+    const chainPort = port();
     add({
       name: "chain",
       appType: "bring-your-own",
-      port: port(),
+      port: chainPort,
       image: "ghcr.io/foundry-rs/foundry:stable",
       experimental: true,
-      note: "local Anvil node for your contracts. Not yet run end to end with flisk up: anvil must listen on the container port Flisk routes to",
+      note: `local Anvil node for your contracts. Not yet run end to end with flisk up: start anvil with --port ${chainPort} so it listens on the port Flisk routes to`,
     });
-    add({ name: "indexer", appType: "worker", port: port(), featuresEnabled: ["nats"], params: { RPC_URL: "http://chain:3000" }, dependsOn: ["chain", ...(migrator ? ["api-migrator"] : [])], note: "reads contract events into Postgres" });
+    add({ name: "indexer", appType: "worker", port: port(), featuresEnabled: ["nats"], params: { RPC_URL: `http://chain:${chainPort}` }, dependsOn: ["chain", ...(migrator ? ["api-migrator"] : [])], note: "reads contract events into Postgres" });
   }
   if (has("mcp")) add({ name: "tools", appType: "mcp", port: port(), note: "MCP server over Streamable HTTP at /mcp" });
   if (has("agent")) {

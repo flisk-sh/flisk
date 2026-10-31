@@ -3,7 +3,7 @@
 // comes from the same planner as the demos (plan.js), so nothing is invented. MCP over HTTP, JSON-RPC 2.0, one POST per
 // message, no sessions. Source of truth: the flisk repo (workers/app-builder-mcp).
 import { buildPlan } from "./plan.js";
-import { STARTERS, matchStarter } from "./starters.js";
+import { STARTERS } from "./starters.js";
 
 const PROTOCOL = "2025-03-26";
 const CLI = "npx @flisk-sh/flisk";
@@ -58,7 +58,7 @@ function planApp(args) {
   if (what.length < 3 || what.length > 600) return reply({ error: "bad_input", hint: "Say what the app should do, in 3 to 600 characters." }, true);
   const plan = buildPlan({ user: "you", q: what });
   const parts = plan.services.map((s) => ({ name: s.name, is: PART_WORDS[s.appType] ?? s.appType, detail: s.note }));
-  const starter = matchStarter(what);
+  const starter = plan.starter;
   const steps = plan.commands.filter((c) => !c.startsWith("npm install")).map(npx);
   return reply({
     you_get: parts.map((p) => `${p.name}: ${p.is}`).join("; "),
@@ -66,6 +66,12 @@ function planApp(args) {
     start_here: `${CLI} demo`,
     needs: "Docker Desktop, and Node.js for npx",
     steps,
+    // flisk resource has no flag for these, so they are edits to each service.json after the commands above.
+    then_edit: plan.services
+      .filter((s) => (s.params && !s.scaffoldedBy) || (s.dependsOn?.length && !s.scaffoldedBy))
+      .map((s) => ({ file: `services/${plan.stack}/${s.name}/service.json`, ...(s.dependsOn?.length && { dependsOn: s.dependsOn }), ...(s.params && { params: s.params }) })),
+    ...(plan.integration ? { integration: plan.integration } : {}),
+    ...(plan.env?.length ? { env: plan.env } : {}),
     ...(starter ? { or_start_from_a_ready_made_app: { kind: KINDS[starter] ?? starter, repo: `https://github.com/${STARTERS[starter].repo}` } } : {}),
     notes: plan.notes,
     runs_on: "your own computer; nothing is hosted for you",
@@ -96,7 +102,8 @@ export async function appBuilderMcpRoute(request, json) {
   } catch {
     return json(fail(null, -32700, "Parse error"), 400);
   }
-  if (Array.isArray(msg) || !msg || msg.jsonrpc !== "2.0" || typeof msg.method !== "string") return json(fail(msg?.id, -32600, "Invalid Request"), 400);
+  const scalarId = (v) => v === undefined || v === null || typeof v === "string" || (typeof v === "number" && Number.isFinite(v));
+  if (Array.isArray(msg) || !msg || msg.jsonrpc !== "2.0" || typeof msg.method !== "string" || !scalarId(msg.id)) return json(fail(scalarId(msg?.id) ? msg?.id : null, -32600, "Invalid Request"), 400);
   const { id, method, params } = msg;
   if (id === undefined) return new Response(null, { status: 202, headers: cors });
   if (method === "initialize") {
