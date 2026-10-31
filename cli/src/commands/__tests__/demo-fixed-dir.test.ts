@@ -62,6 +62,10 @@ vi.mock("../../utils/one-command.js", async (importOriginal) => ({
   runStackQuiet: stackMocks.runStackQuiet,
 }));
 
+vi.mock("../../utils/demo-networks.js", () => ({
+  ensureNetworkCapacity: vi.fn(async () => ({ ok: true, removed: [] })),
+}));
+
 vi.mock("../../utils/stack-progress.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/stack-progress.js")>()),
   readStackProgress: vi.fn(async () => undefined),
