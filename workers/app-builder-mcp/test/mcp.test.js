@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { TOOLS } from "../src/mcp.js";
+import { PROMPTS, TOOLS } from "../src/mcp.js";
 
 globalThis.caches ??= { default: { async match() {}, async put() {}, async delete() {} } };
 
@@ -20,7 +20,7 @@ test("initialize names the server and offers tools only", async () => {
   const body = await res.json();
   assert.equal(res.status, 200);
   assert.equal(body.result.serverInfo.name, "flisk-app-builder");
-  assert.deepEqual(body.result.capabilities, { tools: {} });
+  assert.deepEqual(body.result.capabilities, { tools: {}, prompts: {} });
 });
 
 test("both tools are read-only and carry a plain title", async () => {
@@ -191,4 +191,30 @@ test("a JSON-RPC id that is not a string, number or null is an invalid request",
   }
   assert.equal((await post({ jsonrpc: "2.0", id: "abc", method: "ping" })).status, 200);
   assert.equal((await post({ jsonrpc: "2.0", id: 0, method: "ping" })).status, 200);
+});
+
+test("prompts/list offers the two flows, with the what argument required for build_my_app", async () => {
+  const body = await (await post({ jsonrpc: "2.0", id: 3, method: "prompts/list" })).json();
+  assert.deepEqual(body.result.prompts.map((p) => p.name), ["build_my_app", "pick_a_starter"]);
+  assert.deepEqual(PROMPTS[0].arguments, [{ name: "what", description: "What the app should do, in plain words", required: true }]);
+  assert.deepEqual(PROMPTS[1].arguments, []);
+});
+
+test("prompts/get fills build_my_app with the user's words", async () => {
+  const body = await (await post({ jsonrpc: "2.0", id: 4, method: "prompts/get", params: { name: "build_my_app", arguments: { what: "an online shop for a bakery" } } })).json();
+  assert.equal(body.result.messages[0].role, "user");
+  assert.match(body.result.messages[0].content.text, /an online shop for a bakery/);
+  assert.match(body.result.messages[0].content.text, /plan_app/);
+});
+
+test("prompts/get refuses an unknown prompt or a missing what", async () => {
+  const unknown = await (await post({ jsonrpc: "2.0", id: 5, method: "prompts/get", params: { name: "nope" } })).json();
+  assert.equal(unknown.error.code, -32602);
+  const missing = await (await post({ jsonrpc: "2.0", id: 6, method: "prompts/get", params: { name: "build_my_app", arguments: {} } })).json();
+  assert.equal(missing.error.code, -32602);
+});
+
+test("prompts/get pick_a_starter needs no arguments", async () => {
+  const body = await (await post({ jsonrpc: "2.0", id: 7, method: "prompts/get", params: { name: "pick_a_starter" } })).json();
+  assert.match(body.result.messages[0].content.text, /list_app_starters/);
 });
