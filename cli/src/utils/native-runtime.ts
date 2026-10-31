@@ -16,7 +16,7 @@ import type { DiscoveredResource } from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { FliskError } from "./errors.js";
 import { commandProgram } from "./native-service.js";
-import { isHealthCheckDisabled, parseHealthCheckConfig } from "./service-manifest.js";
+import { healthCheckPathOf, isHealthCheckDisabled } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 
 /**
@@ -47,7 +47,7 @@ export interface NativeServicePlan {
   /** What `flisk up` prints for the service. */
   url?: string;
   restart: boolean;
-  /** True when health checks are explicitly disabled or omitted for unopinionated services. */
+  /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
   healthCheckDisabled?: boolean;
 }
 
@@ -176,12 +176,9 @@ export function planNativeRun(
       );
     }
     if (port !== undefined) env.PORT = String(port);
-    const healthDisabled = isHealthCheckDisabled(config as Record<string, unknown>);
-    const parsedHealth = parseHealthCheckConfig(config as Record<string, unknown>, {
-      isUnopinionated: true,
-    });
-    const healthPath =
-      !healthDisabled && parsedHealth.enabled && parsedHealth.path ? parsedHealth.path : "";
+    // Without a health path a service is ready once its port listens, which is what gates its dependents.
+    const healthDisabled = isHealthCheckDisabled(config);
+    const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
     return {
       name: resource.name,
       command: String(config.command),
@@ -249,12 +246,9 @@ export async function waitForServiceReady(
   plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled">,
   options: { isAlive: () => boolean; timeoutMs?: number; intervalMs?: number },
 ): Promise<boolean> {
-  if (plan.healthCheckDisabled) {
-    return options.isAlive();
-  }
   const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS);
   const interval = options.intervalMs ?? 250;
-  if (!plan.healthUrl && plan.port === undefined) {
+  if (plan.healthCheckDisabled || (!plan.healthUrl && plan.port === undefined)) {
     await sleep(ALIVE_GRACE_MS);
     return options.isAlive();
   }

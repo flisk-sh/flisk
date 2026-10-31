@@ -26,14 +26,6 @@ export declare function getInvalidServiceRoutePathFields(value: unknown): ("apiP
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];
-export interface HealthCheckObjectConfig {
-    enabled?: boolean;
-    interval?: number;
-    timeout?: number;
-    retries?: number;
-    path?: string;
-}
-export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
 export interface ParsedHealthCheckConfig {
     enabled: boolean;
     interval?: number;
@@ -46,16 +38,24 @@ export interface ParsedHealthCheckConfig {
  * configuring enabled, interval, timeout, retries, and path.
  */
 export declare function healthCheckErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/** A manifest, or the `config` of a discovered resource, as the health check helpers read it. */
+type HealthCheckSource = {
+    healthCheck?: unknown;
+    healthCheckPath?: unknown;
+} | Readonly<Record<string, unknown>>;
 /**
- * Returns true when health checks are explicitly disabled (healthCheck === false or
- * healthCheck.enabled === false or health path is omitted for unopinionated services).
+ * The one rule for turning health checks off: `healthCheck: false` or `healthCheck: { enabled: false }`.
+ * Nothing else disables them: a service without a health path still gets its default readiness
+ * signal (its port for a native `command` service, `/health` for a container).
  */
-export declare function isHealthCheckDisabled(manifest?: Record<string, unknown>): boolean;
+export declare function isHealthCheckDisabled(manifest?: HealthCheckSource): boolean;
+/** The HTTP path to probe: `healthCheck.path`, then `healthCheckPath`, then `fallback`. */
+export declare function healthCheckPathOf(manifest?: HealthCheckSource, fallback?: string): string | undefined;
 /**
- * Parses health check configuration from a service manifest or raw healthCheck config object.
+ * Reads a manifest's health check settings. `enabled` follows {@link isHealthCheckDisabled}; `path` follows
+ * {@link healthCheckPathOf} and is absent when neither the manifest nor `options.defaultPath` gives one.
  */
-export declare function parseHealthCheckConfig(manifestOrConfig: unknown, options?: {
-    isUnopinionated?: boolean;
+export declare function parseHealthCheckConfig(manifest?: HealthCheckSource, options?: {
     defaultPath?: string;
 }): ParsedHealthCheckConfig;
 export declare function validateServiceManifest(value: unknown, displayPath: string): ServiceManifestValidation;
@@ -65,3 +65,4 @@ export declare function validateServiceManifest(value: unknown, displayPath: str
  */
 export declare function generatedFieldErrorsForFile(filePath: string, displayPath: string): string[];
 export declare function validateServiceManifestFile(filePath: string, displayPath: string): ServiceManifestValidation;
+export {};

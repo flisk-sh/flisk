@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { existsSync, readFileSync } from "node:fs";
+import type { HealthCheckObjectConfig } from "../types/index.js";
 import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
 import { validateSmoke } from "./smoke.js";
@@ -486,16 +487,6 @@ export function secretConflictWarnings(
   return warnings;
 }
 
-export interface HealthCheckObjectConfig {
-  enabled?: boolean;
-  interval?: number;
-  timeout?: number;
-  retries?: number;
-  path?: string;
-}
-
-export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
-
 export interface ParsedHealthCheckConfig {
   enabled: boolean;
   interval?: number;
@@ -561,126 +552,55 @@ export function healthCheckErrors(
   return errors;
 }
 
-/**
- * Returns true when health checks are explicitly disabled (healthCheck === false or
- * healthCheck.enabled === false or health path is omitted for unopinionated services).
- */
-export function isHealthCheckDisabled(manifest?: Record<string, unknown>): boolean {
-  if (!manifest) return false;
-  if (manifest.healthCheck === false) return true;
-  if (
-    isPlainObject(manifest.healthCheck) &&
-    (manifest.healthCheck as HealthCheckObjectConfig).enabled === false
-  ) {
-    return true;
-  }
-  if (
-    declaresCommand(manifest) &&
-    !manifest.healthCheckPath &&
-    !(
-      isPlainObject(manifest.healthCheck) &&
-      typeof (manifest.healthCheck as HealthCheckObjectConfig).path === "string"
-    )
-  ) {
-    return true;
-  }
-  return false;
+/** A manifest, or the `config` of a discovered resource, as the health check helpers read it. */
+type HealthCheckSource =
+  | { healthCheck?: unknown; healthCheckPath?: unknown }
+  | Readonly<Record<string, unknown>>;
+
+/** The `healthCheck` object of a manifest, or an empty one when it is a boolean or absent. */
+function healthCheckObject(manifest?: HealthCheckSource): HealthCheckObjectConfig {
+  return isPlainObject(manifest?.healthCheck)
+    ? (manifest.healthCheck as HealthCheckObjectConfig)
+    : {};
 }
 
 /**
- * Parses health check configuration from a service manifest or raw healthCheck config object.
+ * The one rule for turning health checks off: `healthCheck: false` or `healthCheck: { enabled: false }`.
+ * Nothing else disables them: a service without a health path still gets its default readiness
+ * signal (its port for a native `command` service, `/health` for a container).
+ */
+export function isHealthCheckDisabled(manifest?: HealthCheckSource): boolean {
+  const value = manifest?.healthCheck;
+  return value === false || (isPlainObject(value) && value.enabled === false);
+}
+
+/** The HTTP path to probe: `healthCheck.path`, then `healthCheckPath`, then `fallback`. */
+export function healthCheckPathOf(
+  manifest?: HealthCheckSource,
+  fallback?: string,
+): string | undefined {
+  const path = healthCheckObject(manifest).path;
+  if (typeof path === "string") return path;
+  return typeof manifest?.healthCheckPath === "string" ? manifest.healthCheckPath : fallback;
+}
+
+/**
+ * Reads a manifest's health check settings. `enabled` follows {@link isHealthCheckDisabled}; `path` follows
+ * {@link healthCheckPathOf} and is absent when neither the manifest nor `options.defaultPath` gives one.
  */
 export function parseHealthCheckConfig(
-  manifestOrConfig: unknown,
-  options: { isUnopinionated?: boolean; defaultPath?: string } = {},
+  manifest?: HealthCheckSource,
+  options: { defaultPath?: string } = {},
 ): ParsedHealthCheckConfig {
-  if (manifestOrConfig === false) {
-    return { enabled: false };
-  }
-  if (manifestOrConfig === true) {
-    return { enabled: true, path: options.defaultPath ?? "/health" };
-  }
-  if (
-    !manifestOrConfig ||
-    typeof manifestOrConfig !== "object" ||
-    Array.isArray(manifestOrConfig)
-  ) {
-    return { enabled: false };
-  }
-
-  const obj = manifestOrConfig as Record<string, unknown>;
-  const isManifest =
-    "healthCheck" in obj ||
-    "healthCheckPath" in obj ||
-    "appName" in obj ||
-    "command" in obj ||
-    "appType" in obj ||
-    "stack" in obj;
-
-  if (isManifest) {
-    if (obj.healthCheck === false) {
-      return { enabled: false };
-    }
-    if (isPlainObject(obj.healthCheck)) {
-      const hc = obj.healthCheck as HealthCheckObjectConfig;
-      if (hc.enabled === false) {
-        return { enabled: false };
-      }
-      const path =
-        hc.path ??
-        (typeof obj.healthCheckPath === "string" ? obj.healthCheckPath : undefined) ??
-        (isPlainObject(obj.traefik) &&
-        typeof (obj.traefik as Record<string, unknown>).healthCheck === "string"
-          ? ((obj.traefik as Record<string, unknown>).healthCheck as string)
-          : undefined);
-      return {
-        enabled: true,
-        ...(path !== undefined ? { path } : {}),
-        ...(hc.interval !== undefined ? { interval: hc.interval } : {}),
-        ...(hc.timeout !== undefined ? { timeout: hc.timeout } : {}),
-        ...(hc.retries !== undefined ? { retries: hc.retries } : {}),
-      };
-    }
-    if (obj.healthCheck === true) {
-      const path =
-        (typeof obj.healthCheckPath === "string" ? obj.healthCheckPath : undefined) ??
-        (isPlainObject(obj.traefik) &&
-        typeof (obj.traefik as Record<string, unknown>).healthCheck === "string"
-          ? ((obj.traefik as Record<string, unknown>).healthCheck as string)
-          : undefined) ??
-        options.defaultPath ??
-        "/health";
-      return { enabled: true, path };
-    }
-
-    const unopinionated = options.isUnopinionated ?? declaresCommand(obj);
-    const explicitPath =
-      (typeof obj.healthCheckPath === "string" ? obj.healthCheckPath : undefined) ??
-      (isPlainObject(obj.traefik) &&
-      typeof (obj.traefik as Record<string, unknown>).healthCheck === "string"
-        ? ((obj.traefik as Record<string, unknown>).healthCheck as string)
-        : undefined);
-
-    if (unopinionated && !explicitPath) {
-      return { enabled: false };
-    }
-    return {
-      enabled: true,
-      path: explicitPath ?? options.defaultPath ?? "/health",
-    };
-  }
-
-  // Standalone healthCheck object config
-  const hc = obj as HealthCheckObjectConfig;
-  if (hc.enabled === false) {
-    return { enabled: false };
-  }
+  if (isHealthCheckDisabled(manifest)) return { enabled: false };
+  const { interval, timeout, retries } = healthCheckObject(manifest);
+  const path = healthCheckPathOf(manifest, options.defaultPath);
   return {
     enabled: true,
-    ...(hc.path !== undefined ? { path: hc.path } : {}),
-    ...(hc.interval !== undefined ? { interval: hc.interval } : {}),
-    ...(hc.timeout !== undefined ? { timeout: hc.timeout } : {}),
-    ...(hc.retries !== undefined ? { retries: hc.retries } : {}),
+    ...(path !== undefined ? { path } : {}),
+    ...(interval !== undefined ? { interval } : {}),
+    ...(timeout !== undefined ? { timeout } : {}),
+    ...(retries !== undefined ? { retries } : {}),
   };
 }
 

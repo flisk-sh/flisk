@@ -1,10 +1,14 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+
+import type { AddressInfo } from "node:net";
+import { createServer } from "node:net";
 import { describe, expect, it } from "vitest";
 import type { DiscoveredResource } from "../../types/index.js";
 import { planNativeRun, waitForServiceReady } from "../native-runtime.js";
 import {
   healthCheckErrors,
+  healthCheckPathOf,
   isHealthCheckDisabled,
   parseHealthCheckConfig,
   validateServiceManifest,
@@ -43,8 +47,8 @@ describe("health check manifest validation", () => {
     const manifest = manifestBase({
       healthCheck: {
         enabled: true,
-        interval: 1000,
-        timeout: 500,
+        interval: 10,
+        timeout: 5,
         retries: 3,
         path: "/status",
       },
@@ -143,216 +147,195 @@ describe("health check manifest validation", () => {
 });
 
 describe("health check configuration parsing", () => {
-  it("parses healthCheck: false", () => {
-    expect(parseHealthCheckConfig(false)).toEqual({ enabled: false });
+  it("parses healthCheck: false and { enabled: false } as disabled", () => {
     expect(parseHealthCheckConfig({ healthCheck: false })).toEqual({ enabled: false });
     expect(
       parseHealthCheckConfig(manifestBase({ healthCheck: false, healthCheckPath: "/health" })),
     ).toEqual({ enabled: false });
-  });
-
-  it("parses healthCheck: { enabled: false }", () => {
-    expect(parseHealthCheckConfig({ enabled: false })).toEqual({ enabled: false });
     expect(parseHealthCheckConfig({ healthCheck: { enabled: false } })).toEqual({ enabled: false });
   });
 
-  it("parses complete healthCheck object configuration", () => {
-    const config = {
-      enabled: true,
-      interval: 5000,
-      timeout: 2000,
-      retries: 3,
-      path: "/livez",
-    };
-    expect(parseHealthCheckConfig(config)).toEqual(config);
-    expect(parseHealthCheckConfig(manifestBase({ healthCheck: config }))).toEqual(config);
+  it("parses a complete healthCheck object", () => {
+    const healthCheck = { enabled: true, interval: 5, timeout: 2, retries: 3, path: "/livez" };
+    expect(parseHealthCheckConfig(manifestBase({ healthCheck }))).toEqual(healthCheck);
   });
 
-  it("inherits healthCheckPath when path is omitted in healthCheck object", () => {
+  it("inherits healthCheckPath when healthCheck.path is omitted", () => {
     const parsed = parseHealthCheckConfig(
-      manifestBase({
-        healthCheck: { enabled: true, timeout: 1000 },
-        healthCheckPath: "/custom-health",
-      }),
+      manifestBase({ healthCheck: { timeout: 1 }, healthCheckPath: "/custom-health" }),
     );
-    expect(parsed).toEqual({
-      enabled: true,
-      path: "/custom-health",
-      timeout: 1000,
-    });
+    expect(parsed).toEqual({ enabled: true, path: "/custom-health", timeout: 1 });
   });
 
-  it("falls back to traefik.healthCheck when healthCheckPath is absent", () => {
+  it("does not read traefik.healthCheck as the container probe path", () => {
     const parsed = parseHealthCheckConfig(
-      manifestBase({
-        traefik: { healthCheck: "/traefik-health" },
-      }),
+      manifestBase({ traefik: { healthCheck: "/traefik-health" } }),
+      { defaultPath: "/health" },
     );
-    expect(parsed).toEqual({
-      enabled: true,
-      path: "/traefik-health",
-    });
+    expect(parsed).toEqual({ enabled: true, path: "/health" });
   });
 
-  it("disables health checks when path is omitted for unopinionated services", () => {
-    const unopinionatedManifest = {
+  it("keeps health checks on for a command service without a health path", () => {
+    const commandManifest = {
       schemaVersion: 1,
       appName: "cmd-api",
       appType: "backend",
       command: "node server.js",
       port: 3000,
     };
-    expect(parseHealthCheckConfig(unopinionatedManifest)).toEqual({ enabled: false });
-    expect(isHealthCheckDisabled(unopinionatedManifest)).toBe(true);
+    expect(parseHealthCheckConfig(commandManifest)).toEqual({ enabled: true });
+    expect(isHealthCheckDisabled(commandManifest)).toBe(false);
   });
 
-  it("enables health checks when path is specified on unopinionated service", () => {
-    const withPath = {
-      schemaVersion: 1,
-      appName: "cmd-api",
-      appType: "backend",
-      command: "node server.js",
-      port: 3000,
-      healthCheckPath: "/status",
-    };
-    expect(parseHealthCheckConfig(withPath)).toEqual({
-      enabled: true,
-      path: "/status",
-    });
-    expect(isHealthCheckDisabled(withPath)).toBe(false);
-
-    const withObject = {
-      schemaVersion: 1,
-      appName: "cmd-api",
-      appType: "backend",
-      command: "node server.js",
-      port: 3000,
-      healthCheck: { path: "/healthz" },
-    };
-    expect(parseHealthCheckConfig(withObject)).toEqual({
-      enabled: true,
-      path: "/healthz",
-    });
-    expect(isHealthCheckDisabled(withObject)).toBe(false);
+  it("uses healthCheck.path over healthCheckPath", () => {
+    expect(
+      healthCheckPathOf({ healthCheck: { path: "/healthz" }, healthCheckPath: "/status" }),
+    ).toBe("/healthz");
+    expect(healthCheckPathOf({ healthCheckPath: "/status" })).toBe("/status");
+    expect(healthCheckPathOf({ healthCheck: true }, "/health")).toBe("/health");
+    expect(healthCheckPathOf({})).toBeUndefined();
   });
 
-  it("detects isHealthCheckDisabled accurately across configurations", () => {
+  // isHealthCheckDisabled and parseHealthCheckConfig used to disagree on this shape: one said disabled, the other enabled.
+  it("agrees with isHealthCheckDisabled for every healthCheck shape", () => {
+    const shapes: Array<Record<string, unknown>> = [
+      {},
+      { healthCheck: true },
+      { healthCheck: false },
+      { healthCheck: {} },
+      { healthCheck: { enabled: false } },
+      { healthCheck: { enabled: true } },
+      { healthCheck: { interval: 10 } },
+      { command: "node server.js" },
+      { command: "node server.js", healthCheck: { interval: 10 } },
+      { command: "node server.js", healthCheck: { timeout: 2, retries: 1 } },
+      { command: "node server.js", healthCheckPath: "/h" },
+      { command: "node server.js", healthCheck: false },
+    ];
+    for (const shape of shapes) {
+      expect(parseHealthCheckConfig(shape).enabled, JSON.stringify(shape)).toBe(
+        !isHealthCheckDisabled(shape),
+      );
+    }
+    expect(
+      isHealthCheckDisabled({ command: "node server.js", healthCheck: { interval: 10 } }),
+    ).toBe(false);
+  });
+
+  it("disables health checks only for false or enabled: false", () => {
     expect(isHealthCheckDisabled({ healthCheck: false })).toBe(true);
     expect(isHealthCheckDisabled({ healthCheck: { enabled: false } })).toBe(true);
-    expect(isHealthCheckDisabled({ command: "node server.js" })).toBe(true);
+    expect(isHealthCheckDisabled({ command: "node server.js" })).toBe(false);
     expect(isHealthCheckDisabled({ command: "node server.js", healthCheckPath: "/h" })).toBe(false);
-    expect(isHealthCheckDisabled({ command: "node server.js", healthCheck: { path: "/h" } })).toBe(
-      false,
-    );
     expect(isHealthCheckDisabled(manifestBase())).toBe(false);
+    expect(isHealthCheckDisabled(undefined)).toBe(false);
   });
 });
 
-describe("native runner readiness with disabled health checks", () => {
-  it("treats service as ready immediately once alive when health checks are disabled", async () => {
-    const plan = {
-      port: 8080,
-      healthCheckDisabled: true,
-    };
-    let aliveCalls = 0;
-    const isAlive = () => {
-      aliveCalls += 1;
-      return true;
-    };
+const nativeResource = (config: Record<string, unknown>): DiscoveredResource => ({
+  name: String(config.appName),
+  path: "/tmp/test",
+  configPath: "/tmp/test/service.json",
+  config: {
+    appType: "backend",
+    command: "node server.js",
+    port: 4000,
+    ...config,
+  } as DiscoveredResource["config"],
+});
 
-    const ready = await waitForServiceReady(plan, {
-      isAlive,
-      timeoutMs: 50,
-      intervalMs: 10,
-    });
+/** A TCP server on a free port that starts listening only when `listen()` is called. */
+async function freePort(): Promise<number> {
+  const probe = createServer();
+  await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
+  const { port } = probe.address() as AddressInfo;
+  await new Promise<void>((resolve) => probe.close(() => resolve()));
+  return port;
+}
 
+describe("native runner readiness with health checks", () => {
+  it("treats a disabled-health service as ready once it is still alive", async () => {
+    const ready = await waitForServiceReady(
+      { port: 8080, healthCheckDisabled: true },
+      { isAlive: () => true, timeoutMs: 50, intervalMs: 10 },
+    );
     expect(ready).toBe(true);
-    expect(aliveCalls).toBe(1);
   });
 
-  it("fails immediately when service is dead and health checks are disabled", async () => {
-    const plan = {
-      port: 8080,
-      healthCheckDisabled: true,
-    };
-
-    const ready = await waitForServiceReady(plan, {
-      isAlive: () => false,
-      timeoutMs: 50,
-    });
-
+  it("fails a disabled-health service that has exited", async () => {
+    const ready = await waitForServiceReady(
+      { port: 8080, healthCheckDisabled: true },
+      { isAlive: () => false, timeoutMs: 50 },
+    );
     expect(ready).toBe(false);
   });
 
-  it("plans native run with healthCheckDisabled: true when healthCheck: false", () => {
-    const resources: DiscoveredResource[] = [
-      {
-        name: "no-health-service",
-        path: "/tmp/test",
-        configPath: "/tmp/test/service.json",
-        config: {
-          appName: "no-health-service",
-          appType: "backend",
-          command: "node server.js",
-          port: 4000,
-          healthCheck: false,
-        },
-      },
-    ];
-
-    const runPlan = planNativeRun(resources);
-    expect(runPlan.errors).toEqual([]);
-    const service = runPlan.services[0];
+  it("plans healthCheckDisabled for healthCheck: false", () => {
+    const service = planNativeRun([nativeResource({ appName: "off", healthCheck: false })])
+      .services[0];
     expect(service.healthCheckDisabled).toBe(true);
     expect(service.healthUrl).toBeUndefined();
   });
 
-  it("plans native run with healthCheckDisabled: true when health path is omitted", () => {
-    const resources: DiscoveredResource[] = [
-      {
-        name: "unopinionated-service",
-        path: "/tmp/test",
-        configPath: "/tmp/test/service.json",
-        config: {
-          appName: "unopinionated-service",
-          appType: "backend",
-          command: "node server.js",
-          port: 4000,
-        },
-      },
-    ];
+  it("does not disable readiness for a command service without a health path", () => {
+    const service = planNativeRun([nativeResource({ appName: "plain" })]).services[0];
+    expect(service.healthCheckDisabled).toBeUndefined();
+    expect(service.healthUrl).toBeUndefined();
+    expect(service.port).toBe(4000);
+  });
 
-    const runPlan = planNativeRun(resources);
-    expect(runPlan.errors).toEqual([]);
-    const service = runPlan.services[0];
-    expect(service.healthCheckDisabled).toBe(true);
+  it("does not disable readiness for healthCheck: { interval } without a path", () => {
+    const service = planNativeRun([
+      nativeResource({ appName: "timed", healthCheck: { interval: 5 } }),
+    ]).services[0];
+    expect(service.healthCheckDisabled).toBeUndefined();
     expect(service.healthUrl).toBeUndefined();
   });
 
-  it("plans native run with healthUrl when custom path is provided in healthCheck object", () => {
-    const resources: DiscoveredResource[] = [
-      {
-        name: "custom-health-service",
-        path: "/tmp/test",
-        configPath: "/tmp/test/service.json",
-        config: {
-          appName: "custom-health-service",
-          appType: "backend",
-          command: "node server.js",
-          port: 4000,
-          healthCheck: {
-            enabled: true,
-            path: "/custom-ping",
-          },
-        },
-      },
-    ];
-
-    const runPlan = planNativeRun(resources);
-    expect(runPlan.errors).toEqual([]);
-    const service = runPlan.services[0];
-    expect(service.healthCheckDisabled).toBe(false);
+  it("probes healthCheck.path when set", () => {
+    const service = planNativeRun([
+      nativeResource({ appName: "custom", healthCheck: { enabled: true, path: "/custom-ping" } }),
+    ]).services[0];
+    expect(service.healthCheckDisabled).toBeUndefined();
     expect(service.healthUrl).toBe("http://localhost:4000/custom-ping");
+  });
+
+  // Regression: a command service without healthCheckPath was planned as health-disabled, so it counted as ready as soon
+  // as its process was alive, and its dependents started before it listened.
+  // The listen comes after the 1s grace a service without any readiness signal gets, so only a real port wait passes.
+  it("waits for the port of a command service without a health path to listen", async () => {
+    const port = await freePort();
+    const plan = planNativeRun([nativeResource({ appName: "slow", port })]).services[0];
+    const server = createServer();
+    let isListening = false;
+    const timer = setTimeout(() => {
+      server.listen(port, "127.0.0.1", () => {
+        isListening = true;
+      });
+    }, 1_500);
+    try {
+      const ready = await waitForServiceReady(plan, {
+        isAlive: () => true,
+        timeoutMs: 5_000,
+        intervalMs: 20,
+      });
+      expect(ready).toBe(true);
+      expect(isListening).toBe(true);
+    } finally {
+      clearTimeout(timer);
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("does not report a command service without a health path ready while nothing listens", async () => {
+    const port = await freePort();
+    const plan = planNativeRun([nativeResource({ appName: "never", port })]).services[0];
+    const ready = await waitForServiceReady(plan, {
+      isAlive: () => true,
+      timeoutMs: 200,
+      intervalMs: 20,
+    });
+    expect(ready).toBe(false);
   });
 });
 
@@ -450,7 +433,7 @@ describe("Tilt readiness with disabled health checks", () => {
         config: { appName: "b", appType: "backend", healthCheck: { enabled: false } },
       },
       {
-        name: "svc-unopinionated-no-path",
+        name: "svc-command-no-path",
         path: "/c",
         configPath: "/c/service.json",
         config: { appName: "c", appType: "backend", command: "node s.js" },
@@ -464,8 +447,6 @@ describe("Tilt readiness with disabled health checks", () => {
     ];
 
     const disabledNames = getDisabledHealthResourceNames(resources);
-    expect(disabledNames).toEqual(
-      new Set(["svc-disabled-bool", "svc-disabled-obj", "svc-unopinionated-no-path"]),
-    );
+    expect(disabledNames).toEqual(new Set(["svc-disabled-bool", "svc-disabled-obj"]));
   });
 });

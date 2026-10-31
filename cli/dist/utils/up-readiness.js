@@ -52,9 +52,7 @@ export function onlyEnabledResources(jsonText, disabledHealth) {
 export function getDisabledHealthResourceNames(resources) {
     try {
         const list = resources ?? discoverResources();
-        return new Set(list
-            .filter((svc) => isHealthCheckDisabled(svc.config))
-            .map((svc) => svc.name));
+        return new Set(list.filter((svc) => isHealthCheckDisabled(svc.config)).map((svc) => svc.name));
     }
     catch {
         return new Set();

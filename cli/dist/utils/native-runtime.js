@@ -8,7 +8,7 @@ import chalk from "chalk";
 import { dependsOnOf } from "./dependency-graph.js";
 import { FliskError } from "./errors.js";
 import { commandProgram } from "./native-service.js";
-import { isHealthCheckDisabled, parseHealthCheckConfig } from "./service-manifest.js";
+import { healthCheckPathOf, isHealthCheckDisabled } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 /** The directory, under the project's .flisk/, that holds the run state and log files. */
 export const NATIVE_DIR = join(".flisk", "native");
@@ -109,11 +109,9 @@ export function planNativeRun(selected, vars = process.env) {
         }
         if (port !== undefined)
             env.PORT = String(port);
+        // Without a health path a service is ready once its port listens, which is what gates its dependents.
         const healthDisabled = isHealthCheckDisabled(config);
-        const parsedHealth = parseHealthCheckConfig(config, {
-            isUnopinionated: true,
-        });
-        const healthPath = !healthDisabled && parsedHealth.enabled && parsedHealth.path ? parsedHealth.path : "";
+        const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
         return {
             name: resource.name,
             command: String(config.command),
@@ -174,12 +172,9 @@ async function healthAnswers(url) {
 }
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
 export async function waitForServiceReady(plan, options) {
-    if (plan.healthCheckDisabled) {
-        return options.isAlive();
-    }
     const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS);
     const interval = options.intervalMs ?? 250;
-    if (!plan.healthUrl && plan.port === undefined) {
+    if (plan.healthCheckDisabled || (!plan.healthUrl && plan.port === undefined)) {
         await sleep(ALIVE_GRACE_MS);
         return options.isAlive();
     }

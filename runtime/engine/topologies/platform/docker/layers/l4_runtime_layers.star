@@ -30,7 +30,7 @@ load('./prisma/prisma_runtime.star',
 )
 
 load('./bun_helpers.star', 'bun_hoisted_packages_symlink_fix')
-load('../config/healthcheck.star', 'DOCKER_HEALTHCHECK', 'dockerfile_healthcheck_flags')
+load('../config/healthcheck.star', 'DOCKER_HEALTHCHECK', 'dockerfile_healthcheck_flags', 'manifest_health_check')
 # Infisical is opt-in: use_infisical defaults to False and nothing in the free engine passes True, so the generator behind this
 # (tilt/generators/infisical/secrets_generator.star) is not on the default path. It is an older contract with fixed secret names and
 # ports. Do not wire `secrets.required` through it; the default provider is platform/docker/secrets/env_secrets.star.
@@ -110,9 +110,13 @@ def _cmd_instruction(command):
 def _backend_healthcheck_instruction(port, manifest = None):
     # Probe the service over HTTP, not the runtime binary: `bun --version` passes even when the server has crashed.
     # Workers and bring-your-own services without healthCheckPath serve no HTTP, so they get no probe (HEALTHCHECK NONE).
-    if manifest and (manifest.get('appType') == 'worker' or (manifest.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath'))):
+    # `"healthCheck": false` in service.json turns the probe off too.
+    health_check = manifest_health_check(manifest)
+    if health_check.disabled:
         return "HEALTHCHECK NONE\n"
-    health_path = manifest.get('healthCheckPath', '/health') if manifest else '/health'
+    if manifest and (manifest.get('appType') == 'worker' or (manifest.get('appType') == 'bring-your-own' and not manifest.get('healthCheckPath') and not health_check.path)):
+        return "HEALTHCHECK NONE\n"
+    health_path = health_check.path or (manifest.get('healthCheckPath', '/health') if manifest else '/health')
     # The Dockerfile generator passes the manifest but not the port, so the service's own port wins over the 4000 default.
     probe_port = manifest.get('port', port) if manifest else port
     # fetch() is built into bun, so no extra package is needed in the image. Path is schema-limited to [a-z0-9/-].

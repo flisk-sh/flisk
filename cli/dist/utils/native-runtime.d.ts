@@ -26,7 +26,7 @@ export interface NativeServicePlan {
     /** What `flisk up` prints for the service. */
     url?: string;
     restart: boolean;
-    /** True when health checks are explicitly disabled or omitted for unopinionated services. */
+    /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
     healthCheckDisabled?: boolean;
 }
 /** The directory, under the project's .flisk/, that holds the run state and log files. */

@@ -24,7 +24,7 @@ import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
-import { isHealthCheckDisabled, SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "../utils/service-manifest.js";
+import { healthCheckPathOf, isHealthCheckDisabled, SERVICE_MANIFEST_SCHEMA_URL, SERVICE_MANIFEST_SCHEMA_VERSION, } from "../utils/service-manifest.js";
 import { discoverResources } from "../utils/services.js";
 import { createKebabCaseValidator, isPathSafe, validateResourceName, validateStackName, } from "../utils/validation.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
@@ -943,14 +943,7 @@ This file contains the resource configuration for Flisk.
             {
                 type: "text",
                 filename: "Dockerfile",
-                content: getDockerfileTemplate(serviceJson.port, !isHealthCheckDisabled(serviceJson) && typeof serviceJson.healthCheckPath === "string"
-                    ? serviceJson.healthCheckPath
-                    : typeof serviceJson.healthCheck === "object" &&
-                        typeof serviceJson.healthCheck?.path === "string"
-                        ? serviceJson.healthCheck.path
-                        : !isHealthCheckDisabled(serviceJson) && serviceJson.healthCheck === true
-                            ? "/health"
-                            : undefined),
+                content: getDockerfileTemplate(serviceJson.port, isHealthCheckDisabled(serviceJson) ? undefined : healthCheckPathOf(serviceJson)),
                 description: "Generating Dockerfile",
                 emoji: "🐳",
             },

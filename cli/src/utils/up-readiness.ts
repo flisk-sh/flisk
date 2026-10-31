@@ -92,11 +92,7 @@ export function onlyEnabledResources(jsonText: string, disabledHealth?: Set<stri
 export function getDisabledHealthResourceNames(resources?: DiscoveredResource[]): Set<string> {
   try {
     const list = resources ?? discoverResources();
-    return new Set(
-      list
-        .filter((svc) => isHealthCheckDisabled(svc.config as Record<string, unknown>))
-        .map((svc) => svc.name),
-    );
+    return new Set(list.filter((svc) => isHealthCheckDisabled(svc.config)).map((svc) => svc.name));
   } catch {
     return new Set();
   }
