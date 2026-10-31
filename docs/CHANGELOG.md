@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.23 (2026-10-31)
+
 - `npx @flisk-sh/flisk demo` no longer needs Docker. When Docker is not installed or not running, Compose or Tilt is missing, on native Windows, or with `--no-docker`, it writes a two-service menu app (an API and a website) to `~/.flisk/flisk-demo-native`, starts it as local processes on free ports and opens it, in about a second. With Docker and Tilt ready it still starts the full restaurant demo. A second run while it is up reopens it; `flisk down` stops it.
 - Native Windows runs projects whose services each declare a `command`: `flisk up` no longer refuses them with the WSL2 message (Docker projects still get it), and `flisk down` ends each service's whole process tree with `taskkill /T` instead of leaving the program the shell started running.
 - After a failed `flisk up` on a machine without Docker, the hints point to running services as local processes.
