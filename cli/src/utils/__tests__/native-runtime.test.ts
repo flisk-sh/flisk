@@ -19,6 +19,7 @@ import {
   readNativeLogLines,
   readNativeRunState,
   shellInvocation,
+  signalGroup,
   stopNativeRun,
 } from "../native-runtime.js";
 
@@ -375,5 +376,25 @@ describe("shellInvocation", () => {
       windowsVerbatimArguments: true,
     });
     expect(shellInvocation("node s.js", "win32", undefined).file).toBe("cmd.exe");
+  });
+});
+
+describe("signalGroup", () => {
+  it("ends the whole process tree on Windows, where a kill reaches only the shell", () => {
+    const killed: number[] = [];
+    signalGroup(4321, "SIGTERM", "win32", (pid) => killed.push(pid));
+    expect(killed).toEqual([4321]);
+  });
+
+  it("signals the process group on POSIX and never runs taskkill", () => {
+    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      detached: true,
+      stdio: "ignore",
+    });
+    const pid = child.pid as number;
+    const killed: number[] = [];
+    signalGroup(pid, "SIGKILL", "linux", (p) => killed.push(p));
+    expect(killed).toEqual([]);
+    return new Promise<void>((resolve) => child.once("exit", () => resolve()));
   });
 });

@@ -588,12 +588,8 @@ export const upCommand = new Command("up")
       ]);
       return showErrorAndExit(message, 1, suggestions);
     });
+    // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
     if (nativeRun) {
-      const platformRefusal = nativeWindowsUpRefusal(
-        process.platform,
-        process.env.FLISK_ALLOW_NATIVE_WINDOWS,
-      );
-      if (platformRefusal) showErrorAndExit(platformRefusal);
       const { projectRoot } = nativeRun;
       let envFilePath: string | undefined;
       if (options.envFile !== undefined) {
