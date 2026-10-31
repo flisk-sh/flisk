@@ -84,6 +84,9 @@ def test_source_registers_a_done_resource_that_waits_with_docker_wait():
     assert "argv = ['sh', '-c', _JOB_DONE_SCRIPT, 'sh', config['res_name']]" in source
     assert 'code="$(docker wait "$id")"' in source
     assert "resource_deps=[config['res_name']]," in source
+    # Copies the output file to the host state directory on success, or purges stale output on failure (#2864).
+    assert 'docker cp "$id":/tmp/flisk-output.env ".flisk/outputs/$job.env"' in source
+    assert 'rm -f ".flisk/outputs/$job.env"' in source
     template = (REPO_ROOT / "cli/templates/Tiltfile.hbs").read_text()
     # Focus mode must enable the -done resources, or `flisk up <stack>` disables them and dependents wait forever.
     assert "_KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-done')" in template

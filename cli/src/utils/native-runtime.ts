@@ -15,7 +15,16 @@ import chalk from "chalk";
 import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { FliskError } from "./errors.js";
+import {
+  clearMigratorOutputs,
+  getMigratorOutputPath,
+  parseMigratorOutputFile,
+  prepareMigratorOutputFile,
+  resolveMigratorOutputsInEnv,
+  validateMigratorOutputReferences,
+} from "./migrator-output.js";
 import { commandProgram } from "./native-service.js";
+import { findProjectRoot } from "./paths.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -46,6 +55,8 @@ export interface NativeServicePlan {
   port?: number;
   /** The service's own environment (`env` from service.json, expanded) plus PORT. The process also inherits the shell's. */
   env: Record<string, string>;
+  /** Raw unexpanded env map from service.json, preserved so ${migrator:KEY} can be resolved at runtime. */
+  rawEnv?: Record<string, string>;
   dependsOn: string[];
   /** Polled until it answers below 400 before dependents start. */
   healthUrl?: string;
@@ -153,7 +164,9 @@ export interface NativeRunPlan {
 export function planNativeRun(
   selected: readonly DiscoveredResource[],
   vars: Readonly<Record<string, string | undefined>> = process.env,
+  projectRoot?: string,
 ): NativeRunPlan {
+  const root = projectRoot ?? findProjectRoot(selected[0]?.path ?? process.cwd()) ?? process.cwd();
   const errors: string[] = [];
   const missingVars: string[] = [];
   const names = new Set(selected.map((resource) => resource.name));
@@ -185,11 +198,25 @@ export function planNativeRun(
       if (owner) errors.push(`services "${owner}" and "${resource.name}" both use port ${port}`);
       else portOwners.set(port, resource.name);
     }
+    const rawEnv: Record<string, string> = {};
+    for (const [key, value] of Object.entries(config.env ?? {})) {
+      rawEnv[key] = String(value);
+    }
+    try {
+      validateMigratorOutputReferences(resource.name, rawEnv, dependsOn);
+    } catch (err) {
+      if (err instanceof FliskError) errors.push(err.message);
+      else throw err;
+    }
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(config.env ?? {})) {
       env[key] = expandEnvValue(String(value), { ...vars, ...env }, (name) =>
         missingVars.push(`${resource.name}: ${name}`),
       );
+    }
+    const job = isOneShotJob(config) && port === undefined;
+    if (job) {
+      env.FLISK_OUTPUT = getMigratorOutputPath(root, resource.name);
     }
     if (port !== undefined) env.PORT = String(port);
     // Without a health path a service is ready once its port listens, which is what gates its dependents.
@@ -198,13 +225,13 @@ export function planNativeRun(
     const readiness = readinessProbeOf(config);
     // A one-shot job with no port (every migrator, and a "restart": "no" process that serves nothing) is ready once it exits 0.
     // One that has a port keeps the port or health check as its readiness, like any other service.
-    const job = isOneShotJob(config) && port === undefined;
     return {
       name: resource.name,
       command: String(config.command),
       cwd: resource.path,
       port,
       env,
+      ...(Object.keys(rawEnv).length > 0 ? { rawEnv } : {}),
       dependsOn: [...new Set(dependsOn)],
       healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
       url: port !== undefined ? localUrl(port) : undefined,
@@ -454,6 +481,7 @@ export async function stopNativeRun(
     if (service.pid && isProcessAlive(service.pid)) await stopProcessGroup(service.pid);
   }
   rmSync(nativeRunStatePath(projectRoot), { force: true });
+  clearMigratorOutputs(projectRoot);
   return { wasRunning: true, services: Object.keys(state.services), supervisorPid: state.pid };
 }
 
@@ -567,6 +595,7 @@ export function shellInvocation(
 
 export class NativeSupervisor {
   private readonly services = new Map<string, RunningService>();
+  private readonly migratorOutputs = new Map<string, Record<string, string>>();
   private readonly startedAt = new Date().toISOString();
   private stopping = false;
 
@@ -618,6 +647,13 @@ export class NativeSupervisor {
             return false;
           }
           if (this.stopping) return false;
+          try {
+            this.resolveServiceEnv(service);
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            failures.push({ name, reason });
+            return false;
+          }
           this.spawn(service);
           // A one-shot job is ready when it has run to completion with exit code 0.
           const isReady = service.plan.job
@@ -664,6 +700,7 @@ export class NativeSupervisor {
       }
     }
     rmSync(nativeRunStatePath(this.projectRoot), { force: true });
+    clearMigratorOutputs(this.projectRoot);
   }
 
   /** The current process id of a service, for tests and diagnostics. */
@@ -671,8 +708,34 @@ export class NativeSupervisor {
     return this.services.get(name)?.child?.pid;
   }
 
+  /** Parsed outputs produced by finished migrators (for inspection and tests). */
+  outputsOf(migratorName: string): Record<string, string> | undefined {
+    return this.migratorOutputs.get(migratorName);
+  }
+
+  private resolveServiceEnv(service: RunningService): void {
+    if (!service.plan.rawEnv) return;
+    const outputsRecord: Record<string, Record<string, string>> = {};
+    for (const [k, v] of this.migratorOutputs) {
+      outputsRecord[k] = v;
+    }
+    const resolved = resolveMigratorOutputsInEnv(
+      service.plan.name,
+      service.plan.rawEnv,
+      service.plan.dependsOn,
+      outputsRecord,
+    );
+    for (const [k, v] of Object.entries(resolved)) {
+      service.plan.env[k] = v;
+    }
+  }
+
   private spawn(service: RunningService): void {
     const { plan } = service;
+    if (plan.job) {
+      plan.env.FLISK_OUTPUT = prepareMigratorOutputFile(this.projectRoot, plan.name);
+      this.migratorOutputs.delete(plan.name);
+    }
     service.startedAt = Date.now();
     // `command` is a shell command line the project owner wrote in their own service.json (`PORT=1 node s.js`, `$PORT`,
     // `a && b`), run with the same trust as an npm script or a Procfile entry; nothing from outside the project reaches it.
@@ -717,10 +780,27 @@ export class NativeSupervisor {
     if (service.plan.job) {
       service.gaveUp = code !== 0;
       service.isReady = code === 0;
+      if (code === 0) {
+        try {
+          const outputPath = getMigratorOutputPath(this.projectRoot, service.plan.name);
+          const outputs = parseMigratorOutputFile(outputPath);
+          this.migratorOutputs.set(service.plan.name, outputs);
+        } catch (err) {
+          service.gaveUp = true;
+          service.isReady = false;
+          this.events.onNote?.(
+            service.plan.name,
+            `output file error: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      } else {
+        this.migratorOutputs.delete(service.plan.name);
+        clearMigratorOutputs(this.projectRoot, service.plan.name);
+      }
       this.saveState();
       this.events.onNote?.(
         service.plan.name,
-        code === 0 ? "finished (exit code 0)" : `${how}; a job is not restarted`,
+        service.isReady ? "finished (exit code 0)" : `${how}; a job is not restarted`,
       );
       return;
     }

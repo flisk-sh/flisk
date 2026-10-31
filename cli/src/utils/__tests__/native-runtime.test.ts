@@ -450,3 +450,246 @@ describe("signalGroup", () => {
     return new Promise<void>((resolve) => child.once("exit", () => resolve()));
   });
 });
+
+describe("migrator output propagation (#2864)", () => {
+  const ECHO_SERVER = `
+import { createServer } from "node:http";
+const port = Number(process.env.PORT);
+createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200);
+    res.end("ok");
+  } else if (req.url === "/token") {
+    res.writeHead(200);
+    res.end(JSON.stringify({
+      apiKey: process.env.PLATFORM_API_KEY ?? null,
+      secondVal: process.env.EXTRA_VAL ?? null,
+      fallbackVal: process.env.FALLBACK_VAL ?? null,
+    }));
+  } else {
+    res.writeHead(404);
+    res.end();
+  }
+}).listen(port);
+`;
+
+  it("propagates single and multiple outputs to dependent service with key renaming", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "echo-server.mjs"), ECHO_SERVER);
+    const port = await freePort();
+
+    const plan = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command:
+          'printf "SERVICE_TOKEN=token_abc123\\nEXTRA_KEY=extra_value_456\\n" > "$FLISK_OUTPUT"',
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} echo-server.mjs`,
+        port,
+        healthCheckPath: "/health",
+        dependsOn: ["migrator"],
+        env: {
+          PLATFORM_API_KEY: "${migrator:SERVICE_TOKEN}",
+          EXTRA_VAL: "${migrator:EXTRA_KEY}",
+          FALLBACK_VAL: "${migrator:MISSING_KEY:-default_fallback}",
+        },
+      }),
+    ]);
+
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(root, plan.services, {
+      onNote: (name, message) => notes.push(`${name}: ${message}`),
+    });
+    supervisors.push(supervisor);
+
+    const failures = await supervisor.start();
+    expect(failures).toEqual([]);
+    expect(notes).toContain("migrator: finished (exit code 0)");
+
+    // Verify dependent received the renamed and resolved environment variables
+    const res = await fetch(localUrl(port, "/token"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({
+      apiKey: "token_abc123",
+      secondVal: "extra_value_456",
+      fallbackVal: "default_fallback",
+    });
+
+    // Verify supervisor recorded parsed outputs
+    expect(supervisor.outputsOf("migrator")).toEqual({
+      SERVICE_TOKEN: "token_abc123",
+      EXTRA_KEY: "extra_value_456",
+    });
+  });
+
+  it("rejects unauthorized output references at plan time when not in dependsOn", () => {
+    const root = createTempDir();
+    const plan = planNativeRun([
+      nativeService(root, "migrator", { appType: "migrator", command: "exit 0" }),
+      nativeService(root, "unrelated-api", {
+        command: "node server.js",
+        dependsOn: [], // Missing "migrator"
+        env: {
+          SECRET: "${migrator:SERVICE_TOKEN}",
+        },
+      }),
+    ]);
+
+    expect(plan.errors.length).toBeGreaterThan(0);
+    expect(
+      plan.errors.some((err) => err.includes('references unauthorized output from "migrator"')),
+    ).toBe(true);
+  });
+
+  it("blocks dependent when migrator fails and does not reuse stale outputs", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "echo-server.mjs"), ECHO_SERVER);
+    const port = await freePort();
+
+    // First, simulate a stale output file left from a previous run
+    const outputPath = join(root, ".flisk", "outputs", "migrator.env");
+    mkdirSync(join(root, ".flisk", "outputs"), { recursive: true });
+    writeFileSync(outputPath, "SERVICE_TOKEN=stale_old_token\n");
+
+    const plan = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command: "exit 1", // Failed migrator
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} echo-server.mjs`,
+        port,
+        dependsOn: ["migrator"],
+        env: {
+          PLATFORM_API_KEY: "${migrator:SERVICE_TOKEN}",
+        },
+      }),
+    ]);
+
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+
+    const failures = await supervisor.start();
+    expect(failures).toEqual([
+      { name: "migrator", reason: "the job did not exit 0; see its output above" },
+      { name: "api", reason: "not started: migrator did not start" },
+    ]);
+
+    // Stale output must be deleted on failure
+    expect(existsSync(outputPath)).toBe(false);
+    expect(supervisor.pidOf("api")).toBeUndefined();
+  });
+
+  it("fails dependent when migrator does not produce expected output and no fallback is given", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "echo-server.mjs"), ECHO_SERVER);
+    const port = await freePort();
+
+    const plan = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command: 'printf "OTHER_KEY=value\\n" > "$FLISK_OUTPUT"',
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} echo-server.mjs`,
+        port,
+        dependsOn: ["migrator"],
+        env: {
+          REQUIRED_TOKEN: "${migrator:MISSING_TOKEN}",
+        },
+      }),
+    ]);
+
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+
+    const failures = await supervisor.start();
+    expect(failures.length).toBeGreaterThan(0);
+    const apiFailure = failures.find((f) => f.name === "api");
+    expect(apiFailure?.reason).toContain(
+      'Migrator "migrator" did not produce expected output "MISSING_TOKEN"',
+    );
+  });
+
+  it("refreshes output on repeated run and never leaks sentinel secrets to logs or state", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "echo-server.mjs"), ECHO_SERVER);
+    const port = await freePort();
+    const SENTINEL_SECRET = "SENTINEL_SECRET_ALPHA_9999_NEVER_LEAK";
+
+    // Write a seeder script that outputs the secret to $FLISK_OUTPUT dynamically
+    writeFileSync(
+      join(root, "seeder.mjs"),
+      `import { writeFileSync } from "node:fs";
+const token = process.env.SEEDED_TOKEN;
+writeFileSync(process.env.FLISK_OUTPUT, "SERVICE_TOKEN=" + token + "\\n");
+`,
+    );
+
+    // Run 1: writes sentinel secret
+    const plan1 = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command: `${NODE} seeder.mjs`,
+        env: { SEEDED_TOKEN: SENTINEL_SECRET },
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} echo-server.mjs`,
+        port,
+        healthCheckPath: "/health",
+        dependsOn: ["migrator"],
+        env: {
+          PLATFORM_API_KEY: "${migrator:SERVICE_TOKEN}",
+        },
+      }),
+    ]);
+
+    const notes: string[] = [];
+    const supervisor1 = new NativeSupervisor(root, plan1.services, {
+      onNote: (name, message) => notes.push(`${name}: ${message}`),
+    });
+    supervisors.push(supervisor1);
+
+    expect(await supervisor1.start()).toEqual([]);
+
+    // Check that secret was NOT leaked into notes
+    expect(notes.some((n) => n.includes(SENTINEL_SECRET))).toBe(false);
+
+    // Check that secret was NOT saved in state file
+    const runStateContent = readFileSync(join(root, ".flisk", "native", "run.json"), "utf8");
+    expect(runStateContent.includes(SENTINEL_SECRET)).toBe(false);
+
+    await supervisor1.stop();
+
+    // Run 2: refreshed with new token
+    const NEW_SECRET = "NEW_REFRESHED_SECRET_8888";
+    const port2 = await freePort();
+    const plan2 = planNativeRun([
+      nativeService(root, "migrator", {
+        appType: "migrator",
+        command: `${NODE} seeder.mjs`,
+        env: { SEEDED_TOKEN: NEW_SECRET },
+      }),
+      nativeService(root, "api", {
+        command: `${NODE} echo-server.mjs`,
+        port: port2,
+        healthCheckPath: "/health",
+        dependsOn: ["migrator"],
+        env: {
+          PLATFORM_API_KEY: "${migrator:SERVICE_TOKEN}",
+        },
+      }),
+    ]);
+
+    const supervisor2 = new NativeSupervisor(root, plan2.services);
+    supervisors.push(supervisor2);
+
+    expect(await supervisor2.start()).toEqual([]);
+    const res = await fetch(localUrl(port2, "/token"));
+    const data = await res.json();
+    expect(data.apiKey).toBe(NEW_SECRET);
+    expect(data.apiKey).not.toBe(SENTINEL_SECRET);
+  });
+});
