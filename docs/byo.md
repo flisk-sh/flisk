@@ -112,6 +112,24 @@ to bring-your-own resources with one container: `flisk config verify` refuses it
 when two entries ask for the same host port. Checked by `tests/tilt-engine/test_byo_extra_ports.py` (the generator, run through
 Tilt); a container listening on those ports was not part of that test.
 
+## Sidecars (sharing another container's network)
+
+Some containers are meant to run inside another one's network namespace, so each reaches the other on `127.0.0.1`: a
+PO-token or auth helper next to the app that calls it, a VPN or proxy client. In Compose that is
+`network_mode: "service:<name>"`. In Flisk, name the host resource with `sidecarOf`:
+
+```json
+{ "appName": "bgutil", "appType": "bring-your-own", "stack": "tube", "port": 4416,
+  "image": "brainicism/bgutil-ytdlp-pot-provider", "sidecarOf": "tubehaus" }
+```
+
+The generated Compose service gets `network_mode: "service:tubehaus"` and none of its own networks, published ports or
+Traefik route (Compose refuses `networks` and `ports` next to `network_mode`). The sidecar starts after its host, as if
+`sidecarOf` were in `dependsOn`. Publish any port the pair needs with `extraPorts` on the host. `flisk config verify` and
+`flisk doctor` refuse a `sidecarOf` that names no resource, a resource in another stack, the resource itself, or one combined
+with `extraPorts` or `replicas`. Checked by `tests/tilt-engine/test_byo_sidecar.py` (the generator and the start order, run
+through Tilt); two containers talking over a shared namespace under `flisk up` was not part of that test.
+
 ## Bringing a framework app (Node, Go, Rust, ...)
 
 Any app that fits the contract below can run as a bring-your-own resource. Fastify is the worked example because it needs nothing beyond the framework.

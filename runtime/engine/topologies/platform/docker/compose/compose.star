@@ -23,6 +23,7 @@ load("./compose_helpers.star", "compose_build_config")
 load("./unsafe_value.star", "reject_unsafe_value")
 load("./byo_container.star", "byo_container_options")
 load("./byo_ports.star", "byo_extra_ports")
+load("./byo_sidecar.star", "byo_sidecar_of")
 load("../networking/traefik.star", "get_frontend_traefik_labels", "get_backend_traefik_labels")
 load("../networking/api_path_constants.star", "get_api_path_for_domain", "get_frontend_base_path")
 load("../secrets/infisical.star", "get_infisical_environment_vars")
@@ -282,6 +283,8 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     ports_section = ""  # No external ports - Traefik-only access
     # Except `extraPorts` on a bring-your-own resource: plain host ports on 127.0.0.1 next to the routed port (#2909).
     extra_ports_section = byo_extra_ports(manifest)
+    # `sidecarOf` (bring-your-own): share another resource's network namespace, with no networks, ports or route of its own (#2908).
+    sidecar_of = byo_sidecar_of(manifest)
     
     # Determine service name based on instance
     if instance_id:
@@ -337,7 +340,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
             agent_env += "      - AGENT_STATE_DIR=/var/lib/flisk-agent\n"
             agent_volume_section = "    # flisk-agent-volume: {vol}\n    volumes:\n      - {vol}:/var/lib/flisk-agent\n".format(vol=agent_volume)
 
-    if is_worker or is_migrator or is_proxy_disabled_byo:
+    if is_worker or is_migrator or is_proxy_disabled_byo or sidecar_of:
         traefik_labels = '      - "traefik.enable=false"'
         healthcheck_section = no_http_healthcheck_section
     else:
@@ -390,12 +393,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {auth_env}{secrets_env}
 {agent_volume_section}    labels:
 {traefik_labels}
-    networks:
-      - {network_traefik_public}
-      - {network_backend}
-      - {network_database}
-      - {network_infisical}
-{healthcheck_section}    # Note: depends_on removed - Tilt manages service startup order
+{networks_section}{healthcheck_section}    # Note: depends_on removed - Tilt manages service startup order
     deploy:
       resources:
         limits:
@@ -423,6 +421,16 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         init="true" if container_options.init else "false",
         container_section=container_options.section,
         extra_ports_section=extra_ports_section,
+        networks_section=(
+            '    network_mode: "service:{}"\n'.format(sidecar_of)
+            if sidecar_of
+            else "    networks:\n" + "".join(["      - {}\n".format(n) for n in [
+                PlatformDockerConstants.NETWORK_TRAEFIK_PUBLIC,
+                PlatformDockerConstants.NETWORK_BACKEND,
+                PlatformDockerConstants.NETWORK_DATABASE,
+                PlatformDockerConstants.NETWORK_INFISICAL,
+            ]])
+        ),
         dev_port=dev_port,
         db_name=db_name,
         db_url_for_tilt=db_url_for_tilt,

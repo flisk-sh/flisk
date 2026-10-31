@@ -30,6 +30,11 @@ export declare function containerErrors(manifest: Record<string, unknown>, displ
  * engine/.../compose/byo_ports.star, which refuses the same values.
  */
 export declare function extraPortsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `sidecarOf` (#2908): a bring-your-own resource that shares another resource's network namespace. Mirrors
+ * engine/.../compose/byo_sidecar.star. Whether the host exists in the same stack is checked across services (checkSidecars).
+ */
+export declare function sidecarErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];

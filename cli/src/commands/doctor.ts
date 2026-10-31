@@ -107,6 +107,7 @@ import {
   checkDependsOnShape,
   checkSchemaVersions,
   checkServicePorts,
+  checkSidecars,
 } from "../utils/service-config-checks.js";
 import {
   buildAdvertisedTargets,
@@ -1838,6 +1839,7 @@ export const doctorCommand = new Command("doctor")
       () => checkDependsOnShape(),
       () => checkCircularDependencies(),
       () => checkServicePorts(),
+      () => checkSidecars(),
       () => checkSchemaVersions(undefined, options.strict),
       () => checkDuplicateResourcePorts(),
       () => checkServiceUrlPorts(),

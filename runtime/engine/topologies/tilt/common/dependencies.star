@@ -32,6 +32,11 @@ def declared_dependencies(manifest):
         for entry in value:
             if entry not in names:
                 names.append(entry)
+    # A bring-your-own sidecar shares its host's network namespace (#2908), so it waits for the host like a dependsOn.
+    # Keep in step with dependsOnOf in cli/src/utils/dependency-graph.ts.
+    sidecar_of = manifest.get('sidecarOf')
+    if manifest.get('appType') == 'bring-your-own' and type(sidecar_of) == 'string' and sidecar_of and sidecar_of not in names:
+        names.append(sidecar_of)
     return names
 
 
