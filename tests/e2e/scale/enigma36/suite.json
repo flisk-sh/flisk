@@ -1,0 +1,24 @@
+{
+  "group": "scale",
+  "suite": "enigma36",
+  "description": "Enigma 36: one project of 36 resources drawn by seed from every type flisk resource creates (each backend framework and language, each frontend framework, worker, mcp, agent with each durability, database, bring-your-own, sdk) over six stacks, checked on the diagonal board (plan.mjs) before one flisk up. Every resource must meet its type's contract beside the other 35, a seeded restart must come back without taking a neighbour down, and an undrawn name is one error envelope. Each night draws a new combination; the seed is printed, and E2E_SEED replays it.",
+  "paths": [
+    "cli/src/commands/resource.ts",
+    "cli/src/commands/up.ts",
+    "cli/src/commands/restart.ts",
+    "cli/src/backend-frameworks/**",
+    "cli/src/backend-languages/**",
+    "cli/src/frontend-frameworks/**",
+    "cli/src/agent-runtimes/**",
+    "runtime/engine/**",
+    "runtime/discovery/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/resource-types/common.sh",
+    "tests/e2e/scale/enigma36/**",
+    ".github/workflows/e2e-scale-enigma36.yml"
+  ],
+  "cases": ["K1", "K2", "K3", "K4", "K5", "K6", "K7"],
+  "triggers": ["nightly", "manual"],
+  "timeoutMinutes": 120,
+  "needsSecrets": []
+}
