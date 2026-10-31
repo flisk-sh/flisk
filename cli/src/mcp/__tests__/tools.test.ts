@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRegisteredCommands } from "../../commands/registry.js";
 import { CREATABLE_RESOURCE_TYPES } from "../../types/index.js";
 import { FliskError } from "../../utils/errors.js";
-import { PROJECT_TEMPLATES } from "../../utils/project-templates.js";
+import { listProjectTemplates, PROJECT_TEMPLATES } from "../../utils/project-templates.js";
 import {
   buildConfigRegenerateArgs,
   buildLogsArgs,
@@ -606,6 +606,7 @@ describe("tool list", () => {
       "agent_sessions",
       "stack_list",
       "project_info",
+      "project_templates",
       "network_list",
       "config_verify",
       "config_explain",
@@ -619,11 +620,30 @@ describe("tool list", () => {
     ]);
     for (const t of tools)
       expect(t.inputSchema).toMatchObject({ type: "object", additionalProperties: false });
-    for (const t of tools) expect(t.inputSchema.properties).toHaveProperty("projectPath");
+    // project_templates reads the CLI's own catalog, not a project, so it takes no projectPath.
+    for (const t of tools.filter((tool) => tool.name !== "project_templates"))
+      expect(t.inputSchema.properties).toHaveProperty("projectPath");
     expect(JSON.stringify(tools.find((t) => t.name === "logs")?.inputSchema)).not.toContain(
       "follow",
     );
   });
+  it("returns the template catalog from project_templates without running the CLI", async () => {
+    const run = vi.fn(async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+    const tool = createFliskTools(run).find((t) => t.name === "project_templates");
+    expect(tool?.inputSchema).toEqual({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    });
+    const result = await tool?.handler({});
+    expect(run).not.toHaveBeenCalled();
+    expect(result).toEqual({ data: { templates: listProjectTemplates() }, isError: false });
+    const data = result?.data as { templates: { key: string }[] } | undefined;
+    const keys = (data?.templates ?? []).map((t) => t.key);
+    expect(keys).toEqual(Object.keys(PROJECT_TEMPLATES));
+    expect(keys).toEqual(expect.arrayContaining(["launch", "portal", "fullstack"]));
+  });
+
   it("routes a tool to its command and project directory", async () => {
     const seen: { args: string[]; cwd?: string }[] = [];
     const tools = createFliskTools(async (args, options) => {
@@ -981,7 +1001,7 @@ describe("tool list", () => {
     expect(Object.keys(calls).sort()).toEqual(
       tools
         .map((t) => t.name)
-        .filter((name) => name !== "up")
+        .filter((name) => name !== "up" && name !== "project_templates")
         .sort(),
     );
     for (const [name, args] of Object.entries(calls)) {
@@ -1063,6 +1083,7 @@ describe("tool annotations", () => {
       "agent_sessions",
       "stack_list",
       "project_info",
+      "project_templates",
       "network_list",
       "config_verify",
       "config_explain",

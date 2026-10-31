@@ -14,7 +14,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - **AI Agent Systems**:
   - `agent` resource type: Long-running agent process with `files` durability (named volume surviving `flisk down`), sticky session routing via `x-session-id`, graceful SIGTERM turn draining, `/health` (liveness) and `/ready` (application readiness for callers).
   - `mcp` resource type: Standard Model Context Protocol servers over Streamable HTTP (`/mcp`) routed via Traefik.
-  - `flisk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate Flisk (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`):
+  - `flisk mcp`: Control plane stdio server allowing Claude Code, Cursor, and Codex to operate Flisk (`doctor`, `up`, `down`, `status`, `logs`, `resource_list`, `resource_restart`, `agent_list`, `agent_sessions`, `stack_list`, `project_info`, `project_templates`, `network_list`, `config_verify`, `config_explain`, `runtime_check`, `config_regenerate`, `resource_create`, `stack_assign`, `project_init`, `project_eject`, `project_import`):
     - `doctor`: Check whether this machine can run the Flisk stack and optionally validate a project.
     - `up`: Start the stack (or selected services) detached and watch briefly for early failures.
     - `down`: Stop the running stack.
@@ -26,6 +26,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
     - `agent_sessions`: List sessions of a running AI agent resource, or inspect one session checkpoint (`sessionId` optional).
     - `stack_list`: List the project's stacks with their resource counts (`services` adds service names, `verbose` descriptions).
     - `project_info`: Show the project root, whether the generated master files exist, and resource and stack counts.
+    - `project_templates`: List the starter templates `project_init` can clone (`data.templates`: key, repo, description, and the pinned commit `ref` when set); the same rows as `flisk project --list --json`.
     - `network_list`: List the Traefik URL of every frontend and API service and whether it answers (`stack` optional).
     - `config_verify`: Check that the generated files match `.flisk/project.json` and that every `service.json` is valid.
     - `config_explain`: Say whether a project file is generated or user-owned and what editing it does on `up` (`file` required).
@@ -36,7 +37,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
     - `project_init`: Create a Flisk project in `projectPath`, or clone a starter `template` there; it never overwrites an existing `.flisk/project.json`.
     - `project_eject`: Write `EJECTED.md` with `flisk eject --json`; refused unless `confirm` is `true` (`dryRun` returns the plan without it).
     - `project_import`: Import a directory's root `docker-compose.yml` as `service.json` files with `flisk import --json` (`dir`, `dryRun`, `force` optional; writes without asking unless `dryRun`).
-    - The scaffolding tools (`config_regenerate`, `resource_create`, `stack_assign`, `project_init`) return the command's text output; the others return its `--json` envelope. `config migrate`, `config edit`, `config enable-infra` and `config disable-infra` have no tool; run them in a shell (all but `config edit` take `--json`). The former tool names `restart_resource`, `list_agents` and `get_agent_sessions` are still accepted by `tools/call` but are no longer listed.
+    - The scaffolding tools (`config_regenerate`, `resource_create`, `stack_assign`, `project_init`) return the command's text output; `project_templates` returns the CLI's template catalog; the others return its `--json` envelope. `config migrate`, `config edit`, `config enable-infra` and `config disable-infra` have no tool; run them in a shell (all but `config edit` take `--json`). The former tool names `restart_resource`, `list_agents` and `get_agent_sessions` are still accepted by `tools/call` but are no longer listed.
 - **Zero-Config Port Management**: Automatically assigns conflict-free ports and exposes services via Traefik at `*.localhost` (port 80 or 8080-8180).
 
 ## Essential CLI Commands
@@ -57,6 +58,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 ## More CLI Commands
 
 - `flisk project [template]`: Create a project or clone a starter template (alias `flisk init`).
+- `flisk project --list [--json]`: List the starter templates with their key, repo, description and pinned commit (`ref`); `--json` prints a JSON array.
 - `flisk projects [--json]`: List the projects Flisk knows about (alias `info`).
 - `flisk resources [--json]`: List the project's services with their stack, type, and port.
 - `flisk stack [stack-name] [--resources <names...>] [--json]`: Create a stack or assign resources to it.
