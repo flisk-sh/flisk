@@ -115,6 +115,15 @@ export declare const CREATABLE_RESOURCE_TYPES: readonly ["backend", "frontend", 
  * package that already exists instead of scaffolding one.
  */
 export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "sdk"];
+/** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
+export declare const INFERENCE_RESOURCE_TYPE = "inference";
+/**
+ * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
+ * the `inference` preset. `sdk` is left out because it only registers a package that already has a
+ * service.json, and the `byo` alias because `bring-your-own` is listed. The MCP `resource_create`
+ * tool builds its type enum from this list.
+ */
+export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";
