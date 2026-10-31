@@ -207,6 +207,10 @@ describe("doctor environment contract", () => {
       expect(error).toHaveBeenCalledWith(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain("WSL2 Ubuntu");
       expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain("docs/wsl2.md");
+      // Local processes run on native Windows; only a Docker stack needs WSL2.
+      expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain(
+        "services that declare a command run as local processes",
+      );
       const text = log.mock.calls.map((call) => String(call[0])).join("\n");
       expect(text).toContain(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(text).toContain("Docker Desktop is using Linux containers");

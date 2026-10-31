@@ -114,7 +114,7 @@ In WSL2 Ubuntu with Docker running, this clones the starter, installs dependenci
 
 If you are on native Windows and see:
 ```
-Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.
+Landscape startup needs Ubuntu on WSL2. Native Windows runs only services that declare a command, as local processes.
 ```
 → Open **Ubuntu (WSL2)** and run the commands there.
 
