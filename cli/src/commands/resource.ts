@@ -63,6 +63,8 @@ import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
 import {
+  healthCheckPathOf,
+  isHealthCheckDisabled,
   SERVICE_MANIFEST_SCHEMA_URL,
   SERVICE_MANIFEST_SCHEMA_VERSION,
 } from "../utils/service-manifest.js";
@@ -1283,9 +1285,7 @@ This file contains the resource configuration for Flisk.
           filename: "Dockerfile",
           content: getDockerfileTemplate(
             serviceJson.port,
-            typeof serviceJson.healthCheckPath === "string"
-              ? serviceJson.healthCheckPath
-              : undefined,
+            isHealthCheckDisabled(serviceJson) ? undefined : healthCheckPathOf(serviceJson),
           ),
           description: "Generating Dockerfile",
           emoji: "🐳",

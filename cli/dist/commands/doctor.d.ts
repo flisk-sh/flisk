@@ -15,7 +15,7 @@ export declare const DOCTOR_FIXES: {
     readonly notProject: "flisk project --yes";
 };
 export declare const WSL2_DOCTOR_MESSAGE = "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
-export declare const NATIVE_WINDOWS_DOCTOR_MESSAGE = "Native Windows landscape boot is unsupported. Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
+export declare const NATIVE_WINDOWS_DOCTOR_MESSAGE = "Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
 export declare const MIN_TILT_VERSION: readonly [0, 25, 0];
 export declare const MIN_BUN_VERSION: readonly [1, 2, 0];
 export declare function versionMeetsMinimum(raw: string, minimum: readonly number[]): boolean;

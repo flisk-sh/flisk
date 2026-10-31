@@ -27,7 +27,7 @@ Tilt may appear once in How it works or Requirements: `Docker runs the container
 
 ## Offer and placement
 
-The free MIT CLI is the product. Premium costs $19 per developer per month for extras only, stays out of the hero, and pricing should say most teams should stay on free. The ROI calculator stays on `/waiting` only.
+The free MIT CLI is the product. Premium costs $17 per developer per month for extras only, stays out of the hero, and pricing should say most teams should stay on free. The ROI calculator stays on `/waiting` only.
 
 ## Repository About copy
 

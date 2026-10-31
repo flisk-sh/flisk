@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { existsSync, readFileSync } from "node:fs";
+import type { HealthCheckObjectConfig } from "../types/index.js";
 import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
 import { validateSmoke } from "./smoke.js";
@@ -42,6 +43,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "exposeViaProxy",
   "featuresEnabled",
   "framework",
+  "healthCheck",
   "healthCheckPath",
   "image",
   "language",
@@ -74,6 +76,7 @@ const GENERATED_STRING_FIELDS: ReadonlyArray<{
   expected: string;
 }> = [
   { path: ["healthCheckPath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /health" },
+  { path: ["healthCheck", "path"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /health" },
   { path: ["apiPath"], pattern: /^\/[A-Za-z0-9._~/-]*$/, expected: "a path such as /api/v1" },
   { path: ["apiBasePath"], pattern: /^\/[A-Za-z0-9._~/-]*$/, expected: "a path such as /api/v1" },
   {
@@ -484,6 +487,123 @@ export function secretConflictWarnings(
   return warnings;
 }
 
+export interface ParsedHealthCheckConfig {
+  enabled: boolean;
+  interval?: number;
+  timeout?: number;
+  retries?: number;
+  path?: string;
+}
+
+const HEALTH_CHECK_CONFIG_KEYS = new Set(["enabled", "interval", "timeout", "retries", "path"]);
+
+/**
+ * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object
+ * configuring enabled, interval, timeout, retries, and path.
+ */
+export function healthCheckErrors(
+  manifest: Record<string, unknown>,
+  displayPath: string,
+): string[] {
+  const value = manifest.healthCheck;
+  if (value === undefined || value === null) return [];
+  if (typeof value === "boolean") return [];
+  if (!isPlainObject(value)) {
+    return [
+      `${displayPath}.healthCheck: expected true or false, or an object such as { "enabled": true, "path": "/health" }`,
+    ];
+  }
+  const errors: string[] = [];
+  const hc = value as Record<string, unknown>;
+  for (const key of Object.keys(hc)) {
+    if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
+      errors.push(
+        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", or "path")`,
+      );
+    }
+  }
+  if (hc.enabled !== undefined && typeof hc.enabled !== "boolean") {
+    errors.push(`${displayPath}.healthCheck.enabled: expected true or false`);
+  }
+  if (hc.interval !== undefined) {
+    if (typeof hc.interval !== "number" || !Number.isFinite(hc.interval) || hc.interval <= 0) {
+      errors.push(`${displayPath}.healthCheck.interval: expected a positive number`);
+    }
+  }
+  if (hc.timeout !== undefined) {
+    if (typeof hc.timeout !== "number" || !Number.isFinite(hc.timeout) || hc.timeout <= 0) {
+      errors.push(`${displayPath}.healthCheck.timeout: expected a positive number`);
+    }
+  }
+  if (hc.retries !== undefined) {
+    if (typeof hc.retries !== "number" || !Number.isInteger(hc.retries) || hc.retries < 0) {
+      errors.push(`${displayPath}.healthCheck.retries: expected a non-negative integer`);
+    }
+  }
+  if (hc.path !== undefined) {
+    if (typeof hc.path !== "string") {
+      errors.push(`${displayPath}.healthCheck.path: expected a string`);
+    } else if (!/^\/[a-z0-9/-]*$/.test(hc.path)) {
+      errors.push(
+        `${displayPath}.healthCheck.path: must be a path such as /health (no spaces, line breaks or YAML syntax)`,
+      );
+    }
+  }
+  return errors;
+}
+
+/** A manifest, or the `config` of a discovered resource, as the health check helpers read it. */
+type HealthCheckSource =
+  | { healthCheck?: unknown; healthCheckPath?: unknown }
+  | Readonly<Record<string, unknown>>;
+
+/** The `healthCheck` object of a manifest, or an empty one when it is a boolean or absent. */
+function healthCheckObject(manifest?: HealthCheckSource): HealthCheckObjectConfig {
+  return isPlainObject(manifest?.healthCheck)
+    ? (manifest.healthCheck as HealthCheckObjectConfig)
+    : {};
+}
+
+/**
+ * The one rule for turning health checks off: `healthCheck: false` or `healthCheck: { enabled: false }`.
+ * Nothing else disables them: a service without a health path still gets its default readiness
+ * signal (its port for a native `command` service, `/health` for a container).
+ */
+export function isHealthCheckDisabled(manifest?: HealthCheckSource): boolean {
+  const value = manifest?.healthCheck;
+  return value === false || (isPlainObject(value) && value.enabled === false);
+}
+
+/** The HTTP path to probe: `healthCheck.path`, then `healthCheckPath`, then `fallback`. */
+export function healthCheckPathOf(
+  manifest?: HealthCheckSource,
+  fallback?: string,
+): string | undefined {
+  const path = healthCheckObject(manifest).path;
+  if (typeof path === "string") return path;
+  return typeof manifest?.healthCheckPath === "string" ? manifest.healthCheckPath : fallback;
+}
+
+/**
+ * Reads a manifest's health check settings. `enabled` follows {@link isHealthCheckDisabled}; `path` follows
+ * {@link healthCheckPathOf} and is absent when neither the manifest nor `options.defaultPath` gives one.
+ */
+export function parseHealthCheckConfig(
+  manifest?: HealthCheckSource,
+  options: { defaultPath?: string } = {},
+): ParsedHealthCheckConfig {
+  if (isHealthCheckDisabled(manifest)) return { enabled: false };
+  const { interval, timeout, retries } = healthCheckObject(manifest);
+  const path = healthCheckPathOf(manifest, options.defaultPath);
+  return {
+    enabled: true,
+    ...(path !== undefined ? { path } : {}),
+    ...(interval !== undefined ? { interval } : {}),
+    ...(timeout !== undefined ? { timeout } : {}),
+    ...(retries !== undefined ? { retries } : {}),
+  };
+}
+
 export function validateServiceManifest(
   value: unknown,
   displayPath: string,
@@ -528,6 +648,7 @@ export function validateServiceManifest(
   errors.push(...fieldTypeErrors(manifest, displayPath));
   errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
   errors.push(...secretsErrors(manifest, displayPath));
+  errors.push(...healthCheckErrors(manifest, displayPath));
 
   if ("smoke" in manifest) {
     for (const message of validateSmoke(manifest.smoke)) errors.push(`${displayPath}.${message}`);
