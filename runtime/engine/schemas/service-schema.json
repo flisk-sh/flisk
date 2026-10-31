@@ -339,6 +339,46 @@
       ],
       "type": "string"
     },
+    "container": {
+      "description": "Container runtime options for this bring-your-own resource, written into its generated Compose service. Use them when an existing image needs them, for example a VPN client that needs NET_ADMIN or a headless browser that needs a larger /dev/shm. Ignored for other resource types.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capAdd": {
+          "description": "Linux capabilities to add (Compose cap_add), such as NET_ADMIN.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z_]+$" }
+        },
+        "capDrop": {
+          "description": "Linux capabilities to drop (Compose cap_drop), such as ALL.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z_]+$" }
+        },
+        "init": {
+          "description": "Run an init process that reaps child processes (Compose init). Defaults to true.",
+          "type": "boolean"
+        },
+        "readOnly": {
+          "description": "Mount the container's root filesystem read-only (Compose read_only).",
+          "type": "boolean"
+        },
+        "user": {
+          "description": "User the container runs as (Compose user), such as 10001:10001.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "securityOpt": {
+          "description": "Security options (Compose security_opt), such as no-new-privileges:true.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9_.:=/-]+$" }
+        },
+        "shmSize": {
+          "description": "Size of /dev/shm (Compose shm_size), such as 256mb.",
+          "type": "string",
+          "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
+        }
+      }
+    },
     "image": {
       "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type.",
       "type": "string"
