@@ -124,7 +124,7 @@ export function planNativeRun(selected, vars = process.env) {
             healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
             url: port !== undefined ? localUrl(port) : undefined,
             restart: config.restart !== "no",
-            healthCheckDisabled: healthDisabled,
+            ...(healthDisabled ? { healthCheckDisabled: true } : {}),
         };
     });
     try {
