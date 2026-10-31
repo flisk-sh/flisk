@@ -1,6 +1,7 @@
 // Flisk App Builder: a remote, read-only, keyless MCP server at https://mcp.flisk.sh/mcp for the Claude directory.
 // Say what app you want, get a plain-words plan and the commands to run it on your own computer. No storage, no model.
 import { APPLE_TOUCH_PNG_BASE64, FAVICON_ICO_BASE64, ICON_512_PNG_BASE64, ICON_SVG } from "./icons.js";
+import { MAX_BODY_BYTES, overLimit } from "./limits.js";
 import { appBuilderMcpRoute } from "./mcp.js";
 
 const bytesOf = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -29,9 +30,17 @@ const STATIC = {
 };
 
 export default {
-  async fetch(request) {
+  async fetch(request, env = {}) {
     const { pathname } = new URL(request.url);
-    if (pathname === "/mcp") return appBuilderMcpRoute(request, json);
+    if (pathname === "/mcp") {
+      // Only POSTs do work: count them per caller, and refuse a body that is far larger than any real message.
+      if (request.method === "POST") {
+        const { limited, retryAfter } = await overLimit(request, env);
+        if (limited) return json({ error: "rate_limited", hint: "Too many requests from this address. Try again later." }, 429, { "retry-after": String(retryAfter) });
+        if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return json({ error: "too_large", hint: `Keep the request under ${MAX_BODY_BYTES} bytes.` }, 413);
+      }
+      return appBuilderMcpRoute(request, json);
+    }
     if (pathname === "/health") return json({ ok: true });
     const hit = STATIC[pathname];
     if (hit && (request.method === "GET" || request.method === "HEAD")) {

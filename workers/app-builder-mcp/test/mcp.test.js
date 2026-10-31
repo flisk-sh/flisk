@@ -91,3 +91,50 @@ test("the icons the directory looks for are served as real images", async () => 
   assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/health"), env, { waitUntil() {} })).status, 200);
   assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/nope"), env, { waitUntil() {} })).status, 404);
 });
+
+// An in-memory stand-in for the Cache API, so the per-IP counters can be checked.
+function withCache(fn) {
+  return async () => {
+    const store = new Map();
+    const saved = globalThis.caches;
+    globalThis.caches = { default: { async match(r) { const v = store.get(r.url); return v === undefined ? undefined : new Response(v); }, async put(r, res) { store.set(r.url, await res.text()); } } };
+    try {
+      await fn();
+    } finally {
+      globalThis.caches = saved;
+    }
+  };
+}
+const asIp = (ip, body) => new Request("https://mcp.flisk.sh/mcp", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": ip }, body: JSON.stringify(body) });
+
+test("a caller over the per-minute cap gets 429 with retry-after, and others are not affected", withCache(async () => {
+  const e = { MAX_CALLS_PER_IP_MINUTE: "3", MAX_CALLS_PER_IP_HOUR: "300" };
+  const ping = (ip) => worker.fetch(asIp(ip, { jsonrpc: "2.0", id: 1, method: "ping" }), e, { waitUntil() {} });
+  for (let i = 0; i < 3; i += 1) assert.equal((await ping("1.1.1.1")).status, 200, `call ${i + 1}`);
+  const over = await ping("1.1.1.1");
+  assert.equal(over.status, 429);
+  assert.equal(over.headers.get("retry-after"), "60");
+  assert.equal((await over.json()).error, "rate_limited");
+  assert.equal((await ping("2.2.2.2")).status, 200, "another address is fine");
+}));
+
+test("the per-hour cap holds even when the minute cap is not reached", withCache(async () => {
+  const e = { MAX_CALLS_PER_IP_MINUTE: "100", MAX_CALLS_PER_IP_HOUR: "2" };
+  const ping = () => worker.fetch(asIp("3.3.3.3", { jsonrpc: "2.0", id: 1, method: "ping" }), e, { waitUntil() {} });
+  await ping();
+  await ping();
+  const over = await ping();
+  assert.equal(over.status, 429);
+  assert.equal(over.headers.get("retry-after"), "3600");
+}));
+
+test("a request body far larger than any real message is refused", async () => {
+  const res = await worker.fetch(new Request("https://mcp.flisk.sh/mcp", { method: "POST", headers: { "content-type": "application/json", "content-length": "99999" }, body: "{}" }), env, { waitUntil() {} });
+  assert.equal(res.status, 413);
+});
+
+test("GET, preflight and the icons are not counted", withCache(async () => {
+  const e = { MAX_CALLS_PER_IP_MINUTE: "1", MAX_CALLS_PER_IP_HOUR: "1" };
+  for (let i = 0; i < 5; i += 1) assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/favicon.ico", { headers: { "cf-connecting-ip": "4.4.4.4" } }), e, { waitUntil() {} })).status, 200);
+  assert.equal((await worker.fetch(new Request("https://mcp.flisk.sh/mcp", { method: "OPTIONS" }), e, { waitUntil() {} })).status, 204);
+}));
