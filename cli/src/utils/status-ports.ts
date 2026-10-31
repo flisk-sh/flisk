@@ -21,7 +21,9 @@ export interface ExtraPort {
   containerPort: number;
   hostPort: number;
   protocol: "tcp" | "udp";
-  /** Loopback address, such as 127.0.0.1:443/tcp. */
+  /** Host address it is published on: 127.0.0.1, or 0.0.0.0 when service.json opts in to every interface. */
+  bind: "127.0.0.1" | "0.0.0.0";
+  /** Published address, such as 127.0.0.1:443/tcp. */
   address: string;
 }
 
@@ -31,16 +33,18 @@ export function extraPortsOf(resource: DiscoveredResource): ExtraPort[] {
   if (config?.appType !== BRING_YOUR_OWN_TYPE || !Array.isArray(config.extraPorts)) return [];
   return config.extraPorts.flatMap((entry: unknown): ExtraPort[] => {
     if (!entry || typeof entry !== "object") return [];
-    const { port, hostPort, protocol } = entry as Record<string, unknown>;
+    const { port, hostPort, protocol, bind } = entry as Record<string, unknown>;
     if (typeof port !== "number") return [];
     const host = typeof hostPort === "number" ? hostPort : port;
     const proto = protocol === "udp" ? "udp" : "tcp";
+    const address = bind === "0.0.0.0" ? "0.0.0.0" : "127.0.0.1";
     return [
       {
         containerPort: port,
         hostPort: host,
         protocol: proto,
-        address: `127.0.0.1:${host}/${proto}`,
+        bind: address,
+        address: `${address}:${host}/${proto}`,
       },
     ];
   });

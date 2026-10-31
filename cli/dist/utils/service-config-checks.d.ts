@@ -25,6 +25,11 @@ export declare function checkSidecars(projectRoot?: string, resources?: Discover
  * container files Flisk was never asked to share. The generator refuses it too, after `flisk up` has said yes.
  */
 export declare function checkVolumes(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+/**
+ * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935) is reachable from every device on the network, unlike everything else
+ * Flisk publishes. Say so in `flisk doctor`, as a warning, so it stays a visible choice.
+ */
+export declare function checkNetworkPorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export declare function checkServicePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**

@@ -221,9 +221,27 @@ describe("extraPortsOf", () => {
       extraPorts: [{ port: 80, hostPort: 8081 }, { port: 443 }, { port: 443, protocol: "udp" }],
     });
     expect(extraPortsOf(caddy)).toEqual([
-      { containerPort: 80, hostPort: 8081, protocol: "tcp", address: "127.0.0.1:8081/tcp" },
-      { containerPort: 443, hostPort: 443, protocol: "tcp", address: "127.0.0.1:443/tcp" },
-      { containerPort: 443, hostPort: 443, protocol: "udp", address: "127.0.0.1:443/udp" },
+      {
+        containerPort: 80,
+        hostPort: 8081,
+        protocol: "tcp",
+        bind: "127.0.0.1",
+        address: "127.0.0.1:8081/tcp",
+      },
+      {
+        containerPort: 443,
+        hostPort: 443,
+        protocol: "tcp",
+        bind: "127.0.0.1",
+        address: "127.0.0.1:443/tcp",
+      },
+      {
+        containerPort: 443,
+        hostPort: 443,
+        protocol: "udp",
+        bind: "127.0.0.1",
+        address: "127.0.0.1:443/udp",
+      },
     ]);
     expect(buildServicePorts(caddy, 8080).extraPorts).toHaveLength(3);
   });
@@ -233,5 +251,20 @@ describe("extraPortsOf", () => {
       extraPortsOf(resource("api", "backend", 4000, { extraPorts: [{ port: 1080 }] })),
     ).toEqual([]);
     expect(buildServicePorts(resource("orders-api", "backend", 4000), 8080).extraPorts).toEqual([]);
+  });
+});
+
+describe("extraPortsOf with bind", () => {
+  it("shows a port opened to the network with its 0.0.0.0 address", () => {
+    const caddy = resource("caddy", "bring-your-own", 8080, {
+      extraPorts: [
+        { port: 80, bind: "0.0.0.0" },
+        { port: 443, bind: "127.0.0.1" },
+      ],
+    });
+    expect(extraPortsOf(caddy).map((p) => p.address)).toEqual([
+      "0.0.0.0:80/tcp",
+      "127.0.0.1:443/tcp",
+    ]);
   });
 });

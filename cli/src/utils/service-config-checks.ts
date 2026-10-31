@@ -17,6 +17,7 @@ import {
   volumesErrors,
 } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
+import { extraPortsOf } from "./status-ports.js";
 
 function filePath(projectRoot: string, resource: DiscoveredResource): string {
   return relative(projectRoot, resource.configPath) || resource.configPath;
@@ -238,6 +239,35 @@ export function checkVolumes(
     didPass: false,
     message: `${formatCount(problems.length, "bind mount outside the project", "bind mounts outside the project")}:\n    ${problems.join("\n    ")}`,
     fix: 'Mount a path inside the project, such as "./config", or use a named volume such as "data"',
+  };
+}
+
+/**
+ * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935) is reachable from every device on the network, unlike everything else
+ * Flisk publishes. Say so in `flisk doctor`, as a warning, so it stays a visible choice.
+ */
+export function checkNetworkPorts(
+  projectRoot = findProjectRoot() ?? process.cwd(),
+  resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+): CheckResult {
+  const open = resources.flatMap((resource) =>
+    extraPortsOf(resource)
+      .filter((port) => port.bind === "0.0.0.0")
+      .map((port) => `${resource.name} ${port.address}`),
+  );
+  if (open.length === 0) {
+    return {
+      name: "Network ports",
+      didPass: true,
+      message: "No port is published beyond this machine",
+    };
+  }
+  return {
+    name: "Network ports",
+    didPass: false,
+    isWarning: true,
+    message: `${formatCount(open.length, "port")} reachable from the network:\n    ${open.join("\n    ")}`,
+    fix: 'Remove "bind": "0.0.0.0" from extraPorts to publish on this machine only',
   };
 }
 

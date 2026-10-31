@@ -470,8 +470,8 @@ export function extraPortsErrors(manifest, displayPath) {
             return;
         }
         for (const key of Object.keys(entry)) {
-            if (!["port", "hostPort", "protocol"].includes(key)) {
-                errors.push(`${at}.${key}: unknown option (use port, hostPort, protocol)`);
+            if (!["port", "hostPort", "protocol", "bind"].includes(key)) {
+                errors.push(`${at}.${key}: unknown option (use port, hostPort, protocol, bind)`);
             }
         }
         if (!isPortNumber(entry.port))
@@ -483,6 +483,9 @@ export function extraPortsErrors(manifest, displayPath) {
         const protocol = entry.protocol ?? "tcp";
         if (protocol !== "tcp" && protocol !== "udp")
             errors.push(`${at}.protocol: expected tcp or udp`);
+        if (entry.bind !== undefined && entry.bind !== "127.0.0.1" && entry.bind !== "0.0.0.0") {
+            errors.push(`${at}.bind: expected 127.0.0.1 or 0.0.0.0`);
+        }
         const key = `${String(hostPort)}/${String(protocol)}`;
         if (seen.has(key))
             errors.push(`${at}.hostPort: ${key} is published twice`);

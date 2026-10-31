@@ -35,6 +35,7 @@ caddy = {
     'extraPorts': [{'port': 80, 'hostPort': 8081}, {'port': 443}, {'port': 443, 'protocol': 'udp'}],
 }
 server = {'appType': 'bring-your-own', 'stack': 'tube', 'port': 3010, 'image': 'ghcr.io/biolend83/tubehaus:latest', 'extraPorts': [{'port': 1080}]}
+lan = {'appType': 'bring-your-own', 'stack': 'tube', 'port': 8080, 'image': 'caddy:2', 'extraPorts': [{'port': 80, 'bind': '0.0.0.0'}, {'port': 443, 'bind': '127.0.0.1'}]}
 plain = {'appType': 'bring-your-own', 'stack': 'tube', 'port': 9000, 'image': 'nginx:alpine'}
 backend = {'appType': 'backend', 'stack': 'tube', 'port': 4000, 'extraPorts': [{'port': 1080}]}
 entries = [
@@ -45,6 +46,7 @@ r = {
     'caddy': entries[0],
     'server': entries[1],
     'plain': generate_backend_compose_entry('services/tube', 'tube', {'name': 'plain'}, plain),
+    'lan': generate_backend_compose_entry('services/tube', 'tube', {'name': 'lan'}, lan),
     'backend': generate_backend_compose_entry('services/tube', 'tube', {'name': 'api'}, backend),
     'yaml': generate_app_compose_from_entries('services/tube', entries),
 }
@@ -98,6 +100,14 @@ def test_a_second_listener_is_published_next_to_http(result):
 
 
 @TILT_REQUIRED
+def test_bind_opens_a_port_to_the_network_only_when_asked(result):
+    entry = result["lan"]
+
+    assert '      - "0.0.0.0:80:80/tcp"\n' in entry
+    assert '      - "127.0.0.1:443:443/tcp"\n' in entry
+
+
+@TILT_REQUIRED
 def test_services_without_extra_ports_publish_nothing(result):
     assert "ports:" not in result["plain"]
     # Only bring-your-own resources read extraPorts; the CLI reports it on other types.
@@ -118,6 +128,7 @@ def test_the_stack_file_has_one_ports_block_per_service(result):
         ("'extraPorts': [{'port': 53, 'protocol': 'sctp'}]", "'extraPorts[0].protocol' must be tcp or udp"),
         ("'extraPorts': [{'port': 80}, {'port': 8080, 'hostPort': 80}]", "is published twice"),
         ("'extraPorts': [{'port': 80}], 'replicas': 2", "needs a single container"),
+        ("'extraPorts': [{'port': 80, 'bind': '192.168.1.5'}]", "'extraPorts[0].bind' must be 127.0.0.1 or 0.0.0.0"),
     ],
 )
 def test_a_bad_extra_port_stops_generation(tmp_path, fields, message):

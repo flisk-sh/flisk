@@ -8,6 +8,7 @@ import {
   checkCircularDependencies,
   checkCustomDockerfiles,
   checkDependsOnShape,
+  checkNetworkPorts,
   checkRequiredSecrets,
   checkSchemaVersions,
   checkServiceFields,
@@ -675,5 +676,22 @@ describe("checkVolumes", () => {
     const exit = vi.fn() as never;
     enforceServiceConfigGate(root, {}, exit);
     expect(exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("checkNetworkPorts", () => {
+  const byo = { appType: "bring-your-own", image: "caddy:2" };
+
+  it("passes when every extra port stays on this machine", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }, { port: 443, bind: "127.0.0.1" }] });
+    expect(checkNetworkPorts(root).didPass).toBe(true);
+  });
+
+  it("warns, without failing, about a port opened to the network", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80, bind: "0.0.0.0" }, { port: 443 }] });
+    const result = checkNetworkPorts(root);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("caddy 0.0.0.0:80/tcp");
+    expect(result.message).not.toContain("443");
   });
 });
