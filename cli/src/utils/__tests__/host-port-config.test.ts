@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -168,5 +168,54 @@ describe("saved host port plan", () => {
     expect(plan.ingressHttp).not.toBe(8080);
     expect(plan.postgres).not.toBe(15432);
     expect([plan.ingressHttp, plan.ingressHttps, plan.postgres]).toEqual([80, 443, 15433]);
+  });
+});
+
+describe("ports a bring-your-own service publishes", () => {
+  let projectRoot = "";
+  afterEach(() => {
+    if (projectRoot) rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  const project = (extraPorts: unknown[]) => {
+    projectRoot = mkdtempSync(join(tmpdir(), "flisk-port-config-extra-"));
+    mkdirSync(join(projectRoot, ".flisk"), { recursive: true });
+    writeFileSync(
+      join(projectRoot, ".flisk", "project.json"),
+      JSON.stringify({ project: { name: "tube" } }),
+    );
+    const dir = join(projectRoot, "services", "tube", "caddy");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "service.json"),
+      JSON.stringify({
+        appName: "caddy",
+        appType: "bring-your-own",
+        stack: "tube",
+        port: 8080,
+        image: "caddy:2",
+        extraPorts,
+      }),
+    );
+  };
+
+  it("keeps Traefik off a proxy's 80 and 443, even when nothing listens there yet", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    project([
+      { port: 80, bind: "0.0.0.0" },
+      { port: 443, bind: "0.0.0.0" },
+    ]);
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect(plan.ingressHttp).not.toBe(80);
+    expect(plan.ingressHttps).not.toBe(443);
+  });
+
+  it("still takes 80 and 443 when the extra ports are elsewhere", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    project([{ port: 80, hostPort: 8081 }]);
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect([plan.ingressHttp, plan.ingressHttps]).toEqual([80, 443]);
   });
 });
