@@ -1,3 +1,13 @@
+export declare const DEFAULT_CAPABILITIES: {
+    readonly gateway: true;
+    readonly database: true;
+    readonly watch: true;
+    readonly healthChecks: true;
+    readonly clientGeneration: true;
+    readonly scaffolding: true;
+    readonly docker: true;
+    readonly tilt: true;
+};
 export declare const PLATFORM_STANDARDS: {
     readonly version: "1.0.0";
     readonly tech: {
@@ -82,6 +92,16 @@ export declare const PLATFORM_STANDARDS: {
         readonly healthcheckInterval: "10s";
         readonly healthcheckTimeout: "5s";
         readonly frontendPriorityBase: 100;
+    };
+    readonly capabilities: {
+        readonly gateway: true;
+        readonly database: true;
+        readonly watch: true;
+        readonly healthChecks: true;
+        readonly clientGeneration: true;
+        readonly scaffolding: true;
+        readonly docker: true;
+        readonly tilt: true;
     };
     readonly filewatchIgnores: readonly ["node_modules", "dist", "build", ".git", ".prisma", ".turbo", "coverage", "tmp", "temp", "__tests__", "test", "tests"];
     readonly serviceTypes: {

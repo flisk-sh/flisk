@@ -8,7 +8,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { hasVerdaccioLicense } from "../generator/extension-fetch.js";
 import { readProjectConfig } from "../generator/template-engine.js";
-import type { CheckResult, DoctorAction, HostPortPlan } from "../types/index.js";
+import type { CheckResult, DoctorAction, HostPortPlan, ProjectConfig } from "../types/index.js";
 import {
   DEVCONTAINER_DOCKER_FIX,
   detectHost,
@@ -48,6 +48,7 @@ import {
   type DoctorError,
   getDoctorExitCode,
 } from "../utils/doctor-report.js";
+import { getEnabledCapabilities, isGatewayEnabled } from "../utils/shared-infra.js";
 import {
   checkHealthRoutes,
   checkIngressPorts,
@@ -1562,6 +1563,7 @@ export const doctorCommand = new Command("doctor")
     process.exit(2);
   })
   .option("--no-ping", "Skip pinging running services' /health endpoints")
+  .option("--no-gateway", "Skip gateway checks (ports 80/443)")
   .option("--strict", "Fail warnings such as a WSL project under /mnt/c")
   .option("--fix", "Repair this project's unused Docker networks and leftover doctor probes", false)
   .option("--dry-run", "With --fix: list the repairs without changing anything", false)
@@ -1737,6 +1739,17 @@ export const doctorCommand = new Command("doctor")
     }
 
     // The host port plan places the gateway and Postgres containers; a project of local processes has neither.
+    let projectConfig: ProjectConfig | null = null;
+    if (projectRoot) {
+      try {
+        projectConfig = readProjectConfig(projectRoot);
+      } catch {
+        // An unreadable config is reported by the project checks below.
+      }
+    }
+    const gatewayEnabled =
+      options.gateway !== false && projectConfig?.capabilities?.gateway !== false;
+
     let hostPortPlan: HostPortPlan | null | undefined;
     let portPlanError: string | undefined;
     if (!nativeResources) {
@@ -1754,25 +1767,33 @@ export const doctorCommand = new Command("doctor")
           ? {
               name: "Host Ports",
               didPass: true,
-              message: `HTTP ${hostPortPlan.ingressHttp}, HTTPS ${hostPortPlan.ingressHttps}, Postgres ${hostPortPlan.postgres}`,
+              message: gatewayEnabled
+                ? `HTTP ${hostPortPlan.ingressHttp}, HTTPS ${hostPortPlan.ingressHttps}, Postgres ${hostPortPlan.postgres}`
+                : `Postgres ${hostPortPlan.postgres}`,
             }
           : {
               name: "Host Ports",
               didPass: false,
               message: portPlanError ?? "Could not select host ports",
-              fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
+              fix: gatewayEnabled
+                ? "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports."
+                : "Set FLISK_POSTGRES_PORT to an available host port.",
             },
-      () =>
-        hostPortPlan
-          ? checkIngressPorts(execSync, undefined, [
-              hostPortPlan.ingressHttp,
-              hostPortPlan.ingressHttps,
-            ])
-          : {
-              name: "Ingress Ports",
-              didPass: false,
-              message: "Ingress port plan is unavailable",
-            },
+      ...(gatewayEnabled
+        ? [
+            () =>
+              hostPortPlan
+                ? checkIngressPorts(execSync, undefined, [
+                    hostPortPlan.ingressHttp,
+                    hostPortPlan.ingressHttps,
+                  ])
+                : {
+                    name: "Ingress Ports",
+                    didPass: false,
+                    message: "Ingress port plan is unavailable",
+                  },
+          ]
+        : []),
       checkColima,
       checkDockerRuntime,
       () => checkDiskSpace(),
@@ -1959,12 +1980,16 @@ export const doctorCommand = new Command("doctor")
         }
       }
     }
+    const enabledCaps = getEnabledCapabilities(
+      projectConfig ?? { capabilities: { gateway: gatewayEnabled } },
+    );
     const report = createDoctorReport(
       orderDoctorResults(results),
       inProject,
       errors,
       hostPortPlan,
       host,
+      enabledCaps,
     );
     if (fixActions) report.data.actions = fixActions;
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;

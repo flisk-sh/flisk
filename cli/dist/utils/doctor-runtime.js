@@ -10,6 +10,7 @@ import { findProjectRoot } from "./paths.js";
 import { isApiServiceType } from "./resource-kind.js";
 import { getProjectName } from "./service-urls.js";
 import { discoverResources, discoverResourcesFromRoot } from "./services.js";
+import { isGatewayEnabled } from "./shared-infra.js";
 import { effectiveRuntimeStatus, isTiltResourcePending, UNHEALTHY_CONTAINER_MESSAGE, } from "./tilt-resource-state.js";
 import { getTiltPollingPort } from "./tilt-startup.js";
 import { findOnPath } from "./which.js";
@@ -147,7 +148,9 @@ export function findStaleDisabledResources(jsonText, projectRoot = findProjectRo
     }
     else {
         expectedEnabled.add("init-networks");
-        expectedEnabled.add("traefik");
+        if (projectRoot ? isGatewayEnabled(projectRoot) : true) {
+            expectedEnabled.add("traefik");
+        }
         expectedEnabled.add("golden-layers-build");
         if (autoDiscoverEnabled) {
             expectedEnabled.add("service-discovery-daemon");
@@ -468,7 +471,15 @@ export function checkPrivateNpmRegistry(exec = execSync, projectRoot = findProje
  * This is the exact failure mode that leaves apps never scheduled while doctor
  * previously reported "Environment ready".
  */
-export function checkIngressPorts(exec = execSync, projectName = getProjectName(), ports = INGRESS_PORTS) {
+export function checkIngressPorts(exec = execSync, projectName = getProjectName(), ports = INGRESS_PORTS, options) {
+    if (options?.gateway === false || options?.capabilities?.gateway === false) {
+        return {
+            name: "Ingress Ports",
+            didPass: true,
+            isSkipped: true,
+            message: "Gateway capability disabled - skipped ingress port check",
+        };
+    }
     const projectPrefix = toComposeProjectPrefix(projectName);
     let dockerPs = "";
     try {

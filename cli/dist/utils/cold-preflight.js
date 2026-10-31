@@ -14,6 +14,7 @@ import { getHostPortPlan } from "./host-port-config.js";
 import { isNativeProject } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { discoverResourcesFromRoot } from "./services.js";
+import { isGatewayEnabled } from "./shared-infra.js";
 import { findOnPath } from "./which.js";
 /** Checks a project of `command` services needs: no container runtime, no Tilt, no gateway or database ports. */
 export const NATIVE_CHECK_IDS = ["node", "bun"];
@@ -81,7 +82,7 @@ export function usesPrisma(projectRoot) {
         return false;
     }
 }
-async function hostPortsItem(root, scope) {
+async function hostPortsItem(root, scope, gatewayEnabled = true) {
     try {
         // Scaffolding must not talk to Docker at all, so the port plan is planned
         // from the host ports alone.
@@ -89,7 +90,9 @@ async function hostPortsItem(root, scope) {
         return {
             id: "ports",
             ok: true,
-            message: `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`,
+            message: gatewayEnabled
+                ? `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`
+                : `Postgres ${plan.postgres}`,
         };
     }
     catch (error) {
@@ -97,7 +100,9 @@ async function hostPortsItem(root, scope) {
             id: "ports",
             ok: false,
             message: error instanceof Error ? error.message : String(error),
-            fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
+            fix: gatewayEnabled
+                ? "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports."
+                : "Set FLISK_POSTGRES_PORT to an available host port.",
         };
     }
 }
@@ -105,6 +110,9 @@ export async function runColdPreflight(opts = {}) {
     const cwd = opts.cwd ?? process.cwd();
     const projectRoot = findProjectRoot(cwd);
     const inProject = Boolean(projectRoot);
+    const gatewayEnabled = opts.gateway !== false &&
+        opts.capabilities?.gateway !== false &&
+        (projectRoot ? isGatewayEnabled(projectRoot) : true);
     const resources = projectRoot ? discoverResourcesFromRoot(projectRoot) : [];
     // A project whose services all declare `command` runs them as local processes (#2231): Docker, Compose, Tilt, the
     // gateway/database host ports and the container wiring checks do not apply, so they are not run or reported.
@@ -177,7 +185,7 @@ export async function runColdPreflight(opts = {}) {
         : { id: "bun", ok: true, message: "Bun not needed: no generated JS services" });
     // The host port plan places the gateway and Postgres, which only the container runtime starts.
     if (scope !== "native")
-        items.push(await hostPortsItem(projectRoot ?? cwd, scope));
+        items.push(await hostPortsItem(projectRoot ?? cwd, scope, gatewayEnabled));
     // Project wiring (NATS, Prisma database) describes a running stack, so it is
     // only probed for the runtime scope.
     if (projectRoot && scope === "runtime") {

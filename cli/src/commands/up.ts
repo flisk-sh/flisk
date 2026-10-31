@@ -541,6 +541,7 @@ export const upCommand = new Command("up")
     "--env-file <path>",
     "Use this project env file for the run instead of .env (for example: --env-file .env.integration)",
   )
+  .option("--no-gateway", "Disable gateway routing (do not provision Traefik)")
   .option(
     "--json",
     "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet",
@@ -801,12 +802,14 @@ export const upCommand = new Command("up")
         }
 
         // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
+        const configOverrides =
+          options.gateway === false ? { capabilities: { gateway: false } } : undefined;
         // Tilt fail on a missing Tiltfile.
         if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
           if (!options.quiet) {
             console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
           }
-          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet, configOverrides });
         }
 
         const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
@@ -818,7 +821,7 @@ export const upCommand = new Command("up")
         if (newlyEnabledStacks.length > 0) {
           // project.json just changed, so the generated spec.master is now stale. Regenerate it here, or the next
           // `flisk config verify` reports it out of sync.
-          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet, configOverrides });
           if (!options.quiet) {
             console.log(
               chalk.gray(

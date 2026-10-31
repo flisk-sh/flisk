@@ -28,7 +28,7 @@ function containerRuntimeReachable(checks) {
     return runtime ? runtime.didPass : null;
 }
 /** Produce the same readiness decision for human and machine consumers. */
-export function createDoctorReport(checks, inProject, errors = [], portPlan, host) {
+export function createDoctorReport(checks, inProject, errors = [], portPlan, host, capabilities) {
     const fixFirst = rankDoctorFixes(checks);
     return {
         schemaVersion: SCHEMA_VERSION,
@@ -36,6 +36,7 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
             ready: errors.length === 0 &&
                 checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
             inProject,
+            ...(capabilities ? { capabilities } : {}),
             checks,
             ...(fixFirst.length > 0 ? { fixFirst } : {}),
             ...(host
@@ -51,22 +52,22 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
                 ? {
                     ports: {
                         http: {
-                            requested: portPlan?.requested.ingressHttp ?? 80,
+                            requested: portPlan?.requested?.ingressHttp ?? 80,
                             chosen: portPlan?.ingressHttp ?? null,
-                            explicit: portPlan?.explicit.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
-                            reason: portPlan?.reason.ingressHttp ?? "port planning failed",
+                            explicit: portPlan?.explicit?.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
+                            reason: portPlan?.reason?.ingressHttp ?? "port planning failed",
                         },
                         https: {
-                            requested: portPlan?.requested.ingressHttps ?? 443,
+                            requested: portPlan?.requested?.ingressHttps ?? 443,
                             chosen: portPlan?.ingressHttps ?? null,
-                            explicit: portPlan?.explicit.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
-                            reason: portPlan?.reason.ingressHttps ?? "port planning failed",
+                            explicit: portPlan?.explicit?.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
+                            reason: portPlan?.reason?.ingressHttps ?? "port planning failed",
                         },
                         postgres: {
-                            requested: portPlan?.requested.postgres ?? 5432,
+                            requested: portPlan?.requested?.postgres ?? 5432,
                             chosen: portPlan?.postgres ?? null,
-                            explicit: portPlan?.explicit.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
-                            reason: portPlan?.reason.postgres ?? "port planning failed",
+                            explicit: portPlan?.explicit?.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
+                            reason: portPlan?.reason?.postgres ?? "port planning failed",
                         },
                     },
                 }

@@ -186,6 +186,17 @@ export interface ProjectOptionalInfra {
 export interface ProjectDiscovery {
     paths: string[];
 }
+export interface ProjectCapabilities {
+    gateway?: boolean;
+    database?: boolean;
+    watch?: boolean;
+    healthChecks?: boolean;
+    clientGeneration?: boolean;
+    scaffolding?: boolean;
+    docker?: boolean;
+    tilt?: boolean;
+    [key: string]: boolean | undefined;
+}
 export interface ProjectConfig {
     version: string;
     project: {
@@ -205,6 +216,7 @@ export interface ProjectConfig {
         out_of_scope: LegacyProjectStackDefinition;
     };
     always_enabled_infra?: string[];
+    capabilities?: ProjectCapabilities;
     optional_infra: ProjectOptionalInfra;
     discovery: ProjectDiscovery;
     overrides?: Record<string, JsonValue>;

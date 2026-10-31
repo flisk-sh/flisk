@@ -10,7 +10,7 @@ import {
   checkTilt,
   DOCTOR_FIXES,
 } from "../commands/doctor.js";
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, ProjectCapabilities } from "../types/index.js";
 import { BUN_FLOOR_LABEL, bunMeetsFloor } from "./bun-floor.js";
 import { projectNeedsBun } from "./bun-requirement.js";
 import { readyNextStep } from "./cli-command.js";
@@ -21,6 +21,7 @@ import { getHostPortPlan } from "./host-port-config.js";
 import { isNativeProject } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { discoverResourcesFromRoot } from "./services.js";
+import { isGatewayEnabled } from "./shared-infra.js";
 import { findOnPath } from "./which.js";
 
 export type PreflightItem = {
@@ -136,7 +137,11 @@ export function usesPrisma(projectRoot: string): boolean {
   }
 }
 
-async function hostPortsItem(root: string, scope: PreflightScope): Promise<PreflightItem> {
+async function hostPortsItem(
+  root: string,
+  scope: PreflightScope,
+  gatewayEnabled: boolean = true,
+): Promise<PreflightItem> {
   try {
     // Scaffolding must not talk to Docker at all, so the port plan is planned
     // from the host ports alone.
@@ -144,24 +149,37 @@ async function hostPortsItem(root: string, scope: PreflightScope): Promise<Prefl
     return {
       id: "ports",
       ok: true,
-      message: `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`,
+      message: gatewayEnabled
+        ? `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`
+        : `Postgres ${plan.postgres}`,
     };
   } catch (error) {
     return {
       id: "ports",
       ok: false,
       message: error instanceof Error ? error.message : String(error),
-      fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
+      fix: gatewayEnabled
+        ? "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports."
+        : "Set FLISK_POSTGRES_PORT to an available host port.",
     };
   }
 }
 
 export async function runColdPreflight(
-  opts: { cwd?: string; scope?: PreflightScope } = {},
+  opts: {
+    cwd?: string;
+    scope?: PreflightScope;
+    capabilities?: ProjectCapabilities;
+    gateway?: boolean;
+  } = {},
 ): Promise<PreflightResult> {
   const cwd = opts.cwd ?? process.cwd();
   const projectRoot = findProjectRoot(cwd);
   const inProject = Boolean(projectRoot);
+  const gatewayEnabled =
+    opts.gateway !== false &&
+    opts.capabilities?.gateway !== false &&
+    (projectRoot ? isGatewayEnabled(projectRoot) : true);
   const resources = projectRoot ? discoverResourcesFromRoot(projectRoot) : [];
   // A project whose services all declare `command` runs them as local processes (#2231): Docker, Compose, Tilt, the
   // gateway/database host ports and the container wiring checks do not apply, so they are not run or reported.
@@ -240,7 +258,7 @@ export async function runColdPreflight(
       : { id: "bun", ok: true, message: "Bun not needed: no generated JS services" },
   );
   // The host port plan places the gateway and Postgres, which only the container runtime starts.
-  if (scope !== "native") items.push(await hostPortsItem(projectRoot ?? cwd, scope));
+  if (scope !== "native") items.push(await hostPortsItem(projectRoot ?? cwd, scope, gatewayEnabled));
 
   // Project wiring (NATS, Prisma database) describes a running stack, so it is
   // only probed for the runtime scope.

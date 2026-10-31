@@ -2,8 +2,120 @@
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEFAULT_CAPABILITIES } from "../config/platform-standards.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
+export const SHARED_INFRA_SERVICES = {
+    traefik: {
+        name: "traefik",
+        capability: "gateway",
+        description: "Traefik reverse proxy",
+    },
+    postgres: {
+        name: "postgres",
+        capability: "database",
+        description: "PostgreSQL database",
+    },
+};
+/**
+ * Reads the capabilities block from `.flisk/project.json` when present.
+ */
+export function readProjectCapabilities(projectRoot) {
+    try {
+        const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
+        return parsed && typeof parsed === "object" && parsed.capabilities && typeof parsed.capabilities === "object"
+            ? parsed.capabilities
+            : null;
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * Checks whether a given capability is enabled.
+ * Defaults to true if unspecified.
+ */
+export function isCapabilityEnabled(configOrOptions, capabilityName) {
+    if (configOrOptions === null || configOrOptions === undefined) {
+        return true;
+    }
+    if (typeof configOrOptions === "string") {
+        const fileCaps = readProjectCapabilities(configOrOptions);
+        if (fileCaps && typeof fileCaps[capabilityName] === "boolean") {
+            return fileCaps[capabilityName];
+        }
+        return true;
+    }
+    if (typeof configOrOptions === "object") {
+        const direct = configOrOptions[capabilityName];
+        if (typeof direct === "boolean") {
+            return direct;
+        }
+        const caps = configOrOptions.capabilities;
+        if (caps && typeof caps === "object" && typeof caps[capabilityName] === "boolean") {
+            return caps[capabilityName];
+        }
+    }
+    return true;
+}
+/**
+ * Returns whether the gateway capability is enabled.
+ */
+export function isGatewayEnabled(configOrOptions) {
+    return isCapabilityEnabled(configOrOptions, "gateway");
+}
+/**
+ * Returns a list of capability names that remain enabled.
+ */
+export function getEnabledCapabilities(configOrOptions) {
+    const standardKeys = Object.keys(DEFAULT_CAPABILITIES);
+    const extraKeys = [];
+    if (typeof configOrOptions === "string") {
+        const fileCaps = readProjectCapabilities(configOrOptions);
+        if (fileCaps) {
+            for (const k of Object.keys(fileCaps)) {
+                if (!standardKeys.includes(k) && typeof fileCaps[k] === "boolean") {
+                    extraKeys.push(k);
+                }
+            }
+        }
+    }
+    else if (typeof configOrOptions === "object" && configOrOptions !== null) {
+        const caps = configOrOptions.capabilities ?? configOrOptions;
+        if (typeof caps === "object" && caps !== null) {
+            for (const k of Object.keys(caps)) {
+                if (!standardKeys.includes(k) && typeof caps[k] === "boolean") {
+                    extraKeys.push(k);
+                }
+            }
+        }
+    }
+    const allKeys = [...standardKeys, ...extraKeys];
+    return allKeys.filter((cap) => isCapabilityEnabled(configOrOptions, cap));
+}
+/**
+ * Returns the list of shared infrastructure service names based on enabled capabilities.
+ * When gateway is disabled, Traefik is excluded.
+ */
+export function getSharedInfrastructureList(configOrOptions) {
+    const list = [];
+    if (isGatewayEnabled(configOrOptions)) {
+        list.push(SHARED_INFRA_SERVICES.traefik.name);
+    }
+    if (isCapabilityEnabled(configOrOptions, "database")) {
+        list.push(SHARED_INFRA_SERVICES.postgres.name);
+    }
+    return list;
+}
+/**
+ * Returns detailed shared infrastructure items based on enabled capabilities.
+ */
+export function getSharedInfrastructureItems(configOrOptions) {
+    const list = getSharedInfrastructureList(configOrOptions);
+    return list
+        .map((name) => SHARED_INFRA_SERVICES[name])
+        .filter(Boolean);
+}
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export function usesSharedPostgres(resource) {
     const config = resource.config;

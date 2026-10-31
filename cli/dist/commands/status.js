@@ -13,7 +13,7 @@ import { nativeServiceStates } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
-import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
+import { getEnabledCapabilities, groupSharedPostgres, isGatewayEnabled, readProjectName } from "../utils/shared-infra.js";
 import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
@@ -26,6 +26,7 @@ export const statusCommand = new Command("status")
     .option("--stacks", "Show stack information (default)", true)
     .option("--resources", "Show all discovered resources", false)
     .option("--tilt", "Show tilt resource status", false)
+    .option("--no-gateway", "Disable gateway status reporting")
     .option("--unhealthy", "Show only services that are failing or still starting", false)
     .action(async (options) => {
     const action = async () => {
@@ -40,6 +41,7 @@ export const statusCommand = new Command("status")
         const nativeStates = projectRoot && isNativeProject(discovery.resources)
             ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
             : null;
+        const gatewayEnabled = options.gateway !== false && (projectRoot ? isGatewayEnabled(projectRoot) : true);
         let tiltAvailable = false;
         if (!nativeStates) {
             try {
@@ -153,7 +155,7 @@ export const statusCommand = new Command("status")
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
                     port: resource.port ?? null,
-                    ...buildServicePorts(resource, portPlan?.ingressHttp),
+                    ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled }),
                     status: serviceStates?.[resource.name]?.status ?? "unknown",
                     ...(serviceStates?.[resource.name]?.reason
                         ? { statusReason: serviceStates[resource.name]?.reason }
@@ -162,7 +164,8 @@ export const statusCommand = new Command("status")
                         ? { blockedBy: serviceStates[resource.name]?.blockedBy }
                         : {}),
                 })),
-                ports: buildStackPorts(portPlan, tiltPort),
+                ports: buildStackPorts(portPlan, tiltPort, { gateway: gatewayEnabled }),
+                capabilities: getEnabledCapabilities(projectRoot ?? { capabilities: { gateway: gatewayEnabled } }),
                 stacks: discovery.stacks.map((stack) => ({
                     name: stack.name,
                     resourceCount: stack.resourceCount,

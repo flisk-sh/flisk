@@ -228,7 +228,14 @@ export class TemplateEngine {
       runtime: PLATFORM_STANDARDS.runtime,
       project: projectConfig.project,
       phases: dedupePhaseEnabledStacks(projectConfig.phases),
-      alwaysEnabledInfra: projectConfig.always_enabled_infra ?? [...DEFAULT_ALWAYS_ENABLED_INFRA],
+      alwaysEnabledInfra: (
+        projectConfig.always_enabled_infra ?? [...DEFAULT_ALWAYS_ENABLED_INFRA]
+      ).filter((infra) => {
+        if (projectConfig.capabilities?.gateway === false) {
+          return infra !== "proxy" && infra !== "traefik";
+        }
+        return true;
+      }),
       optionalInfra: projectConfig.optional_infra,
       serviceDescriptions: RESOURCE_DESCRIPTIONS,
       infraDescriptions: INFRA_DESCRIPTIONS,
@@ -448,6 +455,7 @@ function normalizeProjectConfig(value: unknown): ProjectConfig | null {
     project: config.project as ProjectConfig["project"],
     phases,
     always_enabled_infra: config.always_enabled_infra as string[] | undefined,
+    capabilities: config.capabilities as ProjectConfig["capabilities"],
     optional_infra: config.optional_infra as ProjectConfig["optional_infra"],
     discovery: config.discovery as ProjectConfig["discovery"],
     overrides: config.overrides as ProjectConfig["overrides"],
@@ -563,13 +571,25 @@ export interface GenerateMasterConfigsOptions {
   discardHandEdits?: boolean;
   /** Suppress progress lines on stdout, for callers that print machine output (`flisk up --json`). */
   quiet?: boolean;
+  /** In-memory overrides for project configuration during generation. */
+  configOverrides?: Partial<ProjectConfig>;
 }
 
 export async function generateMasterConfigs(
   projectRoot: string,
   options: GenerateMasterConfigsOptions = {},
 ): Promise<void> {
-  const projectConfig = readProjectConfig(projectRoot);
+  let projectConfig = readProjectConfig(projectRoot);
+  if (options.configOverrides) {
+    projectConfig = {
+      ...projectConfig,
+      ...options.configOverrides,
+      capabilities: {
+        ...projectConfig.capabilities,
+        ...options.configOverrides.capabilities,
+      },
+    };
+  }
 
   // Refuse before writing anything: a service.json value with a line break or YAML syntax would add keys to the generated compose
   // file (GHSA-phgf-pww4-7jxc).

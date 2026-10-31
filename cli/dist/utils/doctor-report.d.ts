@@ -11,6 +11,7 @@ export interface DoctorReport {
     data: {
         ready: boolean;
         inProject: boolean;
+        capabilities?: string[];
         checks: CheckResult[];
         /** Present only when a failing check has a runnable command: most blocking first. */
         fixFirst?: RankedFix[];
@@ -49,7 +50,7 @@ export declare function collectDoctorChecks(machineChecks: DoctorCheck[], projec
     errors: DoctorError[];
 }>;
 /** Produce the same readiness decision for human and machine consumers. */
-export declare function createDoctorReport(checks: CheckResult[], inProject: boolean, errors?: DoctorError[], portPlan?: HostPortPlan | null, host?: HostInfo): DoctorReport;
+export declare function createDoctorReport(checks: CheckResult[], inProject: boolean, errors?: DoctorError[], portPlan?: HostPortPlan | null, host?: HostInfo, capabilities?: string[]): DoctorReport;
 /** 0: ready (warnings permitted), 1: blocking findings, 2: usage/internal failure. */
 export declare function getDoctorExitCode(report: DoctorReport): 0 | 1 | 2;
 export {};

@@ -164,7 +164,12 @@ export class TemplateEngine {
             runtime: PLATFORM_STANDARDS.runtime,
             project: projectConfig.project,
             phases: dedupePhaseEnabledStacks(projectConfig.phases),
-            alwaysEnabledInfra: projectConfig.always_enabled_infra ?? [...DEFAULT_ALWAYS_ENABLED_INFRA],
+            alwaysEnabledInfra: (projectConfig.always_enabled_infra ?? [...DEFAULT_ALWAYS_ENABLED_INFRA]).filter((infra) => {
+                if (projectConfig.capabilities?.gateway === false) {
+                    return infra !== "proxy" && infra !== "traefik";
+                }
+                return true;
+            }),
             optionalInfra: projectConfig.optional_infra,
             serviceDescriptions: RESOURCE_DESCRIPTIONS,
             infraDescriptions: INFRA_DESCRIPTIONS,
@@ -365,6 +370,7 @@ function normalizeProjectConfig(value) {
         project: config.project,
         phases,
         always_enabled_infra: config.always_enabled_infra,
+        capabilities: config.capabilities,
         optional_infra: config.optional_infra,
         discovery: config.discovery,
         overrides: config.overrides,
@@ -455,7 +461,17 @@ function ensureRootWorkspaceManifest(projectRoot, projectConfig) {
     return true;
 }
 export async function generateMasterConfigs(projectRoot, options = {}) {
-    const projectConfig = readProjectConfig(projectRoot);
+    let projectConfig = readProjectConfig(projectRoot);
+    if (options.configOverrides) {
+        projectConfig = {
+            ...projectConfig,
+            ...options.configOverrides,
+            capabilities: {
+                ...projectConfig.capabilities,
+                ...options.configOverrides.capabilities,
+            },
+        };
+    }
     // Refuse before writing anything: a service.json value with a line break or YAML syntax would add keys to the generated compose
     // file (GHSA-phgf-pww4-7jxc).
     const unsafeFields = discoverServiceManifestPaths(projectRoot).flatMap((manifestPath) => generatedFieldErrorsForFile(manifestPath, path.relative(projectRoot, manifestPath).split(path.sep).join("/")));

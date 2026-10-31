@@ -20,7 +20,7 @@ Tracked as epics and sub-tasks in flisk-sh/flisk: #2216 (audit), #2217 (minimal 
 
 ## 3. Make integrations optional
 
-- [ ] 3.1 Move Traefik behind an optional gateway capability
+- [x] 3.1 Move Traefik behind an optional gateway capability (#2232)
 - [ ] 3.2 Move Postgres behind an optional database capability
 - [ ] 3.3 Move hot reload behind an optional watch capability
 - [ ] 3.4 Make health checks optional and configurable

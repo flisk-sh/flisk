@@ -83,6 +83,17 @@ const TRAEFIK = {
     healthcheckTimeout: "5s",
     frontendPriorityBase: 100,
 };
+export const DEFAULT_CAPABILITIES = {
+    gateway: true,
+    database: true,
+    watch: true,
+    healthChecks: true,
+    clientGeneration: true,
+    scaffolding: true,
+    docker: true,
+    tilt: true,
+};
+const CAPABILITIES = DEFAULT_CAPABILITIES;
 const FILEWATCH_IGNORES = [
     "node_modules",
     "dist",
@@ -172,6 +183,7 @@ export const PLATFORM_STANDARDS = {
     health: HEALTH_CHECKS,
     naming: NAMING,
     traefik: TRAEFIK,
+    capabilities: CAPABILITIES,
     filewatchIgnores: FILEWATCH_IGNORES,
     serviceTypes: RESOURCE_TYPES,
     features: FEATURES,

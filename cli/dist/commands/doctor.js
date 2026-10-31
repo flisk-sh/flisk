@@ -18,6 +18,7 @@ import { formatFixFirst, rankDoctorFixes } from "../utils/doctor-fix-first.js";
 import { checkDiskSpace, dockerDesktopStuck } from "../utils/doctor-host.js";
 import { checkNativeCommands, checkNativeDependsOn, checkNativeRuntime, checkNativeServiceHealth, } from "../utils/doctor-native.js";
 import { collectDoctorChecks, createDoctorReport, getDoctorExitCode, } from "../utils/doctor-report.js";
+import { getEnabledCapabilities } from "../utils/shared-infra.js";
 import { checkHealthRoutes, checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, projectConfigEnablesVerdaccio, summarizeAdvertisedProbes, summarizeServiceProbes, summarizeSmokeResults, } from "../utils/doctor-runtime.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
@@ -1283,6 +1284,7 @@ export const doctorCommand = new Command("doctor")
     process.exit(2);
 })
     .option("--no-ping", "Skip pinging running services' /health endpoints")
+    .option("--no-gateway", "Skip gateway checks (ports 80/443)")
     .option("--strict", "Fail warnings such as a WSL project under /mnt/c")
     .option("--fix", "Repair this project's unused Docker networks and leftover doctor probes", false)
     .option("--dry-run", "With --fix: list the repairs without changing anything", false)
@@ -1435,6 +1437,16 @@ export const doctorCommand = new Command("doctor")
             printFixActions(fixActions, options.dryRun);
     }
     // The host port plan places the gateway and Postgres containers; a project of local processes has neither.
+    let projectConfig = null;
+    if (projectRoot) {
+        try {
+            projectConfig = readProjectConfig(projectRoot);
+        }
+        catch {
+            // An unreadable config is reported by the project checks below.
+        }
+    }
+    const gatewayEnabled = options.gateway !== false && projectConfig?.capabilities?.gateway !== false;
     let hostPortPlan;
     let portPlanError;
     if (!nativeResources) {
@@ -1451,24 +1463,32 @@ export const doctorCommand = new Command("doctor")
             ? {
                 name: "Host Ports",
                 didPass: true,
-                message: `HTTP ${hostPortPlan.ingressHttp}, HTTPS ${hostPortPlan.ingressHttps}, Postgres ${hostPortPlan.postgres}`,
+                message: gatewayEnabled
+                    ? `HTTP ${hostPortPlan.ingressHttp}, HTTPS ${hostPortPlan.ingressHttps}, Postgres ${hostPortPlan.postgres}`
+                    : `Postgres ${hostPortPlan.postgres}`,
             }
             : {
                 name: "Host Ports",
                 didPass: false,
                 message: portPlanError ?? "Could not select host ports",
-                fix: "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.",
+                fix: gatewayEnabled
+                    ? "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports."
+                    : "Set FLISK_POSTGRES_PORT to an available host port.",
             },
-        () => hostPortPlan
-            ? checkIngressPorts(execSync, undefined, [
-                hostPortPlan.ingressHttp,
-                hostPortPlan.ingressHttps,
-            ])
-            : {
-                name: "Ingress Ports",
-                didPass: false,
-                message: "Ingress port plan is unavailable",
-            },
+        ...(gatewayEnabled
+            ? [
+                () => hostPortPlan
+                    ? checkIngressPorts(execSync, undefined, [
+                        hostPortPlan.ingressHttp,
+                        hostPortPlan.ingressHttps,
+                    ])
+                    : {
+                        name: "Ingress Ports",
+                        didPass: false,
+                        message: "Ingress port plan is unavailable",
+                    },
+            ]
+            : []),
         checkColima,
         checkDockerRuntime,
         () => checkDiskSpace(),
@@ -1637,7 +1657,8 @@ export const doctorCommand = new Command("doctor")
             }
         }
     }
-    const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host);
+    const enabledCaps = getEnabledCapabilities(projectConfig ?? { capabilities: { gateway: gatewayEnabled } });
+    const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCaps);
     if (fixActions)
         report.data.actions = fixActions;
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
