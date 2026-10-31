@@ -89,6 +89,10 @@ def resolve_dependency_provides(manifest):
     A Redis, Qdrant or RabbitMQ preset provides its connection URL (REDIS_URL, QDRANT_URL, AMQP_URL), so a service that
     lists it in dependsOn reaches it without writing the URL itself. A name that is not a discovered resource has none.
     """
+    # Without FLISK_PROJECT_ROOT the registry did not discover at load time, and discovering now would write to its frozen
+    # state (a generator loaded on its own, as in the unit tests). There is nothing to provide then.
+    if not os.environ.get("FLISK_PROJECT_ROOT", "") or not declared_dependencies(manifest):
+        return []
     pairs = []
     for dep_name in declared_dependencies(manifest):
         dep = _find_backend_resource(dep_name)
