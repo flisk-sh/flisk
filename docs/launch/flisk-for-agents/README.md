@@ -24,7 +24,7 @@ Facts this rests on (check before you repeat them):
 | Claude Code, Cursor, Codex (and Claude Desktop) are supported clients | [Set up the Flisk MCP server](../../agent-tooling/flisk-mcp-setup.md) |
 | Skills | [flisk-skills](https://github.com/flisk-sh/flisk-skills); `flisk connect` writes them for the host, and `flisk project` also adds `.claude/skills`, `.agents/skills` and `AGENTS.md` to a new project (seen in a real `project_init` call) |
 | MIT core, no key | [LICENSE](../../../LICENSE), and the license boundary in GOVERNANCE.md |
-| Needs Docker and Tilt to start a stack; native Windows needs WSL2 for `flisk up` | [docs/wsl2.md](../../wsl2.md) and the setup page |
+| A container stack needs Docker and Tilt (WSL2 on Windows); services that declare a `command` run as local processes with neither | [docs/wsl2.md](../../wsl2.md) and the setup page |
 
 No performance numbers appear in this kit. If someone asks for one, use only the wording in [docs/claims.md](../../claims.md), with its caveat.
 
@@ -64,7 +64,7 @@ Post it right after the listing goes live (it can also be added when scheduling)
 >
 > One command connects it: `flisk connect claude` (or `cursor`, `codex`), after `npm install -g @flisk-sh/flisk`.
 >
-> What it is not: it is not hosted and not a deploy tool. It runs on your machine and needs Docker and Tilt to start a stack. On Windows it needs WSL2. The core is MIT and needs no key or account.
+> What it is not: it is not hosted and not a deploy tool. It runs on your machine. Simple services run as local processes with no Docker; a container stack needs Docker and Tilt (WSL2 on Windows). The core is MIT and needs no key or account.
 >
 > It is early, and some things are rough: the first build of a stack can take minutes, and we have only tried it on the setups we have.
 >

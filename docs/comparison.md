@@ -29,7 +29,7 @@ Each of these tools addresses distinct stages and philosophies of local developm
 
 - **Small architectures (2 to 5 services):** If your stack consists of a handful of services that you already wrote and containerized, a single `compose.yaml` is simple, transparent, and requires no intermediate manifest abstractions.
 - **Teams desiring zero code generation:** Compose files are static and explicitly maintained. If your team dislikes generated files or metadata layers (`service.json`), Compose offers direct, unabstracted control.
-- **Native Windows workflows without WSL2:** Docker Compose runs natively on Windows with Docker Desktop. Flisk startup requires Linux containers inside Ubuntu on WSL2 (native Windows supports Flisk CLI inspection only).
+- **Native Windows workflows without WSL2:** Docker Compose runs natively on Windows with Docker Desktop. A Flisk container stack requires Linux containers inside Ubuntu on WSL2; native Windows runs only local-process projects and `flisk demo`.
 - **Established workflows:** If your team already has a battle-tested Compose setup with custom overrides and volume configurations that developers are happy with, replacing it with Flisk adds unnecessary churn.
 
 ### When Flisk is the better choice
