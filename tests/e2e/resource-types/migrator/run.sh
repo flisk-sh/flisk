@@ -119,15 +119,16 @@ M4() { # a database resource (#2863): the migrator waits for it by name, and fli
   jq -e '.appType == "database" and .framework == "postgres" and (has("port") | not)' "$db_json" >/dev/null ||
     die "$DB service.json is not a postgres database resource without a port"
   jq --arg d "$DB" '.dependsOn = [$d]' "$mig_json" >"$mig_json.tmp" && mv "$mig_json.tmp" "$mig_json"
-  run m4-verify config verify --json
-  assert check "$OUT/m4-verify.out" \
-    "j.data.valid === true && j.data.sharedPlatformPostgres.databaseResources.includes('$DB') && j.data.sharedPlatformPostgres.dependsOnUsers.includes('$MIGRATOR') && j.data.sharedPlatformPostgres.unknownDependsOnNames.length === 0" \
-    "flisk config verify accepts dependsOn $DB and counts $MIGRATOR as a Postgres user"
   : >"$DIR/up.log"
   start_stack "$STACK"
   poll_until "$MIGRATOR logs a completed migration" "$READY_TIMEOUT" migrator_completed
   poll_until "$MIGRATOR exited" "$READY_TIMEOUT" migrator_exited
   poll_until "a running $API container" "$READY_TIMEOUT" api_running
+  # Verify after flisk up: the dependsOn edit leaves the service outputs stale until up rewrites them.
+  run m4-verify config verify --json
+  assert check "$OUT/m4-verify.out" \
+    "j.data.valid === true && j.data.sharedPlatformPostgres.databaseResources.includes('$DB') && j.data.sharedPlatformPostgres.dependsOnUsers.includes('$MIGRATOR') && j.data.sharedPlatformPostgres.unknownDependsOnNames.length === 0" \
+    "flisk config verify accepts dependsOn $DB and counts $MIGRATOR as a Postgres user"
   local state
   state="$(docker inspect -f '{{.State.ExitCode}}' "$(container_named "$MIGRATOR")")"
   [ "$state" = "0" ] || die "$MIGRATOR exited $state with dependsOn $DB (want 0: it must reach Postgres)"
