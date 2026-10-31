@@ -25,7 +25,7 @@ for pair in "${targets[@]}"; do
   target="${pair#* }"; key="${pair%% *}"
   ref="$registry/golden-$key:$tag12"
   echo "building $target -> $ref"
-  docker buildx build --push \
+  docker buildx build --push --platform linux/amd64,linux/arm64 \
     --label "flisk.golden.hash=$hash" \
     -f "$df" --target "$target" -t "$ref" "$root"
 done
