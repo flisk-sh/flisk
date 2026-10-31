@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   containerErrors,
   dockerNameErrors,
+  extraPortsErrors,
   generatedFieldErrorsForFile,
   getInvalidServiceRoutePathFields,
   isDockerSafeName,
@@ -868,5 +869,48 @@ describe("containerErrors", () => {
     );
     expect(result.errors).toEqual([]);
     expect(result.warnings).toEqual([]);
+  });
+});
+
+describe("extraPortsErrors", () => {
+  const file = "services/main/caddy/service.json";
+  const byo = (extraPorts: unknown, more: Record<string, unknown> = {}) => ({
+    appType: "bring-your-own",
+    extraPorts,
+    ...more,
+  });
+
+  it("accepts a proxy on 80 and 443, and an absent value", () => {
+    expect(extraPortsErrors({ appType: "bring-your-own" }, file)).toEqual([]);
+    expect(
+      extraPortsErrors(
+        byo([
+          { port: 80 },
+          { port: 443, hostPort: 8443, protocol: "tcp" },
+          { port: 443, protocol: "udp" },
+        ]),
+        file,
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [byo(80), "extraPorts: expected a list"],
+    [{ appType: "backend", extraPorts: [{ port: 80 }] }, "only applies to bring-your-own"],
+    [byo([80]), "extraPorts[0]: expected an object"],
+    [byo([{ port: 0 }]), "extraPorts[0].port: expected a port number"],
+    [byo([{ port: "80" }]), "extraPorts[0].port: expected a port number"],
+    [byo([{ port: 80, hostPort: 70000 }]), "extraPorts[0].hostPort: expected a port number"],
+    [byo([{ port: 53, protocol: "sctp" }]), "extraPorts[0].protocol: expected tcp or udp"],
+    [byo([{ port: 80, bind: "0.0.0.0" }]), "extraPorts[0].bind: unknown option"],
+    [
+      byo([{ port: 80 }, { port: 8080, hostPort: 80 }]),
+      "extraPorts[1].hostPort: 80/tcp is published twice",
+    ],
+    [byo([{ port: 80 }], { replicas: 2 }), "extraPorts: needs a single container"],
+  ])("reports %j", (manifest, message) => {
+    const errors = extraPortsErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
   });
 });

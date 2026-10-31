@@ -13,6 +13,37 @@ export interface ServicePorts {
   hostPort: number | null;
   /** Loopback address for a resource with no route but a known port, such as a bring-your-own app. Null otherwise. */
   directUrl: string | null;
+  /** Plain host ports of a bring-your-own resource (`extraPorts`), published on 127.0.0.1. Empty for everything else. */
+  extraPorts: ExtraPort[];
+}
+
+export interface ExtraPort {
+  containerPort: number;
+  hostPort: number;
+  protocol: "tcp" | "udp";
+  /** Loopback address, such as 127.0.0.1:443/tcp. */
+  address: string;
+}
+
+/** The `extraPorts` of a bring-your-own resource as Compose publishes them (engine/.../compose/byo_ports.star). Invalid entries are skipped. */
+export function extraPortsOf(resource: DiscoveredResource): ExtraPort[] {
+  const config = resource.config as { appType?: string; extraPorts?: unknown } | undefined;
+  if (config?.appType !== BRING_YOUR_OWN_TYPE || !Array.isArray(config.extraPorts)) return [];
+  return config.extraPorts.flatMap((entry: unknown): ExtraPort[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const { port, hostPort, protocol } = entry as Record<string, unknown>;
+    if (typeof port !== "number") return [];
+    const host = typeof hostPort === "number" ? hostPort : port;
+    const proto = protocol === "udp" ? "udp" : "tcp";
+    return [
+      {
+        containerPort: port,
+        hostPort: host,
+        protocol: proto,
+        address: `127.0.0.1:${host}/${proto}`,
+      },
+    ];
+  });
 }
 
 export interface StackPort {
@@ -62,7 +93,7 @@ export function buildServicePorts(
     !routedByType && containerPort && appType !== BRING_YOUR_OWN_TYPE
       ? `http://localhost:${containerPort}`
       : null;
-  return { url, containerPort, hostPort: null, directUrl };
+  return { url, containerPort, hostPort: null, directUrl, extraPorts: extraPortsOf(resource) };
 }
 
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */

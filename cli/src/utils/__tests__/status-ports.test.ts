@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { DiscoveredResource, HostPortPlan } from "../../types/index.js";
 import { STANDARD_PORTS } from "../constants.js";
-import { buildServicePorts, buildStackPorts } from "../status-ports.js";
+import { buildServicePorts, buildStackPorts, extraPortsOf } from "../status-ports.js";
 
 const resource = (
   name: string,
@@ -212,5 +212,26 @@ describe("buildStackPorts", () => {
       expect(ports.some((p) => p.name === "ingress-http")).toBe(false);
       expect(ports.some((p) => p.name === "ingress-https")).toBe(false);
     });
+  });
+});
+
+describe("extraPortsOf", () => {
+  it("lists a bring-your-own proxy's published ports, host port defaulting to the container port", () => {
+    const caddy = resource("caddy", "bring-your-own", 8080, {
+      extraPorts: [{ port: 80, hostPort: 8081 }, { port: 443 }, { port: 443, protocol: "udp" }],
+    });
+    expect(extraPortsOf(caddy)).toEqual([
+      { containerPort: 80, hostPort: 8081, protocol: "tcp", address: "127.0.0.1:8081/tcp" },
+      { containerPort: 443, hostPort: 443, protocol: "tcp", address: "127.0.0.1:443/tcp" },
+      { containerPort: 443, hostPort: 443, protocol: "udp", address: "127.0.0.1:443/udp" },
+    ]);
+    expect(buildServicePorts(caddy, 8080).extraPorts).toHaveLength(3);
+  });
+
+  it("is empty for other resource types and for services without extraPorts", () => {
+    expect(
+      extraPortsOf(resource("api", "backend", 4000, { extraPorts: [{ port: 1080 }] })),
+    ).toEqual([]);
+    expect(buildServicePorts(resource("orders-api", "backend", 4000), 8080).extraPorts).toEqual([]);
   });
 });

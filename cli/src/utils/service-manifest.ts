@@ -42,6 +42,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "enabled",
   "env",
   "exposeViaProxy",
+  "extraPorts",
   "featuresEnabled",
   "framework",
   "healthCheck",
@@ -505,6 +506,53 @@ export function containerErrors(manifest: Record<string, unknown>, displayPath: 
   return errors;
 }
 
+const isPortNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
+
+/**
+ * `extraPorts` (#2909): plain host ports on 127.0.0.1 for a bring-your-own resource, next to the routed `port`. Mirrors
+ * engine/.../compose/byo_ports.star, which refuses the same values.
+ */
+export function extraPortsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const extra = manifest.extraPorts;
+  if (extra === undefined || extra === null) return [];
+  const field = `${displayPath}.extraPorts`;
+  if (!Array.isArray(extra)) return [`${field}: expected a list such as [{ "port": 443 }]`];
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  if (extra.length > 0 && manifest.replicas !== undefined && manifest.replicas !== 1) {
+    errors.push(`${field}: needs a single container; remove replicas`);
+  }
+  const seen = new Set<string>();
+  extra.forEach((entry: unknown, i) => {
+    const at = `${field}[${i}]`;
+    if (!isPlainObject(entry)) {
+      errors.push(`${at}: expected an object such as { "port": 443 }`);
+      return;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!["port", "hostPort", "protocol"].includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use port, hostPort, protocol)`);
+      }
+    }
+    if (!isPortNumber(entry.port))
+      errors.push(`${at}.port: expected a port number from 1 to 65535`);
+    const hostPort = entry.hostPort ?? entry.port;
+    if (entry.hostPort !== undefined && !isPortNumber(entry.hostPort)) {
+      errors.push(`${at}.hostPort: expected a port number from 1 to 65535`);
+    }
+    const protocol = entry.protocol ?? "tcp";
+    if (protocol !== "tcp" && protocol !== "udp")
+      errors.push(`${at}.protocol: expected tcp or udp`);
+    const key = `${String(hostPort)}/${String(protocol)}`;
+    if (seen.has(key)) errors.push(`${at}.hostPort: ${key} is published twice`);
+    seen.add(key);
+  });
+  return errors;
+}
+
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
   const secrets = manifest.secrets;
@@ -776,6 +824,7 @@ export function validateServiceManifest(
   errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
   errors.push(...secretsErrors(manifest, displayPath));
   errors.push(...containerErrors(manifest, displayPath));
+  errors.push(...extraPortsErrors(manifest, displayPath));
   errors.push(...healthCheckErrors(manifest, displayPath));
   if ("profiles" in manifest) {
     const profiles = manifest.profiles;
