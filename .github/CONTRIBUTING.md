@@ -106,7 +106,7 @@ If one of these fails on a clean checkout, that is a bug in the project, not in 
 For developing and running Flisk locally:
 
 - **macOS and Linux**: Supported directly.
-- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows is inspect-only (`flisk --version`, `flisk doctor`, and `flisk up --dry-run`) and refutes startup (`flisk up` exits with an error indicating landscape startup requires Ubuntu on WSL2). See the [WSL2 setup guide](../docs/wsl2.md) and tracking in [#622](https://github.com/flisk-sh/flisk/issues/622).
+- **Windows**: Supported and recommended via WSL2 (Ubuntu). Native Windows runs `flisk demo` and local-process projects (services that declare a `command`); for a Docker stack it is inspect-only (`flisk --version`, `flisk doctor`, and `flisk up --dry-run`), and `flisk up` exits with an error indicating landscape startup requires Ubuntu on WSL2. See the [WSL2 setup guide](../docs/wsl2.md) and tracking in [#622](https://github.com/flisk-sh/flisk/issues/622).
 
 ## Getting help
 

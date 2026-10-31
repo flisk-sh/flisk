@@ -7,7 +7,7 @@
 Want the short version? See the [10-row cheat sheet](../cli/README.md#cheat-sheet).
 
 > [!NOTE]
-> Needs Docker (Engine 25+, Compose 2.20.2+), [Tilt](https://docs.tilt.dev/install.html), and Bun 1.2+ for the default generated services. On Windows, run the CLI in WSL2 ([setup](wsl2.md)).
+> Services that declare a `command` need only their own runtime ([without Docker](run-without-docker.md)). Container stacks need Docker (Engine 25+, Compose 2.20.2+), [Tilt](https://docs.tilt.dev/install.html), and Bun 1.2+ for the default generated services; on Windows, run those in WSL2 ([setup](wsl2.md)).
 
 ## 🚀 First five minutes
 
@@ -281,6 +281,7 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | `--dry-run` | Show what would start |
 | `-f`, `--force` | Kill an existing Tilt process before starting |
 | `--ignore-drift` | Start even if generated files differ from `service.json` |
+| `--no-database` | Do not provision the shared Postgres: saves `capabilities.database: false` in `.flisk/project.json` and regenerates `.flisk/.flisk-out/`. Set it back to `true` to turn Postgres on again |
 | `--ignore-version` | Start even if this `flisk` is older than `minFliskVersion` in `.flisk/project.json` |
 | `--json` | Print one JSON object when the stack is ready or the command fails. Implies `--quiet` |
 | `-q`, `--quiet` | Less output |
@@ -396,6 +397,7 @@ flisk doctor --ping-timeout 2000
 | Flag | Effect |
 | --- | --- |
 | `--no-ping` | Skip pinging running services' `/health` endpoints |
+| `--no-database` | Skip the shared Postgres checks for this run |
 | `--ping-timeout <ms>` | Per-service ping timeout (default 5000) |
 | `--fix` | Remove this project's unused Docker networks and leftover doctor probes (asks first) |
 | `--dry-run` | With `--fix`, print the commands without running them |

@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: MIT
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DEFAULT_CAPABILITIES } from "../config/platform-standards.js";
+import { isDatabaseCapabilityEnabled, isGatewayEnabled, } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
-import { FliskError } from "./errors.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
 export const SHARED_INFRA_SERVICES = {
     traefik: {
@@ -19,101 +18,6 @@ export const SHARED_INFRA_SERVICES = {
     },
 };
 /**
- * Reads the capabilities block from `.flisk/project.json` when present.
- */
-export function readProjectCapabilities(projectRoot) {
-    try {
-        const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        return parsed &&
-            typeof parsed === "object" &&
-            parsed.capabilities &&
-            typeof parsed.capabilities === "object"
-            ? parsed.capabilities
-            : null;
-    }
-    catch {
-        return null;
-    }
-}
-/**
- * Checks whether a given capability is enabled.
- * Defaults to true if unspecified.
- */
-export function isCapabilityEnabled(configOrOptions, capabilityName) {
-    if (configOrOptions === null || configOrOptions === undefined) {
-        return true;
-    }
-    if (typeof configOrOptions === "string") {
-        const fileCaps = readProjectCapabilities(configOrOptions);
-        const fileValue = fileCaps?.[capabilityName];
-        if (typeof fileValue === "boolean") {
-            return fileValue;
-        }
-        return true;
-    }
-    if (typeof configOrOptions === "object") {
-        const direct = configOrOptions[capabilityName];
-        if (typeof direct === "boolean") {
-            return direct;
-        }
-        const caps = configOrOptions.capabilities;
-        const capValue = caps && typeof caps === "object" ? caps[capabilityName] : undefined;
-        if (typeof capValue === "boolean") {
-            return capValue;
-        }
-    }
-    return true;
-}
-/**
- * Returns whether the gateway capability is enabled.
- */
-export function isGatewayEnabled(configOrOptions) {
-    return isCapabilityEnabled(configOrOptions, "gateway");
-}
-/**
- * `flisk up --no-gateway` must not be a silent no-op: the generated Tiltfile and compose files follow `.flisk/project.json`,
- * so the flag is only honoured when the project already opts out there.
- * @throws FliskError when the project still has the gateway on
- */
-export function assertGatewayOptOutIsConfigured(projectRoot) {
-    if (projectRoot && !isGatewayEnabled(projectRoot))
-        return;
-    throw new FliskError("--no-gateway needs the gateway turned off in .flisk/project.json; the flag alone does not change the generated files.", [
-        'Set "capabilities": { "gateway": false } in .flisk/project.json',
-        "Run flisk config regenerate, then flisk up",
-    ]);
-}
-/**
- * Returns a list of capability names that remain enabled.
- */
-export function getEnabledCapabilities(configOrOptions) {
-    const standardKeys = Object.keys(DEFAULT_CAPABILITIES);
-    const extraKeys = [];
-    if (typeof configOrOptions === "string") {
-        const fileCaps = readProjectCapabilities(configOrOptions);
-        if (fileCaps) {
-            for (const k of Object.keys(fileCaps)) {
-                if (!standardKeys.includes(k) && typeof fileCaps[k] === "boolean") {
-                    extraKeys.push(k);
-                }
-            }
-        }
-    }
-    else if (typeof configOrOptions === "object" && configOrOptions !== null) {
-        const caps = configOrOptions.capabilities ?? configOrOptions;
-        if (typeof caps === "object" && caps !== null) {
-            for (const k of Object.keys(caps)) {
-                if (!standardKeys.includes(k) &&
-                    typeof caps[k] === "boolean") {
-                    extraKeys.push(k);
-                }
-            }
-        }
-    }
-    const allKeys = [...standardKeys, ...extraKeys];
-    return allKeys.filter((cap) => isCapabilityEnabled(configOrOptions, cap));
-}
-/**
  * Returns the list of shared infrastructure service names based on enabled capabilities.
  * When gateway is disabled, Traefik is excluded.
  */
@@ -122,7 +26,7 @@ export function getSharedInfrastructureList(configOrOptions) {
     if (isGatewayEnabled(configOrOptions)) {
         list.push(SHARED_INFRA_SERVICES.traefik.name);
     }
-    if (isCapabilityEnabled(configOrOptions, "database")) {
+    if (isDatabaseCapabilityEnabled(configOrOptions)) {
         list.push(SHARED_INFRA_SERVICES.postgres.name);
     }
     return list;
@@ -148,7 +52,10 @@ export function usesSharedPostgres(resource) {
     const dependsOn = Array.isArray(config.dependsOn) ? config.dependsOn : [];
     return dependsOn.some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name));
 }
-export function groupSharedPostgres(projectName, stacks) {
+export function groupSharedPostgres(projectName, stacks, options) {
+    // A project that opted out of the shared Postgres has none to show.
+    if (options && !isDatabaseCapabilityEnabled(options.projectRoot, { ...options }))
+        return null;
     const prefix = projectName.replace(/-/g, "_");
     const databases = [];
     for (const stack of [...stacks].sort((a, b) => a.name.localeCompare(b.name))) {

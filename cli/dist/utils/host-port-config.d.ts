@@ -1,4 +1,4 @@
-import type { HostPortPlan } from "../types/index.js";
+import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
 export declare function isDockerPortOwnedByProject(dockerPs: string, projectPrefix: string, port: number): boolean;
 export declare function readSavedHostPortPlan(projectRoot: string): HostPortPlan | null;
 export declare function writeSavedHostPortPlan(projectRoot: string, plan: HostPortPlan): void;
@@ -20,4 +20,15 @@ export declare function resolveRuntimeIngressPort(projectRoot: string, plannedPo
 export declare function getHostPortPlan(projectRoot: string, options?: {
     inspectDocker?: boolean;
     isPortFree?: (port: number) => Promise<boolean>;
+    database?: boolean;
+    capabilities?: ProjectCapabilities;
 }): Promise<HostPortPlan>;
+/** Which shared containers need a host port: the gateway takes HTTP/HTTPS, the database takes Postgres. */
+export interface HostPortCapabilities {
+    gateway: boolean;
+    database: boolean;
+}
+/** The host ports a plan places for the capabilities that are on, as `HTTP 80, HTTPS 443, Postgres 5432`. */
+export declare function describeHostPortPlan(plan: HostPortPlan, caps: HostPortCapabilities): string;
+/** What to set when the host ports for the capabilities that are on cannot be placed. */
+export declare function hostPortPlanFix(caps: HostPortCapabilities): string;

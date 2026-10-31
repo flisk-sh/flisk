@@ -36,8 +36,8 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
             ready: errors.length === 0 &&
                 checks.every((check) => check.didPass || check.isSkipped || check.isWarning),
             inProject,
-            ...(capabilities ? { capabilities } : {}),
             checks,
+            ...(capabilities ? { capabilities } : {}),
             ...(fixFirst.length > 0 ? { fixFirst } : {}),
             ...(host
                 ? {
@@ -63,12 +63,16 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
                             explicit: portPlan?.explicit?.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
                             reason: portPlan?.reason?.ingressHttps ?? "port planning failed",
                         },
-                        postgres: {
-                            requested: portPlan?.requested?.postgres ?? 5432,
-                            chosen: portPlan?.postgres ?? null,
-                            explicit: portPlan?.explicit?.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
-                            reason: portPlan?.reason?.postgres ?? "port planning failed",
-                        },
+                        ...(capabilities && !capabilities.includes("database")
+                            ? {}
+                            : {
+                                postgres: {
+                                    requested: portPlan?.requested?.postgres ?? 5432,
+                                    chosen: portPlan?.postgres ?? null,
+                                    explicit: portPlan?.explicit?.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
+                                    reason: portPlan?.reason?.postgres ?? "port planning failed",
+                                },
+                            }),
                     },
                 }
                 : {}),

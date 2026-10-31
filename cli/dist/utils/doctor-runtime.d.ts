@@ -124,7 +124,7 @@ export declare function summarizeAdvertisedProbes(probes: HealthProbe[]): CheckR
  * are reported by checkIngressPorts, so only 5432 is checked against other
  * containers here.
  */
-export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>): Promise<CheckResult>;
+export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>, options?: Record<string, unknown>): Promise<CheckResult>;
 /**
  * When a Tilt session is active, surface resource update errors (Traefik port
  * binds, image builds, etc.) instead of claiming the environment is ready

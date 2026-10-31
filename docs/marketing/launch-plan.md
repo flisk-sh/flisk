@@ -78,7 +78,7 @@ Count: 63 characters.
 >
 > What it does not do: it is not a deploy tool (production stays on Helm or whatever you use), and it is not a drop-in Compose replacement for a stack you already maintain. If Compose or your own Tilt file works for you, keep it.
 >
-> Setup needs Docker and Tilt. Native Windows only supports `flisk` inspection commands; use WSL2 Ubuntu for `flisk up`. The core CLI is MIT and needs no key. Premium features are optional.
+> Docker is optional: `npx @flisk-sh/flisk demo` needs only Node.js, and simple services run as local processes. Container stacks need Docker and Tilt (WSL2 Ubuntu on Windows). The core CLI is MIT and needs no key. Premium features are optional.
 >
 > The CLI makes no outbound calls of its own except `flisk upgrade`, an optional premium fetch with a license key, and the health ping from `flisk doctor`. Details: docs/security.md (link in the reply if asked).
 >
@@ -122,7 +122,7 @@ Word count: about 180. Keep the first comment as posted; do not add a star or up
 >
 > Note on the Dockerfile: `flisk up` builds its own generated image, not the scaffolded `Dockerfile` in each service folder. The scaffolded one is a starting point for building outside Flisk. If you spot a case where that is confusing, tell me in the issues.
 >
-> Native Windows is inspect-only; use WSL2 Ubuntu to run it. Repo: https://github.com/flisk-sh/flisk
+> Native Windows runs the demo and local-process projects; use WSL2 Ubuntu for a Docker stack. Repo: https://github.com/flisk-sh/flisk
 
 ## Prepared answers
 

@@ -3,16 +3,21 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DEFAULT_CAPABILITIES } from "../config/platform-standards.js";
-import type {
-  DiscoveredResource,
-  DiscoveredStack,
-  ProjectCapabilities,
-  ProjectConfig,
-} from "../types/index.js";
+import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities } from "../types/index.js";
+import {
+  type CapabilitySource,
+  isDatabaseCapabilityEnabled,
+  isGatewayEnabled,
+} from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
-import { FliskError } from "./errors.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
+
+/** Where `groupSharedPostgres` reads the database capability: the project root, or a flag such as `--no-database`. */
+export interface SharedInfraOptions {
+  capabilities?: ProjectCapabilities;
+  database?: boolean;
+  projectRoot?: string;
+}
 
 /**
  * Groups the shared platform Postgres for `flisk status`.
@@ -53,132 +58,16 @@ export const SHARED_INFRA_SERVICES = {
   },
 } as const;
 
-export type CapabilityConfigInput =
-  | ProjectConfig
-  | { capabilities?: ProjectCapabilities; gateway?: boolean }
-  | ProjectCapabilities
-  | string
-  | null
-  | undefined;
-
-/**
- * Reads the capabilities block from `.flisk/project.json` when present.
- */
-export function readProjectCapabilities(projectRoot: string): ProjectCapabilities | null {
-  try {
-    const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-    return parsed &&
-      typeof parsed === "object" &&
-      parsed.capabilities &&
-      typeof parsed.capabilities === "object"
-      ? (parsed.capabilities as ProjectCapabilities)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Checks whether a given capability is enabled.
- * Defaults to true if unspecified.
- */
-export function isCapabilityEnabled(
-  configOrOptions: CapabilityConfigInput,
-  capabilityName: string,
-): boolean {
-  if (configOrOptions === null || configOrOptions === undefined) {
-    return true;
-  }
-  if (typeof configOrOptions === "string") {
-    const fileCaps = readProjectCapabilities(configOrOptions);
-    const fileValue = fileCaps?.[capabilityName];
-    if (typeof fileValue === "boolean") {
-      return fileValue;
-    }
-    return true;
-  }
-  if (typeof configOrOptions === "object") {
-    const direct = (configOrOptions as Record<string, unknown>)[capabilityName];
-    if (typeof direct === "boolean") {
-      return direct;
-    }
-    const caps = (configOrOptions as { capabilities?: ProjectCapabilities }).capabilities;
-    const capValue = caps && typeof caps === "object" ? caps[capabilityName] : undefined;
-    if (typeof capValue === "boolean") {
-      return capValue;
-    }
-  }
-  return true;
-}
-
-/**
- * Returns whether the gateway capability is enabled.
- */
-export function isGatewayEnabled(configOrOptions?: CapabilityConfigInput): boolean {
-  return isCapabilityEnabled(configOrOptions, "gateway");
-}
-
-/**
- * `flisk up --no-gateway` must not be a silent no-op: the generated Tiltfile and compose files follow `.flisk/project.json`,
- * so the flag is only honoured when the project already opts out there.
- * @throws FliskError when the project still has the gateway on
- */
-export function assertGatewayOptOutIsConfigured(projectRoot: string | null | undefined): void {
-  if (projectRoot && !isGatewayEnabled(projectRoot)) return;
-  throw new FliskError(
-    "--no-gateway needs the gateway turned off in .flisk/project.json; the flag alone does not change the generated files.",
-    [
-      'Set "capabilities": { "gateway": false } in .flisk/project.json',
-      "Run flisk config regenerate, then flisk up",
-    ],
-  );
-}
-
-/**
- * Returns a list of capability names that remain enabled.
- */
-export function getEnabledCapabilities(configOrOptions?: CapabilityConfigInput): string[] {
-  const standardKeys = Object.keys(DEFAULT_CAPABILITIES);
-  const extraKeys: string[] = [];
-
-  if (typeof configOrOptions === "string") {
-    const fileCaps = readProjectCapabilities(configOrOptions);
-    if (fileCaps) {
-      for (const k of Object.keys(fileCaps)) {
-        if (!standardKeys.includes(k) && typeof fileCaps[k] === "boolean") {
-          extraKeys.push(k);
-        }
-      }
-    }
-  } else if (typeof configOrOptions === "object" && configOrOptions !== null) {
-    const caps =
-      (configOrOptions as { capabilities?: ProjectCapabilities }).capabilities ?? configOrOptions;
-    if (typeof caps === "object" && caps !== null) {
-      for (const k of Object.keys(caps)) {
-        if (
-          !standardKeys.includes(k) &&
-          typeof (caps as Record<string, unknown>)[k] === "boolean"
-        ) {
-          extraKeys.push(k);
-        }
-      }
-    }
-  }
-
-  const allKeys = [...standardKeys, ...extraKeys];
-  return allKeys.filter((cap) => isCapabilityEnabled(configOrOptions, cap));
-}
-
 /**
  * Returns the list of shared infrastructure service names based on enabled capabilities.
  * When gateway is disabled, Traefik is excluded.
  */
-export function getSharedInfrastructureList(configOrOptions?: CapabilityConfigInput): string[] {
+export function getSharedInfrastructureList(configOrOptions?: CapabilitySource): string[] {
   const list: string[] = [];
   if (isGatewayEnabled(configOrOptions)) {
     list.push(SHARED_INFRA_SERVICES.traefik.name);
   }
-  if (isCapabilityEnabled(configOrOptions, "database")) {
+  if (isDatabaseCapabilityEnabled(configOrOptions)) {
     list.push(SHARED_INFRA_SERVICES.postgres.name);
   }
   return list;
@@ -188,7 +77,7 @@ export function getSharedInfrastructureList(configOrOptions?: CapabilityConfigIn
  * Returns detailed shared infrastructure items based on enabled capabilities.
  */
 export function getSharedInfrastructureItems(
-  configOrOptions?: CapabilityConfigInput,
+  configOrOptions?: CapabilitySource,
 ): SharedInfraItem[] {
   const list = getSharedInfrastructureList(configOrOptions);
   return list
@@ -213,7 +102,10 @@ export function usesSharedPostgres(resource: DiscoveredResource): boolean {
 export function groupSharedPostgres(
   projectName: string,
   stacks: DiscoveredStack[],
+  options?: SharedInfraOptions,
 ): SharedPostgresInstance | null {
+  // A project that opted out of the shared Postgres has none to show.
+  if (options && !isDatabaseCapabilityEnabled(options.projectRoot, { ...options })) return null;
   const prefix = projectName.replace(/-/g, "_");
   const databases: SharedInfraDatabase[] = [];
 

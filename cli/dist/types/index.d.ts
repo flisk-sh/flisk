@@ -186,8 +186,11 @@ export interface ProjectOptionalInfra {
 export interface ProjectDiscovery {
     paths: string[];
 }
+/** `capabilities` in `.flisk/project.json`: a capability set to false is not provisioned. Every capability is on unless set to false. */
 export interface ProjectCapabilities {
+    /** The Traefik reverse proxy and gateway routing (`proxy`). */
     gateway?: boolean;
+    /** The bundled shared Postgres (`database-management`). */
     database?: boolean;
     watch?: boolean;
     healthChecks?: boolean;
@@ -203,6 +206,7 @@ export interface ProjectConfig {
         name: string;
         version: string;
     };
+    capabilities?: ProjectCapabilities;
     phases: {
         pre_alpha: ProjectPhaseDefinition;
         alpha: ProjectPhaseDefinition;
@@ -216,7 +220,6 @@ export interface ProjectConfig {
         out_of_scope: LegacyProjectStackDefinition;
     };
     always_enabled_infra?: string[];
-    capabilities?: ProjectCapabilities;
     optional_infra: ProjectOptionalInfra;
     discovery: ProjectDiscovery;
     overrides?: Record<string, JsonValue>;

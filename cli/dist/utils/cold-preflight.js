@@ -6,15 +6,15 @@ import { join } from "node:path";
 import { checkDockerCompose, checkDockerRuntime, checkDockerVersions, checkTilt, DOCTOR_FIXES, } from "../commands/doctor.js";
 import { BUN_FLOOR_LABEL, bunMeetsFloor } from "./bun-floor.js";
 import { projectNeedsBun } from "./bun-requirement.js";
+import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { readyNextStep } from "./cli-command.js";
 import { checkColima } from "./colima.js";
 import { PROJECT_JSON } from "./constants.js";
 import { checkNatsBroker } from "./doctor-wiring.js";
-import { getHostPortPlan } from "./host-port-config.js";
+import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix } from "./host-port-config.js";
 import { isNativeProject } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import { discoverResourcesFromRoot } from "./services.js";
-import { isGatewayEnabled } from "./shared-infra.js";
 import { findOnPath } from "./which.js";
 /** Checks a project of `command` services needs: no container runtime, no Tilt, no gateway or database ports. */
 export const NATIVE_CHECK_IDS = ["node", "bun"];
@@ -82,17 +82,22 @@ export function usesPrisma(projectRoot) {
         return false;
     }
 }
-async function hostPortsItem(root, scope, gatewayEnabled = true) {
+async function hostPortsItem(root, scope, opts) {
+    const caps = {
+        gateway: isGatewayEnabled(root, opts),
+        database: isDatabaseCapabilityEnabled(root, opts),
+    };
     try {
         // Scaffolding must not talk to Docker at all, so the port plan is planned
         // from the host ports alone.
-        const plan = await getHostPortPlan(root, scope === "scaffold" ? { inspectDocker: false } : {});
+        const plan = await getHostPortPlan(root, {
+            ...(scope === "scaffold" ? { inspectDocker: false } : {}),
+            database: caps.database,
+        });
         return {
             id: "ports",
             ok: true,
-            message: gatewayEnabled
-                ? `HTTP ${plan.ingressHttp}, HTTPS ${plan.ingressHttps}, Postgres ${plan.postgres}`
-                : `Postgres ${plan.postgres}`,
+            message: describeHostPortPlan(plan, caps),
         };
     }
     catch (error) {
@@ -100,9 +105,7 @@ async function hostPortsItem(root, scope, gatewayEnabled = true) {
             id: "ports",
             ok: false,
             message: error instanceof Error ? error.message : String(error),
-            fix: gatewayEnabled
-                ? "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports."
-                : "Set FLISK_POSTGRES_PORT to an available host port.",
+            fix: hostPortPlanFix(caps),
         };
     }
 }
@@ -110,9 +113,6 @@ export async function runColdPreflight(opts = {}) {
     const cwd = opts.cwd ?? process.cwd();
     const projectRoot = findProjectRoot(cwd);
     const inProject = Boolean(projectRoot);
-    const gatewayEnabled = opts.gateway !== false &&
-        opts.capabilities?.gateway !== false &&
-        (projectRoot ? isGatewayEnabled(projectRoot) : true);
     const resources = projectRoot ? discoverResourcesFromRoot(projectRoot) : [];
     // A project whose services all declare `command` runs them as local processes (#2231): Docker, Compose, Tilt, the
     // gateway/database host ports and the container wiring checks do not apply, so they are not run or reported.
@@ -185,14 +185,14 @@ export async function runColdPreflight(opts = {}) {
         : { id: "bun", ok: true, message: "Bun not needed: no generated JS services" });
     // The host port plan places the gateway and Postgres, which only the container runtime starts.
     if (scope !== "native")
-        items.push(await hostPortsItem(projectRoot ?? cwd, scope, gatewayEnabled));
+        items.push(await hostPortsItem(projectRoot ?? cwd, scope, opts));
     // Project wiring (NATS, Prisma database) describes a running stack, so it is
     // only probed for the runtime scope.
     if (projectRoot && scope === "runtime") {
         const nats = await safeCheck("nats", () => checkNatsBroker(projectRoot), "NATS broker check failed");
         if (!nats.ok)
             items.push(nats);
-        if (usesPrisma(projectRoot)) {
+        if (isDatabaseCapabilityEnabled(projectRoot, opts) && usesPrisma(projectRoot)) {
             let dbUp = false;
             try {
                 const config = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));

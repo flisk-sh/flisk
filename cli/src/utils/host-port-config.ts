@@ -4,7 +4,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import type { HostPortPlan } from "../types/index.js";
+import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
+import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { PROJECT_JSON } from "./constants.js";
 import { createHostPortPlan, isHostPortAvailable, PREFERRED_HOST_PORTS } from "./host-port-plan.js";
 
@@ -116,8 +117,14 @@ export function resolveRuntimeIngressPort(
 /** Reuse this project's last selection when its ports are still free or held by its own containers. */
 export async function getHostPortPlan(
   projectRoot: string,
-  options: { inspectDocker?: boolean; isPortFree?: (port: number) => Promise<boolean> } = {},
+  options: {
+    inspectDocker?: boolean;
+    isPortFree?: (port: number) => Promise<boolean>;
+    database?: boolean;
+    capabilities?: ProjectCapabilities;
+  } = {},
 ): Promise<HostPortPlan> {
+  const dbEnabled = isDatabaseCapabilityEnabled(projectRoot, options);
   const saved = readSavedHostPortPlan(projectRoot);
   const hasOverride = ["FLISK_HTTP_PORT", "FLISK_HTTPS_PORT", "FLISK_POSTGRES_PORT"].some(
     (key) => process.env[key],
@@ -149,18 +156,60 @@ export async function getHostPortPlan(
   const isPortFree = options.isPortFree ?? isHostPortAvailable;
   const isAvailable = async (port: number) => (await isPortFree(port)) || ownedByProject(port);
   if (saved && !hasOverride) {
-    for (const port of [saved.ingressHttp, saved.ingressHttps, saved.postgres]) {
-      if (!(await isAvailable(port))) return createHostPortPlan({ isAvailable });
+    const checkedPorts = dbEnabled
+      ? [saved.ingressHttp, saved.ingressHttps, saved.postgres]
+      : [saved.ingressHttp, saved.ingressHttps];
+    for (const port of checkedPorts) {
+      if (!(await isAvailable(port))) {
+        return createHostPortPlan({
+          isAvailable,
+          database: dbEnabled,
+          capabilities: options.capabilities,
+        });
+      }
     }
     // A plan saved on a fallback port (8080) moves back to the preferred one (80)
     // once that is free, so URLs lose the port without deleting host-ports.json.
     for (const [key, preferred] of Object.entries(PREFERRED_HOST_PORTS)) {
+      if (!dbEnabled && key === "postgres") continue;
       const savedPort = saved[key as keyof typeof PREFERRED_HOST_PORTS];
       if (preferred !== undefined && savedPort !== preferred && (await isAvailable(preferred))) {
-        return createHostPortPlan({ isAvailable });
+        return createHostPortPlan({
+          isAvailable,
+          database: dbEnabled,
+          capabilities: options.capabilities,
+        });
       }
     }
     return saved;
   }
-  return createHostPortPlan({ isAvailable });
+  return createHostPortPlan({
+    isAvailable,
+    database: dbEnabled,
+    capabilities: options.capabilities,
+  });
+}
+
+/** Which shared containers need a host port: the gateway takes HTTP/HTTPS, the database takes Postgres. */
+export interface HostPortCapabilities {
+  gateway: boolean;
+  database: boolean;
+}
+
+/** The host ports a plan places for the capabilities that are on, as `HTTP 80, HTTPS 443, Postgres 5432`. */
+export function describeHostPortPlan(plan: HostPortPlan, caps: HostPortCapabilities): string {
+  const parts = [
+    ...(caps.gateway ? [`HTTP ${plan.ingressHttp}`, `HTTPS ${plan.ingressHttps}`] : []),
+    ...(caps.database ? [`Postgres ${plan.postgres}`] : []),
+  ];
+  return parts.length > 0 ? parts.join(", ") : "No gateway or database host ports needed";
+}
+
+/** What to set when the host ports for the capabilities that are on cannot be placed. */
+export function hostPortPlanFix(caps: HostPortCapabilities): string {
+  if (caps.gateway && !caps.database) {
+    return "Set FLISK_HTTP_PORT or FLISK_HTTPS_PORT to available host ports.";
+  }
+  if (caps.database && !caps.gateway) return "Set FLISK_POSTGRES_PORT to an available host port.";
+  return "Set FLISK_HTTP_PORT, FLISK_HTTPS_PORT, or FLISK_POSTGRES_PORT to available host ports.";
 }

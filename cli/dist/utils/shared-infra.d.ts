@@ -1,4 +1,11 @@
-import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities, ProjectConfig } from "../types/index.js";
+import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities } from "../types/index.js";
+import { type CapabilitySource } from "./capabilities.js";
+/** Where `groupSharedPostgres` reads the database capability: the project root, or a flag such as `--no-database`. */
+export interface SharedInfraOptions {
+    capabilities?: ProjectCapabilities;
+    database?: boolean;
+    projectRoot?: string;
+}
 /**
  * Groups the shared platform Postgres for `flisk status`.
  *
@@ -33,44 +40,17 @@ export declare const SHARED_INFRA_SERVICES: {
         readonly description: "PostgreSQL database";
     };
 };
-export type CapabilityConfigInput = ProjectConfig | {
-    capabilities?: ProjectCapabilities;
-    gateway?: boolean;
-} | ProjectCapabilities | string | null | undefined;
-/**
- * Reads the capabilities block from `.flisk/project.json` when present.
- */
-export declare function readProjectCapabilities(projectRoot: string): ProjectCapabilities | null;
-/**
- * Checks whether a given capability is enabled.
- * Defaults to true if unspecified.
- */
-export declare function isCapabilityEnabled(configOrOptions: CapabilityConfigInput, capabilityName: string): boolean;
-/**
- * Returns whether the gateway capability is enabled.
- */
-export declare function isGatewayEnabled(configOrOptions?: CapabilityConfigInput): boolean;
-/**
- * `flisk up --no-gateway` must not be a silent no-op: the generated Tiltfile and compose files follow `.flisk/project.json`,
- * so the flag is only honoured when the project already opts out there.
- * @throws FliskError when the project still has the gateway on
- */
-export declare function assertGatewayOptOutIsConfigured(projectRoot: string | null | undefined): void;
-/**
- * Returns a list of capability names that remain enabled.
- */
-export declare function getEnabledCapabilities(configOrOptions?: CapabilityConfigInput): string[];
 /**
  * Returns the list of shared infrastructure service names based on enabled capabilities.
  * When gateway is disabled, Traefik is excluded.
  */
-export declare function getSharedInfrastructureList(configOrOptions?: CapabilityConfigInput): string[];
+export declare function getSharedInfrastructureList(configOrOptions?: CapabilitySource): string[];
 /**
  * Returns detailed shared infrastructure items based on enabled capabilities.
  */
-export declare function getSharedInfrastructureItems(configOrOptions?: CapabilityConfigInput): SharedInfraItem[];
+export declare function getSharedInfrastructureItems(configOrOptions?: CapabilitySource): SharedInfraItem[];
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export declare function usesSharedPostgres(resource: DiscoveredResource): boolean;
-export declare function groupSharedPostgres(projectName: string, stacks: DiscoveredStack[]): SharedPostgresInstance | null;
+export declare function groupSharedPostgres(projectName: string, stacks: DiscoveredStack[], options?: SharedInfraOptions): SharedPostgresInstance | null;
 /** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */
 export declare function readProjectName(projectRoot: string): string | null;

@@ -4,6 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { HostPortPlan, ServiceRuntimeState } from "../types/index.js";
+import { getEnabledCapabilities, isGatewayEnabled } from "../utils/capabilities.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -15,12 +16,7 @@ import { nativeServiceStates } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
-import {
-  getEnabledCapabilities,
-  groupSharedPostgres,
-  isGatewayEnabled,
-  readProjectName,
-} from "../utils/shared-infra.js";
+import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
 import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
@@ -43,7 +39,9 @@ export const statusCommand = new Command("status")
       const projectRoot = findProjectRoot();
       const projectName = projectRoot ? readProjectName(projectRoot) : null;
       const sharedInfraGroup = projectName
-        ? groupSharedPostgres(projectName, discovery.stacks)
+        ? groupSharedPostgres(projectName, discovery.stacks, {
+            projectRoot: projectRoot ?? undefined,
+          })
         : null;
       // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
       const nativeStates =
@@ -53,8 +51,7 @@ export const statusCommand = new Command("status")
               discovery.resources.map((resource) => resource.name),
             )
           : null;
-      const gatewayEnabled =
-        options.gateway !== false && (projectRoot ? isGatewayEnabled(projectRoot) : true);
+      const gatewayEnabled = isGatewayEnabled(projectRoot, options);
       let tiltAvailable = false;
       if (!nativeStates) {
         try {
@@ -187,9 +184,6 @@ export const statusCommand = new Command("status")
               : {}),
           })),
           ports: buildStackPorts(portPlan, tiltPort, { gateway: gatewayEnabled }),
-          capabilities: getEnabledCapabilities(
-            projectRoot ?? { capabilities: { gateway: gatewayEnabled } },
-          ),
           stacks: discovery.stacks.map((stack) => ({
             name: stack.name,
             resourceCount: stack.resourceCount,
@@ -200,6 +194,7 @@ export const statusCommand = new Command("status")
           })),
           unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
           sharedInfra: sharedInfraGroup,
+          capabilities: getEnabledCapabilities(projectRoot, options),
           // Names of the failing or pending services, so a caller need not filter `resources` itself.
           unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
         };

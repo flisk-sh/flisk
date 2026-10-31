@@ -11,8 +11,8 @@ export interface DoctorReport {
     data: {
         ready: boolean;
         inProject: boolean;
-        capabilities?: string[];
         checks: CheckResult[];
+        capabilities?: string[];
         /** Present only when a failing check has a runnable command: most blocking first. */
         fixFirst?: RankedFix[];
         /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
@@ -33,7 +33,7 @@ export interface DoctorReport {
                 explicit: boolean;
                 reason: string;
             };
-            postgres: {
+            postgres?: {
                 requested: number;
                 chosen: number | null;
                 explicit: boolean;

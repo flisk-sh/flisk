@@ -43,7 +43,7 @@ export interface SharedPlatformPostgresEvaluation {
  * True when database-management is on for this project from project.json
  * **or** the generated Tiltfile/spec.master when those files exist.
  */
-export declare function databaseManagementEnabled(projectRoot: string): boolean;
+export declare function databaseManagementEnabled(projectRoot: string, options?: Record<string, unknown>): boolean;
 /**
  * Evaluate whether shared platform Postgres will start for this project.
  *
@@ -54,6 +54,6 @@ export declare function databaseManagementEnabled(projectRoot: string): boolean;
  * default focus expands CORE_INFRA → database-management even when project.json
  * says the feature is off (the 7.1 gap).
  */
-export declare function evaluateSharedPlatformPostgres(projectRoot: string, resources?: DiscoveredResource[]): SharedPlatformPostgresEvaluation;
+export declare function evaluateSharedPlatformPostgres(projectRoot: string, resources?: DiscoveredResource[], options?: Record<string, unknown>): SharedPlatformPostgresEvaluation;
 /** Human-readable will-start / will-not-start sentence shared by doctor + verify. */
 export declare function sharedPlatformPostgresMessage(evaluation: SharedPlatformPostgresEvaluation): string;

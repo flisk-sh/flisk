@@ -7,17 +7,16 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { TemplateEngine } from "../../generator/template-engine.js";
 import type { DiscoveredResource, HostPortPlan, ProjectConfig } from "../../types/index.js";
+import {
+  assertGatewayOptOutIsConfigured,
+  getEnabledCapabilities,
+  isGatewayEnabled,
+} from "../capabilities.js";
 import { runColdPreflight } from "../cold-preflight.js";
 import { createDoctorReport } from "../doctor-report.js";
 import { checkIngressPorts } from "../doctor-runtime.js";
 import { FliskError } from "../errors.js";
-import {
-  assertGatewayOptOutIsConfigured,
-  getEnabledCapabilities,
-  getSharedInfrastructureItems,
-  getSharedInfrastructureList,
-  isGatewayEnabled,
-} from "../shared-infra.js";
+import { getSharedInfrastructureItems, getSharedInfrastructureList } from "../shared-infra.js";
 import { buildServicePorts, buildStackPorts } from "../status-ports.js";
 
 function makeTempProject(config: Partial<ProjectConfig>): { root: string; cleanup: () => void } {
