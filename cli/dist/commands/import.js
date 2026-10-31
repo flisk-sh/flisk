@@ -261,7 +261,7 @@ export async function executeImport(args, options = {}, commandName = "flisk imp
     process.exitCode = await runImport(forwardedArgs);
 }
 export const composeCommand = addYesOption(new Command("compose"))
-    .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
+    .description("Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)")
     .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
     .option("-f, --force", "Overwrite an existing service.json", false)
     .option("--dry-run", "Print the plan and write nothing", false)
