@@ -50,6 +50,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "name",
   "nats",
   "params",
+  "profiles",
   "playwright",
   "port",
   "replicas",
@@ -709,6 +710,18 @@ export function validateServiceManifest(
   errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
   errors.push(...secretsErrors(manifest, displayPath));
   errors.push(...healthCheckErrors(manifest, displayPath));
+  if ("profiles" in manifest) {
+    const profiles = manifest.profiles;
+    if (
+      !Array.isArray(profiles) ||
+      profiles.length === 0 ||
+      !profiles.every((name) => typeof name === "string" && /^[a-z0-9][a-z0-9-]*$/.test(name))
+    ) {
+      errors.push(
+        `${displayPath}.profiles: expected a list of profile names such as ["admin"] (lowercase letters, digits and hyphens)`,
+      );
+    }
+  }
 
   if ("smoke" in manifest) {
     for (const message of validateSmoke(manifest.smoke)) errors.push(`${displayPath}.${message}`);

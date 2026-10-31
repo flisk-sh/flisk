@@ -133,6 +133,7 @@ For a local process, `port`, `healthCheckPath`, `dependsOn` and `restart: "no"` 
 | `featuresEnabled` | string array; generator-selected when omitted | generated resources | Platform and generator features, such as `nats`, `prisma`, `redis`, `infisical`, `vitest`, `traefik`, `websocket`, `graphql`, `grpc`, `api-client`, `env-config`, `vite`, `tsconfig`, `dockerfile`, `nginx`, `playwright`, `agents-md`, `ddd`, and `sablier`. See the complete [resource features guide](resource-features.md). |
 | `replicas` | integer; defaults to `1` | runnable services | Number of containers to run. The supported range is `1`–`10`; Traefik load-balances across replicas. |
 | `enabled` | boolean; optional | all | Whether the resource is enabled by the project configuration. |
+| `profiles` | list of names; optional | all | Opt-in profiles, such as `["admin"]`. `flisk up` leaves the service out unless `--profile` names one of them (or `--only` names the service), so heavy parts that are not needed every day stay off by default. Without it the service always starts. See [memory footprint](benchmarks/memory-footprint.md#keeping-the-default-run-small-profiles). |
 
 The `language` and `framework` properties intentionally use an open id pattern in the JSON Schema. The CLI registries are the contract because provider ids can be added without editing the schema.
 

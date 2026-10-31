@@ -296,6 +296,7 @@ flisk up --json &                # one JSON object when ready; Tilt keeps runnin
 | Flag | Effect |
 | --- | --- |
 | `--only <services...>` | Start only these services, plus their `dependsOn` services and shared infrastructure. With a stack, names must belong to it |
+| `--profile <names...>` | Also start the services whose `profiles` in `service.json` include one of these names; without it they are left out. A name no service declares is refused |
 | `--dry-run` | Show what would start |
 | `-f`, `--force` | Kill an existing Tilt process before starting |
 | `--ignore-drift` | Start even if generated files differ from `service.json` |

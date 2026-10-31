@@ -513,6 +513,14 @@
       "minimum": 1,
       "type": "integer"
     },
+    "profiles": {
+      "description": "Opt-in profiles. A service that lists profiles is left out of flisk up unless --profile names one of them (or --only names the service), so heavy parts that are not needed every day (an admin UI, dashboards, a workflow engine) stay off by default. A service without profiles always starts.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+      "examples": [["admin"], ["workflow", "full"]]
+    },
     "replicas": {
       "default": 1,
       "description": "Container instances to run.\nCreates separate containers (resource-1, resource-2).\nTraefik load-balances between all replicas.",

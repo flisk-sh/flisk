@@ -4,6 +4,8 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+- Opt-in profiles (#2873): `"profiles": ["admin"]` in a `service.json` leaves the service out of `flisk up` unless `flisk up --profile admin` (or `--only <service>`) asks for it, so heavy parts stay off by default. `flisk up` says what it left out and refuses a profile no service declares. `scripts/benchmark/memory-footprint.mjs` measures a running stack's idle memory per profile; the restaurant demo idles at about 203 MiB ([memory footprint](benchmarks/memory-footprint.md)).
+
 - A service can be ready by an open TCP port or a command, not only an HTTP path (#2875): `"healthCheck": { "port": 9090 }` or `{ "command": ["grpc_health_probe", "-addr=:9090"] }`. Containers get a matching compose health check (the port probe tries `nc`, bash's `/dev/tcp`, then bun or node), local processes wait for the port or for the command to exit 0, and Traefik gets no HTTP health path. Only one of `path`, `port` and `command`; `flisk config verify` refuses two.
 
 - `flisk run <service> -- <command>` runs a one-off command with the environment the service has in the stack (#2872): in its running container (`docker exec`), or on the host from the service folder for a local process (project `.env`, its `env`, `PORT`). Interactive, with the command's exit code; `--json` returns `exitCode`, `stdout` and `stderr`. The MCP server gains `resource_run` for agents (23 tools).
