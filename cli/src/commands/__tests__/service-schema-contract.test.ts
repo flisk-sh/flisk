@@ -50,6 +50,7 @@ const RESOURCE_CONFIG_FIELDS = [
   "basePath",
   "backendName",
   "apiPath",
+  "healthCheck",
   "healthCheckPath",
   "smoke",
   "traefik",

@@ -25,6 +25,16 @@ export const RESOURCE_CONFIG_APP_TYPES = [
   "bring-your-own",
 ] as const;
 
+export interface HealthCheckObjectConfig {
+  enabled?: boolean;
+  interval?: number;
+  timeout?: number;
+  retries?: number;
+  path?: string;
+}
+
+export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
+
 export interface ResourceConfigFields {
   appName: string;
   appType: (typeof RESOURCE_CONFIG_APP_TYPES)[number];
@@ -41,6 +51,8 @@ export interface ResourceConfigFields {
   basePath?: string;
   backendName?: string;
   apiPath?: string;
+  /** Optional health check configuration: false or { enabled: false } disables health checks; or custom interval, timeout, retries, path. */
+  healthCheck?: HealthCheckConfig;
   /** Path the container healthcheck probes (and Traefik too, unless traefik.healthCheck is set). Defaults to /health. */
   healthCheckPath?: string;
   /** Post-start check through the public proxy URL, run by `flisk up`. See utils/smoke.ts. */

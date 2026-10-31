@@ -20,6 +20,7 @@ load('../../engine/topologies/tilt/manifest/constants.star',
      'HEALTH_CHECK_PATH')
 load('../../engine/topologies/tilt/common/utils.star', 'Utils')
 load('../../engine/topologies/platform/docker/constants.star', 'PlatformDockerConstants')
+load('../../engine/topologies/platform/docker/config/healthcheck.star', 'manifest_health_check')
 
 def _check_prisma_folder(resource_path):
     """
@@ -308,12 +309,14 @@ def _apply_manifest_defaults(manifest, resource_path):
         
         # A bring-your-own service without healthCheckPath may not serve HTTP, so it gets no default Traefik health path.
         default_health_path = None if app_type == 'bring-your-own' else HEALTH_CHECK_PATH
+        # `healthCheck.path` wins over healthCheckPath; `"healthCheck": false` leaves Traefik no health path either.
+        health_check = manifest_health_check(result)
         computed_traefik = {
             'host': stack + '.backend.' + PlatformDockerConstants.PROJECT_NAME + '.local',
             'pathPrefix': default_path_prefix,
             # Follows healthCheckPath so a manifest that only sets that keeps one
             # path for both probes; `traefik.healthCheck` overrides just Traefik's.
-            'healthCheck': result.get('healthCheckPath') or default_health_path,
+            'healthCheck': None if health_check.disabled else (health_check.path or result.get('healthCheckPath') or default_health_path),
         }
         
         # Check for overrides

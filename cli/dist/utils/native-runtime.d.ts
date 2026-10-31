@@ -26,6 +26,8 @@ export interface NativeServicePlan {
     /** What `flisk up` prints for the service. */
     url?: string;
     restart: boolean;
+    /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
+    healthCheckDisabled?: boolean;
 }
 /** The directory, under the project's .flisk/, that holds the run state and log files. */
 export declare const NATIVE_DIR: string;
@@ -65,7 +67,7 @@ export declare function findMissingPrograms(plans: readonly NativeServicePlan[],
 /** True when something accepts TCP connections on localhost:port. */
 export declare function isPortListening(port: number, timeoutMs?: number): Promise<boolean>;
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
-export declare function waitForServiceReady(plan: Pick<NativeServicePlan, "healthUrl" | "port">, options: {
+export declare function waitForServiceReady(plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled">, options: {
     isAlive: () => boolean;
     timeoutMs?: number;
     intervalMs?: number;

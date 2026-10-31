@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
 import { findStaleDisabledResources, getDeferredResourceNames, parseTiltResourceFailures, } from "./doctor-runtime.js";
+import { isHealthCheckDisabled } from "./service-manifest.js";
+import { discoverResources } from "./services.js";
 import { findOnPath } from "./which.js";
 export { findStaleDisabledResources };
 export function tiltGetUiResources(port) {
@@ -18,15 +20,43 @@ export function tiltResourceLogs(port, name) {
  * Tilt lists resources outside the current focus (the other release phases, or everything but a `--only` selection) with
  * `disableStatus.state: Disabled` and both statuses `none`, which would read as pending forever. A resource whose update
  * status is `not_applicable` (a serve-only local resource) has nothing to build, so it counts as built.
+ * When health checks are disabled for a resource (`disabledHealth`), its container health check status is stripped so
+ * running containers are considered ready immediately.
  */
-export function onlyEnabledResources(jsonText) {
+export function onlyEnabledResources(jsonText, disabledHealth) {
     const parsed = JSON.parse(jsonText);
     const items = (parsed.items ?? [])
         .filter((item) => item.status?.disableStatus?.state !== "Disabled")
-        .map((item) => item.status?.updateStatus === "not_applicable"
-        ? { ...item, status: { ...item.status, updateStatus: "ok" } }
-        : item);
+        .map((item) => {
+        let current = item;
+        if (current.status?.updateStatus === "not_applicable") {
+            current = { ...current, status: { ...current.status, updateStatus: "ok" } };
+        }
+        if (disabledHealth &&
+            current.metadata?.name &&
+            disabledHealth.has(current.metadata.name) &&
+            current.status?.composeResourceInfo) {
+            const { healthStatus: _healthStatus, ...restInfo } = current.status.composeResourceInfo;
+            current = {
+                ...current,
+                status: {
+                    ...current.status,
+                    composeResourceInfo: restInfo,
+                },
+            };
+        }
+        return current;
+    });
     return JSON.stringify({ items });
+}
+export function getDisabledHealthResourceNames(resources) {
+    try {
+        const list = resources ?? discoverResources();
+        return new Set(list.filter((svc) => isHealthCheckDisabled(svc.config)).map((svc) => svc.name));
+    }
+    catch {
+        return new Set();
+    }
 }
 function enabledNames(jsonText) {
     return (JSON.parse(jsonText).items ?? [])
@@ -53,8 +83,8 @@ export function isAdvisoryResource(name) {
  * One look at `tilt get uiresources -o json`. `settled` means polling can stop: everything is ready, or the rest has
  * finished with a failure (an errored resource, or an expected service Tilt has disabled).
  */
-export function evaluateTiltReadiness(jsonText, deferred, expected) {
-    const parsed = parseTiltResourceFailures(onlyEnabledResources(jsonText), deferred);
+export function evaluateTiltReadiness(jsonText, deferred, expected, disabledHealth) {
+    const parsed = parseTiltResourceFailures(onlyEnabledResources(jsonText, disabledHealth), deferred);
     // A `<service>-typecheck` resource runs on the host and is advisory: it reports type errors
     // in Tilt, it does not decide whether the stack is up. It must not fail the stack.
     const blocking = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
@@ -101,6 +131,7 @@ export async function waitForTiltResourcesReady(port, options = {}) {
     const intervalMs = options.intervalMs ?? 2_000;
     const fetchJson = options.fetchJson ?? tiltGetUiResources;
     const deferred = options.deferred ?? getDeferredResourceNames();
+    const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
     const deadline = Date.now() + timeoutMs;
     let last = {
         ready: false,
@@ -113,7 +144,7 @@ export async function waitForTiltResourcesReady(port, options = {}) {
         const text = await fetchJson(port);
         if (text) {
             try {
-                const evaluation = evaluateTiltReadiness(text, deferred, options.expected);
+                const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth);
                 last = evaluation.result;
                 if (evaluation.settled)
                     return last;
