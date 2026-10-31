@@ -316,7 +316,8 @@ def _apply_manifest_defaults(manifest, resource_path):
             'pathPrefix': default_path_prefix,
             # Follows healthCheckPath so a manifest that only sets that keeps one
             # path for both probes; `traefik.healthCheck` overrides just Traefik's.
-            'healthCheck': None if health_check.disabled else (health_check.path or result.get('healthCheckPath') or default_health_path),
+            # A port or command probe (#2875) means the service may serve no HTTP: Traefik gets no health path either.
+            'healthCheck': None if (health_check.disabled or health_check.port or health_check.command) else (health_check.path or result.get('healthCheckPath') or default_health_path),
         }
         
         # Check for overrides

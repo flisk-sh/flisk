@@ -425,7 +425,15 @@ export function secretConflictWarnings(manifest, displayPath) {
     }
     return warnings;
 }
-const HEALTH_CHECK_CONFIG_KEYS = new Set(["enabled", "interval", "timeout", "retries", "path"]);
+const HEALTH_CHECK_CONFIG_KEYS = new Set([
+    "enabled",
+    "interval",
+    "timeout",
+    "retries",
+    "path",
+    "port",
+    "command",
+]);
 /**
  * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object
  * configuring enabled, interval, timeout, retries, and path.
@@ -445,7 +453,7 @@ export function healthCheckErrors(manifest, displayPath) {
     const hc = value;
     for (const key of Object.keys(hc)) {
         if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
-            errors.push(`${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", or "path")`);
+            errors.push(`${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", "path", "port", or "command")`);
         }
     }
     if (hc.enabled !== undefined && typeof hc.enabled !== "boolean") {
@@ -474,7 +482,41 @@ export function healthCheckErrors(manifest, displayPath) {
             errors.push(`${displayPath}.healthCheck.path: must be a path such as /health (no spaces, line breaks or YAML syntax)`);
         }
     }
+    if (hc.port !== undefined) {
+        if (typeof hc.port !== "number" ||
+            !Number.isInteger(hc.port) ||
+            hc.port < 1 ||
+            hc.port > 65535) {
+            errors.push(`${displayPath}.healthCheck.port: expected a port from 1 to 65535`);
+        }
+    }
+    if (hc.command !== undefined) {
+        if (!Array.isArray(hc.command) ||
+            hc.command.length === 0 ||
+            !hc.command.every((part) => typeof part === "string" && part.length > 0)) {
+            errors.push(`${displayPath}.healthCheck.command: expected the program and its arguments, such as ["grpc_health_probe", "-addr=:9090"]`);
+        }
+    }
+    const probes = ["path", "port", "command"].filter((key) => hc[key] !== undefined);
+    if (probes.length > 1) {
+        errors.push(`${displayPath}.healthCheck: set only one of "path", "port" or "command" (got ${probes.map((key) => `"${key}"`).join(" and ")})`);
+    }
     return errors;
+}
+/** `healthCheck.port` or `healthCheck.command`, when the service set one instead of an HTTP path. */
+export function readinessProbeOf(manifest) {
+    if (isHealthCheckDisabled(manifest))
+        return undefined;
+    const { port, command } = healthCheckObject(manifest);
+    if (typeof port === "number" && Number.isInteger(port) && port > 0 && port < 65536) {
+        return { kind: "port", port };
+    }
+    if (Array.isArray(command) &&
+        command.length > 0 &&
+        command.every((part) => typeof part === "string")) {
+        return { kind: "command", command: [...command] };
+    }
+    return undefined;
 }
 /** The `healthCheck` object of a manifest, or an empty one when it is a boolean or absent. */
 function healthCheckObject(manifest) {
@@ -493,6 +535,9 @@ export function isHealthCheckDisabled(manifest) {
 }
 /** The HTTP path to probe: `healthCheck.path`, then `healthCheckPath`, then `fallback`. */
 export function healthCheckPathOf(manifest, fallback) {
+    // A port or command probe replaces the HTTP one.
+    if (readinessProbeOf(manifest))
+        return undefined;
     const path = healthCheckObject(manifest).path;
     if (typeof path === "string")
         return path;

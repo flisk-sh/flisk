@@ -496,7 +496,15 @@ export interface ParsedHealthCheckConfig {
   path?: string;
 }
 
-const HEALTH_CHECK_CONFIG_KEYS = new Set(["enabled", "interval", "timeout", "retries", "path"]);
+const HEALTH_CHECK_CONFIG_KEYS = new Set([
+  "enabled",
+  "interval",
+  "timeout",
+  "retries",
+  "path",
+  "port",
+  "command",
+]);
 
 /**
  * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object
@@ -519,7 +527,7 @@ export function healthCheckErrors(
   for (const key of Object.keys(hc)) {
     if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
       errors.push(
-        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", or "path")`,
+        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", "path", "port", or "command")`,
       );
     }
   }
@@ -550,7 +558,56 @@ export function healthCheckErrors(
       );
     }
   }
+  if (hc.port !== undefined) {
+    if (
+      typeof hc.port !== "number" ||
+      !Number.isInteger(hc.port) ||
+      hc.port < 1 ||
+      hc.port > 65535
+    ) {
+      errors.push(`${displayPath}.healthCheck.port: expected a port from 1 to 65535`);
+    }
+  }
+  if (hc.command !== undefined) {
+    if (
+      !Array.isArray(hc.command) ||
+      hc.command.length === 0 ||
+      !hc.command.every((part) => typeof part === "string" && part.length > 0)
+    ) {
+      errors.push(
+        `${displayPath}.healthCheck.command: expected the program and its arguments, such as ["grpc_health_probe", "-addr=:9090"]`,
+      );
+    }
+  }
+  const probes = (["path", "port", "command"] as const).filter((key) => hc[key] !== undefined);
+  if (probes.length > 1) {
+    errors.push(
+      `${displayPath}.healthCheck: set only one of "path", "port" or "command" (got ${probes.map((key) => `"${key}"`).join(" and ")})`,
+    );
+  }
   return errors;
+}
+
+/** How a service shows it is ready: an HTTP path, an open TCP port, or a command that exits 0 (#2875). */
+export type ReadinessProbe =
+  | { kind: "port"; port: number }
+  | { kind: "command"; command: string[] };
+
+/** `healthCheck.port` or `healthCheck.command`, when the service set one instead of an HTTP path. */
+export function readinessProbeOf(manifest?: HealthCheckSource): ReadinessProbe | undefined {
+  if (isHealthCheckDisabled(manifest)) return undefined;
+  const { port, command } = healthCheckObject(manifest);
+  if (typeof port === "number" && Number.isInteger(port) && port > 0 && port < 65536) {
+    return { kind: "port", port };
+  }
+  if (
+    Array.isArray(command) &&
+    command.length > 0 &&
+    command.every((part) => typeof part === "string")
+  ) {
+    return { kind: "command", command: [...command] };
+  }
+  return undefined;
 }
 
 /** A manifest, or the `config` of a discovered resource, as the health check helpers read it. */
@@ -580,6 +637,8 @@ export function healthCheckPathOf(
   manifest?: HealthCheckSource,
   fallback?: string,
 ): string | undefined {
+  // A port or command probe replaces the HTTP one.
+  if (readinessProbeOf(manifest)) return undefined;
   const path = healthCheckObject(manifest).path;
   if (typeof path === "string") return path;
   return typeof manifest?.healthCheckPath === "string" ? manifest.healthCheckPath : fallback;

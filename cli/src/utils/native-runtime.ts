@@ -16,7 +16,12 @@ import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { FliskError } from "./errors.js";
 import { commandProgram } from "./native-service.js";
-import { healthCheckPathOf, isHealthCheckDisabled } from "./service-manifest.js";
+import {
+  healthCheckPathOf,
+  isHealthCheckDisabled,
+  type ReadinessProbe,
+  readinessProbeOf,
+} from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 
 /**
@@ -49,6 +54,8 @@ export interface NativeServicePlan {
   restart: boolean;
   /** True only for `healthCheck: false` (or `{ enabled: false }`): readiness is then just "the process is still alive". */
   healthCheckDisabled?: boolean;
+  /** `healthCheck.port` or `healthCheck.command`: ready when that port accepts a connection, or the command exits 0 (#2875). */
+  readiness?: ReadinessProbe;
   /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
   job?: boolean;
 }
@@ -188,6 +195,7 @@ export function planNativeRun(
     // Without a health path a service is ready once its port listens, which is what gates its dependents.
     const healthDisabled = isHealthCheckDisabled(config);
     const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
+    const readiness = readinessProbeOf(config);
     // A one-shot job with no port (every migrator, and a "restart": "no" process that serves nothing) is ready once it exits 0.
     // One that has a port keeps the port or health check as its readiness, like any other service.
     const job = isOneShotJob(config) && port === undefined;
@@ -202,6 +210,7 @@ export function planNativeRun(
       url: port !== undefined ? localUrl(port) : undefined,
       restart: config.restart !== "no" && !job,
       ...(healthDisabled ? { healthCheckDisabled: true } : {}),
+      ...(readiness ? { readiness } : {}),
       ...(job ? { job: true } : {}),
     };
   });
@@ -256,24 +265,70 @@ async function healthAnswers(url: string): Promise<boolean> {
 
 /** Polls a plan's readiness signal until it passes, `isAlive` turns false, or the timeout passes. */
 export async function waitForServiceReady(
-  plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled">,
+  plan: Pick<NativeServicePlan, "healthUrl" | "port" | "healthCheckDisabled"> &
+    Partial<Pick<NativeServicePlan, "readiness" | "cwd" | "env">>,
   options: { isAlive: () => boolean; timeoutMs?: number; intervalMs?: number },
 ): Promise<boolean> {
   const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS);
   const interval = options.intervalMs ?? 250;
-  if (plan.healthCheckDisabled || (!plan.healthUrl && plan.port === undefined)) {
+  const readiness = plan.healthCheckDisabled ? undefined : plan.readiness;
+  if (!readiness && (plan.healthCheckDisabled || (!plan.healthUrl && plan.port === undefined))) {
     await sleep(ALIVE_GRACE_MS);
     return options.isAlive();
   }
   while (Date.now() < deadline) {
     if (!options.isAlive()) return false;
-    const ready = plan.healthUrl
-      ? await healthAnswers(plan.healthUrl)
-      : await isPortListening(plan.port as number);
+    const ready =
+      readiness?.kind === "port"
+        ? await isPortListening(readiness.port)
+        : readiness?.kind === "command"
+          ? await readinessCommandPasses(readiness.command, plan)
+          : plan.healthUrl
+            ? await healthAnswers(plan.healthUrl)
+            : await isPortListening(plan.port as number);
     if (ready) return true;
     await sleep(interval);
   }
   return false;
+}
+
+/** What a service that never became ready was waiting for. */
+function notReadyReason(plan: NativeServicePlan): string {
+  if (plan.readiness?.kind === "port") return `nothing listening on port ${plan.readiness.port}`;
+  if (plan.readiness?.kind === "command") {
+    return `healthCheck.command never exited 0: ${plan.readiness.command.join(" ")}`;
+  }
+  return plan.healthUrl
+    ? `no answer from ${plan.healthUrl}`
+    : `nothing listening on port ${plan.port}`;
+}
+
+/** How long one run of a `healthCheck.command` may take before it counts as a failed probe. */
+const READINESS_COMMAND_TIMEOUT_MS = 10_000;
+
+/** Runs a `healthCheck.command` once from the service folder with its env; true when it exits 0. */
+function readinessCommandPasses(
+  command: readonly string[],
+  plan: Partial<Pick<NativeServicePlan, "cwd" | "env">>,
+): Promise<boolean> {
+  const [file, ...args] = command;
+  if (!file) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const child = spawn(file, args, {
+      cwd: plan.cwd,
+      env: { ...process.env, ...(plan.env ?? {}) },
+      stdio: "ignore",
+    });
+    const timer = setTimeout(() => child.kill("SIGKILL"), READINESS_COMMAND_TIMEOUT_MS);
+    child.once("error", () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+    child.once("exit", (code) => {
+      clearTimeout(timer);
+      resolve(code === 0);
+    });
+  });
 }
 
 function sleep(milliseconds: number): Promise<void> {
@@ -582,7 +637,7 @@ export class NativeSupervisor {
                 ? "the job did not exit 0; see its output above"
                 : service.gaveUp
                   ? "kept exiting; see its output above"
-                  : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${service.plan.healthUrl ? `no answer from ${service.plan.healthUrl}` : `nothing listening on port ${service.plan.port}`})`,
+                  : `not ready after ${Math.round((this.options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS) / 1000)}s (${notReadyReason(service.plan)})`,
             });
           }
           return isReady;
