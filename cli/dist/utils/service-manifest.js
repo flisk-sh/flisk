@@ -48,6 +48,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "params",
     "profiles",
     "playwright",
+    "provides",
     "port",
     "replicas",
     "restart",
@@ -607,6 +608,31 @@ export function byoEnvErrors(manifest, displayPath) {
     }
     return errors;
 }
+/**
+ * `provides`: the connection settings a resource gives the services that list it in `dependsOn` (REDIS_URL for a Redis).
+ * Each one is written into the dependent's generated env file, which `flisk config verify` checks and which must hold no
+ * secret, so the values are plain URLs and names. Mirrors _dependency_provides_lines in
+ * engine/.../orchestrator/generators/env.star.
+ */
+export function providesErrors(manifest, displayPath) {
+    const provides = manifest.provides;
+    if (provides === undefined || provides === null)
+        return [];
+    const field = `${displayPath}.provides`;
+    if (!isPlainObject(provides)) {
+        return [`${field}: expected an object such as { "REDIS_URL": "redis://cache:6379" }`];
+    }
+    const errors = [];
+    for (const [key, value] of Object.entries(provides)) {
+        if (!ENV_NAME_PATTERN.test(key)) {
+            errors.push(`${field}.${key}: expected an environment variable name such as REDIS_URL`);
+        }
+        if (typeof value !== "string" || !/^[A-Za-z0-9_\-./:@%+=,]+$/.test(value)) {
+            errors.push(`${field}.${key}: expected a URL or value without spaces, quotes or $`);
+        }
+    }
+    return errors;
+}
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export function secretsErrors(manifest, displayPath) {
     const secrets = manifest.secrets;
@@ -829,6 +855,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...secretsErrors(manifest, displayPath));
     errors.push(...containerErrors(manifest, displayPath));
     errors.push(...extraPortsErrors(manifest, displayPath));
+    errors.push(...providesErrors(manifest, displayPath));
     errors.push(...sidecarErrors(manifest, displayPath));
     errors.push(...volumesErrors(manifest, displayPath));
     errors.push(...byoEnvErrors(manifest, displayPath));
