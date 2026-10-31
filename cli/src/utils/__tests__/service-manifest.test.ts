@@ -860,6 +860,33 @@ describe("containerErrors", () => {
     expect(errors[0]).toContain(message);
   });
 
+  it("accepts GPUs, CPU and memory limits and IPC for a model server or simulator", () => {
+    expect(
+      containerErrors(
+        byo({ gpus: "all", cpus: 8, memory: "32g", ipc: "host", shmSize: "16g" }),
+        file,
+      ),
+    ).toEqual([]);
+    expect(containerErrors(byo({ gpus: 2, cpus: "2.5", memory: "512mb" }), file)).toEqual([]);
+  });
+
+  it.each([
+    [{ gpus: 0 }, 'container.gpus: expected "all" or a GPU count of 1 or more'],
+    [{ gpus: "nvidia" }, "container.gpus: expected"],
+    [{ gpus: 1.5 }, "container.gpus: expected"],
+    [{ cpus: 0 }, "container.cpus: expected a CPU count above 0"],
+    [{ cpus: "0.0" }, "container.cpus: expected"],
+    [{ cpus: "1.234" }, "container.cpus: expected"],
+    [{ cpus: "4\nprivileged: true" }, "container.cpus: expected"],
+    [{ memory: "lots" }, "container.memory: expected a size such as 8g"],
+    [{ memory: "0g" }, "container.memory: expected"],
+    [{ ipc: "container:other" }, "container.ipc: expected one of host, private, shareable, none"],
+  ])("refuses the GPU or HPC option %j", (container, message) => {
+    const errors = containerErrors(byo(container), file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
   it("is part of validateServiceManifest", () => {
     const result = validateServiceManifest(
       {

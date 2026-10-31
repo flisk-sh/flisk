@@ -340,7 +340,7 @@
       "type": "string"
     },
     "container": {
-      "description": "Container runtime options for this bring-your-own resource, written into its generated Compose service. Use them when an existing image needs them, for example a VPN client that needs NET_ADMIN or a headless browser that needs a larger /dev/shm. Ignored for other resource types.",
+      "description": "Container runtime options for this bring-your-own resource, written into its generated Compose service. Use them when an existing image needs them, for example a VPN client that needs NET_ADMIN, a headless browser that needs a larger /dev/shm, or a model server or simulator that needs GPUs and more memory. Ignored for other resource types.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -376,6 +376,29 @@
           "description": "Size of /dev/shm (Compose shm_size), such as 256mb.",
           "type": "string",
           "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
+        },
+        "gpus": {
+          "description": "NVIDIA GPUs to reserve (Compose deploy.resources.reservations.devices): \"all\" or a count. Needs the NVIDIA Container Toolkit on a Linux or WSL host.",
+          "oneOf": [
+            { "const": "all" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "cpus": {
+          "description": "CPU limit (Compose deploy.resources.limits.cpus), such as 4 or \"2.5\". Replaces Flisk's default of 0.5.",
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,2})?$" }
+          ]
+        },
+        "memory": {
+          "description": "Memory limit (Compose deploy.resources.limits.memory), such as 16g. Replaces Flisk's default of 512M.",
+          "type": "string",
+          "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
+        },
+        "ipc": {
+          "description": "IPC namespace (Compose ipc). host shares the host's shared memory, which PyTorch data loaders and vLLM tensor parallelism use.",
+          "enum": ["host", "private", "shareable", "none"]
         }
       }
     },

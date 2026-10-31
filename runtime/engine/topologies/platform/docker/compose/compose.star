@@ -328,7 +328,8 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     if is_migrator:
         restart_policy = 'no'
     restart_policy = '"no"' if restart_policy == 'no' else restart_policy
-    # `container` in service.json (bring-your-own only): capabilities, read-only root, user, security options, shm size (#2907).
+    # `container` in service.json (bring-your-own only): capabilities, read-only root, user, security options, shm size (#2907),
+    # and GPUs, CPU and memory limits and IPC for GPU and HPC workloads.
     container_options = byo_container_options(manifest)
 
     # No HTTP server means no HTTP probe. Disable explicitly: the image HEALTHCHECK would otherwise probe a port nothing listens on.
@@ -403,15 +404,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {agent_volume_section}{byo_volume_section}    labels:
 {traefik_labels}
 {networks_section}{healthcheck_section}    # Note: depends_on removed - Tilt manages service startup order
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.2'
-          memory: 256M
-""".format(
+{deploy_section}""".format(
         resource_entry_name=resource_entry_name,
         res_name=res_name,
         resource_name=resource_name,
@@ -429,6 +422,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         restart_policy=restart_policy,
         init="true" if container_options.init else "false",
         container_section=container_options.section,
+        deploy_section=container_options.deploy,
         extra_ports_section=extra_ports_section,
         networks_section=(
             '    network_mode: "service:{}"\n'.format(sidecar_of)
