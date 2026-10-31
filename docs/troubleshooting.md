@@ -429,7 +429,7 @@ Native Windows can run `flisk doctor`, inspect a project, run `flisk demo` and s
 
 | Message | Fix as printed | Defined in |
 | --- | --- | --- |
-| `Native Windows landscape boot is unsupported. Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md` | Use WSL2 Ubuntu with Docker Desktop integration | `doctor.ts` |
+| `Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md` | Use WSL2 Ubuntu with Docker Desktop integration | `doctor.ts` |
 | `Docker Desktop is using Windows containers. Switch to Linux containers. Flisk stacks are Linux images.` | Switch Docker Desktop to Linux containers | `windows-doctor.ts` |
 | `tilt.exe not found on PATH. Install Tilt from https://docs.tilt.dev/install.html` | Install Tilt | `windows-doctor.ts` |
 | `Windows reserved port(s) ... for Hyper-V/WSL ...` | The message suggests `net stop winnat` then `net start winnat` in an Administrator terminal, or changing Flisk's ports | `windows-doctor.ts` |

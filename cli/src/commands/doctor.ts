@@ -147,7 +147,7 @@ export const DOCTOR_FIXES = {
 export const WSL2_DOCTOR_MESSAGE =
   "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
 export const NATIVE_WINDOWS_DOCTOR_MESSAGE =
-  "Native Windows landscape boot is unsupported. Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
+  "Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
 
 export const MIN_TILT_VERSION = [0, 25, 0] as const;
 export const MIN_BUN_VERSION = [1, 2, 0] as const;
