@@ -46,7 +46,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
 - `flisk resource <name> --type <backend|frontend|worker|mcp|agent> --stack <stack> [--yes] [--json]`: Scaffold a new service (`--json` implies `--yes`).
   - For agents: `flisk resource <name> --type agent --stack <stack> [--runtime custom] [--durability files]`
   - For MCP servers: `flisk resource <name> --type mcp --stack <stack>`
-- `flisk demo`: Run Flisk's own one-command starter project (not a personal demo; personal demos are the demo.flisk.sh links).
+- `flisk demo`: Run Flisk's own one-command starter project (not a personal demo; personal demos are the demo.flisk.sh links). It needs no Docker: when Docker is not running, Compose or Tilt is missing, or on native Windows, it starts a small two-service demo (a menu API and a website) as local processes instead of the full restaurant stack.
 - `flisk up [stack] [--only <service...>] [--dry-run] [--json]`: Start local containers and live reload.
 - `flisk down [--json]`: Stop services and clean up containers (named volumes survive; remove agent-state volumes with `docker volume rm`).
 - `flisk status [--json]`: Report health, readiness, and active URLs.

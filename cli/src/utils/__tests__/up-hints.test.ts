@@ -26,9 +26,10 @@ function anchorsOf(markdown: string): Set<string> {
 }
 
 describe("upFailureHints", () => {
-  it("sends a machine failure to flisk doctor and the cold-start entry", () => {
+  it("sends a machine failure to flisk doctor, the no-Docker path and the cold-start entry", () => {
     expect(upFailureHints({ kind: "machine" })).toEqual([
       "Fix the checks above, then run: flisk doctor",
+      expect.stringMatching(/^No Docker\? .*\/run-without-docker\.md$/),
       `Troubleshooting: ${UP_HINT_DOCS.coldStart}`,
     ]);
   });
