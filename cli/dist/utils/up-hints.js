@@ -16,6 +16,7 @@ export function upFailureHints(failure) {
         case "machine":
             return [
                 "Fix the checks above, then run: flisk doctor",
+                `No Docker? Services that each declare a command run as local processes: ${DOCS}/run-without-docker.md`,
                 `Troubleshooting: ${UP_HINT_DOCS.coldStart}`,
             ];
         case "invalid-tilt-port":
