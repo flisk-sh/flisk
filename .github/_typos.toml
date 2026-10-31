@@ -31,3 +31,5 @@ intoto = "intoto"
 # Jest/Mocha function names that scripts/scores/skipped-tests.mjs searches for.
 xdescribe = "xdescribe"
 xit = "xit"
+# Qiskit Aer, the quantum circuit simulator named in the GPU and provider docs.
+aer = "aer"
