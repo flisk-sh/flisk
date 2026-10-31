@@ -53,6 +53,8 @@ const KEBAB_FLAG = /^--(no-)?[a-z0-9]+(-[a-z0-9]+)*$/;
 
 // A tool description shorter than this says too little to pick the tool by (the shortest real one is `down`, 85).
 const MIN_DESCRIPTION = 40;
+// Tools that read a catalog shipped with the CLI and never run inside a project, so they take no projectPath.
+const NO_PROJECT = new Set(["project_templates"]);
 
 // Files that list the tools are found by what they contain: a file naming at least this share of the tools lists them
 // (AGENTS.md names 7 of 19 inline, which is a mention, not a list, so it is not held to the rest).
@@ -117,7 +119,7 @@ export function descriptionProblems(tools) {
 			out.push(`${t.name}: description does not end as a sentence`);
 		if (!t.hasSchema) out.push(`${t.name}: no inputSchema`);
 		// Every tool runs in a project, so a tool without projectPath cannot be pointed at one.
-		else if (withPath * 2 > tools.length && !t.hasProjectPath)
+		else if (withPath * 2 > tools.length && !t.hasProjectPath && !NO_PROJECT.has(t.name))
 			out.push(`${t.name}: no projectPath input, which ${withPath} of ${tools.length} tools accept`);
 		if (t.description && seen.has(t.description))
 			out.push(`${t.name}: same description as ${seen.get(t.description)}`);
