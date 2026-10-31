@@ -7,6 +7,8 @@ import { JsonCommandError } from "../utils/json-command.js";
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
 export declare const IMPORT_PACKAGE = "flisk-import@0.3.0";
+/** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.0 or later), forwarded as its first argument. */
+export declare const TILTFILE_IMPORTER = "tiltfile";
 /** Minimum Flisk core release supporting buildContext required by flisk import (#634). */
 export declare const MIN_CORE_VERSION = "1.3.104";
 /**
@@ -70,13 +72,24 @@ export interface ImportReport {
     written: string[];
     output: string;
 }
+/**
+ * What `flisk import tiltfile --json` reports. `path` is the path argument as given (`Tiltfile` when omitted); `written`
+ * lists the files the importer says it wrote (`.flisk/project.json`).
+ */
+export interface TiltfileImportReport {
+    path: string;
+    dryRun: boolean;
+    force: boolean;
+    written: string[];
+    output: string;
+}
 /** The report of a successful run, read from the forwarded arguments and the importer's "  wrote <path>" lines. */
-export declare function importReport(forwardedArgs: string[], run: ImportRun): ImportReport;
+export declare function importReport(forwardedArgs: string[], run: ImportRun): ImportReport | TiltfileImportReport;
 /**
  * The error of a failed run: the importer's "Error: ..." line (or whatever it printed last) and its "-> ..." hints. The
  * importer prints "Nothing to import: ..." on stdout, so stdout is read when stderr says nothing.
  */
-export declare function importFailure(run: ImportRun): JsonCommandError;
+export declare function importFailure(run: ImportRun, commandName?: string): JsonCommandError;
 export interface ImportOptions {
     yes?: boolean;
     force?: boolean;
@@ -86,25 +99,10 @@ export interface ImportOptions {
 export declare function resolveImportOptions(options?: ImportOptions, cmd?: Command): ImportOptions;
 export declare function executeImport(args: string[], options?: ImportOptions, commandName?: string): Promise<void>;
 export declare const composeCommand: Command;
+/**
+ * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.0 or later)
+ * does the import, like `compose`; core only wraps the registered Tiltfile at `flisk up` (see wrappedTiltfilePath).
+ */
+export declare const tiltfileCommand: Command;
 export declare const importCommand: Command;
-export interface ImportTiltfileOptions {
-    force?: boolean;
-    dryRun?: boolean;
-    json?: boolean;
-    cwd?: string;
-}
-export interface ImportTiltfileReport {
-    tiltfile: string;
-    projectRoot: string;
-    projectJson: string;
-    orchestration: {
-        source: "tiltfile";
-        path: string;
-    };
-    dryRun: boolean;
-    force: boolean;
-    action: "created" | "updated";
-    written: string[];
-}
-export declare function importTiltfile(pathArg?: string, options?: ImportTiltfileOptions): Promise<ImportTiltfileReport>;
 export {};

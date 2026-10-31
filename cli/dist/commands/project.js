@@ -231,20 +231,13 @@ const DEFAULT_PROJECT_JSON = {
     overrides: {},
 };
 /**
- * Creates default ProjectConfig in memory with defaults that `flisk project --yes` uses.
- */
-export function createDefaultProjectConfig(projectRoot) {
-    const projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
-    projectConfig.project.name = basename(projectRoot) || "my-project";
-    return projectConfig;
-}
-/**
  * Writes .flisk/project.json with the defaults `flisk project --yes` uses, and nothing else: no generated Tiltfile, Compose file,
  * .env or engine copy. `flisk up` uses it to adopt a directory of `command` services as a project, so `flisk down` and
  * `flisk doctor` find it afterwards.
  */
 export function writeDefaultProjectConfig(projectRoot) {
-    const projectConfig = createDefaultProjectConfig(projectRoot);
+    const projectConfig = JSON.parse(JSON.stringify(DEFAULT_PROJECT_JSON));
+    projectConfig.project.name = basename(projectRoot) || "my-project";
     ensureDirectory(join(projectRoot, ".flisk"));
     writeJsonFile(join(projectRoot, ".flisk", PROJECT_JSON), projectConfig);
 }

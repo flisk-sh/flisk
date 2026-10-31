@@ -8,7 +8,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { importTiltfile } from "../../commands/import.js";
 import type { ProjectConfig } from "../../types/index.js";
 import {
   generateMasterConfigs,
@@ -159,8 +158,8 @@ describe("wrapping an existing Tiltfile", () => {
       expect(isWrappedTiltfileStale(projectRoot)).toBe(false);
       expect(generatedTiltfile()).toContain("load('ext://flisk-cli'");
 
-      const report = await importTiltfile(undefined, { cwd: projectRoot });
-      expect(report.orchestration).toEqual({ source: "tiltfile", path: "Tiltfile" });
+      // What `flisk import tiltfile` (flisk-import) writes to .flisk/project.json.
+      writeProjectJson(projectConfig({ orchestration: { source: "tiltfile", path: "Tiltfile" } }));
       expect(isWrappedTiltfileStale(projectRoot)).toBe(true);
 
       // What `flisk up` does when the check says stale.

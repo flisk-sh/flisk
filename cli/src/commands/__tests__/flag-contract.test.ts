@@ -225,9 +225,17 @@ const EXEMPT: Record<string, string> = {
     "spawns npx flisk-import over the network; import.test.ts checks that it is forwarded",
   "import --json":
     "spawns npx flisk-import over the network; import.test.ts covers the envelope with a spawn double",
+  "import tiltfile --yes": "runs flisk-import tiltfile: spawns npx flisk-import over the network",
   "import tiltfile --dry-run":
-    "imports an existing Tiltfile without writing; import-tiltfile.test.ts covers it",
-  "import tiltfile --json": "prints JSON envelope of import; import-tiltfile.test.ts covers it",
+    "runs flisk-import tiltfile; import-tiltfile.test.ts checks that it is forwarded",
+  "import tiltfile --json":
+    "runs flisk-import tiltfile; import-tiltfile.test.ts covers the envelope with a spawn double",
+  "tiltfile --yes":
+    "same importer as import tiltfile --yes: spawns npx flisk-import over the network",
+  "tiltfile --dry-run":
+    "same importer as import tiltfile --dry-run; import-tiltfile.test.ts checks that it is forwarded",
+  "tiltfile --json":
+    "same importer as import tiltfile --json; import-tiltfile.test.ts covers the envelope with a spawn double",
   "import compose --yes": "same importer as import --yes: spawns npx flisk-import over the network",
   "import compose --dry-run":
     "same importer as import --dry-run; import.test.ts checks that it is forwarded",

@@ -159,7 +159,7 @@ See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-flisk.md).
 
 ### `flisk import tiltfile [path]`
 
-Register an existing Tiltfile (default `./Tiltfile`, or a folder that holds one) as the project's orchestration source. It writes `orchestration: { "source": "tiltfile", "path": "<path>" }` to `.flisk/project.json` (creating it with the defaults when missing) and nothing else. From then on `flisk up` generates a `.flisk/.flisk-out/Tiltfile` that only `include()`s yours, so Tilt runs it unchanged, from its own folder. Flisk never writes to your Tiltfile.
+Register an existing Tiltfile (default `./Tiltfile`, or a folder that holds one) as the project's orchestration source. It runs `flisk-import tiltfile`, like `flisk import compose` runs the Compose importer, and needs flisk-import 0.4.0 or later. It writes `orchestration: { "source": "tiltfile", "path": "<path>" }` to `.flisk/project.json` (creating it with the defaults when missing) and nothing else. It refuses a missing Tiltfile, a path inside `.flisk/`, a path with a quote or control character, and, without `--force`, a `.flisk/project.json` that already names an orchestration source. From then on `flisk up` generates a `.flisk/.flisk-out/Tiltfile` that only `include()`s yours, so Tilt runs it unchanged, from its own folder. Flisk never writes to your Tiltfile.
 
 ```bash
 flisk import tiltfile --dry-run        # print the plan, write nothing
@@ -170,8 +170,9 @@ flisk up
 | Flag | Effect |
 | --- | --- |
 | `--dry-run` | Print the plan and write nothing |
+| `--yes` | Write without prompting |
 | `--force` | Replace an orchestration source that `.flisk/project.json` already names |
-| `--json` | One JSON object on stdout with what was registered and written |
+| `--json` | One JSON object on stdout with the importer's output and what it wrote; implies `--yes` |
 
 ### `flisk eject`
 
