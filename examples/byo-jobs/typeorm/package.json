@@ -4,6 +4,6 @@
   "version": "0.0.0",
   "dependencies": {
     "pg": "^8.13.0",
-    "typeorm": "^0.3.20"
+    "typeorm": "^1.1.2"
   }
 }
