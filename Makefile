@@ -76,6 +76,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/audit-codebase.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 	node --test scripts/ai-conflict-buttons-comment.test.mjs
+	node --test scripts/hacktoberfest-embed.test.mjs
 	node --test scripts/demo-svgs.test.mjs
 
 ade-score: ## Print the deterministic ADE score (no AI, files only); add ARGS="--markdown" or ARGS="--json"
