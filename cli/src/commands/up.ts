@@ -12,6 +12,7 @@ import {
   isTiltfileOrchestration,
   isWrappedTiltfileStale,
   ProjectConfigNotFoundError,
+  readProjectConfig,
   verifyMasterConfigs,
 } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
@@ -82,6 +83,7 @@ import {
   describeSkipped,
   type ProfileSelection,
 } from "../utils/profiles.js";
+import { cloneMissingRepos } from "../utils/project-repos.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import {
@@ -746,8 +748,31 @@ export const upCommand = new Command("up")
       if (options.gateway === false) assertGatewayOptOutIsConfigured(foundRoot);
       // With the gateway off nothing publishes the routed URLs, so none is printed or smoke-checked.
       const gatewayEnabled = isGatewayEnabled(projectRoot, options);
+
+      let hasClonedRepos = false;
+      if (foundRoot && !options.dryRun) {
+        try {
+          const config = readProjectConfig(foundRoot);
+          if (config.repos && config.repos.length > 0) {
+            const results = await cloneMissingRepos(foundRoot, config.repos);
+            if (results.some((r) => r.cloned)) {
+              hasClonedRepos = true;
+            }
+          }
+        } catch (error) {
+          if (!(error instanceof ProjectConfigNotFoundError)) {
+            const fliskErr =
+              error instanceof FliskError
+                ? error
+                : new FliskError(error instanceof Error ? error.message : String(error));
+            if (emit) emit({ ok: false }, [toMachineError(fliskErr).error]);
+            return fliskErr.exit();
+          }
+        }
+      }
+
       const discoveredResources = discoverResourcesStrict(
-        foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined,
+        foundRoot && foundRoot === schemaRoot && !hasClonedRepos ? initialDiscovery : undefined,
       );
       let discoveredStacks: ReturnType<typeof discoverStacks> | undefined;
       let discoveredStackNames: string[] = [];

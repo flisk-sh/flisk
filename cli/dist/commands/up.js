@@ -5,7 +5,7 @@ import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isWrappedTiltfileStale, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isWrappedTiltfileStale, ProjectConfigNotFoundError, readProjectConfig, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, } from "../utils/capabilities.js";
@@ -32,6 +32,7 @@ import { findAvailablePort } from "../utils/port-assignment.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
 import { findPortOccupant } from "../utils/port-occupant.js";
 import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/profiles.js";
+import { cloneMissingRepos } from "../utils/project-repos.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
@@ -530,7 +531,29 @@ export const upCommand = new Command("up")
             assertGatewayOptOutIsConfigured(foundRoot);
         // With the gateway off nothing publishes the routed URLs, so none is printed or smoke-checked.
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
-        const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined);
+        let hasClonedRepos = false;
+        if (foundRoot && !options.dryRun) {
+            try {
+                const config = readProjectConfig(foundRoot);
+                if (config.repos && config.repos.length > 0) {
+                    const results = await cloneMissingRepos(foundRoot, config.repos);
+                    if (results.some((r) => r.cloned)) {
+                        hasClonedRepos = true;
+                    }
+                }
+            }
+            catch (error) {
+                if (!(error instanceof ProjectConfigNotFoundError)) {
+                    const fliskErr = error instanceof FliskError
+                        ? error
+                        : new FliskError(error instanceof Error ? error.message : String(error));
+                    if (emit)
+                        emit({ ok: false }, [toMachineError(fliskErr).error]);
+                    return fliskErr.exit();
+                }
+            }
+        }
+        const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot && !hasClonedRepos ? initialDiscovery : undefined);
         let discoveredStacks;
         let discoveredStackNames = [];
         if (!options.only || stackName) {

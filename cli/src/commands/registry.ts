@@ -30,6 +30,7 @@ import { openCommand } from "./open.js";
 import { osCommand } from "./os.js";
 import { projectCommand } from "./project.js";
 import { projectsCommand } from "./projects.js";
+import { reposCommand } from "./repos.js";
 import { resourceCommand } from "./resource.js";
 import { resourcesCommand } from "./resources.js";
 import { restartCommand } from "./restart.js";
@@ -76,5 +77,6 @@ export function getRegisteredCommands(): readonly Command[] {
     restartCommand,
     runServiceCommand,
     distributeCommand,
+    reposCommand,
   ];
 }

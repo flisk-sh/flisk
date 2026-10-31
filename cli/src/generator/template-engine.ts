@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PLATFORM_STANDARDS } from "../config/platform-standards.js";
-import type { JsonValue, ProjectConfig } from "../types/index.js";
+import type { JsonValue, ProjectConfig, RepoConfig } from "../types/index.js";
 import { writeTextFileAtomic } from "../utils/atomic-write.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "../utils/capabilities.js";
 import {
@@ -617,6 +617,33 @@ function normalizeProjectConfig(value: unknown): ProjectConfig | null {
   if (config.capabilities !== undefined && !isCapabilityMap(config.capabilities)) {
     return null;
   }
+  let repos: RepoConfig[] | undefined;
+  if (config.repos !== undefined) {
+    if (!Array.isArray(config.repos)) {
+      return null;
+    }
+    repos = [];
+    for (const item of config.repos) {
+      if (
+        !item ||
+        typeof item !== "object" ||
+        typeof item.url !== "string" ||
+        typeof item.dir !== "string" ||
+        !item.url.trim() ||
+        !item.dir.trim()
+      ) {
+        return null;
+      }
+      repos.push({
+        url: item.url.trim(),
+        dir: item.dir.trim(),
+        ...(typeof item.branch === "string" && item.branch.trim()
+          ? { branch: item.branch.trim() }
+          : {}),
+      });
+    }
+  }
+
   const capabilities = config.capabilities as ProjectConfig["capabilities"];
 
   return {
@@ -629,6 +656,7 @@ function normalizeProjectConfig(value: unknown): ProjectConfig | null {
     overrides: config.overrides as ProjectConfig["overrides"],
     orchestration: config.orchestration as ProjectConfig["orchestration"],
     ...(capabilities ? { capabilities } : {}),
+    ...(repos ? { repos } : {}),
   };
 }
 

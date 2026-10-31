@@ -71,6 +71,32 @@
         "type": "string"
       }
     },
+    "repos": {
+      "type": "array",
+      "description": "External Git repositories whose code belongs to services in this project. flisk up clones any repo whose destination directory is missing.",
+      "items": {
+        "type": "object",
+        "required": [
+          "url",
+          "dir"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Git repository clone URL (e.g. git@github.com:acme/orders-api.git or https://github.com/acme/orders-api.git)."
+          },
+          "dir": {
+            "type": "string",
+            "description": "Destination directory relative to project root (e.g. services/shop/orders-api)."
+          },
+          "branch": {
+            "type": "string",
+            "description": "Optional branch expectation to clone or verify."
+          }
+        }
+      }
+    },
     "allowedHosts": {
       "type": "array",
       "description": "Hosts outside the local stack that env values may point at on purpose (a payment sandbox, a model API). flisk doctor does not report them. \"*.example.com\" matches every subdomain.",

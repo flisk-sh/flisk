@@ -299,7 +299,14 @@ export interface ProjectCapabilities {
   [key: string]: boolean | undefined;
 }
 
+export interface RepoConfig {
+  url: string;
+  dir: string;
+  branch?: string;
+}
+
 export interface ProjectConfig {
+  repos?: RepoConfig[];
   version: string;
   project: {
     name: string;
