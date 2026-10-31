@@ -27,6 +27,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "build",
     "buildContext",
     "command",
+    "container",
     "databaseName",
     "dependencies",
     "dev",
@@ -379,6 +380,66 @@ export function getInvalidServiceRoutePathFields(value) {
  * container, so the secret in `.env` is silently never used (an admin account created with "changeme").
  */
 const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/**
+ * Patterns for `container` (#2907), the bring-your-own container runtime options. Each value is written into the generated Compose
+ * YAML as it is, so engine/.../compose/byo_container.star checks the same characters.
+ */
+const CONTAINER_STRING_LISTS = {
+    capAdd: { pattern: /^[A-Z_]+$/, expected: "capability names such as NET_ADMIN" },
+    capDrop: { pattern: /^[A-Z_]+$/, expected: "capability names such as ALL" },
+    securityOpt: {
+        pattern: /^[A-Za-z0-9_.:=/-]+$/,
+        expected: "options such as no-new-privileges:true",
+    },
+};
+const CONTAINER_KEYS = new Set([
+    ...Object.keys(CONTAINER_STRING_LISTS),
+    "init",
+    "readOnly",
+    "user",
+    "shmSize",
+]);
+/** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
+export function containerErrors(manifest, displayPath) {
+    const container = manifest.container;
+    if (container === undefined || container === null)
+        return [];
+    const field = `${displayPath}.container`;
+    if (!isPlainObject(container))
+        return [`${field}: expected an object`];
+    if (manifest.appType !== "bring-your-own") {
+        return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+    }
+    const errors = [];
+    for (const key of Object.keys(container)) {
+        if (!CONTAINER_KEYS.has(key)) {
+            errors.push(`${field}.${key}: unknown option (use ${[...CONTAINER_KEYS].join(", ")})`);
+        }
+    }
+    for (const [key, { pattern, expected }] of Object.entries(CONTAINER_STRING_LISTS)) {
+        const values = container[key];
+        if (values === undefined || values === null)
+            continue;
+        if (!Array.isArray(values) ||
+            !values.every((value) => typeof value === "string" && pattern.test(value))) {
+            errors.push(`${field}.${key}: expected a list of ${expected}`);
+        }
+    }
+    for (const key of ["init", "readOnly"]) {
+        if (container[key] !== undefined && typeof container[key] !== "boolean") {
+            errors.push(`${field}.${key}: expected true or false`);
+        }
+    }
+    if (container.user !== undefined &&
+        !(typeof container.user === "string" && /^[A-Za-z0-9_.:-]+$/.test(container.user))) {
+        errors.push(`${field}.user: expected a user or uid[:gid] such as 10001:10001`);
+    }
+    if (container.shmSize !== undefined &&
+        !(typeof container.shmSize === "string" && /^[0-9]+([bkmg]b?)?$/i.test(container.shmSize))) {
+        errors.push(`${field}.shmSize: expected a size such as 256mb or 1g`);
+    }
+    return errors;
+}
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export function secretsErrors(manifest, displayPath) {
     const secrets = manifest.secrets;
@@ -599,6 +660,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...fieldTypeErrors(manifest, displayPath));
     errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
     errors.push(...secretsErrors(manifest, displayPath));
+    errors.push(...containerErrors(manifest, displayPath));
     errors.push(...healthCheckErrors(manifest, displayPath));
     if ("profiles" in manifest) {
         const profiles = manifest.profiles;
