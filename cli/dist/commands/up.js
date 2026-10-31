@@ -31,6 +31,7 @@ import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findAvailablePort } from "../utils/port-assignment.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
 import { findPortOccupant } from "../utils/port-occupant.js";
+import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/profiles.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
@@ -375,6 +376,7 @@ export const upCommand = new Command("up")
     .option("--ignore-version", "Start even if this flisk is older than minFliskVersion in .flisk/project.json", false)
     .option("--no-database", "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)")
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
+    .option("--profile <names...>", 'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)')
     .option("--env-file <path>", "Use this project env file for the run instead of .env (for example: --env-file .env.integration)")
     .option("--no-gateway", 'Run without gateway routing (no Traefik). Needs "capabilities": { "gateway": false } in .flisk/project.json; regenerates .flisk/.flisk-out/ from it')
     .option("--json", "Print one JSON object on stdout when the stack is ready or the command fails; implies --quiet", false)
@@ -443,9 +445,14 @@ export const upCommand = new Command("up")
                 console.log(chalk.gray("Created .flisk/project.json (this directory is now a Flisk project)"));
             }
         }
+        const nativeProfiles = applyProfiles(nativeRun.selected, options.profile ?? [], options.only ?? []);
+        assertKnownProfiles(options.profile, nativeRun.all, emit);
+        if (nativeProfiles.skipped.length > 0 && !options.quiet) {
+            console.log(chalk.gray(skippedProfilesNote(nativeProfiles.skipped)));
+        }
         await runNativeUp({
             projectRoot,
-            selected: nativeRun.selected,
+            selected: nativeProfiles.kept,
             dependencies: nativeRun.dependencies,
             stackName,
             only: options.only,
@@ -688,6 +695,15 @@ export const upCommand = new Command("up")
             focusServiceNames = servicesToStart.map((s) => s.name);
             stackDescription = `${formatCount(options.only.length, "requested service")}${dependencyNames.length > 0 ? ` plus ${dependencyNames.join(", ")}` : ""}`;
         }
+        // Services in a profile that was not asked for are left out (#2873); Tilt then gets the remaining names, not whole stacks.
+        assertKnownProfiles(options.profile, discoveredResources, emit);
+        const profileSelection = applyProfiles(servicesToStart, options.profile ?? [], options.only ?? []);
+        if (profileSelection.skipped.length > 0) {
+            servicesToStart = profileSelection.kept;
+            focusServiceNames = servicesToStart.map((s) => s.name);
+            if (!options.quiet)
+                console.log(chalk.gray(skippedProfilesNote(profileSelection.skipped)));
+        }
         if (options.verbose && !options.quiet) {
             console.log(chalk.gray(`Found ${formatCount(servicesToStart.length, "service")} in ${stackDescription}`));
         }
@@ -721,7 +737,12 @@ export const upCommand = new Command("up")
                 }
             }
         }
-        const focusTargets = options.only ?? (stackName ? [stackName] : undefined);
+        const focusTargets = options.only ??
+            (profileSelection.skipped.length > 0
+                ? focusServiceNames
+                : stackName
+                    ? [stackName]
+                    : undefined);
         const tiltArgs = buildTiltUpArgs(focusServiceNames, {
             verbose: options.verbose,
             quiet: options.quiet,
@@ -1060,3 +1081,24 @@ export const upCommand = new Command("up")
         await withTiltCheck(action);
     }
 });
+/** The note `flisk up` prints for services a profile kept out. */
+function skippedProfilesNote(skipped) {
+    return `Not starting ${describeSkipped(skipped)}: add --profile <name> to start them`;
+}
+/** Refuses a --profile name that no service declares, which is almost always a typo. */
+function assertKnownProfiles(requested, resources, emit) {
+    if (!requested || requested.length === 0)
+        return;
+    const known = declaredProfiles(resources);
+    const unknown = requested.filter((name) => !known.includes(name));
+    if (unknown.length === 0)
+        return;
+    const message = `No service declares the profile ${unknown.map((name) => `"${name}"`).join(", ")}.`;
+    const suggestions = [
+        known.length > 0
+            ? `Profiles in this project: ${known.join(", ")}`
+            : 'No service has "profiles" in its service.json yet',
+    ];
+    emit?.({ ok: false }, [{ code: "UNKNOWN_PROFILE", message, suggestions }]);
+    showErrorAndExit(message, 1, suggestions);
+}
