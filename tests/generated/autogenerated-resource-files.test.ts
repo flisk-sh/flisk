@@ -139,7 +139,12 @@ const STACK_FILES: Golden[] = [
   {
     file: ".flisk/.flisk-out/docker-compose.traefik.yml",
     sha256: "33824986aa8387339986362ce70a5105d6376bff423626ef41a8a94959f04319",
-    contains: ["SYSTEM-GENERATED - DO NOT EDIT", "services:", "traefik", "--providers.docker.constraints=Label(`flisk.project`,"],
+    contains: [
+      "SYSTEM-GENERATED - DO NOT EDIT",
+      "services:",
+      "traefik",
+      "--providers.docker.constraints=Label(`flisk.project`,",
+    ],
   },
   {
     // Re-captured when the golden Dockerfile moved to the shared flisk-golden name, so every project shares one hash (#2826).
