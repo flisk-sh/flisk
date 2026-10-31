@@ -155,6 +155,26 @@ Tilt). A five-service stack shaped like tubehaus's Compose file, generated with 
 `volumes`, passed `docker compose config`, which resolved the bind mounts to the project's folders; starting those containers
 was not part of the check.
 
+## Environment (plain configuration)
+
+Put configuration that belongs in the repository in `env`, and credentials in `secrets` (which read the git-ignored project
+`.env`):
+
+```json
+"env": {
+  "POSTGRES_DB": "invidious",
+  "PROXY": "socks5://tubehaus:1080",
+  "PUBLIC_URL": "${TUBEHAUS_URL:-http://localhost:8081}"
+},
+"secrets": { "required": ["POSTGRES_PASSWORD"] }
+```
+
+Each entry is added to the container's Compose `environment`, after Flisk's own variables and the secrets. A value may use
+`${VAR}` or `${VAR:-default}`, which Compose resolves from the project `.env`. Values are written quoted, so spaces, `:` and `#`
+reach the container as written. `flisk config verify` refuses a name that is not an environment variable name, a value that is
+not a string, and a line break. Checked by `tests/tilt-engine/test_byo_env.py`, which also runs `docker compose config` on the
+generated file.
+
 ## Bringing a framework app (Node, Go, Rust, ...)
 
 Any app that fits the contract below can run as a bring-your-own resource. Fastify is the worked example because it needs nothing beyond the framework.

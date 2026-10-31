@@ -648,6 +648,32 @@ export function volumesErrors(
   return errors;
 }
 
+/**
+ * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
+ * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
+ * engine/.../compose/byo_env.star.
+ */
+export function byoEnvErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const env = manifest.env;
+  if (env === undefined || env === null || manifest.appType !== "bring-your-own") return [];
+  if (declaresCommand(manifest)) return [];
+  const field = `${displayPath}.env`;
+  if (!isPlainObject(env)) return [`${field}: expected an object of string values`];
+  const errors: string[] = [];
+  for (const [name, value] of Object.entries(env)) {
+    if (!ENV_NAME_PATTERN.test(name)) {
+      errors.push(
+        `${field}.${name}: names must be letters, digits or _, not starting with a digit`,
+      );
+    } else if (typeof value !== "string") {
+      errors.push(`${field}.${name}: expected a string`);
+    } else if (hasLineBreakOrControl(value)) {
+      errors.push(`${field}.${name}: must not contain line breaks or control characters`);
+    }
+  }
+  return errors;
+}
+
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
   const secrets = manifest.secrets;
@@ -922,6 +948,7 @@ export function validateServiceManifest(
   errors.push(...extraPortsErrors(manifest, displayPath));
   errors.push(...sidecarErrors(manifest, displayPath));
   errors.push(...volumesErrors(manifest, displayPath));
+  errors.push(...byoEnvErrors(manifest, displayPath));
   errors.push(...healthCheckErrors(manifest, displayPath));
   if ("profiles" in manifest) {
     const profiles = manifest.profiles;
