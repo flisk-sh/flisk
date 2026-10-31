@@ -7,6 +7,8 @@
   },
   "overrides": {
     "fast-json-patch": "3.1.1",
-    "argparse": "2.0.1"
+    "argparse": "2.0.1",
+    "glob": "^14.0.3",
+    "minimatch": "^11.0.3"
   }
 }
