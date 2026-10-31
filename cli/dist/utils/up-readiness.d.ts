@@ -1,3 +1,4 @@
+import type { DiscoveredResource } from "../types/index.js";
 import { findStaleDisabledResources } from "./doctor-runtime.js";
 export { findStaleDisabledResources };
 export interface ReadinessResult {
@@ -17,8 +18,11 @@ export declare function tiltResourceLogs(port: number, name: string): Promise<st
  * Tilt lists resources outside the current focus (the other release phases, or everything but a `--only` selection) with
  * `disableStatus.state: Disabled` and both statuses `none`, which would read as pending forever. A resource whose update
  * status is `not_applicable` (a serve-only local resource) has nothing to build, so it counts as built.
+ * When health checks are disabled for a resource (`disabledHealth`), its container health check status is stripped so
+ * running containers are considered ready immediately.
  */
-export declare function onlyEnabledResources(jsonText: string): string;
+export declare function onlyEnabledResources(jsonText: string, disabledHealth?: Set<string>): string;
+export declare function getDisabledHealthResourceNames(resources?: DiscoveredResource[]): Set<string>;
 /**
  * Services the caller asked for must not vanish into the disabled filter: one that Tilt lists as disabled (it can be
  * disabled while running) is a failure, and one Tilt does not list yet is still pending.
@@ -33,7 +37,7 @@ export declare function isAdvisoryResource(name: string): boolean;
  * One look at `tilt get uiresources -o json`. `settled` means polling can stop: everything is ready, or the rest has
  * finished with a failure (an errored resource, or an expected service Tilt has disabled).
  */
-export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<string>, expected?: string[]): {
+export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<string>, expected?: string[], disabledHealth?: Set<string>): {
     result: ReadinessResult;
     settled: boolean;
 };
@@ -50,4 +54,6 @@ export declare function waitForTiltResourcesReady(port: number, options?: {
     expected?: string[];
     /** Called with Tilt's JSON while something has failed: true means nothing left pending can still progress. */
     isStalled?: (jsonText: string) => boolean;
+    /** Resource names whose health checks are disabled. */
+    disabledHealth?: Set<string>;
 }): Promise<ReadinessResult>;

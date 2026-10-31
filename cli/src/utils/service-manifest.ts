@@ -42,6 +42,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "exposeViaProxy",
   "featuresEnabled",
   "framework",
+  "healthCheck",
   "healthCheckPath",
   "image",
   "language",
@@ -74,6 +75,7 @@ const GENERATED_STRING_FIELDS: ReadonlyArray<{
   expected: string;
 }> = [
   { path: ["healthCheckPath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /health" },
+  { path: ["healthCheck", "path"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /health" },
   { path: ["apiPath"], pattern: /^\/[A-Za-z0-9._~/-]*$/, expected: "a path such as /api/v1" },
   { path: ["apiBasePath"], pattern: /^\/[A-Za-z0-9._~/-]*$/, expected: "a path such as /api/v1" },
   {
@@ -484,6 +486,204 @@ export function secretConflictWarnings(
   return warnings;
 }
 
+export interface HealthCheckObjectConfig {
+  enabled?: boolean;
+  interval?: number;
+  timeout?: number;
+  retries?: number;
+  path?: string;
+}
+
+export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
+
+export interface ParsedHealthCheckConfig {
+  enabled: boolean;
+  interval?: number;
+  timeout?: number;
+  retries?: number;
+  path?: string;
+}
+
+const HEALTH_CHECK_CONFIG_KEYS = new Set(["enabled", "interval", "timeout", "retries", "path"]);
+
+/**
+ * Validates the optional `healthCheck` field: boolean (e.g. false to disable) or an object
+ * configuring enabled, interval, timeout, retries, and path.
+ */
+export function healthCheckErrors(
+  manifest: Record<string, unknown>,
+  displayPath: string,
+): string[] {
+  const value = manifest.healthCheck;
+  if (value === undefined || value === null) return [];
+  if (typeof value === "boolean") return [];
+  if (!isPlainObject(value)) {
+    return [
+      `${displayPath}.healthCheck: expected true or false, or an object such as { "enabled": true, "path": "/health" }`,
+    ];
+  }
+  const errors: string[] = [];
+  const hc = value as Record<string, unknown>;
+  for (const key of Object.keys(hc)) {
+    if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
+      errors.push(
+        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", or "path")`,
+      );
+    }
+  }
+  if (hc.enabled !== undefined && typeof hc.enabled !== "boolean") {
+    errors.push(`${displayPath}.healthCheck.enabled: expected true or false`);
+  }
+  if (hc.interval !== undefined) {
+    if (typeof hc.interval !== "number" || !Number.isFinite(hc.interval) || hc.interval <= 0) {
+      errors.push(`${displayPath}.healthCheck.interval: expected a positive number`);
+    }
+  }
+  if (hc.timeout !== undefined) {
+    if (typeof hc.timeout !== "number" || !Number.isFinite(hc.timeout) || hc.timeout <= 0) {
+      errors.push(`${displayPath}.healthCheck.timeout: expected a positive number`);
+    }
+  }
+  if (hc.retries !== undefined) {
+    if (typeof hc.retries !== "number" || !Number.isInteger(hc.retries) || hc.retries < 0) {
+      errors.push(`${displayPath}.healthCheck.retries: expected a non-negative integer`);
+    }
+  }
+  if (hc.path !== undefined) {
+    if (typeof hc.path !== "string") {
+      errors.push(`${displayPath}.healthCheck.path: expected a string`);
+    } else if (!/^\/[a-z0-9/-]*$/.test(hc.path)) {
+      errors.push(
+        `${displayPath}.healthCheck.path: must be a path such as /health (no spaces, line breaks or YAML syntax)`,
+      );
+    }
+  }
+  return errors;
+}
+
+/**
+ * Returns true when health checks are explicitly disabled (healthCheck === false or
+ * healthCheck.enabled === false or health path is omitted for unopinionated services).
+ */
+export function isHealthCheckDisabled(manifest?: Record<string, unknown>): boolean {
+  if (!manifest) return false;
+  if (manifest.healthCheck === false) return true;
+  if (
+    isPlainObject(manifest.healthCheck) &&
+    (manifest.healthCheck as HealthCheckObjectConfig).enabled === false
+  ) {
+    return true;
+  }
+  if (
+    declaresCommand(manifest) &&
+    !manifest.healthCheckPath &&
+    !(
+      isPlainObject(manifest.healthCheck) &&
+      typeof (manifest.healthCheck as HealthCheckObjectConfig).path === "string"
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Parses health check configuration from a service manifest or raw healthCheck config object.
+ */
+export function parseHealthCheckConfig(
+  manifestOrConfig: unknown,
+  options: { isUnopinionated?: boolean; defaultPath?: string } = {},
+): ParsedHealthCheckConfig {
+  if (manifestOrConfig === false) {
+    return { enabled: false };
+  }
+  if (manifestOrConfig === true) {
+    return { enabled: true, path: options.defaultPath ?? "/health" };
+  }
+  if (
+    !manifestOrConfig ||
+    typeof manifestOrConfig !== "object" ||
+    Array.isArray(manifestOrConfig)
+  ) {
+    return { enabled: false };
+  }
+
+  const obj = manifestOrConfig as Record<string, unknown>;
+  const isManifest =
+    "healthCheck" in obj ||
+    "healthCheckPath" in obj ||
+    "appName" in obj ||
+    "command" in obj ||
+    "appType" in obj ||
+    "stack" in obj;
+
+  if (isManifest) {
+    if (obj.healthCheck === false) {
+      return { enabled: false };
+    }
+    if (isPlainObject(obj.healthCheck)) {
+      const hc = obj.healthCheck as HealthCheckObjectConfig;
+      if (hc.enabled === false) {
+        return { enabled: false };
+      }
+      const path =
+        hc.path ??
+        (typeof obj.healthCheckPath === "string" ? obj.healthCheckPath : undefined) ??
+        (isPlainObject(obj.traefik) &&
+        typeof (obj.traefik as Record<string, unknown>).healthCheck === "string"
+          ? ((obj.traefik as Record<string, unknown>).healthCheck as string)
+          : undefined);
+      return {
+        enabled: true,
+        ...(path !== undefined ? { path } : {}),
+        ...(hc.interval !== undefined ? { interval: hc.interval } : {}),
+        ...(hc.timeout !== undefined ? { timeout: hc.timeout } : {}),
+        ...(hc.retries !== undefined ? { retries: hc.retries } : {}),
+      };
+    }
+    if (obj.healthCheck === true) {
+      const path =
+        (typeof obj.healthCheckPath === "string" ? obj.healthCheckPath : undefined) ??
+        (isPlainObject(obj.traefik) &&
+        typeof (obj.traefik as Record<string, unknown>).healthCheck === "string"
+          ? ((obj.traefik as Record<string, unknown>).healthCheck as string)
+          : undefined) ??
+        options.defaultPath ??
+        "/health";
+      return { enabled: true, path };
+    }
+
+    const unopinionated = options.isUnopinionated ?? declaresCommand(obj);
+    const explicitPath =
+      (typeof obj.healthCheckPath === "string" ? obj.healthCheckPath : undefined) ??
+      (isPlainObject(obj.traefik) &&
+      typeof (obj.traefik as Record<string, unknown>).healthCheck === "string"
+        ? ((obj.traefik as Record<string, unknown>).healthCheck as string)
+        : undefined);
+
+    if (unopinionated && !explicitPath) {
+      return { enabled: false };
+    }
+    return {
+      enabled: true,
+      path: explicitPath ?? options.defaultPath ?? "/health",
+    };
+  }
+
+  // Standalone healthCheck object config
+  const hc = obj as HealthCheckObjectConfig;
+  if (hc.enabled === false) {
+    return { enabled: false };
+  }
+  return {
+    enabled: true,
+    ...(hc.path !== undefined ? { path: hc.path } : {}),
+    ...(hc.interval !== undefined ? { interval: hc.interval } : {}),
+    ...(hc.timeout !== undefined ? { timeout: hc.timeout } : {}),
+    ...(hc.retries !== undefined ? { retries: hc.retries } : {}),
+  };
+}
+
 export function validateServiceManifest(
   value: unknown,
   displayPath: string,
@@ -528,6 +728,7 @@ export function validateServiceManifest(
   errors.push(...fieldTypeErrors(manifest, displayPath));
   errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
   errors.push(...secretsErrors(manifest, displayPath));
+  errors.push(...healthCheckErrors(manifest, displayPath));
 
   if ("smoke" in manifest) {
     for (const message of validateSmoke(manifest.smoke)) errors.push(`${displayPath}.${message}`);

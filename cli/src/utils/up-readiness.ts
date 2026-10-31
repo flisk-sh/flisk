@@ -1,11 +1,14 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
+import type { DiscoveredResource } from "../types/index.js";
 import {
   findStaleDisabledResources,
   getDeferredResourceNames,
   parseTiltResourceFailures,
 } from "./doctor-runtime.js";
+import { isHealthCheckDisabled } from "./service-manifest.js";
+import { discoverResources } from "./services.js";
 import { findOnPath } from "./which.js";
 
 export { findStaleDisabledResources };
@@ -51,17 +54,52 @@ interface TiltItem {
  * Tilt lists resources outside the current focus (the other release phases, or everything but a `--only` selection) with
  * `disableStatus.state: Disabled` and both statuses `none`, which would read as pending forever. A resource whose update
  * status is `not_applicable` (a serve-only local resource) has nothing to build, so it counts as built.
+ * When health checks are disabled for a resource (`disabledHealth`), its container health check status is stripped so
+ * running containers are considered ready immediately.
  */
-export function onlyEnabledResources(jsonText: string): string {
+export function onlyEnabledResources(jsonText: string, disabledHealth?: Set<string>): string {
   const parsed = JSON.parse(jsonText) as { items?: Array<TiltItem> };
   const items = (parsed.items ?? [])
     .filter((item) => item.status?.disableStatus?.state !== "Disabled")
-    .map((item) =>
-      item.status?.updateStatus === "not_applicable"
-        ? { ...item, status: { ...item.status, updateStatus: "ok" } }
-        : item,
-    );
+    .map((item) => {
+      let current = item;
+      if (current.status?.updateStatus === "not_applicable") {
+        current = { ...current, status: { ...current.status, updateStatus: "ok" } };
+      }
+      if (
+        disabledHealth &&
+        current.metadata?.name &&
+        disabledHealth.has(current.metadata.name) &&
+        current.status?.composeResourceInfo
+      ) {
+        const { healthStatus: _healthStatus, ...restInfo } = current.status.composeResourceInfo as {
+          healthStatus?: string;
+          [k: string]: unknown;
+        };
+        current = {
+          ...current,
+          status: {
+            ...current.status,
+            composeResourceInfo: restInfo,
+          },
+        };
+      }
+      return current;
+    });
   return JSON.stringify({ items });
+}
+
+export function getDisabledHealthResourceNames(resources?: DiscoveredResource[]): Set<string> {
+  try {
+    const list = resources ?? discoverResources();
+    return new Set(
+      list
+        .filter((svc) => isHealthCheckDisabled(svc.config as Record<string, unknown>))
+        .map((svc) => svc.name),
+    );
+  } catch {
+    return new Set();
+  }
 }
 
 function enabledNames(jsonText: string): string[] {
@@ -101,8 +139,12 @@ export function evaluateTiltReadiness(
   jsonText: string,
   deferred: Set<string>,
   expected?: string[],
+  disabledHealth?: Set<string>,
 ): { result: ReadinessResult; settled: boolean } {
-  const parsed = parseTiltResourceFailures(onlyEnabledResources(jsonText), deferred);
+  const parsed = parseTiltResourceFailures(
+    onlyEnabledResources(jsonText, disabledHealth),
+    deferred,
+  );
   // A `<service>-typecheck` resource runs on the host and is advisory: it reports type errors
   // in Tilt, it does not decide whether the stack is up. It must not fail the stack.
   const blocking = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
@@ -156,12 +198,15 @@ export async function waitForTiltResourcesReady(
     expected?: string[];
     /** Called with Tilt's JSON while something has failed: true means nothing left pending can still progress. */
     isStalled?: (jsonText: string) => boolean;
+    /** Resource names whose health checks are disabled. */
+    disabledHealth?: Set<string>;
   } = {},
 ): Promise<ReadinessResult> {
   const timeoutMs = options.timeoutMs ?? Number(process.env.FLISK_UP_READY_TIMEOUT_MS ?? 900_000);
   const intervalMs = options.intervalMs ?? 2_000;
   const fetchJson = options.fetchJson ?? tiltGetUiResources;
   const deferred = options.deferred ?? getDeferredResourceNames();
+  const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
   const deadline = Date.now() + timeoutMs;
   let last: ReadinessResult = {
     ready: false,
@@ -174,7 +219,7 @@ export async function waitForTiltResourcesReady(
     const text = await fetchJson(port);
     if (text) {
       try {
-        const evaluation = evaluateTiltReadiness(text, deferred, options.expected);
+        const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth);
         last = evaluation.result;
         if (evaluation.settled) return last;
         if (last.failures.length > 0 && options.isStalled?.(text)) return last;

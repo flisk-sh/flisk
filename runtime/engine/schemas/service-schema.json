@@ -404,6 +404,25 @@
       "pattern": "^[a-z][a-z0-9-]*$",
       "type": "string"
     },
+    "healthCheck": {
+      "description": "Health check configuration. false or { enabled: false } disables health checks.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "interval": { "type": "number", "minimum": 0 },
+            "timeout": { "type": "number", "minimum": 0 },
+            "retries": { "type": "integer", "minimum": 0 },
+            "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "healthCheckPath": {
       "default": "/health",
       "description": "HTTP endpoint for health checks. Must return 200 OK. Optional for bring-your-own: omit it for a service that does not speak HTTP (Postgres, Redis, SMTP, ...), and Flisk then skips the HTTP health probes for it.",
