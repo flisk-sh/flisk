@@ -128,6 +128,9 @@ export { checkPublicEnvSecrets, checkStarlarkLoadExports };
 // A wedged Docker daemon makes `docker ps` block forever instead of failing,
 // and doctor is exactly the tool people run when their environment is broken.
 const EXEC_TIMEOUT_MS = 10_000;
+// The first `docker compose` call loads the compose plugin. On a busy machine (a CI runner running several jobs) that
+// can pass 10s, and a timeout here blocks `flisk up` on a cold start even though Compose is installed.
+const COMPOSE_TIMEOUT_MS = 30_000;
 
 export const DOCTOR_FIXES = {
   dockerMissing: "See https://docs.docker.com/get-docker/",
@@ -369,10 +372,11 @@ function createExecCheck(
   successMessage: string,
   failureMessage: string,
   fixInstructions: string,
+  timeoutMs = EXEC_TIMEOUT_MS,
 ): DoctorCheckFn {
   return async (exec: ExecAsync = execAsync) => {
     try {
-      await exec(command, EXEC_TIMEOUT_MS);
+      await exec(command, timeoutMs);
       return {
         name,
         didPass: true,
@@ -384,7 +388,7 @@ function createExecCheck(
         return {
           name,
           didPass: false,
-          message: `${name} did not respond within ${EXEC_TIMEOUT_MS / 1000}s`,
+          message: `${name} did not respond within ${timeoutMs / 1000}s`,
           fix: fixInstructions,
         };
       }
@@ -519,6 +523,7 @@ export const checkDockerCompose = createExecCheck(
   "Docker Compose plugin available",
   "Docker Compose plugin not found",
   "Install Docker Compose: https://docs.docker.com/compose/install/",
+  COMPOSE_TIMEOUT_MS,
 );
 checkDockerCompose.requiresContainerRuntime = true;
 checkDockerCompose.checkName = "Docker Compose";
