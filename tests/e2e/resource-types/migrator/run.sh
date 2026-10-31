@@ -4,7 +4,7 @@
 # A migrator resource (openspec task 3.6, #1290). `flisk resource --type migrator` is not accepted: a migrator is a service.json with
 # "appType": "migrator" that `flisk resource <name>` registers, the same route as an sdk. So M1 writes that service.json and
 # registers it, and M2 checks `flisk status` lists it as a migrator. Neither needs a stack. The ordering rule (Postgres, then the
-# migrator, then the API, proven through flisk up) needs an API in the project and is the follow-up to this suite.
+# migrator, then the API, proven through flisk up) is M3; M4 repeats it with a `database` resource named in dependsOn (#2863).
 # Runs nightly, on release and by hand; see suite.json.
 #
 #   tests/e2e/resource-types/migrator/run.sh all              every case in order, then cleanup
@@ -97,6 +97,39 @@ M3() { # flisk up starts Postgres, runs the migrator to completion, then starts 
   echo "$MIGRATOR completed its migration at ${mig_done}ms; $API reported running at ${api_start}ms"
   [ -n "$mig_done" ] && [ -n "$api_start" ] || die "could not find the migration-complete or API running log line"
   [ "$mig_done" -le "$api_start" ] || die "$API started before $MIGRATOR finished (ordering broken)"
+}
+
+DB=shop-db
+RESOURCES+=("$DB")
+
+M4() { # a database resource (#2863): the migrator waits for it by name, and flisk up still runs Postgres, the migrator, then the API
+  log "M4 a database resource in place of the postgres name"
+  run m4-down down
+  [ "$RC" -eq 0 ] || die "flisk down exited $RC"
+  run "create-$DB" resource "$DB" --type database --stack "$STACK" --json
+  [ "$RC" -eq 0 ] || die "flisk resource $DB --type database exited $RC"
+  local db_json="$DIR/services/$STACK/$DB/service.json" mig_json="$DIR/services/$STACK/$MIGRATOR/service.json"
+  jq -e '.appType == "database" and .framework == "postgres" and (has("port") | not)' "$db_json" >/dev/null ||
+    die "$DB service.json is not a postgres database resource without a port"
+  jq --arg d "$DB" '.dependsOn = [$d]' "$mig_json" >"$mig_json.tmp" && mv "$mig_json.tmp" "$mig_json"
+  run m4-verify config verify --json
+  assert check "$OUT/m4-verify.out" \
+    "j.data.valid === true && j.data.sharedPlatformPostgres.databaseResources.includes('$DB') && j.data.sharedPlatformPostgres.dependsOnUsers.includes('$MIGRATOR') && j.data.sharedPlatformPostgres.unknownDependsOnNames.length === 0" \
+    "flisk config verify accepts dependsOn $DB and counts $MIGRATOR as a Postgres user"
+  : >"$DIR/up.log"
+  start_stack "$STACK"
+  poll_until "$MIGRATOR logs a completed migration" "$READY_TIMEOUT" migrator_completed
+  poll_until "$MIGRATOR exited" "$READY_TIMEOUT" migrator_exited
+  poll_until "a running $API container" "$READY_TIMEOUT" api_running
+  local state
+  state="$(docker inspect -f '{{.State.ExitCode}}' "$(container_named "$MIGRATOR")")"
+  [ "$state" = "0" ] || die "$MIGRATOR exited $state with dependsOn $DB (want 0: it must reach Postgres)"
+  # The database resource is the shared platform Postgres, not a container of its own.
+  [ -z "$(container_named "$DB")" ] || die "$DB got a container of its own"
+  ! grep -q "could not be found" "$DIR/up.log" || die "flisk up asked Tilt for a resource that does not exist (see up.log)"
+  run "m4-status" status --json
+  assert check "$OUT/m4-status.out" "j.data.resources.some(r => r.name === '$MIGRATOR' && r.status === 'ready')" \
+    "flisk status counts $MIGRATOR, which depends on $DB, as ready"
 }
 
 e2e_main "$@"

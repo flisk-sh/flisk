@@ -233,6 +233,7 @@ describe("VALID_RESOURCE_TYPES", () => {
       "migrator",
       "mcp",
       "agent",
+      "database",
       "bring-your-own",
     ];
     expect(VALID_RESOURCE_TYPES.sort()).toEqual(expected.sort());

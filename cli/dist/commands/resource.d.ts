@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate } from "../backend-languages/bun.js";
 import type { AgentConfig, CreatableResourceType, PortAssignableResourceType } from "../types/index.js";
+import { DATABASE_RESOURCE_TYPE } from "../types/index.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 export declare const BASE_TEMPLATE: {
     readonly port: 0;
@@ -135,7 +136,9 @@ export declare const TSCONFIG_TEMPLATE: {
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 /** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` a preset of it. */
-export declare function parseResourceType(type: string): CreatableResourceType | "sdk";
+export declare function parseResourceType(type: string): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk";
+/** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */
+export declare function createDatabaseServiceJson(name: string, stack: string): Record<string, unknown>;
 type ExistingServiceConfig = {
     [key: string]: unknown;
     $schema?: string;

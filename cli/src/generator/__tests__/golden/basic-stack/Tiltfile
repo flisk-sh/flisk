@@ -263,6 +263,9 @@ for _KNOWN_SVC in _app_resources_list:
     if _KNOWN_SVC_NAME:
         for _KNOWN_RES in _KNOWN_SVC.get('resources', []):
             _KNOWN_RES_NAME = _KNOWN_RES.get('name', '')
+            # A `database` resource is the shared platform Postgres (the `postgres` resource), with no Tilt resource of its own.
+            if _KNOWN_RES.get('_manifest', {}).get('appType', '') == 'database':
+                continue
             if _KNOWN_RES_NAME:
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME)
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-run-only')

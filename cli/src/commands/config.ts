@@ -46,7 +46,10 @@ import {
   discoverServiceManifestPaths,
   warnAboutSkippedFiles,
 } from "../utils/services.js";
-import { evaluateSharedPlatformPostgres } from "../utils/shared-platform-postgres.js";
+import {
+  describeSharedPostgresUsers,
+  evaluateSharedPlatformPostgres,
+} from "../utils/shared-platform-postgres.js";
 import { validateOptionalInfraService } from "../utils/validation.js";
 
 /** How one master file changes on `flisk config regenerate`. `lineDiff` is new minus current lines (0 for a new file). */
@@ -482,13 +485,13 @@ export const configCommand = new Command("config")
             } else if (sharedPostgres.reason === "feature") {
               console.log(
                 chalk.yellow(
-                  `ℹ️  Postgres will start because database-management is enabled and resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`,
+                  `ℹ️  Postgres will start because database-management is enabled and ${describeSharedPostgresUsers(sharedPostgres)} (project resource set; flisk up may select a subset)`,
                 ),
               );
             } else {
               console.log(
                 chalk.green(
-                  `ℹ️  Postgres will start because resource(s) ${sharedPostgres.dependsOnUsers.join(", ")} depend on postgres/database-management (project resource set; flisk up may select a subset)`,
+                  `ℹ️  Postgres will start because ${describeSharedPostgresUsers(sharedPostgres)} (project resource set; flisk up may select a subset)`,
                 ),
               );
             }

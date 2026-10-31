@@ -22,7 +22,12 @@ import { formatCount } from "./formatting.js";
 import { findProjectRoot } from "./paths.js";
 import { isApiServiceType } from "./resource-kind.js";
 import { discoverResourcesFromRoot } from "./services.js";
-import { evaluateSharedPlatformPostgres } from "./shared-platform-postgres.js";
+import {
+  databaseResourceNames,
+  describeSharedPostgresUsers,
+  evaluateSharedPlatformPostgres,
+  namesSharedPlatformPostgres,
+} from "./shared-platform-postgres.js";
 
 /**
  * Checks for wiring mistakes that only show up minutes into `flisk up`: an image
@@ -108,6 +113,7 @@ export function checkPrismaConsistency(
   );
   const findings: string[] = [];
   const migrators = resources.filter((resource) => resource.config?.appType === "migrator");
+  const databaseNames = databaseResourceNames(resources);
 
   for (const resource of resources) {
     const legacyFeatures = (resource.config as Record<string, unknown> | undefined)?.features;
@@ -161,11 +167,13 @@ export function checkPrismaConsistency(
 
     const appType = resource.config?.appType ?? resource.type;
     if (appType === "migrator") {
-      const postgresDependency = dependsOnOf(resource.config).some(
-        (name) => name === "postgres" || name === DATABASE_MANAGEMENT_FEATURE,
+      const postgresDependency = dependsOnOf(resource.config).some((name) =>
+        namesSharedPlatformPostgres(name, databaseNames),
       );
       if (!postgresDependency)
-        findings.push(`${resource.name}: migrator must depend on postgres or database-management`);
+        findings.push(
+          `${resource.name}: migrator must depend on postgres, database-management or a database resource`,
+        );
     } else {
       // The API reaches Postgres only through its migrator, and that migrator must start Postgres (checked above).
       const migratorDependency = dependsOnOf(resource.config).some((name) =>
@@ -698,14 +706,14 @@ export function checkSharedPlatformPostgres(
       ? ` Postgres will start because ${
           evaluation.reason === "feature"
             ? "database-management is enabled"
-            : `resource(s) ${evaluation.dependsOnUsers.join(", ")} depend on postgres/database-management`
+            : describeSharedPostgresUsers(evaluation)
         }${projectScopeNote}`
       : " Postgres will not start for this project.json/generated Tiltfile state.";
     return {
       name: "Shared platform Postgres",
       didPass: false,
       message: `${formatCount(evaluation.unknownDependsOnNames.length, "unknown dependsOn name")}: ${list}. These are not known services or stacks, and are not the shared platform database names (postgres, database-management).${willStartSuffix}${focusWarning}`,
-      fix: 'Use "postgres" or "database-management" in dependsOn for the shared platform database, or fix the name to match an existing service',
+      fix: 'Use "postgres", "database-management" or a database resource\'s name in dependsOn for the shared platform database, or fix the name to match an existing service',
     };
   }
 
@@ -736,8 +744,8 @@ export function checkSharedPlatformPostgres(
 
   const reason =
     evaluation.reason === "feature"
-      ? `the database-management feature is enabled and resource(s) ${evaluation.dependsOnUsers.join(", ")} depend on postgres/database-management`
-      : `resource(s) ${evaluation.dependsOnUsers.join(", ")} depend on postgres/database-management`;
+      ? `the database-management feature is enabled and ${describeSharedPostgresUsers(evaluation)}`
+      : describeSharedPostgresUsers(evaluation);
   return {
     name: "Shared platform Postgres",
     didPass: true,

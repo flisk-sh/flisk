@@ -36,7 +36,7 @@ import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
 import { appendHealthPath, resolveServiceUrl, resolveSubdomainBases, } from "../utils/service-urls.js";
 import { discoverResourcesStrict, discoverResourcesWithProblems, discoverStacks, getResourcesForStack, stackExists, warnAboutSkippedFiles, } from "../utils/services.js";
-import { evaluateSharedPlatformPostgres, POSTGRES_DEPENDENCY_NAMES, } from "../utils/shared-platform-postgres.js";
+import { databaseResourceNames, evaluateSharedPlatformPostgres, namesSharedPlatformPostgres, } from "../utils/shared-platform-postgres.js";
 import { buildSmokePlans, formatSmokeFailure, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
 import { buildStartupReport, formatStartupReport, isStartupStalled, machineProblemFixes, } from "../utils/startup-report.js";
 import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
@@ -614,9 +614,12 @@ export const upCommand = new Command("up")
                 console.log(chalk.gray("Set capabilities.database to false in .flisk/project.json; regenerated .flisk/.flisk-out/ without the shared Postgres"));
             }
             if (foundRoot && !isDatabaseCapabilityEnabled(projectRoot)) {
-                // The Tiltfile still force-starts the shared Postgres for a dependsOn on it, so say so rather than look ignored.
+                // The Tiltfile still force-starts the shared Postgres for a dependsOn on it (or for a database resource), so say so
+                // rather than look ignored.
+                const databaseNames = databaseResourceNames(discoveredResources);
                 const postgresUsers = discoveredResources
-                    .filter((r) => dependsOnOf(r.config).some((name) => POSTGRES_DEPENDENCY_NAMES.includes(name)))
+                    .filter((r) => databaseNames.includes(r.name) ||
+                    dependsOnOf(r.config).some((name) => namesSharedPlatformPostgres(name, databaseNames)))
                     .map((r) => r.name);
                 if (postgresUsers.length > 0 && !options.quiet) {
                     console.warn(chalk.yellow(`Database capability is off, but ${postgresUsers.join(", ")} depend on postgres; the shared Postgres still starts for them.`));

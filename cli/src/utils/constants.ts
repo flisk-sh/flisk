@@ -63,13 +63,15 @@ export const VALID_RESOURCE_TYPES: ResourceType[] = [
   "migrator",
   "mcp",
   "agent",
+  "database",
   BRING_YOUR_OWN_TYPE,
 ] as const;
 
 // Frontend/library/sdk services are served statically or consumed as
 // packages, so they never need a "start" script - only backend/worker/
 // migrator processes are run in production via `<runtime> run start`.
-// bring-your-own doesn't generate application code, so no scripts required.
+// bring-your-own doesn't generate application code, and a database resource
+// has no code at all, so neither needs scripts.
 export const REQUIRED_PACKAGE_SCRIPTS: Record<ResourceType, readonly string[]> = {
   backend: ["dev", "build", "start"],
   worker: ["dev", "build", "start"],
@@ -79,6 +81,7 @@ export const REQUIRED_PACKAGE_SCRIPTS: Record<ResourceType, readonly string[]> =
   frontend: ["dev", "build"],
   library: ["dev", "build"],
   sdk: ["dev", "build"],
+  database: [],
   [BRING_YOUR_OWN_TYPE]: [],
 } as const;
 

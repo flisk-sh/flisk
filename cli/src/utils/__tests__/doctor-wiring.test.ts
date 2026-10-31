@@ -603,7 +603,34 @@ describe("checkPrismaConsistency", () => {
     );
     const result = checkPrismaConsistency(root);
     expect(result.didPass).toBe(false);
-    expect(result.message).toContain("migrator must depend on postgres or database-management");
+    expect(result.message).toContain(
+      "migrator must depend on postgres, database-management or a database resource",
+    );
+  });
+
+  it("accepts a database resource as the Postgres dependency of the migrator", () => {
+    validProject();
+    mkdirSync(join(root, "services/app/shop-db"), { recursive: true });
+    writeFileSync(
+      join(root, "services/app/shop-db/service.json"),
+      JSON.stringify({
+        appName: "shop-db",
+        appType: "database",
+        framework: "postgres",
+        stack: "app",
+      }),
+    );
+    writeFileSync(
+      join(root, "services/app/orders-api-migrator/service.json"),
+      JSON.stringify({
+        appName: "orders-api-migrator",
+        appType: "migrator",
+        port: 7000,
+        featuresEnabled: ["prisma"],
+        dependsOn: ["shop-db"],
+      }),
+    );
+    expect(checkPrismaConsistency(root).didPass).toBe(true);
   });
 
   it("accepts database-management as the Postgres dependency of the migrator", () => {

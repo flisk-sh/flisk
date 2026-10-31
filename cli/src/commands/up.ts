@@ -91,8 +91,9 @@ import {
   warnAboutSkippedFiles,
 } from "../utils/services.js";
 import {
+  databaseResourceNames,
   evaluateSharedPlatformPostgres,
-  POSTGRES_DEPENDENCY_NAMES,
+  namesSharedPlatformPostgres,
 } from "../utils/shared-platform-postgres.js";
 import {
   buildSmokePlans,
@@ -829,12 +830,16 @@ export const upCommand = new Command("up")
           );
         }
         if (foundRoot && !isDatabaseCapabilityEnabled(projectRoot)) {
-          // The Tiltfile still force-starts the shared Postgres for a dependsOn on it, so say so rather than look ignored.
+          // The Tiltfile still force-starts the shared Postgres for a dependsOn on it (or for a database resource), so say so
+          // rather than look ignored.
+          const databaseNames = databaseResourceNames(discoveredResources);
           const postgresUsers = discoveredResources
-            .filter((r) =>
-              dependsOnOf(r.config).some((name) =>
-                (POSTGRES_DEPENDENCY_NAMES as readonly string[]).includes(name),
-              ),
+            .filter(
+              (r) =>
+                databaseNames.includes(r.name) ||
+                dependsOnOf(r.config).some((name) =>
+                  namesSharedPlatformPostgres(name, databaseNames),
+                ),
             )
             .map((r) => r.name);
           if (postgresUsers.length > 0 && !options.quiet) {

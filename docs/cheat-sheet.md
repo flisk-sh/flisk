@@ -193,7 +193,7 @@ flisk resource old-api --path services/old-api --register-existing
 
 | Flag | Effect |
 | --- | --- |
-| `-t`, `--type <type>` | `backend` (default), `frontend`, `worker`, `mcp`, `bring-your-own`, `sdk` |
+| `-t`, `--type <type>` | `backend` (default), `frontend`, `worker`, `mcp`, `agent`, `inference`, `bring-your-own`, `database`, `sdk`. `database` writes only a `service.json` for the project's Postgres (no port, image or code); services list its name in `dependsOn` |
 | `--framework <id>` | Frontend: `react` (default), `vue`, `svelte`, `preact`, `lit`, `solid`, `qwik`, `vanilla`, `tanstack-router`, `next` (Next.js App Router, a Node server). Backend: `hono` (default), `express`, `elysia`, `fastify`, `nestjs`, `koa`, `h3` |
 | `--frameworks` | List registered frameworks for the resource type and exit (`--type frontend`, `--type backend`) |
 | `--language <id>` | Backend language: `bun` (default), `python`, `go`, `rust`, `node` |

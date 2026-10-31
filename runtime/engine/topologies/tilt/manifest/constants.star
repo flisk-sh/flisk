@@ -63,6 +63,7 @@ VALID_RESOURCE_TYPES = [
     "sdk",
     "worker",
     "infra",
+    "database",
     "mcp",
     "bring-your-own",
 ]
@@ -193,6 +194,7 @@ DEFAULT_SYNCS = {
     'migrator': ['prisma'],
     'library': ['src', 'package.json'],
     'sdk': ['src', 'package.json'],
+    'database': [],
     'bring-your-own': [],
 }
 

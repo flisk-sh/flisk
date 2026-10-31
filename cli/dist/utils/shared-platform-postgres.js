@@ -10,7 +10,9 @@ import { discoverResourcesFromRoot } from "./services.js";
 /**
  * Shared platform Postgres start predicate.
  *
- * Both names mean the one shared platform Postgres Tilt resource `postgres`.
+ * Both names mean the one shared platform Postgres Tilt resource `postgres`. So does the
+ * appName of a `database` resource (appType `database`, framework `postgres`), which declares
+ * that Postgres in a service.json (#2863).
  * The engine start path is selection-bounded (flisk up --only); verify/doctor
  * evaluate the project resource set they already inspect (no flisk up filter).
  * Both surfaces use this same predicate shape over their own resource set.
@@ -25,6 +27,16 @@ export const POSTGRES_DEPENDENCY_NAMES = ["postgres", DATABASE_MANAGEMENT_FEATUR
 const PHASE_KEYS = ["pre_alpha", "alpha", "beta", "out_of_scope"];
 export function isSharedPlatformPostgresDependency(name) {
     return POSTGRES_DEPENDENCY_NAMES.includes(name);
+}
+/** The appNames of the `database` resources: each one names the shared platform Postgres. */
+export function databaseResourceNames(resources) {
+    return resources
+        .filter((resource) => resource.config?.appType === "database")
+        .map((resource) => resource.name);
+}
+/** True when a dependsOn name means the shared platform Postgres: one of its aliases, or a `database` resource. */
+export function namesSharedPlatformPostgres(name, databaseNames = []) {
+    return isSharedPlatformPostgresDependency(name) || databaseNames.includes(name);
 }
 function readProjectJson(projectRoot) {
     try {
@@ -183,6 +195,7 @@ export function evaluateSharedPlatformPostgres(projectRoot, resources = discover
             featureOnFromSpecMaster: false,
             focusWouldEnableDatabaseManagement: false,
             dependsOnUsers: [],
+            databaseResources: [],
             willStart: false,
             reason: "none",
             unknownDependsOnNames: [],
@@ -195,13 +208,14 @@ export function evaluateSharedPlatformPostgres(projectRoot, resources = discover
     const featureOn = featureOnFromProjectJson || featureOnFromTiltfile || featureOnFromSpecMaster;
     const focusWouldEnableDatabaseManagement = !featureOnFromProjectJson && generatedDefaultFocusEnablesDatabaseManagement(projectRoot);
     const known = knownDependsonNames(projectRoot, resources);
+    const databaseResources = databaseResourceNames(resources);
     const dependsOnUsers = [];
     const unknownDependsOnNames = [];
     for (const resource of resources) {
         const deps = dependsOnOf(resource.config);
         let usesSharedPostgres = false;
         for (const dep of deps) {
-            if (isSharedPlatformPostgresDependency(dep)) {
+            if (isSharedPlatformPostgresDependency(dep) || databaseResources.includes(dep)) {
                 usesSharedPostgres = true;
                 continue;
             }
@@ -213,12 +227,12 @@ export function evaluateSharedPlatformPostgres(projectRoot, resources = discover
             dependsOnUsers.push(resource.name);
         }
     }
-    const willStart = featureOn || dependsOnUsers.length > 0;
+    const willStart = featureOn || dependsOnUsers.length > 0 || databaseResources.length > 0;
     let reason = "none";
     if (featureOn) {
         reason = "feature";
     }
-    else if (dependsOnUsers.length > 0) {
+    else if (dependsOnUsers.length > 0 || databaseResources.length > 0) {
         reason = "dependsOn";
     }
     return {
@@ -228,6 +242,7 @@ export function evaluateSharedPlatformPostgres(projectRoot, resources = discover
         featureOnFromSpecMaster,
         focusWouldEnableDatabaseManagement,
         dependsOnUsers,
+        databaseResources,
         willStart,
         reason,
         unknownDependsOnNames,
@@ -246,6 +261,23 @@ export function sharedPlatformPostgresMessage(evaluation) {
         ? `the database-management feature is enabled${evaluation.featureOnFromTiltfile || evaluation.featureOnFromSpecMaster
             ? " (generated Tiltfile/spec.master)"
             : ""}`
-        : `resource(s) ${evaluation.dependsOnUsers.join(", ")} depend on postgres/database-management`;
+        : describeSharedPostgresUsers(evaluation);
     return `Shared platform Postgres will start because ${why}${projectScopeNote}`;
+}
+/**
+ * Why Postgres starts apart from the feature: "database resource(s) X declare it" and/or
+ * "resource(s) Y depend on postgres/database-management/X".
+ */
+export function describeSharedPostgresUsers(evaluation) {
+    const parts = [];
+    if (evaluation.databaseResources.length > 0) {
+        parts.push(`database resource(s) ${evaluation.databaseResources.join(", ")} declare it`);
+    }
+    if (evaluation.dependsOnUsers.length > 0) {
+        parts.push(`resource(s) ${evaluation.dependsOnUsers.join(", ")} depend on ${dependsOnTargets(evaluation)}`);
+    }
+    return parts.join(" and ");
+}
+function dependsOnTargets(evaluation) {
+    return ["postgres", "database-management", ...evaluation.databaseResources].join("/");
 }
