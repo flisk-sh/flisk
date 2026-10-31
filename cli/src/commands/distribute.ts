@@ -13,8 +13,11 @@ import {
   buildStatusGrid,
   createInitialDistribution,
   DISTRIBUTION_FILE,
+  type DistributionFile,
+  distributionWarnings,
   formatBoard,
   formatStatusGrid,
+  mergeDistribution,
   readDistributionFile,
   writeKit,
 } from "../utils/distribution.js";
@@ -27,6 +30,13 @@ function projectRootOrThrow(): string {
   const root = findProjectRoot();
   if (!root) throw errorFactories.notInProject();
   return root;
+}
+
+/** Reads distribution.json and prints its warnings on stderr, so --json output stays clean. */
+function readDistribution(root: string): DistributionFile | null {
+  const dist = readDistributionFile(root);
+  for (const warning of distributionWarnings(dist)) console.warn(`⚠️  ${warning}`);
+  return dist;
 }
 
 async function run(isJson: boolean, action: () => Promise<void>): Promise<void> {
@@ -42,12 +52,14 @@ async function run(isJson: boolean, action: () => Promise<void>): Promise<void> 
 }
 
 const boardCommand = new Command("board")
-  .description("Print the Zachman board: stages by the six questions, filled from the project")
+  .description(
+    "Print the Zachman board: six perspectives (Planner to User) by six questions, each cell read from service.json or distribution.json",
+  )
   .option("--json", "Output the board as a versioned JSON envelope", false)
   .action(async (options: { json?: boolean }) => {
     await run(Boolean(options.json), async () => {
       const root = projectRootOrThrow();
-      const board = buildBoard(discoverResourcesFromRoot(root), readDistributionFile(root));
+      const board = buildBoard(discoverResourcesFromRoot(root), readDistribution(root));
       if (options.json) {
         console.log(JSON.stringify(createMachineEnvelope({ board })));
         return;
@@ -80,7 +92,7 @@ const kitCommand = new Command("kit")
             }`,
           ]);
         }
-        const kit = buildKit(resource, readDistributionFile(root));
+        const kit = buildKit(resource, readDistribution(root));
         const outDir = path.resolve(options.out ?? path.join(root, "distribution", resource.name));
         if (options.dryRun) {
           console.log(`Dry run - would write ${kit.files.length} files to ${outDir}:`);
@@ -104,7 +116,11 @@ const statusSubcommand = new Command("status")
   .description(`Print the channel grid from ${DISTRIBUTION_FILE}`)
   .option("--json", "Output the grid as a versioned JSON envelope", false)
   .option("--init", `Write an empty ${DISTRIBUTION_FILE} for the project's resources`, false)
-  .option("--force", `With --init, overwrite an existing ${DISTRIBUTION_FILE}`, false)
+  .option(
+    "--force",
+    `With --init, add missing apps and channels to an existing ${DISTRIBUTION_FILE}, keeping its entries`,
+    false,
+  )
   .action(async (options: { json?: boolean; init?: boolean; force?: boolean }) => {
     await run(Boolean(options.json), async () => {
       const root = projectRootOrThrow();
@@ -112,19 +128,27 @@ const statusSubcommand = new Command("status")
       if (options.init) {
         if (fs.existsSync(file) && !options.force) {
           throw new FliskError(`${DISTRIBUTION_FILE} already exists`, [
-            "Edit it by hand, or run again with --force to start over",
+            "Edit it by hand, or run again with --force to add missing apps and channels",
           ]);
         }
-        const initial = createInitialDistribution(discoverResourcesFromRoot(root));
+        const resources = discoverResourcesFromRoot(root);
+        const existing = fs.existsSync(file) ? readDistribution(root) : null;
+        const initial = existing
+          ? mergeDistribution(existing, resources)
+          : createInitialDistribution(resources);
         fs.writeFileSync(file, `${JSON.stringify(initial, null, 2)}\n`);
         if (options.json) {
           console.log(JSON.stringify(createMachineEnvelope({ path: file, distribution: initial })));
         } else {
-          console.log(`Wrote ${DISTRIBUTION_FILE} with ${Object.keys(initial.apps).length} apps.`);
+          console.log(
+            existing
+              ? `Updated ${DISTRIBUTION_FILE}: ${Object.keys(initial.apps).length} apps, existing entries kept.`
+              : `Wrote ${DISTRIBUTION_FILE} with ${Object.keys(initial.apps).length} apps.`,
+          );
         }
         return;
       }
-      const dist = readDistributionFile(root);
+      const dist = readDistribution(root);
       if (!dist) {
         throw new FliskError(`No ${DISTRIBUTION_FILE} in ${root}`, [
           "Run flisk distribute status --init to create one",
