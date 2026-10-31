@@ -340,7 +340,7 @@
       "type": "string"
     },
     "container": {
-      "description": "Container runtime options for this bring-your-own resource, written into its generated Compose service. Use them when an existing image needs them, for example a VPN client that needs NET_ADMIN or a headless browser that needs a larger /dev/shm. Ignored for other resource types.",
+      "description": "Container runtime options for this bring-your-own resource, written into its generated Compose service. Use them when an existing image needs them, for example a VPN client that needs NET_ADMIN, a headless browser that needs a larger /dev/shm, or a model server or simulator that needs GPUs and more memory. Ignored for other resource types.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -376,6 +376,29 @@
           "description": "Size of /dev/shm (Compose shm_size), such as 256mb.",
           "type": "string",
           "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
+        },
+        "gpus": {
+          "description": "NVIDIA GPUs to reserve (Compose deploy.resources.reservations.devices): \"all\" or a count. Needs the NVIDIA Container Toolkit on a Linux or WSL host.",
+          "oneOf": [
+            { "const": "all" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "cpus": {
+          "description": "CPU limit (Compose deploy.resources.limits.cpus), such as 4 or \"2.5\". Replaces Flisk's default of 0.5.",
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,2})?$" }
+          ]
+        },
+        "memory": {
+          "description": "Memory limit (Compose deploy.resources.limits.memory), such as 16g. Replaces Flisk's default of 512M.",
+          "type": "string",
+          "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
+        },
+        "ipc": {
+          "description": "IPC namespace (Compose ipc). host shares the host's shared memory, which PyTorch data loaders and vLLM tensor parallelism use.",
+          "enum": ["host", "private", "shareable", "none"]
         }
       }
     },
@@ -438,6 +461,28 @@
       },
       "description": "Non-secret configuration parameters (BASE_URL, PORT, etc.). Secrets use 'secrets' section below.",
       "type": "object"
+    },
+    "providers": {
+      "description": "External endpoints this service calls, such as IBM Quantum, Amazon Braket or a hosted model API, by name. For provider ibm-quantum the service gets PROVIDER_IBM_QUANTUM_URL, the token from the project .env under tokenSecret (like secrets), PROVIDER_IBM_QUANTUM_REMOTE=true while that token has a value, and with fallback PROVIDER_IBM_QUANTUM_FALLBACK_URL=http://<fallback>:<port>, a local resource (a simulator) to use instead.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string", "pattern": "^https?://[A-Za-z0-9_\\-./:@%+=,~]+$", "description": "The remote endpoint." },
+          "tokenSecret": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Name of the secret in the project .env that holds the token, such as IBM_QUANTUM_TOKEN." },
+          "fallback": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A resource in this project to use while the token is missing, such as a local simulator. List it in dependsOn too." },
+          "required": { "type": "boolean", "description": "Refuse to start without the token. Defaults to true when there is a tokenSecret and no fallback." }
+        }
+      }
+    },
+    "provides": {
+      "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type redis, qdrant and rabbitmq write it.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^[A-Za-z0-9_\\-./:@%+=,]+$" }
     },
     "secrets": {
       "description": "Names of secrets the resource needs. By default each is read from the project .env (gitignored) and injected into the container; with FLISK_SECRET_PROVIDER=infisical they are left to Infisical. NO secret values in params/envVars or anywhere in service.json.",

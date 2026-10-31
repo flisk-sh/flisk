@@ -320,6 +320,8 @@ Key operational guarantees:
 | `params` | string map; optional | all | Non-secret values such as `BASE_URL` or `PORT`. |
 | `envVars` | object; deprecated | existing manifests | Legacy alias for `params`, read only when `params` is absent. |
 | `secrets` | object; optional | all | Secret names to inject from the project `.env` or the configured secret provider. Use `required` and optionally `optional`; never put secret values in this file. |
+| `provides` | string map; optional | any resource | Connection settings, such as `REDIS_URL`, that every service listing this resource in `dependsOn` gets in its generated env file. Never a secret. See [bring-your-own](byo.md#connection-settings-for-the-services-that-depend-on-it-provides). |
+| `providers` | object; optional | container services | External endpoints the service calls (IBM Quantum, Amazon Braket, a hosted model API), each with an optional `tokenSecret` and a local `fallback`. See [bring-your-own](byo.md#external-providers-ibm-quantum-amazon-braket-hosted-apis). |
 | `nats` | object; optional | services using NATS | Custom `queueGroup` and `subjects`. Flisk generates NATS configuration when `nats` is enabled in `featuresEnabled`. |
 | `databaseName` | string; generated from the stack by default | database-backed services | Overrides the generated database name. |
 | `playwright` | boolean; defaults to `false` | generated frontend/services | Requests a generated Playwright configuration when enabled. |

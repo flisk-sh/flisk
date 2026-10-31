@@ -54,6 +54,8 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "params",
   "profiles",
   "playwright",
+  "provides",
+  "providers",
   "port",
   "replicas",
   "restart",
@@ -461,7 +463,13 @@ const CONTAINER_KEYS = new Set([
   "readOnly",
   "user",
   "shmSize",
+  "gpus",
+  "cpus",
+  "memory",
+  "ipc",
 ]);
+const CONTAINER_IPC_MODES = ["host", "private", "shareable", "none"];
+const SIZE_PATTERN = /^[0-9]+([bkmg]b?)?$/i;
 
 /** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
 export function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
@@ -501,9 +509,29 @@ export function containerErrors(manifest: Record<string, unknown>, displayPath: 
   }
   if (
     container.shmSize !== undefined &&
-    !(typeof container.shmSize === "string" && /^[0-9]+([bkmg]b?)?$/i.test(container.shmSize))
+    !(typeof container.shmSize === "string" && SIZE_PATTERN.test(container.shmSize))
   ) {
     errors.push(`${field}.shmSize: expected a size such as 256mb or 1g`);
+  }
+  // GPU and HPC workloads: NVIDIA device reservations, CPU and memory limits (Flisk's defaults are 0.5 CPU and 512M) and IPC.
+  const { gpus, cpus, memory, ipc } = container;
+  if (gpus !== undefined && !(gpus === "all" || (Number.isInteger(gpus) && (gpus as number) > 0))) {
+    errors.push(`${field}.gpus: expected "all" or a GPU count of 1 or more`);
+  }
+  const cpusOk =
+    (Number.isInteger(cpus) && (cpus as number) > 0) ||
+    (typeof cpus === "string" && /^[0-9]+(\.[0-9]{1,2})?$/.test(cpus) && Number(cpus) > 0);
+  if (cpus !== undefined && !cpusOk) {
+    errors.push(`${field}.cpus: expected a CPU count above 0 such as 4 or "2.5"`);
+  }
+  if (
+    memory !== undefined &&
+    !(typeof memory === "string" && SIZE_PATTERN.test(memory) && Number.parseInt(memory, 10) > 0)
+  ) {
+    errors.push(`${field}.memory: expected a size such as 8g or 512mb`);
+  }
+  if (ipc !== undefined && !(typeof ipc === "string" && CONTAINER_IPC_MODES.includes(ipc))) {
+    errors.push(`${field}.ipc: expected one of ${CONTAINER_IPC_MODES.join(", ")}`);
   }
   return errors;
 }
@@ -672,6 +700,118 @@ export function byoEnvErrors(manifest: Record<string, unknown>, displayPath: str
       errors.push(`${field}.${name}: expected a string`);
     } else if (hasLineBreakOrControl(value)) {
       errors.push(`${field}.${name}: must not contain line breaks or control characters`);
+    }
+  }
+  return errors;
+}
+
+/**
+ * `provides`: the connection settings a resource gives the services that list it in `dependsOn` (REDIS_URL for a Redis).
+ * Each one is written into the dependent's generated env file, which `flisk config verify` checks and which must hold no
+ * secret, so the values are plain URLs and names. Mirrors _dependency_provides_lines in
+ * engine/.../orchestrator/generators/env.star.
+ */
+export function providesErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const provides = manifest.provides;
+  if (provides === undefined || provides === null) return [];
+  const field = `${displayPath}.provides`;
+  if (!isPlainObject(provides)) {
+    return [`${field}: expected an object such as { "REDIS_URL": "redis://cache:6379" }`];
+  }
+  const errors: string[] = [];
+  for (const [key, value] of Object.entries(provides)) {
+    if (!ENV_NAME_PATTERN.test(key)) {
+      errors.push(`${field}.${key}: expected an environment variable name such as REDIS_URL`);
+    }
+    if (typeof value !== "string" || !/^[A-Za-z0-9_\-./:@%+=,]+$/.test(value)) {
+      errors.push(`${field}.${key}: expected a URL or value without spaces, quotes or $`);
+    }
+  }
+  return errors;
+}
+
+const PROVIDER_KEYS = ["url", "tokenSecret", "fallback", "required"];
+const PROVIDER_TYPES = new Set(["backend", "worker", "mcp", "agent", "bring-your-own"]);
+
+/** One entry of `providers`, with `required` resolved: a token is required unless the provider has a local fallback. */
+export interface ProviderSpec {
+  id: string;
+  url: string;
+  tokenSecret?: string;
+  fallback?: string;
+  required: boolean;
+}
+
+/** The well-formed entries of `providers` (malformed ones are reported by {@link providersErrors}). */
+export function providersOf(manifest: Record<string, unknown> | undefined): ProviderSpec[] {
+  const providers = manifest?.providers;
+  if (!isPlainObject(providers)) return [];
+  return Object.entries(providers).flatMap(([id, entry]) => {
+    if (!isPlainObject(entry) || typeof entry.url !== "string") return [];
+    const tokenSecret = typeof entry.tokenSecret === "string" ? entry.tokenSecret : undefined;
+    const fallback = typeof entry.fallback === "string" ? entry.fallback : undefined;
+    const required =
+      typeof entry.required === "boolean"
+        ? entry.required
+        : tokenSecret !== undefined && fallback === undefined;
+    return [{ id, url: entry.url, tokenSecret, fallback, required }];
+  });
+}
+
+/**
+ * `providers`: external endpoints a service calls (IBM Quantum, Amazon Braket, a hosted model API) with the secret that holds
+ * their token, and optionally a local resource to use while the token is missing. Mirrors
+ * engine/.../docker/secrets/providers.star, which refuses the same values.
+ */
+export function providersErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const providers = manifest.providers;
+  if (providers === undefined || providers === null) return [];
+  const field = `${displayPath}.providers`;
+  if (!isPlainObject(providers)) {
+    return [`${field}: expected an object such as { "ibm-quantum": { "url": "https://..." } }`];
+  }
+  if (typeof manifest.command === "string" || !PROVIDER_TYPES.has(String(manifest.appType))) {
+    return [
+      `${field}: only applies to container services (backend, worker, mcp, agent, bring-your-own)`,
+    ];
+  }
+  const dependsOn = Array.isArray(manifest.dependsOn) ? manifest.dependsOn : [];
+  const errors: string[] = [];
+  for (const [id, entry] of Object.entries(providers)) {
+    const at = `${field}.${id}`;
+    if (!/^[a-z][a-z0-9-]*$/.test(id)) {
+      errors.push(`${at}: name it in lowercase letters, digits and '-', such as ibm-quantum`);
+    }
+    if (!isPlainObject(entry)) {
+      errors.push(`${at}: expected an object such as { "url": "https://..." }`);
+      continue;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!PROVIDER_KEYS.includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use ${PROVIDER_KEYS.join(", ")})`);
+      }
+    }
+    if (typeof entry.url !== "string" || !/^https?:\/\/[A-Za-z0-9_\-./:@%+=,~]+$/.test(entry.url)) {
+      errors.push(`${at}.url: expected an http(s) URL without spaces, quotes or $`);
+    }
+    const token = entry.tokenSecret;
+    if (token !== undefined && !(typeof token === "string" && ENV_NAME_PATTERN.test(token))) {
+      errors.push(
+        `${at}.tokenSecret: expected an environment variable name such as IBM_QUANTUM_TOKEN`,
+      );
+    }
+    const fallback = entry.fallback;
+    if (fallback !== undefined) {
+      if (!(typeof fallback === "string" && /^[a-z][a-z0-9-]*$/.test(fallback))) {
+        errors.push(`${at}.fallback: expected a resource name such as quantum-sim`);
+      } else if (!dependsOn.includes(fallback)) {
+        errors.push(`${at}.fallback: list ${fallback} in dependsOn too, so it starts first`);
+      }
+    }
+    if (entry.required !== undefined && typeof entry.required !== "boolean") {
+      errors.push(`${at}.required: expected true or false`);
+    } else if (entry.required === true && token === undefined) {
+      errors.push(`${at}.required: needs a tokenSecret`);
     }
   }
   return errors;
@@ -949,6 +1089,8 @@ export function validateServiceManifest(
   errors.push(...secretsErrors(manifest, displayPath));
   errors.push(...containerErrors(manifest, displayPath));
   errors.push(...extraPortsErrors(manifest, displayPath));
+  errors.push(...providesErrors(manifest, displayPath));
+  errors.push(...providersErrors(manifest, displayPath));
   errors.push(...sidecarErrors(manifest, displayPath));
   errors.push(...volumesErrors(manifest, displayPath));
   errors.push(...byoEnvErrors(manifest, displayPath));

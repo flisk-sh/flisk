@@ -177,6 +177,124 @@ reach the container as written. `flisk config verify` refuses a name that is not
 not a string, and a line break. Checked by `tests/tilt-engine/test_byo_env.py`, which also runs `docker compose config` on the
 generated file.
 
+## GPUs, CPU and memory (model servers and simulators)
+
+Every container Flisk generates is limited to 0.5 CPU and 512M of memory. A model server (vLLM, Ollama, llama.cpp) or a
+scientific workload (a cuQuantum or Qiskit Aer GPU simulator, a tensor-network or large state-vector simulation) needs more,
+and needs the GPU. Add these keys to the same `container` block:
+
+```json
+"container": {
+  "gpus": "all",
+  "cpus": 8,
+  "memory": "32g",
+  "ipc": "host",
+  "shmSize": "16g"
+}
+```
+
+- `gpus`: `"all"` or a count. It becomes an NVIDIA device reservation (`deploy.resources.reservations.devices` with
+  `driver: nvidia` and `capabilities: [gpu]`). The host needs an NVIDIA GPU and the NVIDIA Container Toolkit (Linux, or
+  Windows with WSL 2); without them Docker refuses to start the container.
+- `cpus` and `memory`: replace Flisk's limits (`deploy.resources.limits`). A reservation never exceeds its limit.
+- `ipc`: `host`, `private`, `shareable` or `none`. vLLM tensor parallelism and PyTorch data loaders use `host`, or a large
+  `shmSize`.
+
+Docker on macOS cannot reach the Apple GPU (Metal). There, run the model server as a local process instead: a service.json
+with a top-level `command` (for example `ollama serve`) runs on the host with no Docker, and the containers in the stack reach it
+like any other service.
+
+Checked by `tests/tilt-engine/test_byo_gpu_resources.py` (the generator) and
+`tests/e2e/resource-types/bring-your-own/verify-byo-hpc.sh` (a container started by `flisk up` gets the CPU, memory, IPC and
+`/dev/shm` settings, and `docker compose config` accepts the generated GPU reservation; the live GPU check runs only on a host
+with the NVIDIA runtime).
+
+## Redis, Qdrant and RabbitMQ (infrastructure presets)
+
+Postgres and NATS come with every project. For a cache or job queue, a vector store or a message broker, create a preset:
+
+```bash
+flisk resource cache --type redis --stack hqc
+flisk resource vectors --type qdrant --stack hqc
+flisk resource queue --type rabbitmq --stack hqc
+```
+
+Each one writes a bring-your-own `service.json` with a pinned image, a readiness probe that runs inside the container, and a
+named volume `<name>-data` for its data, which `flisk down` keeps. None of them is published on the host or routed through
+Traefik; the containers in the stack reach them on the Docker network by name.
+
+| Type | Image | Port | Data | Provides |
+| --- | --- | --- | --- | --- |
+| `redis` | `redis:7.4-alpine` | 6379 | `/data` | `REDIS_URL=redis://<name>:6379` |
+| `qdrant` | `qdrant/qdrant:v1.12.5` | 6333 | `/qdrant/storage` | `QDRANT_URL=http://<name>:6333` |
+| `rabbitmq` | `rabbitmq:4.1-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
+
+`--image` replaces the pinned image (`--image redis:8-alpine`); `--port` is refused, because the image listens on its own port.
+The RabbitMQ preset lets the default `guest` account connect from the other containers, which RabbitMQ allows only from
+localhost by default; the broker is not reachable from outside the stack's Docker network. None of the presets sets a
+password, so do not publish them on the host.
+
+### Connection settings for the services that depend on it (`provides`)
+
+`provides` in a service.json lists settings that every service naming it in `dependsOn` gets in its generated env file:
+
+```json
+"provides": { "REDIS_URL": "redis://cache:6379" }
+```
+
+A service that sets the same name in its own `params` keeps its value. The values land in a generated file that
+`flisk config verify` checks, so they must be plain values without spaces, quotes or `$`: never put a secret in `provides`.
+Any resource can set it; the presets write it for you.
+
+Checked by `tests/e2e/resource-types/bring-your-own/verify-byo-infra.sh` (e2e BY8): through `flisk up` and Traefik, a probe
+that lists the three presets in `dependsOn` reads their URLs from its environment and does a round trip to each (SET and GET,
+a Qdrant collection, a RabbitMQ message as `guest`), and each preset is healthy with its data in its own named volume.
+
+## External providers (IBM Quantum, Amazon Braket, hosted APIs)
+
+A service that calls a cloud endpoint with a token, and that should use a local stand-in while no token is configured (a
+Qiskit Aer simulator instead of a real QPU, a local model server instead of a hosted API), declares it in `providers`:
+
+```json
+"dependsOn": ["quantum-sim"],
+"providers": {
+  "ibm-quantum": {
+    "url": "https://quantum.cloud.ibm.com/api",
+    "tokenSecret": "IBM_QUANTUM_TOKEN",
+    "fallback": "quantum-sim"
+  },
+  "braket": { "url": "https://braket.us-east-1.amazonaws.com", "tokenSecret": "AWS_BRAKET_TOKEN" }
+}
+```
+
+For each provider (`ibm-quantum` becomes `PROVIDER_IBM_QUANTUM_…`) the container gets:
+
+| Variable | Value |
+| --- | --- |
+| `PROVIDER_IBM_QUANTUM_URL` | `url` (in the generated env file) |
+| `PROVIDER_IBM_QUANTUM_FALLBACK_URL` | `http://<fallback>:<its port>`, when `fallback` is set (in the generated env file) |
+| `IBM_QUANTUM_TOKEN` | the token, from the project `.env` (gitignored), like `secrets` |
+| `PROVIDER_IBM_QUANTUM_REMOTE` | `true` while the token has a value, empty otherwise |
+
+The code calls the remote URL when `PROVIDER_…_REMOTE` is `true` and the fallback URL otherwise. The token reaches the container
+through Compose interpolation and is never written to a generated file. A provider without a `fallback` needs its token:
+`flisk up` (and `--dry-run`) stops before anything starts and names it, as it does for `secrets.required`. Set
+`"required": false` to start without it, or `"required": true` to need it even with a fallback. List the fallback in
+`dependsOn` too; `flisk config verify` reports it when it is missing.
+
+To add, rotate or remove a token, edit the project `.env` and run `flisk restart <service>`. The container is recreated with
+the new value, and `PROVIDER_…_REMOTE` follows it. With `FLISK_SECRET_PROVIDER=infisical` the token is left to Infisical and
+the flag still follows the variable.
+
+`providers` applies to backend, worker, mcp, agent and bring-your-own services running in containers. It does not start a
+proxy in front of the provider; the service calls the URL itself.
+
+Checked by `tests/tilt-engine/test_providers.py` (the generators) and
+`tests/e2e/resource-types/bring-your-own/verify-byo-providers.sh` (e2e BY9): `flisk up --dry-run` refuses a required provider
+token that is missing; without the token the service sees an empty `REMOTE` and reaches the simulator through its fallback
+URL; after the token is added to `.env` and `flisk restart`, it sees `REMOTE=true` and the new token, and no generated file
+holds it.
+
 ## Bringing a framework app (Node, Go, Rust, ...)
 
 Any app that fits the contract below can run as a bring-your-own resource. Fastify is the worked example because it needs nothing beyond the framework.

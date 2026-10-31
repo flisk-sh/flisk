@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { getBackendIndexTemplate, getDrizzleBackendIndexTemplate } from "../backend-languages/bun.js";
-import type { AgentConfig, CreatableResourceType, PortAssignableResourceType } from "../types/index.js";
+import type { AgentConfig, CreatableResourceType, InfraResourceType, PortAssignableResourceType } from "../types/index.js";
 import { DATABASE_RESOURCE_TYPE } from "../types/index.js";
 export { getDockerfileTemplate, getShutdownHandlerTemplate, getTestTemplate, getWorkerIndexTemplate, } from "../generator/resource-templates.js";
 export declare const BASE_TEMPLATE: {
@@ -24,6 +24,10 @@ interface TypeSpecificConfig {
     };
 }
 export declare const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificConfig>;
+/** Options an infrastructure preset cannot take: its image listens on a fixed port inside the container. */
+export declare function assertInfraPresetOptions(preset: InfraResourceType, options: {
+    port?: string;
+}): void;
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
 export declare function resolveInferencePort(value: string | undefined, resources: Array<{
     config?: {
@@ -135,7 +139,10 @@ export declare const TSCONFIG_TEMPLATE: {
     exclude: string[];
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
-/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` a preset of it. */
+/**
+ * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`
+ * and `rabbitmq` are presets of it.
+ */
 export declare function parseResourceType(type: string): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk";
 /** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */
 export declare function createDatabaseServiceJson(name: string, stack: string): Record<string, unknown>;

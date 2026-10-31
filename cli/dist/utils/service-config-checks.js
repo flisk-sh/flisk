@@ -9,7 +9,7 @@ import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
 import { formatCount } from "./formatting.js";
 import { findProjectRoot } from "./paths.js";
-import { SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
+import { providersOf, SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf } from "./status-ports.js";
 function filePath(projectRoot, resource) {
@@ -320,11 +320,18 @@ export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.
     const problems = resources.flatMap((resource) => {
         const required = resource.config?.secrets
             ?.required;
-        if (!Array.isArray(required))
-            return [];
-        return required
+        const missingSecrets = (Array.isArray(required) ? required : [])
             .filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !has(name))
             .map((name) => `${filePath(projectRoot, resource)}: secret ${name} has no value`);
+        // A provider's token is required unless the provider has a local fallback (service.json `providers`).
+        const missingTokens = providersOf(resource.config)
+            .filter((provider) => provider.required &&
+            provider.tokenSecret !== undefined &&
+            /^[A-Za-z_][A-Za-z0-9_]*$/.test(provider.tokenSecret) &&
+            !has(provider.tokenSecret) &&
+            !missingSecrets.some((line) => line.endsWith(` ${provider.tokenSecret} has no value`)))
+            .map((provider) => `${filePath(projectRoot, resource)}: secret ${provider.tokenSecret} (token of provider ${provider.id}) has no value`);
+        return [...missingSecrets, ...missingTokens];
     });
     if (problems.length === 0) {
         return {
