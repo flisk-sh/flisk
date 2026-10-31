@@ -15,6 +15,7 @@ const {
   waitForTiltUpExitMock,
   createJsonEmitterMock,
   findRunningFliskProjectsMock,
+  pruneDockerBuildCacheMock,
 } = vi.hoisted(() => ({
   runTiltMock: vi.fn(),
   buildTiltDownArgsMock: vi.fn(),
@@ -25,11 +26,17 @@ const {
   waitForTiltUpExitMock: vi.fn(async () => true),
   createJsonEmitterMock: vi.fn(),
   findRunningFliskProjectsMock: vi.fn((): string[] => []),
+  pruneDockerBuildCacheMock: vi.fn(),
 }));
 const originalCwd = process.cwd();
 
 vi.mock("../../utils/docker.js", () => ({
   getContainerRuntimeStatus: getContainerRuntimeStatusMock,
+}));
+
+vi.mock("../../utils/docker-build-cache.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/docker-build-cache.js")>()),
+  pruneDockerBuildCache: pruneDockerBuildCacheMock,
 }));
 
 // The real lookup reads `ps`, and a stack running on the test machine must never be picked (or stopped) by a test.
@@ -95,15 +102,26 @@ describe("flisk down", () => {
     waitForTiltUpExitMock.mockReset().mockResolvedValue(true);
     createJsonEmitterMock.mockReset();
     findRunningFliskProjectsMock.mockReset().mockReturnValue([]);
+    pruneDockerBuildCacheMock.mockReset();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     runTiltMock.mockReset();
-    for (const option of ["dryRun", "json", "verbose", "force", "yes", "pruneNetworks"]) {
+    for (const option of [
+      "dryRun",
+      "json",
+      "verbose",
+      "force",
+      "yes",
+      "pruneNetworks",
+      "pruneCache",
+      "cacheUntil",
+    ]) {
       downCommand.setOptionValue(option, false);
     }
     downCommand.setOptionValue("project", undefined);
+    downCommand.setOptionValue("cacheUntil", undefined);
     // createProgram() makes the shared downCommand a child of a root program that keeps its own --project value.
     downCommand.parent?.setOptionValue("project", undefined);
   });
@@ -621,6 +639,170 @@ describe("flisk down", () => {
         await downCommand.parseAsync(["node", "flisk"], { from: "node" });
 
         expect(pruneProjectNetworksMock).not.toHaveBeenCalled();
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+  });
+
+  describe("Docker build cache pruning (--prune-cache)", () => {
+    it("runs build cache prune with --yes and emits prunedCache in json mode", async () => {
+      const tempDir = setupTestProject();
+      pruneDockerBuildCacheMock.mockResolvedValue({ reclaimed: "2.6GB", until: "24h" });
+      const emitMock = vi.fn();
+      createJsonEmitterMock.mockReturnValue(emitMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--prune-cache", "-y", "--json"], {
+          from: "node",
+        });
+
+        expect(pruneDockerBuildCacheMock).toHaveBeenCalledWith({ until: "24h" });
+        expect(emitMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ok: true,
+            prunedCache: { until: "24h", reclaimed: "2.6GB" },
+          }),
+        );
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("skips cache prune when non-interactive without --yes", async () => {
+      const tempDir = setupTestProject();
+      const emitMock = vi.fn();
+      createJsonEmitterMock.mockReturnValue(emitMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--prune-cache", "--json"], {
+          from: "node",
+        });
+
+        expect(pruneDockerBuildCacheMock).not.toHaveBeenCalled();
+        expect(emitMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ok: true,
+            prunedCache: expect.objectContaining({
+              until: "24h",
+              skipped: true,
+              reason: expect.stringContaining("confirmation required"),
+            }),
+          }),
+        );
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("supports custom age filter via --cache-until", async () => {
+      const tempDir = setupTestProject();
+      pruneDockerBuildCacheMock.mockResolvedValue({ reclaimed: "1.2GB", until: "48h" });
+      const emitMock = vi.fn();
+      createJsonEmitterMock.mockReturnValue(emitMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(
+          ["node", "flisk", "--prune-cache", "--cache-until", "48h", "-y", "--json"],
+          { from: "node" },
+        );
+
+        expect(pruneDockerBuildCacheMock).toHaveBeenCalledWith({ until: "48h" });
+        expect(emitMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            prunedCache: { until: "48h", reclaimed: "1.2GB" },
+          }),
+        );
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("emits wouldPruneCache in dry-run without executing prune", async () => {
+      const tempDir = setupTestProject();
+      const emitMock = vi.fn();
+      createJsonEmitterMock.mockReturnValue(emitMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--dry-run", "--prune-cache", "--json"], {
+          from: "node",
+        });
+
+        expect(pruneDockerBuildCacheMock).not.toHaveBeenCalled();
+        expect(emitMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ok: true,
+            dryRun: true,
+            wouldPruneCache: { until: "24h" },
+          }),
+        );
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        log.mockRestore();
+      }
+    });
+
+    it("rejects invalid cache-until duration format with error", async () => {
+      const tempDir = setupTestProject();
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+        throw new Error("exit:1");
+      }) as never);
+
+      try {
+        await expect(
+          downCommand.parseAsync(
+            ["node", "flisk", "--prune-cache", "--cache-until", "invalid_age"],
+            { from: "node" },
+          ),
+        ).rejects.toThrow("exit:1");
+
+        expect(pruneDockerBuildCacheMock).not.toHaveBeenCalled();
+        const errOutput = error.mock.calls.flat().join("\n");
+        expect(errOutput).toContain("Invalid --cache-until format");
+      } finally {
+        process.chdir(originalCwd);
+        rmSync(tempDir, { recursive: true, force: true });
+        exit.mockRestore();
+        error.mockRestore();
+      }
+    });
+
+    it("gracefully catches prune error without failing flisk down", async () => {
+      const tempDir = setupTestProject();
+      pruneDockerBuildCacheMock.mockRejectedValue(new Error("docker daemon disconnected"));
+      const emitMock = vi.fn();
+      createJsonEmitterMock.mockReturnValue(emitMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await downCommand.parseAsync(["node", "flisk", "--prune-cache", "-y", "--json"], {
+          from: "node",
+        });
+
+        expect(emitMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            ok: true,
+            prunedCache: expect.objectContaining({
+              until: "24h",
+              skipped: true,
+              reason: "docker daemon disconnected",
+            }),
+          }),
+        );
       } finally {
         process.chdir(originalCwd);
         rmSync(tempDir, { recursive: true, force: true });

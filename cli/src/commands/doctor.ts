@@ -31,6 +31,7 @@ import {
   REQUIRED_PACKAGE_SCRIPTS,
 } from "../utils/constants.js";
 import { isPathDiscovered, readDiscoveryPaths } from "../utils/discovery-paths.js";
+import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
 import { checkCrashLoopingContainers } from "../utils/doctor-crashloop.js";
 import {
   applyDoctorFixes,
@@ -135,7 +136,7 @@ export {
   summarizeServiceProbes,
   summarizeTiltBuildError,
 } from "../utils/doctor-runtime.js";
-export { checkPublicEnvSecrets, checkStarlarkLoadExports };
+export { checkDockerBuildCache, checkPublicEnvSecrets, checkStarlarkLoadExports };
 
 // A wedged Docker daemon makes `docker ps` block forever instead of failing,
 // and doctor is exactly the tool people run when their environment is broken.
@@ -280,6 +281,7 @@ export const CONTAINER_CHECK_NAMES_MAP: Record<string, string> = {
   checkServiceHealth: "Service Health",
   checkServiceSmoke: "Service Smoke",
   checkAdvertisedEndpoints: "Advertised Endpoints",
+  checkDockerBuildCache: "Docker Build Cache",
 };
 
 export const CONTAINER_DEPENDENT_CHECK_NAMES = new Set([
@@ -293,6 +295,7 @@ export const CONTAINER_DEPENDENT_CHECK_NAMES = new Set([
   "Service Health",
   "Service Smoke",
   "Advertised Endpoints",
+  "Docker Build Cache",
   ...Object.keys(CONTAINER_CHECK_NAMES_MAP),
 ]);
 
@@ -1805,6 +1808,7 @@ export const doctorCommand = new Command("doctor")
       checkColima,
       checkDockerRuntime,
       () => checkDiskSpace(),
+      requiresContainerRuntime("Docker Build Cache", () => checkDockerBuildCache()),
       requiresContainerRuntime("Docker OS", checkDockerOperatingSystem),
       checkTilt,
       requiresContainerRuntime("Docker Compose", checkDockerCompose),
