@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, } from "node:fs";
 import { connect } from "node:net";
 import { join } from "node:path";
@@ -223,8 +223,27 @@ export function isProcessAlive(pid) {
         return error.code === "EPERM";
     }
 }
-/** Signals a service's whole process group (the shell and what it started), falling back to the process alone. */
-function signalGroup(pid, signal) {
+/** Ends a process and every process it started, with `taskkill /T /F`: Windows has no process groups to signal. */
+function killWindowsTree(pid) {
+    try {
+        execFileSync("taskkill", ["/pid", String(pid), "/T", "/F"], {
+            stdio: "ignore",
+            windowsHide: true,
+        });
+    }
+    catch {
+        // Already gone.
+    }
+}
+/**
+ * Signals a service's whole process group (the shell and what it started), falling back to the process alone. On Windows a
+ * kill reaches only the shell (cmd.exe) and leaves the service it started running, so the whole process tree is ended instead.
+ */
+export function signalGroup(pid, signal, platform = process.platform, killTree = killWindowsTree) {
+    if (platform === "win32") {
+        killTree(pid);
+        return;
+    }
     try {
         process.kill(-pid, signal);
     }

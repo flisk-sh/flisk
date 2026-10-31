@@ -77,6 +77,15 @@ export declare function importReport(forwardedArgs: string[], run: ImportRun): I
  * importer prints "Nothing to import: ..." on stdout, so stdout is read when stderr says nothing.
  */
 export declare function importFailure(run: ImportRun): JsonCommandError;
+export interface ImportOptions {
+    yes?: boolean;
+    force?: boolean;
+    dryRun?: boolean;
+    json?: boolean;
+}
+export declare function resolveImportOptions(options?: ImportOptions, cmd?: Command): ImportOptions;
+export declare function executeImport(args: string[], options?: ImportOptions, commandName?: string): Promise<void>;
+export declare const composeCommand: Command;
 export declare const importCommand: Command;
 export interface ImportTiltfileOptions {
     force?: boolean;

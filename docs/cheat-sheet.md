@@ -82,6 +82,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk project [template]` | `init` | Create or check the project's master configs, or clone a starter |
 | `flisk projects` | `info` | Show project info and config status |
 | `flisk import [dir]` | | Import the services in a directory's root `docker-compose.yml` |
+| `flisk import tiltfile [path]` | | Make `flisk up` run an existing Tiltfile without changing it |
 | `flisk eject` | | Write `EJECTED.md` describing the generated Tilt files |
 | `flisk resource [name]` | | Create a resource, or register an existing one |
 | `flisk resources` | | List resources |
@@ -144,7 +145,7 @@ Read the root `docker-compose.yml` of a directory (default `.`) and write one br
 
 ```bash
 flisk import --dry-run                 # print the plan, write nothing
-flisk import ./legacy --yes
+flisk import compose ./legacy --yes
 ```
 
 | Flag | Effect |
@@ -155,6 +156,22 @@ flisk import ./legacy --yes
 | `--json` | One JSON object on stdout with the files written; the importer's output goes to stderr. Implies `--yes` |
 
 See [gradual adoption](gradual-adoption.md) and [adopt Flisk](adopt-flisk.md).
+
+### `flisk import tiltfile [path]`
+
+Register an existing Tiltfile (default `./Tiltfile`, or a folder that holds one) as the project's orchestration source. It writes `orchestration: { "source": "tiltfile", "path": "<path>" }` to `.flisk/project.json` (creating it with the defaults when missing) and nothing else. From then on `flisk up` generates a `.flisk/.flisk-out/Tiltfile` that only `include()`s yours, so Tilt runs it unchanged, from its own folder. Flisk never writes to your Tiltfile.
+
+```bash
+flisk import tiltfile --dry-run        # print the plan, write nothing
+flisk import tiltfile infra/Tiltfile
+flisk up
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--dry-run` | Print the plan and write nothing |
+| `--force` | Replace an orchestration source that `.flisk/project.json` already names |
+| `--json` | One JSON object on stdout with what was registered and written |
 
 ### `flisk eject`
 

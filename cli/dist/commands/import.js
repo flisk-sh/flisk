@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { cwd } from "node:process";
 import chalk from "chalk";
 import { Command } from "commander";
+import { wrappedTiltfilePath } from "../generator/template-engine.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { PROJECT_JSON } from "../utils/constants.js";
 import { runCommand } from "../utils/errors.js";
@@ -178,12 +179,16 @@ export function buildForwardedImportArgs(args, options = {}) {
     let yes = Boolean(options.yes);
     let force = Boolean(options.force);
     const filtered = [];
+    let strippedCompose = false;
     for (const arg of args) {
         if (arg === "--yes" || arg === "-y") {
             yes = true;
         }
         else if (arg === "--force" || arg === "-f") {
             force = true;
+        }
+        else if (!strippedCompose && arg === "compose") {
+            strippedCompose = true;
         }
         else {
             filtered.push(arg);
@@ -234,17 +239,19 @@ export function importFailure(run) {
     const suggestions = hints.length > 0 ? hints : [fallback];
     return new JsonCommandError("IMPORT_FAILED", message, suggestions, run.exitCode);
 }
-export const importCommand = addYesOption(new Command("import"))
-    .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
-    .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
-    .option("-f, --force", "Overwrite an existing service.json", false)
-    .option("--dry-run", "Print the plan and write nothing", false)
-    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
-    .allowUnknownOption()
-    .helpOption(false)
-    .action(async (args, options) => {
+export function resolveImportOptions(options = {}, cmd) {
+    const parentOpts = (cmd?.parent?.opts() ?? {});
+    const cmdOpts = (cmd?.opts() ?? {});
+    return {
+        yes: Boolean(options.yes || cmdOpts.yes || parentOpts.yes),
+        force: Boolean(options.force || cmdOpts.force || parentOpts.force),
+        dryRun: Boolean(options.dryRun || cmdOpts.dryRun || parentOpts.dryRun),
+        json: Boolean(options.json || cmdOpts.json || parentOpts.json),
+    };
+}
+export async function executeImport(args, options = {}, commandName = "flisk import") {
     if (options.json) {
-        await runJsonCommand("IMPORT_FAILED", "flisk import", async () => {
+        await runJsonCommand("IMPORT_FAILED", commandName, async () => {
             // Without a terminal the importer cannot ask, so --json writes without a prompt, like --yes.
             const forwardedArgs = buildForwardedImportArgs(args, { ...options, yes: true });
             const run = await runImportCaptured(forwardedArgs);
@@ -261,6 +268,31 @@ export const importCommand = addYesOption(new Command("import"))
     }
     const forwardedArgs = buildForwardedImportArgs(args, options);
     process.exitCode = await runImport(forwardedArgs);
+}
+export const composeCommand = addYesOption(new Command("compose"))
+    .description("Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)")
+    .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
+    .option("-f, --force", "Overwrite an existing service.json", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .allowUnknownOption()
+    .helpOption(false)
+    .action(async (args, options, cmd) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport(args, resolved, "flisk import compose");
+});
+export const importCommand = addYesOption(new Command("import"))
+    .description("Import the services in a directory's root docker-compose.yml (runs flisk-import)")
+    .argument("[args...]", "Passed to flisk-import: [dir] --dry-run --yes --force")
+    .option("-f, --force", "Overwrite an existing service.json", false)
+    .option("--dry-run", "Print the plan and write nothing", false)
+    .option("--json", "Print one JSON envelope on stdout with the importer's output; implies --yes", false)
+    .allowUnknownOption()
+    .helpOption(false)
+    .addCommand(composeCommand)
+    .action(async (args, options, cmd) => {
+    const resolved = resolveImportOptions(options, cmd);
+    await executeImport(args, resolved, "flisk import");
 });
 export async function importTiltfile(pathArg, options = {}) {
     const workingDir = options.cwd ?? cwd();
@@ -288,6 +320,15 @@ export async function importTiltfile(pathArg, options = {}) {
     let tiltfileRelPath = relative(projectRoot, resolvedTiltfilePath).replace(/\\/g, "/");
     if (!tiltfileRelPath || tiltfileRelPath === ".") {
         tiltfileRelPath = "Tiltfile";
+    }
+    try {
+        // The same check `flisk up` makes before wrapping it, so a Tiltfile it would refuse is refused here instead.
+        wrappedTiltfilePath({ source: "tiltfile", path: tiltfileRelPath });
+    }
+    catch (error) {
+        throw new JsonCommandError("IMPORT_FAILED", error.message, [
+            "Import your own Tiltfile, not the one Flisk generates in .flisk/.flisk-out/",
+        ]);
     }
     let projectConfig;
     if (exists) {
@@ -330,9 +371,9 @@ export async function importTiltfile(pathArg, options = {}) {
         written,
     };
 }
-const tiltfileCommand = importCommand
+importCommand
     .command("tiltfile [path]")
-    .description("Import an existing Tiltfile as the project orchestration source")
+    .description("Register an existing Tiltfile so flisk up runs it unchanged (writes .flisk/project.json)")
     .helpOption("-h, --help", "display help for command")
     .option("-f, --force", "Overwrite existing orchestration configuration", false)
     .option("--dry-run", "Print the plan and write nothing", false)
@@ -354,7 +395,7 @@ const tiltfileCommand = importCommand
             console.log(chalk.yellow(`[dry-run] Would register ${report.orchestration.path} as orchestration source in .flisk/project.json`));
         }
         else {
-            console.log(chalk.green(`Registered ${report.orchestration.path} as orchestration source in .flisk/project.json`));
+            console.log(chalk.green(`Registered ${report.orchestration.path} as orchestration source in .flisk/project.json; flisk up now runs it unchanged`));
         }
     });
 });

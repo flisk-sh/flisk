@@ -5,7 +5,7 @@ import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { ensureProjectRuntimeAssets, generateMasterConfigs, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { ensureProjectRuntimeAssets, generateMasterConfigs, isWrappedTiltfileStale, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { handleDryRun } from "../utils/command-helpers.js";
@@ -406,10 +406,8 @@ export const upCommand = new Command("up")
         ]);
         return showErrorAndExit(message, 1, suggestions);
     });
+    // Local processes need no Docker, Tilt or WSL2, so native Windows runs them; the WSL2 refusal below is for container runs.
     if (nativeRun) {
-        const platformRefusal = nativeWindowsUpRefusal(process.platform, process.env.FLISK_ALLOW_NATIVE_WINDOWS);
-        if (platformRefusal)
-            showErrorAndExit(platformRefusal);
         const { projectRoot } = nativeRun;
         let envFilePath;
         if (options.envFile !== undefined) {
@@ -594,10 +592,17 @@ export const upCommand = new Command("up")
                 }
             }
             // A project made by `flisk import` has .flisk/project.json but no generated files yet. Generate them rather than letting
-            // Tilt fail on a missing Tiltfile.
+            // Tilt fail on a missing Tiltfile. After `flisk import tiltfile` the generated Tiltfile must be the wrapper that
+            // includes the project's own one, so an older generated Tiltfile is replaced too (the user's Tiltfile is never written).
             if (foundRoot && !existsSync(join(projectRoot, ".flisk", ".flisk-out", "Tiltfile"))) {
                 if (!options.quiet) {
                     console.log(chalk.gray("No generated Tiltfile yet; generating .flisk/.flisk-out/ ..."));
+                }
+                await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+            }
+            else if (foundRoot && isWrappedTiltfileStale(projectRoot)) {
+                if (!options.quiet) {
+                    console.log(chalk.gray("Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."));
                 }
                 await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }

@@ -7,7 +7,11 @@ import { createTempDir, runCommandInProcess } from "../../test-support/index.js"
 import type { ProjectConfig } from "../../types/index.js";
 import { importCommand, importTiltfile } from "../import.js";
 
-const tiltfileCommand = importCommand.commands.find((c) => c.name() === "tiltfile")!;
+const tiltfileCommand = (() => {
+  const found = importCommand.commands.find((c) => c.name() === "tiltfile");
+  if (!found) throw new Error("flisk import has no tiltfile subcommand");
+  return found;
+})();
 
 function resetCommandOptions(): void {
   for (const name of ["force", "dryRun", "json", "yes"]) {
@@ -69,6 +73,19 @@ describe("flisk import tiltfile", () => {
           }),
         ],
       });
+    });
+
+    it("refuses the Tiltfile Flisk generates in .flisk/.flisk-out/", async () => {
+      const dir = createTempDir("import-tiltfile-generated-");
+      mkdirSync(join(dir, ".flisk", ".flisk-out"), { recursive: true });
+      writeFileSync(join(dir, ".flisk", ".flisk-out", "Tiltfile"), "# generated\n");
+      await expect(
+        importTiltfile(".flisk/.flisk-out/Tiltfile", { cwd: dir }),
+      ).rejects.toMatchObject({
+        code: "IMPORT_FAILED",
+        message: expect.stringContaining("points inside .flisk/"),
+      });
+      expect(existsSync(join(dir, ".flisk", "project.json"))).toBe(false);
     });
 
     it("rejects programmatically via importTiltfile with JsonCommandError", async () => {
