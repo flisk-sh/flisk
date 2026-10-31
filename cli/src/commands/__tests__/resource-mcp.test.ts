@@ -148,6 +148,17 @@ describe.concurrent("flisk resource --type mcp", () => {
     expect(index).toContain("'0.0.0.0'");
     expect(index).toContain("name: 'docs-mcp'");
     expect(index).not.toContain("hono");
+    expect(index).toContain("registerPrompt");
+    expect(index).toContain("readOnlyHint: true");
+    expect(index).toContain("path === '/icon-512.png'");
+
+    // The placeholder test is replaced by a protocol test that speaks JSON-RPC to the server.
+    const test = readFileSync(join(dir("docs-mcp"), "tests", "docs-mcp.test.ts"), "utf-8");
+    expect(test).toContain("import { httpServer } from '../src/index';");
+    for (const method of ["initialize", "tools/list", "prompts/list", "tools/call"]) {
+      expect(test).toContain(`rpc('${method}'`);
+    }
+    expect(test).not.toContain("it.todo(");
   }, 30000);
 
   it("rejects --framework and --language, which have no meaning for an mcp resource", async () => {
