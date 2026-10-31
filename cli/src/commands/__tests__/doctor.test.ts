@@ -1309,6 +1309,12 @@ describe("doctor Docker Compose check", () => {
     expect(result.didPass).toBe(true);
   });
 
+  it("gives the compose plugin a longer probe than other tools", async () => {
+    const exec = vi.fn(async () => "v2.38.2\n");
+    await checkDockerCompose(exec);
+    expect(exec).toHaveBeenCalledWith("docker compose version", 30_000);
+  });
+
   it("reports a timeout as not responding rather than missing", async () => {
     const timedOut = Object.assign(new Error("Command failed"), { killed: true });
     const result = await checkDockerCompose(async () => {
@@ -1316,7 +1322,7 @@ describe("doctor Docker Compose check", () => {
     });
 
     expect(result.didPass).toBe(false);
-    expect(result.message).toBe("Docker Compose did not respond within 10s");
+    expect(result.message).toBe("Docker Compose did not respond within 30s");
     expect(result.message).not.toContain("not found");
     expect(result.fix).toContain("docs.docker.com/compose");
   });
