@@ -1,4 +1,5 @@
 import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities } from "../types/index.js";
+import { type CapabilitySource } from "./capabilities.js";
 /** Where `groupSharedPostgres` reads the database capability: the project root, or a flag such as `--no-database`. */
 export interface SharedInfraOptions {
     capabilities?: ProjectCapabilities;
@@ -22,6 +23,32 @@ export interface SharedPostgresInstance {
     name: "postgres";
     databases: SharedInfraDatabase[];
 }
+export interface SharedInfraItem {
+    name: string;
+    capability: string;
+    description: string;
+}
+export declare const SHARED_INFRA_SERVICES: {
+    readonly traefik: {
+        readonly name: "traefik";
+        readonly capability: "gateway";
+        readonly description: "Traefik reverse proxy";
+    };
+    readonly postgres: {
+        readonly name: "postgres";
+        readonly capability: "database";
+        readonly description: "PostgreSQL database";
+    };
+};
+/**
+ * Returns the list of shared infrastructure service names based on enabled capabilities.
+ * When gateway is disabled, Traefik is excluded.
+ */
+export declare function getSharedInfrastructureList(configOrOptions?: CapabilitySource): string[];
+/**
+ * Returns detailed shared infrastructure items based on enabled capabilities.
+ */
+export declare function getSharedInfrastructureItems(configOrOptions?: CapabilitySource): SharedInfraItem[];
 /** A resource uses the shared database when its features or dependsOn ask for it. */
 export declare function usesSharedPostgres(resource: DiscoveredResource): boolean;
 export declare function groupSharedPostgres(projectName: string, stacks: DiscoveredStack[], options?: SharedInfraOptions): SharedPostgresInstance | null;

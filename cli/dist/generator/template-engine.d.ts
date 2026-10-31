@@ -86,6 +86,8 @@ export interface GenerateMasterConfigsOptions {
     discardHandEdits?: boolean;
     /** Suppress progress lines on stdout, for callers that print machine output (`flisk up --json`). */
     quiet?: boolean;
+    /** In-memory overrides for project configuration during generation. */
+    configOverrides?: Partial<ProjectConfig>;
 }
 export declare function generateMasterConfigs(projectRoot: string, options?: GenerateMasterConfigsOptions): Promise<void>;
 export declare function isTestFile(filePath: string): boolean;

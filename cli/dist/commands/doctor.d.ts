@@ -105,7 +105,9 @@ export declare function checkServiceHealth(timeoutMs: number, ingressPort?: numb
  *
  * Like the health ping, this only runs once services answer. A stopped stack is skipped, not failed.
  */
-export declare function checkServiceSmoke(timeoutMs: number, ingressPort?: number): Promise<CheckResult>;
+export declare function checkServiceSmoke(timeoutMs: number, ingressPort?: number, options?: {
+    gateway?: boolean;
+}): Promise<CheckResult>;
 export declare function renderDoctorOutput(machineResults: CheckResult[], projectResults: CheckResult[], inProject: boolean, options?: {
     all?: boolean;
 }, allResults?: CheckResult[]): void;

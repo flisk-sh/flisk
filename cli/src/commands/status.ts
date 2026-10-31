@@ -4,7 +4,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { HostPortPlan, ServiceRuntimeState } from "../types/index.js";
-import { getEnabledCapabilities } from "../utils/capabilities.js";
+import { getEnabledCapabilities, isGatewayEnabled } from "../utils/capabilities.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -30,6 +30,7 @@ export const statusCommand = new Command("status")
   .option("--stacks", "Show stack information (default)", true)
   .option("--resources", "Show all discovered resources", false)
   .option("--tilt", "Show tilt resource status", false)
+  .option("--no-gateway", "Disable gateway status reporting")
   .option("--unhealthy", "Show only services that are failing or still starting", false)
   .action(async (options) => {
     const action = async (): Promise<void> => {
@@ -50,6 +51,7 @@ export const statusCommand = new Command("status")
               discovery.resources.map((resource) => resource.name),
             )
           : null;
+      const gatewayEnabled = isGatewayEnabled(projectRoot, options);
       let tiltAvailable = false;
       if (!nativeStates) {
         try {
@@ -172,7 +174,7 @@ export const statusCommand = new Command("status")
             stack: resource.stack ?? null,
             type: resource.type ?? "unknown",
             port: resource.port ?? null,
-            ...buildServicePorts(resource, portPlan?.ingressHttp),
+            ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled }),
             status: serviceStates?.[resource.name]?.status ?? "unknown",
             ...(serviceStates?.[resource.name]?.reason
               ? { statusReason: serviceStates[resource.name]?.reason }
@@ -181,7 +183,7 @@ export const statusCommand = new Command("status")
               ? { blockedBy: serviceStates[resource.name]?.blockedBy }
               : {}),
           })),
-          ports: buildStackPorts(portPlan, tiltPort),
+          ports: buildStackPorts(portPlan, tiltPort, { gateway: gatewayEnabled }),
           stacks: discovery.stacks.map((stack) => ({
             name: stack.name,
             resourceCount: stack.resourceCount,
@@ -192,7 +194,7 @@ export const statusCommand = new Command("status")
           })),
           unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
           sharedInfra: sharedInfraGroup,
-          capabilities: getEnabledCapabilities(projectRoot),
+          capabilities: getEnabledCapabilities(projectRoot, options),
           // Names of the failing or pending services, so a caller need not filter `resources` itself.
           unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
         };
@@ -301,7 +303,9 @@ export const statusCommand = new Command("status")
             } else if (state.status === "error") {
               mark = chalk.red("✗");
             }
-            const ports = buildServicePorts(resource, portPlan?.ingressHttp);
+            const ports = buildServicePorts(resource, portPlan?.ingressHttp, {
+              gateway: gatewayEnabled,
+            });
             const urlPart = ports.url ? ` → ${ports.url}` : "";
             showDetail(
               `${mark} ${resource.name}${urlPart}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`,

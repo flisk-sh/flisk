@@ -154,7 +154,10 @@ export function validateSmoke(smoke: unknown): string[] {
 export function buildSmokePlans(
   resources: DiscoveredResource[],
   ingressPort?: number,
+  options: { gateway?: boolean } = {},
 ): SmokePlan[] {
+  // Smoke steps go through the gateway URL. With the gateway off no such URL answers, so there is nothing to check.
+  if (options.gateway === false) return [];
   const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
   const plans: SmokePlan[] = [];
   for (const resource of resources) {

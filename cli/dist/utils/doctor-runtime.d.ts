@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import type { CheckResult, DiscoveredResource } from "../types/index.js";
+import type { CheckResult, DiscoveredResource, ProjectCapabilities } from "../types/index.js";
 import { type HealthProbe } from "./service-urls.js";
 import type { SmokeResult } from "./smoke.js";
 export declare const HOST_PORT_FIXES: {
@@ -81,7 +81,10 @@ export declare function checkPrivateNpmRegistry(exec?: typeof execSync, projectR
  * This is the exact failure mode that leaves apps never scheduled while doctor
  * previously reported "Environment ready".
  */
-export declare function checkIngressPorts(exec?: typeof execSync, projectName?: string, ports?: readonly number[]): CheckResult;
+export declare function checkIngressPorts(exec?: typeof execSync, projectName?: string, ports?: readonly number[], options?: {
+    gateway?: boolean;
+    capabilities?: ProjectCapabilities;
+}): CheckResult;
 /** Host ports the generated stack publishes: Traefik (80, 443) and Postgres (5432). */
 export declare const HOST_PORTS: Record<number, string>;
 type PortState = "free" | "in-use" | "unknown";
