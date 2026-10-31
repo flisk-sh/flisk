@@ -7,7 +7,7 @@
 Want the short version? See the [10-row cheat sheet](../cli/README.md#cheat-sheet).
 
 > [!NOTE]
-> Needs Docker (Engine 25+, Compose 2.20.2+), [Tilt](https://docs.tilt.dev/install.html), and Bun 1.2+ for the default generated services. On Windows, run the CLI in WSL2 ([setup](wsl2.md)).
+> Services that declare a `command` need only their own runtime ([without Docker](run-without-docker.md)). Container stacks need Docker (Engine 25+, Compose 2.20.2+), [Tilt](https://docs.tilt.dev/install.html), and Bun 1.2+ for the default generated services; on Windows, run those in WSL2 ([setup](wsl2.md)).
 
 ## 🚀 First five minutes
 

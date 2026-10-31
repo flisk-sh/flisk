@@ -2,7 +2,7 @@
 
 > Flisk: your whole app, running on your computer with one command.
 
-Flisk is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, orchestrated locally on Docker + Tilt behind a Traefik gateway with zero Kubernetes.
+Flisk is the local runtime for full-stack and AI-agent systems: services, agents, MCP tool servers, databases, and queues, run locally with zero Kubernetes: simple services as plain local processes with no Docker, and container stacks on Docker + Tilt behind a Traefik gateway.
 
 Flisk CLI Core is an open-source (MIT) CLI tool that turns clean service manifests (`service.json`) into fully orchestrated local Docker + Tilt development environments with zero Kubernetes on the host.
 

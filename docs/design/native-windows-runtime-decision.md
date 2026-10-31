@@ -1,9 +1,11 @@
 # Maintainers' Decision: Native Windows Runtime Execution
 
-**Status:** Decided (Inspection-Only)  
+**Status:** Decided (Inspection-Only for Docker stacks; amended 2026-10-31, see below)  
 **RFC Issue:** [#1757](https://github.com/flisk-sh/flisk/issues/1757)  
 **Related Issues & Changes:** [#107](https://github.com/flisk-sh/flisk/issues/107) (Windows/WSL2 quickstart validation), [#165](https://github.com/flisk-sh/flisk/pull/165) (native Windows CLI foundation), [#661](https://github.com/flisk-sh/flisk/issues/661) (inspection-only policy), [#1765](https://github.com/flisk-sh/flisk/issues/1765) (Windows hardware validation inventory), [#1856](https://github.com/flisk-sh/flisk/issues/1856) (native Windows doctor diagnostics), [#1873](https://github.com/flisk-sh/flisk/pull/1873) (native Windows demo refusal).  
 **Date:** 2026-10-23  
+
+> **Amendment (2026-10-31, Flisk 1.4.23):** the inspection-only boundary now applies to container stacks only. Projects whose services each declare a `command` run on native Windows as local processes (no Docker, Tilt or Linux containers), and `flisk demo` falls back to its two-service local-process demo there ([#2840](https://github.com/flisk-sh/flisk/pull/2840)). `flisk up` on a Docker project still refuses with "Landscape startup needs Ubuntu on WSL2". CI covers it in `tests/e2e/platforms/windows` W5.
 
 ---
 

@@ -15,7 +15,7 @@ Your <list name> (`<list_path>`) lists <quote the line or category that fits>.
 - License: MIT
 - Install: `npm install -g @flisk-sh/flisk` or the prebuilt binary installer
 - Checksums: `checksums.txt` is published with each release in flisk-sh/releases; the installer verifies SHA-256
-- Needs Docker and Tilt; macOS, Linux, Windows via WSL2
+- Docker optional: simple services run as local processes; container stacks need Docker and Tilt (WSL2 on Windows); macOS, Linux, Windows
 - No audit or certification exists
 
 Full facts: <link to docs/outreach/tool-allowlist-packet.md>
