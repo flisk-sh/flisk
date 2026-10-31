@@ -38,6 +38,7 @@ import { checkCircularDependencies, checkDependsOnShape, checkSchemaVersions, ch
 import { buildAdvertisedTargets, buildHealthTargets, getProjectName, pingHealthTargets, } from "../utils/service-urls.js";
 import { discoverResourcesFromRoot } from "../utils/services.js";
 import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } from "../utils/smoke.js";
+import { checkToolchains } from "../utils/toolchain.js";
 import { findOnPath } from "../utils/which.js";
 import { checkWindowsDockerMode, checkWindowsHostConfiguration, checkWindowsRuntimeTools, } from "../utils/windows-doctor.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
@@ -1568,6 +1569,7 @@ export const doctorCommand = new Command("doctor")
         ? [
             () => checkNativeRuntime(nativeResources),
             () => checkNativeCommands(nativeResources),
+            () => checkToolchains(nativeResources),
             () => checkWslProjectLocation(findProjectRoot() ?? process.cwd(), options.strict),
             () => checkDuplicateFliskInstalls(),
         ]
