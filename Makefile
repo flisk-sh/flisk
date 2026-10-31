@@ -73,6 +73,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/ci-report.test.mjs
 	node --test scripts/test-summary.test.mjs
 	node --test scripts/sync-byo-templates.test.mjs
+	node --test scripts/sync-flisk-skills.test.mjs
 	node --test scripts/audit-codebase.test.mjs
 	node --test 'tests/e2e/lib/__tests__/*.test.mjs'
 	node --test scripts/ai-conflict-buttons-comment.test.mjs
