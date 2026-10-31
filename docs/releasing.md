@@ -74,10 +74,12 @@ The publish gate refuses a commit no passing candidate covers. `main` moves ever
 # a fresh branch per attempt: a retry after a fix on main needs a new name (release/<version>-rc2, ...)
 gh api repos/flisk-sh/flisk/git/refs -f ref=refs/heads/release/<version>-rc<n> -f sha=<commit>
 gh workflow run release-candidate.yml --ref release/<version>-rc<n>
+# or the same, and release as soon as it passes (step 3 then happens on its own):
+gh workflow run release-candidate.yml --ref release/<version>-rc<n> -f release=true
 # or: an rc tag at the commit
 git tag rc-<version> <commit> && git push origin refs/tags/rc-<version>
 
-gh run watch <candidate-run-id> --exit-status   # ~25 min: 30 jobs, quickstart + every resource type
+gh run watch <candidate-run-id> --exit-status   # ~6-10 min: 30 jobs, 10 at a time, the longest suites first
 ```
 
 Cut the branch from the newest green `main`, not from an older release branch: a fix that landed after the branch was cut (for example #2498, which made `flisk up` print ingress URLs instead of the Tilt UI port) is not in the candidate, and a candidate failure that `main` already fixed costs a full cycle.
@@ -94,11 +96,14 @@ It accepts an **exact** candidate, or an **ancestor** candidate when no commit s
 
 ### 3. Dispatch the release
 
+A candidate started with `-f release=true` does this itself when every job passed (its `dispatch release` job). Otherwise,
+dispatch it on the candidate's own branch, so it publishes exactly the commit the candidate tested:
+
 ```bash
-gh workflow run release-binaries.yml --ref main
+gh workflow run release-binaries.yml --ref release/<version>-rc<n>
 ```
 
-Dispatch on `main` only when `main` is still at the candidate's commit, or no release input changed since (the gate above). Watch the run. `build`, `windows-binary` and `publish` must be green. Publication happens inside `publish`: by the time it finishes, npm and `flisk-sh/releases` are live even if later steps failed.
+The gate then sees the candidate's exact commit, whatever has merged into `main` meanwhile. Dispatching on `main` works only while `main` is still at the candidate's commit or no release input changed since (the gate above); with several people merging, `main` usually moves during the 30-45 minutes a candidate takes, and every such release input sends you back to step 2 (1.4.24: rc5, rc6 and rc7 passed and were each refused on `main`). The version bump PR still targets `main`. Watch the run. `build`, `windows-binary` and `publish` must be green. Publication happens inside `publish`: by the time it finishes, npm and `flisk-sh/releases` are live even if later steps failed.
 
 ### 4. Merge the version-bump PR
 
@@ -192,7 +197,7 @@ There is no unscoped `flisk` package, and the release does not try to publish on
 | `📦 Pack CLI`: `cli/dist is stale` | `cli/src` changed without rebuilding the committed `cli/dist` | `npm --prefix cli run check:dist`, `git add -f cli/dist`, commit `Rebuild cli/dist`, push |
 | `error: GH013 ... release/bump-*` on the bump push | A ruleset enforced required status checks at branch creation | `do_not_enforce_on_create` must be on for the required-status-checks rule of the `release branch protections` ruleset (`gh api repos/flisk-sh/flisk/rulesets`) |
 | `resource-types / mcp`: `timed out ... mcpres answers /health`, container `Restarting (0)`, log `imported as a module, not listening` | `cli/scripts/bundle.mjs` rewrote `import.meta.url` inside a template string, so the scaffolded server compared its path with `../dist/...` (1.4.23-rc1, #2847). Only the packed package runs the bundle, so PR tests on `dist/` miss it | A real bug, not a timeout: fix the bundler or template on `main`, cut `rc<N+1>`. `pin-module-location.mjs` now substitutes through esbuild `define`, which never touches strings |
-| Publish gate: `No passing Release candidate covers <sha>` | No candidate on that commit, or release inputs changed since the last one | Push an `rc-*` tag at the commit, let it pass, re-dispatch |
+| Publish gate: `No passing Release candidate covers <sha>` | No candidate on that commit, or release inputs changed since the last one (usually: the release was dispatched on `main`, which moved during the candidate) | Dispatch the release on the passing candidate's `release/*` branch (step 3); otherwise push an `rc-*` tag at the commit, let it pass, re-dispatch |
 | Publish gate lists `release inputs changed since (cli/**)` | A candidate exists but `cli/**` changed after it | New candidate on the release commit |
 | Candidate `package`: `Release candidates run on a release/* branch or an rc-* tag, not refs/heads/main` | The candidate was dispatched on `main` | Dispatch it on a `release/*` branch or push an `rc-*` tag at the commit ([step 2](#2-release-candidate)) |
 | Candidate quickstart Q4: `entry script '/static/js/main.<hash>.js' is not under /<frontend>/` | The CLI under test printed Tilt UI URLs (`localhost:10350`) in its health list; Q4 loaded Tilt's own React page. Fixed by #2498 | Cut the candidate from a `main` that has #2498 |

@@ -44,5 +44,6 @@
     "manual"
   ],
   "timeoutMinutes": 30,
+  "typicalSeconds": 200,
   "needsSecrets": []
 }

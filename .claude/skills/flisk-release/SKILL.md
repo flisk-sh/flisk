@@ -16,7 +16,7 @@ Workflows (IDs are stable, names have emoji, so use the file name):
 
 | File | What it does |
 | --- | --- |
-| `release-candidate.yml` | Packs the CLI, runs quickstart (Q1-Q4) and every release-blocking resource-type suite on that tarball. Runs only on `release/*` branches and `rc-*` tags. ~25 min. |
+| `release-candidate.yml` | Packs the CLI, runs quickstart (Q1-Q4) and every release-blocking resource-type suite on that tarball, the longest suites first. Runs only on `release/*` branches and `rc-*` tags. ~6-10 min. With `-f release=true` it dispatches `release-binaries.yml` on its own branch once every job passed. |
 | `release-binaries.yml` | `build` → `windows-binary` → `publish` (gate, binaries to `flisk-sh/releases`, npm, signing, bump or tag) → `publish-github-packages`. ~6 min. |
 | `sign-release.yml` | Signs an already published version after the fact. |
 | `publish-existing-npm-to-github-packages.yml` | Backfills GitHub Packages for a version already on npm. |
@@ -48,7 +48,7 @@ Do not reuse an older `release/*` branch. Fixes land on `main` daily, and a cand
 ```bash
 SHA=<commit>; V=<next version, e.g. 1.4.6>; N=1   # N: attempt number, new for every retry on a new commit
 gh api repos/flisk-sh/flisk/git/refs -f ref=refs/heads/release/$V-rc$N -f sha=$SHA
-gh workflow run release-candidate.yml -R flisk-sh/flisk --ref release/$V-rc$N
+gh workflow run release-candidate.yml -R flisk-sh/flisk --ref release/$V-rc$N -f release=true   # releases itself when green
 gh run watch <run-id> -R flisk-sh/flisk --exit-status
 ```
 
@@ -60,12 +60,13 @@ Never dispatch the candidate on `main`: its `package` job refuses `refs/heads/ma
 ## 4. Dispatch the release
 
 ```bash
-GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha "$(gh api repos/flisk-sh/flisk/commits/main --jq .sha)" --repo flisk-sh/flisk
-gh workflow run release-binaries.yml -R flisk-sh/flisk --ref main
+RC=release/$V-rc$N
+GH_TOKEN="$(gh auth token)" node scripts/check-release-candidate.mjs --sha "$(gh api repos/flisk-sh/flisk/git/refs/heads/$RC --jq .object.sha)" --repo flisk-sh/flisk
+gh workflow run release-binaries.yml -R flisk-sh/flisk --ref $RC
 gh run watch <run-id> -R flisk-sh/flisk --exit-status
 ```
 
-The gate accepts `main` when it equals the candidate commit or no release input changed since. If `main` moved and the gate refuses, run a candidate on the new `main` (step 3). The workflow picks the version itself. Do not edit `package.json` to choose one.
+Dispatch on the candidate's branch, not on `main`: it releases exactly the commit the candidate tested, and other merges into `main` during the candidate no longer void it (1.4.24 lost rc5, rc6 and rc7 that way). The version bump PR still targets `main`. The workflow picks the version itself. Do not edit `package.json` to choose one.
 
 Publishing happens inside `publish`. Once that job is green, npm and `flisk-sh/releases` are live even if later jobs are red. **Never re-dispatch after `publish` succeeded**: it would publish the next version.
 
