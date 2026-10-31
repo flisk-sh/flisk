@@ -27,7 +27,7 @@ The H1, title, About, and first paragraph SHALL omit Tilt, Starlark, PSR, golden
 The 14-service proof SHALL state that images already exist. Any 100-service public claim SHALL say in the same sentence that these are generated `/health` services in a fixture, not an ERP product.
 
 ### Requirement: Free-first offer
-The free MIT CLI SHALL be presented as the product. Premium SHALL be described only as $19 per developer per month for extras and SHALL NOT appear in the hero. Pricing SHALL say most teams should stay on free.
+The free MIT CLI SHALL be presented as the product. Premium SHALL be described only as $17 per developer per month for extras and SHALL NOT appear in the hero. Pricing SHALL say most teams should stay on free.
 
 ### Requirement: Calculator placement
 The homepage SHALL NOT contain the ROI calculator. The calculator SHALL remain available on `/waiting`.
