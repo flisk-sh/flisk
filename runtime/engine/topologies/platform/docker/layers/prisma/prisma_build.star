@@ -119,7 +119,7 @@ def L3_generate_migration_engine(res_path, use_golden = True):
         + "# many minutes, so each attempt is time-boxed and retried (the cache mount makes a retry fast).\n"
         + "RUN --mount=type=cache,target=/cache/bun,sharing=shared rm -f bun.lock bun.lockb && n=0 && until env -u CI BUN_CONFIG_FROZEN_LOCKFILE=false BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun install --production --no-frozen-lockfile --concurrent-scripts --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun install stalled or failed, retry $n of 2\"; done\n"
         + "# Prisma CLI is often in devDependencies; install it explicitly without mutating manifest files\n"
-        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared PRISMA_VERSION=$(sed -n 's/.*\"prisma\"[[:space:]]*:[[:space:]]*\"[~^]*\\([^\"]*\\)\".*/\\1/p' package.json | head -n 1) && [ -n \"$PRISMA_VERSION\" ] && BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install bun add --no-save --exact prisma@\"$PRISMA_VERSION\" --cache-dir=/cache/bun\n"
+        + "RUN --mount=type=cache,target=/cache/bun,sharing=shared PRISMA_VERSION=$(sed -n 's/.*\"prisma\"[[:space:]]*:[[:space:]]*\"[~^]*\\([^\"]*\\)\".*/\\1/p' package.json | head -n 1) && [ -n \"$PRISMA_VERSION\" ] && n=0 && until BUN_TMPDIR=/tmp BUN_INSTALL=/tmp/bun-install timeout 150 bun add --no-save --exact prisma@\"$PRISMA_VERSION\" --cache-dir=/cache/bun; do n=$((n+1)); [ \"$n\" -ge 3 ] && exit 1; echo \"bun add stalled or failed, retry $n of 2\"; done\n"
         + "# Generate Prisma client and normalize output location for runtime compatibility\n"
         + PRISMA_GENERATE_RUN
         + prisma_normalize_output_block(include_generated_client_export = False)

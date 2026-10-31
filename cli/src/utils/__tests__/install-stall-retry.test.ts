@@ -17,11 +17,11 @@ const SOURCES = [
 ];
 
 /** The `until ...; done` loop of the generated `bun install` RUN line, as the shell will see it. */
-function installLoop(source: string): string {
+function installLoop(source: string, command = "bun install --production"): string {
   const line = readFileSync(engineFile(source), "utf-8")
     .split("\n")
-    .find((l) => l.includes("bun install --production") && l.includes("RUN "));
-  expect(line, `${source} has no bun install RUN line`).toBeDefined();
+    .find((l) => l.includes(command) && l.includes("RUN "));
+  expect(line, `${source} has no "${command}" RUN line`).toBeDefined();
   const match = /(until .*?; done)/.exec(line as string);
   expect(match, `${source}: the bun install is not in a retry loop`).not.toBeNull();
   // The Starlark string escapes quotes as \" and newlines as \n.
@@ -53,6 +53,18 @@ function run(loop: string, failures: number): { status: number | null; calls: nu
   const calls = Number(readFileSync(join(dir, "count"), "utf-8").trim());
   return { status: result.status, calls };
 }
+
+describe("the explicit Prisma install is time-boxed and retried too", () => {
+  const source = SOURCES[0];
+  const loop = () => installLoop(source, "bun add --no-save --exact prisma@");
+  it("time-boxes each attempt", () => {
+    expect(loop()).toMatch(/timeout \d+ bun add/);
+  });
+  it("retries and gives up after three attempts", () => {
+    expect(run(loop(), 2)).toEqual({ status: 0, calls: 3 });
+    expect(run(loop(), 99)).toEqual({ status: 1, calls: 3 });
+  });
+});
 
 describe("generated bun install steps survive a stalled install", () => {
   for (const source of SOURCES) {
