@@ -61,7 +61,7 @@ const words = (text) => text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 export function findVendor(text) {
   const patterns = [
     /\b([\w.-]{2,30})(?:'s)?\s+(?:graphql\s+|rest\s+|storefront\s+|admin\s+)?api\b/gi,
-    /\b(?:connected to|connect(?:s|ing)? to|integrat(?:e[sd]?|ing) with|wired to|hooked up to|on top of)\s+([\w.-]{2,30})/gi,
+    /\b(?:connected to|connect(?:s|ing)? to|(?:integrate[sd]?|integrating) with|wired to|hooked up to|on top of)\s+([\w.-]{2,30})/gi,
   ];
   for (const re of patterns) {
     for (const m of text.matchAll(re)) {
