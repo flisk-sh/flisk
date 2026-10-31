@@ -1426,10 +1426,12 @@ export async function checkServiceHealth(
 export async function checkServiceSmoke(
   timeoutMs: number,
   ingressPort?: number,
+  options: { gateway?: boolean } = {},
 ): Promise<CheckResult> {
   const projectRoot = findProjectRoot() ?? process.cwd();
   const resources = discoverResourcesFromRoot(projectRoot);
-  const plans = readOnlySmokePlans(buildSmokePlans(resources, ingressPort), {
+  const gateway = options.gateway ?? isGatewayEnabled(projectRoot);
+  const plans = readOnlySmokePlans(buildSmokePlans(resources, ingressPort, { gateway }), {
     timeoutSeconds: Math.ceil(timeoutMs / 1000),
   });
   if (plans.length === 0) {
@@ -1759,7 +1761,10 @@ export const doctorCommand = new Command("doctor")
     let portPlanError: string | undefined;
     if (!nativeResources) {
       try {
-        hostPortPlan = await getHostPortPlan(projectRoot ?? process.cwd(), { database: dbEnabled });
+        hostPortPlan = await getHostPortPlan(projectRoot ?? process.cwd(), {
+          database: dbEnabled,
+          gateway: gatewayEnabled,
+        });
       } catch (error) {
         hostPortPlan = null;
         portPlanError = error instanceof Error ? error.message : String(error);
@@ -1909,7 +1914,9 @@ export const doctorCommand = new Command("doctor")
         requiresContainerRuntime("Service Health", () => checkServiceHealth(pingTimeout, pingPort)),
       );
       projectChecks.push(
-        requiresContainerRuntime("Service Smoke", () => checkServiceSmoke(pingTimeout, pingPort)),
+        requiresContainerRuntime("Service Smoke", () =>
+          checkServiceSmoke(pingTimeout, pingPort, { gateway: gatewayEnabled }),
+        ),
       );
       projectChecks.push(
         requiresContainerRuntime("Advertised Endpoints", () =>

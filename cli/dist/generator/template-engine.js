@@ -70,6 +70,8 @@ function getEmbeddedTemplates() {
     }
     return embeddedTemplatesCache;
 }
+/** The phase and always-enabled-infra names that start Traefik: dropped when `capabilities.gateway` is false. */
+const GATEWAY_RESOURCE_NAMES = ["proxy", "traefik"];
 // Generic resource descriptions - no hardcoded service names
 // Users define their own service descriptions in project.json
 const RESOURCE_DESCRIPTIONS = {
@@ -147,18 +149,21 @@ export class TemplateEngine {
     }
     buildContext(projectConfig) {
         const dbEnabled = isDatabaseCapabilityEnabled(projectConfig);
+        const gatewayEnabled = isGatewayEnabled(projectConfig);
+        // A capability that is off is dropped from the phases as well as from always_enabled_infra: a phase entry reaches
+        // RESOURCE_DEFAULTS in the Tiltfile and would start the container anyway.
+        const isProvisioned = (name) => (dbEnabled || name !== DATABASE_MANAGEMENT_FEATURE) &&
+            (gatewayEnabled || !GATEWAY_RESOURCE_NAMES.includes(name));
         const phases = dedupePhaseEnabledStacks(projectConfig.phases);
-        if (!dbEnabled) {
+        if (!dbEnabled || !gatewayEnabled) {
             for (const key of Object.keys(phases)) {
                 phases[key] = {
                     ...phases[key],
-                    enabledStacks: phases[key].enabledStacks.filter((name) => name !== DATABASE_MANAGEMENT_FEATURE),
+                    enabledStacks: phases[key].enabledStacks.filter(isProvisioned),
                 };
             }
         }
-        const gatewayEnabled = isGatewayEnabled(projectConfig);
-        const alwaysEnabledInfra = (projectConfig.always_enabled_infra ?? [...DEFAULT_ALWAYS_ENABLED_INFRA]).filter((name) => (dbEnabled || name !== DATABASE_MANAGEMENT_FEATURE) &&
-            (gatewayEnabled || (name !== "proxy" && name !== "traefik")));
+        const alwaysEnabledInfra = (projectConfig.always_enabled_infra ?? [...DEFAULT_ALWAYS_ENABLED_INFRA]).filter(isProvisioned);
         return {
             version: PLATFORM_STANDARDS.version,
             tech: PLATFORM_STANDARDS.tech,
@@ -308,6 +313,12 @@ function hasPhaseShape(value, fieldName) {
     }
     return true;
 }
+/** `capabilities` in project.json: an object whose every value is a boolean. */
+function isCapabilityMap(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+        return false;
+    return Object.values(value).every((flag) => typeof flag === "boolean");
+}
 function normalizeProjectConfig(value) {
     if (!value || typeof value !== "object") {
         return null;
@@ -374,9 +385,11 @@ function normalizeProjectConfig(value) {
     if (!Array.isArray(discovery.paths)) {
         return null;
     }
-    const capabilities = config.capabilities && typeof config.capabilities === "object"
-        ? config.capabilities
-        : undefined;
+    // A capability is a boolean: `"gateway": "false"` would not match `=== false` and leave Traefik on, so refuse the file.
+    if (config.capabilities !== undefined && !isCapabilityMap(config.capabilities)) {
+        return null;
+    }
+    const capabilities = config.capabilities;
     return {
         version: config.version,
         project: config.project,
@@ -430,7 +443,8 @@ export function readProjectConfig(projectRoot) {
             "Expected: version (string), project (object with name/version), " +
             "phases (object with pre_alpha/alpha/beta/out_of_scope enabledStacks), " +
             "optional_infra (object with boolean flags), " +
-            "discovery (object with paths array)");
+            "discovery (object with paths array), " +
+            "capabilities (optional object of booleans)");
     }
     return projectConfig;
 }

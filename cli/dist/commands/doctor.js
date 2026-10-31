@@ -1149,10 +1149,11 @@ export async function checkServiceHealth(timeoutMs, ingressPort) {
  *
  * Like the health ping, this only runs once services answer. A stopped stack is skipped, not failed.
  */
-export async function checkServiceSmoke(timeoutMs, ingressPort) {
+export async function checkServiceSmoke(timeoutMs, ingressPort, options = {}) {
     const projectRoot = findProjectRoot() ?? process.cwd();
     const resources = discoverResourcesFromRoot(projectRoot);
-    const plans = readOnlySmokePlans(buildSmokePlans(resources, ingressPort), {
+    const gateway = options.gateway ?? isGatewayEnabled(projectRoot);
+    const plans = readOnlySmokePlans(buildSmokePlans(resources, ingressPort, { gateway }), {
         timeoutSeconds: Math.ceil(timeoutMs / 1000),
     });
     if (plans.length === 0) {
@@ -1447,7 +1448,10 @@ export const doctorCommand = new Command("doctor")
     let portPlanError;
     if (!nativeResources) {
         try {
-            hostPortPlan = await getHostPortPlan(projectRoot ?? process.cwd(), { database: dbEnabled });
+            hostPortPlan = await getHostPortPlan(projectRoot ?? process.cwd(), {
+                database: dbEnabled,
+                gateway: gatewayEnabled,
+            });
         }
         catch (error) {
             hostPortPlan = null;
@@ -1589,7 +1593,7 @@ export const doctorCommand = new Command("doctor")
             ? resolveRuntimeIngressPort(projectRoot, hostPortPlan?.ingressHttp)
             : hostPortPlan?.ingressHttp;
         projectChecks.push(requiresContainerRuntime("Service Health", () => checkServiceHealth(pingTimeout, pingPort)));
-        projectChecks.push(requiresContainerRuntime("Service Smoke", () => checkServiceSmoke(pingTimeout, pingPort)));
+        projectChecks.push(requiresContainerRuntime("Service Smoke", () => checkServiceSmoke(pingTimeout, pingPort, { gateway: gatewayEnabled })));
         projectChecks.push(requiresContainerRuntime("Advertised Endpoints", () => checkAdvertisedEndpoints(pingTimeout, pingPort)));
     }
     // Right after installing, people run `flisk doctor` before they have a

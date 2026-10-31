@@ -93,6 +93,7 @@ async function hostPortsItem(root, scope, opts) {
         const plan = await getHostPortPlan(root, {
             ...(scope === "scaffold" ? { inspectDocker: false } : {}),
             database: caps.database,
+            gateway: caps.gateway,
         });
         return {
             id: "ports",

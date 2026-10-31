@@ -83,31 +83,7 @@
         },
         "database": {
           "type": "boolean",
-          "description": "Whether to provision shared PostgreSQL database management."
-        },
-        "watch": {
-          "type": "boolean",
-          "description": "Whether to enable hot reload and file watching."
-        },
-        "healthChecks": {
-          "type": "boolean",
-          "description": "Whether to perform health checks."
-        },
-        "clientGeneration": {
-          "type": "boolean",
-          "description": "Whether to generate API clients."
-        },
-        "scaffolding": {
-          "type": "boolean",
-          "description": "Whether framework scaffolding is enabled."
-        },
-        "docker": {
-          "type": "boolean",
-          "description": "Whether Docker container execution is enabled."
-        },
-        "tilt": {
-          "type": "boolean",
-          "description": "Whether Tilt orchestration is enabled."
+          "description": "Whether to provision the bundled shared PostgreSQL (database-management). A service that declares dependsOn postgres still gets it."
         }
       }
     },

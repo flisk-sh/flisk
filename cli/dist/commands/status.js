@@ -259,7 +259,9 @@ export const statusCommand = new Command("status")
                     else if (state.status === "error") {
                         mark = chalk.red("✗");
                     }
-                    const ports = buildServicePorts(resource, portPlan?.ingressHttp);
+                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, {
+                        gateway: gatewayEnabled,
+                    });
                     const urlPart = ports.url ? ` → ${ports.url}` : "";
                     showDetail(`${mark} ${resource.name}${urlPart}  ${state.status}${state.reason ? ` (${state.reason})` : ""}`, 6);
                 }

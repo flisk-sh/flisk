@@ -7,11 +7,16 @@ export interface HostPortPlanOptions {
         end: number;
     }>>;
     database?: boolean;
+    /** False when the gateway capability is off: no Traefik, so HTTP and HTTPS are neither planned nor probed. */
+    gateway?: boolean;
     capabilities?: {
         database?: boolean;
+        gateway?: boolean;
         [key: string]: boolean | undefined;
     };
 }
+/** The `reason` a plan gives for the HTTP and HTTPS ports when the gateway capability is off. */
+export declare const GATEWAY_DISABLED_REASON = "gateway capability disabled";
 export declare const DEFAULT_HOST_PORT_RANGES: {
     readonly ingressHttp: {
         readonly start: 8080;
@@ -41,4 +46,6 @@ export declare function isPrivilegedBindFree(errorCode: string | undefined, plat
 export declare function isHostPortAvailable(port: number): Promise<boolean>;
 export declare function createHostPortPlan(options?: HostPortPlanOptions): Promise<HostPortPlan>;
 export declare function formatHostPortPlan(plan: HostPortPlan): string;
+/** The plan with HTTP and HTTPS marked as not needed, for a project whose gateway capability is off. */
+export declare function withoutGatewayPorts(plan: HostPortPlan): HostPortPlan;
 export {};

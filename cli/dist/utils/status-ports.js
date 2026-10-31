@@ -17,15 +17,18 @@ function resolveGatewayOption(options) {
 export function buildServicePorts(resource, ingressHttp, options) {
     const gatewayEnabled = resolveGatewayOption(options);
     const appType = resource.config?.appType;
-    const routable = gatewayEnabled && (appType === "frontend" || routesAsApi(resource));
+    // A frontend or API is reached only through the gateway; its container publishes no host port of its own.
+    const routedByType = appType === "frontend" || routesAsApi(resource);
+    const routable = gatewayEnabled && routedByType;
     let url = null;
     if (routable) {
         const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
         url = `${routesAsApi(resource) ? apiBase : appBase}${resolveServicePath(resource)}`;
     }
     const containerPort = resource.port ?? resource.config?.port ?? null;
-    // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer.
-    const directUrl = !routable && containerPort && appType !== BRING_YOUR_OWN_TYPE
+    // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer. Neither does a frontend or
+    // API with the gateway off.
+    const directUrl = !routedByType && containerPort && appType !== BRING_YOUR_OWN_TYPE
         ? `http://localhost:${containerPort}`
         : null;
     return { url, containerPort, hostPort: null, directUrl };

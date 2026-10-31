@@ -270,12 +270,6 @@ export interface ProjectCapabilities {
   gateway?: boolean;
   /** The bundled shared Postgres (`database-management`). */
   database?: boolean;
-  watch?: boolean;
-  healthChecks?: boolean;
-  clientGeneration?: boolean;
-  scaffolding?: boolean;
-  docker?: boolean;
-  tilt?: boolean;
   [key: string]: boolean | undefined;
 }
 

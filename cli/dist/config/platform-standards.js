@@ -83,15 +83,13 @@ const TRAEFIK = {
     healthcheckTimeout: "5s",
     frontendPriorityBase: 100,
 };
+/**
+ * The capabilities Flisk can turn off, all on by default. Only list one here once something reads it: `flisk status --json`
+ * reports these as enabled, and `.flisk/project.json` setting one to false must change what Flisk provisions.
+ */
 export const DEFAULT_CAPABILITIES = {
     gateway: true,
     database: true,
-    watch: true,
-    healthChecks: true,
-    clientGeneration: true,
-    scaffolding: true,
-    docker: true,
-    tilt: true,
 };
 const CAPABILITIES = DEFAULT_CAPABILITIES;
 const FILEWATCH_IGNORES = [
