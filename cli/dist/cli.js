@@ -23,7 +23,7 @@ if (process.argv.length === 2) {
     console.log(formatColdPreflight(result));
     console.log("\nCommands: flisk doctor | flisk project --yes | flisk --help");
     console.log("\nOne command from scratch (clones, boots and opens the browser):");
-    console.log(`  npx -y @flisk-sh/flisk@latest demo`);
+    console.log(`  npx -y @flisk-sh/flisk@latest demo   (no Docker? it runs a small demo as local processes)`);
     console.log(`  npx -y @flisk-sh/flisk@latest restaurant --project=my-stack`);
     process.exit(result.ok ? 0 : 1);
 }
@@ -31,6 +31,23 @@ if (process.argv.length === 2) {
 // It clones a starter, installs the CLI globally, boots the stack and opens the frontend.
 const templateArg = readOptionValue(process.argv, "--template") ?? bareTemplateArg(process.argv);
 const projectArg = readOptionValue(process.argv, "--project");
+if (templateArg === "demo") {
+    // No Docker or Tilt (or native Windows, or --no-docker): run the small demo as local processes. It needs only Node, so it is
+    // decided before the Windows refusal and the Bun preflight below.
+    const { NATIVE_DEMO_DIR, nativeDemoReason, runNativeDemo } = await import("./utils/native-demo.js");
+    const reason = await nativeDemoReason({
+        argv: process.argv,
+        platform: process.platform,
+        env: process.env,
+    });
+    const binPath = process.argv[1];
+    if (reason && binPath) {
+        const destination = projectArg
+            ? resolve(cwd(), projectArg)
+            : join(homedir(), ".flisk", NATIVE_DEMO_DIR);
+        process.exit(await runNativeDemo({ destination, binPath, reason, version: pkg.version }));
+    }
+}
 if (templateArg) {
     // Native Windows cannot boot a stack, so the one-command flow refuses before it clones a
     // template, installs the CLI globally or writes into the home directory.

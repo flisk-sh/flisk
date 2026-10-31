@@ -21,7 +21,15 @@
 
 ## What is Flisk?
 
-Flisk is a command-line tool for local development. It runs every part of your app (API, website, workers, AI agents, database) locally on your computer, with routes behind one address, and rebuilds a part when you save it. Have a `docker-compose.yml`? `flisk import` reads it. Otherwise describe each part in a small `service.json`; Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. An MCP server lets your AI agent run it too. It does not deploy: production stays with your own tools.
+Flisk is a command-line tool for local development. It runs every part of your app (API, website, workers, AI agents, database) on your computer with one command. Docker is optional: a small app runs as plain local processes, and a bigger one gets containers, one address in front of every part and live reload on Docker and Tilt. Have a `docker-compose.yml`? `flisk import` reads it. Otherwise describe each part in a small `service.json`; for the Docker path Flisk writes the Dockerfiles, the Compose file and the Tiltfile from it, and keeps them in sync. An MCP server lets your AI agent run it too. It does not deploy: production stays with your own tools.
+
+Try it first. One command, nothing to install except Node.js 22.12+, and no Docker needed:
+
+```bash
+npx @flisk-sh/flisk demo
+```
+
+With Docker running and Tilt installed, that starts the full restaurant demo: six services, Postgres, one gateway and live reload. Without them (or on native Windows), it starts a small menu app as two local processes in about a second and opens it in your browser. `flisk down` in the demo folder stops either one.
 
 Install Flisk with `npm install -g @flisk-sh/flisk`, then, in a new folder:
 
@@ -34,12 +42,6 @@ flisk up shop
 ```
 
 That starts an orders API and a storefront behind one gateway, with Postgres and live reload, and prints their URLs. It needs [Docker](docs/start/words.md#docker), [Tilt](https://docs.tilt.dev/install.html), Node.js 22.12+ and [Bun](https://bun.sh/) 1.2+; `flisk doctor` says what is missing. A small app can skip Docker and [run as local processes](docs/run-without-docker.md).
-
-Want to see it run first? One command, no install and no project of your own (same requirements; the demo uses Docker and Tilt):
-
-```bash
-npx @flisk-sh/flisk demo
-```
 
 Two ways in: `flisk project` starts a new app from scratch (above); `flisk import` starts from an app you already have. Already have a Compose file? `npx @flisk-sh/flisk import . && npx @flisk-sh/flisk up` (add `--dry-run` to `import` to preview).
 
