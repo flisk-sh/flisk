@@ -8,6 +8,7 @@ import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
+import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
 function runVariables(projectRoot, envFilePath) {
     const path = envFilePath ?? join(projectRoot, ".env");
@@ -32,6 +33,11 @@ export async function runNativeUp(input) {
     const plan = planNativeRun(selected, vars);
     if (plan.errors.length > 0)
         fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
+    // A "toolchain" in service.json is binding: a service on the wrong runtime fails later in ways that never name the version.
+    const toolchainMismatches = findToolchainMismatches(selected).filter((finding) => !finding.isHint);
+    if (toolchainMismatches.length > 0) {
+        fail("TOOLCHAIN_MISMATCH", `${toolchainMismatches.map(describeToolchainFinding).join("\n")}\nSwitch to that version with your version manager, or change "toolchain" in the service.json.`);
+    }
     if (plan.missingVars.length > 0 && !quiet) {
         console.warn(chalk.yellow(`Unset variables expanded to an empty value: ${plan.missingVars.join(", ")}. Set them in .env or the shell.`));
     }

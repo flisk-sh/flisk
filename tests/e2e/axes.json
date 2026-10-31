@@ -41,6 +41,9 @@
 				},
 				"bring-your-own": {
 					"allow": "#1297"
+				},
+				"database": {
+					"allow": "#2863"
 				}
 			},
 			"interactions": []

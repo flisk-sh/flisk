@@ -16,7 +16,7 @@ export declare const MAX_LOG_TAIL = 10000;
 export declare function isValidSince(value: string): boolean;
 /** A valid --since duration in milliseconds, for logs Flisk reads itself (local processes) rather than through Tilt. */
 export declare function sinceMilliseconds(value: string): number;
-export declare function isValidPort(value: string): boolean;
+export { isValidPort } from "./validation.js";
 export declare function isValidTail(value: string): boolean;
 /** Parse `tilt logs --json` (JSON Lines) into normalized lines, keeping at most the last `limit`. Unparseable lines are skipped. */
 export declare function parseTiltLogLines(output: string, limit: number): LogLine[];
