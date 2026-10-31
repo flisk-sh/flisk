@@ -48,6 +48,41 @@ export const TOOLS = [
   },
 ];
 
+export const PROMPTS = [
+  {
+    name: "build_my_app",
+    title: "Build my app",
+    description: "Plan an app from what the user wants, then give the commands to run it on their own computer.",
+    arguments: [{ name: "what", description: "What the app should do, in plain words", required: true }],
+  },
+  {
+    name: "pick_a_starter",
+    title: "Pick a ready-made starter",
+    description: "Show the ready-made starter apps and help the user choose one.",
+    arguments: [],
+  },
+];
+
+const promptMessage = (text) => ({ role: "user", content: { type: "text", text } });
+
+function getPrompt(name, args) {
+  if (name === "build_my_app") {
+    const what = typeof args?.what === "string" ? args.what.trim() : "";
+    if (what.length < 3 || what.length > 600) return null;
+    return {
+      description: "Plan an app and run it on your own computer.",
+      messages: [promptMessage(`Plan this app with the plan_app tool, using this description: "${what}". Show what it is made of, then the commands to run it on my computer. Nothing is created or sent.`)],
+    };
+  }
+  if (name === "pick_a_starter") {
+    return {
+      description: "Choose a ready-made starter app.",
+      messages: [promptMessage("Call list_app_starters, show the ready-made apps, and help me choose the one closest to what I want to build.")],
+    };
+  }
+  return null;
+}
+
 const rpc = (id, result) => ({ jsonrpc: "2.0", id, result });
 const fail = (id, code, message) => ({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 const reply = (value, isError = false) => ({ isError, content: [{ type: "text", text: JSON.stringify(value) }] });
@@ -110,14 +145,20 @@ export async function appBuilderMcpRoute(request, json) {
     return json(
       rpc(id, {
         protocolVersion: PROTOCOL,
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, prompts: {} },
         serverInfo: { name: "flisk-app-builder", version: "1.0.0" },
-        instructions: "plan_app turns a plain description of an app into the parts it needs and the commands to run it on the user's own computer. list_app_starters shows ready-made apps.",
+        instructions: "plan_app turns a plain description of an app into the parts it needs and the commands to run it on the user's own computer. list_app_starters shows ready-made apps. Prompts build_my_app and pick_a_starter start those two flows.",
       }),
     );
   }
   if (method === "ping") return json(rpc(id, {}));
   if (method === "tools/list") return json(rpc(id, { tools: TOOLS }));
+  if (method === "prompts/list") return json(rpc(id, { prompts: PROMPTS }));
+  if (method === "prompts/get") {
+    const prompt = getPrompt(params?.name, params?.arguments);
+    if (!prompt) return json(fail(id, -32602, `Unknown prompt or missing argument: ${params?.name}`));
+    return json(rpc(id, prompt));
+  }
   if (method === "tools/call") {
     const name = params?.name;
     if (name === "plan_app") return json(rpc(id, planApp(params?.arguments)));
