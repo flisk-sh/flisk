@@ -94,6 +94,7 @@ import { findNativeProject } from "../utils/native-project.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
+import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
 import {
   EnvUnreadableError,
   envSecretValues,
@@ -1848,6 +1849,7 @@ export const doctorCommand = new Command("doctor")
       () => checkTiltInstances(),
       checkEnvironmentVariables,
       () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
+      () => checkRemoteEnvHosts(projectRoot ?? process.cwd(), options.strict),
       // Preflight: Verdaccio down causes ImageBuild bun install ConnectionRefused.
       async () => {
         const root = findProjectRoot() ?? process.cwd();
@@ -1898,6 +1900,7 @@ export const doctorCommand = new Command("doctor")
           () => checkSchemaVersions(undefined, options.strict),
           () => checkDuplicateResourcePorts(),
           () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
+          () => checkRemoteEnvHosts(projectRoot ?? process.cwd(), options.strict),
         ]
       : containerProjectChecks;
 
