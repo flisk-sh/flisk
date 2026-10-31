@@ -3,9 +3,28 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { DiscoveredResource, DiscoveredStack } from "../types/index.js";
+import type {
+  DiscoveredResource,
+  DiscoveredStack,
+  ProjectCapabilities,
+  ProjectConfig,
+} from "../types/index.js";
+import {
+  getEnabledCapabilities,
+  isDatabaseCapabilityEnabled,
+  resolveProjectCapabilities,
+} from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
+
+export { getEnabledCapabilities, isDatabaseCapabilityEnabled };
+
+export interface SharedInfraOptions {
+  capabilities?: ProjectCapabilities;
+  database?: boolean;
+  projectRoot?: string;
+  [key: string]: unknown;
+}
 
 /**
  * Groups the shared platform Postgres for `flisk status`.
@@ -44,7 +63,11 @@ export function usesSharedPostgres(resource: DiscoveredResource): boolean {
 export function groupSharedPostgres(
   projectName: string,
   stacks: DiscoveredStack[],
+  options?: SharedInfraOptions,
 ): SharedPostgresInstance | null {
+  if (options && !isDatabaseCapabilityEnabled(options.projectRoot, options)) {
+    return null;
+  }
   const prefix = projectName.replace(/-/g, "_");
   const databases: SharedInfraDatabase[] = [];
 
@@ -60,6 +83,48 @@ export function groupSharedPostgres(
 
   if (databases.length === 0) return null;
   return { name: "postgres", databases };
+}
+
+/**
+ * Returns the list of shared infrastructure services for the project.
+ * Excludes Postgres when the database capability is disabled.
+ */
+export function getSharedInfrastructureList(
+  projectNameOrRootOrOptions?: string | ProjectConfig | SharedInfraOptions,
+  stacksOrOptions?: DiscoveredStack[] | SharedInfraOptions,
+  options?: SharedInfraOptions,
+): string[] {
+  let opts: SharedInfraOptions | undefined;
+  let rootOrConfig: string | ProjectConfig | undefined;
+
+  if (typeof projectNameOrRootOrOptions === "string") {
+    rootOrConfig = projectNameOrRootOrOptions;
+  } else if (projectNameOrRootOrOptions && typeof projectNameOrRootOrOptions === "object") {
+    if ("capabilities" in projectNameOrRootOrOptions || "project" in projectNameOrRootOrOptions) {
+      rootOrConfig = projectNameOrRootOrOptions as ProjectConfig;
+    }
+    opts = projectNameOrRootOrOptions as SharedInfraOptions;
+  }
+
+  if (stacksOrOptions && !Array.isArray(stacksOrOptions) && typeof stacksOrOptions === "object") {
+    opts = { ...opts, ...stacksOrOptions };
+  }
+  if (options && typeof options === "object") {
+    opts = { ...opts, ...options };
+  }
+
+  const caps = resolveProjectCapabilities(rootOrConfig, opts);
+  const items: string[] = [];
+
+  if (caps.gateway !== false) {
+    items.push("gateway");
+  }
+
+  if (caps.database !== false) {
+    items.push("postgres");
+  }
+
+  return items;
 }
 
 /** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */

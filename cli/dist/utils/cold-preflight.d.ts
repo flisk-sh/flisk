@@ -1,4 +1,4 @@
-import type { CheckResult } from "../types/index.js";
+import type { CheckResult, ProjectCapabilities } from "../types/index.js";
 export type PreflightItem = {
     id: "node" | "docker" | "compose" | "tilt" | "bun" | "ports" | "nats" | "prisma" | "colima";
     ok: boolean;
@@ -43,6 +43,9 @@ export declare function usesPrisma(projectRoot: string): boolean;
 export declare function runColdPreflight(opts?: {
     cwd?: string;
     scope?: PreflightScope;
+    database?: boolean;
+    capabilities?: ProjectCapabilities;
+    [key: string]: unknown;
 }): Promise<PreflightResult>;
 /** Formats only failed preflight checks and the applicable readiness message. */
 export declare function formatColdPreflight(result: PreflightResult, options?: {

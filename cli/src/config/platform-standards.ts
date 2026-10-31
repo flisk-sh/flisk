@@ -179,6 +179,16 @@ const RUNTIME = {
   },
 } as const;
 
+const CAPABILITIES = {
+  gateway: true,
+  database: true,
+  watch: true,
+  healthcheck: true,
+} as const;
+
+export type PlatformCapability = keyof typeof CAPABILITIES;
+export const DEFAULT_CAPABILITIES = { ...CAPABILITIES };
+
 export const PLATFORM_STANDARDS = {
   version: PLATFORM_VERSION,
   tech: TECH_STACK,
@@ -193,6 +203,7 @@ export const PLATFORM_STANDARDS = {
   discovery: DISCOVERY,
   docker: DOCKER,
   runtime: RUNTIME,
+  capabilities: CAPABILITIES,
 } as const;
 
 export type PlatformStandards = typeof PLATFORM_STANDARDS;

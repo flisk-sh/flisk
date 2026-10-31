@@ -1,3 +1,16 @@
+declare const CAPABILITIES: {
+    readonly gateway: true;
+    readonly database: true;
+    readonly watch: true;
+    readonly healthcheck: true;
+};
+export type PlatformCapability = keyof typeof CAPABILITIES;
+export declare const DEFAULT_CAPABILITIES: {
+    gateway: true;
+    database: true;
+    watch: true;
+    healthcheck: true;
+};
 export declare const PLATFORM_STANDARDS: {
     readonly version: "1.0.0";
     readonly tech: {
@@ -154,5 +167,12 @@ export declare const PLATFORM_STANDARDS: {
             };
         };
     };
+    readonly capabilities: {
+        readonly gateway: true;
+        readonly database: true;
+        readonly watch: true;
+        readonly healthcheck: true;
+    };
 };
 export type PlatformStandards = typeof PLATFORM_STANDARDS;
+export {};

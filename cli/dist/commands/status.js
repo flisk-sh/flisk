@@ -13,7 +13,7 @@ import { nativeServiceStates } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { deriveServiceStates } from "../utils/service-runtime-state.js";
-import { groupSharedPostgres, readProjectName } from "../utils/shared-infra.js";
+import { getEnabledCapabilities, groupSharedPostgres, readProjectName, } from "../utils/shared-infra.js";
 import { groupServicesByStack, unhealthyServiceNames } from "../utils/status-groups.js";
 import { buildServicePorts, buildStackPorts } from "../utils/status-ports.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
@@ -34,7 +34,9 @@ export const statusCommand = new Command("status")
         const projectRoot = findProjectRoot();
         const projectName = projectRoot ? readProjectName(projectRoot) : null;
         const sharedInfraGroup = projectName
-            ? groupSharedPostgres(projectName, discovery.stacks)
+            ? groupSharedPostgres(projectName, discovery.stacks, {
+                projectRoot: projectRoot ?? undefined,
+            })
             : null;
         // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
         const nativeStates = projectRoot && isNativeProject(discovery.resources)
@@ -171,6 +173,7 @@ export const statusCommand = new Command("status")
                 })),
                 unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
                 sharedInfra: sharedInfraGroup,
+                capabilities: getEnabledCapabilities(projectRoot),
                 // Names of the failing or pending services, so a caller need not filter `resources` itself.
                 unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
             };

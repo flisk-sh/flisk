@@ -533,6 +533,7 @@ export const upCommand = new Command("up")
     "Start even if this flisk is older than minFliskVersion in .flisk/project.json",
     false,
   )
+  .option("--no-database", "Disable bundled database provisioning")
   .option(
     "--only <services...>",
     "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks",

@@ -4,6 +4,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DiscoveredResource } from "../types/index.js";
+import { isDatabaseCapabilityEnabled } from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "./project-config-defaults.js";
@@ -160,7 +161,11 @@ function projectJsonFeatureOn(projectRoot: string): boolean {
  * True when database-management is on for this project from project.json
  * **or** the generated Tiltfile/spec.master when those files exist.
  */
-export function databaseManagementEnabled(projectRoot: string): boolean {
+export function databaseManagementEnabled(
+  projectRoot: string,
+  options?: Record<string, unknown>,
+): boolean {
+  if (!isDatabaseCapabilityEnabled(projectRoot, options)) return false;
   if (projectJsonFeatureOn(projectRoot)) return true;
   const fromTilt = tiltfileAlwaysEnabledInfra(projectRoot);
   if (Array.isArray(fromTilt) && fromTilt.includes(DATABASE_MANAGEMENT_FEATURE)) return true;
@@ -212,7 +217,21 @@ function knownDependsonNames(projectRoot: string, resources: DiscoveredResource[
 export function evaluateSharedPlatformPostgres(
   projectRoot: string,
   resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+  options?: Record<string, unknown>,
 ): SharedPlatformPostgresEvaluation {
+  if (!isDatabaseCapabilityEnabled(projectRoot, options)) {
+    return {
+      featureOn: false,
+      featureOnFromProjectJson: false,
+      featureOnFromTiltfile: false,
+      featureOnFromSpecMaster: false,
+      focusWouldEnableDatabaseManagement: false,
+      dependsOnUsers: [],
+      willStart: false,
+      reason: "none",
+      unknownDependsOnNames: [],
+    };
+  }
   const featureOnFromProjectJson = projectJsonFeatureOn(projectRoot);
   const fromTilt = tiltfileAlwaysEnabledInfra(projectRoot);
   const featureOnFromTiltfile =

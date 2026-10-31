@@ -252,12 +252,22 @@ export interface ProjectDiscovery {
   paths: string[];
 }
 
+export interface ProjectCapabilities {
+  database?: boolean;
+  gateway?: boolean;
+  watch?: boolean;
+  healthcheck?: boolean;
+  [key: string]: boolean | undefined;
+}
+
 export interface ProjectConfig {
   version: string;
   project: {
     name: string;
     version: string;
+    capabilities?: ProjectCapabilities;
   };
+  capabilities?: ProjectCapabilities;
   phases: {
     pre_alpha: ProjectPhaseDefinition;
     alpha: ProjectPhaseDefinition;
