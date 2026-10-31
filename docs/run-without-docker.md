@@ -129,4 +129,6 @@ Remove `command` and use the [Docker + Tilt path](quickstart.md) for:
 
 One project cannot mix the two yet: if some services declare `command` and others do not, `flisk up` stops and lists both groups. For live reload without Docker, use your runtime's own watch mode in the command, for example `node --watch server.js`, `bun --watch server.ts` or `uvicorn main:app --reload`.
 
-Native Windows is not supported; use WSL2, as for the Docker path.
+Native Windows runs local processes too: each `command` runs through `cmd.exe`, and `flisk down` ends each service's whole process tree. Only the Docker path needs WSL2.
+
+To see this path without writing anything, run `npx @flisk-sh/flisk demo` on a machine without Docker (or add `--no-docker`): it starts a two-service menu app as local processes and opens it.

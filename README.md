@@ -380,7 +380,7 @@ Then Tilt builds and starts the containers, and `flisk up` ends with `Flisk is u
 | `flisk doctor` fails | Run the fix commands it prints, then retry |
 | Port 80/5432 in use | `flisk doctor` shows the owner; stop it or set `FLISK_HTTP_PORT` |
 | Docker not running | Start Docker Desktop / `systemctl start docker` |
-| Windows native | Use WSL2 Ubuntu; see [Windows guide](docs/wsl2.md) |
+| Windows native | Local processes and `flisk demo` work; for the Docker stack use WSL2 Ubuntu, see [Windows guide](docs/wsl2.md) |
 | `flisk up` refuses | Run `flisk doctor` first; it explains what's missing |
 
 Full troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md)
@@ -613,7 +613,7 @@ Runnable examples show Flisk on real stacks. Start with the smallest one:
 
 For the Docker + Tilt path, install Docker (Desktop, OrbStack, or Colima; Engine 25+, Compose 2.20.2+) and [Tilt](https://docs.tilt.dev/install.html). Bun 1.2+ is used by the default generated services. Ports and other settings: [Configuration](#configuration).
 
-Flisk supports macOS, Linux, and **Windows through WSL2 Ubuntu**. Native Windows is inspect-only: `flisk --version`, `flisk doctor`, and `flisk up --dry-run` work, and `flisk up` exits 1 with “Landscape startup needs Ubuntu on WSL2. Native Windows is inspect-only.” See the **[Windows & WSL2 guide](docs/wsl2.md)** for the recommended setup, prerequisites, verification steps, and troubleshooting.
+Flisk supports macOS, Linux, and Windows. On native Windows, `flisk demo` and projects whose services each declare a `command` run as local processes; the Docker stack runs through **WSL2 Ubuntu**, and `flisk up` on a Docker project exits 1 with “Landscape startup needs Ubuntu on WSL2.” See the **[Windows & WSL2 guide](docs/wsl2.md)** for the recommended setup, prerequisites, verification steps, and troubleshooting.
 
 ## Roadmap
 
@@ -664,7 +664,7 @@ No. Core CLI is MIT and needs no key to run `flisk up`. Premium extras are optio
 <details>
 <summary><strong>Which platforms are supported?</strong></summary>
 
-macOS and Linux are supported directly. Windows is supported through WSL2 Ubuntu; native Windows supports CLI inspection only (`flisk --version`, `flisk doctor`, `flisk up --dry-run`). See [Requirements and support](#requirements-and-support) and the **[Windows & WSL2 guide](docs/wsl2.md)** for the recommended setup, prerequisites, verification steps, and troubleshooting.
+macOS and Linux are supported directly. On Windows, `flisk demo` and local-process projects run natively; the Docker stack runs through WSL2 Ubuntu, and native Windows can still inspect it (`flisk doctor`, `flisk up --dry-run`). See [Requirements and support](#requirements-and-support) and the **[Windows & WSL2 guide](docs/wsl2.md)** for the recommended setup, prerequisites, verification steps, and troubleshooting.
 
 </details>
 

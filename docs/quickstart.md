@@ -10,8 +10,8 @@ The tools you need depend on the path you pick [below](#pick-a-path). You instal
 
 | Tool | Minimum version | Install | Install path |
 |------|----------------|---------|--------------|
-| **Docker** | Engine 25+, Compose 2.20.2+ | [docker.com](https://www.docker.com/products/docker-desktop/) | Demo, full control and guided setup |
-| **Tilt** | 0.25+ | `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash` | Demo, full control and guided setup |
+| **Docker** | Engine 25+, Compose 2.20.2+ | [docker.com](https://www.docker.com/products/docker-desktop/) | Full demo, full control and guided setup |
+| **Tilt** | 0.25+ | `curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh \| bash` | Full demo, full control and guided setup |
 | **Node.js** | 22.12+ | [nodejs.org](https://nodejs.org/) | npm path (`npm install -g @flisk-sh/flisk`) |
 | **Bun** | 1.2+ | `curl -fsSL https://bun.sh/install \| bash` | Bun path (`bun add -g @flisk-sh/flisk`) |
 
@@ -31,7 +31,7 @@ bun --version
 
 All should print version info without errors. Skip the check for a tool you don't use on your chosen install path.
 
-> **Windows users**: Use WSL2 Ubuntu (the Ubuntu app that [WSL2](start/words.md#wsl2) installs). See the [Windows & WSL2 guide](wsl2.md) for the recommended setup. Native Windows supports inspection commands only (`flisk --version`, `flisk doctor`, `flisk up --dry-run`); `flisk up` refuses with WSL2 guidance.
+> **Windows users**: Use WSL2 Ubuntu (the Ubuntu app that [WSL2](start/words.md#wsl2) installs). See the [Windows & WSL2 guide](wsl2.md) for the recommended setup. Native Windows runs `flisk demo` and projects whose services each declare a `command` as local processes, and inspects Docker projects (`flisk doctor`, `flisk up --dry-run`); `flisk up` on a Docker project refuses with WSL2 guidance.
 
 ---
 
@@ -42,7 +42,7 @@ All should print version info without errors. Skip the check for a tool you don'
 Four ways to a running app:
 
 - **Simplest**: run your own small app on your computer, without Docker. It is shown below.
-- **[One-command demo](start/demo.md)**: watch a whole example app, with a database, start from one command. Needs Docker.
+- **[One-command demo](start/demo.md)**: watch an example app start from one command. Without Docker it runs a small menu app as local processes; with Docker and Tilt, the whole restaurant app with a database.
 - **[Full control](start/manual.md)**: build your own project step by step. Needs Docker.
 - **[Guided setup](start/guided.md)**: answer a few questions and get a ready project. Needs Docker.
 
@@ -133,7 +133,7 @@ The commands you will use most, by what you want to do:
 
 ## Windows & WSL2
 
-Flisk runs on Windows **via WSL2 Ubuntu**: the Ubuntu app that [WSL2](start/words.md#wsl2), Windows' built-in way to run Linux, installs. Native Windows is inspection-only: outside Ubuntu, Flisk can check your setup but not start your app.
+Flisk runs on Windows **via WSL2 Ubuntu**: the Ubuntu app that [WSL2](start/words.md#wsl2), Windows' built-in way to run Linux, installs. Outside Ubuntu, native Windows runs `flisk demo` and apps whose services each declare a `command` ([without Docker](run-without-docker.md)); a Docker stack needs Ubuntu.
 
 ### Recommended setup
 
