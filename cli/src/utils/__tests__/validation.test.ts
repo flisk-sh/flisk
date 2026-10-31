@@ -167,6 +167,15 @@ describe("isValidPort", () => {
   ])("should reject %s: %j", (_label, port) => {
     expect(isValidPort(port)).toBe(false);
   });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["boolean", true],
+    ["object", { port: 3000 }],
+  ])("should reject a value that is neither number nor string (%s)", (_label, port) => {
+    expect(isValidPort(port as unknown as number)).toBe(false);
+  });
 });
 
 describe("sanitizeForShell", () => {
