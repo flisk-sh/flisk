@@ -40,6 +40,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/check-ci-inventory.test.mjs
 	node --test scripts/check-ruleset-snapshots.test.mjs
 	node --test scripts/check-test-helper-allowlist.test.mjs
+	node --test cli/scripts/pin-module-location.test.mjs
 	node --test scripts/check-published-service-schema.test.mjs
 	node --test scripts/pilot-scorecard.test.mjs
 	node --test scripts/package-lifecycle-smoke.test.mjs
