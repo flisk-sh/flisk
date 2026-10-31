@@ -15,6 +15,11 @@ export declare function validateRepoUrl(url: string): {
     valid: boolean;
     reason?: string;
 };
+/** Validates an optional branch name to prevent option injection and dangerous characters. */
+export declare function validateRepoBranch(branch?: string): {
+    valid: boolean;
+    reason?: string;
+};
 /** Validates that a destination directory is safe and contained within the project root. */
 export declare function validateRepoDir(dir: string, projectRoot: string): {
     valid: boolean;

@@ -73,6 +73,22 @@ export function validateRepoUrl(url: string): { valid: boolean; reason?: string 
   return { valid: true };
 }
 
+/** Validates an optional branch name to prevent option injection and dangerous characters. */
+export function validateRepoBranch(branch?: string): { valid: boolean; reason?: string } {
+  if (!branch) return { valid: true };
+  const trimmed = branch.trim();
+  if (trimmed.startsWith("-")) {
+    return { valid: false, reason: `Branch name cannot start with a dash: "${trimmed}"` };
+  }
+  if (hasControlCharacters(trimmed) || /[\s;`$|&><]/.test(trimmed)) {
+    return { valid: false, reason: `Branch name contains dangerous characters: "${trimmed}"` };
+  }
+  if (!/^[a-zA-Z0-9_./-]+$/.test(trimmed)) {
+    return { valid: false, reason: `Invalid branch name format: "${trimmed}"` };
+  }
+  return { valid: true };
+}
+
 /** Validates that a destination directory is safe and contained within the project root. */
 export function validateRepoDir(
   dir: string,
@@ -149,6 +165,10 @@ export function validateRepoList(
     if (!urlValidation.valid) {
       return { valid: false, reason: urlValidation.reason };
     }
+    const branchValidation = validateRepoBranch(repo.branch);
+    if (!branchValidation.valid) {
+      return { valid: false, reason: branchValidation.reason };
+    }
     const dirValidation = validateRepoDir(repo.dir, projectRoot);
     if (!dirValidation.valid) {
       return { valid: false, reason: dirValidation.reason };
@@ -219,6 +239,7 @@ export async function cloneRepo(
     "clone",
     "--quiet",
     ...(repo.branch ? ["--branch", repo.branch] : []),
+    "--",
     repo.url,
     targetPath,
   ];

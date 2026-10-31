@@ -16,6 +16,7 @@ import {
   checkProjectRepos,
   cloneMissingRepos,
   cloneRepo,
+  validateRepoBranch,
   validateRepoDir,
   validateRepoList,
   validateRepoUrl,
@@ -64,6 +65,27 @@ describe("project-repos utility", () => {
       expect(validateRepoUrl("https://github.com/repo$evil").valid).toBe(false);
       expect(validateRepoUrl("https://github.com/repo|evil").valid).toBe(false);
       expect(validateRepoUrl("https://github.com/repo&evil").valid).toBe(false);
+    });
+  });
+
+  describe("validateRepoBranch", () => {
+    it("accepts valid branch names", () => {
+      expect(validateRepoBranch("main").valid).toBe(true);
+      expect(validateRepoBranch("feature/auth-v2").valid).toBe(true);
+      expect(validateRepoBranch("release-1.0.0").valid).toBe(true);
+      expect(validateRepoBranch(undefined).valid).toBe(true);
+    });
+
+    it("rejects branches starting with dash", () => {
+      const res = validateRepoBranch("--upload-pack=evil");
+      expect(res.valid).toBe(false);
+      expect(res.reason).toContain("cannot start with a dash");
+    });
+
+    it("rejects dangerous or control characters in branch", () => {
+      expect(validateRepoBranch("branch;rm -rf /").valid).toBe(false);
+      expect(validateRepoBranch("branch`evil`").valid).toBe(false);
+      expect(validateRepoBranch("branch$evil").valid).toBe(false);
     });
   });
 
@@ -184,6 +206,7 @@ describe("project-repos utility", () => {
         "--quiet",
         "--branch",
         "develop",
+        "--",
         "https://github.com/acme/orders.git",
         resolve(tempDir, "services/orders"),
       ]);
