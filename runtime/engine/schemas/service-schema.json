@@ -458,6 +458,22 @@
       "description": "Non-secret configuration parameters (BASE_URL, PORT, etc.). Secrets use 'secrets' section below.",
       "type": "object"
     },
+    "providers": {
+      "description": "External endpoints this service calls, such as IBM Quantum, Amazon Braket or a hosted model API, by name. For provider ibm-quantum the service gets PROVIDER_IBM_QUANTUM_URL, the token from the project .env under tokenSecret (like secrets), PROVIDER_IBM_QUANTUM_REMOTE=true while that token has a value, and with fallback PROVIDER_IBM_QUANTUM_FALLBACK_URL=http://<fallback>:<port>, a local resource (a simulator) to use instead.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string", "pattern": "^https?://[A-Za-z0-9_\\-./:@%+=,~]+$", "description": "The remote endpoint." },
+          "tokenSecret": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Name of the secret in the project .env that holds the token, such as IBM_QUANTUM_TOKEN." },
+          "fallback": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A resource in this project to use while the token is missing, such as a local simulator. List it in dependsOn too." },
+          "required": { "type": "boolean", "description": "Refuse to start without the token. Defaults to true when there is a tokenSecret and no fallback." }
+        }
+      }
+    },
     "provides": {
       "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type redis, qdrant and rabbitmq write it.",
       "type": "object",

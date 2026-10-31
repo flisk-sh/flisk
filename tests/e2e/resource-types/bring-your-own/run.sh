@@ -10,6 +10,7 @@
 #   BYO_VARIANT=pair tests/e2e/resource-types/bring-your-own/run.sh all       a dependency and an app through flisk up (BY4)
 #   BYO_VARIANT=hpc tests/e2e/resource-types/bring-your-own/run.sh all        GPU, CPU, memory and IPC options (BY7)
 #   BYO_VARIANT=infra tests/e2e/resource-types/bring-your-own/run.sh all      redis, qdrant and rabbitmq presets (BY8)
+#   BYO_VARIANT=providers tests/e2e/resource-types/bring-your-own/run.sh all  external providers and their tokens (BY9)
 #   tests/e2e/resource-types/bring-your-own/run.sh BY1                         a single case
 #
 # The verify scripts build images, run them and clean up after themselves, so this suite has no resources of its own.
@@ -73,6 +74,7 @@ BY6() {
 }
 BY7() { run_verify verify-byo-hpc.sh "BY7 GPUs, CPU and memory limits and IPC reach the container and the generated Compose file"; }
 BY8() { run_verify verify-byo-infra.sh "BY8 redis, qdrant and rabbitmq presets reached through the settings they provide"; }
+BY9() { run_verify verify-byo-providers.sh "BY9 an external provider falls back to a local simulator, then uses its rotated token"; }
 
 # \`all\` runs only this variant's case: every leg of this suite is one variant, not every case in suite.json.
 args=()

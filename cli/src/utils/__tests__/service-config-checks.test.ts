@@ -567,6 +567,36 @@ describe("the gate accepts what `flisk import` writes for a Compose app", () => 
 });
 
 describe("checkRequiredSecrets", () => {
+  it("requires a provider's token unless the provider has a local fallback", () => {
+    service("agent", {
+      dependsOn: ["quantum-sim"],
+      providers: {
+        braket: { url: "https://braket.example", tokenSecret: "AWS_BRAKET_TOKEN" },
+        "ibm-quantum": {
+          url: "https://quantum.example",
+          tokenSecret: "IBM_QUANTUM_TOKEN",
+          fallback: "quantum-sim",
+        },
+      },
+    });
+    const result = checkRequiredSecrets(root, undefined, {});
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain(
+      "secret AWS_BRAKET_TOKEN (token of provider braket) has no value",
+    );
+    expect(result.message).not.toContain("IBM_QUANTUM_TOKEN");
+    expect(checkRequiredSecrets(root, undefined, { AWS_BRAKET_TOKEN: "t" }).didPass).toBe(true);
+  });
+
+  it("names a token once when secrets.required also lists it", () => {
+    service("agent", {
+      secrets: { required: ["AWS_BRAKET_TOKEN"] },
+      providers: { braket: { url: "https://braket.example", tokenSecret: "AWS_BRAKET_TOKEN" } },
+    });
+    const message = checkRequiredSecrets(root, undefined, {}).message;
+    expect(message.match(/AWS_BRAKET_TOKEN/g)).toHaveLength(1);
+  });
+
   it("fails for a required secret with no value, naming the file and the secret", () => {
     service("api", { secrets: { required: ["SECRET_KEY"], optional: ["TOKEN"] } });
     const result = checkRequiredSecrets(root, undefined, {});
