@@ -90,6 +90,17 @@ const TRAEFIK = {
   frontendPriorityBase: 100,
 } as const;
 
+/**
+ * The capabilities Flisk can turn off, all on by default. Only list one here once something reads it: `flisk status --json`
+ * reports these as enabled, and `.flisk/project.json` setting one to false must change what Flisk provisions.
+ */
+export const DEFAULT_CAPABILITIES = {
+  gateway: true,
+  database: true,
+} as const;
+
+const CAPABILITIES = DEFAULT_CAPABILITIES;
+
 const FILEWATCH_IGNORES = [
   "node_modules",
   "dist",
@@ -186,6 +197,7 @@ export const PLATFORM_STANDARDS = {
   health: HEALTH_CHECKS,
   naming: NAMING,
   traefik: TRAEFIK,
+  capabilities: CAPABILITIES,
   filewatchIgnores: FILEWATCH_IGNORES,
   serviceTypes: RESOURCE_TYPES,
   features: FEATURES,

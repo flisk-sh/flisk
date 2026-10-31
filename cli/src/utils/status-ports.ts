@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import type { DiscoveredResource, HostPortPlan } from "../types/index.js";
+import type { DiscoveredResource, HostPortPlan, ProjectCapabilities } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE, STANDARD_PORTS } from "./constants.js";
 import { resolveServicePath, resolveSubdomainBases, routesAsApi } from "./service-urls.js";
 
@@ -22,30 +22,58 @@ export interface StackPort {
   purpose: string;
 }
 
+export type StackPortsOptions =
+  | { capabilities?: ProjectCapabilities; gateway?: boolean }
+  | ProjectCapabilities
+  | boolean;
+
+function resolveGatewayOption(options?: StackPortsOptions): boolean {
+  if (options === undefined || options === null) return true;
+  if (typeof options === "boolean") return options;
+  const opts = options as { gateway?: boolean; capabilities?: ProjectCapabilities };
+  if (typeof opts.gateway === "boolean") {
+    return opts.gateway;
+  }
+  if (opts.capabilities && typeof opts.capabilities.gateway === "boolean") {
+    return opts.capabilities.gateway;
+  }
+  return true;
+}
+
 export function buildServicePorts(
   resource: DiscoveredResource,
   ingressHttp?: number,
+  options?: StackPortsOptions,
 ): ServicePorts {
+  const gatewayEnabled = resolveGatewayOption(options);
   const appType = resource.config?.appType;
-  const routable = appType === "frontend" || routesAsApi(resource);
+  // A frontend or API is reached only through the gateway; its container publishes no host port of its own.
+  const routedByType = appType === "frontend" || routesAsApi(resource);
+  const routable = gatewayEnabled && routedByType;
   let url: string | null = null;
   if (routable) {
     const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
     url = `${routesAsApi(resource) ? apiBase : appBase}${resolveServicePath(resource)}`;
   }
   const containerPort = resource.port ?? resource.config?.port ?? null;
-  // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer.
+  // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer. Neither does a frontend or
+  // API with the gateway off.
   const directUrl =
-    !routable && containerPort && appType !== BRING_YOUR_OWN_TYPE
+    !routedByType && containerPort && appType !== BRING_YOUR_OWN_TYPE
       ? `http://localhost:${containerPort}`
       : null;
   return { url, containerPort, hostPort: null, directUrl };
 }
 
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */
-export function buildStackPorts(plan: HostPortPlan | null, tiltPort?: number): StackPort[] {
+export function buildStackPorts(
+  plan: HostPortPlan | null,
+  tiltPort?: number,
+  options?: StackPortsOptions,
+): StackPort[] {
+  const gatewayEnabled = resolveGatewayOption(options);
   const ports: StackPort[] = [];
-  if (plan) {
+  if (plan && gatewayEnabled) {
     ports.push(
       { name: "ingress-http", hostPort: plan.ingressHttp, purpose: "Traefik HTTP ingress" },
       { name: "ingress-https", hostPort: plan.ingressHttps, purpose: "Traefik HTTPS ingress" },

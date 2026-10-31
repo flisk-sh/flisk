@@ -81,7 +81,10 @@ export function validateSmoke(smoke) {
     return errors;
 }
 /** One plan per routable service that declares `smoke`. Workers and BYO with exposeViaProxy false have no public route. */
-export function buildSmokePlans(resources, ingressPort) {
+export function buildSmokePlans(resources, ingressPort, options = {}) {
+    // Smoke steps go through the gateway URL. With the gateway off no such URL answers, so there is nothing to check.
+    if (options.gateway === false)
+        return [];
     const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
     const plans = [];
     for (const resource of resources) {

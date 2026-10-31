@@ -16,10 +16,23 @@ export declare function isPortHeldByProjectContainers(dockerPs: string, projectR
  * containers hold the saved port, probe that one.
  */
 export declare function resolveRuntimeIngressPort(projectRoot: string, plannedPort: number | undefined, readDockerPs?: () => string): number | undefined;
-/** Reuse this project's last selection when its ports are still free or held by its own containers. */
+/**
+ * Reuse this project's last selection when its ports are still free or held by its own containers. Only the ports of the
+ * capabilities that are on are planned: with the gateway off, HTTP and HTTPS are never probed (no Traefik binds them).
+ */
 export declare function getHostPortPlan(projectRoot: string, options?: {
     inspectDocker?: boolean;
     isPortFree?: (port: number) => Promise<boolean>;
     database?: boolean;
+    gateway?: boolean;
     capabilities?: ProjectCapabilities;
 }): Promise<HostPortPlan>;
+/** Which shared containers need a host port: the gateway takes HTTP/HTTPS, the database takes Postgres. */
+export interface HostPortCapabilities {
+    gateway: boolean;
+    database: boolean;
+}
+/** The host ports a plan places for the capabilities that are on, as `HTTP 80, HTTPS 443, Postgres 5432`. */
+export declare function describeHostPortPlan(plan: HostPortPlan, caps: HostPortCapabilities): string;
+/** What to set when the host ports for the capabilities that are on cannot be placed. */
+export declare function hostPortPlanFix(caps: HostPortCapabilities): string;

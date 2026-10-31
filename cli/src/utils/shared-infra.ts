@@ -4,7 +4,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DiscoveredResource, DiscoveredStack, ProjectCapabilities } from "../types/index.js";
-import { isDatabaseCapabilityEnabled } from "./capabilities.js";
+import {
+  type CapabilitySource,
+  isDatabaseCapabilityEnabled,
+  isGatewayEnabled,
+} from "./capabilities.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { POSTGRES_DEPENDENCY_NAMES } from "./shared-platform-postgres.js";
 
@@ -33,6 +37,52 @@ export interface SharedInfraDatabase {
 export interface SharedPostgresInstance {
   name: "postgres";
   databases: SharedInfraDatabase[];
+}
+
+export interface SharedInfraItem {
+  name: string;
+  capability: string;
+  description: string;
+}
+
+export const SHARED_INFRA_SERVICES = {
+  traefik: {
+    name: "traefik",
+    capability: "gateway",
+    description: "Traefik reverse proxy",
+  },
+  postgres: {
+    name: "postgres",
+    capability: "database",
+    description: "PostgreSQL database",
+  },
+} as const;
+
+/**
+ * Returns the list of shared infrastructure service names based on enabled capabilities.
+ * When gateway is disabled, Traefik is excluded.
+ */
+export function getSharedInfrastructureList(configOrOptions?: CapabilitySource): string[] {
+  const list: string[] = [];
+  if (isGatewayEnabled(configOrOptions)) {
+    list.push(SHARED_INFRA_SERVICES.traefik.name);
+  }
+  if (isDatabaseCapabilityEnabled(configOrOptions)) {
+    list.push(SHARED_INFRA_SERVICES.postgres.name);
+  }
+  return list;
+}
+
+/**
+ * Returns detailed shared infrastructure items based on enabled capabilities.
+ */
+export function getSharedInfrastructureItems(
+  configOrOptions?: CapabilitySource,
+): SharedInfraItem[] {
+  const list = getSharedInfrastructureList(configOrOptions);
+  return list
+    .map((name) => (SHARED_INFRA_SERVICES as Record<string, SharedInfraItem>)[name])
+    .filter(Boolean);
 }
 
 /** A resource uses the shared database when its features or dependsOn ask for it. */

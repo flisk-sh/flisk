@@ -98,26 +98,26 @@ export function createDoctorReport(
         ? {
             ports: {
               http: {
-                requested: portPlan?.requested.ingressHttp ?? 80,
+                requested: portPlan?.requested?.ingressHttp ?? 80,
                 chosen: portPlan?.ingressHttp ?? null,
-                explicit: portPlan?.explicit.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
-                reason: portPlan?.reason.ingressHttp ?? "port planning failed",
+                explicit: portPlan?.explicit?.ingressHttp ?? Boolean(process.env.FLISK_HTTP_PORT),
+                reason: portPlan?.reason?.ingressHttp ?? "port planning failed",
               },
               https: {
-                requested: portPlan?.requested.ingressHttps ?? 443,
+                requested: portPlan?.requested?.ingressHttps ?? 443,
                 chosen: portPlan?.ingressHttps ?? null,
-                explicit: portPlan?.explicit.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
-                reason: portPlan?.reason.ingressHttps ?? "port planning failed",
+                explicit: portPlan?.explicit?.ingressHttps ?? Boolean(process.env.FLISK_HTTPS_PORT),
+                reason: portPlan?.reason?.ingressHttps ?? "port planning failed",
               },
               ...(capabilities && !capabilities.includes("database")
                 ? {}
                 : {
                     postgres: {
-                      requested: portPlan?.requested.postgres ?? 5432,
+                      requested: portPlan?.requested?.postgres ?? 5432,
                       chosen: portPlan?.postgres ?? null,
                       explicit:
-                        portPlan?.explicit.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
-                      reason: portPlan?.reason.postgres ?? "port planning failed",
+                        portPlan?.explicit?.postgres ?? Boolean(process.env.FLISK_POSTGRES_PORT),
+                      reason: portPlan?.reason?.postgres ?? "port planning failed",
                     },
                   }),
             },

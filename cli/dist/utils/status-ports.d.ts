@@ -1,4 +1,4 @@
-import type { DiscoveredResource, HostPortPlan } from "../types/index.js";
+import type { DiscoveredResource, HostPortPlan, ProjectCapabilities } from "../types/index.js";
 export interface ServicePorts {
     /** Ingress address (Traefik), or null for resources with no route (workers, libraries, migrators). */
     url: string | null;
@@ -15,6 +15,10 @@ export interface StackPort {
     /** What the port is for, so a Dev Container knows which ones to forward. */
     purpose: string;
 }
-export declare function buildServicePorts(resource: DiscoveredResource, ingressHttp?: number): ServicePorts;
+export type StackPortsOptions = {
+    capabilities?: ProjectCapabilities;
+    gateway?: boolean;
+} | ProjectCapabilities | boolean;
+export declare function buildServicePorts(resource: DiscoveredResource, ingressHttp?: number, options?: StackPortsOptions): ServicePorts;
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */
-export declare function buildStackPorts(plan: HostPortPlan | null, tiltPort?: number): StackPort[];
+export declare function buildStackPorts(plan: HostPortPlan | null, tiltPort?: number, options?: StackPortsOptions): StackPort[];
