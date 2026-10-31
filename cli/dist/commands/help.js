@@ -28,7 +28,7 @@ const COMMAND_GROUPS = [
             },
             {
                 name: "export",
-                desc: "Write render.yaml or wrangler.toml from service.json (never deploys)",
+                desc: "Write render.yaml or wrangler.toml from service.json (runs flisk-export; never deploys)",
                 alias: "render|wrangler --dry-run",
             },
         ],

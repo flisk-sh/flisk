@@ -18,7 +18,6 @@ import { configCommand } from "../config.js";
 import { connectCommand } from "../connect.js";
 import { downCommand } from "../down.js";
 import { ejectCommand } from "../eject.js";
-import { exportCommand } from "../export.js";
 import { networksCommand } from "../networks.js";
 import { projectsCommand } from "../projects.js";
 import { resourcesCommand } from "../resources.js";
@@ -78,15 +77,6 @@ const CONFIGURED_PROJECT: Parameters<typeof createTempProject>[0] = {
   projectJson: VALID_PROJECT_JSON,
   stacks: { api: { gateway: { appType: "backend", port: 3100 } } },
   generated: { Tiltfile: "# generated\n", "docker-compose.yml": "services: {}\n" },
-};
-
-/** CONFIGURED_PROJECT with a Dockerfile and a Worker entry, so `flisk export` has something to write. */
-const EXPORT_PROJECT: Parameters<typeof createTempProject>[0] = {
-  ...CONFIGURED_PROJECT,
-  files: {
-    "services/api/gateway/Dockerfile": "FROM node:22\n",
-    "services/api/gateway/src/index.js": "export default {};\n",
-  },
 };
 
 /**
@@ -152,18 +142,6 @@ const DRY_RUN_MATRIX: Array<{
     command: ["eject"],
     project: CONFIGURED_PROJECT,
     expect: "Files written:",
-  },
-  {
-    site: "export render --dry-run",
-    command: ["export", "render"],
-    project: EXPORT_PROJECT,
-    expect: "Dry run",
-  },
-  {
-    site: "export wrangler --dry-run",
-    command: ["export", "wrangler"],
-    project: EXPORT_PROJECT,
-    expect: "Dry run",
   },
   { site: "up --dry-run", command: ["up"], project: CONFIGURED_PROJECT, expect: "Dry run" },
 ];
@@ -234,6 +212,8 @@ const EXEMPT: Record<string, string> = {
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
   "down --yes":
     "runs tilt down against the host's Tilt binary and stops any tilt up for the project; needs Tilt and a running stack",
+  "export --dry-run":
+    "spawns npx @flisk-sh/flisk-export over the network; export.test.ts checks that it is forwarded",
   "import --yes": "spawns npx flisk-import over the network",
   "import --dry-run":
     "spawns npx flisk-import over the network; import.test.ts checks that it is forwarded",
@@ -470,8 +450,6 @@ const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
   connect: { command: connectCommand, args: ["claude"] },
   down: { command: downCommand, args: [] },
   eject: { command: ejectCommand, args: [] },
-  "export render": { command: exportCommand, args: ["render"] },
-  "export wrangler": { command: exportCommand, args: ["wrangler", "--resource", "gateway"] },
   up: { command: upCommand, args: [] },
 };
 
