@@ -25,7 +25,13 @@ const hostPorts = vi.hoisted(() => ({
 }));
 const statusPorts = vi.hoisted(() => ({
   buildServicePorts:
-    vi.fn<(resource: DiscoveredResource, ingressHttp?: number) => { url: string | null }>(),
+    vi.fn<
+      (
+        resource: DiscoveredResource,
+        ingressHttp?: number,
+        options?: { native?: boolean },
+      ) => { url: string | null; directUrl?: string | null }
+    >(),
 }));
 const checker = vi.hoisted(() => ({
   runMcpCheck: vi.fn<(url: string, options: McpCheckOptions) => Promise<McpCheckReport>>(),
@@ -127,7 +133,7 @@ describe("resolveMcpCheckTarget", () => {
       resource: "tools",
     });
     expect(hostPorts.getHostPortPlan).toHaveBeenCalledWith("/project", { inspectDocker: false });
-    expect(statusPorts.buildServicePorts).toHaveBeenCalledWith(tools, 8080);
+    expect(statusPorts.buildServicePorts).toHaveBeenCalledWith(tools, 8080, { native: false });
   });
 
   it("falls back to no ingress port when the port plan cannot be read", async () => {
@@ -139,7 +145,22 @@ describe("resolveMcpCheckTarget", () => {
     await expect(resolveMcpCheckTarget("tools")).resolves.toMatchObject({
       url: "http://demo.localhost/api/tools/mcp",
     });
-    expect(statusPorts.buildServicePorts).toHaveBeenCalledWith(tools, undefined);
+    expect(statusPorts.buildServicePorts).toHaveBeenCalledWith(tools, undefined, { native: false });
+  });
+
+  it("resolves a resource that runs as a local process to localhost at its port plus /mcp", async () => {
+    const tools = makeResource("tools", "mcp", { port: 4100, command: "node server.js" });
+    discovery.createDiscoveryContext.mockReturnValue({ resources: [tools] });
+    statusPorts.buildServicePorts.mockReturnValue({
+      url: null,
+      directUrl: "http://localhost:4100",
+    });
+
+    await expect(resolveMcpCheckTarget("tools")).resolves.toEqual({
+      url: "http://localhost:4100/mcp",
+      resource: "tools",
+    });
+    expect(statusPorts.buildServicePorts).toHaveBeenCalledWith(tools, 8080, { native: true });
   });
 
   it("fails outside a project", async () => {
