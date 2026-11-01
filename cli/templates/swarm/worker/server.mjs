@@ -8,6 +8,9 @@ const name = process.env.WORKER_NAME ?? "worker";
 const coordinator = process.env.COORDINATOR_URL ?? "http://localhost:4100";
 
 async function work(text) {
+  // FAIL_RATE (0 to 1) makes this worker fail on purpose, to watch the swarm retry.
+  if (Math.random() < Number(process.env.FAIL_RATE ?? 0))
+    throw new Error(`${name} failed on purpose`);
   await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
   return `${name} handled "${text}" (${text.split(/\s+/).length} words)`;
 }
@@ -26,7 +29,15 @@ async function loop() {
     try {
       const { task } = await post("/claim", { worker: name });
       if (task) {
-        await post("/complete", { id: task.id, result: await work(task.text) });
+        try {
+          await post("/complete", { id: task.id, result: await work(task.text) });
+        } catch (error) {
+          // Tell the coordinator, so it retries the subtask now instead of waiting for the claim to expire.
+          await post("/fail", {
+            id: task.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
         continue;
       }
     } catch {

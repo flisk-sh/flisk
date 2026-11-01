@@ -6,8 +6,12 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 
-const goals = new Map(); // id -> { id, goal, status, subtasks: [{ id, text, status, worker, result }] }
+const goals = new Map(); // id -> { id, goal, status, subtasks: [{ id, text, status, worker, result, attempts, error }] }
 const queue = []; // subtask ids waiting for a worker
+// A worker that dies or hangs keeps its claim only this long; then the subtask goes back in the queue.
+const claimMs = Number(process.env.CLAIM_MS ?? 15_000);
+// A subtask that fails or times out this many times is marked failed instead of retried.
+const maxAttempts = Number(process.env.MAX_ATTEMPTS ?? 3);
 
 function json(response, status, body) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -31,6 +35,32 @@ export function split(goal) {
     .map((part) => part.trim())
     .filter(Boolean);
 }
+
+/** Puts a subtask back in the queue, or marks it (and its goal) failed once it is out of attempts. */
+function retryOrFail(goal, subtask, error) {
+  subtask.error = error;
+  subtask.worker = null;
+  subtask.deadline = null;
+  if (subtask.attempts >= maxAttempts) {
+    subtask.status = "failed";
+    goal.status = "failed";
+  } else {
+    subtask.status = "queued";
+    queue.push(subtask.id);
+  }
+}
+
+/** Requeues every claim whose worker missed its deadline. */
+function reclaimExpired(now = Date.now()) {
+  for (const goal of goals.values()) {
+    for (const subtask of goal.subtasks) {
+      if (subtask.status === "claimed" && subtask.deadline <= now) {
+        retryOrFail(goal, subtask, `${subtask.worker} did not finish within ${claimMs} ms`);
+      }
+    }
+  }
+}
+setInterval(reclaimExpired, Math.max(100, Math.min(claimMs, 1_000))).unref();
 
 function findSubtask(id) {
   for (const goal of goals.values()) {
@@ -72,6 +102,9 @@ const server = createServer(async (request, response) => {
       status: "queued",
       worker: null,
       result: null,
+      attempts: 0,
+      error: null,
+      deadline: null,
     }));
     const goal = {
       id: randomUUID(),
@@ -86,21 +119,40 @@ const server = createServer(async (request, response) => {
   if (url.pathname === "/claim" && request.method === "POST") {
     const body = await readJson(request);
     const worker = body && typeof body.worker === "string" ? body.worker : "anonymous";
-    const id = queue.shift();
-    if (!id) return json(response, 200, { task: null });
-    const found = findSubtask(id);
+    reclaimExpired();
+    let found = null;
+    while (!found && queue.length) {
+      const candidate = findSubtask(queue.shift());
+      if (candidate?.subtask.status === "queued") found = candidate;
+    }
+    if (!found) return json(response, 200, { task: null });
     found.subtask.status = "claimed";
     found.subtask.worker = worker;
-    return json(response, 200, { task: { id, text: found.subtask.text } });
+    found.subtask.attempts += 1;
+    found.subtask.deadline = Date.now() + claimMs;
+    return json(response, 200, {
+      task: { id: found.subtask.id, text: found.subtask.text, attempt: found.subtask.attempts },
+    });
   }
   if (url.pathname === "/complete" && request.method === "POST") {
     const body = await readJson(request);
     const found = body && findSubtask(body.id);
     if (!found) return json(response, 404, { error: "unknown task id" });
+    // A late answer from a worker whose claim already expired is dropped; the retry owns the subtask now.
+    if (found.subtask.status !== "claimed") return json(response, 409, { error: "claim expired" });
     found.subtask.status = "done";
+    found.subtask.deadline = null;
     found.subtask.result = body.result ?? null;
     if (found.goal.subtasks.every((item) => item.status === "done")) found.goal.status = "done";
     return json(response, 200, { ok: true });
+  }
+  if (url.pathname === "/fail" && request.method === "POST") {
+    const body = await readJson(request);
+    const found = body && findSubtask(body.id);
+    if (!found) return json(response, 404, { error: "unknown task id" });
+    if (found.subtask.status !== "claimed") return json(response, 409, { error: "claim expired" });
+    retryOrFail(found.goal, found.subtask, String(body.error ?? "worker reported a failure"));
+    return json(response, 200, { status: found.subtask.status, attempts: found.subtask.attempts });
   }
   json(response, 404, { error: "not found" });
 });

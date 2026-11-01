@@ -5,6 +5,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { freePort } from "../../test-support/index.js";
 import { securityManifests, writeSecurityProject } from "../security-template.js";
 
 const dirs: string[] = [];
@@ -38,11 +39,11 @@ describe("security template", () => {
     const dir = mkdtempSync(join(tmpdir(), "security-"));
     dirs.push(dir);
     writeSecurityProject(dir);
-    const base = 4600 + Math.floor(Math.random() * 300);
-    const url = (n: number) => `http://localhost:${base + n}`;
+    const ports = [await freePort(), await freePort(), await freePort()];
+    const url = (n: number) => `http://localhost:${ports[n]}`;
     const run = (name: string, n: number, extra: Record<string, string>) =>
       spawn("node", [join(dir, name, "server.mjs")], {
-        env: { ...process.env, PORT: String(base + n), ...extra },
+        env: { ...process.env, PORT: String(ports[n]), ...extra },
       });
     const procs = [
       run("reporter", 2, {}),
