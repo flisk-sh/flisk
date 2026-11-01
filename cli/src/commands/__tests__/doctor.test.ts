@@ -48,6 +48,9 @@ import {
   WSL2_DOCTOR_MESSAGE,
 } from "../doctor.js";
 
+// Stub the host owner lookup so tests never shell out to lsof.
+const noOwner = () => null;
+
 vi.mock("../../utils/windows-doctor.js", () => ({
   checkWindowsRuntimeTools: vi.fn(() => ({
     name: "Windows Runtime Tools",
@@ -97,11 +100,19 @@ describe("doctor exact guidance", () => {
   });
 
   it("uses exact remediation copy for ports 80 and 5432", async () => {
-    const port80 = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
-      port === 80 ? "in-use" : "free",
+    const port80 = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 80 ? "in-use" : "free"),
+      undefined,
+      noOwner,
     );
-    const port5432 = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
-      port === 5432 ? "in-use" : "free",
+    const port5432 = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 5432 ? "in-use" : "free"),
+      undefined,
+      noOwner,
     );
 
     expect(port80.fix).toBe(HOST_PORT_FIXES.port80);

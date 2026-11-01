@@ -65,12 +65,28 @@ export function getPortSetting(
 
   if (
     port === 5432 ||
-    (port >= DEFAULT_HOST_PORT_RANGES.postgres.start && port <= DEFAULT_HOST_PORT_RANGES.postgres.end)
+    (port >= DEFAULT_HOST_PORT_RANGES.postgres.start &&
+      port <= DEFAULT_HOST_PORT_RANGES.postgres.end)
   ) {
     return "FLISK_POSTGRES_PORT";
   }
 
   return undefined;
+}
+
+/**
+ * True when one `docker ps` port mapping publishes `port` on the host. Handles
+ * `[ip:]hostPort->container`, IPv6 binds, and same-number ranges such as
+ * `0.0.0.0:8080-8082->8080-8082/tcp`.
+ */
+export function mappingPublishesHostPort(mapping: string, port: number): boolean {
+  const arrow = mapping.indexOf("->");
+  if (arrow < 0) return false;
+  const hostPart = mapping.slice(0, arrow);
+  const hostPort = hostPart.slice(hostPart.lastIndexOf(":") + 1);
+  const range = /^(\d+)-(\d+)$/.exec(hostPort);
+  if (range) return port >= Number(range[1]) && port <= Number(range[2]);
+  return hostPort === String(port);
 }
 
 /**
@@ -93,7 +109,7 @@ export function findDockerPortOwner(
 
       const published = portsField
         .split(/[\s,]+/)
-        .some((mapping) => mapping.startsWith(`${port}->`) || mapping.includes(`:${port}->`));
+        .some((mapping) => mappingPublishesHostPort(mapping, port));
 
       if (published && name) {
         return {
@@ -196,7 +212,7 @@ export function formatPortOwnerDiagnostic(
     return { message, fix };
   }
 
-  const messageLines: string[] = [`Port ${port} is already in use.`, ""];
+  const messageLines: string[] = [fallbackMessage ?? `Port ${port} is already in use.`, ""];
   let fix = "";
 
   if (owner.ownerType === "docker" && owner.container) {

@@ -8,6 +8,7 @@ import {
   findProcessPortOwner,
   formatPortOwnerDiagnostic,
   getPortSetting,
+  mappingPublishesHostPort,
 } from "../port-owner.js";
 
 describe("port-owner", () => {
@@ -350,5 +351,16 @@ describe("port-owner", () => {
 describe("getPortSetting explicit overrides", () => {
   it("labels an explicitly assigned HTTPS port by its override, not the HTTP default range", () => {
     expect(getPortSetting(8080, { FLISK_HTTPS_PORT: "8080" })).toBe("FLISK_HTTPS_PORT");
+  });
+});
+
+describe("mappingPublishesHostPort", () => {
+  it("matches a port inside a same-number published range", () => {
+    expect(mappingPublishesHostPort("0.0.0.0:8080-8082->8080-8082/tcp", 8081)).toBe(true);
+    expect(mappingPublishesHostPort("0.0.0.0:8080-8082->8080-8082/tcp", 8083)).toBe(false);
+  });
+
+  it("does not match a longer host port that starts with the wanted number", () => {
+    expect(mappingPublishesHostPort("0.0.0.0:1080->80/tcp", 80)).toBe(false);
   });
 });

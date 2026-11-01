@@ -17,11 +17,12 @@ export declare const INGRESS_PORTS: readonly [80, 443];
 export declare function toComposeProjectPrefix(projectName: string): string;
 export interface PublishedPortHolder {
     name: string;
+    image?: string;
     ports: string;
     publishedPorts: number[];
 }
 /**
- * Parse `docker ps --format '{{.Names}}\t{{.Ports}}'` lines into containers that
+ * Parse `docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'` lines into containers that
  * publish specific host ports (e.g. 0.0.0.0:80->80/tcp).
  */
 export declare function parsePublishedPortHolders(dockerPsOutput: string, ports: readonly number[]): PublishedPortHolder[];

@@ -29,6 +29,9 @@ import {
   versionMeetsMinimum,
 } from "../doctor.js";
 
+// Stub the host owner lookup so tests never shell out to lsof.
+const noOwner = () => null;
+
 vi.mock("../../utils/windows-doctor.js", () => ({
   checkWindowsRuntimeTools: vi.fn(() => ({
     name: "Windows Runtime Tools",
@@ -183,8 +186,12 @@ describe("doctor environment contract", () => {
   });
 
   it("puts Postgres port 5432 first in the host-port failure details", async () => {
-    const result = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
-      port === 80 || port === 5432 ? "in-use" : "free",
+    const result = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 80 || port === 5432 ? "in-use" : "free"),
+      undefined,
+      noOwner,
     );
 
     expect(result.didPass).toBe(false);

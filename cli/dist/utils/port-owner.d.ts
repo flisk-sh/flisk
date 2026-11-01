@@ -13,6 +13,12 @@ export interface PortOwnerOptions {
  */
 export declare function getPortSetting(port: number, env?: NodeJS.ProcessEnv): string | undefined;
 /**
+ * True when one `docker ps` port mapping publishes `port` on the host. Handles
+ * `[ip:]hostPort->container`, IPv6 binds, and same-number ranges such as
+ * `0.0.0.0:8080-8082->8080-8082/tcp`.
+ */
+export declare function mappingPublishesHostPort(mapping: string, port: number): boolean;
+/**
  * Find whether a published Docker container owns the specified port.
  */
 export declare function findDockerPortOwner(port: number, dockerRunner?: DockerRunner, env?: NodeJS.ProcessEnv): PortOwnerDetails | null;
