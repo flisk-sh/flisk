@@ -23,9 +23,9 @@ This supersedes the earlier "keep Compose side by side" advice: Compose stays *a
 | Public repo outside `flisk-sh` with `service.json` | Private pilots, logos, DMs |
 | README with both `service.json` and `flisk` (what repo search ranks) | A form submission alone |
 | Topic `flisk` on the repo | Stars on `flisk-sh/flisk` |
-| ADOPTERS.md row, after the repo exists | The `flisk vs compose` search itself |
+| ADOPTERS.md row, after the repo exists | The "flisk vs compose" search itself |
 
-GitHub's `service.json flisk vs compose` is **repository** search (name, description, README). Chasing `vs` is the wrong score.
+GitHub's search for "service.json flisk vs compose" is **repository** search (name, description, README). Chasing `vs` is the wrong score.
 
 ## Metrics (weekly)
 
@@ -78,12 +78,12 @@ https://flisk.sh
 - Log every rejection or objection. Each one is a Flisk design bug to fix (volumes, ports, profiles, env files), per the Risk row above.
 
 **Late Nov - Dec: make it repeatable**
-- Turn the objection log into product fixes and a `flisk adopt` style one-command path (import, generate, verify, README block).
+- Turn the objection log into product fixes and a one-command adopt path (a future command) (import, generate, verify, README block).
 - Agent rule: write `service.json`, run `flisk up`, never hand-write Compose, never edit the generated folder. Ship via `npx skills add flisk-sh/flisk-skills` and `rules/AGENTS.landscape.md`.
 
 **Jan onward: scale**
 - Only after the 10 hands-on repos show a recipe that merges without us. Then bots, agents and docs carry it; the 1% (~100k repos) is a multi-year tooling goal, not a hands-on one.
-- Ignore the `service.json flisk vs compose` search until 10 qualifying READMEs exist.
+- Ignore the "service.json flisk vs compose" search until 10 qualifying READMEs exist.
 
 ## Progress (2026-11-01)
 
