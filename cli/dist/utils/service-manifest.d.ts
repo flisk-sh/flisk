@@ -42,6 +42,12 @@ export declare function sidecarErrors(manifest: Record<string, unknown>, display
  */
 export declare function volumesErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
 /**
+ * `envFile`: extra env files for a bring-your-own resource, each a path relative to the service directory that must stay inside
+ * the project (`serviceDepth` is how many directories the service sits below the project root, unknown when validating a manifest
+ * alone). A missing file is not an error. Mirrors engine/.../compose/byo_env_file.star.
+ */
+export declare function envFileErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
+/**
  * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
  * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
  * engine/.../compose/byo_env.star.

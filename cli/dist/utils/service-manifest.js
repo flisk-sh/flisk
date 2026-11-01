@@ -36,6 +36,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "dockerfile",
     "enabled",
     "env",
+    "envFile",
     "exposeViaProxy",
     "extraPorts",
     "featuresEnabled",
@@ -405,6 +406,7 @@ const CONTAINER_KEYS = new Set([
     "readOnly",
     "user",
     "shmSize",
+    "tmpfs",
     "gpus",
     "cpus",
     "memory",
@@ -472,6 +474,14 @@ export function containerErrors(manifest, displayPath) {
     if (memory !== undefined &&
         !(typeof memory === "string" && SIZE_PATTERN.test(memory) && Number.parseInt(memory, 10) > 0)) {
         errors.push(`${field}.memory: expected a size such as 8g or 512mb`);
+    }
+    const { tmpfs } = container;
+    if (tmpfs !== undefined &&
+        !(Array.isArray(tmpfs) &&
+            tmpfs.every((entry) => typeof entry === "string" &&
+                /^\/[A-Za-z0-9_./-]*(:[a-z0-9=,_-]+)?$/.test(entry) &&
+                !`${entry.split(":")[0]}/`.includes("/../")))) {
+        errors.push(`${field}.tmpfs: expected a list of absolute paths with optional options, such as /tmp:noexec,nosuid,nodev,size=100m`);
     }
     if (ipc !== undefined && !(typeof ipc === "string" && CONTAINER_IPC_MODES.includes(ipc))) {
         errors.push(`${field}.ipc: expected one of ${CONTAINER_IPC_MODES.join(", ")}`);
@@ -641,6 +651,46 @@ export function volumesErrors(manifest, displayPath, serviceDepth) {
         if (readOnly !== undefined && typeof readOnly !== "boolean") {
             errors.push(`${at}.readOnly: expected true or false`);
         }
+    });
+    return errors;
+}
+/**
+ * `envFile`: extra env files for a bring-your-own resource, each a path relative to the service directory that must stay inside
+ * the project (`serviceDepth` is how many directories the service sits below the project root, unknown when validating a manifest
+ * alone). A missing file is not an error. Mirrors engine/.../compose/byo_env_file.star.
+ */
+export function envFileErrors(manifest, displayPath, serviceDepth) {
+    const envFile = manifest.envFile;
+    if (envFile === undefined || envFile === null)
+        return [];
+    const field = `${displayPath}.envFile`;
+    if (!Array.isArray(envFile))
+        return [`${field}: expected a list of paths such as ["../../../.env"]`];
+    if (manifest.appType !== "bring-your-own") {
+        return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+    }
+    const errors = [];
+    envFile.forEach((source, i) => {
+        const at = `${field}[${i}]`;
+        if (typeof source !== "string" || !/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)*$/.test(source)) {
+            errors.push(`${at}: expected a relative file path such as ../../../.env`);
+            return;
+        }
+        if (serviceDepth === undefined)
+            return;
+        let depth = serviceDepth;
+        for (const segment of source.split("/")) {
+            if (segment === "..")
+                depth -= 1;
+            else if (segment !== ".")
+                depth += 1;
+            if (depth < 0)
+                break;
+        }
+        if (depth < 0)
+            errors.push(`${at}: must stay inside the project`);
+        else if (depth === 0)
+            errors.push(`${at}: expected a file inside the project, not its root`);
     });
     return errors;
 }
@@ -1000,6 +1050,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...providersErrors(manifest, displayPath));
     errors.push(...sidecarErrors(manifest, displayPath));
     errors.push(...volumesErrors(manifest, displayPath));
+    errors.push(...envFileErrors(manifest, displayPath));
     errors.push(...byoEnvErrors(manifest, displayPath));
     errors.push(...healthCheckErrors(manifest, displayPath));
     if ("profiles" in manifest) {

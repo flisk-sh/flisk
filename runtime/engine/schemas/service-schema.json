@@ -402,6 +402,11 @@
           "type": "string",
           "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
         },
+        "tmpfs": {
+          "description": "In-memory mounts (Compose tmpfs), each an absolute path in the container with optional mount options after a colon, such as /tmp:noexec,nosuid,nodev,size=100m.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^/[A-Za-z0-9_./-]*(:[a-z0-9=,_-]+)?$" }
+        },
         "ipc": {
           "description": "IPC namespace (Compose ipc). host shares the host's shared memory, which PyTorch data loaders and vLLM tensor parallelism use.",
           "enum": ["host", "private", "shareable", "none"]
@@ -435,6 +440,11 @@
       "description": "appName of another resource in the same stack whose network namespace this bring-your-own resource shares (Compose network_mode: service:<name>). Each reaches the other on 127.0.0.1. A sidecar has no ports, route or networks of its own, starts after its host, and runs as one container.",
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+    },
+    "envFile": {
+      "description": "Extra env files for this bring-your-own resource (Compose env_file), each a path relative to the service directory such as ../../../.env. It must stay inside the project. A file that does not exist is skipped, not an error.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$" }
     },
     "volumes": {
       "description": "Storage for this bring-your-own resource. A source that is a name (\"data\") is a named Docker volume: flisk down keeps it, and two services that name the same volume share it. A source starting with ./ or ../ is a bind mount of a path relative to the service directory, which must stay inside the project.",

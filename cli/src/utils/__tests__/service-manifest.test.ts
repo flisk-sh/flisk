@@ -8,6 +8,7 @@ import {
   byoEnvErrors,
   containerErrors,
   dockerNameErrors,
+  envFileErrors,
   extraPortsErrors,
   generatedFieldErrorsForFile,
   getInvalidServiceRoutePathFields,
@@ -1109,6 +1110,76 @@ describe("volumesErrors", () => {
       `${file}.volumes[0].source: must stay inside the project`,
     ]);
     expect(volumesErrors(byo([{ source: "../../..", target: "/project" }]), file, 3)).toEqual([]);
+  });
+});
+
+describe("container.tmpfs", () => {
+  const file = "services/main/app/service.json";
+  const byo = (tmpfs: unknown) => ({ appType: "bring-your-own", container: { tmpfs } });
+
+  it("accepts paths with and without mount options", () => {
+    expect(
+      containerErrors(byo(["/tmp:noexec,nosuid,nodev,size=100m", "/run", "/var/cache/app"]), file),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [byo("/tmp"), "container.tmpfs: expected a list"],
+    [byo(["tmp"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp/../etc"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp:"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp:SIZE=1"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp\nprivileged: true"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp:size=1m\nprivileged: true"]), "container.tmpfs: expected a list"],
+    [byo(['/tmp:size="1m"']), "container.tmpfs: expected a list"],
+  ])("reports %j", (manifest, message) => {
+    const errors = containerErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+});
+
+describe("envFileErrors", () => {
+  const file = "services/main/app/service.json";
+  const byo = (envFile: unknown) => ({ appType: "bring-your-own", envFile });
+
+  it("accepts paths that stay inside the project, and an absent value", () => {
+    expect(envFileErrors({ appType: "bring-your-own" }, file, 3)).toEqual([]);
+    expect(envFileErrors(byo(["../../../.env", "./app.env", "config/app.env"]), file, 3)).toEqual(
+      [],
+    );
+    expect(envFileErrors(byo(["../../../../.env"]), file)).toEqual([]);
+  });
+
+  it.each([
+    [byo("../.env"), "envFile: expected a list"],
+    [{ appType: "backend", envFile: [".env"] }, "only applies to bring-your-own"],
+    [byo([".env\nprivileged: true"]), "envFile[0]: expected a relative file path"],
+    [byo(["/etc/passwd"]), "envFile[0]: expected a relative file path"],
+    [byo(["a b"]), "envFile[0]: expected a relative file path"],
+    [byo(["../../../../.env"]), "envFile[0]: must stay inside the project"],
+    [byo([42]), "envFile[0]: expected a relative file path"],
+  ])("reports %j", (manifest, message) => {
+    const errors = envFileErrors(manifest, file, 3);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("is part of validateServiceManifest", () => {
+    const result = validateServiceManifest(
+      {
+        appName: "app",
+        appType: "bring-your-own",
+        stack: "main",
+        schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+        image: "example/app:1",
+        envFile: ["../../../.env"],
+        container: { tmpfs: ["/tmp:noexec"] },
+      },
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
   });
 });
 
