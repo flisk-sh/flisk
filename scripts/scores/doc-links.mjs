@@ -154,11 +154,17 @@ export function linkAnchor(target) {
 
 // Convert heading text to GitHub-compatible anchor slug.
 export function githubSlug(text) {
-	return text
+	// Strip tags until none remain, so "<<b>b>" cannot leave a tag behind.
+	let s = text;
+	let prev;
+	do {
+		prev = s;
+		s = s.replace(/<[^>]+>/g, "");
+	} while (s !== prev);
+	return s
 		.trim()
 		.toLowerCase()
 		.replace(/\r/g, "")
-		.replace(/<[^>]+>/g, "")
 		.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
 		.replace(/[`]/g, "")
 		.replace(/[^\p{Letter}\p{Mark}\p{Number}\p{Connector_Punctuation}\s-]/gu, "")
