@@ -63,3 +63,8 @@ jobs:
 
       - name: Build and push the eight golden layers
         run: bash scripts/golden/push-golden-images.sh "$RUNNER_TEMP/golden" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"
+
+      # Reads every pushed image back the way `flisk up` pulls it (GHCR without a login, so a private package fails here):
+      # both platforms, a size within bounds, the hash label, and the same digest in both registries.
+      - name: Verify the published golden images
+        run: python3 -I scripts/golden/verify-golden-images.py "$RUNNER_TEMP/golden/golden-layers.Dockerfile" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"

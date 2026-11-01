@@ -2,13 +2,16 @@ export type ServiceProgressState = "waiting" | "building" | "starting" | "ready"
 export interface ServiceProgress {
     name: string;
     state: ServiceProgressState;
+    /** Milliseconds the service has been building, if in the building state. */
+    buildingDurationMs?: number;
 }
 /**
  * The state of each resource `flisk up` waits for, from `tilt get uiresources -o json`. Disabled, deferred, advisory and
  * the `(Tiltfile)` resource are left out, so the count matches what readiness gates on.
  */
 export declare function classifyUpProgress(jsonText: string, deferred: Set<string>): ServiceProgress[];
-/** `5/9 ready`, then the services in each unfinished state. */
+export declare function formatProgressDuration(ms: number): string;
+/** `5/9 ready`, then the services in each unfinished state, including duration for building services. */
 export declare function formatUpProgressLine(services: ServiceProgress[]): string;
 export declare function formatServiceFailedLine(name: string): string;
 /**
@@ -36,6 +39,7 @@ export declare function createUpProgressReporter(options: {
     deferred: Set<string>;
     /** Terminal width; the redrawn line is cut to it so it never wraps. */
     columns?: number;
+    now?: () => number;
 }): UpProgressReporter;
 /** Wraps the readiness poll so every answer from Tilt also updates the progress. */
 export declare function fetchWithProgress(fetchJson: (port: number) => Promise<string | null>, progress: UpProgressReporter): (port: number) => Promise<string | null>;

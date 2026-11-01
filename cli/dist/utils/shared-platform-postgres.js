@@ -3,9 +3,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDatabaseCapabilityEnabled } from "./capabilities.js";
-import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
+import { DATABASE_MANAGEMENT_FEATURE } from "./constants.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "./project-config-defaults.js";
+import { readProjectJson } from "./project-reader.js";
 import { discoverResourcesFromRoot } from "./services.js";
 /**
  * Shared platform Postgres start predicate.
@@ -37,14 +38,6 @@ export function databaseResourceNames(resources) {
 /** True when a dependsOn name means the shared platform Postgres: one of its aliases, or a `database` resource. */
 export function namesSharedPlatformPostgres(name, databaseNames = []) {
     return isSharedPlatformPostgresDependency(name) || databaseNames.includes(name);
-}
-function readProjectJson(projectRoot) {
-    try {
-        return JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-    }
-    catch {
-        return undefined;
-    }
 }
 function readTextIfExists(path) {
     try {
