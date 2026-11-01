@@ -28,6 +28,7 @@ load("./byo_volumes.star", "VOLUME_MARKER", "byo_volumes")
 load("./byo_env.star", "byo_environment_lines")
 load("./byo_env_file.star", "byo_env_file_lines")
 load("./byo_models.star", "MODEL_MARKER", "byo_models")
+load("./byo_build_logging.star", "byo_build_args_lines", "byo_logging_section")
 load("../networking/traefik.star", "get_frontend_traefik_labels", "get_backend_traefik_labels")
 load("../networking/api_path_constants.star", "get_api_path_for_domain", "get_frontend_base_path")
 load("../secrets/infisical.star", "get_infisical_environment_vars")
@@ -279,10 +280,13 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
                 dockerfile = dockerfile[2:]
             build_config = """    build:
       context: {build_context}
-      dockerfile: {dockerfile}""".format(
+      dockerfile: {dockerfile}
+{build_args}""".format(
                 build_context=build_context,
                 dockerfile=dockerfile,
-            )
+                # `buildArgs` (bring-your-own): Compose build.args, written as JSON strings so variables reach Compose as written.
+                build_args=byo_build_args_lines(manifest),
+            ).rstrip("\n")
     else:
         build_config = compose_build_config(resource_path, res_name)
     
@@ -411,7 +415,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {auth_env}{secrets_env}{byo_env}
 {agent_volume_section}{byo_volume_section}{byo_model_section}    labels:
 {traefik_labels}
-{networks_section}{healthcheck_section}    # Note: depends_on removed - Tilt manages service startup order
+{networks_section}{healthcheck_section}{logging_section}    # Note: depends_on removed - Tilt manages service startup order
 {deploy_section}""".format(
         resource_entry_name=resource_entry_name,
         res_name=res_name,
@@ -433,6 +437,8 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         init="true" if container_options.init else "false",
         container_section=container_options.section,
         deploy_section=container_options.deploy,
+        # `logging` (bring-your-own): Compose logging driver and options, such as json-file with max-size (#2965).
+        logging_section=byo_logging_section(manifest),
         extra_ports_section=extra_ports_section,
         networks_section=(
             '    network_mode: "service:{}"\n'.format(sidecar_of)

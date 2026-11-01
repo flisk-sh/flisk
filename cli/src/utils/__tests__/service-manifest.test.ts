@@ -6,14 +6,17 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { substitutePublish } from "../extra-port-publish.js";
 import {
+  buildArgsErrors,
   byoEnvErrors,
   containerErrors,
+  dependsOnErrors,
   dockerNameErrors,
   envFileErrors,
   extraPortsErrors,
   generatedFieldErrorsForFile,
   getInvalidServiceRoutePathFields,
   isDockerSafeName,
+  loggingErrors,
   modelsErrors,
   providersErrors,
   providersOf,
@@ -1206,6 +1209,147 @@ describe("envFileErrors", () => {
     );
     expect(result.errors).toEqual([]);
     expect(result.warnings).toEqual([]);
+  });
+});
+
+describe("Compose settings from imported stacks, round 3", () => {
+  const file = "services/shop/web/service.json";
+  const byo = (fields: Record<string, unknown>) => ({
+    appName: "web",
+    appType: "bring-your-own",
+    stack: "shop",
+    schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+    dockerfile: "Dockerfile",
+    ...fields,
+  });
+
+  it("accepts every new shape in one manifest, with no warnings", () => {
+    const result = validateServiceManifest(
+      byo({
+        dependsOn: [
+          "cache",
+          { name: "db", condition: "service_healthy" },
+          { name: "migrate", condition: "service_completed_successfully" },
+          { name: "queue", condition: "service_started" },
+          { name: "search" },
+        ],
+        buildArgs: { NODE_VERSION: "${NODE_VERSION:-22}", APP_ENV: "production", TAG: "${TAG-1}" },
+        logging: { driver: "json-file", options: { "max-size": "5m", "max-file": "5" } },
+        env: {
+          CONFIG: "${A:-${B:-file}}",
+          MONGO_URL: "mongodb://${U:-x}:${P}@db/eddi?a=b&c=d",
+        },
+        volumes: [
+          { source: "${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}", target: "/shared" },
+          { source: "${OM_CACHE-../cache}", target: "/cache", readOnly: true, selinux: "z" },
+          { source: "./data", target: "/data", selinux: "Z" },
+        ],
+      }),
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it.each([
+    [[{ name: "db", condition: "service_ready" }], "dependsOn[0].condition: expected one of"],
+    [[{ name: "db", restart: true }], "dependsOn[0].restart: unknown option"],
+    [[{ condition: "service_healthy" }], "dependsOn[0].name: expected a service or stack name"],
+    [[42], "dependsOn[0]: expected a name, or an object"],
+  ])("refuses dependsOn %j", (dependsOn, message) => {
+    const errors = dependsOnErrors({ dependsOn }, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it.each([
+    [byo({ buildArgs: ["A=b"] }), "buildArgs: expected an object"],
+    [byo({ buildArgs: { "1A": "b" } }), "names must be letters"],
+    [
+      byo({ buildArgs: { A: "b\nprivileged: true" } }),
+      "buildArgs.A: expected a string without line breaks",
+    ],
+    [byo({ buildArgs: { A: 1 } }), "buildArgs.A: expected a string"],
+    [
+      byo({ dockerfile: undefined, image: "nginx:alpine", buildArgs: { A: "b" } }),
+      "only applies to a resource built from a Dockerfile",
+    ],
+    [{ appType: "backend", buildArgs: { A: "b" } }, "only applies to bring-your-own"],
+  ])("refuses buildArgs in %j", (manifest, message) => {
+    const errors = buildArgsErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it.each([
+    [byo({ logging: "json-file" }), "logging: expected an object"],
+    [byo({ logging: { driver: "json-file", labels: "x" } }), "logging.labels: unknown option"],
+    [byo({ logging: { driver: "json file" } }), "logging.driver: expected a driver name"],
+    [byo({ logging: { driver: "json-file\n    privileged: true" } }), "logging.driver"],
+    [byo({ logging: { options: { "max-size\n  x": "5m" } } }), "logging.options: keys must be"],
+    [
+      byo({ logging: { options: { "max-size": "5m\nprivileged: true" } } }),
+      "logging.options.max-size",
+    ],
+    [
+      byo({ logging: { options: { "max-file": 5 } } }),
+      "logging.options.max-file: expected a string",
+    ],
+    [{ appType: "backend", logging: { driver: "local" } }, "only applies to bring-your-own"],
+  ])("refuses logging in %j", (manifest, message) => {
+    const errors = loggingErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  const volume = (entry: Record<string, unknown>) => ({
+    appType: "bring-your-own",
+    volumes: [{ target: "/x", ...entry }],
+  });
+
+  it.each([
+    [volume({ source: "${A:-/etc}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A:-data}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${1A:-./x}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A:-./x" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A:-./x\n  privileged: true}" }), "volumes[0].source: variables must be"],
+    [
+      volume({ source: "./x", selinux: "Zz" }),
+      "volumes[0].selinux: expected z (shared) or Z (private)",
+    ],
+    [volume({ source: "data", selinux: "Z" }), "volumes[0].selinux: only applies to a bind mount"],
+  ])("refuses the volume %j", (manifest, message) => {
+    const errors = volumesErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("checks that a variable's default bind path stays inside the project", () => {
+    expect(volumesErrors(volume({ source: "${A:-../../../../etc}" }), file, 3)).toEqual([
+      `${file}.volumes[0].source: must stay inside the project`,
+    ]);
+    expect(volumesErrors(volume({ source: "${A:-../../../shared}" }), file, 3)).toEqual([]);
+  });
+
+  it.each([
+    "dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set, see .env.example}",
+    "app:${TAG?TAG must be set}",
+    "app:${TAG:?}",
+  ])("accepts the image %s", (image) => {
+    expect(validateGeneratedStringFields({ image }, file)).toEqual([]);
+  });
+
+  it.each([
+    'a:${B:?x"y}',
+    "a:${B:?x\\y}",
+    "a:${B:?x{y}",
+    "a:${B:?x$y}",
+    "a:${B:?x\ny}",
+    "a:${B:?x`y}",
+    "a:${B:?caf\u00e9}",
+  ])("refuses the image %j", (image) => {
+    expect(validateGeneratedStringFields({ image }, file)).toHaveLength(1);
   });
 });
 
