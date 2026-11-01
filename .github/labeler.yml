@@ -327,7 +327,6 @@ ci:
       - any-glob-to-any-file:
           - "runtime/engine/schemas/**"
           - "runtime/engine/topologies/tilt/manifest/schema.star"
-          - "runtime/discovery/schemas.star"
           - "runtime/discovery/manifest/**"
           - "cli/src/frontend-frameworks/registry.ts"
           - "cli/src/commands/__tests__/resource.test.ts"
