@@ -560,7 +560,7 @@ const isPortNumber = (value: unknown): value is number =>
  */
 function publishError(publish: unknown): number | string {
   if (typeof publish !== "string" || publish === "") {
-    return 'expected a string such as "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}"';
+    return 'expected a string such as "${WEB_HTTP_BIND:-127.0.0.1:80}"';
   }
   const variables = publishVariables(publish);
   if (typeof variables === "string") return variables;

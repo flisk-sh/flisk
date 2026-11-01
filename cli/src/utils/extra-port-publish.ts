@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { parseEnv } from "./env-validator.js";
 
 /**
- * `extraPorts[].publish` (#2947): the host side of a Compose port mapping, `"${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}"`, so a
+ * `extraPorts[].publish` (#2947): the host side of a Compose port mapping, `"${WEB_HTTP_BIND:-127.0.0.1:80}"`, so a
  * `.env` setting that Compose projects already use keeps working. Mirrors _parse_publish in
  * engine/.../compose/byo_ports.star. The string is written into the generated Compose file as it is, so only digits, `.`, `:`
  * and `${NAME:-default}` are accepted, and every variable must carry a default (the safe value is then visible in service.json
