@@ -13,18 +13,18 @@ This guide maps each layer and variant to its source module, target stage, image
 
 ## Golden Layers Reference (L1–L4)
 
-The golden image hierarchy defines exactly 8 target images. These images are local-only and are tagged with your project name prefix (loaded from `.flisk/project.json`, falling back to `flisk-project`):
+The golden image hierarchy defines exactly 8 target images, all stages of one generated Dockerfile (`.flisk/.flisk-out/golden-layers.Dockerfile`, produced by `golden_image_dockerfile.star`). The files under `layers/` generate the *service* Dockerfiles that start `FROM` these images; they do not build the golden images themselves. These images are local-only and are tagged with your project name prefix (loaded from `.flisk/project.json`, falling back to `flisk-project`):
 
-| Layer | Purpose | Source module | Image or target | Actual identifying log line |
+| Layer | Purpose | Defined in | Dockerfile stage and image | Bake target (as named in build errors) |
 |---|---|---|---|---|
-| **L1** | Foundational Alpine OS and Bun runtime environment | [`layers/l1_base_layers.star`](../runtime/engine/topologies/platform/docker/layers/l1_base_layers.star) | Target: `l1_golden`<br/>Image: `<project>-l1:latest` | `target "l1"`<br/>`FROM oven/bun:1.3.11-alpine... AS l1_golden` |
-| **L2** | Common dependencies, debugging utilities, and pre-warmed `/cache/bun` & `/cache/prisma` | [`layers/l2_dependency_layers.star`](../runtime/engine/topologies/platform/docker/layers/l2_dependency_layers.star) | Target: `l2_golden`<br/>Image: `<project>-l2:latest` | `target "l2"`<br/>`FROM l1_golden AS l2_golden`<br/>`RUN mkdir -p /cache/bun /cache/prisma` |
-| **L3-backend** | Backend and migrator build tools (Prisma CLI; Infisical CLI omitted) | [`layers/l3_builder_layers.star`](../runtime/engine/topologies/platform/docker/layers/l3_builder_layers.star) | Target: `l3_backend_golden`<br/>Image: `<project>-l3-backend:latest` | `target "l3-backend"`<br/>`FROM l2_golden AS l3_backend_golden`<br/>`RUN bun add -g prisma@` |
-| **L3-frontend** | Frontend build tools without database tooling | [`layers/l3_builder_layers.star`](../runtime/engine/topologies/platform/docker/layers/l3_builder_layers.star) | Target: `l3_frontend_golden`<br/>Image: `<project>-l3-frontend:latest` | `target "l3-frontend"`<br/>`FROM l2_golden AS l3_frontend_golden` |
-| **L4-backend** | Lean backend production runtime using Bun with `--smol` GC options and HTTP health check | [`layers/l4_runtime_layers.star`](../runtime/engine/topologies/platform/docker/layers/l4_runtime_layers.star) | Target: `l4_backend_bun`<br/>Image: `<project>-l4-backend:latest` | `target "l4-backend"`<br/>`FROM l1_golden AS l4_backend_bun` |
-| **L4-backend-node** | Lightweight alternative backend runtime using Node.js 22 Alpine | [`layers/l4_runtime_layers.star`](../runtime/engine/topologies/platform/docker/layers/l4_runtime_layers.star) | Target: `l4_backend_node`<br/>Image: `<project>-l4-backend-node:latest` | `target "l4-backend-node"`<br/>`FROM node:22-alpine... AS l4_backend_node` |
-| **L4-frontend** | Minimal frontend static asset runtime using Nginx 1.27 Alpine | [`layers/l4_runtime_layers.star`](../runtime/engine/topologies/platform/docker/layers/l4_runtime_layers.star) | Target: `l4_frontend_golden`<br/>Image: `<project>-l4-frontend:latest` | `target "l4-frontend"`<br/>`FROM nginx:1.27-alpine... AS l4_frontend_golden` |
-| **L4-migrator** | Database migration runner copying Prisma from L3-backend | [`layers/l4_runtime_layers.star`](../runtime/engine/topologies/platform/docker/layers/l4_runtime_layers.star) | Target: `l4_migrator_golden`<br/>Image: `<project>-l4-migrator:latest` | `target "l4-migrator"`<br/>`FROM l1_golden AS l4_migrator_golden`<br/>`COPY --from=l3_backend_golden /root/.bun/install/global` |
+| **L1** | Foundational Alpine OS and Bun runtime environment | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l1_golden`<br/>Image: `<project>-l1:latest` | `l1` |
+| **L2** | Common dependencies, debugging utilities, and pre-warmed `/cache/bun` & `/cache/prisma` | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l2_golden`<br/>Image: `<project>-l2:latest` | `l2` |
+| **L3-backend** | Backend and migrator build tools (Prisma CLI; Infisical CLI omitted) | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l3_backend_golden`<br/>Image: `<project>-l3-backend:latest` | `l3-backend` |
+| **L3-frontend** | Frontend build tools without database tooling | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l3_frontend_golden`<br/>Image: `<project>-l3-frontend:latest` | `l3-frontend` |
+| **L4-backend** | Lean backend production runtime using Bun with `--smol` GC options and HTTP health check | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l4_backend_bun`<br/>Image: `<project>-l4-backend:latest` | `l4-backend` |
+| **L4-backend-node** | Lightweight alternative backend runtime using Node.js 22 Alpine | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l4_backend_node`<br/>Image: `<project>-l4-backend-node:latest` | `l4-backend-node` |
+| **L4-frontend** | Minimal frontend static asset runtime using Nginx 1.27 Alpine | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l4_frontend_golden`<br/>Image: `<project>-l4-frontend:latest` | `l4-frontend` |
+| **L4-migrator** | Database migration runner copying Prisma from L3-backend | [`build/golden_image_dockerfile.star`](../runtime/engine/topologies/platform/docker/build/golden_image_dockerfile.star) | Target: `l4_migrator_golden`<br/>Image: `<project>-l4-migrator:latest` | `l4-migrator` |
 
 > [!NOTE]
 > **Legacy layer note:** Older engines generated a separate `l3-migrator` image. Because it installed the identical Prisma package as `l3-backend`, `l3-migrator` is aliased directly to `l3-backend` in [`golden_image_constants.star`](../runtime/engine/topologies/platform/docker/build/golden_image_constants.star). Any stale `<project>-l3-migrator:latest` image is automatically untagged by `golden_image_build.star`:
@@ -108,7 +108,7 @@ pull access denied for docker.io/library/<project>-l*:latest
 ```
 
 **Cause:**
-Flisk's golden layers are **local-only images** built on your machine; they are never pushed to Docker Hub. If Docker tries to pull `<project>-l*` from Docker Hub, it means:
+Flisk's golden layers are **local images** built on your machine and tagged with your project name, so they do not exist in any registry under that name. (Prebuilt copies are only pulled when you opt in with `FLISK_GOLDEN_REGISTRY`; they are retagged to the local `<project>-l*` names, and Flisk falls back to a local build if any are missing.) If Docker tries to pull `<project>-l*` from Docker Hub, it means:
 1. The `golden-layers-build` resource has not completed yet or failed.
 2. Local images were removed by a Docker cleanup command (e.g. `docker system prune` or `docker rmi`).
 3. The project name prefix in `.flisk/project.json` was renamed, but local images still bear the old name.
