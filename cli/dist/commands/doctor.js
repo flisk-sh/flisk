@@ -1281,7 +1281,7 @@ export function renderDoctorOutput(machineResults, projectResults, inProject, op
     }
 }
 export const doctorCommand = new Command("doctor")
-    .description("Check environment readiness for Flisk")
+    .description("Check that your machine is ready for Flisk")
     .option("--all", "Run every check and show Machine and Project sections with a summary", false)
     .option("--json", "Output a versioned JSON readiness report", false)
     .exitOverride((error) => {
