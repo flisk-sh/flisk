@@ -17,11 +17,7 @@ import {
 } from "./host-port-plan.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf } from "./status-ports.js";
-import {
-  findTiltPortOwner,
-  isForeignTilt,
-  type TiltPortOwner,
-} from "./tilt-port-owner.js";
+import { findTiltPortOwner, isForeignTilt, type TiltPortOwner } from "./tilt-port-owner.js";
 
 const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
 
@@ -57,7 +53,10 @@ export function readSavedHostPortPlan(projectRoot: string): HostPortPlan | null 
       !plan.reason
     )
       return null;
-    if (plan.tiltUi !== undefined && (!Number.isInteger(plan.tiltUi) || plan.tiltUi < 1 || plan.tiltUi > 65535)) {
+    if (
+      plan.tiltUi !== undefined &&
+      (!Number.isInteger(plan.tiltUi) || plan.tiltUi < 1 || plan.tiltUi > 65535)
+    ) {
       delete plan.tiltUi;
     }
     return plan as HostPortPlan;

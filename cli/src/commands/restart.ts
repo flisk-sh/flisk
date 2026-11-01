@@ -10,8 +10,8 @@ import {
   runCommand,
   showErrorAndExit,
 } from "../utils/errors.js";
-import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
+import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
 import { isTiltConnectionFailure } from "../utils/tilt-logs.js";

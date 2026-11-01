@@ -6,7 +6,7 @@ import type { DiscoveredResource } from "../types/index.js";
 import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
-import { runCommand, showErrorAndExit, errorFactories, FliskError } from "../utils/errors.js";
+import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../utils/errors.js";
 import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";

@@ -203,8 +203,7 @@ describe("resolveRuntimeTiltPort", () => {
     expect(
       resolveRuntimeTiltPort(root, {
         envPort: "10355",
-        ownerOf: (port) =>
-          port === 10355 ? { pid: 99, root: "/foreign/project" } : null,
+        ownerOf: (port) => (port === 10355 ? { pid: 99, root: "/foreign/project" } : null),
       }),
     ).toBeNull();
   });
@@ -219,4 +218,3 @@ describe("resolveRuntimeTiltPort", () => {
     ).toBe(10355);
   });
 });
-
