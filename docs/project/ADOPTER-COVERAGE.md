@@ -1,8 +1,8 @@
 # Adopter coverage
 
-What a real project needs from Flisk when it moves from Docker Compose, which of those things Flisk covers today, since which version, and what is still open. Every row comes from importing and running a real repository ([ADOPTERS.md](ADOPTERS.md) lists the ones that use Flisk). A gap found here is a Flisk bug: it gets an issue, a fix and a row update, not a workaround in the adopter's repository.
+What a real project needs from Flisk when it moves from Docker Compose, which of those things Flisk covers today, since which version, and what is still open. Each row comes from importing a real repository's Compose file; whether it was also *run* is stated in the Status column (**covered** means it was run on a real repository, **tested** means it was only checked with the importer, generator and `docker compose config` tests). [ADOPTERS.md](ADOPTERS.md) lists the projects that use Flisk; this file covers only the repositories in the next table. A gap found here is a Flisk bug: it gets an issue, a fix and a row update, not a workaround in the adopter's repository.
 
-**How to read a row.** *Compose* is what the project writes. *service.json* is where it goes. *Since* is the first Flisk core release that contains it, taken from the release tags (the importer and exporter are separate npm packages; their own release notes say which version added each mapping). *Needed by* names the repositories that hit it. *Status*: **covered** (works, checked on a real run), **partial** (works with a stated limit), **open** (not covered, issue linked), **by design** (Flisk does it differently on purpose).
+**How to read a row.** *Compose* is what the project writes. *service.json* is where it goes. *Since* is the first Flisk core release that contains it, taken from the release tags (the importer and exporter are separate npm packages; their own release notes say which version added each mapping). *Needed by* names the repositories that hit it. *Status*: **covered** (works, checked on a real run of a repository that needs it), **tested** (works in Flisk's tests and `docker compose config`; not yet run on a repository that needs it), **partial** (works with a stated limit), **open** (not covered, issue linked), **by design** (Flisk does it differently on purpose).
 
 ## Repositories checked
 
@@ -28,13 +28,13 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | required secrets | `secrets.required` | 1.4.0 | yes | nosia | covered |
 | `ports` (host address, host port) | `extraPorts` `bind`, `hostPort` | 1.4.24 | yes | tubehaus, nosia | covered |
 | `ports` with `${VAR:-d}` host side | `extraPorts` `publish` | 1.4.26 | yes | tubehaus, EDDI | covered |
-| `ports` with a variable and no default | `extraPorts` `publish` | 1.4.29 | yes | any-sync | covered, limit: the container port stays literal |
+| `ports` with a variable and no default | `extraPorts` `publish` | 1.4.29 | yes | any-sync | tested, limit: the container port stays literal |
 | named volumes | `volumes` | 1.4.24 | yes | all | covered |
 | volume with its own Docker name | `volumes[].name` | 1.4.27 | yes | nosia, Lychee, pl_mail | covered |
 | bind mounts inside the project | `volumes` (relative path) | 1.4.24 | yes | Lychee | covered |
-| bind source `${VAR:-./path}` | `volumes[].source` | 1.4.28 | yes | open-mercato | covered |
-| bind source `${VAR}` with no default | `volumes[].source` | 1.4.29 | yes | any-sync | partial: the value must be an absolute path in `.env` |
-| SELinux `:z`, `:Z` | `volumes[].selinux` | 1.4.28 | yes | any-sync | covered |
+| bind source `${VAR:-./path}` | `volumes[].source` | 1.4.28 | yes | open-mercato | tested |
+| bind source `${VAR}` with no default | `volumes[].source` | 1.4.29 | yes | any-sync | tested, limit: the value must be an absolute path in `.env` |
+| SELinux `:z`, `:Z` | `volumes[].selinux` | 1.4.28 | yes | any-sync | tested |
 | bind mount outside the project | none | n/a | skipped with a note | any-sync | by design |
 | `healthcheck` command, interval, timeout, retries | `healthCheck` | 1.4.0 (`healthCheck`) | yes | nosia, Lychee | covered |
 | `healthcheck.start_period` | `healthCheck.startPeriod` | 1.4.27 | yes | Lychee, EDDI | covered |
@@ -47,29 +47,29 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | `deploy.resources.limits` | `container.cpus`, `container.memory` | 1.4.24 (`cpus`, `gpus`) | yes | Lychee | covered |
 | `deploy.resources.reservations` | none | n/a | dropped with a note | Lychee | open |
 | `profiles` | `profiles` | 1.4.24 | yes | Lychee, EDDI, any-sync | covered |
-| `models` | `models` | 1.4.27 | yes | nosia | covered, needs Docker Model Runner to start |
+| `models` | `models` | 1.4.27 | yes | nosia | tested, never started here (needs Docker Model Runner) |
 | `stop_grace_period` | `container.stopGracePeriod` | 1.4.27 | yes | pl_mail | covered |
 | network aliases | `container.networkAliases` | 1.4.27 | yes | pl_mail, Lychee | covered |
-| `extra_hosts` | `container.extraHosts` | 1.4.27 | yes | open-mercato | covered |
-| `extra_hosts` with a variable address | `container.extraHosts` | 1.4.29 | yes | open-mercato | covered |
-| `ulimits` | `container.ulimits` | 1.4.27 | yes | EDDI | covered |
-| build `args` | `buildArgs` | 1.4.28 | yes | pl_mail | covered |
-| `logging` | `logging` | 1.4.28 | yes | wger | covered |
+| `extra_hosts` | `container.extraHosts` | 1.4.27 | yes | open-mercato | tested |
+| `extra_hosts` with a variable address | `container.extraHosts` | 1.4.29 | yes | open-mercato | tested |
+| `ulimits` | `container.ulimits` | 1.4.27 | yes | EDDI | tested |
+| build `args` | `buildArgs` | 1.4.28 | yes | pl_mail | tested |
+| `logging` | `logging` | 1.4.28 | yes | wger | tested |
 | image with `${VAR}` or `${VAR:-d}` | `image` | 1.4.27 | yes | pl_mail | covered |
-| image with `${VAR:?message}` | `image` | 1.4.28 | yes | any-sync | covered |
+| image with `${VAR:?message}` | `image` | 1.4.28 | yes | any-sync | tested |
 | `network_mode: service:x` | `sidecarOf` | 1.4.24 | yes | tubehaus | covered |
-| `include:`, `extends:`, anchors | resolved by the importer | n/a (importer) | yes | wger, nosia | covered, a plan note says when Compose is missing |
+| `include:`, `extends:`, anchors | resolved by the importer | n/a (importer) | yes | wger, nosia | tested, a plan note says when Compose is missing |
 | `container_name` | none, Flisk names containers | n/a | dropped with a note | Lychee | by design |
 | several or named custom `networks` | the default network | n/a | ignored with a note | Lychee | open: a service that needs two isolated networks is not expressible |
 | `command` on a service that has `build:` | none | n/a | noted, not carried over | none yet | open |
 | top-level Compose `secrets:` and `configs:` | none | n/a | not handled | none yet | open, not yet tested on a real repository |
-| a web UI behind the proxy | `webUi: true` | 1.4.29 | set by hand | TREK, wanderer | covered, the importer cannot tell UI from API |
+| a web UI behind the proxy | `webUi: true` | 1.4.29 | set by hand | TREK, wanderer | tested, not checked in a browser; the importer cannot tell UI from API |
 
 ## Flisk behaviour that surprised adopters
 
 | What happened | Issue | State |
 |---|---|---|
-| Flisk injected its own `DATABASE_URL` into services that never asked for the shared Postgres | #2991 | fixed in main (#3010); released in the next version after 1.4.29 |
+| Flisk injected its own `DATABASE_URL` into services that never asked for the shared Postgres | #2991 | fixed in 1.4.30 (#3010) |
 | a hidden 512 MB memory limit killed images that need more | #2992 | fixed in 1.4.29 |
 | an uppercase project name refused to start | #1519, #2995 | fixed in 1.4.29, import 0.17 lowercases it |
 | the platform Compose file kept the old project name after a rename | #2993 | fixed in 1.4.29 |
