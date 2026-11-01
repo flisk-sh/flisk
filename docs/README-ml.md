@@ -12,12 +12,7 @@ Flisk ലോക്കൽ ഡെവലപ്മെന്റിനുള്ള ഒ
 ദ്രുത ആരംഭം:
 
 ```bash
-# npm install -g @flisk-sh/flisk
-mkdir shop && cd shop
-flisk project --yes
-flisk resource orders-api --type backend --stack shop --yes
-flisk resource shop-web --type frontend --stack shop --yes
-flisk up shop
+npx @flisk-sh/flisk demo
 ```
 
 പൂർണ്ണ ഗൈഡ് [ഇംഗ്ലീഷ് README](../README.md)-ൽ ഉണ്ട്.

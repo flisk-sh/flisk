@@ -12,12 +12,7 @@ O Flisk é uma ferramenta de linha de comando para desenvolvimento local. Ele ex
 Início rápido:
 
 ```bash
-# npm install -g @flisk-sh/flisk
-mkdir shop && cd shop
-flisk project --yes
-flisk resource orders-api --type backend --stack shop --yes
-flisk resource shop-web --type frontend --stack shop --yes
-flisk up shop
+npx @flisk-sh/flisk demo
 ```
 
 O guia completo está no [README em inglês](../README.md).
