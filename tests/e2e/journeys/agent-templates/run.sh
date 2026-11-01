@@ -182,10 +182,13 @@ S4() { # chaos: the coordinator dies mid-goal
   ensure_up
   local id before
   id="$(send_goal "one. two. three. four. five. six")"
-  before="$(run_state coordinator)"
-  log "kill -9 coordinator (pid $before) with goal $id in flight"
+  # The pid in the run state is the shell that starts the service; killing it would leave the real process holding the port and
+  # the restarted one would crash with EADDRINUSE. Kill the process that listens, which is what a crash of the service is.
+  before="$(listening_pid 4100)"
+  [ -n "$before" ] || die "nothing listens on the coordinator's port 4100"
+  log "kill -9 coordinator (pid $before, port 4100) with goal $id in flight"
   kill -9 "$before"
-  poll_until "the supervisor starts the coordinator again" 60 pid_replaced coordinator "$before"
+  poll_until "the supervisor starts the coordinator again" 60 pid_listening_changed 4100 "$before"
   poll_until "the restarted coordinator answers" 30 goals
   goals | jq -e --arg id "$id" '.goals[] | select(.id==$id)' >/dev/null || die "goal $id was lost when the coordinator died"
   poll_until "goal $id done after the coordinator restart" "$CLAIM_WAIT" goal_done "$id"
