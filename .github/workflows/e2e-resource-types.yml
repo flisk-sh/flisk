@@ -16,7 +16,8 @@ on:
         type: string
         default: "ubuntu-latest"
   # Pull requests run only the legs their changed files touch (the plan job below, tests/e2e/lib/pr-legs.mjs): a change to
-  # one frontend framework runs that framework's leg, a change to shared code runs every leg. A PR that touches none of them
+  # one frontend framework runs that framework's leg, a change to shared code runs one canary leg per kind of suite, a change to
+  # how the matrix is built runs every leg. A PR that touches none of them
   # runs no legs, and the gate passes. The merge queue runs the full pull request set; nightly and release run every axis.
   pull_request:
   merge_group:
@@ -78,9 +79,10 @@ jobs:
           frontends="$(node tests/e2e/lib/registry-axes.mjs | jq -r '.frontendFramework | join(",")')"
           matrix="$(node tests/e2e/lib/suite-matrix.mjs resource-types,orm "$trigger" "$languages" "$frameworks" "$frontends")"
           # A pull request runs only the legs its changed files touch (the rules are in tests/e2e/lib/pr-legs.mjs): one frontend
-          # framework, backend language, agent runtime or bring-your-own template runs only its own legs; shared code (the
-          # registries, resource.ts, the engine, tests/e2e/lib, common.sh, this workflow) runs them all; a change none of the
-          # suites read runs none, and the gate passes. The merge queue keeps the full pull request set.
+          # framework, backend language, agent runtime, bring-your-own template or engine area (byo_*.star, vite, prisma) runs
+          # only its own legs; other shared code (resource.ts, the rest of the engine, tests/e2e/lib, common.sh) runs the canary,
+          # one leg per kind of suite; this workflow, pr-legs.mjs and suite-matrix.mjs run every leg; a change none of the suites
+          # read runs none, and the gate passes. The merge queue keeps the full pull request set.
           if [ "$EVENT" = "pull_request" ]; then
             # Diff against the checked-out merge commit's first parent (the base the merge ref was built on), not the event
             # payload's base.sha: that is frozen when the event fires, so once main moves on the diff would also list main's own

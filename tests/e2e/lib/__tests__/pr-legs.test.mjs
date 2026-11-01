@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { changedTemplateFolders, prLegs } from "../pr-legs.mjs";
+import { CANARY, changedTemplateFolders, prLegs } from "../pr-legs.mjs";
 import { selectSuites } from "../suite-matrix.mjs";
 
 const e2eDir = fileURLToPath(new URL("../..", import.meta.url));
@@ -21,6 +21,10 @@ const matrix = {
 const all = matrix.include.map((leg) => leg.label);
 const labels = (files, options = {}) => prLegs(matrix, files, { e2eDir, ...options }).include.map((leg) => leg.label);
 const byoLabels = all.filter((l) => l.startsWith("bring-your-own-"));
+const frontendLabels = frontends.map((f) => `frontend-${f}`);
+const languageLabels = ["bun", "python", "rust", "go", "node"];
+const canary = all.filter((l) => CANARY.includes(l));
+const sorted = (xs) => [...xs].sort();
 
 test("the PR matrix has a leg per frontend and per BYO variant", () => {
   assert.ok(all.includes("frontend-lit") && all.includes("frontend-vue"));
@@ -39,11 +43,11 @@ test("two frameworks run both legs", () => {
   assert.deepEqual(labels(["cli/src/frontend-frameworks/vue.ts", "cli/src/frontend-frameworks/lit.ts"]).sort(), ["frontend-lit", "frontend-vue"]);
 });
 
-test("the frontend registry runs every frontend and the rest as before", () => {
-  const got = labels(["cli/src/frontend-frameworks/registry.ts"]);
-  assert.deepEqual(got, all);
-  for (const f of frontends) assert.ok(got.includes(`frontend-${f}`));
-  assert.deepEqual(labels(["cli/src/frontend-frameworks/types.ts"]), all);
+test("the frontend registry runs every frontend leg and the canary, not every leg", () => {
+  const want = sorted(new Set([...frontendLabels, ...canary]));
+  assert.deepEqual(sorted(labels(["cli/src/frontend-frameworks/registry.ts"])), want);
+  assert.deepEqual(sorted(labels(["cli/src/frontend-frameworks/types.ts"])), want);
+  assert.ok(want.length < all.length);
 });
 
 test("a framework's unit test runs no legs", () => {
@@ -84,7 +88,7 @@ test("a BYO suite's run.sh runs every BYO leg", () => {
 
 test("a backend language file runs that language's leg only", () => {
   assert.deepEqual(labels(["cli/src/backend-languages/rust.ts"]), ["rust"]);
-  assert.deepEqual(labels(["cli/src/backend-languages/registry.ts"]), all);
+  assert.deepEqual(sorted(labels(["cli/src/backend-languages/registry.ts"])), sorted(new Set([...languageLabels, ...canary])));
 });
 
 test("an agent runtime runs the agent leg only", () => {
@@ -95,23 +99,64 @@ test("a doc-only change runs no legs", () => {
   assert.deepEqual(labels(["docs/guide.md", "README.md"]), []);
 });
 
-test("an unrelated CLI change keeps today's behaviour", () => {
-  assert.deepEqual(labels(["cli/src/commands/up.ts"]), []); // not read by any of these suites: no legs, as before
-  assert.deepEqual(labels(["cli/src/mcp/tools.ts"]), all); // shared: every leg, as before
-  assert.deepEqual(labels(["cli/src/commands/resource.ts"]), all);
+test("the canary is one real leg per kind of suite", () => {
+  assert.deepEqual(sorted(canary), sorted(CANARY)); // every name is a leg of the PR matrix
+  for (const dir of ["resource-types/backend", "resource-types/frontend", "resource-types/bring-your-own", "resource-types/agent", "resource-types/migrator", "orm/prisma"]) {
+    assert.ok(matrix.include.some((leg) => leg.dir === dir && CANARY.includes(leg.label)), dir);
+  }
 });
 
-test("shared e2e code runs everything, a suite's own folder runs only that suite", () => {
-  assert.deepEqual(labels(["tests/e2e/lib/lib.sh"]), all);
-  assert.deepEqual(labels(["tests/e2e/resource-types/common.sh"]), all);
-  assert.deepEqual(labels([".github/workflows/e2e-resource-types.yml"]), all);
-  assert.deepEqual(labels(["runtime/engine/topologies/x.star"]), all);
-  assert.deepEqual(labels(["tests/e2e/orm/prisma/run.sh"]), ["prisma"]);
-  assert.deepEqual(labels(["tests/e2e/resource-types/frontend/run.sh"]), frontends.map((f) => `frontend-${f}`));
+test("shared code runs the canary, not every leg", () => {
+  assert.deepEqual(labels(["cli/src/commands/up.ts"]), []); // not read by any of these suites
+  for (const file of ["cli/src/mcp/tools.ts", "cli/src/commands/resource.ts", "tests/e2e/lib/lib.sh", "tests/e2e/resource-types/common.sh", "runtime/engine/topologies/platform/docker/compose/compose.star", "runtime/engine/schemas/service-schema.json"]) {
+    assert.deepEqual(labels([file]), canary, file);
+  }
 });
 
-test("lit plus a shared file runs everything", () => {
-  assert.deepEqual(labels(["cli/src/frontend-frameworks/lit.ts", "runtime/engine/x.star"]), all);
+test("the files that build the matrix still run every leg", () => {
+  for (const file of [".github/workflows/e2e-resource-types.yml", "tests/e2e/lib/pr-legs.mjs", "tests/e2e/lib/suite-matrix.mjs"]) {
+    assert.deepEqual(labels([file]), all, file);
+  }
+});
+
+test("an engine file that belongs to one area runs only that area", () => {
+  const engine = "runtime/engine/topologies";
+  assert.deepEqual(labels([`${engine}/tilt/generators/vite/frameworks/react.star`]), ["frontend-react"]);
+  assert.deepEqual(labels([`${engine}/tilt/generators/vite/frameworks/lit.star`]), ["frontend-lit"]);
+  for (const file of [`${engine}/tilt/generators/vite/frontend.star`, `${engine}/tilt/generators/typescript/frontend_tsconfig.star`, `${engine}/platform/docker/build/frontend_build_plan.star`, `${engine}/tilt/resources/orchestrator/generators/frontend.star`]) {
+    assert.deepEqual(labels([file]), frontendLabels, file);
+  }
+  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_container.star`]), byoLabels);
+  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_ports.star`]), byoLabels);
+  assert.deepEqual(sorted(labels([`${engine}/platform/docker/layers/prisma/migrate_script.star`])), ["migrator", "prisma"]);
+  assert.deepEqual(labels([`${engine}/tilt/resources/orchestrator/apply_migrator_orchestration.star`]), ["migrator"]);
+  assert.deepEqual(labels(["runtime/engine/AGENTS.md", "runtime/engine/docs/README.md", `${engine}/tilt/manifest/tests/test_validator.star`]), []);
+});
+
+test("every engine area pattern matches a real file", () => {
+  const files = execFileSync("git", ["ls-files", "runtime/engine"], { cwd: path.join(e2eDir, "../.."), encoding: "utf8" }).split("\n");
+  const named = ["vite/frameworks/react.star", "vite/frontend.star", "byo_container.star", "layers/prisma/", "apply_migrator_orchestration.star"];
+  for (const n of named) assert.ok(files.some((f) => f.includes(n)), n);
+});
+
+test("lit plus a shared file runs lit and the canary", () => {
+  assert.deepEqual(sorted(labels(["cli/src/frontend-frameworks/lit.ts", "runtime/engine/x.star"])), sorted(new Set(["frontend-lit", ...canary])));
+});
+
+// The changed files of real pull requests that ran all 32 legs before this rule set (checked 2026-11-01).
+test("real PRs that ran every leg now run a fraction", () => {
+  const prs = {
+    3035: ["runtime/engine/schemas/service-schema.json", "runtime/engine/topologies/platform/docker/compose/byo_container.star", "cli/src/commands/resource.ts"],
+    3032: ["runtime/engine/topologies/platform/docker/compose/byo_shared_database.star", "runtime/engine/topologies/platform/docker/compose/compose.star", "runtime/engine/topologies/tilt/resources/orchestrator/generators/env.star"],
+    3034: ["cli/src/commands/resource.ts", "tests/e2e/resource-types/bring-your-own/verify-byo-job.sh"],
+    3033: ["cli/src/commands/resource.ts"],
+  };
+  for (const [pr, files] of Object.entries(prs)) {
+    const got = labels(files);
+    assert.ok(got.length <= canary.length + byoLabels.length, `#${pr} ran ${got.length}`);
+    assert.ok(!got.includes("frontend-lit") && !got.includes("frontend-vue") && !got.includes("frontend-next"), `#${pr}: ${got}`);
+  }
+  assert.deepEqual(labels(["runtime/engine/topologies/platform/docker/compose/byo_shared_database.star"]), byoLabels);
 });
 
 // The workflow must diff a PR against its checked-out merge commit's first parent, not the event's frozen base.sha (#2960 ran 32 legs for a
@@ -136,8 +181,8 @@ test("a PR is diffed against its merge commit's parent, so main moving on does n
     git("checkout", "-q", "-b", "merge");
     git("merge", "-q", "--no-ff", "-m", "merge ref", "pr");
     const changed = (...range) => git("diff", "--name-only", ...range);
-    // Stale base: lists main's engine commit, so every leg is selected (the bug).
-    assert.deepEqual(labels(changed(staleBase, "HEAD").split("\n")), all);
+    // Stale base: lists main's engine commit, so legs are selected for a change that touches none (the bug).
+    assert.ok(labels(changed(staleBase, "HEAD").split("\n")).length > 0);
     // Merge-commit parent: only the PR's own file, so no leg runs (the fix).
     assert.deepEqual(changed("HEAD^1", "HEAD").trim().split("\n"), ["cli/src/utils/doctor-wiring.ts"]);
     assert.deepEqual(labels(changed("HEAD^1", "HEAD").split("\n")), []);
