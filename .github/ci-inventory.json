@@ -66,6 +66,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "cancel-dead-queue-runs.yml",
+			"job": "cancel",
+			"tier": "bot",
+			"required": false,
+			"reason": "Cancels runs of merge queue batches whose branch GitHub deleted; they hold runners and block the live batches",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "ci.yml",
 			"job": "changes",
 			"tier": "gate",
