@@ -824,6 +824,7 @@ describe("containerErrors", () => {
     expect(
       containerErrors(
         byo({
+          command: ["server", "/data", "--console-address", ":9001"],
           capAdd: ["NET_ADMIN"],
           capDrop: ["ALL"],
           init: false,
@@ -848,6 +849,10 @@ describe("containerErrors", () => {
     [byo({ capAdd: "NET_ADMIN" }), "container.capAdd: expected a list"],
     [byo({ capAdd: ["net_admin"] }), "container.capAdd: expected a list"],
     [byo({ capDrop: ["ALL\nprivileged: true"] }), "container.capDrop: expected a list"],
+    [byo({ command: "server /data" }), "container.command: expected a list"],
+    [byo({ command: [] }), "container.command: expected a list"],
+    [byo({ command: ["sh", ""] }), "container.command: expected a list"],
+    [byo({ command: ["sh", "a\nb"] }), "container.command: expected a list"],
     [byo({ readOnly: "yes" }), "container.readOnly: expected true or false"],
     [byo({ init: 1 }), "container.init: expected true or false"],
     [byo({ user: "root\nprivileged: true" }), "container.user: expected a user"],
