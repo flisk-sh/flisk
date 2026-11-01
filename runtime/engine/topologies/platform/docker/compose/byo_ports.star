@@ -7,7 +7,7 @@
 # in with "bind": "0.0.0.0", which a self-hosted app needs so phones and TVs on the same network can reach it. The host port
 # defaults to the container port. An entry may give `publish` instead of `hostPort` and `bind`: the host side of the Compose
 # mapping, "${WEB_HTTP_BIND:-127.0.0.1:80}", so a Compose project's `.env` setting keeps working (#2947). It is written
-# into the file as it is, so only digits, ".", ":" and ${NAME:-default} (or ${NAME-default}) are accepted; every variable needs a default. Keep in step with extraPortsErrors in
+# into the file as it is, so only digits, ".", ":", ${NAME:-default}, ${NAME-default} and ${NAME} (value from the .env) are accepted. Keep in step with extraPortsErrors in
 # cli/src/utils/service-manifest.ts and extraPortsOf in cli/src/utils/status-ports.ts. This file has no load() on purpose.
 # =============================================================================
 
@@ -35,12 +35,25 @@ def _only(text, allowed):
     return True
 
 
+_MASK = "\x00"
+
+
 def _publish_default(value, field):
-    """The host port a `publish` template gives with every variable at its default, after refusing anything unsafe or malformed."""
+    """Check a `publish` template and return (host port, text to write), after refusing anything unsafe or malformed.
+
+    The host port is what the template gives with every variable at its default. When a bare ${NAME} (no default) leaves part of
+    the mapping to the environment it is the literal host port if the part after the last ':' is plain digits (`${HOST}:80`),
+    otherwise None: the port is not known before Compose runs. A literal run of digits that can never be a port (65536) is refused
+    either way. A bare ${NAME} is written as ${NAME:?NAME is not set, add it to .env}, so Compose stops when it is unset or empty
+    instead of publishing a different mapping (`${PORT}80` would otherwise become host port 80 on every interface).
+    """
     if type(value) != "string" or not value:
         fail("MANIFEST ERROR: '{}.publish' must be a string such as \"${{WEB_HTTP_BIND:-127.0.0.1:80}}\"".format(field))
     parts = value.split("${")
     resolved = parts[0]
+    masked = parts[0]
+    written = parts[0]
+    unknown = False
     if not _only(parts[0], _LITERAL):
         fail("MANIFEST ERROR: '{}.publish' accepts digits, '.', ':' and ${{NAME:-default}} only".format(field))
     for part in parts[1:]:
@@ -49,13 +62,34 @@ def _publish_default(value, field):
         if not has_default:
             # ${NAME-default}: Compose uses the default only when NAME is unset. A name has no '-', so the first one splits it.
             name, has_default, default = body.partition("-")
-        if not closed or not has_default:
-            fail("MANIFEST ERROR: '{}.publish' needs a default for every variable, as in ${{NAME:-127.0.0.1:80}}".format(field))
+        if not closed:
+            fail("MANIFEST ERROR: '{}.publish' has a ${{ without a closing }}".format(field))
         if not name or name[0] not in _NAME_START or not _only(name, _NAME_CHARS):
             fail("MANIFEST ERROR: '{}.publish' variable names must be letters, digits or _".format(field))
+        masked += _MASK + tail
+        if not has_default:
+            # A bare ${NAME} (any-sync: "127.0.0.1:${REDIS_PORT}"): the value comes from the environment (shell or .env).
+            if not _only(tail, _LITERAL):
+                fail("MANIFEST ERROR: '{}.publish' accepts digits, '.', ':' and ${{NAME:-default}} only".format(field))
+            unknown = True
+            written += "${" + name + ":?" + name + " is not set, add it to .env}" + tail
+            continue
         if not default or not _only(default, _LITERAL) or not _only(tail, _LITERAL):
             fail("MANIFEST ERROR: '{}.publish' defaults must be a port or address:port".format(field))
         resolved += default + tail
+        written += "${" + body + "}" + tail
+    if unknown:
+        # Template-aware: only literal digits can be checked. Mirrors unresolvedHostPort in cli/src/utils/service-manifest.ts.
+        last = masked.split(":")[-1]
+        pieces = last.split(_MASK)
+        for piece in pieces:
+            if piece.isdigit() and (len(piece) > 5 or int(piece) > 65535):
+                fail("MANIFEST ERROR: '{}.publish' has a host port above 65535".format(field))
+        if len(pieces) == 1:
+            if not (last.isdigit() and int(last) >= 1):
+                fail("MANIFEST ERROR: '{}.publish' must give a port or address:port such as 127.0.0.1:8080 (IPv4 only)".format(field))
+            return int(last), written
+        return None, written
     pieces = resolved.split(":")
     port_text = pieces[-1]
     ok = len(pieces) <= 2 and port_text and port_text.isdigit() and len(port_text) <= 5 and int(port_text) >= 1 and int(port_text) <= 65535
@@ -66,7 +100,7 @@ def _publish_default(value, field):
             ok = ok and octet != "" and octet.isdigit() and len(octet) <= 3 and int(octet) <= 255
     if not ok:
         fail("MANIFEST ERROR: '{}.publish' must give a port or address:port such as 127.0.0.1:8080 (IPv4 only)".format(field))
-    return int(port_text)
+    return int(port_text), written
 
 
 def byo_extra_ports(manifest):
@@ -95,8 +129,7 @@ def byo_extra_ports(manifest):
         if entry.get('publish') != None:
             if entry.get('hostPort') != None or entry.get('bind') != None:
                 fail("MANIFEST ERROR: '{}.publish' replaces hostPort and bind; remove them".format(field))
-            host_port = _publish_default(entry.get('publish'), field)
-            host_side = entry.get('publish')
+            host_port, host_side = _publish_default(entry.get('publish'), field)
         else:
             host_port = _port_number(entry.get('hostPort', port), field + ".hostPort")
             bind = entry.get('bind', '127.0.0.1')
@@ -104,9 +137,10 @@ def byo_extra_ports(manifest):
                 fail("MANIFEST ERROR: '{}.bind' must be 127.0.0.1 or 0.0.0.0".format(field))
             host_side = "{}:{}".format(bind, host_port)
         key = "{}/{}".format(host_port, protocol)
-        if key in seen:
+        if host_port != None and key in seen:
             fail("MANIFEST ERROR: '{}.hostPort' {} is published twice".format(field, key))
-        seen.append(key)
+        if host_port != None:
+            seen.append(key)
         lines.append('      - "{}:{}/{}"'.format(host_side, port, protocol))
 
     if not lines:

@@ -40,6 +40,9 @@ jobs:
               - "bun.lock"
               - "cli/**"
               - "scripts/release-binaries.sh"
+              - "scripts/release/**"
+              - "tests/e2e/platforms/container-image/**"
+              - ".github/workflows/publish-cli-image.yml"
               - "runtime/**"
 
   build:
@@ -179,6 +182,57 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         shell: bash
         run: tests/e2e/platforms/windows-binary/run.sh WB1
+
+  # The CLI image built from this release candidate (scripts/release/flisk-image.Dockerfile, this runner's platform only) and run
+  # through tests/e2e/platforms/container-image, so a pull request that breaks the image fails here, before publish-image pushes
+  # it. Nothing is pushed. It does not gate publish: the image is published after the release, from its published assets.
+  cli-image:
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Download exact release candidate
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-dist-${{ needs.build.outputs.version }}
+          path: release-dist
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the image into the local Docker (the publish job's build, without the push)
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: bash scripts/release/push-flisk-image.sh release-dist "$VERSION" --load
+
+      - name: Run tests/e2e/platforms/container-image CI1 CI2 CI3 on it
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: tests/e2e/platforms/container-image/run.sh CI1 CI2 CI3
+
+      - name: Collect diagnostics
+        if: failure()
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: tests/e2e/platforms/container-image/run.sh diagnostics
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: failure()
+        with:
+          name: cli-image-diagnostics
+          path: ${{ runner.temp }}/flisk-e2e/container-image/artifacts
+          if-no-files-found: ignore
+          retention-days: 7
 
   publish:
     if: github.event_name != 'pull_request'
@@ -579,6 +633,22 @@ jobs:
           else
             npm publish "$TARBALL" --registry=https://npm.pkg.github.com
           fi
+
+  # The CLI image (ghcr.io/flisk-sh/flisk and docker.io/alexdykyi/flisk, <version> and latest), built from the binary release that
+  # publish just made, signed and smoke-tested by publish-cli-image.yml. It runs after npm and the binaries are out, in a job of
+  # its own, so it can never block them; a failed image is repaired with publish-cli-image.yml -f version=<version>.
+  publish-image:
+    needs: [build, publish]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/publish-cli-image.yml # zizmor: ignore[self-repository] reusable workflow resolves from this commit
+    with:
+      version: ${{ needs.build.outputs.version }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   # The version bump lands on main as a squash commit after publish, so the tag for this release can only point at it
   # once that commit exists. The sign step above leaves the GitHub release as a draft; this job tags the merged bump

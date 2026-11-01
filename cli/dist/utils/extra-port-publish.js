@@ -19,8 +19,16 @@ export function publishVariables(publish) {
         const colonMarker = body.indexOf(":-");
         const unsetOnly = colonMarker < 0;
         const marker = unsetOnly ? body.indexOf("-") : colonMarker;
-        if (marker < 0)
-            return `\${${body}} needs a default, such as \${${body}:-127.0.0.1:80}`;
+        if (marker < 0) {
+            // A bare ${NAME} (any-sync: "127.0.0.1:${REDIS_PORT}"): the value comes from the .env.
+            if (!NAME.test(body))
+                return "variable names must be letters, digits or _";
+            if (!LITERAL.test(part.slice(close + 1))) {
+                return "expected digits, '.', ':' and ${NAME:-default} only";
+            }
+            variables.push({ name: body, fallback: "", unsetOnly: true, hasDefault: false });
+            continue;
+        }
         const name = body.slice(0, marker);
         const fallback = body.slice(marker + (unsetOnly ? 1 : 2));
         if (!NAME.test(name))
@@ -31,7 +39,7 @@ export function publishVariables(publish) {
         if (!LITERAL.test(part.slice(close + 1))) {
             return "expected digits, '.', ':' and ${NAME:-default} only";
         }
-        variables.push({ name, fallback, unsetOnly });
+        variables.push({ name, fallback, unsetOnly, hasDefault: true });
     }
     return variables;
 }
@@ -40,11 +48,13 @@ export function publishVariables(publish) {
  * is set at all, and otherwise with the default.
  */
 export function substitutePublish(publish, lookup = () => undefined) {
-    return publish.replace(/\$\{([A-Za-z0-9_]*)(:?-)([^}]*)\}/g, (_match, name, operator, fallback) => {
+    return publish.replace(/\$\{([A-Za-z0-9_]*)(?:(:?-)([^}]*))?\}/g, (_match, name, operator, fallback) => {
         const value = lookup(name);
+        if (operator === undefined)
+            return value ?? "";
         if (operator === "-")
-            return value !== undefined ? value : fallback;
-        return value ? value : fallback;
+            return value !== undefined ? value : (fallback ?? "");
+        return value ? value : (fallback ?? "");
     });
 }
 /** `80` or `127.0.0.1:8080` as a host mapping, or null when it is neither. */
