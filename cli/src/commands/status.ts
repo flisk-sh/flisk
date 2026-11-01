@@ -11,7 +11,7 @@ import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/d
 import { runCommand } from "../utils/errors.js";
 import { projectEnvLookup } from "../utils/extra-port-publish.js";
 import { formatCount, showDetail, showStep } from "../utils/formatting.js";
-import { getHostPortPlan } from "../utils/host-port-config.js";
+import { getHostPortPlan, resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { nativeServiceStates } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
@@ -92,7 +92,10 @@ export const statusCommand = new Command("status")
       // The same look at Tilt feeds readiness and each service's state, so `flisk status` and `flisk ui` cannot disagree.
       let serviceStates: Record<string, ServiceRuntimeState> | null = nativeStates;
       let staleDisabled: string[] = [];
-      const tiltPort = getTiltPollingPort(process.env.TILT_PORT);
+      const tiltPort =
+        (projectRoot
+          ? resolveRuntimeTiltPort(projectRoot, { envPort: process.env.TILT_PORT })
+          : null) ?? getTiltPollingPort(process.env.TILT_PORT);
 
       // Port plan is best effort; service URLs are shown in both JSON and terminal output.
       let portPlan: HostPortPlan | null = null;

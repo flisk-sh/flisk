@@ -846,6 +846,8 @@ export const upCommand = new Command("up")
             console.log(chalk.blue(`🔄 Auto-switching to port ${port}\n`));
         }
         process.env.TILT_PORT = port.toString();
+        hostPortPlan.tiltUi = port;
+        writeSavedHostPortPlan(projectRoot, hostPortPlan);
         await stopTiltForUp({ force, quiet: options.quiet, port }, {
             stop: stopTiltOnPort,
             log: (message) => console.log(chalk.yellow(message)),
