@@ -180,6 +180,9 @@ export function enforceVersionFloor(projectRoot, options, currentVersion = getPa
         return;
     }
     const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
+    if (floor.deprecationWarning) {
+        console.warn(chalk.yellow(`Warning: ${floor.deprecationWarning}`));
+    }
     if (floor.status === "none" || floor.status === "ok")
         return;
     options.onFail?.(`${floor.message}\n${floor.fix}`);

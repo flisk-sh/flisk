@@ -317,6 +317,11 @@ export function enforceVersionFloor(
     return;
   }
   const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
+
+  if (floor.deprecationWarning) {
+    console.warn(chalk.yellow(`Warning: ${floor.deprecationWarning}`));
+  }
+
   if (floor.status === "none" || floor.status === "ok") return;
   options.onFail?.(`${floor.message}\n${floor.fix}`);
   showError(`${floor.message}\n${floor.fix}`);

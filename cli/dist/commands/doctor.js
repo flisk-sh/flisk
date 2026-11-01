@@ -637,21 +637,28 @@ export function checkFliskVersion(currentVersion = getPackageVersion()) {
         };
     }
     const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
+    const warning = floor.deprecationWarning ? `\nWarning: ${floor.deprecationWarning}` : "";
     if (floor.status === "none") {
         return {
             name: "Flisk version",
             didPass: true,
             isSkipped: true,
-            message: `flisk ${currentVersion} (no minFliskVersion in .flisk/project.json)`,
+            message: `flisk ${currentVersion} (no minFliskVersion in .flisk/project.json)${warning}`,
         };
     }
     if (floor.status === "malformed" || floor.status === "too-old") {
-        return { name: "Flisk version", didPass: false, message: floor.message, fix: floor.fix };
+        return {
+            name: "Flisk version",
+            didPass: false,
+            message: `${floor.message}${warning}`,
+            fix: floor.fix,
+        };
     }
     return {
         name: "Flisk version",
         didPass: true,
-        message: `flisk ${currentVersion} meets minFliskVersion ${floor.required}`,
+        isWarning: Boolean(floor.deprecationWarning),
+        message: `flisk ${currentVersion} meets minFliskVersion ${floor.required}${warning}`,
     };
 }
 /**
