@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { PROJECT_JSON } from "./constants.js";
 import { projectEnvLookup } from "./extra-port-publish.js";
 import { createHostPortPlan, GATEWAY_DISABLED_REASON, isHostPortAvailable, PREFERRED_HOST_PORTS, withoutGatewayPorts, } from "./host-port-plan.js";
@@ -174,9 +175,7 @@ async function planHostPorts(projectRoot, options) {
     let prefix = "";
     try {
         const project = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        prefix = String(project?.project?.name ?? "flisk-project")
-            .replace(/-/g, "_")
-            .toLowerCase();
+        prefix = toComposeProjectName(String(project?.project?.name ?? "flisk-project")).toLowerCase();
     }
     catch {
         prefix = "flisk_project";

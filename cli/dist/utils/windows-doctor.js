@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { execFileSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { parsePublishedPortHolders, probeHostPort } from "./doctor-runtime.js";
 import { findProjectRoot } from "./paths.js";
 import { getProjectName } from "./service-urls.js";
@@ -18,7 +19,7 @@ export function parseExcludedPortRanges(output) {
     });
 }
 export function findExternallyOccupiedPorts(occupied, dockerHolders, projectName) {
-    const prefix = projectName.replace(/-/g, "_").toLowerCase();
+    const prefix = toComposeProjectName(projectName).toLowerCase();
     return occupied.filter((port) => {
         const holder = dockerHolders.find((candidate) => candidate.publishedPorts.includes(port));
         if (!holder || !prefix)

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { isDatabaseCapabilityEnabled, isGatewayEnabled, } from "./capabilities.js";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { DATABASE_MANAGEMENT_FEATURE } from "./constants.js";
 import { readProjectNameOrUndefined } from "./project-reader.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
@@ -62,7 +63,7 @@ export function groupSharedPostgres(projectName, stacks, options) {
     // A project that opted out of the shared Postgres has none to show.
     if (options && !isDatabaseCapabilityEnabled(options.projectRoot, { ...options }))
         return null;
-    const prefix = projectName.replace(/-/g, "_");
+    const prefix = toComposeProjectName(projectName);
     const databases = [];
     const databaseNames = databaseResourceNames(stacks.flatMap((stack) => stack.resources));
     for (const stack of [...stacks].sort((a, b) => a.name.localeCompare(b.name))) {
