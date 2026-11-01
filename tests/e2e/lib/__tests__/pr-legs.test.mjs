@@ -3,7 +3,8 @@
 // Unit tests for tests/e2e/lib/pr-legs.mjs against the repository's real suites. Run by `make test-shell`.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -111,4 +112,44 @@ test("shared e2e code runs everything, a suite's own folder runs only that suite
 
 test("lit plus a shared file runs everything", () => {
   assert.deepEqual(labels(["cli/src/frontend-frameworks/lit.ts", "runtime/engine/x.star"]), all);
+});
+
+// The workflow must diff a PR against its checked-out merge commit's first parent, not the event's frozen base.sha (#2960 ran 32 legs for a
+// doctor-only change because main's own engine commits showed up in the diff).
+test("a PR is diffed against its merge commit's parent, so main moving on does not select legs", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "pr-legs-"));
+  const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir, encoding: "utf8" });
+  const commit = (file, msg) => {
+    mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+    writeFileSync(path.join(dir, file), msg);
+    git("add", "-A");
+    git("commit", "-qm", msg);
+  };
+  try {
+    git("init", "-q", "-b", "main");
+    commit("README.md", "base");
+    const staleBase = git("rev-parse", "HEAD").trim(); // base.sha frozen in the event payload
+    git("checkout", "-q", "-b", "pr");
+    commit("cli/src/utils/doctor-wiring.ts", "doctor change"); // the PR: touches no suite
+    git("checkout", "-q", "main");
+    commit("runtime/engine/topologies/x.star", "main moves on"); // shared path, not part of the PR
+    git("checkout", "-q", "-b", "merge");
+    git("merge", "-q", "--no-ff", "-m", "merge ref", "pr");
+    const changed = (...range) => git("diff", "--name-only", ...range);
+    // Stale base: lists main's engine commit, so every leg is selected (the bug).
+    assert.deepEqual(labels(changed(staleBase, "HEAD").split("\n")), all);
+    // Merge-commit parent: only the PR's own file, so no leg runs (the fix).
+    assert.deepEqual(changed("HEAD^1", "HEAD").trim().split("\n"), ["cli/src/utils/doctor-wiring.ts"]);
+    assert.deepEqual(labels(changed("HEAD^1", "HEAD").split("\n")), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the plan job uses the merge commit's parent and a depth-2 checkout", () => {
+  const wf = readFileSync(path.join(e2eDir, "../../.github/workflows/e2e-resource-types.yml"), "utf8");
+  assert.match(wf, /git diff --name-only HEAD\^1 HEAD \|/);
+  assert.match(wf, /git show "HEAD\^1:examples\/byo\/templates\.json"/);
+  assert.match(wf, /fetch-depth: 2/);
+  assert.doesNotMatch(wf, /BASE_SHA/);
 });
