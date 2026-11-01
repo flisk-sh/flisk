@@ -264,6 +264,32 @@ describe("formatStartupReport", () => {
     expect(lines[0]).toBe("Timed out waiting for api, web");
   });
 
+  it("says timed out while building when stillBuilding is present", () => {
+    const lines = formatStartupReport(
+      { failed: [], blocked: [], starting: [], stillBuilding: ["api"] },
+      true,
+    );
+    expect(lines[0]).toBe("Timed out while building: api");
+  });
+
+  it("prints the last log lines for a service that timed out", () => {
+    const lines = formatStartupReport(
+      {
+        failed: [],
+        blocked: [],
+        starting: ["postgres"],
+        lastLogs: {
+          postgres:
+            "Starting database...\nError: FATAL password authentication failed for user 'flisk'",
+        },
+      },
+      true,
+    );
+    expect(lines).toContain("Timed out waiting for postgres");
+    expect(lines).toContain("Last log lines for postgres:");
+    expect(lines).toContain("  Error: FATAL password authentication failed for user 'flisk'");
+  });
+
   it("prints nothing when nothing is wrong", () => {
     expect(formatStartupReport({ failed: [], blocked: [], starting: [] }, false)).toEqual([]);
   });

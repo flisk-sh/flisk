@@ -14,6 +14,8 @@ export type UpFailure = {
 } | {
     kind: "services";
     failed: string[];
+    timedOut?: boolean;
+    stillBuilding?: string[];
 } | {
     kind: "smoke";
     failed: string[];
