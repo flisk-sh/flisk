@@ -150,7 +150,9 @@ def byo_volumes(manifest, service_path, compose_dir):
             host = (up + '/' + host) if host else up
             if variable != None:
                 # Compose fills the variable in; the resolved default is what it uses when the variable is unset.
-                host = "${" + variable[0] + (variable[1] + host if variable[1] else "") + "}" + variable[3]
+                # A bare ${NAME} is written as ${NAME:?...}, so Compose stops when it is unset or empty instead of mounting
+                # "/redis" (an absolute host path outside the project) from "${STORAGE_DIR}/redis".
+                host = "${" + variable[0] + (variable[1] + host if variable[1] else ":?" + variable[0] + " is not set, add an absolute path to .env") + "}" + variable[3]
         else:
             if not _only(source, _NAME_CHARS) or source[0] in "_-":
                 fail("MANIFEST ERROR: '{}.source' must be a volume name (lowercase letters, digits, '-' and '_') or a path starting with ./".format(field))

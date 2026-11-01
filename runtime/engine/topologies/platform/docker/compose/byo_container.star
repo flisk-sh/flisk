@@ -108,7 +108,8 @@ def _ipv4(value):
 def _host_address(address):
     if address == "host-gateway" or _ipv4(address):
         return True
-    return ":" in address and _only(address, _IPV6_CHARS)
+    # An IPv6 address has at least two colons; a lone ":" would resolve to "name::" and the daemon rejects it.
+    return address.count(":") >= 2 and _only(address, _IPV6_CHARS)
 
 
 def _extra_host(value):

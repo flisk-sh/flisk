@@ -140,9 +140,12 @@ publishes the default. One string covers the address and the port, which is why 
 `hostPort` and `bind` each taking a variable (that could not express a `.env` value such as `127.0.0.1:8080`).
 
 - The text is `digits`, `.`, `:` and `${NAME:-default}` / `${NAME-default}` / `${NAME}` only. A default keeps the safe value
-  visible in `service.json`; a bare `${NAME}` (any-sync's `"127.0.0.1:${REDIS_PORT}"`) takes the host side from the `.env`
-  only, so set it there: Compose refuses the mapping when it is unset, and `flisk config verify` cannot check that port against
-  the others. The container side stays the literal `port` (any-sync's `:${REDIS_PORT}` container side is written as the port
+  visible in `service.json`; a bare `${NAME}` (any-sync's `"127.0.0.1:${REDIS_PORT}"`) takes its value from the environment
+  (the shell or the project `.env`, the two places Compose reads). It is written as `${NAME:?NAME is not set, add it to .env}`,
+  so Compose stops when `NAME` is unset or empty instead of publishing a different mapping (`${PORT}80` would otherwise become
+  host port 80 on every interface). When the host port is a literal after the last `:` (`${HOST}:80`) it still counts for the
+  published-twice check; when it comes from a variable, `flisk config verify` cannot compare it with the others. A literal that
+  can never be a port (`127.0.0.1:65536${A}`) is refused. The container side stays the literal `port` (any-sync's `:${REDIS_PORT}` container side is written as the port
   the image listens on). The default (and any `.env` value) is a port,
   which Docker publishes on every interface, or an IPv4 `address:port`. A default like `127.0.0.1:80` keeps the safe behaviour of
   a plain entry; one like `0.0.0.0:80` is the explicit choice. IPv6 and host names are not accepted.
@@ -312,7 +315,7 @@ open-mercato, anyproto/any-sync-dockercompose, wger-project/docker and labsai/ED
 | `dependsOn` entry | `depends_on` | A name as before, or `{"name": "db", "condition": "service_healthy"}`. The condition is `service_started`, `service_healthy` or `service_completed_successfully`. Flisk starts services in dependsOn order by name (Tilt `resource_deps`), so the condition is accepted and kept but does not change the order. Applies to every resource type. |
 | `buildArgs` | `build.args` | Object of NAME to string for a bring-your-own resource built from its Dockerfile: `{"NODE_VERSION": "${NODE_VERSION:-22}"}`. |
 | `logging` | `logging` | `{"driver": "json-file", "options": {"max-size": "5m", "max-file": "5"}}`. Option values are strings (#2965). |
-| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}`, `${NAME-./path}`, or a bare `${STORAGE_DIR}` with no default, and each may be followed by a sub-path: `${STORAGE_DIR}/redis`, `${DATA:-./data}/sub`. A default must be a path inside the project, resolved like any other bind path. A value set in the environment (and a bare variable's value, which only the `.env` gives) is used as Compose reads it, relative to the generated Compose file, so set an absolute path. A sub-path has no `.` or `..` segment. `selinux` applies as on any bind mount. |
+| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}`, `${NAME-./path}`, or a bare `${STORAGE_DIR}` with no default, and each may be followed by a sub-path: `${STORAGE_DIR}/redis`, `${DATA:-./data}/sub`. A default must be a path inside the project, resolved like any other bind path. A value set in the environment (the shell or the project `.env`) is used as Compose reads it, relative to the generated Compose file, so set an absolute path. A bare `${NAME}` is written as `${NAME:?...}`, so Compose stops when it is unset or empty instead of mounting `/redis` from `${STORAGE_DIR}/redis`. A sub-path has no `.` or `..` segment. `selinux` applies as on any bind mount. |
 | `volumes[].selinux` | `:z` / `:Z` | `"z"` (label shared between containers) or `"Z"` (private) on a bind mount. |
 | `image` | `image` | Also `${NAME:?message}` or `${NAME?message}`: Compose stops with the message when NAME is unset (`dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set}`). The message uses printable ASCII only, with no quotes, backslash, braces, `$` or backtick. |
 

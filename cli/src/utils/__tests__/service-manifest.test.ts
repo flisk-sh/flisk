@@ -1019,6 +1019,48 @@ describe("extraPortsErrors publish", () => {
     expect(substitutePublish("127.0.0.1:${A-80}:${B:-81}", lookup({}))).toBe("127.0.0.1:80:81");
   });
 
+  it("still checks the protocol when the host port comes from a variable", () => {
+    const errors = extraPortsErrors(publish("${PORT}", { protocol: "sctp" }), file);
+    expect(errors).toEqual([`${file}.extraPorts[0].protocol: expected tcp or udp`]);
+  });
+
+  it("counts a literal host port behind a variable address in the published-twice check", () => {
+    const manifest = {
+      appType: "bring-your-own",
+      extraPorts: [
+        { port: 80, publish: "${HOST}:80" },
+        { port: 8080, hostPort: 80 },
+      ],
+    };
+    expect(extraPortsErrors(manifest, file)[0]).toContain("80/tcp is published twice");
+    // A port that comes from a variable cannot be compared.
+    expect(
+      extraPortsErrors(
+        {
+          appType: "bring-your-own",
+          extraPorts: [
+            { port: 80, publish: "${A}" },
+            { port: 81, publish: "${B}" },
+          ],
+        },
+        file,
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    "127.0.0.1:65536${A}",
+    "${A}65536",
+    "${A}:65536",
+    "127.0.0.1:123456${A}",
+    "${HOST}:",
+    "${HOST}:0",
+  ])("refuses the host port that can never be valid in %s", (value) => {
+    const errors = extraPortsErrors(publish(value), file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(".publish");
+  });
+
   it("refuses publish next to hostPort or bind", () => {
     expect(extraPortsErrors(publish("${A:-80}", { hostPort: 81 }), file)).toEqual([
       `${file}.extraPorts[0].publish: replaces hostPort and bind; remove them`,
@@ -1357,6 +1399,8 @@ describe("Compose settings from imported stacks, round 3", () => {
     "db:${1A}",
     "db:${A}x",
     "db:${A:-1.2.3.4\nprivileged: true}",
+    "db:${A:-:}",
+    "db::",
   ])("refuses the extra host %j", (host) => {
     expect(
       containerErrors({ appType: "bring-your-own", container: { extraHosts: [host] } }, file),

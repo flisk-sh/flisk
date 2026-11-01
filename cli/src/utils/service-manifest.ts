@@ -527,7 +527,8 @@ function isHostAddress(address: string): boolean {
   if (octets.length === 4 && octets.every((o) => /^[0-9]{1,3}$/.test(o) && Number(o) <= 255)) {
     return true;
   }
-  return address.includes(":") && /^[0-9A-Fa-f:]+$/.test(address);
+  // An IPv6 address has at least two colons; a lone ":" would resolve to "name::" and the daemon rejects it.
+  return (address.match(/:/g) ?? []).length >= 2 && /^[0-9A-Fa-f:]+$/.test(address);
 }
 
 /** Why `container.ulimits` is refused, or undefined. Mirrors _ulimit_lines in engine/.../compose/byo_container.star. */
@@ -709,15 +710,40 @@ const isPortNumber = (value: unknown): value is number =>
 
 /**
  * The host port a `publish` template gives when no variable is set, or why the template is refused (see extra-port-publish.ts).
- * null when a bare `${NAME}` leaves the host side to the .env, so the port is not known before Compose runs.
+ * null when a bare `${NAME}` leaves the host port to the environment, so it is not known before Compose runs.
  */
+/**
+ * The host port of a template with a bare `${NAME}` (no default), read template-aware: the part after the last literal ":" is the
+ * port, and it is known only when it is plain digits (`${HOST}:80`). A literal run of digits that can never be a port (65536,
+ * `127.0.0.1:65536${A}`) is refused whatever the variable holds. null when the port comes from a variable. Mirrors
+ * _publish_default in engine/.../compose/byo_ports.star.
+ */
+function unresolvedHostPort(publish: string): number | string | null {
+  const last =
+    publish
+      .replace(/\$\{[^}]*\}/g, "\u0000")
+      .split(":")
+      .pop() ?? "";
+  const pieces = last.split("\u0000");
+  if (
+    pieces.some((piece) => /^[0-9]+$/.test(piece) && (piece.length > 5 || Number(piece) > 65535))
+  ) {
+    return "has a host port above 65535";
+  }
+  if (pieces.length > 1) return null;
+  if (!/^[0-9]+$/.test(last) || Number(last) < 1) {
+    return "must give a port or address:port such as 127.0.0.1:8080 (IPv4 only)";
+  }
+  return Number(last);
+}
+
 function publishError(publish: unknown): number | string | null {
   if (typeof publish !== "string" || publish === "") {
     return 'expected a string such as "${WEB_HTTP_BIND:-127.0.0.1:80}"';
   }
   const variables = publishVariables(publish);
   if (typeof variables === "string") return variables;
-  if (variables.some((variable) => !variable.hasDefault)) return null;
+  if (variables.some((variable) => !variable.hasDefault)) return unresolvedHostPort(publish);
   const mapping = parseHostMapping(substitutePublish(publish));
   if (!mapping) return "must give a port or address:port such as 127.0.0.1:8080 (IPv4 only)";
   return mapping.port;
@@ -760,9 +786,7 @@ export function extraPortsErrors(manifest: Record<string, unknown>, displayPath:
       }
       const mapping = publishError(entry.publish);
       if (typeof mapping === "string") errors.push(`${at}.publish: ${mapping}`);
-      else if (mapping === null)
-        return; // host port from the .env: nothing to compare
-      else hostPort = mapping;
+      else hostPort = mapping; // null: the host port comes from a variable, nothing to compare
     } else {
       if (entry.hostPort !== undefined && !isPortNumber(entry.hostPort)) {
         errors.push(`${at}.hostPort: expected a port number from 1 to 65535`);
@@ -774,6 +798,7 @@ export function extraPortsErrors(manifest: Record<string, unknown>, displayPath:
     const protocol = entry.protocol ?? "tcp";
     if (protocol !== "tcp" && protocol !== "udp")
       errors.push(`${at}.protocol: expected tcp or udp`);
+    if (hostPort === null) return; // only the published-twice check needs the host port
     const key = `${String(hostPort)}/${String(protocol)}`;
     if (seen.has(key)) errors.push(`${at}.hostPort: ${key} is published twice`);
     seen.add(key);
