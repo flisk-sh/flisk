@@ -98,6 +98,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-orders-api.rule": "Host(`orders.backend.testproj.local`) || PathPrefix(`/api/v1/orders-management`)",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",
@@ -154,6 +155,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-orders-api.rule": "Host(`custom.orders.local`) || PathPrefix(`/custom/orders`)",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",
@@ -210,6 +212,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.services.testproj-orders-api.loadbalancer.server.port": "4000",
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.path": "/health",
         "traefik.http.services.testproj-orders-api.loadbalancer.healthcheck.interval": "10s",
@@ -259,6 +262,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-orders-api.rule": "Host(`custom.orders.local`) || PathPrefix(`/custom/orders`)",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",
@@ -361,6 +365,7 @@ r = {'labels': l}
 
     expected = {
         "traefik.enable": "true",
+        "flisk.project": "testproj",
         "traefik.http.routers.testproj-orders-api.rule": "Host(`orders.backend.testproj.local`) || PathPrefix(`/api/orders`)",
         "traefik.http.routers.testproj-orders-api.entrypoints": "web",
         "traefik.http.routers.testproj-orders-api.service": "testproj-orders-api",

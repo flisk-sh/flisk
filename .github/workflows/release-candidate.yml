@@ -8,6 +8,11 @@ name: 🧪 Release | Candidate
 
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Also start release-binaries.yml on this same branch now; it builds alongside the suites and publishes this exact commit only if they all pass"
+        type: boolean
+        default: false
   push:
     tags: ["rc-*"]
 
@@ -71,7 +76,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
-          bun-version: latest
+          bun-version: "1.4.4" # pinned: the compiled binaries are byte-identical only for one Bun version; bump on purpose
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -270,3 +275,25 @@ jobs:
             fi
           done
           echo "Release candidate passed."
+
+  # Opt-in (`-f release=true`): start the release on this same ref right after the plan, so release-binaries.yml builds the
+  # binaries while the suites run. Its `publish` job waits for this candidate (check-release-candidate.mjs --wait) and publishes
+  # only if every job here passed; if one fails, nothing is published. It publishes exactly the commit tested here, so merges
+  # into main meanwhile cannot void the candidate (1.4.24). A workflow_dispatch made with github.token does start the
+  # workflow (GitHub's exception for workflow_dispatch).
+  release:
+    name: release-candidate / dispatch release
+    needs: [plan]
+    if: github.event_name == 'workflow_dispatch' && inputs.release && needs.plan.result == 'success' && startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch release-binaries.yml on this ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.ref_name }}
+        run: |
+          gh workflow run release-binaries.yml --repo "$GITHUB_REPOSITORY" --ref "$REF"
+          echo "::notice::Dispatched release-binaries.yml on ${REF} (${GITHUB_SHA})."

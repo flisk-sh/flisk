@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +22,7 @@ import {
 import { FliskError } from "../utils/errors.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
+import { getPackageVersion } from "../utils/paths.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "../utils/project-config-defaults.js";
 import {
   describeLayoutProblems,
@@ -166,8 +168,7 @@ export class TemplateEngine {
   private templatesDir: string;
 
   constructor(templatesDir?: string) {
-    const currentDir = import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
-    this.templatesDir = templatesDir || path.join(currentDir, "..", "..", "templates");
+    this.templatesDir = templatesDir || defaultTemplatesDir();
   }
 
   // Backslashes must be escaped before quotes, or a value ending in a backslash escapes the closing quote.
@@ -998,15 +999,16 @@ export function ensureProjectRuntimeAssets(projectRoot: string): string[] {
   return copied;
 }
 
-async function vendorFliskExtension(
-  projectRoot: string,
-  options: { quiet?: boolean } = {},
-): Promise<void> {
-  const vendoredDir = assertFliskGeneratedPath(
-    projectRoot,
-    path.join(".flisk", ".flisk-out", "flisk-cli-ext"),
-  );
+function defaultTemplatesDir(): string {
+  const currentDir = import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
+  return path.join(currentDir, "..", "..", "templates");
+}
 
+/**
+ * Where `flisk up` and `flisk config regenerate` copy the Flisk extension from, in order; the first with the extension layout
+ * wins.
+ */
+function extensionSourceCandidates(projectRoot: string): string[] {
   // Source resolution order:
   //   1. $FLISK_EXTENSION_SOURCE (explicit override)
   //   2. Self-contained repo (engine/ ships next to cli/ - public flisk)
@@ -1030,6 +1032,74 @@ async function vendorFliskExtension(
   const exeDir = path.dirname(process.execPath);
   sources.push(path.join(exeDir, "flisk-cli"));
   sources.push(path.join(projectRoot, "..", "flisk-cli"));
+  return sources;
+}
+
+/**
+ * The vendored engine records what it was copied from, so `flisk up` can tell that the installed CLI now ships a different
+ * engine or different templates (an upgrade, or a checkout on another commit) and regenerate .flisk/.flisk-out/ (#2899).
+ */
+const ENGINE_FINGERPRINT_FILE = ".source-fingerprint";
+
+function hashTree(hash: ReturnType<typeof createHash>, root: string, dir: string): void {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs
+    .readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      hashTree(hash, root, entryPath);
+    } else if (entry.isFile() && !isTestFile(entryPath)) {
+      hash.update(path.relative(root, entryPath).split(path.sep).join("/"));
+      hash.update("\0");
+      hash.update(fs.readFileSync(entryPath));
+      hash.update("\0");
+    }
+  }
+}
+
+/** Hash of the CLI version, the templates, and the extension files vendoring copies from `sourceRoot`. */
+export function engineSourceFingerprint(
+  sourceRoot: string,
+  templatesDir = defaultTemplatesDir(),
+): string {
+  const hash = createHash("sha256");
+  hash.update(`flisk ${getPackageVersion()}\0`);
+  hash.update(fs.readFileSync(resolveTiltfile(sourceRoot)));
+  for (const dir of FLISK_EXTENSION_DIRS) {
+    hashTree(hash, sourceRoot, resolveExtensionDir(sourceRoot, dir));
+  }
+  hashTree(hash, templatesDir, templatesDir);
+  return hash.digest("hex");
+}
+
+/**
+ * True when .flisk/.flisk-out/ was generated from another engine or other templates than this CLI ships: the vendored copy's
+ * fingerprint differs, or it has none (vendored by a Flisk from before the fingerprint). False when nothing is vendored yet, or
+ * this CLI has no extension to vendor (then regenerating would change nothing).
+ */
+export function isVendoredEngineStale(projectRoot: string): boolean {
+  const vendoredDir = path.join(projectRoot, ".flisk", ".flisk-out", "flisk-cli-ext");
+  if (!fs.existsSync(vendoredDir)) return false;
+  const sourceRoot = extensionSourceCandidates(projectRoot).find(
+    (candidate) => candidate && hasExtensionLayout(candidate),
+  );
+  if (!sourceRoot) return false;
+  const stampPath = path.join(vendoredDir, ENGINE_FINGERPRINT_FILE);
+  const recorded = fs.existsSync(stampPath) ? fs.readFileSync(stampPath, "utf-8").trim() : "";
+  return recorded !== engineSourceFingerprint(sourceRoot);
+}
+
+async function vendorFliskExtension(
+  projectRoot: string,
+  options: { quiet?: boolean } = {},
+): Promise<void> {
+  const vendoredDir = assertFliskGeneratedPath(
+    projectRoot,
+    path.join(".flisk", ".flisk-out", "flisk-cli-ext"),
+  );
+  const sources = extensionSourceCandidates(projectRoot);
 
   // An explicit override that fails the layout check is skipped below; say why instead of silently falling
   // back to a different copy of the extension.
@@ -1076,6 +1146,10 @@ async function vendorFliskExtension(
       filter: (source) => !isTestFile(source),
     });
   }
+  writeTextFileAtomic(
+    path.join(vendoredDir, ENGINE_FINGERPRINT_FILE),
+    `${engineSourceFingerprint(sourceRoot)}\n`,
+  );
   if (!options.quiet) console.log(`✓ Vendored Flisk extension → .flisk/.flisk-out/flisk-cli-ext/`);
 
   // Best-effort: if FLISK_LICENSE_KEY is set and grants any paid resource,

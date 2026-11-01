@@ -1,16 +1,19 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import chalk from "chalk";
 import { declaredDependsOn, dependencyEdges } from "./dependency-graph.js";
 import { checkDuplicateResourceNames } from "./doctor-wiring.js";
 import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
+import { projectEnvLookup } from "./extra-port-publish.js";
 import { formatCount } from "./formatting.js";
 import { findProjectRoot } from "./paths.js";
-import { SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, } from "./service-manifest.js";
+import { envFileErrors, providersOf, SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
+import { extraPortsOf, isLoopbackAddress } from "./status-ports.js";
 function filePath(projectRoot, resource) {
     return relative(projectRoot, resource.configPath) || resource.configPath;
 }
@@ -143,6 +146,214 @@ export function checkCustomDockerfiles(projectRoot = findProjectRoot() ?? proces
         fix: 'Create the file, or remove "dockerfile" from service.json to use the generated Dockerfile',
     };
 }
+/**
+ * A `sidecarOf` (#2908) becomes `network_mode: "service:<host>"` in the stack's Compose file, so the host must be a resource in
+ * the same stack. Otherwise Compose stops with "service ... depends on undefined service", after `flisk up` has said yes.
+ */
+export function checkSidecars(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const stackOf = new Map(resources.map((resource) => [resource.name, resource.config?.stack]));
+    const problems = resources.flatMap((resource) => {
+        const host = resource.config?.sidecarOf;
+        if (typeof host !== "string" || host === "")
+            return [];
+        const at = `${filePath(projectRoot, resource)} sidecarOf "${host}"`;
+        if (!stackOf.has(host))
+            return [`${at}: no resource has that name`];
+        if (stackOf.get(host) !== resource.config?.stack) {
+            return [
+                `${at}: is in stack "${String(stackOf.get(host))}", not "${String(resource.config?.stack)}"`,
+            ];
+        }
+        return [];
+    });
+    if (problems.length === 0) {
+        return {
+            name: "Sidecars",
+            didPass: true,
+            message: "Every sidecarOf names a resource in its stack",
+        };
+    }
+    return {
+        name: "Sidecars",
+        didPass: false,
+        message: `${formatCount(problems.length, "invalid sidecarOf", "invalid sidecarOf")}:\n    ${problems.join("\n    ")}`,
+        fix: 'Set "sidecarOf" to the appName of a resource in the same stack',
+    };
+}
+/**
+ * A bind mount in `volumes` (#1748) is relative to its service directory, and one that climbs out of the project would hand a
+ * container files Flisk was never asked to share. The generator refuses it too, after `flisk up` has said yes.
+ */
+export function checkVolumes(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+    const problems = resources.flatMap((resource) => {
+        if (!resource.config || !("volumes" in resource.config || "envFile" in resource.config)) {
+            return [];
+        }
+        const dir = relative(projectRoot, dirname(resource.configPath));
+        const depth = dir === "" ? 0 : dir.split(sep).length;
+        // The shape of each entry is reported with the other service.json fields (checkServiceFields); this check adds the location.
+        const config = resource.config;
+        const displayPath = filePath(projectRoot, resource);
+        return [
+            ...volumesErrors(config, displayPath, depth),
+            ...envFileErrors(config, displayPath, depth),
+        ].filter((problem) => problem.endsWith("must stay inside the project"));
+    });
+    if (problems.length === 0) {
+        return { name: "Volumes", didPass: true, message: "Every bind mount stays inside the project" };
+    }
+    return {
+        name: "Volumes",
+        didPass: false,
+        message: `${formatCount(problems.length, "bind mount outside the project", "bind mounts outside the project")}:\n    ${problems.join("\n    ")}`,
+        fix: 'Mount a path inside the project, such as "./config", or use a named volume such as "data"',
+    };
+}
+/** `docker ps` lines `name|ports`, or "" when Docker cannot be asked. */
+function dockerPublishedPorts() {
+    try {
+        return execFileSync("docker", ["ps", "--format", "{{.Names}}|{{.Ports}}"], {
+            encoding: "utf-8",
+            timeout: 5000,
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+    }
+    catch {
+        return "";
+    }
+}
+/** The non-loopback host address (`0.0.0.0:80/tcp`) a running container publishes this host port on, or null. */
+export function liveNetworkAddress(dockerPs, hostPort, containerPort, protocol) {
+    const suffix = `:${hostPort}->${containerPort}/${protocol}`;
+    for (const line of dockerPs.split("\n")) {
+        const ports = line.slice(line.indexOf("|") + 1);
+        for (const mapping of ports.split(",")) {
+            const text = mapping.trim();
+            if (!text.endsWith(suffix))
+                continue;
+            const address = text.slice(0, text.length - suffix.length).replace(/^\[(.*)\]$/, "$1");
+            if (address && !isLoopbackAddress(address) && address !== "::1")
+                return `${address}${suffix.replace("->", " -> ")}`;
+        }
+    }
+    return null;
+}
+/**
+ * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935), or a `publish` that resolves to one (a bare port, 0.0.0.0 or any
+ * non-loopback address), is reachable from every device on the network, unlike everything else Flisk publishes. Say so in
+ * `flisk doctor`, as a warning, so it stays a visible choice. A `publish` variable is read from the shell and the project `.env`
+ * the way Compose reads it; a value that is not a port or address:port is named, because Compose would refuse it.
+ */
+export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), dockerPorts = dockerPublishedPorts) {
+    const lookup = projectEnvLookup(projectRoot);
+    const ports = resources.flatMap((resource) => extraPortsOf(resource, lookup).map((port) => ({ resource, port })));
+    const open = ports
+        .filter(({ port }) => !port.problem && !isLoopbackAddress(port.bind))
+        .map(({ resource, port }) => {
+        const via = port.publish
+            ? ` (${port.publish.variables.join(", ")}, ${port.publish.source === "environment" ? "set in the environment or .env" : "default in service.json"})`
+            : "";
+        return `${resource.name} ${port.address}${via}`;
+    });
+    const bad = ports
+        .filter(({ port }) => port.problem)
+        .map(({ resource, port }) => `${resource.name} ${port.problem}`);
+    // service.json and .env say 127.0.0.1, but a container created before they changed (or by hand) may still be on every interface.
+    const declaredLoopback = ports.filter(({ port }) => !port.problem && isLoopbackAddress(port.bind));
+    const live = declaredLoopback.length > 0 ? dockerPorts() : "";
+    const stale = declaredLoopback
+        .map(({ resource, port }) => ({
+        resource,
+        port,
+        address: liveNetworkAddress(live, port.hostPort, port.containerPort, port.protocol),
+    }))
+        .filter((entry) => entry.address !== null)
+        .map(({ resource, port, address }) => `${resource.name} ${port.address} is declared on this machine only, but a running container publishes ${address}`);
+    if (open.length === 0 && bad.length === 0 && stale.length === 0) {
+        return {
+            name: "Network ports",
+            didPass: true,
+            message: "No port is published beyond this machine",
+        };
+    }
+    const sections = [
+        open.length > 0
+            ? `${formatCount(open.length, "port")} reachable from the network:\n    ${open.join("\n    ")}`
+            : "",
+        stale.length > 0
+            ? `${formatCount(stale.length, "port")} wider than declared:\n    ${stale.join("\n    ")}`
+            : "",
+        bad.length > 0 ? `Invalid published address:\n    ${bad.join("\n    ")}` : "",
+    ].filter(Boolean);
+    return {
+        name: "Network ports",
+        didPass: false,
+        isWarning: true,
+        message: sections.join("\n  "),
+        fix: [
+            open.length > 0
+                ? 'Remove "bind": "0.0.0.0" from extraPorts, or start a "publish" default or .env value with 127.0.0.1:, to publish on this machine only'
+                : "",
+            stale.length > 0
+                ? "Recreate the container (flisk restart <resource>) so it picks up the declared bind"
+                : "",
+            bad.length > 0
+                ? 'Set the .env value to a port or an IPv4 address:port such as "127.0.0.1:8080"'
+                : "",
+        ]
+            .filter(Boolean)
+            .join(". "),
+    };
+}
+/** The runtimes `docker info` lists, or null when Docker cannot be asked. */
+function dockerRuntimes() {
+    try {
+        const out = execFileSync("docker", ["info", "--format", "{{json .Runtimes}}"], {
+            encoding: "utf-8",
+            timeout: 8000,
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+        return Object.keys(JSON.parse(out) ?? {});
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * A bring-your-own `container.gpus` reserves NVIDIA devices in the generated Compose file. `config verify` accepts it anywhere, so
+ * on a host whose Docker has no NVIDIA runtime (a laptop, Docker Desktop on a Mac) the failure comes from Docker when the container
+ * is created, after the build. Warn up front instead. A Docker that cannot be asked is not a finding (the Docker checks report it),
+ * and a host using CDI may not list the runtime, so this is a warning, never a gate.
+ */
+export function checkGpuRuntime(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), runtimes = dockerRuntimes) {
+    const wanting = resources
+        .filter((resource) => {
+        const container = resource.config
+            ?.container;
+        return container?.gpus !== undefined;
+    })
+        .map((resource) => resource.name);
+    if (wanting.length === 0) {
+        return { name: "GPU runtime", didPass: true, message: "No service asks for a GPU" };
+    }
+    const found = runtimes();
+    if (found === null || found.includes("nvidia")) {
+        return {
+            name: "GPU runtime",
+            didPass: true,
+            message: found === null
+                ? "Docker did not answer; the GPU runtime was not checked"
+                : "Docker has the NVIDIA runtime",
+        };
+    }
+    return {
+        name: "GPU runtime",
+        didPass: false,
+        isWarning: true,
+        message: `${wanting.join(", ")} ask for a GPU (container.gpus), but Docker lists no nvidia runtime (found: ${found.join(", ") || "none"}); Docker will refuse to create ${wanting.length === 1 ? "it" : "them"}`,
+        fix: "Install the NVIDIA Container Toolkit on a GPU host, or remove container.gpus for this machine",
+    };
+}
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export function checkServicePorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
     const problems = resources.flatMap((resource) => {
@@ -239,11 +450,18 @@ export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.
     const problems = resources.flatMap((resource) => {
         const required = resource.config?.secrets
             ?.required;
-        if (!Array.isArray(required))
-            return [];
-        return required
+        const missingSecrets = (Array.isArray(required) ? required : [])
             .filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !has(name))
             .map((name) => `${filePath(projectRoot, resource)}: secret ${name} has no value`);
+        // A provider's token is required unless the provider has a local fallback (service.json `providers`).
+        const missingTokens = providersOf(resource.config)
+            .filter((provider) => provider.required &&
+            provider.tokenSecret !== undefined &&
+            /^[A-Za-z_][A-Za-z0-9_]*$/.test(provider.tokenSecret) &&
+            !has(provider.tokenSecret) &&
+            !missingSecrets.some((line) => line.endsWith(` ${provider.tokenSecret} has no value`)))
+            .map((provider) => `${filePath(projectRoot, resource)}: secret ${provider.tokenSecret} (token of provider ${provider.id}) has no value`);
+        return [...missingSecrets, ...missingTokens];
     });
     if (problems.length === 0) {
         return {
@@ -282,6 +500,8 @@ export function enforceServiceConfigGate(projectRoot, options = {}, exit = proce
         checkDependsOnShape(projectRoot, resources),
         checkCircularDependencies(projectRoot, resources),
         checkServicePorts(projectRoot, resources),
+        checkSidecars(projectRoot, resources),
+        checkVolumes(projectRoot, resources),
     ].filter((check) => !check.didPass);
     if (failed.length === 0)
         return;

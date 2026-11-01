@@ -401,6 +401,18 @@ No available host port in 15432-15532 for postgres. Set FLISK_POSTGRES_PORT to a
 
 ## Services never turn healthy, or are left behind
 
+### `Advertised Endpoints`: `N advertised link(s) return 404`
+
+```text
+⚠ 1 advertised link returns 404 (the service may be healthy, but nothing answers at this exact path):
+    <name> (404)
+      <url>
+```
+- **Defined in:** [`doctor-runtime.ts`](../cli/src/utils/doctor-runtime.ts), `summarizeAdvertisedProbes`. Doctor requests the URL each routable service advertises (the one `flisk networks` and the Flisk App show) and warns, without failing, when one answers 404.
+- **Cause:** `/health` is fine, but nothing handles the exact path of the advertised link, usually an API with no root route.
+- **Fix:** leave it, or add a `GET` route for that path. A stopped stack is skipped, not reported: the check only runs once services answer.
+- **Checked:** read from source, not reproduced.
+
 ### `HTTP 404: Traefik is answering but has no route for this URL`
 
 ```text

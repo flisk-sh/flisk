@@ -31,6 +31,8 @@ export interface HealthCheckObjectConfig {
   interval?: number;
   timeout?: number;
   retries?: number;
+  /** Seconds after start before failed probes count (Compose start_period). */
+  startPeriod?: number;
   path?: string;
   /** Ready when this TCP port accepts a connection (#2875). */
   port?: number;
@@ -49,6 +51,10 @@ export interface ResourceConfigFields {
   replicas?: number;
   runtime?: string;
   featuresEnabled?: string[];
+  /**
+   * Names after discovery. service.json may also write `{ "name": "db", "condition": "service_healthy" }` entries
+   * (dependsOnErrors checks them); parseResource turns them into their names.
+   */
   dependsOn?: string[];
   /** Deprecated spelling of dependsOn; still read, and counted with it. */
   dependencies?: string[];
@@ -174,8 +180,28 @@ export const CREATABLE_RESOURCE_TYPES = [
  */
 export const DATABASE_RESOURCE_TYPE = "database";
 
-/** The one database a `database` resource can name today. */
+/** The database `--type database` runs when no `--framework` is given: the shared Flisk Postgres. */
 export const DATABASE_FRAMEWORK = "postgres";
+
+/** `--type queue`: a message queue or broker, run as its own container (utils/infra-presets.ts). */
+export const QUEUE_RESOURCE_TYPE = "queue";
+
+/** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
+export const DATABASE_INFRA_FRAMEWORKS = ["redis", "qdrant", "minio", "mlflow"] as const;
+
+/** `--type queue --framework <id>`. */
+export const QUEUE_FRAMEWORKS = ["nats", "rabbitmq"] as const;
+
+/** The queue `--type queue` runs when no `--framework` is given. */
+export const DEFAULT_QUEUE_FRAMEWORK = "nats";
+
+/** Every framework id of the infrastructure presets. */
+export type InfraFramework =
+  | (typeof DATABASE_INFRA_FRAMEWORKS)[number]
+  | (typeof QUEUE_FRAMEWORKS)[number];
+
+/** The frameworks `--type database` accepts: the shared Postgres first, then the infrastructure presets. */
+export const DATABASE_FRAMEWORKS = [DATABASE_FRAMEWORK, ...DATABASE_INFRA_FRAMEWORKS] as const;
 
 /**
  * Every value `flisk resource --type` accepts: the creatable types, `database`, and `sdk`, which
@@ -184,6 +210,7 @@ export const DATABASE_FRAMEWORK = "postgres";
 export const RESOURCE_TYPE_VALUES = [
   ...CREATABLE_RESOURCE_TYPES,
   DATABASE_RESOURCE_TYPE,
+  QUEUE_RESOURCE_TYPE,
   "sdk",
 ] as const;
 
@@ -192,7 +219,7 @@ export const INFERENCE_RESOURCE_TYPE = "inference";
 
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
- * the `inference` preset and `database`. `sdk` is left out because it only registers a package that
+ * the `inference` preset, `database` and `queue`. `sdk` is left out because it only registers a package that
  * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
  * `resource_create` tool builds its type enum from this list.
  */
@@ -200,6 +227,7 @@ export const RESOURCE_CREATE_TYPE_VALUES = [
   ...CREATABLE_RESOURCE_TYPES,
   INFERENCE_RESOURCE_TYPE,
   DATABASE_RESOURCE_TYPE,
+  QUEUE_RESOURCE_TYPE,
 ] as const;
 
 export type CreatableResourceType = Extract<
@@ -319,6 +347,8 @@ export interface ProjectConfig {
     out_of_scope: LegacyProjectStackDefinition;
   };
   always_enabled_infra?: string[];
+  /** stack -> the Compose project name an imported Compose file ran under (written by flisk import); accepted, not yet read. */
+  composeProjectNames?: Record<string, string>;
   optional_infra: ProjectOptionalInfra;
   discovery: ProjectDiscovery;
   overrides?: Record<string, JsonValue>;

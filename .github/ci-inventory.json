@@ -587,6 +587,14 @@
 		},
 		{
 			"workflow": "release-candidate.yml",
+			"job": "release",
+			"tier": "release",
+			"required": false,
+			"reason": "Dispatches the release workflow from a release/* branch once the plan passes (#2945)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
 			"job": "gate",
 			"tier": "release",
 			"required": false,
@@ -757,6 +765,14 @@
 			"tier": "e2e",
 			"required": false,
 			"reason": "Full 100-service fixture boot, weekly and manual, carried over from erp-scale-e2e.yml at the #1302 cutover; suite tests/e2e/scale/erp",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "e2e-scale-enigma36.yml",
+			"job": "enigma36",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Enigma 36: 36 resources drawn by seed from every type, framework and language over six stacks; nightly and manual; suite tests/e2e/scale/enigma36",
 			"owner": "maintainers"
 		},
 		{

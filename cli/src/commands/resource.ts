@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -35,6 +35,7 @@ import type {
   AgentConfig,
   CreatableResourceType,
   FileGenerationTask,
+  InfraFramework,
   JsonCommandResult,
   PortAssignableResourceType,
   ResourceType,
@@ -43,6 +44,7 @@ import {
   DATABASE_FRAMEWORK,
   DATABASE_RESOURCE_TYPE,
   INFERENCE_RESOURCE_TYPE,
+  QUEUE_RESOURCE_TYPE,
   RESOURCE_CREATE_TYPE_VALUES,
 } from "../types/index.js";
 import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-helpers.js";
@@ -62,6 +64,15 @@ import {
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
+import {
+  createInfraServiceJson,
+  frameworksOfType,
+  INFRA_PRESETS,
+  type InfraPreset,
+  infraFrameworkFor,
+  isInfraFramework,
+  replacementForRemovedType,
+} from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
@@ -155,6 +166,46 @@ function readServiceJsonPort(path: string): number | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Options an infrastructure framework cannot take: its image listens on a fixed port inside the container. */
+export function assertInfraPresetOptions(
+  framework: InfraFramework,
+  options: { port?: string; image?: string },
+) {
+  if (options.port !== undefined) {
+    throw new FliskError(
+      `--port cannot be used with --framework ${framework}: the image listens on ${INFRA_PRESETS[framework].port}.`,
+      ["Drop --port; other services reach it on the Docker network by its name"],
+    );
+  }
+  if (options.image !== undefined && !/^[A-Za-z0-9._/:@-]+$/.test(options.image)) {
+    throw new FliskError("--image must be an image reference such as ghcr.io/acme/app:1.0.", [
+      "Pass one image reference without spaces or line breaks",
+    ]);
+  }
+}
+
+/**
+ * `--framework` for `--type database` (postgres, or an infrastructure framework) and `--type queue`: a wrong id gets the
+ * type that offers it, because the ids of the two types are disjoint.
+ */
+export function assertInfraFramework(type: string, framework: string | undefined): void {
+  if (framework === undefined) return;
+  const offered =
+    type === QUEUE_RESOURCE_TYPE
+      ? frameworksOfType(type)
+      : [DATABASE_FRAMEWORK, ...frameworksOfType(type)];
+  if (offered.includes(framework)) return;
+  const otherType = isInfraFramework(framework) ? INFRA_PRESETS[framework].type : undefined;
+  throw new FliskError(
+    `--framework ${framework} is not a ${type} Flisk can run. Use one of: ${offered.join(", ")}.`,
+    [
+      otherType
+        ? `${framework} is a ${otherType}: use --type ${otherType} --framework ${framework}`
+        : `Use --type ${type} --framework <${offered.join("|")}>`,
+    ],
+  );
 }
 
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
@@ -508,10 +559,20 @@ export const TSCONFIG_TEMPLATE = {
 
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 
-/** Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` a preset of it. */
+/**
+ * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference` is a preset of it.
+ * `database` and `queue` stay themselves: their `--framework` decides whether Flisk's Postgres or a bring-your-own
+ * container is created. The preset types of 1.4.24 (redis, qdrant, rabbitmq, minio, mlflow) are frameworks now.
+ */
 export function parseResourceType(
   type: string,
-): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk" {
+): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | typeof QUEUE_RESOURCE_TYPE | "sdk" {
+  const replacement = replacementForRemovedType(type);
+  if (replacement) {
+    throw new FliskError(`${type} is a framework: use ${replacement}.`, [
+      `Run: flisk resource <name> ${replacement}`,
+    ]);
+  }
   const normalized = type === "byo" || type === INFERENCE_TYPE ? BRING_YOUR_OWN_TYPE : type;
   const validTypes: readonly string[] = [...RESOURCE_CREATE_TYPE_VALUES, "sdk"];
   if (!validTypes.includes(normalized)) {
@@ -520,7 +581,11 @@ export function parseResourceType(
       [`Use one of: ${validTypes.join(", ")}`, "Omit --type to create a backend"],
     );
   }
-  return normalized as CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk";
+  return normalized as
+    | CreatableResourceType
+    | typeof DATABASE_RESOURCE_TYPE
+    | typeof QUEUE_RESOURCE_TYPE
+    | "sdk";
 }
 
 /** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */
@@ -535,7 +600,7 @@ export function createDatabaseServiceJson(name: string, stack: string): Record<s
   };
 }
 
-/** A database resource has no code, port or image, so only `--framework postgres` (or no framework) applies to it. */
+/** The shared Postgres (`--type database` with no framework or `--framework postgres`) has no code, port or image to set. */
 function assertDatabaseOptions(options: {
   framework?: string;
   port?: string;
@@ -544,14 +609,6 @@ function assertDatabaseOptions(options: {
   feature?: string[];
   language?: string;
 }): void {
-  if (options.framework !== undefined && options.framework !== DATABASE_FRAMEWORK) {
-    throw new FliskError(
-      `--framework ${options.framework} is not a database Flisk can run. Use --framework ${DATABASE_FRAMEWORK}.`,
-      [
-        `Drop --framework (it defaults to ${DATABASE_FRAMEWORK}), or pass --framework ${DATABASE_FRAMEWORK}`,
-      ],
-    );
-  }
   const unsupported = (
     [
       ["--port", options.port],
@@ -706,12 +763,12 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .argument("[name]", "Resource name (kebab-case)")
   .option(
     "-t, --type <type>",
-    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, sdk",
+    "Resource type: backend, frontend, worker, mcp, agent, inference, bring-your-own, database, queue, sdk",
     "backend",
   )
   .option(
     "--framework <id>",
-    "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks)",
+    "Framework: frontend react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next; backend hono (default), express, elysia, fastify, nestjs, koa, h3 (list them with --frameworks); database postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow; queue nats (default), rabbitmq",
   )
   .option(
     "--frameworks",
@@ -803,8 +860,20 @@ export const resourceCommand = addYesOption(new Command("resource"))
         assertValid(validateResourceName(resourceName));
       }
 
-      const resourceType = parseResourceType(options.type);
+      const requestedType = parseResourceType(options.type);
       const isInference = options.type === INFERENCE_TYPE;
+      if (requestedType === DATABASE_RESOURCE_TYPE || requestedType === QUEUE_RESOURCE_TYPE) {
+        assertInfraFramework(requestedType, options.framework);
+      }
+      // An infrastructure framework is a bring-your-own container; only the shared Postgres is a `database` resource.
+      const infraPreset: InfraFramework | undefined = infraFrameworkFor(
+        requestedType,
+        options.framework,
+      );
+      // A queue is always an infrastructure framework (NATS without --framework), so it never reaches the scaffolding below.
+      const resourceType = infraPreset
+        ? BRING_YOUR_OWN_TYPE
+        : (requestedType as Exclude<typeof requestedType, typeof QUEUE_RESOURCE_TYPE>);
       const isDatabase = resourceType === DATABASE_RESOURCE_TYPE;
       if (isDatabase) assertDatabaseOptions(options);
       if (
@@ -826,7 +895,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       // A database's --framework names the database (checked above), not an app framework.
-      let frameworkOption: string | undefined = isDatabase ? undefined : options.framework;
+      let frameworkOption: string | undefined =
+        isDatabase || infraPreset ? undefined : options.framework;
       if (
         resourceType === "frontend" &&
         frameworkOption === undefined &&
@@ -1047,7 +1117,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
 
       const nextPort =
-        resourceType === "sdk" || isInference || isDatabase
+        resourceType === "sdk" || isInference || infraPreset || isDatabase
           ? 0
           : assignPort(
               resourceType as CreatableResourceType as PortAssignableResourceType,
@@ -1080,16 +1150,19 @@ export const resourceCommand = addYesOption(new Command("resource"))
         isInference && !options.port && shouldRegisterExisting && hasServiceJson
           ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
           : undefined;
-      const assignedPort = isInference
-        ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
-        : resourceType === "sdk" || isDatabase
-          ? 0
-          : resolveResourcePort(
-              resourceType as PortAssignableResourceType,
-              options.port,
-              nextPort,
-              allResources,
-            );
+      if (infraPreset) assertInfraPresetOptions(infraPreset, options);
+      const assignedPort = infraPreset
+        ? INFRA_PRESETS[infraPreset].port
+        : isInference
+          ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
+          : resourceType === "sdk" || isDatabase
+            ? 0
+            : resolveResourcePort(
+                resourceType as PortAssignableResourceType,
+                options.port,
+                nextPort,
+                allResources,
+              );
 
       console.log(chalk.gray("\nResource details:"));
       console.log(chalk.gray(`  Name:  ${resourceName}`));
@@ -1125,7 +1198,8 @@ export const resourceCommand = addYesOption(new Command("resource"))
           // A Bun backend without --framework is scaffolded with the default framework.
           framework: isDatabase
             ? DATABASE_FRAMEWORK
-            : (scaffoldFrameworkId ??
+            : (infraPreset ??
+              scaffoldFrameworkId ??
               (resourceType === "backend" && !backendLanguage?.createFiles
                 ? DEFAULT_BACKEND_FRAMEWORK
                 : null)),
@@ -1187,6 +1261,44 @@ export const resourceCommand = addYesOption(new Command("resource"))
         console.log(
           chalk.gray(`  Add "${resourceName}" to dependsOn in the services that use the database`),
         );
+        console.log(chalk.gray(`  flisk up ${stackName}`));
+        return report("created");
+      }
+
+      // An infrastructure framework is a pinned image with a probe, a data volume and the connection settings it provides.
+      if (infraPreset) {
+        const preset: InfraPreset = INFRA_PRESETS[infraPreset];
+        console.log(chalk.blue(`\n📁 Creating ${preset.description}...`));
+        mkdirSync(fullPath, { recursive: true });
+        const serviceJson = createInfraServiceJson(
+          resourceName,
+          stackName,
+          infraPreset,
+          options.image,
+        );
+        writeFileSync(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
+        const agentsPath = resolve(fullPath, "AGENTS.md");
+        if (!existsSync(agentsPath)) {
+          writeFileSync(
+            agentsPath,
+            `# AGENTS.md\n\nDO NOT DELETE service.json\n\n${preset.description} for Flisk. Services that list "${resourceName}" in dependsOn get its \`provides\` settings in their environment.\n`,
+          );
+        }
+        clearDiscoveryCache();
+        console.log(chalk.green(`\n✅ ${preset.description} created.`));
+        console.log(chalk.gray(`\nLocation: ${fullPath}`));
+        console.log(chalk.gray(`\nServices that list "${resourceName}" in dependsOn get:`));
+        for (const [key, value] of Object.entries(serviceJson.provides as Record<string, string>)) {
+          console.log(chalk.gray(`  ${key}=${value}`));
+        }
+        for (const port of preset.uiPorts ?? []) {
+          console.log(
+            chalk.gray(
+              `\nUI: http://127.0.0.1:${port} (this machine only; change hostPort in extraPorts if the port is taken)`,
+            ),
+          );
+        }
+        console.log(chalk.gray(`\nNext steps:`));
         console.log(chalk.gray(`  flisk up ${stackName}`));
         return report("created");
       }

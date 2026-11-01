@@ -35,6 +35,12 @@ export const INTENTIONAL = [
 	},
 	{ file: "docs/data.md", command: "flisk db reset", reason: "says the command does not exist" },
 	{ file: "docs/data.md", command: "flisk db seed", reason: "says the command does not exist" },
+	{
+		file: "docs/troubleshooting.md",
+		command:
+			"flisk down --prune-cache (or docker builder prune --filter until=24h Note this affects other projects on this machine",
+		reason: "quotes flisk doctor output, where the docker command in parentheses runs on into the flisk one",
+	},
 ];
 
 // A word that stands for something the reader fills in: <name>, [stack], {id}, $VAR, ... or …

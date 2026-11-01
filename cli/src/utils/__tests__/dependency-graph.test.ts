@@ -26,6 +26,17 @@ const svc = (
 const edges = (resources: DiscoveredResource[]) => Object.fromEntries(dependencyEdges(resources));
 
 describe("dependsOnOf", () => {
+  it("counts a bring-your-own sidecar's host as a dependency, once", () => {
+    expect(
+      dependsOnOf({ appType: "bring-your-own", sidecarOf: "tubehaus", dependsOn: ["postgres"] }),
+    ).toEqual(["postgres", "tubehaus"]);
+    expect(
+      dependsOnOf({ appType: "bring-your-own", sidecarOf: "tubehaus", dependsOn: ["tubehaus"] }),
+    ).toEqual(["tubehaus"]);
+    // Only bring-your-own resources have sidecars; config verify reports sidecarOf elsewhere.
+    expect(dependsOnOf({ appType: "backend", sidecarOf: "tubehaus" })).toEqual([]);
+  });
+
   it("reads a list of names", () => {
     expect(dependsOnOf({ dependsOn: ["a", "b"] })).toEqual(["a", "b"]);
   });
@@ -47,6 +58,26 @@ describe("declaredDependsOn", () => {
     expect(declaredDependsOn({})).toEqual([]);
     expect(declaredDependsOn({ dependsOn: null })).toBeNull();
     expect(declaredDependsOn({ dependsOn: "api" })).toBeNull();
+  });
+
+  it("reads Compose-style { name, condition } entries by their name", () => {
+    expect(
+      declaredDependsOn({
+        dependsOn: ["cache", { name: "db", condition: "service_healthy" }, { name: "job" }],
+      }),
+    ).toEqual(["cache", "db", "job"]);
+    expect(declaredDependsOn({ dependsOn: [{ condition: "service_healthy" }] })).toBeNull();
+    expect(declaredDependsOn({ dependsOn: [{ name: "" }] })).toBeNull();
+    expect(declaredDependsOn({ dependsOn: [["db"]] })).toBeNull();
+  });
+
+  it("gives the same edges for object entries as for names", () => {
+    const edges = dependencyEdges([
+      svc("api", { dependsOn: [{ name: "db", condition: "service_healthy" }] }),
+      svc("db"),
+    ]);
+    expect(edges.get("api")).toEqual(["db"]);
+    expect(dependsOnOf({ dependsOn: [{ name: "db" }, "cache"] })).toEqual(["db", "cache"]);
   });
 });
 
