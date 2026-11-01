@@ -45,6 +45,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "healthCheckPath",
     "image",
     "language",
+    "models",
     "name",
     "nats",
     "params",
@@ -703,6 +704,54 @@ export function envFileErrors(manifest, displayPath, serviceDepth) {
     });
     return errors;
 }
+/** A model reference such as ai/smollm2, ai/qwen3:8B-Q4_K_M or hf.co/org/name. */
+const MODEL_REFERENCE = "[A-Za-z0-9][A-Za-z0-9._/:@-]*";
+/** `models[].model`: a model reference, or a Compose variable `${NAME}` / `${NAME:-<model reference>}`. */
+const MODEL_VALUE_PATTERN = new RegExp(`^(${MODEL_REFERENCE}|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:-${MODEL_REFERENCE})?\\})$`);
+/**
+ * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
+ * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
+ * generated YAML, so only a model reference or a Compose variable is accepted. Mirrors engine/.../compose/byo_models.star.
+ */
+export function modelsErrors(manifest, displayPath) {
+    const models = manifest.models;
+    if (models === undefined || models === null)
+        return [];
+    const field = `${displayPath}.models`;
+    if (!Array.isArray(models)) {
+        return [`${field}: expected a list such as [{"name": "llm", "model": "ai/smollm2"}]`];
+    }
+    if (manifest.appType !== "bring-your-own") {
+        return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+    }
+    const errors = [];
+    const names = new Set();
+    models.forEach((entry, i) => {
+        const at = `${field}[${i}]`;
+        if (!isPlainObject(entry)) {
+            errors.push(`${at}: expected an object such as {"name": "llm", "model": "ai/smollm2"}`);
+            return;
+        }
+        for (const key of Object.keys(entry)) {
+            if (key !== "name" && key !== "model")
+                errors.push(`${at}.${key}: unknown option (use name, model)`);
+        }
+        const { name, model } = entry;
+        if (typeof name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) {
+            errors.push(`${at}.name: expected a model name such as llm (letters, digits, '-', '_' and '.')`);
+        }
+        else if (names.has(name)) {
+            errors.push(`${at}.name: ${name} is listed twice`);
+        }
+        else {
+            names.add(name);
+        }
+        if (typeof model !== "string" || !MODEL_VALUE_PATTERN.test(model)) {
+            errors.push(`${at}.model: expected a model such as ai/smollm2, or a variable such as \${LLM_MODEL} or \${LLM_MODEL:-ai/smollm2}`);
+        }
+    });
+    return errors;
+}
 /**
  * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
  * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
@@ -1060,6 +1109,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...sidecarErrors(manifest, displayPath));
     errors.push(...volumesErrors(manifest, displayPath));
     errors.push(...envFileErrors(manifest, displayPath));
+    errors.push(...modelsErrors(manifest, displayPath));
     errors.push(...byoEnvErrors(manifest, displayPath));
     errors.push(...healthCheckErrors(manifest, displayPath));
     if ("profiles" in manifest) {

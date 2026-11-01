@@ -446,6 +446,23 @@
       "type": "array",
       "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$" }
     },
+    "models": {
+      "description": "Models this bring-your-own resource uses (Compose models, served by Docker Model Runner). Each name is listed under the service's models: and declared once in the stack's top-level models: block. model is a model reference such as ai/smollm2, or a Compose variable such as ${LLM_MODEL} or ${LLM_MODEL:-ai/smollm2}.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "model"],
+        "properties": {
+          "name": { "description": "The model's key, such as llm.", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+          "model": {
+            "description": "The model to run, such as ai/smollm2, ai/qwen3:8B-Q4_K_M or hf.co/org/name, or a Compose variable such as ${LLM_MODEL:-ai/smollm2}.",
+            "type": "string",
+            "pattern": "^([A-Za-z0-9][A-Za-z0-9._/:@-]*|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:-[A-Za-z0-9][A-Za-z0-9._/:@-]*)?\\})$"
+          }
+        }
+      }
+    },
     "volumes": {
       "description": "Storage for this bring-your-own resource. A source that is a name (\"data\") is a named Docker volume: flisk down keeps it, and two services that name the same volume share it. A source starting with ./ or ../ is a bind mount of a path relative to the service directory, which must stay inside the project.",
       "type": "array",

@@ -13,6 +13,7 @@ import {
   generatedFieldErrorsForFile,
   getInvalidServiceRoutePathFields,
   isDockerSafeName,
+  modelsErrors,
   providersErrors,
   providersOf,
   SERVICE_MANIFEST_SCHEMA_URL,
@@ -1184,6 +1185,86 @@ describe("envFileErrors", () => {
         image: "example/app:1",
         envFile: ["../../../.env"],
         container: { tmpfs: ["/tmp:noexec"] },
+      },
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+});
+
+describe("modelsErrors", () => {
+  const file = "services/nosia/web/service.json";
+  const byo = (models: unknown) => ({ appType: "bring-your-own", models });
+
+  it("accepts model references and Compose variables, and an absent value", () => {
+    expect(modelsErrors({ appType: "bring-your-own" }, file)).toEqual([]);
+    expect(
+      modelsErrors(
+        byo([
+          { name: "llm", model: "ai/smollm2" },
+          { name: "qwen", model: "ai/qwen3:8B-Q4_K_M" },
+          { name: "hf.model_1", model: "hf.co/org/name" },
+          { name: "var", model: "${LLM_MODEL}" },
+          { name: "var-default", model: "${LLM_MODEL:-ai/smollm2}" },
+        ]),
+        file,
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [byo({ name: "llm", model: "ai/smollm2" }), "models: expected a list"],
+    [
+      { appType: "backend", models: [{ name: "llm", model: "ai/smollm2" }] },
+      "only applies to bring-your-own",
+    ],
+    [byo(["llm"]), "models[0]: expected an object"],
+    [byo([{ name: "llm", model: "ai/smollm2", x: 1 }]), "models[0].x: unknown option"],
+    [byo([{ model: "ai/smollm2" }]), "models[0].name: expected a model name"],
+    [byo([{ name: "-llm", model: "ai/smollm2" }]), "models[0].name: expected a model name"],
+    [byo([{ name: "llm\n  evil:", model: "ai/smollm2" }]), "models[0].name: expected a model name"],
+    [
+      byo([
+        { name: "llm", model: "ai/a" },
+        { name: "llm", model: "ai/b" },
+      ]),
+      "models[1].name: llm is listed twice",
+    ],
+    [byo([{ name: "llm" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: 7 }]), "models[0].model: expected a model"],
+    [
+      byo([{ name: "llm", model: "ai/smollm2\n    privileged: true" }]),
+      "models[0].model: expected a model",
+    ],
+    [
+      byo([{ name: "llm", model: 'ai/smollm2" privileged: true' }]),
+      "models[0].model: expected a model",
+    ],
+    [byo([{ name: "llm", model: "ai/smollm2\\" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "ai/smollm2 x" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: ": x" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL:-}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${1BAD}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: '${LLM_MODEL:-ai/x"}' }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${A}${B}" }]), "models[0].model: expected a model"],
+  ])("reports %j", (manifest, message) => {
+    const errors = modelsErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("is part of validateServiceManifest, with no unknown-key warning", () => {
+    const result = validateServiceManifest(
+      {
+        appName: "web",
+        appType: "bring-your-own",
+        stack: "nosia",
+        schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+        image: "ghcr.io/nosia-ai/nosia:latest",
+        models: [{ name: "llm", model: "${LLM_MODEL:-ai/smollm2}" }],
       },
       file,
     );

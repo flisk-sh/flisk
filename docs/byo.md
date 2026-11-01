@@ -240,6 +240,31 @@ reports a path outside the project). Both keys apply to bring-your-own resources
 
 CPU and memory limits use `container.cpus` and `container.memory`, described in the next section.
 
+## Models (Compose models, Docker Model Runner)
+
+A Compose stack such as nosia asks Docker Model Runner for its models with a top-level `models:` block and lists them on the
+service that uses them. `models` carries that over: `flisk import` writes it from the Compose file, and `flisk export compose`
+writes it back out.
+
+```json
+"models": [
+  { "name": "llm", "model": "${LLM_MODEL:-ai/smollm2}" },
+  { "name": "embedding", "model": "ai/granite-embedding-multilingual" }
+]
+```
+
+The service gets `models: [llm, embedding]`, and the stack's generated Compose file declares each name once at the top level,
+with `model` written quoted. Two services naming the same model share it; one name given two different models stops `flisk up`.
+
+- `name`: letters, digits, `-`, `_` and `.`, starting with a letter or digit. Listed once per service.
+- `model`: a model reference such as `ai/smollm2`, `ai/qwen3:8B-Q4_K_M` or `hf.co/org/name`, or a Compose variable `${NAME}` or
+  `${NAME:-<model reference>}`, which Compose fills in from the project's `.env` or your shell.
+
+Quotes, spaces, backslashes, line breaks and anything else Compose would read as YAML are refused by `flisk config verify` and
+before Tilt starts. `models` applies to bring-your-own resources only. Docker Model Runner must be enabled in Docker Desktop
+(or the `docker-model-plugin` installed) for the container to start. Checked by `tests/tilt-engine/test_byo_models.py`, which also
+runs `docker compose config` on the generated file; pulling and running a model was not part of that test.
+
 ## GPUs, CPU and memory (model servers and simulators)
 
 Every container Flisk generates is limited to 0.5 CPU and 512M of memory. A model server (vLLM, Ollama, llama.cpp) or a
