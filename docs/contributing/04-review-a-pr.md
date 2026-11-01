@@ -126,6 +126,19 @@ You do not have to check everything. Pick what you can, and say what you covered
 - [ ] **Is anything risky?** Secrets, deleted files, changed defaults, or a new dependency deserve a question.
 - [ ] **Can you understand it?** If you, as a newcomer, cannot follow the code, say so. That is useful feedback too.
 
+## Rate each problem: P0, P1, P2, P3
+
+Give every problem you find a severity. The severity decides your review.
+
+| Severity | What it means | Examples |
+|---|---|---|
+| **P0** | Breaks users or is unsafe. | Leaked secret, security hole, data loss, `flisk up` or `npx @flisk-sh/flisk demo` broken, crash on a common path. |
+| **P1** | A real bug or a broken contract. | Wrong behavior, `--json` output or MCP tool contract changed without notice, behavior change with no test, `cli/src/` changed but `cli/dist/` not rebuilt, red required check. |
+| **P2** | Must fix before merge, but nothing breaks today. | Missing docs for a new option or command, a missing edge-case test, a hand-edited generated file, unrelated changes mixed into the PR. |
+| **P3** | Nice to have. | Naming, wording, style, a small refactor. Mark it `nit:` or `optional:`. |
+
+**Rule: if the PR has any P0, P1, or P2 problem, choose Request changes.** Do not approve it, even with a comment. Approve only when every remaining problem is P3. Put the severity at the start of each comment, for example `P1: up.ts line 52 reads the flag but never passes it on`.
+
 ## Leave comments on lines
 
 1. Open the **Files changed** tab.
@@ -153,7 +166,7 @@ Question: what happens when `--port` is 0? The help text does not say.
 
 ### Approve: "this is ready", with notes
 
-Use **Approve** when you checked the PR and it is good to merge. You can approve and still leave small comments. Mark them clearly as optional so the author knows they do not block the merge.
+Use **Approve** when you checked the PR, it is good to merge, and only P3 problems remain. You can approve and still leave small comments. Mark them clearly as optional so the author knows they do not block the merge.
 
 ```markdown
 Looks good. I ran `bun run test` on this branch and tried `flisk up --dry-run` in the restaurant example: the new URLs show up as described.
@@ -163,7 +176,7 @@ Optional (nit): `parsePort` could use a test for an empty string. Fine to do in 
 
 ### Request changes: "not yet", with reasons
 
-Use **Request changes** when something must be fixed before merge. This is how you reject a PR on GitHub: it does not close the PR, it tells the author what to fix. Always say what is wrong, where, and what would make it OK.
+Use **Request changes** when something must be fixed before merge: any P0, P1, or P2 problem. This is how you reject a PR on GitHub: it does not close the PR, it tells the author what to fix. Always say what is wrong, where, and what would make it OK.
 
 ```markdown
 Thanks for this! Two things need fixing before merge:
