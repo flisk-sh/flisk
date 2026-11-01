@@ -22,6 +22,35 @@ const resource = (
 const plan = { ingressHttp: 8080, ingressHttps: 8443, postgres: 15432 } as HostPortPlan;
 
 describe("buildServicePorts", () => {
+  describe("a project of local processes", () => {
+    it("gives every type a localhost directUrl and no ingress url, since no Traefik runs", () => {
+      for (const appType of ["backend", "frontend", "agent", "mcp", "worker"]) {
+        const ports = buildServicePorts(resource("coordinator", appType, 4100), 8080, {
+          gateway: true,
+          native: true,
+        });
+        expect(ports.url, appType).toBeNull();
+        expect(ports.directUrl, appType).toBe("http://localhost:4100");
+        expect(ports.containerPort, appType).toBe(4100);
+      }
+    });
+
+    it("has no directUrl for a local process without a port", () => {
+      const ports = buildServicePorts(resource("job", "worker"), 8080, { native: true });
+      expect(ports.url).toBeNull();
+      expect(ports.directUrl).toBeNull();
+    });
+
+    it("keeps the ingress route when the project is not native", () => {
+      const ports = buildServicePorts(resource("orders-api", "backend", 4000), 8080, {
+        gateway: true,
+        native: false,
+      });
+      expect(ports.url).toMatch(/^http:\/\/.+:8080\/api\/orders$/);
+      expect(ports.directUrl).toBeNull();
+    });
+  });
+
   describe("routable services", () => {
     it("gives backend services an ingress url, container port, and null hostPort", () => {
       const ports = buildServicePorts(resource("orders-api", "backend", 4000), 8080);

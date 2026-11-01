@@ -69,6 +69,8 @@ ensure_up() {
 
 T1() { # the project is created, and creating it again into the same folder is an error envelope
   log "T1 flisk project swarm --json, twice"
+  # A swarm still running from an earlier case would keep its ports after its folder is gone.
+  [ -f "$DIR/.flisk/native/run.json" ] && (cd "$DIR" && flisk down >/dev/null 2>&1 || true)
   rm -rf "$DIR"
   run_in "$SUITE_ROOT" swarm-create project swarm --path "$PROJECT" --json
   [ "$RC" -eq 0 ] || die "flisk project swarm exited $RC"
@@ -102,6 +104,14 @@ S1() { # four local processes, all ready
   for s in coordinator worker-1 worker-2 worker-3; do
     kill -0 "$(run_state "$s")" 2>/dev/null || die "$s has no live process in the native run state"
   done
+  # No Traefik runs natively: every service, the coordinator (a backend) included, is reached on localhost at its port.
+  run swarm-status status --json
+  [ "$RC" -eq 0 ] || die "flisk status --json exited $RC"
+  assert check "$OUT/swarm-status.out" \
+    'j.data.resources.every((r) => r.url === null && r.directUrl === `http://localhost:${r.port}`)' \
+    "every native service has url null and a localhost directUrl"
+  curl -fsS --max-time 5 "$(jq -r '.data.resources[] | select(.name=="coordinator") | .directUrl' "$OUT/swarm-status.out")/health" >/dev/null \
+    || die "the coordinator does not answer at the directUrl flisk status reports"
 }
 
 S2() { # a goal is split and finished
