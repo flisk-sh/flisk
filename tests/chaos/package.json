@@ -13,7 +13,10 @@
     "chaos:state": "bun cli/state.ts --sequences 30 --steps 12",
     "chaos:size": "bun docker/size.ts",
     "chaos:docker": "bun docker/run.ts --jobs 4",
-    "chaos:docker:frontend": "bun docker/run.ts --service storefront --jobs 4"
+    "chaos:docker:frontend": "bun docker/run.ts --service storefront --jobs 4",
+    "chaos:docker:static": "bun docker/static-validate.ts --jobs 8",
+    "chaos:docker:static:frontend": "bun docker/static-validate.ts --service storefront --jobs 8",
+    "chaos:docker:agreement": "vitest run docker/agreement.test.ts"
   },
   "devDependencies": {
     "fast-check": "^4.0.0",
