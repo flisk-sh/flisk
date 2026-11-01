@@ -46,9 +46,13 @@ test("ignores external links, anchors, absolute paths and code", () => {
 	const text = [
 		"[web](https://example.com/x.md) [mail](mailto:a@b.c) [anchor](#top) [abs](/x.md)",
 		"`[inline](./nope.md)`",
+		"``[double](./nope.md)``",
 		"```md",
 		"[fenced](./nope.md)",
 		"```",
+		"   ```md",
+		"   [indented fence](./nope.md)",
+		"   ```",
 	].join("\n");
 	assert.deepEqual(relativeTargets(text), []);
 });
@@ -59,4 +63,8 @@ test("strips titles, angle brackets and percent-encoding", () => {
 		"./b.md",
 		"./my file.md",
 	]);
+});
+
+test("captures a destination with balanced parentheses", () => {
+	assert.deepEqual(relativeTargets("[guide](./guide(v2).md#setup)"), ["./guide(v2).md"]);
 });

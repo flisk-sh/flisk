@@ -4,13 +4,13 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 // Inline Markdown links and images: [text](target) or [text](target "title")
-const LINK = /\]\(\s*(<[^>]*>|[^)\s]*)(?:\s+(?:"[^"]*"|'[^']*'))?\s*\)/g;
+const LINK = /\]\(\s*(<[^>]*>|(?:[^()\s]|\([^()\s]*\))*)(?:\s+(?:"[^"]*"|'[^']*'))?\s*\)/g;
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
 function withoutCode(text) {
 	return text
-		.replace(/^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm, "")
-		.replace(/`[^`\n]*`/g, "");
+		.replace(/^ {0,3}(```|~~~)[^\n]*\n[\s\S]*?^ {0,3}\1[^\n]*$/gm, "")
+		.replace(/(?<!`)(`+)(?!`)[^\n]*?(?<!`)\1(?!`)/g, "");
 }
 
 export function relativeTargets(text) {
@@ -42,7 +42,7 @@ export function trackedDocs(root) {
 	const out = execFileSync("git", ["ls-files", "-z", "--", "README.md", "docs"], { cwd: root, encoding: "utf8" });
 	return out
 		.split("\0")
-		.filter((file) => file === "README.md" || (file.startsWith("docs/") && file.endsWith(".md")));
+		.filter((file) => file === "README.md" || (file.startsWith("docs/") && /\.md$/i.test(file)));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
