@@ -112,7 +112,36 @@ open needs that, and `flisk doctor` then lists the port under "Network ports" as
 fail to start, so pick a free one with `hostPort`. `flisk status` prints the addresses next to the service. `extraPorts` applies
 to bring-your-own resources with one container: `flisk config verify` refuses it with `replicas`, on another resource type, or
 when two entries ask for the same host port. Checked by `tests/tilt-engine/test_byo_extra_ports.py` (the generator, run through
-Tilt); a container listening on those ports was not part of that test.
+Tilt, and `docker compose config` with a `.env`); a container listening on those ports was not part of that test.
+
+### Taking the binding from `.env` (`publish`)
+
+A Compose project often lets the installer choose how a port is published: `"${TUBEHAUS_HTTP_BIND:-80}:80"` with
+`TUBEHAUS_HTTP_BIND=127.0.0.1:8080` in `.env` for a host behind its own reverse proxy. Give the entry `publish` instead of
+`hostPort` and `bind`, written as the host side of that mapping:
+
+```json
+"extraPorts": [
+  { "port": 80, "publish": "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }
+]
+```
+
+The generated Compose file gets `"${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}:80/tcp"`, and Compose resolves the variable from the shell
+and the project `.env`, so `TUBEHAUS_HTTP_BIND=127.0.0.1:8080` there publishes on loopback port 8080 and an unset variable
+publishes the default. One string covers the address and the port, which is why `publish` is a single field rather than
+`hostPort` and `bind` each taking a variable (that could not express a `.env` value such as `127.0.0.1:8080`).
+
+- The text is `digits`, `.`, `:` and `${NAME:-default}` only, and **every variable needs a default**, so the safe value is
+  visible in `service.json` and an unset variable cannot leave an empty mapping. The default (and any `.env` value) is a port,
+  which Docker publishes on every interface, or an IPv4 `address:port`. A default like `127.0.0.1:80` keeps the safe behaviour of
+  a plain entry; one like `0.0.0.0:80` is the explicit choice. IPv6 and host names are not accepted.
+- `publish` replaces `hostPort` and `bind`; `flisk config verify` refuses them together, a malformed template, and two entries
+  whose default host port is the same.
+- `flisk status` shows the address the variable resolves to now (the shell first, then the project `.env`, then the default).
+  The port planner keeps Traefik off that resolved port, and `flisk doctor` lists a resolved address that is not loopback
+  under "Network ports" with the variable it came from, and names a `.env` value that is not a port or address:port. Both
+  read the root `.env` only: a different file chosen with `flisk up --env-file`, or a variable exported in another shell than the
+  one running `flisk status`, can resolve differently when the stack starts. Numeric `hostPort` and `bind` entries are unchanged.
 
 ## Sidecars (sharing another container's network)
 

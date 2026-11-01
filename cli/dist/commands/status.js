@@ -7,6 +7,7 @@ import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
 import { runCommand } from "../utils/errors.js";
+import { projectEnvLookup } from "../utils/extra-port-publish.js";
 import { formatCount, showDetail, showStep } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
@@ -45,6 +46,8 @@ export const statusCommand = new Command("status")
             ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
             : null;
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
+        // `extraPorts` published through ${VAR:-default} resolve from the shell and the project .env, like Compose.
+        const envLookup = projectEnvLookup(projectRoot ?? undefined);
         let tiltAvailable = false;
         if (!nativeStates) {
             try {
@@ -158,7 +161,7 @@ export const statusCommand = new Command("status")
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
                     port: resource.port ?? null,
-                    ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled }),
+                    ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled }, envLookup),
                     status: serviceStates?.[resource.name]?.status ?? "unknown",
                     ...(serviceStates?.[resource.name]?.reason
                         ? { statusReason: serviceStates[resource.name]?.reason }
@@ -259,9 +262,7 @@ export const statusCommand = new Command("status")
                     else if (state.status === "error") {
                         mark = chalk.red("✗");
                     }
-                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, {
-                        gateway: gatewayEnabled,
-                    });
+                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled }, envLookup);
                     const urlPart = ports.url ? ` → ${ports.url}` : "";
                     const extraPart = ports.extraPorts.length
                         ? `  ${chalk.dim(ports.extraPorts.map((p) => p.address).join(", "))}`

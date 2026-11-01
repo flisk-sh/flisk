@@ -3,6 +3,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import type { HealthCheckObjectConfig } from "../types/index.js";
+import { parseHostMapping, publishVariables, substitutePublish } from "./extra-port-publish.js";
 import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
 import { validateSmoke } from "./smoke.js";
@@ -540,6 +541,20 @@ const isPortNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
 
 /**
+ * The host port a `publish` template gives when no variable is set, or why the template is refused (see extra-port-publish.ts).
+ */
+function publishError(publish: unknown): number | string {
+  if (typeof publish !== "string" || publish === "") {
+    return 'expected a string such as "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}"';
+  }
+  const variables = publishVariables(publish);
+  if (typeof variables === "string") return variables;
+  const mapping = parseHostMapping(substitutePublish(publish));
+  if (!mapping) return "must give a port or address:port such as 127.0.0.1:8080 (IPv4 only)";
+  return mapping.port;
+}
+
+/**
  * `extraPorts` (#2909): plain host ports on 127.0.0.1 for a bring-your-own resource, next to the routed `port`. Mirrors
  * engine/.../compose/byo_ports.star, which refuses the same values.
  */
@@ -563,22 +578,31 @@ export function extraPortsErrors(manifest: Record<string, unknown>, displayPath:
       return;
     }
     for (const key of Object.keys(entry)) {
-      if (!["port", "hostPort", "protocol", "bind"].includes(key)) {
-        errors.push(`${at}.${key}: unknown option (use port, hostPort, protocol, bind)`);
+      if (!["port", "hostPort", "protocol", "bind", "publish"].includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use port, hostPort, protocol, bind, publish)`);
       }
     }
     if (!isPortNumber(entry.port))
       errors.push(`${at}.port: expected a port number from 1 to 65535`);
-    const hostPort = entry.hostPort ?? entry.port;
-    if (entry.hostPort !== undefined && !isPortNumber(entry.hostPort)) {
-      errors.push(`${at}.hostPort: expected a port number from 1 to 65535`);
+    let hostPort: unknown = entry.hostPort ?? entry.port;
+    if (entry.publish !== undefined) {
+      if (entry.hostPort !== undefined || entry.bind !== undefined) {
+        errors.push(`${at}.publish: replaces hostPort and bind; remove them`);
+      }
+      const mapping = publishError(entry.publish);
+      if (typeof mapping === "string") errors.push(`${at}.publish: ${mapping}`);
+      else hostPort = mapping;
+    } else {
+      if (entry.hostPort !== undefined && !isPortNumber(entry.hostPort)) {
+        errors.push(`${at}.hostPort: expected a port number from 1 to 65535`);
+      }
+      if (entry.bind !== undefined && entry.bind !== "127.0.0.1" && entry.bind !== "0.0.0.0") {
+        errors.push(`${at}.bind: expected 127.0.0.1 or 0.0.0.0`);
+      }
     }
     const protocol = entry.protocol ?? "tcp";
     if (protocol !== "tcp" && protocol !== "udp")
       errors.push(`${at}.protocol: expected tcp or udp`);
-    if (entry.bind !== undefined && entry.bind !== "127.0.0.1" && entry.bind !== "0.0.0.0") {
-      errors.push(`${at}.bind: expected 127.0.0.1 or 0.0.0.0`);
-    }
     const key = `${String(hostPort)}/${String(protocol)}`;
     if (seen.has(key)) errors.push(`${at}.hostPort: ${key} is published twice`);
     seen.add(key);
