@@ -8,12 +8,14 @@ import { parseEnv } from "./env-validator.js";
  * `extraPorts[].publish` (#2947): the host side of a Compose port mapping, `"${WEB_HTTP_BIND:-127.0.0.1:80}"`, so a
  * `.env` setting that Compose projects already use keeps working. Mirrors _parse_publish in
  * engine/.../compose/byo_ports.star. The string is written into the generated Compose file as it is, so only digits, `.`, `:`
- * and `${NAME:-default}` are accepted, and every variable must carry a default (the safe value is then visible in service.json
+ * and `${NAME:-default}` (or `${NAME-default}`, the default only when NAME is unset) are accepted, and every variable must carry a default (the safe value is then visible in service.json
  * and a missing `.env` entry cannot leave the mapping empty).
  */
 export interface PublishVariable {
   name: string;
   fallback: string;
+  /** `${NAME-default}`: the default only when NAME is unset; `${NAME:-default}` also uses it when NAME is empty. */
+  unsetOnly: boolean;
 }
 
 export interface HostMapping {
@@ -34,10 +36,12 @@ export function publishVariables(publish: string): PublishVariable[] | string {
     const close = part.indexOf("}");
     if (close < 0) return "has a ${ without a closing }";
     const body = part.slice(0, close);
-    const marker = body.indexOf(":-");
+    const colonMarker = body.indexOf(":-");
+    const unsetOnly = colonMarker < 0;
+    const marker = unsetOnly ? body.indexOf("-") : colonMarker;
     if (marker < 0) return `\${${body}} needs a default, such as \${${body}:-127.0.0.1:80}`;
     const name = body.slice(0, marker);
-    const fallback = body.slice(marker + 2);
+    const fallback = body.slice(marker + (unsetOnly ? 1 : 2));
     if (!NAME.test(name)) return "variable names must be letters, digits or _";
     if (!LITERAL.test(fallback) || !fallback) {
       return `the default of \${${name}} must be a port or address:port`;
@@ -45,20 +49,27 @@ export function publishVariables(publish: string): PublishVariable[] | string {
     if (!LITERAL.test(part.slice(close + 1))) {
       return "expected digits, '.', ':' and ${NAME:-default} only";
     }
-    variables.push({ name, fallback });
+    variables.push({ name, fallback, unsetOnly });
   }
   return variables;
 }
 
-/** Substitutes each variable with `lookup(name)` (a non-empty value) or its default, like Compose's `${VAR:-default}`. */
+/**
+ * Substitutes each variable like Compose: `${VAR:-default}` with `lookup(name)` when it is non-empty, `${VAR-default}` when it
+ * is set at all, and otherwise with the default.
+ */
 export function substitutePublish(
   publish: string,
   lookup: (name: string) => string | undefined = () => undefined,
 ): string {
-  return publish.replace(/\$\{([^:}]*):-([^}]*)\}/g, (_match, name: string, fallback: string) => {
-    const value = lookup(name);
-    return value ? value : fallback;
-  });
+  return publish.replace(
+    /\$\{([A-Za-z0-9_]*)(:?-)([^}]*)\}/g,
+    (_match, name: string, operator: string, fallback: string) => {
+      const value = lookup(name);
+      if (operator === "-") return value !== undefined ? value : fallback;
+      return value ? value : fallback;
+    },
+  );
 }
 
 /** `80` or `127.0.0.1:8080` as a host mapping, or null when it is neither. */

@@ -99,10 +99,10 @@ describe("health check manifest validation", () => {
       "service.json",
     );
     expect(errors).toContain(
-      'service.json.healthCheck: unexpected key "foo" (expected "enabled", "interval", "timeout", "retries", "path", "port", or "command")',
+      'service.json.healthCheck: unexpected key "foo" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
     );
     expect(errors).toContain(
-      'service.json.healthCheck: unexpected key "extra" (expected "enabled", "interval", "timeout", "retries", "path", "port", or "command")',
+      'service.json.healthCheck: unexpected key "extra" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")',
     );
   });
 

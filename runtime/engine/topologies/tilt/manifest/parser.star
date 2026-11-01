@@ -91,9 +91,53 @@ _GENERATED_STRING_RULES = [
     (['nats', 'queueGroup'], _ALPHANUM + '_.-', ''),
     (['databaseName'], _ALPHANUM + '_-', ''),
     (['stack'], _ALPHANUM + '_-', ''),
-    (['image'], _ALPHANUM + '._/:@-', ''),
     (['basePath'], _PATH_CHARS, '/'),
 ]
+
+_IMAGE_CHARS = _ALPHANUM + '._/:@-'
+_VARIABLE_CHARS = _ALPHANUM + '_'
+
+
+def image_reference_ok(value):
+    """
+    An image reference (ghcr.io/acme/app:1.0) that may contain Compose variables, `${NAME}`, `${NAME:-default}` or `${NAME-default}` with a default
+    made of image characters (postgres:${POSTGRES_VERSION:-18}-alpine). Compose fills them in from the project .env. Keep in step
+    with the image pattern in GENERATED_STRING_FIELDS (cli/src/utils/service-manifest.ts).
+    """
+    if type(value) != "string" or not value:
+        return False
+    rest = value
+    for _ in range(len(value)):
+        if not rest:
+            return True
+        start = rest.find("${")
+        literal = rest if start < 0 else rest[:start]
+        for c in literal.elems():
+            if c not in _IMAGE_CHARS:
+                return False
+        if start < 0:
+            return True
+        end = rest.find("}", start)
+        if end < 0:
+            return False
+        variable, sep, default = rest[start + 2:end].partition(":-")
+        if not sep:
+            # ${NAME-default}: the default only when NAME is unset. A name has no '-', so the first one splits it.
+            variable, sep, default = rest[start + 2:end].partition("-")
+        if not variable or variable[0].isdigit():
+            return False
+        for c in variable.elems():
+            if c not in _VARIABLE_CHARS:
+                return False
+        if sep:
+            if not default:
+                return False
+            for c in default.elems():
+                if c not in _IMAGE_CHARS:
+                    return False
+        rest = rest[end + 1:]
+    return True
+
 
 def generated_string_error(manifest, resource_path=""):
     """
@@ -116,6 +160,13 @@ def generated_string_error(manifest, resource_path=""):
         for c in value.elems():
             if c not in allowed:
                 return "MANIFEST ERROR: '{}' has characters that are not allowed (no spaces, line breaks or YAML syntax){}".format(field, where)
+    image = manifest.get('image')
+    if image != None and image != "":
+        where = " in " + resource_path if resource_path else ""
+        if type(image) != "string":
+            return "MANIFEST ERROR: 'image' must be a string{}".format(where)
+        if not image_reference_ok(image):
+            return "MANIFEST ERROR: 'image' has characters that are not allowed (no spaces, line breaks or YAML syntax; variables as ${{NAME}} or ${{NAME:-default}}){}".format(where)
     return _line_break_error(manifest, resource_path)
 
 # Line breaks (including the Unicode ones YAML 1.1 honours) and other control characters.

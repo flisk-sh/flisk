@@ -103,8 +103,10 @@ const GENERATED_STRING_FIELDS = [
     { path: ["stack"], pattern: /^[A-Za-z0-9_-]+$/, expected: "letters, digits, '_' or '-'" },
     {
         path: ["image"],
-        pattern: /^[A-Za-z0-9._/:@-]+$/,
-        expected: "an image reference such as ghcr.io/acme/app:1.0",
+        // Compose variables are allowed (postgres:${POSTGRES_VERSION:-18}-alpine); Compose fills them in from the project .env.
+        // Mirrors image_reference_ok in engine/.../tilt/manifest/parser.star.
+        pattern: /^(?:[A-Za-z0-9._/:@-]|\$\{[A-Za-z_][A-Za-z0-9_]*(?::?-[A-Za-z0-9._/:@-]+)?\})+$/,
+        expected: "an image reference such as ghcr.io/acme/app:1.0, with variables written as ${NAME}, ${NAME:-default} or ${NAME-default}",
     },
     { path: ["basePath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /storefront" },
 ];
@@ -412,7 +414,72 @@ const CONTAINER_KEYS = new Set([
     "cpus",
     "memory",
     "ipc",
+    "stopGracePeriod",
+    "extraHosts",
+    "ulimits",
+    "networkAliases",
 ]);
+const ULIMIT_NAMES = [
+    "as",
+    "core",
+    "cpu",
+    "data",
+    "fsize",
+    "locks",
+    "memlock",
+    "msgqueue",
+    "nice",
+    "nofile",
+    "nproc",
+    "rss",
+    "rtprio",
+    "rttime",
+    "sigpending",
+    "stack",
+];
+const DURATION_PATTERN = /^([0-9]+(\.[0-9]+)?(us|ms|s|m|h))+$/;
+const isUlimit = (value) => Number.isInteger(value) && value >= -1;
+/** `name:address` for Compose extra_hosts: host-gateway, an IPv4 address, or an IPv6 address. */
+function isExtraHost(value) {
+    if (typeof value !== "string")
+        return false;
+    const colon = value.indexOf(":");
+    if (colon < 0)
+        return false;
+    const name = value.slice(0, colon);
+    const address = value.slice(colon + 1);
+    if (!/^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(name))
+        return false;
+    if (address === "host-gateway")
+        return true;
+    const octets = address.split(".");
+    if (octets.length === 4 && octets.every((o) => /^[0-9]{1,3}$/.test(o) && Number(o) <= 255)) {
+        return true;
+    }
+    return address.includes(":") && /^[0-9A-Fa-f:]+$/.test(address);
+}
+/** Why `container.ulimits` is refused, or undefined. Mirrors _ulimit_lines in engine/.../compose/byo_container.star. */
+function ulimitsError(ulimits) {
+    if (!isPlainObject(ulimits)) {
+        return ': expected an object such as {"nofile": {"soft": 65536, "hard": 65536}}';
+    }
+    for (const [name, value] of Object.entries(ulimits)) {
+        if (!ULIMIT_NAMES.includes(name))
+            return `.${name}: expected one of ${ULIMIT_NAMES.join(", ")}`;
+        if (isUlimit(value))
+            continue;
+        if (!isPlainObject(value) ||
+            Object.keys(value).sort().join(",") !== "hard,soft" ||
+            !isUlimit(value.soft) ||
+            !isUlimit(value.hard)) {
+            return `.${name}: expected a number, or {"soft": <number>, "hard": <number>}`;
+        }
+        if (value.hard !== -1 && (value.soft === -1 || value.soft > value.hard)) {
+            return `.${name}: soft must not be above hard`;
+        }
+    }
+    return undefined;
+}
 const CONTAINER_IPC_MODES = ["host", "private", "shareable", "none"];
 const SIZE_PATTERN = /^[0-9]+([bkmg]b?)?$/i;
 /** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
@@ -487,7 +554,52 @@ export function containerErrors(manifest, displayPath) {
     if (ipc !== undefined && !(typeof ipc === "string" && CONTAINER_IPC_MODES.includes(ipc))) {
         errors.push(`${field}.ipc: expected one of ${CONTAINER_IPC_MODES.join(", ")}`);
     }
+    const { stopGracePeriod, extraHosts, ulimits, networkAliases } = container;
+    if (stopGracePeriod !== undefined &&
+        !(typeof stopGracePeriod === "string" && DURATION_PATTERN.test(stopGracePeriod))) {
+        errors.push(`${field}.stopGracePeriod: expected a duration such as 30s or 1m30s`);
+    }
+    if (extraHosts !== undefined && !(Array.isArray(extraHosts) && extraHosts.every(isExtraHost))) {
+        errors.push(`${field}.extraHosts: expected a list of name:address, such as host.docker.internal:host-gateway or db:10.0.0.5`);
+    }
+    if (ulimits !== undefined) {
+        const problem = ulimitsError(ulimits);
+        if (problem)
+            errors.push(`${field}.ulimits${problem}`);
+    }
+    if (networkAliases !== undefined) {
+        if (!Array.isArray(networkAliases) ||
+            !networkAliases.every((alias) => typeof alias === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(alias))) {
+            errors.push(`${field}.networkAliases: expected a list of names such as ["mercure"] (letters, digits, '-', '_' and '.')`);
+        }
+        else if (new Set(networkAliases).size !== networkAliases.length) {
+            errors.push(`${field}.networkAliases: lists a name twice`);
+        }
+        else if (networkAliases.length > 0 && manifest.sidecarOf) {
+            errors.push(`${field}.networkAliases: does not apply to a sidecar (sidecarOf), which shares another container's network`);
+        }
+    }
     return errors;
+}
+const RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"];
+/**
+ * `restart` on a bring-your-own resource: no, on-failure, on-failure:N (N from 1 to 100), unless-stopped or always. Mirrors
+ * byo_restart_policy in engine/.../compose/byo_container.star.
+ */
+export function restartErrors(manifest, displayPath) {
+    const { restart } = manifest;
+    if (restart === undefined || restart === null || manifest.appType !== "bring-your-own")
+        return [];
+    if (typeof restart === "string") {
+        if (RESTART_POLICIES.includes(restart))
+            return [];
+        const count = /^on-failure:([1-9][0-9]{0,2})$/.exec(restart);
+        if (count && Number(count[1]) <= 100)
+            return [];
+    }
+    return [
+        `${displayPath}.restart: expected one of no, on-failure, on-failure:N (N from 1 to 100), unless-stopped, always`,
+    ];
 }
 const isPortNumber = (value) => typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
 /**
@@ -706,8 +818,8 @@ export function envFileErrors(manifest, displayPath, serviceDepth) {
 }
 /** A model reference such as ai/smollm2, ai/qwen3:8B-Q4_K_M or hf.co/org/name. */
 const MODEL_REFERENCE = "[A-Za-z0-9][A-Za-z0-9._/:@-]*";
-/** `models[].model`: a model reference, or a Compose variable `${NAME}` / `${NAME:-<model reference>}`. */
-const MODEL_VALUE_PATTERN = new RegExp(`^(${MODEL_REFERENCE}|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:-${MODEL_REFERENCE})?\\})$`);
+/** `models[].model`: a model reference, or a Compose variable `${NAME}`, `${NAME:-<model reference>}` or `${NAME-<model reference>}`. */
+const MODEL_VALUE_PATTERN = new RegExp(`^(${MODEL_REFERENCE}|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-${MODEL_REFERENCE})?\\})$`);
 /**
  * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
  * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
@@ -933,6 +1045,7 @@ const HEALTH_CHECK_CONFIG_KEYS = new Set([
     "enabled",
     "interval",
     "timeout",
+    "startPeriod",
     "retries",
     "path",
     "port",
@@ -957,7 +1070,7 @@ export function healthCheckErrors(manifest, displayPath) {
     const hc = value;
     for (const key of Object.keys(hc)) {
         if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
-            errors.push(`${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", "path", "port", or "command")`);
+            errors.push(`${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")`);
         }
     }
     if (hc.enabled !== undefined && typeof hc.enabled !== "boolean") {
@@ -971,6 +1084,13 @@ export function healthCheckErrors(manifest, displayPath) {
     if (hc.timeout !== undefined) {
         if (typeof hc.timeout !== "number" || !Number.isFinite(hc.timeout) || hc.timeout <= 0) {
             errors.push(`${displayPath}.healthCheck.timeout: expected a positive number`);
+        }
+    }
+    if (hc.startPeriod !== undefined) {
+        if (typeof hc.startPeriod !== "number" ||
+            !Number.isFinite(hc.startPeriod) ||
+            hc.startPeriod <= 0) {
+            errors.push(`${displayPath}.healthCheck.startPeriod: expected a positive number`);
         }
     }
     if (hc.retries !== undefined) {
@@ -1054,7 +1174,7 @@ export function healthCheckPathOf(manifest, fallback) {
 export function parseHealthCheckConfig(manifest, options = {}) {
     if (isHealthCheckDisabled(manifest))
         return { enabled: false };
-    const { interval, timeout, retries } = healthCheckObject(manifest);
+    const { interval, timeout, retries, startPeriod } = healthCheckObject(manifest);
     const path = healthCheckPathOf(manifest, options.defaultPath);
     return {
         enabled: true,
@@ -1062,6 +1182,7 @@ export function parseHealthCheckConfig(manifest, options = {}) {
         ...(interval !== undefined ? { interval } : {}),
         ...(timeout !== undefined ? { timeout } : {}),
         ...(retries !== undefined ? { retries } : {}),
+        ...(startPeriod !== undefined ? { startPeriod } : {}),
     };
 }
 export function validateServiceManifest(value, displayPath) {
@@ -1110,6 +1231,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...volumesErrors(manifest, displayPath));
     errors.push(...envFileErrors(manifest, displayPath));
     errors.push(...modelsErrors(manifest, displayPath));
+    errors.push(...restartErrors(manifest, displayPath));
     errors.push(...byoEnvErrors(manifest, displayPath));
     errors.push(...healthCheckErrors(manifest, displayPath));
     if ("profiles" in manifest) {

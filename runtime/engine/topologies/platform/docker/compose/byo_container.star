@@ -4,7 +4,9 @@
 # Container runtime options for a bring-your-own resource (service.json `container`, #2907).
 # Compose keys that a real image needs and that Flisk cannot infer: capabilities (WARP needs NET_ADMIN), a read-only root,
 # a fixed user, security options and a larger /dev/shm (a headless browser). GPU and HPC workloads (vLLM, Ollama, cuQuantum,
-# large state-vector simulators) also set GPUs, CPU and memory limits and IPC. Each value is checked character by character,
+# large state-vector simulators) also set GPUs, CPU and memory limits and IPC. Imported Compose stacks also set a stop grace
+# period, extra /etc/hosts entries, ulimits and extra DNS names on the backend network (networkAliases), and `restart` can be
+# on-failure:N. Each value is checked character by character,
 # because it is written into the generated Compose YAML as it is. Keep in step with containerErrors in
 # cli/src/utils/service-manifest.ts. This file has no load() on purpose.
 # =============================================================================
@@ -16,6 +18,12 @@ _SIZE_UNITS = ["b", "k", "kb", "m", "mb", "g", "gb"]
 _PATH_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./-"
 _TMPFS_OPTION_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789=,_-"
 _IPC_MODES = ["host", "private", "shareable", "none"]
+_HOST_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
+_ALIAS_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+_IPV6_CHARS = "0123456789abcdefABCDEF:"
+_DURATION_UNITS = ["us", "ms", "s", "m", "h"]
+_ULIMIT_NAMES = ["as", "core", "cpu", "data", "fsize", "locks", "memlock", "msgqueue", "nice", "nofile", "nproc", "rss", "rtprio", "rttime", "sigpending", "stack"]
+_RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"]
 _SIZE_FACTORS = {"": 1, "b": 1, "k": 1024, "kb": 1024, "m": 1024 * 1024, "mb": 1024 * 1024, "g": 1024 * 1024 * 1024, "gb": 1024 * 1024 * 1024}
 
 # Flisk's default limits for a backend container. `cpus` and `memory` replace the limits; a reservation never exceeds its limit.
@@ -55,6 +63,98 @@ def _tmpfs_entry(value):
     if not path.startswith("/") or not _only(path, _PATH_CHARS) or "/../" in path + "/":
         return False
     return not colon or _only(options, _TMPFS_OPTION_CHARS)
+
+
+def _duration_pair(number, unit):
+    whole, dot, fraction = number.partition(".")
+    return unit in _DURATION_UNITS and whole.isdigit() and (not dot or fraction.isdigit())
+
+
+def _duration(value):
+    """A Compose duration such as 30s, 1m30s or 1.5s: one or more number-and-unit pairs."""
+    if type(value) != "string" or not value:
+        return False
+    pairs = []
+    number = ""
+    unit = ""
+    for c in value.elems():
+        if c.isdigit() or c == ".":
+            if unit:
+                pairs.append((number, unit))
+                number, unit = "", ""
+            number += c
+        elif c in "umsh" and number:
+            unit += c
+        else:
+            return False
+    pairs.append((number, unit))
+    for number, unit in pairs:
+        if not _duration_pair(number, unit):
+            return False
+    return True
+
+
+def _ipv4(value):
+    parts = value.split(".")
+    if len(parts) != 4:
+        return False
+    for part in parts:
+        if not part.isdigit() or len(part) > 3 or int(part) > 255:
+            return False
+    return True
+
+
+def _extra_host(value):
+    """`name:address`: a hostname, then host-gateway, an IPv4 address or an IPv6 address."""
+    if type(value) != "string":
+        return False
+    name, colon, address = value.partition(":")
+    if not colon or not _only(name, _HOST_CHARS) or name[0] in ".-":
+        return False
+    if address == "host-gateway" or _ipv4(address):
+        return True
+    return ":" in address and _only(address, _IPV6_CHARS)
+
+
+def _ulimit_int(value):
+    return type(value) == "int" and value >= -1
+
+
+def _ulimit_lines(ulimits):
+    """`ulimits`: {"nofile": {"soft": 65536, "hard": 65536}, "nproc": 65535}."""
+    if type(ulimits) != "dict":
+        fail("MANIFEST ERROR: 'container.ulimits' must be an object such as {\"nofile\": {\"soft\": 65536, \"hard\": 65536}}")
+    lines = []
+    for name in sorted(ulimits.keys()):
+        value = ulimits[name]
+        if name not in _ULIMIT_NAMES:
+            fail("MANIFEST ERROR: 'container.ulimits' names must be one of {}".format(", ".join(_ULIMIT_NAMES)))
+        if _ulimit_int(value):
+            lines.append("      {}: {}".format(name, value))
+            continue
+        if type(value) != "dict" or sorted(value.keys()) != ["hard", "soft"] or not _ulimit_int(value["soft"]) or not _ulimit_int(value["hard"]):
+            fail("MANIFEST ERROR: 'container.ulimits.{}' must be a number, or {{\"soft\": <number>, \"hard\": <number>}}".format(name))
+        if value["hard"] != -1 and (value["soft"] == -1 or value["soft"] > value["hard"]):
+            fail("MANIFEST ERROR: 'container.ulimits.{}' soft must not be above hard".format(name))
+        lines.extend(["      {}:".format(name), "        soft: {}".format(value["soft"]), "        hard: {}".format(value["hard"])])
+    return lines
+
+
+def byo_restart_policy(manifest):
+    """service.json `restart` on a bring-your-own resource: no, on-failure, on-failure:N (N 1..100), unless-stopped or always.
+
+    Returns the Compose value, or None when `restart` is not set (or the resource is not bring-your-own).
+    """
+    if not manifest or manifest.get('appType') != 'bring-your-own' or manifest.get('restart') == None:
+        return None
+    restart = manifest.get('restart')
+    if restart in _RESTART_POLICIES:
+        return restart
+    if type(restart) == "string" and restart.startswith("on-failure:"):
+        count = restart[len("on-failure:"):]
+        if count.isdigit() and count[0] != "0" and int(count) <= 100:
+            return restart
+    fail("MANIFEST ERROR: 'restart' must be one of no, on-failure, on-failure:N (N from 1 to 100), unless-stopped, always")
 
 
 def _command_list(container):
@@ -150,7 +250,7 @@ def byo_container_options(manifest):
     """
     container = manifest.get('container') if manifest else None
     if container == None or manifest.get('appType') != 'bring-your-own':
-        return struct(init = True, section = "", deploy = DEFAULT_DEPLOY_SECTION)
+        return struct(init = True, section = "", deploy = DEFAULT_DEPLOY_SECTION, network_aliases = [])
     if type(container) != "dict":
         fail("MANIFEST ERROR: 'container' must be an object")
 
@@ -209,6 +309,43 @@ def byo_container_options(manifest):
             fail("MANIFEST ERROR: 'container.ipc' must be one of {}".format(", ".join(_IPC_MODES)))
         lines.append('    ipc: "{}"'.format(ipc))
 
+    stop_grace_period = container.get('stopGracePeriod')
+    if stop_grace_period != None:
+        if not _duration(stop_grace_period):
+            fail("MANIFEST ERROR: 'container.stopGracePeriod' must be a duration such as 30s or 1m30s")
+        lines.append('    stop_grace_period: "{}"'.format(stop_grace_period))
+
+    extra_hosts = container.get('extraHosts')
+    if extra_hosts != None:
+        if type(extra_hosts) != "list":
+            fail("MANIFEST ERROR: 'container.extraHosts' must be a list such as [\"host.docker.internal:host-gateway\"]")
+        for entry in extra_hosts:
+            if not _extra_host(entry):
+                fail("MANIFEST ERROR: 'container.extraHosts' entries must be name:address, such as host.docker.internal:host-gateway or db:10.0.0.5")
+        if extra_hosts:
+            lines.append("    extra_hosts:")
+            lines.extend(['      - "{}"'.format(entry) for entry in extra_hosts])
+
+    ulimits = container.get('ulimits')
+    if ulimits != None:
+        ulimit_lines = _ulimit_lines(ulimits)
+        if ulimit_lines:
+            lines.append("    ulimits:")
+            lines.extend(ulimit_lines)
+
+    aliases = container.get('networkAliases')
+    if aliases == None:
+        aliases = []
+    if type(aliases) != "list":
+        fail("MANIFEST ERROR: 'container.networkAliases' must be a list of names such as [\"mercure\"]")
+    for alias in aliases:
+        if not _only(alias, _ALIAS_CHARS) or alias[0] in "_.-":
+            fail("MANIFEST ERROR: 'container.networkAliases' entries must be names such as mercure (letters, digits, '-', '_' and '.')")
+    if len(aliases) != len({a: True for a in aliases}):
+        fail("MANIFEST ERROR: 'container.networkAliases' lists a name twice")
+    if aliases and manifest.get('sidecarOf'):
+        fail("MANIFEST ERROR: 'container.networkAliases' does not apply to a sidecar (sidecarOf), which shares another container's network")
+
     gpus = container.get('gpus')
     if gpus != None and not (gpus == "all" or (type(gpus) == "int" and gpus > 0)):
         fail("MANIFEST ERROR: 'container.gpus' must be \"all\" or a GPU count of 1 or more")
@@ -221,4 +358,5 @@ def byo_container_options(manifest):
         init = init,
         section = "\n".join(lines) + "\n" if lines else "",
         deploy = _deploy_section(cpus, memory, gpus),
+        network_aliases = aliases,
     )
