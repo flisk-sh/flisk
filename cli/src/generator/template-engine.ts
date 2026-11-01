@@ -23,6 +23,7 @@ import {
 import { FliskError } from "../utils/errors.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
+import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import { getPackageVersion } from "../utils/paths.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "../utils/project-config-defaults.js";
 import {
@@ -925,6 +926,11 @@ export async function generateMasterConfigs(
     for (const asset of copiedAssets) {
       console.log(`✓ Copied: ${asset} → project root`);
     }
+  }
+
+  const ignored = ensureGeneratedRootIgnored(projectRoot);
+  if (ignored.length > 0 && !options.quiet) {
+    console.log(`✓ Added to .gitignore (generated, not yours to commit): ${ignored.join(", ")}`);
   }
 
   await vendorFliskExtension(projectRoot, { quiet: options.quiet });
