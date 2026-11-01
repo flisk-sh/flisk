@@ -38,6 +38,7 @@ import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
 import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
+import { writeToolLoopProject } from "../utils/tool-loop-template.js";
 import { isPathSafe } from "../utils/validation.js";
 
 /**
@@ -191,6 +192,8 @@ export async function cloneProjectTemplate(
       writeSuperAgentProject(destination);
     } else if (template.generated === "langgraph") {
       writeLanggraphProject(destination);
+    } else if (template.generated === "tool-loop") {
+      writeToolLoopProject(destination);
     } else if (template.bundledPath) {
       const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
       cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });
