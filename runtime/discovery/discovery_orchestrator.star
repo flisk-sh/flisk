@@ -453,7 +453,6 @@ def _scan_resources():
                 # Add resource to existing app resource
                 existing_app_resource["resources"].append(resource)
                 existing_app_resource["labels"].append("app." + app_name)
-                pass  # Service merged into existing domain
         else:
             # Create new app resource entry
             # Use resource_path (domain path) for the app_resource - docker-compose goes here
@@ -465,7 +464,6 @@ def _scan_resources():
                 "labels": ["app." + app_name] if app_name else [],
                 "resources": [resource],
             }
-            pass  # New domain group created
             resources.append(app_resource)
     
     # Phase 1.5: Print consolidated discovery summary

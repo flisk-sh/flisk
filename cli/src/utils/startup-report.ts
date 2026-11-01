@@ -16,6 +16,10 @@ export interface StartupReport {
   blocked: Array<{ name: string; because: string[] }>;
   /** Not ready with nothing failed upstream: still building or starting. */
   starting: string[];
+  /** Services whose images were still actively building when timed out. */
+  stillBuilding?: string[];
+  /** Last log lines for services that timed out. */
+  lastLogs?: Record<string, string>;
 }
 
 interface Item {
@@ -114,16 +118,28 @@ export function buildStartupReport(
   }
   const blocked: StartupReport["blocked"] = [];
   const starting: string[] = [];
+  const stillBuilding: string[] = [];
   for (const item of items) {
     const name = item.metadata?.name ?? "unknown";
     if (name === "(Tiltfile)" || failedNames.has(name) || deferred.has(name)) continue;
     const because = [...transitiveDependencies(name, deps)]
       .filter((dep) => failedNames.has(dep))
       .sort();
-    if (because.length > 0) blocked.push({ name, because });
-    else if (isPending(item)) starting.push(name);
+    if (because.length > 0) {
+      blocked.push({ name, because });
+    } else if (isPending(item)) {
+      starting.push(name);
+      if (item.status?.updateStatus === "in_progress") {
+        stillBuilding.push(name);
+      }
+    }
   }
-  return { failed, blocked, starting };
+  return {
+    failed,
+    blocked,
+    starting,
+    stillBuilding: stillBuilding.length > 0 ? stillBuilding : undefined,
+  };
 }
 
 /** A failure exists and everything still pending is blocked by it, so waiting longer cannot help. */
@@ -141,6 +157,7 @@ export function formatStartupReport(
   timedOut: boolean,
   occupantOf?: (port: number) => PortOccupant | null,
   machineFixes: Map<string, string> = new Map(),
+  lastLogs?: Record<string, string>,
 ): string[] {
   const lines: string[] = [];
   for (const { name, message } of report.failed) {
@@ -155,10 +172,29 @@ export function formatStartupReport(
   for (const { name, because } of report.blocked) {
     lines.push(`✗ ${name} is not ready because ${because.join(", ")} failed`);
   }
-  if (report.starting.length > 0) {
+  if (report.stillBuilding && report.stillBuilding.length > 0) {
     lines.push(
-      `${timedOut ? "Timed out waiting for" : "Still starting:"} ${report.starting.join(", ")}`,
+      `${timedOut ? "Timed out while building:" : "Still building:"} ${report.stillBuilding.join(", ")}`,
     );
+  }
+  const startingOnly = report.starting.filter((s) => !report.stillBuilding?.includes(s));
+  if (startingOnly.length > 0) {
+    lines.push(
+      `${timedOut ? "Timed out waiting for" : "Still starting:"} ${startingOnly.join(", ")}`,
+    );
+  }
+  const combinedLogs = { ...(report.lastLogs ?? {}), ...(lastLogs ?? {}) };
+  const timedOutServices = [...(report.stillBuilding ?? []), ...startingOnly];
+  if (timedOut) {
+    for (const name of timedOutServices) {
+      const logs = combinedLogs[name]?.trim();
+      if (logs) {
+        lines.push(`Last log lines for ${name}:`);
+        for (const logLine of logs.split("\n").slice(-10)) {
+          lines.push(`  ${logLine}`);
+        }
+      }
+    }
   }
   if (lines.length > 0) {
     const causes = [...new Set(report.blocked.flatMap((entry) => entry.because))].sort();
