@@ -78,7 +78,7 @@ export function removeStaleProjectVolumes(projectName, docker = dockerVolumes) {
 export function readProjectName(projectDir) {
     try {
         const parsed = JSON.parse(readFileSync(join(projectDir, ".flisk", "project.json"), "utf8"));
-        return typeof parsed.project?.name === "string" ? parsed.project.name : undefined;
+        return typeof parsed.project?.name === "string" ? parsed.project.name.toLowerCase() : undefined;
     }
     catch {
         return undefined;

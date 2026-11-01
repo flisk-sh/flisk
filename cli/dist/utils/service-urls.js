@@ -11,9 +11,44 @@ import { isApiServiceType } from "./resource-kind.js";
 export function isRoutedBringYourOwn(resource) {
     return (resource.config?.appType === BRING_YOUR_OWN_TYPE && resource.config?.exposeViaProxy !== false);
 }
-/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services. */
+/**
+ * A routed bring-your-own service that serves a web UI (`webUi: true`). Its pages and assets live at `/`, which no path prefix can
+ * serve, so the engine routes it on its own host name, `<name>.<project>.localhost` (#2997).
+ */
+export function isWebUiBringYourOwn(resource) {
+    return isRoutedBringYourOwn(resource) && resource.config?.webUi === true;
+}
+/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services that are not a web UI. */
 export function routesAsApi(resource) {
-    return isApiServiceType(resource.config?.appType) || isRoutedBringYourOwn(resource);
+    return (isApiServiceType(resource.config?.appType) ||
+        (isRoutedBringYourOwn(resource) && !isWebUiBringYourOwn(resource)));
+}
+/**
+ * The base URL of a web UI service: `http://<name>.<project>.localhost[:port]`. It follows the app host of
+ * `resolveSubdomainBases` (`app.<project>.localhost`) when there is one, and the project name otherwise. Keep in step with
+ * byo_ui_host in runtime/engine/topologies/platform/docker/networking/traefik_helpers.star.
+ */
+export function resolveUiBase(resource, ingressPort, projectRoot) {
+    const { appBase } = resolveSubdomainBases(ingressPort, projectRoot);
+    try {
+        const u = new URL(appBase);
+        if (u.hostname.startsWith("app.")) {
+            u.hostname = `${resource.name}.${u.hostname.slice("app.".length)}`;
+            return u.origin;
+        }
+        const project = getProjectNameFor(projectRoot ?? findProjectRoot());
+        return `${u.protocol}//${resource.name}.${project}.localhost${u.port ? `:${u.port}` : ""}`;
+    }
+    catch {
+        return `http://${resource.name}.${getProjectNameFor(projectRoot ?? findProjectRoot())}.localhost`;
+    }
+}
+/** The base URL a routed service answers on, before its path: the app host, the API host, or a web UI's own host. */
+export function resolveRouteBase(resource, ingressPort, projectRoot) {
+    if (isWebUiBringYourOwn(resource))
+        return resolveUiBase(resource, ingressPort, projectRoot);
+    const { appBase, apiBase } = resolveSubdomainBases(ingressPort, projectRoot);
+    return routesAsApi(resource) ? apiBase : appBase;
 }
 export function getProjectName() {
     return getProjectNameFor(findProjectRoot());
@@ -58,6 +93,9 @@ export function appendHealthPath(path) {
 }
 /** The route `flisk up` advertises for a service, without the /health suffix. */
 export function resolveServicePath(resource) {
+    // A web UI owns its host name, so its route has no path.
+    if (isWebUiBringYourOwn(resource))
+        return "";
     if (routesAsApi(resource)) {
         const servicePathName = resource.name.replace(/-api$/, "");
         return resource.config?.apiPath ?? `/api/${servicePathName}`;
@@ -70,10 +108,12 @@ export function resolveServicePath(resource) {
  */
 export function resolveServiceUrl(resource, ingressPort) {
     const appType = resource.config?.appType;
-    if (appType !== "frontend" && !routesAsApi(resource))
+    if (appType !== "frontend" && !routesAsApi(resource) && !isWebUiBringYourOwn(resource))
         return undefined;
-    const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
-    return `${appType === "frontend" ? appBase : apiBase}${resolveServicePath(resource)}`;
+    const base = appType === "frontend"
+        ? resolveSubdomainBases(ingressPort).appBase
+        : resolveRouteBase(resource, ingressPort);
+    return `${base}${resolveServicePath(resource)}`;
 }
 /**
  * Health URLs for every routable service, matching what `flisk up` prints.
@@ -93,13 +133,12 @@ export function buildAdvertisedTargets(resources, ingressPort) {
     return routableTargets(resources, ingressPort, (path) => path, true);
 }
 function routableTargets(resources, ingressPort, toPath, includeBringYourOwn = false) {
-    const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
     return resources
         .filter((resource) => resource.config?.appType === "frontend" ||
         isApiServiceType(resource.config?.appType) ||
         (includeBringYourOwn && isRoutedBringYourOwn(resource)))
         .map((resource) => {
-        const base = routesAsApi(resource) ? apiBase : appBase;
+        const base = resolveRouteBase(resource, ingressPort);
         return {
             name: resource.name,
             appType: resource.config.appType,

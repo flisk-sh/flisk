@@ -28,6 +28,8 @@ load(
 )
 load("./traefik_helpers.star",
     "backend_rule",
+    "byo_ui_host",
+    "byo_web_ui",
     "build_entrypoints",
     "cli_api_path",
     "frontend_rule",
@@ -148,6 +150,66 @@ def _explicit_backend_route(manifest):
     return traefik_cfg.get('host') or '', traefik_cfg.get('pathPrefix') or ''
 
 
+def _byo_web_ui_labels(resource_entry_name, traefik_resource_name, internal_port, health_path, manifest):
+    """Traefik labels for a bring-your-own web UI (`webUi: true`, #2997): one router on Host(`<name>.<project>.localhost`).
+
+    No path prefix is matched or stripped, so the app serves its pages and assets from `/` as it does without Flisk. There is no
+    /api/<name> router: that path cannot serve a page. An explicit `traefik.host` is an extra host name for the same router.
+    """
+    router_name = traefik_scoped_name(resource_entry_name)
+    service_name = traefik_scoped_name(traefik_resource_name)
+    explicit_host, _ = _explicit_backend_route(manifest)
+    rule = "Host(`{}`)".format(byo_ui_host(traefik_resource_name))
+    if explicit_host:
+        rule += " || Host(`{}`)".format(explicit_host)
+    entrypoints = build_entrypoints(TRAEFIK_BACKEND_ENABLE_HTTP, TRAEFIK_BACKEND_ENABLE_HTTPS)
+
+    middlewares = ""
+    if 'maintenance' in manifest.get('featuresEnabled', []):
+        middlewares += ",maintenance@file"
+    sablier_middleware, sablier_enabled = sablier_middleware_suffix(manifest, resource_entry_name)
+    middlewares = (middlewares + sablier_middleware).lstrip(",")
+    middleware_labels = ""
+    if middlewares:
+        middleware_labels = '      - "traefik.http.routers.{}.middlewares={}"\n'.format(router_name, middlewares)
+
+    healthcheck_labels = ""
+    if health_path:
+        healthcheck_labels = """      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.path={health_path}"
+      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.interval={health_interval}"
+      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.timeout={health_timeout}"
+      - "traefik.http.services.{service_name}.loadbalancer.healthcheck.followredirects=false"
+""".format(
+            service_name=service_name,
+            health_path=health_path,
+            health_interval=TRAEFIK_HEALTHCHECK_INTERVAL,
+            health_timeout=TRAEFIK_HEALTHCHECK_TIMEOUT,
+        )
+
+    labels = """      - "{enable}"
+      - "{project_label}"
+      - "traefik.http.routers.{router_name}.rule={rule}"
+      - "traefik.http.routers.{router_name}.entrypoints={entrypoints}"
+      - "traefik.http.routers.{router_name}.service={service_name}"
+{middleware_labels}      - "traefik.http.services.{service_name}.loadbalancer.server.port={internal_port}"
+{healthcheck_labels}      - "traefik.docker.network={network}"
+""".format(
+        enable=TRAEFIK_ENABLE_LABEL,
+        project_label=TRAEFIK_PROJECT_LABEL,
+        router_name=router_name,
+        rule=rule,
+        entrypoints=entrypoints,
+        service_name=service_name,
+        middleware_labels=middleware_labels,
+        internal_port=internal_port,
+        healthcheck_labels=healthcheck_labels,
+        network=TRAEFIK_DOCKER_NETWORK,
+    )
+    if sablier_enabled:
+        labels += sablier_container_labels(manifest, resource_entry_name, "      ")
+    return labels
+
+
 def get_backend_traefik_labels(
     resource_entry_name,
     traefik_host,
@@ -169,6 +231,15 @@ def get_backend_traefik_labels(
         traefik_cfg = manifest.get('traefik') or {}
         reject_unsafe_value(traefik_cfg.get('host'), 'traefik.host')
         reject_unsafe_value(traefik_cfg.get('pathPrefix'), 'traefik.pathPrefix')
+
+    if byo_web_ui(manifest):
+        return _byo_web_ui_labels(
+            resource_entry_name=resource_entry_name,
+            traefik_resource_name=traefik_resource_name,
+            internal_port=internal_port,
+            health_path=health_path,
+            manifest=manifest,
+        )
 
     backend_route_rule = backend_rule(traefik_host, traefik_path)
     backend_entrypoints = build_entrypoints(

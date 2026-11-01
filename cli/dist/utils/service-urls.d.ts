@@ -5,8 +5,21 @@ import { BRING_YOUR_OWN_TYPE } from "./constants.js";
  * backend, at the API host under /api/<name>, and publishes nothing on the host, so this route is the only address it has.
  */
 export declare function isRoutedBringYourOwn(resource: DiscoveredResource): boolean;
-/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services. */
+/**
+ * A routed bring-your-own service that serves a web UI (`webUi: true`). Its pages and assets live at `/`, which no path prefix can
+ * serve, so the engine routes it on its own host name, `<name>.<project>.localhost` (#2997).
+ */
+export declare function isWebUiBringYourOwn(resource: DiscoveredResource): boolean;
+/** Routed at the API host: backends, MCP servers, agents and routed bring-your-own services that are not a web UI. */
 export declare function routesAsApi(resource: DiscoveredResource): boolean;
+/**
+ * The base URL of a web UI service: `http://<name>.<project>.localhost[:port]`. It follows the app host of
+ * `resolveSubdomainBases` (`app.<project>.localhost`) when there is one, and the project name otherwise. Keep in step with
+ * byo_ui_host in runtime/engine/topologies/platform/docker/networking/traefik_helpers.star.
+ */
+export declare function resolveUiBase(resource: DiscoveredResource, ingressPort?: number, projectRoot?: string | null): string;
+/** The base URL a routed service answers on, before its path: the app host, the API host, or a web UI's own host. */
+export declare function resolveRouteBase(resource: DiscoveredResource, ingressPort?: number, projectRoot?: string | null): string;
 export interface HealthTarget {
     name: string;
     appType: "frontend" | "backend" | "mcp" | "agent" | typeof BRING_YOUR_OWN_TYPE;
