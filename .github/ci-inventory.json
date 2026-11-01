@@ -443,6 +443,14 @@
 			}
 		},
 		{
+			"workflow": "publish-cli-image.yml",
+			"job": "image",
+			"tier": "release",
+			"required": false,
+			"reason": "Builds, signs and pushes the flisk CLI image from a published release; called by release-binaries.yml publish-image or run by hand",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "publish-service-schema.yml",
 			"job": "publish",
 			"tier": "release",
@@ -509,6 +517,22 @@
 			"exempt": {
 				"check-name": "#1279"
 			}
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "cli-image",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Builds the CLI image from the release candidate and runs tests/e2e/platforms/container-image on it",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-binaries.yml",
+			"job": "publish-image",
+			"tier": "release",
+			"required": false,
+			"reason": "Calls publish-cli-image.yml to push the CLI image after the release is published",
+			"owner": "maintainers"
 		},
 		{
 			"workflow": "release-binaries.yml",
