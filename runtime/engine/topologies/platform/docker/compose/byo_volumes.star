@@ -25,18 +25,38 @@ _VARIABLE_START = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 _VARIABLE_CHARS = _VARIABLE_START + "0123456789"
 
 
+_SEGMENT_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+
+
 def _source_variable(source):
-    """`${NAME:-./path}` or `${NAME-./path}`: returns (name, operator, default path), or None when source is not a variable."""
+    """A bind source from the environment: `${NAME}`, `${NAME:-./path}` or `${NAME-./path}`, then an optional `/sub/path`.
+
+    Returns (name, operator, default path, suffix), with operator and default "" for a bare ${NAME}, None when source is not a
+    variable, or ("", "", "", "") when it is malformed.
+    """
+    bad = ("", "", "", "")
     if not source.startswith("${"):
         return None
-    if not source.endswith("}"):
-        return ("", "", "")
-    body = source[2:-1]
+    end = source.find("}")
+    if end < 0:
+        return bad
+    body = source[2:end]
+    suffix = source[end + 1:]
+    if suffix:
+        if not suffix.startswith("/"):
+            return bad
+        for segment in suffix[1:].split("/"):
+            if not segment or segment in [".", ".."] or not _only(segment, _SEGMENT_CHARS):
+                return bad
     for op in [":-", "-"]:
         name, sep, default = body.partition(op)
-        if sep and name and name[0] in _VARIABLE_START and _only(name, _VARIABLE_CHARS):
-            return (name, op, default)
-    return ("", "", "")
+        if sep:
+            if name and name[0] in _VARIABLE_START and _only(name, _VARIABLE_CHARS) and _is_bind(default):
+                return (name, op, default, suffix)
+            return bad
+    if body and body[0] in _VARIABLE_START and _only(body, _VARIABLE_CHARS):
+        return (body, "", "", suffix)
+    return bad
 
 
 def _only(value, chars):
@@ -109,10 +129,10 @@ def byo_volumes(manifest, service_path, compose_dir):
             fail("MANIFEST ERROR: '{}.source' must be a volume name such as data, or a path such as ./config".format(field))
         variable = _source_variable(source)
         if variable != None:
-            name, op, default = variable
-            if not name or not _is_bind(default):
-                fail("MANIFEST ERROR: '{}.source' variables must be ${{NAME:-./path}} or ${{NAME-./path}}, with a default path starting with ./ or ../".format(field))
-            source = default
+            if not variable[0]:
+                fail("MANIFEST ERROR: '{}.source' variables must be ${{NAME}}, ${{NAME:-./path}} or ${{NAME-./path}}, optionally followed by /sub/path, with a default path starting with ./ or ../".format(field))
+            # A bare ${NAME} takes the path from the .env (an absolute path); "./" stands in for the checks below.
+            source = variable[2] or "./"
         if selinux != None:
             if selinux not in ["z", "Z"]:
                 fail("MANIFEST ERROR: '{}.selinux' must be z (shared) or Z (private)".format(field))
@@ -130,7 +150,7 @@ def byo_volumes(manifest, service_path, compose_dir):
             host = (up + '/' + host) if host else up
             if variable != None:
                 # Compose fills the variable in; the resolved default is what it uses when the variable is unset.
-                host = "${" + variable[0] + variable[1] + host + "}"
+                host = "${" + variable[0] + (variable[1] + host if variable[1] else "") + "}" + variable[3]
         else:
             if not _only(source, _NAME_CHARS) or source[0] in "_-":
                 fail("MANIFEST ERROR: '{}.source' must be a volume name (lowercase letters, digits, '-' and '_') or a path starting with ./".format(field))

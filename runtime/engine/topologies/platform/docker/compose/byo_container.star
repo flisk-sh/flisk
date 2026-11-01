@@ -21,6 +21,7 @@ _IPC_MODES = ["host", "private", "shareable", "none"]
 _HOST_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
 _ALIAS_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
 _IPV6_CHARS = "0123456789abcdefABCDEF:"
+_VARIABLE_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 _DURATION_UNITS = ["us", "ms", "s", "m", "h"]
 _ULIMIT_NAMES = ["as", "core", "cpu", "data", "fsize", "locks", "memlock", "msgqueue", "nice", "nofile", "nproc", "rss", "rtprio", "rttime", "sigpending", "stack"]
 _RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"]
@@ -104,16 +105,28 @@ def _ipv4(value):
     return True
 
 
+def _host_address(address):
+    if address == "host-gateway" or _ipv4(address):
+        return True
+    return ":" in address and _only(address, _IPV6_CHARS)
+
+
 def _extra_host(value):
-    """`name:address`: a hostname, then host-gateway, an IPv4 address or an IPv6 address."""
+    """`name:address`: a hostname, then host-gateway, an IPv4 address or an IPv6 address, or a Compose variable for the address:
+    ${NAME}, ${NAME:-address} or ${NAME-address} (open-mercato: host.docker.internal:${OM_HOST_GATEWAY:-host-gateway})."""
     if type(value) != "string":
         return False
     name, colon, address = value.partition(":")
     if not colon or not _only(name, _HOST_CHARS) or name[0] in ".-":
         return False
-    if address == "host-gateway" or _ipv4(address):
-        return True
-    return ":" in address and _only(address, _IPV6_CHARS)
+    if address.startswith("${") and address.endswith("}"):
+        body = address[2:-1]
+        for op in [":-", "-"]:
+            variable, sep, default = body.partition(op)
+            if sep:
+                return _only(variable, _VARIABLE_CHARS) and not variable[0].isdigit() and _host_address(default)
+        return _only(body, _VARIABLE_CHARS) and not body[0].isdigit()
+    return _host_address(address)
 
 
 def _ulimit_int(value):

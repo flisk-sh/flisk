@@ -139,8 +139,11 @@ and the project `.env`, so `WEB_HTTP_BIND=127.0.0.1:8080` there publishes on loo
 publishes the default. One string covers the address and the port, which is why `publish` is a single field rather than
 `hostPort` and `bind` each taking a variable (that could not express a `.env` value such as `127.0.0.1:8080`).
 
-- The text is `digits`, `.`, `:` and `${NAME:-default}` only, and **every variable needs a default**, so the safe value is
-  visible in `service.json` and an unset variable cannot leave an empty mapping. The default (and any `.env` value) is a port,
+- The text is `digits`, `.`, `:` and `${NAME:-default}` / `${NAME-default}` / `${NAME}` only. A default keeps the safe value
+  visible in `service.json`; a bare `${NAME}` (any-sync's `"127.0.0.1:${REDIS_PORT}"`) takes the host side from the `.env`
+  only, so set it there: Compose refuses the mapping when it is unset, and `flisk config verify` cannot check that port against
+  the others. The container side stays the literal `port` (any-sync's `:${REDIS_PORT}` container side is written as the port
+  the image listens on). The default (and any `.env` value) is a port,
   which Docker publishes on every interface, or an IPv4 `address:port`. A default like `127.0.0.1:80` keeps the safe behaviour of
   a plain entry; one like `0.0.0.0:80` is the explicit choice. IPv6 and host names are not accepted.
 - `publish` replaces `hostPort` and `bind`; `flisk config verify` refuses them together, a malformed template, and two entries
@@ -275,7 +278,7 @@ use these settings. Each one carries over to a bring-your-own resource:
 | `image` | `image` | May use Compose variables: `postgres:${POSTGRES_VERSION:-18}-alpine`, `ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}`. Written quoted; Compose fills it in from the shell and the project `.env`. |
 | `restart` | `restart` | Also `on-failure:N`, N from 1 to 100: restart after a failure at most N times. |
 | `container.stopGracePeriod` | `stop_grace_period` | A duration such as `30s` or `1m30s`. |
-| `container.extraHosts` | `extra_hosts` | List of `name:address`, where address is `host-gateway`, an IPv4 address or an IPv6 address: `["host.docker.internal:host-gateway", "legacy:10.0.0.5"]`. |
+| `container.extraHosts` | `extra_hosts` | List of `name:address`, where address is `host-gateway`, an IPv4 address or an IPv6 address: `["host.docker.internal:host-gateway", "legacy:10.0.0.5"]`. The address may be a Compose variable: `host.docker.internal:${OM_HOST_GATEWAY:-host-gateway}`, `db:${DB_HOST}` or `db:${DB_HOST-10.0.0.5}`, where a default is an address of the same kinds. |
 | `container.ulimits` | `ulimits` | Per limit name (`nofile`, `nproc`, `memlock`, `core`, `stack`, ...), a number or `{"soft": n, "hard": n}`. `-1` means unlimited. |
 | `container.networkAliases` | `networks.<backend>.aliases` | Extra DNS names for the service on the stack's backend network, which every app service is on: pl_mail's worker answers as `mercure`. Not for a sidecar (`sidecarOf`). |
 | `healthCheck.startPeriod` | `healthcheck.start_period` | Seconds after the container starts before failed probes count, for an app that boots slowly (Lychee uses 10 to 60). Same style as `interval` and `timeout`. It applies with a `healthCheck.port` or `healthCheck.command` probe: a bring-your-own resource has no other container health check. |
@@ -294,7 +297,7 @@ use these settings. Each one carries over to a bring-your-own resource:
 
 A variable can be written `${NAME}`, `${NAME:-default}` (the default when NAME is unset or empty) or `${NAME-default}` (the default
 only when NAME is unset, as in codecov's `"${CODECOV_PORT-8080}:8080"`). The same three forms work in `image`,
-`extraPorts[].publish` (which still needs a default) and `models[].model`. A default uses only the characters its field allows.
+`extraPorts[].publish` and `models[].model`. A default uses only the characters its field allows.
 A value with quotes, spaces, line breaks or other characters Compose would read as YAML is refused by `flisk config verify` and
 before Tilt starts. With `networkAliases` the service's networks are written in Compose's map form; without it they stay a list.
 Checked by `tests/tilt-engine/test_byo_compose_options.py`, which runs the generator through Tilt and `docker compose config` on
@@ -309,7 +312,7 @@ open-mercato, anyproto/any-sync-dockercompose, wger-project/docker and labsai/ED
 | `dependsOn` entry | `depends_on` | A name as before, or `{"name": "db", "condition": "service_healthy"}`. The condition is `service_started`, `service_healthy` or `service_completed_successfully`. Flisk starts services in dependsOn order by name (Tilt `resource_deps`), so the condition is accepted and kept but does not change the order. Applies to every resource type. |
 | `buildArgs` | `build.args` | Object of NAME to string for a bring-your-own resource built from its Dockerfile: `{"NODE_VERSION": "${NODE_VERSION:-22}"}`. |
 | `logging` | `logging` | `{"driver": "json-file", "options": {"max-size": "5m", "max-file": "5"}}`. Option values are strings (#2965). |
-| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}` or `${NAME-./path}`. The default must be a path inside the project, resolved like any other bind path. A value set in the environment is used as Compose reads it, relative to the generated Compose file, so set an absolute path. |
+| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}`, `${NAME-./path}`, or a bare `${STORAGE_DIR}` with no default, and each may be followed by a sub-path: `${STORAGE_DIR}/redis`, `${DATA:-./data}/sub`. A default must be a path inside the project, resolved like any other bind path. A value set in the environment (and a bare variable's value, which only the `.env` gives) is used as Compose reads it, relative to the generated Compose file, so set an absolute path. A sub-path has no `.` or `..` segment. `selinux` applies as on any bind mount. |
 | `volumes[].selinux` | `:z` / `:Z` | `"z"` (label shared between containers) or `"Z"` (private) on a bind mount. |
 | `image` | `image` | Also `${NAME:?message}` or `${NAME?message}`: Compose stops with the message when NAME is unset (`dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set}`). The message uses printable ASCII only, with no quotes, backslash, braces, `$` or backtick. |
 

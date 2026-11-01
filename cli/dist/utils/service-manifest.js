@@ -454,6 +454,13 @@ function isExtraHost(value) {
     const address = value.slice(colon + 1);
     if (!/^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(name))
         return false;
+    // A Compose variable for the address: ${NAME}, ${NAME:-address} or ${NAME-address} (open-mercato's OM_HOST_GATEWAY).
+    const variable = /^\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-(.*))?\}$/.exec(address);
+    if (variable)
+        return variable[2] === undefined || isHostAddress(variable[2]);
+    return isHostAddress(address);
+}
+function isHostAddress(address) {
     if (address === "host-gateway")
         return true;
     const octets = address.split(".");
@@ -608,6 +615,7 @@ export function restartErrors(manifest, displayPath) {
 const isPortNumber = (value) => typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
 /**
  * The host port a `publish` template gives when no variable is set, or why the template is refused (see extra-port-publish.ts).
+ * null when a bare `${NAME}` leaves the host side to the .env, so the port is not known before Compose runs.
  */
 function publishError(publish) {
     if (typeof publish !== "string" || publish === "") {
@@ -616,6 +624,8 @@ function publishError(publish) {
     const variables = publishVariables(publish);
     if (typeof variables === "string")
         return variables;
+    if (variables.some((variable) => !variable.hasDefault))
+        return null;
     const mapping = parseHostMapping(substitutePublish(publish));
     if (!mapping)
         return "must give a port or address:port such as 127.0.0.1:8080 (IPv4 only)";
@@ -661,6 +671,8 @@ export function extraPortsErrors(manifest, displayPath) {
             const mapping = publishError(entry.publish);
             if (typeof mapping === "string")
                 errors.push(`${at}.publish: ${mapping}`);
+            else if (mapping === null)
+                return; // host port from the .env: nothing to compare
             else
                 hostPort = mapping;
         }
@@ -737,16 +749,22 @@ export function volumesErrors(manifest, displayPath, serviceDepth) {
             }
         }
         const { target, readOnly, name, selinux } = entry;
-        // A bind mount's source may come from the environment: ${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared} (or ${NAME-./path}). The
-        // default is checked like any other bind path.
+        // A bind mount's source may come from the environment: ${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}, ${NAME-./path}, or a bare
+        // ${STORAGE_DIR} (an absolute path from the .env), each optionally followed by /sub/path. A default is checked like any
+        // other bind path; "./" stands in for a bare variable.
         const variable = typeof entry.source === "string"
-            ? /^\$\{[A-Za-z_][A-Za-z0-9_]*:?-(\.{1,2}(?:\/[A-Za-z0-9_.-]+)*\/?)\}$/.exec(entry.source)
+            ? /^\$\{[A-Za-z_][A-Za-z0-9_]*(?::?-(\.{1,2}(?:\/[A-Za-z0-9_.-]+)*\/?))?\}((?:\/[A-Za-z0-9_.-]+)*)$/.exec(entry.source)
             : null;
-        if (typeof entry.source === "string" && entry.source.startsWith("${") && !variable) {
-            errors.push(`${at}.source: variables must be \${NAME:-./path} or \${NAME-./path}, with a default path starting with ./ or ../`);
+        const badSuffix = variable?.[2]
+            ?.split("/")
+            .some((segment) => segment === "." || segment === "..");
+        if (typeof entry.source === "string" &&
+            entry.source.startsWith("${") &&
+            (!variable || badSuffix)) {
+            errors.push(`${at}.source: variables must be \${NAME}, \${NAME:-./path} or \${NAME-./path}, optionally followed by /sub/path, with a default path starting with ./ or ../`);
             return;
         }
-        const source = variable ? variable[1] : entry.source;
+        const source = variable ? (variable[1] ?? "./") : entry.source;
         if (selinux !== undefined) {
             if (selinux !== "z" && selinux !== "Z") {
                 errors.push(`${at}.selinux: expected z (shared) or Z (private)`);
