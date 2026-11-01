@@ -476,6 +476,26 @@
       "type": "array",
       "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$" }
     },
+    "buildArgs": {
+      "description": "Build arguments for a bring-your-own resource built from its Dockerfile (Compose build.args): NAME to a string, which may use Compose variables such as ${NODE_VERSION:-22}.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": { "type": "string" }
+    },
+    "logging": {
+      "description": "Container logging for a bring-your-own resource (Compose logging), such as {\"driver\": \"json-file\", \"options\": {\"max-size\": \"5m\", \"max-file\": \"5\"}}.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "driver": { "description": "Logging driver, such as json-file or local.", "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]*$" },
+        "options": {
+          "description": "Driver options as strings, such as max-size and max-file.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
     "models": {
       "description": "Models this bring-your-own resource uses (Compose models, served by Docker Model Runner). Each name is listed under the service's models: and declared once in the stack's top-level models: block. model is a model reference such as ai/smollm2, or a Compose variable such as ${LLM_MODEL} or ${LLM_MODEL:-ai/smollm2}.",
       "type": "array",
@@ -502,9 +522,9 @@
         "required": ["source", "target"],
         "properties": {
           "source": {
-            "description": "A volume name such as data, or a path such as ./config.",
+            "description": "A volume name such as data, or a path such as ./config. A bind path may come from the environment: ${NAME:-./path} or ${NAME-./path}, whose default is a path inside the project.",
             "type": "string",
-            "pattern": "^([a-z0-9][a-z0-9_-]*|\\.{1,2}(/[A-Za-z0-9_.-]+)*/?)$"
+            "pattern": "^([a-z0-9][a-z0-9_-]*|\\.{1,2}(/[A-Za-z0-9_.-]+)*/?|\\$\\{[A-Za-z_][A-Za-z0-9_]*:?-\\.{1,2}(/[A-Za-z0-9_.-]+)*/?\\})$"
           },
           "target": {
             "description": "Absolute path in the container, such as /data.",
@@ -512,6 +532,7 @@
             "pattern": "^/[A-Za-z0-9_./-]*$"
           },
           "readOnly": { "description": "Mount read-only. Defaults to false.", "type": "boolean" },
+          "selinux": { "description": "SELinux relabel option for a bind mount (Compose :z or :Z): z shares the label between containers, Z keeps it private.", "enum": ["z", "Z"] },
           "name": {
             "description": "The Docker volume's own name, for a named volume. Without it the name gets the generated project's prefix. Set it to the name an existing Compose install created (such as myapp_data, from `docker volume ls`) and Flisk uses that volume and its data as it is, with no copy. Docker creates it when it does not exist.",
             "type": "string",
@@ -521,9 +542,9 @@
       }
     },
     "image": {
-      "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type. It may use Compose variables, ${NAME}, ${NAME:-default} or ${NAME-default}, which Compose fills in from the project .env, such as postgres:${POSTGRES_VERSION:-18}-alpine.",
+      "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type. It may use Compose variables, ${NAME}, ${NAME:-default}, ${NAME-default}, or ${NAME:?message} / ${NAME?message} (Compose stops with the message when NAME is unset), which Compose fills in from the project .env, such as postgres:${POSTGRES_VERSION:-18}-alpine.",
       "type": "string",
-      "pattern": "^([A-Za-z0-9._/:@-]|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-[A-Za-z0-9._/:@-]+)?\\})+$"
+      "pattern": "^([A-Za-z0-9._/:@-]|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-[A-Za-z0-9._/:@-]+|:?\\?[A-Za-z0-9 !#%&()*+,./:;<=>?@\\[\\]^_|~-]*)?\\})+$"
     },
     "stack": {
       "description": "Technology stack this resource belongs to.\nUsed for:\n• Database naming: FLISK_{stack}\n• Traefik routing: /api/{stack}\n• NATS queue: {stack}_backend_svc",
@@ -677,8 +698,19 @@
     "dependsOn": {
       "description": "Resource dependencies used for startup ordering and frontend dependency env generation.\nEach entry can be a stack (e.g. 'service') or resource name (e.g. 'user-admin-api').\nResources listed here start before this resource. Used for focus mode, health checks, migration order.",
       "items": {
-        "pattern": "^[a-z][a-z0-9-]*$",
-        "type": "string"
+        "oneOf": [
+          { "pattern": "^[a-z][a-z0-9-]*$", "type": "string" },
+          {
+            "description": "Compose-style entry. Flisk orders by name; condition is accepted and kept, and does not change the order.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "description": "The service or stack to start first.", "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+              "condition": { "description": "Compose depends_on condition.", "enum": ["service_started", "service_healthy", "service_completed_successfully"] }
+            }
+          }
+        ]
       },
       "type": "array",
       "uniqueItems": true

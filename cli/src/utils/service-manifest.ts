@@ -32,6 +32,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "backendName",
   "basePath",
   "build",
+  "buildArgs",
   "buildContext",
   "command",
   "container",
@@ -51,6 +52,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "healthCheckPath",
   "image",
   "language",
+  "logging",
   "models",
   "name",
   "nats",
@@ -116,9 +118,12 @@ const GENERATED_STRING_FIELDS: ReadonlyArray<{
     path: ["image"],
     // Compose variables are allowed (postgres:${POSTGRES_VERSION:-18}-alpine); Compose fills them in from the project .env.
     // Mirrors image_reference_ok in engine/.../tilt/manifest/parser.star.
-    pattern: /^(?:[A-Za-z0-9._/:@-]|\$\{[A-Za-z_][A-Za-z0-9_]*(?::?-[A-Za-z0-9._/:@-]+)?\})+$/,
+    // `${NAME:?message}` / `${NAME?message}` stop Compose with the message when NAME is unset (any-sync's garage image).
+    // The message is printable ASCII without quotes, backslash, braces, `$` or backtick (IMAGE_MESSAGE_CHARS in parser.star).
+    pattern:
+      /^(?:[A-Za-z0-9._/:@-]|\$\{[A-Za-z_][A-Za-z0-9_]*(?::?-[A-Za-z0-9._/:@-]+|:?\?[A-Za-z0-9 !#%&()*+,./:;<=>?@[\]^_|~-]*)?\})+$/,
     expected:
-      "an image reference such as ghcr.io/acme/app:1.0, with variables written as ${NAME}, ${NAME:-default} or ${NAME-default}",
+      "an image reference such as ghcr.io/acme/app:1.0, with variables written as ${NAME}, ${NAME:-default}, ${NAME-default} or ${NAME:?message}",
   },
   { path: ["basePath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /storefront" },
 ];
@@ -819,11 +824,31 @@ export function volumesErrors(
       return;
     }
     for (const key of Object.keys(entry)) {
-      if (!["source", "target", "readOnly", "name"].includes(key)) {
-        errors.push(`${at}.${key}: unknown option (use source, target, readOnly, name)`);
+      if (!["source", "target", "readOnly", "name", "selinux"].includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use source, target, readOnly, name, selinux)`);
       }
     }
-    const { source, target, readOnly, name } = entry;
+    const { target, readOnly, name, selinux } = entry;
+    // A bind mount's source may come from the environment: ${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared} (or ${NAME-./path}). The
+    // default is checked like any other bind path.
+    const variable =
+      typeof entry.source === "string"
+        ? /^\$\{[A-Za-z_][A-Za-z0-9_]*:?-(\.{1,2}(?:\/[A-Za-z0-9_.-]+)*\/?)\}$/.exec(entry.source)
+        : null;
+    if (typeof entry.source === "string" && entry.source.startsWith("${") && !variable) {
+      errors.push(
+        `${at}.source: variables must be \${NAME:-./path} or \${NAME-./path}, with a default path starting with ./ or ../`,
+      );
+      return;
+    }
+    const source = variable ? variable[1] : entry.source;
+    if (selinux !== undefined) {
+      if (selinux !== "z" && selinux !== "Z") {
+        errors.push(`${at}.selinux: expected z (shared) or Z (private)`);
+      } else if (typeof source === "string" && !source.startsWith(".")) {
+        errors.push(`${at}.selinux: only applies to a bind mount`);
+      }
+    }
     if (
       typeof source !== "string" ||
       !/^([a-z0-9][a-z0-9_-]*|\.{1,2}(\/[A-Za-z0-9_.-]+)*\/?)$/.test(source)
@@ -865,6 +890,133 @@ export function volumesErrors(
       }
     }
   });
+  return errors;
+}
+
+const DEPENDS_ON_CONDITIONS = [
+  "service_started",
+  "service_healthy",
+  "service_completed_successfully",
+];
+
+/**
+ * `dependsOn`: service or stack names, or Compose-style objects `{ "name": "db", "condition": "service_healthy" }`. Flisk orders by
+ * name (Tilt resource_deps), so the condition is accepted and kept but does not change the order. Mirrors normalize_depends_on in
+ * engine/.../tilt/manifest/parser.star.
+ */
+export function dependsOnErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const deps = manifest.dependsOn;
+  if (!Array.isArray(deps)) return [];
+  const errors: string[] = [];
+  deps.forEach((entry: unknown, i) => {
+    if (typeof entry === "string") return;
+    const at = `${displayPath}.dependsOn[${i}]`;
+    if (!isPlainObject(entry)) {
+      errors.push(
+        `${at}: expected a name, or an object such as { "name": "db", "condition": "service_healthy" }`,
+      );
+      return;
+    }
+    for (const key of Object.keys(entry)) {
+      if (key !== "name" && key !== "condition")
+        errors.push(`${at}.${key}: unknown option (use name, condition)`);
+    }
+    if (typeof entry.name !== "string" || entry.name === "") {
+      errors.push(`${at}.name: expected a service or stack name`);
+    }
+    if (
+      entry.condition !== undefined &&
+      !(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))
+    ) {
+      errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+    }
+  });
+  return errors;
+}
+
+/** Plain text that is safe inside a JSON (double-quoted YAML) string: no line break or control character. */
+const isPlainText = (value: unknown): value is string =>
+  typeof value === "string" && !hasLineBreakOrControl(value);
+
+/**
+ * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
+ * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
+ * engine/.../compose/byo_build_logging.star.
+ */
+export function buildArgsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const args = manifest.buildArgs;
+  if (args === undefined || args === null) return [];
+  const field = `${displayPath}.buildArgs`;
+  if (!isPlainObject(args))
+    return [`${field}: expected an object of string values such as { "NODE_VERSION": "22" }`];
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  if (typeof manifest.image === "string" && manifest.image && !manifest.dockerfile) {
+    return [
+      `${field}: only applies to a resource built from a Dockerfile, not one that runs "image"`,
+    ];
+  }
+  const errors: string[] = [];
+  for (const [name, value] of Object.entries(args)) {
+    if (!ENV_NAME_PATTERN.test(name)) {
+      errors.push(
+        `${field}.${name}: names must be letters, digits or _, not starting with a digit`,
+      );
+    } else if (!isPlainText(value)) {
+      errors.push(`${field}.${name}: expected a string without line breaks or control characters`);
+    }
+  }
+  return errors;
+}
+
+/**
+ * `logging` (bring-your-own, #2965): Compose `logging`, such as `{ "driver": "json-file", "options": { "max-size": "5m" } }`.
+ * Mirrors byo_logging_section in engine/.../compose/byo_build_logging.star.
+ */
+export function loggingErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const logging = manifest.logging;
+  if (logging === undefined || logging === null) return [];
+  const field = `${displayPath}.logging`;
+  if (!isPlainObject(logging)) {
+    return [
+      `${field}: expected an object such as { "driver": "json-file", "options": { "max-size": "5m" } }`,
+    ];
+  }
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  for (const key of Object.keys(logging)) {
+    if (key !== "driver" && key !== "options")
+      errors.push(`${field}.${key}: unknown option (use driver, options)`);
+  }
+  const { driver, options } = logging;
+  if (
+    driver !== undefined &&
+    !(typeof driver === "string" && /^[a-z0-9][a-z0-9_.-]*$/.test(driver))
+  ) {
+    errors.push(`${field}.driver: expected a driver name such as json-file or local`);
+  }
+  if (options !== undefined) {
+    if (!isPlainObject(options)) {
+      errors.push(
+        `${field}.options: expected an object of string values such as { "max-size": "5m" }`,
+      );
+    } else {
+      for (const [key, value] of Object.entries(options)) {
+        if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(key)) {
+          errors.push(
+            `${field}.options: keys must be letters, digits, '-', '_' and '.', such as max-size`,
+          );
+        } else if (!isPlainText(value)) {
+          errors.push(
+            `${field}.options.${key}: expected a string without line breaks or control characters`,
+          );
+        }
+      }
+    }
+  }
   return errors;
 }
 
@@ -1388,6 +1540,9 @@ export function validateServiceManifest(
   errors.push(...envFileErrors(manifest, displayPath));
   errors.push(...modelsErrors(manifest, displayPath));
   errors.push(...restartErrors(manifest, displayPath));
+  errors.push(...dependsOnErrors(manifest, displayPath));
+  errors.push(...buildArgsErrors(manifest, displayPath));
+  errors.push(...loggingErrors(manifest, displayPath));
   errors.push(...byoEnvErrors(manifest, displayPath));
   errors.push(...healthCheckErrors(manifest, displayPath));
   if ("profiles" in manifest) {

@@ -33,6 +33,10 @@ export interface ResourceConfigFields {
     replicas?: number;
     runtime?: string;
     featuresEnabled?: string[];
+    /**
+     * Names after discovery. service.json may also write `{ "name": "db", "condition": "service_healthy" }` entries
+     * (dependsOnErrors checks them); parseResource turns them into their names.
+     */
     dependsOn?: string[];
     /** Deprecated spelling of dependsOn; still read, and counted with it. */
     dependencies?: string[];
@@ -254,6 +258,8 @@ export interface ProjectConfig {
         out_of_scope: LegacyProjectStackDefinition;
     };
     always_enabled_infra?: string[];
+    /** stack -> the Compose project name an imported Compose file ran under (written by flisk import); accepted, not yet read. */
+    composeProjectNames?: Record<string, string>;
     optional_infra: ProjectOptionalInfra;
     discovery: ProjectDiscovery;
     overrides?: Record<string, JsonValue>;

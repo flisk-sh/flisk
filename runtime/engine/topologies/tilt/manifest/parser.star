@@ -96,13 +96,55 @@ _GENERATED_STRING_RULES = [
 
 _IMAGE_CHARS = _ALPHANUM + '._/:@-'
 _VARIABLE_CHARS = _ALPHANUM + '_'
+# `${NAME:?message}`: the text Compose prints when NAME is unset. It is written inside a double-quoted YAML string, so it is
+# printable ASCII without a quote, backslash, brace, `$` or backtick.
+IMAGE_MESSAGE_CHARS = _ALPHANUM + " !#%&()*+,./:;<=>?@[]^_|~-"
+
+
+def compose_variable_ok(body, default_ok):
+    """
+    The inside of a Compose `${...}`: NAME, NAME:-default, NAME-default, NAME:?message or NAME?message.
+
+    `default_ok(default)` says whether a default is allowed for this field; a message may be empty.
+    """
+    i = 0
+    for c in body.elems():
+        if c not in _VARIABLE_CHARS:
+            break
+        i += 1
+    name = body[:i]
+    if not name or name[0].isdigit():
+        return False
+    rest = body[i:]
+    if rest == "":
+        return True
+    for op in [":-", "-"]:
+        if rest.startswith(op):
+            return default_ok(rest[len(op):])
+    for op in [":?", "?"]:
+        if rest.startswith(op):
+            for c in rest[len(op):].elems():
+                if c not in IMAGE_MESSAGE_CHARS:
+                    return False
+            return True
+    return False
+
+
+def _image_default_ok(default):
+    if not default:
+        return False
+    for c in default.elems():
+        if c not in _IMAGE_CHARS:
+            return False
+    return True
 
 
 def image_reference_ok(value):
     """
-    An image reference (ghcr.io/acme/app:1.0) that may contain Compose variables, `${NAME}`, `${NAME:-default}` or `${NAME-default}` with a default
-    made of image characters (postgres:${POSTGRES_VERSION:-18}-alpine). Compose fills them in from the project .env. Keep in step
-    with the image pattern in GENERATED_STRING_FIELDS (cli/src/utils/service-manifest.ts).
+    An image reference (ghcr.io/acme/app:1.0) that may contain Compose variables, `${NAME}`, `${NAME:-default}` or
+    `${NAME-default}` with a default made of image characters (postgres:${POSTGRES_VERSION:-18}-alpine), or `${NAME:?message}` /
+    `${NAME?message}`, which stops Compose with the message when NAME is unset. Compose fills them in from the project .env. Keep
+    in step with the image pattern in GENERATED_STRING_FIELDS (cli/src/utils/service-manifest.ts).
     """
     if type(value) != "string" or not value:
         return False
@@ -120,23 +162,56 @@ def image_reference_ok(value):
         end = rest.find("}", start)
         if end < 0:
             return False
-        variable, sep, default = rest[start + 2:end].partition(":-")
-        if not sep:
-            # ${NAME-default}: the default only when NAME is unset. A name has no '-', so the first one splits it.
-            variable, sep, default = rest[start + 2:end].partition("-")
-        if not variable or variable[0].isdigit():
+        if not compose_variable_ok(rest[start + 2:end], _image_default_ok):
             return False
-        for c in variable.elems():
-            if c not in _VARIABLE_CHARS:
-                return False
-        if sep:
-            if not default:
-                return False
-            for c in default.elems():
-                if c not in _IMAGE_CHARS:
-                    return False
         rest = rest[end + 1:]
     return True
+
+
+DEPENDS_ON_CONDITIONS = ["service_started", "service_healthy", "service_completed_successfully"]
+
+
+def normalize_depends_on(manifest, resource_path=""):
+    """
+    `dependsOn` entries may be names ("db") or Compose-style objects ({"name": "db", "condition": "service_healthy"}). Every
+    generator reads names, so the objects are turned into their names here, where a service.json becomes a manifest, and the
+    conditions are kept in `dependsOnConditions` (name -> condition). Tilt orders resources by name only. Returns the manifest
+    (changed in place), or fail()s on an object that is not {name, condition?}. Keep in step with dependsOnErrors in
+    cli/src/utils/service-manifest.ts.
+    """
+    if type(manifest) != "dict":
+        return manifest
+    deps = manifest.get('dependsOn')
+    if type(deps) != "list":
+        return manifest
+    has_object = False
+    for entry in deps:
+        if type(entry) == "dict":
+            has_object = True
+    if not has_object:
+        return manifest
+    where = " in " + resource_path if resource_path else ""
+    names = []
+    conditions = {}
+    for i, entry in enumerate(deps):
+        if type(entry) == "dict":
+            for key in entry.keys():
+                if key not in ["name", "condition"]:
+                    fail("MANIFEST ERROR: 'dependsOn[{}].{}' is not a dependsOn option (use name, condition){}".format(i, key, where))
+            name = entry.get('name')
+            if type(name) != "string" or not name:
+                fail("MANIFEST ERROR: 'dependsOn[{}].name' must be a service or stack name{}".format(i, where))
+            condition = entry.get('condition')
+            if condition != None:
+                if condition not in DEPENDS_ON_CONDITIONS:
+                    fail("MANIFEST ERROR: 'dependsOn[{}].condition' must be one of {}{}".format(i, ", ".join(DEPENDS_ON_CONDITIONS), where))
+                conditions[name] = condition
+            names.append(name)
+        else:
+            names.append(entry)
+    manifest['dependsOn'] = names
+    manifest['dependsOnConditions'] = conditions
+    return manifest
 
 
 def generated_string_error(manifest, resource_path=""):
@@ -228,6 +303,7 @@ def normalize(manifest, resource_path=""):
     unsafe_field_error = generated_string_error(normalized, resource_path)
     if unsafe_field_error:
         fail(unsafe_field_error)
+    normalize_depends_on(normalized, resource_path)
 
     # 1. Apply defaults for missing fields
     for field, default_value in MANIFEST_DEFAULTS.items():
@@ -539,6 +615,7 @@ ManifestParser = struct(
     parse=parse,
     normalize=normalize,
     generated_string_error=generated_string_error,
+    normalize_depends_on=normalize_depends_on,
     extract_resource_path=extract_resource_path,
     extract_stack=extract_stack_from_path,
     parse_traefik=parse_traefik_config,

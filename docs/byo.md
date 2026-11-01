@@ -300,6 +300,27 @@ before Tilt starts. With `networkAliases` the service's networks are written in 
 Checked by `tests/tilt-engine/test_byo_compose_options.py`, which runs the generator through Tilt and `docker compose config` on
 the generated file; a container started with these settings was not part of that test.
 
+## dependsOn conditions, build args, logging, bind paths from the environment (more imported Compose stacks)
+
+open-mercato, anyproto/any-sync-dockercompose, wger-project/docker and labsai/EDDI also use these:
+
+| service.json | Compose key | Value |
+| --- | --- | --- |
+| `dependsOn` entry | `depends_on` | A name as before, or `{"name": "db", "condition": "service_healthy"}`. The condition is `service_started`, `service_healthy` or `service_completed_successfully`. Flisk starts services in dependsOn order by name (Tilt `resource_deps`), so the condition is accepted and kept but does not change the order. Applies to every resource type. |
+| `buildArgs` | `build.args` | Object of NAME to string for a bring-your-own resource built from its Dockerfile: `{"NODE_VERSION": "${NODE_VERSION:-22}"}`. |
+| `logging` | `logging` | `{"driver": "json-file", "options": {"max-size": "5m", "max-file": "5"}}`. Option values are strings (#2965). |
+| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}` or `${NAME-./path}`. The default must be a path inside the project, resolved like any other bind path. A value set in the environment is used as Compose reads it, relative to the generated Compose file, so set an absolute path. |
+| `volumes[].selinux` | `:z` / `:Z` | `"z"` (label shared between containers) or `"Z"` (private) on a bind mount. |
+| `image` | `image` | Also `${NAME:?message}` or `${NAME?message}`: Compose stops with the message when NAME is unset (`dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set}`). The message uses printable ASCII only, with no quotes, backslash, braces, `$` or backtick. |
+
+`env` values already reach Compose as written, so nested and mixed expressions work: `${A:-${B:-file}}` or
+`mongodb://${U:-x}:${P}@db/eddi?a=b&c=d`. `buildArgs`, `logging` options and `env` values are written as JSON strings, which YAML
+reads as double-quoted strings, so they cannot add keys. A line break or control character in any of them is refused by
+`flisk config verify` and before Tilt starts. `.flisk/project.json` can carry `composeProjectNames` (stack to the Compose
+project name an install ran under), which `flisk import` writes. Flisk accepts it and does not use it yet. Checked by
+`tests/tilt-engine/test_byo_compose_round3.py`, which runs the generator and the manifest loaders through Tilt and
+`docker compose config` on the generated file. A container started with these settings was not part of that test.
+
 ## GPUs, CPU and memory (model servers and simulators)
 
 Every container Flisk generates is limited to 0.5 CPU and 512M of memory. A model server (vLLM, Ollama, llama.cpp) or a
