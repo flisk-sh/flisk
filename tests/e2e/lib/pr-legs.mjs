@@ -17,7 +17,7 @@
 //      case runs that script;
 //   7. a file inside one suite's folder (tests/e2e/<group>/<suite>/) selects that suite's legs;
 //   8. an engine file that belongs to one area selects that area's legs (ENGINE_AREAS): a vite framework file its frontend leg,
-//      the vite and frontend generators every frontend leg, byo_*.star the first bring-your-own variant of each case, the prisma layer prisma and
+//      the vite and frontend generators every frontend leg, byo_*.star the bring-your-own variants that use its key, the prisma layer prisma and
 //      migrator; engine docs and Starlark unit tests select nothing;
 //   9. the files that decide the matrix (FULL_PATHS: this workflow, pr-legs.mjs, suite-matrix.mjs) select every leg;
 //  10. any other file that matches SHARED_PATHS (shared CLI code, the rest of the engine, tests/e2e/lib, common.sh) selects the
@@ -36,14 +36,34 @@ export const ENGINE_AREAS = [
     /^runtime\/engine\/topologies\/(tilt\/generators\/vite\/|tilt\/generators\/typescript\/frontend_[a-z_]+\.star$|platform\/docker\/build\/frontend_build_plan\.star$|tilt\/resources\/orchestrator\/generators\/frontend\.star$)/,
     () => FRONTEND,
   ],
-  // The variants of one case run the same engine code with different apps, so an engine change runs the first variant of each case.
-  [/^runtime\/engine\/topologies\/platform\/docker\/compose\/byo_[a-z_]+\.star$/, () => (leg, byo) => leg.dir === BYO_DIR && byo.firstOfCase.has(leg.variant)],
+  // A byo_*.star file runs the variants whose case sets the manifest key it handles (BYO_FILE_VARIANTS); one not listed runs the
+  // first variant of each case, since the variants of one case run the same engine code with different apps.
+  [
+    /^runtime\/engine\/topologies\/platform\/docker\/compose\/byo_([a-z_]+)\.star$/,
+    (m) => (leg, byo) =>
+      leg.dir === BYO_DIR && (BYO_FILE_VARIANTS[m[1]] ? ["example", ...BYO_FILE_VARIANTS[m[1]]].includes(leg.variant) : byo.firstOfCase.has(leg.variant)),
+  ],
   [
     /^runtime\/engine\/topologies\/(platform\/docker\/layers\/prisma\/|tilt\/generators\/typescript\/prisma_config\.star$)/,
     () => (leg) => ["orm/prisma", "resource-types/migrator"].includes(leg.dir),
   ],
   [/^runtime\/engine\/(topologies\/tilt\/resources\/orchestrator\/apply_migrator_orchestration\.star|assets\/scripts\/cleanup-completed-migrator-images\.sh)$/, () => (leg) => leg.dir === "resource-types/migrator"],
 ];
+
+// Rule 8. The bring-your-own variants whose verify script sets the manifest key a compose/byo_<name>.star file handles. Every file
+// also runs the example variant, which loads them all, so a syntax error shows up. An empty list: no case sets that key, and
+// tests/tilt-engine covers the generated Compose lines.
+export const BYO_FILE_VARIANTS = {
+  container: ["hpc", "job"], // container block (GPUs, IPC, shm) in verify-byo-hpc.sh; restart: no in verify-byo-job.sh
+  ports: ["ports", "infra"], // extraPorts in verify-byo-ports.sh and verify-byo-infra.sh
+  shared_database: ["flisk", "job"], // a dependsOn on Flisk's Postgres
+  env: [],
+  env_file: [],
+  volumes: [],
+  sidecar: [],
+  models: [],
+  build_logging: [],
+};
 
 // Rule 9. The files that decide which legs run: a change to them is checked against every leg.
 export const FULL_PATHS = /^(\.github\/workflows\/e2e-resource-types\.yml|tests\/e2e\/lib\/(pr-legs|suite-matrix)\.mjs)$/;

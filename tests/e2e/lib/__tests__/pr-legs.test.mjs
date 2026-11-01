@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { CANARY, changedTemplateFolders, prLegs } from "../pr-legs.mjs";
+import { BYO_FILE_VARIANTS, CANARY, changedTemplateFolders, prLegs } from "../pr-legs.mjs";
 import { selectSuites } from "../suite-matrix.mjs";
 
 const e2eDir = fileURLToPath(new URL("../..", import.meta.url));
@@ -28,6 +28,24 @@ const sorted = (xs) => [...xs].sort();
 // One bring-your-own leg per case of its suite.json: the first variant listed for each case.
 const byoVariants = JSON.parse(readFileSync(path.join(e2eDir, "resource-types/bring-your-own/suite.json"), "utf8")).variants;
 const byoPerCase = byoLabels.filter((l) => byoVariants.find((v) => `bring-your-own-${v.id}` === l && byoVariants.find((w) => w.case === v.case) === v));
+
+test("every byo_*.star file is in the map, and every mapped variant is a real leg", () => {
+  const dir = path.join(e2eDir, "../../runtime/engine/topologies/platform/docker/compose");
+  const files = readdirSync(dir).filter((f) => /^byo_[a-z_]+\.star$/.test(f)).map((f) => f.slice(4, -5));
+  assert.deepEqual(sorted(files), sorted(Object.keys(BYO_FILE_VARIANTS)));
+  for (const v of Object.values(BYO_FILE_VARIANTS).flat()) assert.ok(byoLabels.includes(`bring-your-own-${v}`), v);
+});
+
+// The map's claims: each listed variant's verify script sets the key its file handles.
+test("each mapped variant's verify script sets the manifest key", () => {
+  const read = (s) => readFileSync(path.join(e2eDir, "resource-types/bring-your-own", s), "utf8");
+  assert.match(read("verify-byo-hpc.sh"), /m\.container=/);
+  assert.match(read("verify-byo-job.sh"), /--restart no/);
+  assert.match(read("verify-byo-ports.sh"), /extraPorts/);
+  assert.match(read("verify-byo-infra.sh"), /m\.extraPorts=/);
+  assert.match(read("verify-byo-job.sh"), /"postgres"/);
+  assert.match(read("verify-byo-flisk.sh"), /DATABASE_URL/);
+});
 
 test("an engine change runs one bring-your-own leg per case, not every template", () => {
   const cases = new Set(byoVariants.map((v) => v.case));
@@ -136,8 +154,12 @@ test("an engine file that belongs to one area runs only that area", () => {
   for (const file of [`${engine}/tilt/generators/vite/frontend.star`, `${engine}/tilt/generators/typescript/frontend_tsconfig.star`, `${engine}/platform/docker/build/frontend_build_plan.star`, `${engine}/tilt/resources/orchestrator/generators/frontend.star`]) {
     assert.deepEqual(labels([file]), frontendLabels, file);
   }
-  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_container.star`]), byoPerCase);
-  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_ports.star`]), byoPerCase);
+  const byo = (name) => sorted(labels([`${engine}/platform/docker/compose/byo_${name}.star`]));
+  assert.deepEqual(byo("container"), ["bring-your-own-example", "bring-your-own-hpc", "bring-your-own-job"]);
+  assert.deepEqual(byo("ports"), ["bring-your-own-example", "bring-your-own-infra", "bring-your-own-ports"]);
+  assert.deepEqual(byo("shared_database"), ["bring-your-own-example", "bring-your-own-flisk", "bring-your-own-job"]);
+  assert.deepEqual(byo("volumes"), ["bring-your-own-example"]);
+  assert.deepEqual(byo("not_yet_mapped"), sorted(byoPerCase)); // a new file not in the map: one leg per case
   assert.deepEqual(sorted(labels([`${engine}/platform/docker/layers/prisma/migrate_script.star`])), ["migrator", "prisma"]);
   assert.deepEqual(labels([`${engine}/tilt/resources/orchestrator/apply_migrator_orchestration.star`]), ["migrator"]);
   assert.deepEqual(labels(["runtime/engine/AGENTS.md", "runtime/engine/docs/README.md", `${engine}/tilt/manifest/tests/test_validator.star`]), []);
@@ -166,8 +188,8 @@ test("real PRs that ran every leg now run a fraction", () => {
     assert.ok(got.length <= canary.length + byoLabels.length, `#${pr} ran ${got.length}`);
     assert.ok(!got.includes("frontend-lit") && !got.includes("frontend-vue") && !got.includes("frontend-next"), `#${pr}: ${got}`);
   }
-  assert.deepEqual(labels(["runtime/engine/topologies/platform/docker/compose/byo_shared_database.star"]), byoPerCase);
-  assert.ok(labels(prs[3032]).length <= 15, `#3032 ran ${labels(prs[3032]).length}`);
+  assert.ok(labels(prs[3032]).length <= 8, `#3032 ran ${labels(prs[3032]).length}`);
+  assert.ok(labels(prs[3035]).length <= 8, `#3035 ran ${labels(prs[3035]).length}`);
 });
 
 // The workflow must diff a PR against its checked-out merge commit's first parent, not the event's frozen base.sha (#2960 ran 32 legs for a
