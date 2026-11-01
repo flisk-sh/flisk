@@ -297,6 +297,8 @@ def _apply_manifest_defaults(manifest, resource_path):
     computed_db_name = PlatformDockerConstants.get_db_name(stack)
     if 'databaseName' not in result:
         result['databaseName'] = computed_db_name
+        # Computed here, not asked for: a bring-your-own service must not read it as a request for the shared Postgres (#2991).
+        result['_databaseNameComputed'] = True
     elif result['databaseName'] != computed_db_name:
         overrides.append("databaseName: {} (auto: {})".format(result['databaseName'], computed_db_name))
     
