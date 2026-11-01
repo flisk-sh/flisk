@@ -45,8 +45,10 @@ export const statusCommand = new Command("status")
           })
         : null;
       // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
+      // No Traefik runs then, so every service answers on localhost instead of an ingress route.
+      const nativeProject = isNativeProject(discovery.resources);
       const nativeStates =
-        projectRoot && isNativeProject(discovery.resources)
+        projectRoot && nativeProject
           ? nativeServiceStates(
               projectRoot,
               discovery.resources.map((resource) => resource.name),
@@ -183,7 +185,7 @@ export const statusCommand = new Command("status")
             ...buildServicePorts(
               resource,
               portPlan?.ingressHttp,
-              { gateway: gatewayEnabled },
+              { gateway: gatewayEnabled, native: nativeProject },
               envLookup,
             ),
             status: serviceStates?.[resource.name]?.status ?? "unknown",
@@ -317,7 +319,7 @@ export const statusCommand = new Command("status")
             const ports = buildServicePorts(
               resource,
               portPlan?.ingressHttp,
-              { gateway: gatewayEnabled },
+              { gateway: gatewayEnabled, native: nativeProject },
               envLookup,
             );
             const urlPart = ports.url ? ` → ${ports.url}` : "";

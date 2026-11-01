@@ -42,7 +42,9 @@ export const statusCommand = new Command("status")
             })
             : null;
         // A project of `command` services runs as local processes: its state comes from the run on record, not from Tilt.
-        const nativeStates = projectRoot && isNativeProject(discovery.resources)
+        // No Traefik runs then, so every service answers on localhost instead of an ingress route.
+        const nativeProject = isNativeProject(discovery.resources);
+        const nativeStates = projectRoot && nativeProject
             ? nativeServiceStates(projectRoot, discovery.resources.map((resource) => resource.name))
             : null;
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
@@ -163,7 +165,7 @@ export const statusCommand = new Command("status")
                     stack: resource.stack ?? null,
                     type: resource.type ?? "unknown",
                     port: resource.port ?? null,
-                    ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled }, envLookup),
+                    ...buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup),
                     status: serviceStates?.[resource.name]?.status ?? "unknown",
                     ...(serviceStates?.[resource.name]?.reason
                         ? { statusReason: serviceStates[resource.name]?.reason }
@@ -264,7 +266,7 @@ export const statusCommand = new Command("status")
                     else if (state.status === "error") {
                         mark = chalk.red("✗");
                     }
-                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled }, envLookup);
+                    const ports = buildServicePorts(resource, portPlan?.ingressHttp, { gateway: gatewayEnabled, native: nativeProject }, envLookup);
                     const urlPart = ports.url ? ` → ${ports.url}` : "";
                     const extraPart = ports.extraPorts.length
                         ? `  ${chalk.dim(ports.extraPorts.map((p) => p.address).join(", "))}`
