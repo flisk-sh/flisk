@@ -26,6 +26,7 @@ load("./byo_ports.star", "byo_extra_ports")
 load("./byo_sidecar.star", "byo_sidecar_of")
 load("./byo_volumes.star", "VOLUME_MARKER", "byo_volumes")
 load("./byo_env.star", "byo_environment_lines")
+load("./byo_shared_database.star", "byo_wants_shared_database")
 load("./byo_env_file.star", "byo_env_file_lines")
 load("./byo_models.star", "MODEL_MARKER", "byo_models")
 load("./byo_build_logging.star", "byo_build_args_lines", "byo_logging_section")
@@ -192,26 +193,6 @@ def generate_frontend_compose(resource_path, resource_name, res, manifest=None):
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
         healthcheck_timing=compose_healthcheck_timing(DOCKER_HEALTHCHECK["frontend_start_period_seconds"]),
     )
-
-
-def byo_wants_shared_database(manifest):
-    """True when a bring-your-own manifest asks for Flisk's shared Postgres: `dependsOn` lists postgres or database-management (or a
-    `database` resource, which the orchestrator reports as `_sharedDatabase`), or it names its own `databaseName`.
-
-    Keep the alias list in step with SHARED_POSTGRES_DEPENDENCY_NAMES in tilt/resources/shared-platform-postgres.star (this file
-    cannot load it: that one loads the Docker layer).
-    """
-    if manifest.get('_sharedDatabase') != None:
-        return bool(manifest.get('_sharedDatabase'))
-    # Discovery fills `databaseName` in for every service (`_databaseNameComputed`); only one the service wrote itself is a request.
-    if manifest.get('databaseName') and not manifest.get('_databaseNameComputed'):
-        return True
-    deps = manifest.get('dependsOn')
-    if type(deps) == "list":
-        for dep in deps:
-            if dep in ["postgres", "database-management"]:
-                return True
-    return False
 
 
 def _platform_env_lines(manifest, is_byo, nats_queue, db_url_for_tilt, nats_url):

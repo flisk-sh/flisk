@@ -12,8 +12,11 @@ Flisk 是一款用于本地开发的命令行工具。它在你的电脑上把�
 快速开始:
 
 ```bash
-# npm install -g @flisk-sh/flisk
-mkdir shop && cd shop
+npx @flisk-sh/flisk demo
+```
+
+```bash
+mkdir my-shop && cd my-shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes

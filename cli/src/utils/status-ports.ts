@@ -126,7 +126,12 @@ export interface StackPort {
 }
 
 export type StackPortsOptions =
-  | { capabilities?: ProjectCapabilities; gateway?: boolean }
+  | {
+      capabilities?: ProjectCapabilities;
+      gateway?: boolean;
+      /** Every service runs as a local process (`command` in service.json): no Traefik, each one answers on localhost. */
+      native?: boolean;
+    }
   | ProjectCapabilities
   | boolean;
 
@@ -151,6 +156,17 @@ export function buildServicePorts(
 ): ServicePorts {
   const gatewayEnabled = resolveGatewayOption(options);
   const appType = resource.config?.appType;
+  const containerPort = resource.port ?? resource.config?.port ?? null;
+  if (typeof options === "object" && options !== null && "native" in options && options.native) {
+    // A local process has no ingress route, whatever its type: it listens on localhost at its own port.
+    return {
+      url: null,
+      containerPort,
+      hostPort: null,
+      directUrl: containerPort ? `http://localhost:${containerPort}` : null,
+      extraPorts: extraPortsOf(resource, lookup),
+    };
+  }
   // A frontend or API is reached only through the gateway; its container publishes no host port of its own.
   const routedByType =
     appType === "frontend" || routesAsApi(resource) || isWebUiBringYourOwn(resource);
@@ -159,7 +175,6 @@ export function buildServicePorts(
   if (routable) {
     url = `${resolveRouteBase(resource, ingressHttp)}${resolveServicePath(resource)}`;
   }
-  const containerPort = resource.port ?? resource.config?.port ?? null;
   // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer. Neither does a frontend or
   // API with the gateway off.
   const directUrl =

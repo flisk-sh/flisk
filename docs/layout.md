@@ -150,9 +150,11 @@ What in a project is shared, and where it is defined (read from the files `flisk
 | --- | --- | --- |
 | `.flisk/project.json` | Project name (so network and database names), stacks per phase, `discovery.paths`, optional infrastructure | Yes |
 | `services/<stack>/<name>/service.json` | One service: port, health path, image or build context, route settings | Yes |
-| `services/platform/database-management/docker-compose.yml` | The shared Postgres | Untracked after `flisk project`; whether to commit it is your call ([gradual adoption](gradual-adoption.md)) |
+| `services/platform/database-management/docker-compose.yml` | The shared Postgres | In a git repository `flisk up` adds it to `.gitignore` (block below); delete its line to commit it ([gradual adoption](gradual-adoption.md)) |
 | `shared-platform-engineering/docker-templates/` | Helper shell scripts used by generated builds | Same as above |
 | `.env` and `.flisk/.flisk-out/` | Generated passwords, secrets and output | No, git-ignored |
+
+**Generated files in the repository root (#3030).** In a git work tree, `flisk up` and `flisk config regenerate` add the root files Flisk generates to `.gitignore` once, in a block that starts with `# >>> Flisk generated files in the repository root (#3030)`: the workspace `package.json` and the lockfiles beside it (only when `package.json` is the one Flisk wrote, with no dependencies of its own), `.tiltignore` (only with the Flisk header), `shared-platform-engineering/` and `services/platform/database-management/docker-compose.yml`. A path git already tracks is never ignored, and a `package.json` or `.tiltignore` your team wrote is never ignored or overwritten. Flisk does not touch an existing block, so to commit one of these files delete its line. `services/platform/messaging/` is yours and is never listed. Moving these files under `.flisk/` was not done: the Tiltfile reads `.tiltignore` from the root and generated builds use the root paths.
 
 Traefik routes are not a separate shared file. They appear as labels in the Compose file generated from each `service.json` (for example `traefik.http.routers.api-project.rule=Host(...)`), so the team that owns a `service.json` owns its route.
 

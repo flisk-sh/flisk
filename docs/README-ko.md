@@ -12,8 +12,11 @@ Flisk는 로컬 개발용 명령줄 도구입니다. 앱의 모든 부분(API, �
 빠른 시작:
 
 ```bash
-# npm install -g @flisk-sh/flisk
-mkdir shop && cd shop
+npx @flisk-sh/flisk demo
+```
+
+```bash
+mkdir my-shop && cd my-shop
 flisk project --yes
 flisk resource orders-api --type backend --stack shop --yes
 flisk resource shop-web --type frontend --stack shop --yes

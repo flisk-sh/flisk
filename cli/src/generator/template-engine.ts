@@ -23,6 +23,7 @@ import {
 import { FliskError } from "../utils/errors.js";
 import { writeTextFile } from "../utils/file-helpers.js";
 import { assertFliskGeneratedPath } from "../utils/generated-paths.js";
+import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import { getPackageVersion } from "../utils/paths.js";
 import { DEFAULT_ALWAYS_ENABLED_INFRA } from "../utils/project-config-defaults.js";
 import {
@@ -119,6 +120,8 @@ interface GeneratorContext {
   project: ProjectConfig["project"];
   phases: ProjectConfig["phases"];
   alwaysEnabledInfra: string[];
+  /** Platform resources the project turned off or does not use: the Tiltfile never enables them, focus mode included. */
+  disabledPlatformInfra: string[];
   optionalInfra: ProjectConfig["optional_infra"];
   serviceDescriptions: Record<string, string>;
   infraDescriptions: Record<string, string>;
@@ -221,8 +224,13 @@ export class TemplateEngine {
     projectConfig: ProjectConfig,
     options: { projectRoot?: string } = {},
   ): GeneratorContext {
-    const dbEnabled = isDatabaseCapabilityEnabled(projectConfig);
-    const gatewayEnabled = isGatewayEnabled(projectConfig);
+    // Generating for a project on disk also drops the platform services its resources do not use (#2963).
+    const dbEnabled =
+      isDatabaseCapabilityEnabled(projectConfig) &&
+      (!options.projectRoot || isDatabaseCapabilityEnabled(options.projectRoot));
+    const gatewayEnabled =
+      isGatewayEnabled(projectConfig) &&
+      (!options.projectRoot || isGatewayEnabled(options.projectRoot));
     // A capability that is off is dropped from the phases as well as from always_enabled_infra: a phase entry reaches
     // RESOURCE_DEFAULTS in the Tiltfile and would start the container anyway.
     const isProvisioned = (name: string): boolean =>
@@ -261,6 +269,10 @@ export class TemplateEngine {
       project: projectConfig.project,
       phases,
       alwaysEnabledInfra,
+      disabledPlatformInfra: [
+        ...(gatewayEnabled ? [] : [...GATEWAY_RESOURCE_NAMES]),
+        ...(dbEnabled ? [] : [DATABASE_MANAGEMENT_FEATURE]),
+      ],
       optionalInfra: projectConfig.optional_infra,
       serviceDescriptions: RESOURCE_DESCRIPTIONS,
       infraDescriptions: INFRA_DESCRIPTIONS,
@@ -425,6 +437,25 @@ export function isWrappedTiltfileStale(projectRoot: string): boolean {
   const current = fs.existsSync(generatedPath) ? fs.readFileSync(generatedPath, "utf-8") : "";
   if (!userTiltfile) return current.split(/\r?\n/).includes(TILTFILE_WRAPPER_MARKER);
   return current !== renderTiltfileWrapper(projectConfig.project.name, userTiltfile);
+}
+
+/**
+ * True when the generated spec.master or Tiltfile differ from what the project would generate now. The platform services a
+ * project starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back,
+ * and removing the last one must drop it, without a `flisk config regenerate` in between.
+ */
+export function areMasterFilesStale(projectRoot: string): boolean {
+  try {
+    const expected = new TemplateEngine().generateAll(readProjectConfig(projectRoot), {
+      projectRoot,
+    });
+    return (["spec.master", "Tiltfile"] as const).some((name) => {
+      const file = path.join(projectRoot, ".flisk", ".flisk-out", name);
+      return !fs.existsSync(file) || fs.readFileSync(file, "utf-8") !== expected[name];
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -860,6 +891,7 @@ export async function generateMasterConfigs(
 
   if (
     isDatabaseCapabilityEnabled(projectConfig) &&
+    isDatabaseCapabilityEnabled(projectRoot) &&
     isStackFeatureEnabledInStacks(projectConfig.phases, DATABASE_MANAGEMENT_FEATURE)
   ) {
     const composePath = assertFliskGeneratedPath(
@@ -902,6 +934,11 @@ export async function generateMasterConfigs(
     for (const asset of copiedAssets) {
       console.log(`✓ Copied: ${asset} → project root`);
     }
+  }
+
+  const ignored = ensureGeneratedRootIgnored(projectRoot);
+  if (ignored.length > 0 && !options.quiet) {
+    console.log(`✓ Added to .gitignore (generated, not yours to commit): ${ignored.join(", ")}`);
   }
 
   await vendorFliskExtension(projectRoot, { quiet: options.quiet });

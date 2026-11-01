@@ -58,6 +58,7 @@ test-shell: ## Check shell script syntax, e2e suite definitions, the CI inventor
 	node --test scripts/autoresearch/layer-eval.test.mjs
 	node --test scripts/e2e-gate-expectations.test.mjs
 	node --test scripts/wait-for-e2e-gates.test.mjs
+	node --test scripts/cancel-dead-queue-runs.test.mjs
 	node --test scripts/wait-for-npm-version.test.mjs
 	node --test scripts/npm-downloads-graph.test.mjs
 	node --test scripts/install-global.test.mjs

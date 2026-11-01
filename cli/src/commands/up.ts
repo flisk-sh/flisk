@@ -7,6 +7,7 @@ import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
+  areMasterFilesStale,
   ensureProjectRuntimeAssets,
   generateMasterConfigs,
   isTiltfileOrchestration,
@@ -57,6 +58,7 @@ import {
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
 import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
+import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import {
   exportHostPortPlan,
   getHostPortPlan,
@@ -952,6 +954,10 @@ export const upCommand = new Command("up")
             );
           }
           await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && areMasterFilesStale(projectRoot)) {
+          // The router and the shared Postgres follow the project's resources, so a resource added or removed since the last
+          // run can change what spec.master starts (#2963).
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
         } else if (databaseTurnedOff || options.gateway === false) {
           // `--no-gateway` regenerates too: outputs generated before project.json turned the gateway off still start Traefik.
           await generateMasterConfigs(projectRoot, { quiet: options.quiet });
@@ -986,6 +992,14 @@ export const upCommand = new Command("up")
         }
 
         const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
+        const ignoredGenerated = foundRoot ? ensureGeneratedRootIgnored(projectRoot) : [];
+        if (ignoredGenerated.length > 0 && !options.quiet) {
+          console.log(
+            chalk.gray(
+              `Added to .gitignore (generated, not yours to commit): ${ignoredGenerated.join(", ")}`,
+            ),
+          );
+        }
         if (copiedAssets.length > 0 && options.verbose && !options.quiet) {
           console.log(chalk.gray(`Refreshed runtime assets: ${copiedAssets.join(", ")}`));
         }

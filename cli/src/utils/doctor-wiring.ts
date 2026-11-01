@@ -704,7 +704,7 @@ export function checkNatsBroker(projectRoot = findProjectRoot() ?? process.cwd()
       message: `${formatCount(users.length, "resource")} enable nats and services/platform/messaging/docker-compose.yml is present`,
     };
   }
-  const name = toComposeProjectName(projectName(projectRoot) ?? "project");
+  const name = toComposeProjectName(projectName(projectRoot) ?? "flisk-project");
   return {
     name: "NATS broker",
     didPass: false,
