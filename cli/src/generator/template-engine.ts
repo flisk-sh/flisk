@@ -471,7 +471,8 @@ function dedupePhaseEnabledStacks(phases: ProjectConfig["phases"]): ProjectConfi
 }
 
 export function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string {
-  const name = toComposeProjectName(projectConfig.project.name || "flisk_project");
+  // Lowercase: Compose refuses uppercase (#1519). Mirrors PROJECT_NAME in constants.star.
+  const name = toComposeProjectName(projectConfig.project.name || "flisk_project").toLowerCase();
   return `###############################################################################
 # SYSTEM-GENERATED - DO NOT EDIT
 # Stack feature: database-management

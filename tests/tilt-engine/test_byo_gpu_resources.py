@@ -3,9 +3,9 @@
 """
 GPUs, CPU and memory limits and IPC in a bring-your-own `container` block become the Compose `deploy:` and `ipc:` keys.
 
-Every backend container gets Flisk's default limits (0.5 CPU, 512M), which a vLLM or Ollama model server and a cuQuantum or
-large state-vector simulator cannot run in, and none of them can see a GPU without a device reservation. Without these keys
-such a service needed a hand-written Compose override.
+A container Flisk builds gets its default limits (0.5 CPU, 512M). A bring-your-own container gets none unless `container.cpus`
+or `container.memory` is set (#2992): a vLLM or Ollama model server, a cuQuantum or large state-vector simulator, or an image that
+loads a model at start was OOM-killed by the default, and none of them can see a GPU without a device reservation.
 
 Runs the real Compose generator through Tilt's interpreter (`tilt alpha tiltfile-result`), like test_byo_container_options.py.
 """
@@ -44,12 +44,16 @@ small = {
     'container': {'cpus': '0.1', 'memory': '128m'},
 }
 plain = {'appType': 'bring-your-own', 'stack': 'hqc', 'port': 9000, 'image': 'nginx:alpine'}
+memory_only = {'appType': 'bring-your-own', 'stack': 'hqc', 'port': 9001, 'image': 'example/facial:1', 'container': {'memory': '4G'}}
+gpu_only = {'appType': 'bring-your-own', 'stack': 'hqc', 'port': 9002, 'image': 'example/gpu:1', 'container': {'gpus': 1}}
 backend = {'appType': 'backend', 'stack': 'hqc', 'port': 4000, 'container': {'gpus': 'all'}}
 r = {
     'vllm': generate_backend_compose_entry('services/hqc', 'hqc', {'name': 'vllm'}, vllm),
     'sim': generate_backend_compose_entry('services/hqc', 'hqc', {'name': 'quantum-sim'}, sim),
     'small': generate_backend_compose_entry('services/hqc', 'hqc', {'name': 'cache'}, small),
     'plain': generate_backend_compose_entry('services/hqc', 'hqc', {'name': 'plain'}, plain),
+    'memory_only': generate_backend_compose_entry('services/hqc', 'hqc', {'name': 'memory-only'}, memory_only),
+    'gpu_only': generate_backend_compose_entry('services/hqc', 'hqc', {'name': 'gpu-only'}, gpu_only),
     'backend': generate_backend_compose_entry('services/hqc', 'hqc', {'name': 'api'}, backend),
 }
 """
@@ -113,10 +117,11 @@ def test_a_model_server_gets_every_gpu_its_limits_and_host_ipc(result):
 
 
 @TILT_REQUIRED
-def test_a_simulator_reserves_a_gpu_count_and_keeps_the_default_memory(result):
+def test_a_simulator_reserves_a_gpu_count_and_sets_no_memory_limit(result):
     entry = result["sim"]
 
-    assert "          cpus: '2.5'\n          memory: 512M\n" in entry
+    assert "          cpus: '2.5'\n" in entry
+    assert "memory:" not in entry.split("    deploy:", 1)[1]
     assert "              count: 1\n" in entry
     assert "ipc:" not in entry
 
@@ -137,9 +142,22 @@ def test_a_reservation_never_exceeds_a_smaller_limit(result):
 
 
 @TILT_REQUIRED
-def test_a_service_without_these_keys_keeps_the_default_limits(result):
-    assert DEFAULT_DEPLOY in result["plain"]
+def test_a_service_without_these_keys_has_no_limits(result):
+    # #2992: no hidden 512M. An image that works under plain Compose is not OOM-killed by Flisk.
+    assert "deploy:" not in result["plain"]
+    assert "memory:" not in result["plain"] and "cpus:" not in result["plain"]
     assert "devices:" not in result["plain"]
+
+
+@TILT_REQUIRED
+def test_only_the_limit_that_is_set_is_written(result):
+    memory_only = result["memory_only"]
+
+    assert "        limits:\n          memory: 4G\n        reservations:\n          memory: 256M\n" in memory_only
+    assert "cpus:" not in memory_only
+    gpu_only = result["gpu_only"]
+    assert "        limits:" not in gpu_only
+    assert "    deploy:\n      resources:\n        reservations:\n          devices:\n" in gpu_only
 
 
 @TILT_REQUIRED

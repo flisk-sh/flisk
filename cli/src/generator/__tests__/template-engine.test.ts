@@ -508,6 +508,15 @@ describe("template-engine", () => {
       expect(compose).toContain("name: my_shop_database");
     });
 
+    it("writes an uppercase project name in lowercase, so Compose accepts it (#1519, #2993)", () => {
+      const compose = generateDatabaseManagementCompose(
+        projectConfig({ project: { name: "Lychee", version: "1.0.0" } }),
+      );
+      expect(compose).toContain("container_name: lychee_postgres");
+      expect(compose).toContain("name: lychee_database");
+      expect(compose).not.toContain("Lychee");
+    });
+
     it("falls back to flisk_project when the project name is empty", () => {
       const compose = generateDatabaseManagementCompose(
         projectConfig({ project: { name: "", version: "1.0.0" } }),
