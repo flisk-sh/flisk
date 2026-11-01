@@ -165,8 +165,13 @@ Utils.load_dotenv(PROJECT_ROOT)
 FOCUS_MODE, FOCUS_ENABLED_ALL, FOCUS_ENABLED_RESOURCES = Config.apply_focus(cfg)
 # Load ALWAYS_ENABLED_INFRA from project.json (falls back to defaults if not specified)
 ALWAYS_ENABLED_INFRA = {{starlarkArray alwaysEnabledInfra}}
+# Platform services this project turned off (capabilities in project.json) or does not use. Focus mode adds CORE_INFRA
+# (traefik, postgres) to what it enables, so the opt-out has to be checked here, before it.
+DISABLED_PLATFORM_INFRA = {{starlarkArray disabledPlatformInfra}}
 
 def should_enable(resource_name):
+    if resource_name in DISABLED_PLATFORM_INFRA:
+        return False
     # Always-enabled infra (proxy/Traefik, verdaccio, database-management) must stay
     # enabled independent of focus mode: FOCUS_MODE collapses to False whenever the pre-alpha
     # stack bucket is empty (the default on a freshly generated project.json), which used to

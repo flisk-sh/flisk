@@ -190,6 +190,10 @@ export class TemplateEngine {
             project: projectConfig.project,
             phases,
             alwaysEnabledInfra,
+            disabledPlatformInfra: [
+                ...(gatewayEnabled ? [] : [...GATEWAY_RESOURCE_NAMES]),
+                ...(dbEnabled ? [] : [DATABASE_MANAGEMENT_FEATURE]),
+            ],
             optionalInfra: projectConfig.optional_infra,
             serviceDescriptions: RESOURCE_DESCRIPTIONS,
             infraDescriptions: INFRA_DESCRIPTIONS,
@@ -338,17 +342,19 @@ export function isWrappedTiltfileStale(projectRoot) {
     return current !== renderTiltfileWrapper(projectConfig.project.name, userTiltfile);
 }
 /**
- * True when the generated spec.master differs from what the project would generate now. The platform services a project
- * starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back, and
- * removing the last one must drop it, without a `flisk config regenerate` in between.
+ * True when the generated spec.master or Tiltfile differ from what the project would generate now. The platform services a
+ * project starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back,
+ * and removing the last one must drop it, without a `flisk config regenerate` in between.
  */
-export function isSpecMasterStale(projectRoot) {
+export function areMasterFilesStale(projectRoot) {
     try {
         const expected = new TemplateEngine().generateAll(readProjectConfig(projectRoot), {
             projectRoot,
-        })["spec.master"];
-        const file = path.join(projectRoot, ".flisk", ".flisk-out", "spec.master");
-        return !fs.existsSync(file) || fs.readFileSync(file, "utf-8") !== expected;
+        });
+        return ["spec.master", "Tiltfile"].some((name) => {
+            const file = path.join(projectRoot, ".flisk", ".flisk-out", name);
+            return !fs.existsSync(file) || fs.readFileSync(file, "utf-8") !== expected[name];
+        });
     }
     catch {
         return false;
