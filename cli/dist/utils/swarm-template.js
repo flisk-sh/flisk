@@ -48,13 +48,13 @@ open http://localhost:${SWARM_COORDINATOR_PORT}
 
 A worker that dies or hangs loses its claim after \`CLAIM_MS\` (15 s) and the subtask goes back in the queue.
 A failed subtask is retried up to \`MAX_ATTEMPTS\` (3) times, then it and its goal are marked \`failed\`.
-Try it: set \`FAIL_RATE=0.5\` in a worker's \`env\`, or stop a worker mid-task.
+The coordinator saves its goals to \`coordinator/.data/swarm-state.json\`, so a crash and restart loses nothing.\nTry it: set \`FAIL_RATE=0.5\` in a worker's \`env\`, or stop a worker mid-task.
 
 Edit \`work()\` in \`worker/server.mjs\` to call your model or tool. Add workers by copying a \`worker-N\` folder.
 `;
 /** Writes the swarm project into `dir`. */
 export function writeSwarmProject(dir, readTemplate = loadTemplate) {
-    const files = { "README.md": README };
+    const files = { "README.md": README, ".gitignore": ".data/\n" };
     for (const name of TEMPLATE_FILES)
         files[name] = readTemplate(`swarm/${name}`);
     for (const [name, manifest] of Object.entries(swarmManifests())) {

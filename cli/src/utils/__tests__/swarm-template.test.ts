@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,8 +52,9 @@ describe("swarm template", () => {
     const port = await freePort();
     const workerPort = await freePort();
     const env = { ...process.env, PORT: String(port) };
-    const coordinator = spawn("node", [join(dir, "coordinator/server.mjs")], { env });
-    const worker = spawn("node", [join(dir, "worker/server.mjs")], {
+    const coordinator = spawn("node", ["server.mjs"], { cwd: join(dir, "coordinator"), env });
+    const worker = spawn("node", ["server.mjs"], {
+      cwd: join(dir, "worker"),
       env: {
         ...env,
         PORT: String(workerPort),
@@ -105,28 +106,39 @@ describe("swarm template", () => {
       const port = await freePort();
       const workerPort = await freePort();
       const base = `http://localhost:${port}`;
-      const procs = [
-        spawn("node", [join(dir, "coordinator/server.mjs")], {
+      const procs: ChildProcess[] = [];
+      // From the service folder, as flisk up runs it: the state file lands in coordinator/.data.
+      const startCoordinator = () => {
+        const proc = spawn("node", ["server.mjs"], {
+          cwd: join(dir, "coordinator"),
           env: { ...process.env, PORT: String(port), ...env },
-        }),
-      ];
+        });
+        procs.push(proc);
+        return proc;
+      };
+      let coordinator = startCoordinator();
+      const healthy = async () => {
+        for (let i = 0; i < 50; i++) {
+          try {
+            await fetch(`${base}/health`);
+            return;
+          } catch {
+            await sleep(100);
+          }
+        }
+        throw new Error("the coordinator never answered");
+      };
       const post = async (path: string, body: unknown) =>
         (await fetch(`${base}${path}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
         }).then((r) => r.json())) as Record<string, unknown>;
-      for (let i = 0; i < 50; i++) {
-        try {
-          await fetch(`${base}/health`);
-          break;
-        } catch {
-          await sleep(100);
-        }
-      }
+      await healthy();
       const startWorker = (extra: Record<string, string> = {}) =>
         procs.push(
-          spawn("node", [join(dir, "worker/server.mjs")], {
+          spawn("node", ["server.mjs"], {
+            cwd: join(dir, "worker"),
             env: {
               ...process.env,
               PORT: String(workerPort),
@@ -144,8 +156,18 @@ describe("swarm template", () => {
         }
         return goal;
       };
+      /** kill -9 the coordinator, then start it again on the same port, as the flisk up supervisor does. */
+      const crashCoordinator = async () => {
+        const gone = new Promise((r) => coordinator.once("exit", r));
+        coordinator.kill("SIGKILL");
+        await gone;
+        coordinator = startCoordinator();
+        await healthy();
+      };
       return {
+        dir,
         post,
+        crashCoordinator,
         startWorker,
         waitForGoal,
         stop: () => {
@@ -160,7 +182,7 @@ describe("swarm template", () => {
         await swarm.post("/goals", { goal: "one. two" });
         // A worker claims a subtask and dies: it never completes or reports.
         const { task } = (await swarm.post("/claim", { worker: "dead" })) as {
-          task: { id: string };
+          task: { id: string; attempt: number };
         };
         expect(task).toBeTruthy();
         swarm.startWorker();
@@ -169,9 +191,63 @@ describe("swarm template", () => {
         expect(goal?.subtasks.map((s) => s.attempts).sort()).toEqual([1, 2]);
         expect(goal?.subtasks.find((s) => s.attempts === 2)?.error).toMatch(/dead did not finish/);
         // The dead worker coming back late cannot overwrite the retry's answer.
-        expect(await swarm.post("/complete", { id: task.id, result: "late" })).toEqual({
+        expect(
+          await swarm.post("/complete", { id: task.id, attempt: task.attempt, result: "late" }),
+        ).toEqual({
           error: "claim expired",
         });
+      } finally {
+        swarm.stop();
+      }
+    }, 30_000);
+
+    it("drops a stale answer from an expired claim while another worker holds the subtask", async () => {
+      const swarm = await startSwarm({ CLAIM_MS: "300" });
+      try {
+        await swarm.post("/goals", { goal: "only part" });
+        const first = (await swarm.post("/claim", { worker: "slow" })) as {
+          task: { id: string; attempt: number };
+        };
+        let second: { task: { id: string; attempt: number } | null } = { task: null };
+        for (let i = 0; i < 30 && !second.task; i++) {
+          await sleep(100);
+          second = (await swarm.post("/claim", { worker: "fresh" })) as typeof second;
+        }
+        expect(second.task).toMatchObject({ id: first.task.id, attempt: 2 });
+        // The slow worker answers now, while the subtask is claimed again: that answer must not count.
+        expect(
+          await swarm.post("/complete", {
+            id: first.task.id,
+            attempt: first.task.attempt,
+            result: "stale",
+          }),
+        ).toEqual({ error: "claim expired" });
+        expect(
+          await swarm.post("/complete", { id: first.task.id, attempt: 2, result: "fresh" }),
+        ).toEqual({ ok: true });
+        const goal = (await swarm.waitForGoal((g) => g.status === "done")) as Goal & {
+          subtasks: { result: string }[];
+        };
+        expect(goal.subtasks[0]?.result).toBe("fresh");
+      } finally {
+        swarm.stop();
+      }
+    }, 30_000);
+
+    it("keeps its goals across a kill -9 and restart, and the workers finish them", async () => {
+      const swarm = await startSwarm({ CLAIM_MS: "2500" });
+      try {
+        await swarm.post("/goals", { goal: "one. two. three" });
+        await swarm.post("/claim", { worker: "dies-with-coordinator" });
+        await swarm.crashCoordinator();
+        const after = await swarm.waitForGoal(() => true);
+        expect(after?.subtasks).toHaveLength(3);
+        expect(existsSync(join(swarm.dir, "coordinator/.data/swarm-state.json"))).toBe(true);
+        swarm.startWorker();
+        const goal = await swarm.waitForGoal((g) => g.status === "done");
+        expect(goal?.status).toBe("done");
+        // The claim held when the coordinator died kept its deadline, expired and was retried.
+        expect(goal?.subtasks.some((s) => s.attempts === 2)).toBe(true);
       } finally {
         swarm.stop();
       }

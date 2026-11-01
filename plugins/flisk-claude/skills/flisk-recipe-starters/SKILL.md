@@ -10,7 +10,7 @@ metadata:
 
 # Recipe: start from a starter app
 
-A starter is a working multi-service app in the flisk-sh GitHub organisation. Starting from one is faster than building from an empty folder, and the user can change it afterwards. Use one when the request clearly matches a row below; use only one starter per project.
+A starter is a working multi-service app in the flisk-sh GitHub organisation (`swarm` and `security` ship inside the CLI and need no clone or Docker). Starting from one is faster than building from an empty folder, and the user can change it afterwards. Use one when the request clearly matches a row below; use only one starter per project.
 
 | The user asks for | Template | Stacks | What it ships |
 | --- | --- | --- | --- |
@@ -18,6 +18,8 @@ A starter is a working multi-service app in the flisk-sh GitHub organisation. St
 | SaaS, dashboard, billing, subscription, checkout | `saas` | `app`, `billing` | dashboard app and API, checkout app, billing API, a migrator per API |
 | shop, store, storefront, ecommerce, catalogue | `ecommerce` | `store` | Vue storefront, catalog API and its migrator |
 | AI agent stack, agent with tools and a database | `agent-stack` | `agents` | agent, its migrator, MCP tools server |
+| multi-agent swarm, coordinator and workers, task queue with retries | `swarm` | none | coordinator and three workers as local processes (no Docker); retries a task whose worker died |
+| security agents, code scanner, vulnerability triage | `security` | none | scanner, triage and reporter agents as local processes (no Docker) |
 | user management, admin portal, accounts, audit | `user-management` | `admin`, `compliance`, `portal` | admin app and API, portal app and API, audit API and worker |
 | the smallest example, orders | `example` | `shop` | orders app, API and worker |
 
