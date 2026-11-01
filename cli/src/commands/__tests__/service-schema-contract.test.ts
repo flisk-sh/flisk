@@ -58,6 +58,7 @@ const RESOURCE_CONFIG_FIELDS = [
   "dockerfile",
   "image",
   "exposeViaProxy",
+  "webUi",
   "agent",
   "command",
   "env",
@@ -148,6 +149,27 @@ describe("service-schema.json stays independent of the provider registries", () 
 
     for (const service of generatedServices) {
       expect(validateService(service), JSON.stringify(validateService.errors)).toBe(true);
+    }
+  });
+
+  it("keeps . and .. segments out of a bind source that starts with a variable, as the CLI does", () => {
+    const withSource = (source: string) =>
+      manifest({
+        appName: "redis",
+        appType: "bring-your-own",
+        port: 6379,
+        image: "redis:7",
+        volumes: [{ source, target: "/data" }],
+      });
+    for (const source of ["${STORAGE_DIR}", "${STORAGE_DIR}/redis", "${DATA:-./data}/sub"]) {
+      expect(validateService(withSource(source)), source).toBe(true);
+    }
+    for (const source of ["${STORAGE_DIR}/../etc", "${STORAGE_DIR}/./x", "${STORAGE_DIR}/a/.."]) {
+      expect(validateService(withSource(source)), source).toBe(false);
+      expect(
+        validateServiceManifest(withSource(source), "service.json").errors,
+        source,
+      ).not.toEqual([]);
     }
   });
 

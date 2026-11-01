@@ -7,7 +7,7 @@ import type { DiscoveredResource } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { isApiServiceType } from "./resource-kind.js";
 import { createEnvRedactor } from "./secret-redaction.js";
-import { resolveServicePath, resolveSubdomainBases } from "./service-urls.js";
+import { resolveRouteBase, resolveServicePath } from "./service-urls.js";
 
 /**
  * A post-start check a service declares in service.json. It runs through the URL `flisk up` prints (Traefik), not inside the
@@ -158,7 +158,6 @@ export function buildSmokePlans(
 ): SmokePlan[] {
   // Smoke steps go through the gateway URL. With the gateway off no such URL answers, so there is nothing to check.
   if (options.gateway === false) return [];
-  const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
   const plans: SmokePlan[] = [];
   for (const resource of resources) {
     const config = resource.config;
@@ -167,7 +166,7 @@ export function buildSmokePlans(
     const isApi = isApiServiceType(appType) || appType === BRING_YOUR_OWN_TYPE;
     if (!isApi && appType !== "frontend") continue;
     if (config.exposeViaProxy === false) continue;
-    const base = isApi ? apiBase : appBase;
+    const base = resolveRouteBase(resource, ingressPort);
     // The container healthcheck path (default /health for APIs) is the one request that is safe to repeat while the route comes up.
     const readyPath =
       config.healthCheckPath || (isApi && appType !== BRING_YOUR_OWN_TYPE ? "/health" : undefined);

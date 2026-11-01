@@ -21,6 +21,7 @@ _IPC_MODES = ["host", "private", "shareable", "none"]
 _HOST_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
 _ALIAS_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
 _IPV6_CHARS = "0123456789abcdefABCDEF:"
+_VARIABLE_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 _DURATION_UNITS = ["us", "ms", "s", "m", "h"]
 _ULIMIT_NAMES = ["as", "core", "cpu", "data", "fsize", "locks", "memlock", "msgqueue", "nice", "nofile", "nproc", "rss", "rtprio", "rttime", "sigpending", "stack"]
 _RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"]
@@ -104,16 +105,29 @@ def _ipv4(value):
     return True
 
 
+def _host_address(address):
+    if address == "host-gateway" or _ipv4(address):
+        return True
+    # An IPv6 address has at least two colons; a lone ":" would resolve to "name::" and the daemon rejects it.
+    return address.count(":") >= 2 and _only(address, _IPV6_CHARS)
+
+
 def _extra_host(value):
-    """`name:address`: a hostname, then host-gateway, an IPv4 address or an IPv6 address."""
+    """`name:address`: a hostname, then host-gateway, an IPv4 address or an IPv6 address, or a Compose variable for the address:
+    ${NAME}, ${NAME:-address} or ${NAME-address} (open-mercato: host.docker.internal:${OM_HOST_GATEWAY:-host-gateway})."""
     if type(value) != "string":
         return False
     name, colon, address = value.partition(":")
     if not colon or not _only(name, _HOST_CHARS) or name[0] in ".-":
         return False
-    if address == "host-gateway" or _ipv4(address):
-        return True
-    return ":" in address and _only(address, _IPV6_CHARS)
+    if address.startswith("${") and address.endswith("}"):
+        body = address[2:-1]
+        for op in [":-", "-"]:
+            variable, sep, default = body.partition(op)
+            if sep:
+                return _only(variable, _VARIABLE_CHARS) and not variable[0].isdigit() and _host_address(default)
+        return _only(body, _VARIABLE_CHARS) and not body[0].isdigit()
+    return _host_address(address)
 
 
 def _ulimit_int(value):
@@ -211,33 +225,56 @@ def _cpus_value(value):
     fail("MANIFEST ERROR: 'container.cpus' must be a CPU count above 0 such as 4 or \"2.5\"")
 
 
-def _deploy_section(cpus, memory, gpus):
-    """The service's `deploy:` block: Flisk's default limits, or the ones from `container`, plus GPU device reservations."""
-    cpus_text, cpus_hundredths = cpus if cpus else (_DEFAULT_CPUS, 50)
-    reserved_cpus = "0.2" if cpus_hundredths >= _RESERVED_CPU_HUNDREDTHS else cpus_text
-    memory_text = memory or _DEFAULT_MEMORY
-    reserved_memory = _RESERVED_MEMORY if memory == None or _size_bytes(memory) >= _RESERVED_MEMORY_BYTES else memory
-    lines = [
+def _flisk_deploy_section():
+    """The limits Flisk puts on a container it builds: 0.5 CPU and 512M, reserving 0.2 CPU and 256M."""
+    return "\n".join([
         "    deploy:",
         "      resources:",
         "        limits:",
-        "          cpus: '{}'".format(cpus_text),
-        "          memory: {}".format(memory_text),
+        "          cpus: '{}'".format(_DEFAULT_CPUS),
+        "          memory: {}".format(_DEFAULT_MEMORY),
         "        reservations:",
-        "          cpus: '{}'".format(reserved_cpus),
-        "          memory: {}".format(reserved_memory),
-    ]
+        "          cpus: '0.2'",
+        "          memory: {}".format(_RESERVED_MEMORY),
+    ]) + "\n"
+
+
+def _deploy_section(cpus, memory, gpus):
+    """A bring-your-own service's `deploy:` block: only what service.json asks for (#2992).
+
+    Flisk's 512M default is for the Bun services it builds. An image that works under plain Compose (a model that loads at start,
+    a database) was OOM-killed by it, so a bring-your-own container has no limit unless `container.cpus` or `container.memory` is
+    set, and the exported Compose file behaves the same. `container.gpus` adds a device reservation. "" when nothing is set.
+    """
+    limits = []
+    reservations = []
+    if cpus:
+        cpus_text, cpus_hundredths = cpus
+        limits.append("          cpus: '{}'".format(cpus_text))
+        reservations.append("          cpus: '{}'".format("0.2" if cpus_hundredths >= _RESERVED_CPU_HUNDREDTHS else cpus_text))
+    if memory:
+        limits.append("          memory: {}".format(memory))
+        reservations.append("          memory: {}".format(_RESERVED_MEMORY if _size_bytes(memory) >= _RESERVED_MEMORY_BYTES else memory))
     if gpus != None:
-        lines.extend([
+        reservations.extend([
             "          devices:",
             "            - driver: nvidia",
             "              count: {}".format(gpus),
             "              capabilities: [gpu]",
         ])
+    if not limits and not reservations:
+        return ""
+    lines = ["    deploy:", "      resources:"]
+    if limits:
+        lines.append("        limits:")
+        lines.extend(limits)
+    if reservations:
+        lines.append("        reservations:")
+        lines.extend(reservations)
     return "\n".join(lines) + "\n"
 
 
-DEFAULT_DEPLOY_SECTION = _deploy_section(None, None, None)
+DEFAULT_DEPLOY_SECTION = _flisk_deploy_section()
 
 
 def byo_container_options(manifest):
@@ -249,6 +286,8 @@ def byo_container_options(manifest):
     defaults: `container` is only read for bring-your-own (the CLI reports it elsewhere).
     """
     container = manifest.get('container') if manifest else None
+    if manifest and manifest.get('appType') == 'bring-your-own' and container == None:
+        return struct(init = True, section = "", deploy = "", network_aliases = [])
     if container == None or manifest.get('appType') != 'bring-your-own':
         return struct(init = True, section = "", deploy = DEFAULT_DEPLOY_SECTION, network_aliases = [])
     if type(container) != "dict":

@@ -30,6 +30,7 @@ import {
   validateServiceManifest,
   validateServiceManifestFile,
   volumesErrors,
+  webUiErrors,
 } from "../service-manifest.js";
 
 function manifestBase(): Record<string, unknown> {
@@ -972,6 +973,9 @@ describe("extraPortsErrors publish", () => {
     "${TUBEHAUS_HTTP_BIND:-80}",
     "127.0.0.1:${TUBEHAUS_HTTP_PORT:-8080}",
     "${CODECOV_PORT-8080}",
+    "${REDIS_PORT}",
+    "127.0.0.1:${REDIS_PORT}",
+    "${A:-80}${B}",
     "127.0.0.1:${CODECOV_PORT-8080}",
     "8080",
     "0.0.0.0:80",
@@ -980,7 +984,6 @@ describe("extraPortsErrors publish", () => {
   });
 
   it.each([
-    ["${A}", "needs a default"],
     ["${A:-}", "default of ${A} must be a port or address:port"],
     ["${A-}", "default of ${A} must be a port or address:port"],
     ["${A-localhost:80}", "default of ${A} must be a port or address:port"],
@@ -997,7 +1000,8 @@ describe("extraPortsErrors publish", () => {
     ['0.0.0.0:80"\nprivileged: true', "digits, '.', ':'"],
     ["0.0.0.0:80\\", "digits, '.', ':'"],
     ["${A:-80}\nx", "digits, '.', ':'"],
-    ["${A:-80}${B}", "needs a default"],
+    ["${A}:x", "digits, '.', ':'"],
+    ["${A-}", "default of ${A} must be a port or address:port"],
     ["", "expected a string"],
     [80, "expected a string"],
   ])("refuses %j", (value, message) => {
@@ -1014,6 +1018,48 @@ describe("extraPortsErrors publish", () => {
     expect(substitutePublish("${A-8080}", lookup({ A: "" }))).toBe("");
     expect(substitutePublish("${A:-8080}", lookup({ A: "" }))).toBe("8080");
     expect(substitutePublish("127.0.0.1:${A-80}:${B:-81}", lookup({}))).toBe("127.0.0.1:80:81");
+  });
+
+  it("still checks the protocol when the host port comes from a variable", () => {
+    const errors = extraPortsErrors(publish("${PORT}", { protocol: "sctp" }), file);
+    expect(errors).toEqual([`${file}.extraPorts[0].protocol: expected tcp or udp`]);
+  });
+
+  it("counts a literal host port behind a variable address in the published-twice check", () => {
+    const manifest = {
+      appType: "bring-your-own",
+      extraPorts: [
+        { port: 80, publish: "${HOST}:80" },
+        { port: 8080, hostPort: 80 },
+      ],
+    };
+    expect(extraPortsErrors(manifest, file)[0]).toContain("80/tcp is published twice");
+    // A port that comes from a variable cannot be compared.
+    expect(
+      extraPortsErrors(
+        {
+          appType: "bring-your-own",
+          extraPorts: [
+            { port: 80, publish: "${A}" },
+            { port: 81, publish: "${B}" },
+          ],
+        },
+        file,
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    "127.0.0.1:65536${A}",
+    "${A}65536",
+    "${A}:65536",
+    "127.0.0.1:123456${A}",
+    "${HOST}:",
+    "${HOST}:0",
+  ])("refuses the host port that can never be valid in %s", (value) => {
+    const errors = extraPortsErrors(publish(value), file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(".publish");
   });
 
   it("refuses publish next to hostPort or bind", () => {
@@ -1310,7 +1356,11 @@ describe("Compose settings from imported stacks, round 3", () => {
   it.each([
     [volume({ source: "${A:-/etc}" }), "volumes[0].source: variables must be"],
     [volume({ source: "${A:-data}" }), "volumes[0].source: variables must be"],
-    [volume({ source: "${A}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A}/../etc" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A}/./x" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A}x" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A}/x y" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A}/x\nprivileged: true" }), "volumes[0].source: variables must be"],
     [volume({ source: "${1A:-./x}" }), "volumes[0].source: variables must be"],
     [volume({ source: "${A:-./x" }), "volumes[0].source: variables must be"],
     [volume({ source: "${A:-./x\n  privileged: true}" }), "volumes[0].source: variables must be"],
@@ -1323,6 +1373,39 @@ describe("Compose settings from imported stacks, round 3", () => {
     const errors = volumesErrors(manifest, file);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(message);
+  });
+
+  it.each([
+    "${STORAGE_DIR}",
+    "${STORAGE_DIR}/redis",
+    "${STORAGE_DIR}/redis/data",
+    "${DATA:-./data}/sub",
+  ])("accepts the bind source %s, selinux included", (source) => {
+    expect(volumesErrors(volume({ source, selinux: "Z" }), file, 3)).toEqual([]);
+  });
+
+  it.each([
+    "host.docker.internal:${OM_HOST_GATEWAY:-host-gateway}",
+    "db:${DB_HOST}",
+    "db:${DB_HOST-10.0.0.5}",
+  ])("accepts the extra host %s", (host) => {
+    expect(
+      containerErrors({ appType: "bring-your-own", container: { extraHosts: [host] } }, file),
+    ).toEqual([]);
+  });
+
+  it.each([
+    "db:${DB_HOST:-localhost}",
+    'db:${DB_HOST:-"}',
+    "db:${1A}",
+    "db:${A}x",
+    "db:${A:-1.2.3.4\nprivileged: true}",
+    "db:${A:-:}",
+    "db::",
+  ])("refuses the extra host %j", (host) => {
+    expect(
+      containerErrors({ appType: "bring-your-own", container: { extraHosts: [host] } }, file),
+    ).toHaveLength(1);
   });
 
   it("checks that a variable's default bind path stays inside the project", () => {
@@ -1709,5 +1792,21 @@ describe("providersErrors", () => {
       ["c", true],
       ["d", false],
     ]);
+  });
+});
+
+describe("webUiErrors", () => {
+  it("accepts webUi on a bring-your-own resource, set or unset", () => {
+    expect(webUiErrors({ appType: "bring-your-own", webUi: true }, "svc")).toEqual([]);
+    expect(webUiErrors({ appType: "bring-your-own" }, "svc")).toEqual([]);
+  });
+
+  it("refuses webUi on another resource type and on a sidecar", () => {
+    expect(webUiErrors({ appType: "backend", webUi: true }, "svc")).toEqual([
+      'svc.webUi: only applies to bring-your-own resources (appType "bring-your-own")',
+    ]);
+    expect(
+      webUiErrors({ appType: "bring-your-own", webUi: true, sidecarOf: "host" }, "svc"),
+    ).toHaveLength(1);
   });
 });

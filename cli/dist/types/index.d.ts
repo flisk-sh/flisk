@@ -58,6 +58,8 @@ export interface ResourceConfigFields {
     };
     /** bring-your-own only: false keeps the resource off Traefik (no route, no health check). Defaults to true. */
     exposeViaProxy?: boolean;
+    /** bring-your-own only: the app serves a web UI from `/`, so it is routed on `<name>.<project>.localhost` instead of `/api/<name>` (#2997). */
+    webUi?: boolean;
     /** On-demand scaling via Sablier (Premium - requires FLISK_LICENSE_KEY). See hasSablierLicense() in extension-fetch.ts. */
     sablier?: {
         enable?: boolean;

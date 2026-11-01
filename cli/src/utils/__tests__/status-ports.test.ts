@@ -104,6 +104,15 @@ describe("buildServicePorts", () => {
       expect(ports.containerPort).toBe(3000);
     });
 
+    it("gives a bring-your-own web UI its own host name instead of the /api/<name> path (#2997)", () => {
+      const ports = buildServicePorts(
+        resource("trek", "bring-your-own", 3000, { webUi: true }),
+        8080,
+      );
+      expect(ports.url).toMatch(/^http:\/\/trek\..+:8080$/);
+      expect(ports.url).not.toContain("/api/");
+    });
+
     it("gives a private bring-your-own service neither url: it has no route and no host port", () => {
       const ports = buildServicePorts(
         resource("db", "bring-your-own", 5432, { exposeViaProxy: false }),

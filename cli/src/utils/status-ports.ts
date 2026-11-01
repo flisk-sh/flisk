@@ -3,7 +3,12 @@
 import type { DiscoveredResource, HostPortPlan, ProjectCapabilities } from "../types/index.js";
 import { BRING_YOUR_OWN_TYPE, STANDARD_PORTS } from "./constants.js";
 import { parseHostMapping, publishVariables, substitutePublish } from "./extra-port-publish.js";
-import { resolveServicePath, resolveSubdomainBases, routesAsApi } from "./service-urls.js";
+import {
+  isWebUiBringYourOwn,
+  resolveRouteBase,
+  resolveServicePath,
+  routesAsApi,
+} from "./service-urls.js";
 
 export interface ServicePorts {
   /** Ingress address (Traefik), or null for resources with no route (workers, libraries, migrators). */
@@ -147,12 +152,12 @@ export function buildServicePorts(
   const gatewayEnabled = resolveGatewayOption(options);
   const appType = resource.config?.appType;
   // A frontend or API is reached only through the gateway; its container publishes no host port of its own.
-  const routedByType = appType === "frontend" || routesAsApi(resource);
+  const routedByType =
+    appType === "frontend" || routesAsApi(resource) || isWebUiBringYourOwn(resource);
   const routable = gatewayEnabled && routedByType;
   let url: string | null = null;
   if (routable) {
-    const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
-    url = `${routesAsApi(resource) ? apiBase : appBase}${resolveServicePath(resource)}`;
+    url = `${resolveRouteBase(resource, ingressHttp)}${resolveServicePath(resource)}`;
   }
   const containerPort = resource.port ?? resource.config?.port ?? null;
   // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer. Neither does a frontend or

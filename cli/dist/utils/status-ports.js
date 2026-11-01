@@ -1,6 +1,6 @@
 import { BRING_YOUR_OWN_TYPE, STANDARD_PORTS } from "./constants.js";
 import { parseHostMapping, publishVariables, substitutePublish } from "./extra-port-publish.js";
-import { resolveServicePath, resolveSubdomainBases, routesAsApi } from "./service-urls.js";
+import { isWebUiBringYourOwn, resolveRouteBase, resolveServicePath, routesAsApi, } from "./service-urls.js";
 /** The loopback range: a mapping on 127.x.x.x is not reachable from the network. */
 export const isLoopbackAddress = (address) => /^127\./.test(address);
 function resolveExtraPort(port, protocol, publish, lookup) {
@@ -91,12 +91,11 @@ export function buildServicePorts(resource, ingressHttp, options, lookup) {
     const gatewayEnabled = resolveGatewayOption(options);
     const appType = resource.config?.appType;
     // A frontend or API is reached only through the gateway; its container publishes no host port of its own.
-    const routedByType = appType === "frontend" || routesAsApi(resource);
+    const routedByType = appType === "frontend" || routesAsApi(resource) || isWebUiBringYourOwn(resource);
     const routable = gatewayEnabled && routedByType;
     let url = null;
     if (routable) {
-        const { appBase, apiBase } = resolveSubdomainBases(ingressHttp);
-        url = `${routesAsApi(resource) ? apiBase : appBase}${resolveServicePath(resource)}`;
+        url = `${resolveRouteBase(resource, ingressHttp)}${resolveServicePath(resource)}`;
     }
     const containerPort = resource.port ?? resource.config?.port ?? null;
     // A bring-your-own container publishes nothing on the host, so localhost:<port> would not answer. Neither does a frontend or
