@@ -129,25 +129,34 @@ export declare const CREATABLE_RESOURCE_TYPES: readonly ["backend", "frontend", 
  * no code, port or image of its own: services list its name in `dependsOn` and get `DATABASE_URL`.
  */
 export declare const DATABASE_RESOURCE_TYPE = "database";
-/** The one database a `database` resource can name today. */
+/** The database `--type database` runs when no `--framework` is given: the shared Flisk Postgres. */
 export declare const DATABASE_FRAMEWORK = "postgres";
+/** `--type queue`: a message queue or broker, run as its own container (utils/infra-presets.ts). */
+export declare const QUEUE_RESOURCE_TYPE = "queue";
+/** `--type database --framework <id>`: infrastructure other than the shared Postgres, run as its own container. */
+export declare const DATABASE_INFRA_FRAMEWORKS: readonly ["redis", "qdrant", "minio", "mlflow"];
+/** `--type queue --framework <id>`. */
+export declare const QUEUE_FRAMEWORKS: readonly ["nats", "rabbitmq"];
+/** The queue `--type queue` runs when no `--framework` is given. */
+export declare const DEFAULT_QUEUE_FRAMEWORK = "nats";
+/** Every framework id of the infrastructure presets. */
+export type InfraFramework = (typeof DATABASE_INFRA_FRAMEWORKS)[number] | (typeof QUEUE_FRAMEWORKS)[number];
+/** The frameworks `--type database` accepts: the shared Postgres first, then the infrastructure presets. */
+export declare const DATABASE_FRAMEWORKS: readonly ["postgres", "redis", "qdrant", "minio", "mlflow"];
 /**
  * Every value `flisk resource --type` accepts: the creatable types, `database`, and `sdk`, which
  * registers a package that already exists instead of scaffolding one.
  */
-export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "database", "sdk"];
+export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "database", "queue", "sdk"];
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export declare const INFERENCE_RESOURCE_TYPE = "inference";
-/** `--type redis|qdrant|rabbitmq|minio|mlflow`: bring-your-own presets for infrastructure (utils/infra-presets.ts). */
-export declare const INFRA_RESOURCE_TYPES: readonly ["redis", "qdrant", "rabbitmq", "minio", "mlflow"];
-export type InfraResourceType = (typeof INFRA_RESOURCE_TYPES)[number];
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
- * the `inference` and infrastructure presets and `database`. `sdk` is left out because it only registers a package that
+ * the `inference` preset, `database` and `queue`. `sdk` is left out because it only registers a package that
  * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
  * `resource_create` tool builds its type enum from this list.
  */
-export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference", "redis", "qdrant", "rabbitmq", "minio", "mlflow", "database"];
+export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference", "database", "queue"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";

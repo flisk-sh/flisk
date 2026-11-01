@@ -52,6 +52,20 @@ def amqp_round_trip(url):
         connection.close()
 
 
+def nats_round_trip(url):
+    # The NATS text protocol: subscribe, publish, read the message back.
+    u = urllib.parse.urlparse(url)
+    with socket.create_connection((u.hostname, u.port or 4222), timeout=3) as s:
+        s.sendall(b"CONNECT {}\r\nSUB probe 1\r\nPUB probe 2\r\nok\r\nPING\r\n")
+        reply = b""
+        while b"PONG" not in reply:
+            chunk = s.recv(256)
+            if not chunk:
+                break
+            reply += chunk
+    return b"MSG probe 1 2\r\nok\r\n" in reply
+
+
 def minio_round_trip(url):
     with urllib.request.urlopen(url + "/minio/health/live", timeout=5) as r:
         return r.status == 200
@@ -70,13 +84,28 @@ def mlflow_round_trip(url):
         return json.load(r)["experiment"]["experiment_id"] == experiment_id
 
 
+def mlflow_artifact_round_trip(url):
+    # An artifact uploaded through the tracking server and downloaded again; with a MinIO dependency it lands in the bucket.
+    path = "probe/{}.txt".format(time.time_ns())
+    upload = urllib.request.Request(url + "/api/2.0/mlflow-artifacts/artifacts/" + path, data=b"artifact-ok", method="PUT")
+    with urllib.request.urlopen(upload, timeout=20):
+        pass
+    with urllib.request.urlopen(url + "/api/2.0/mlflow-artifacts/artifacts/" + path, timeout=20) as r:
+        return r.read() == b"artifact-ok"
+
+
 CHECKS = {
     "REDIS_URL": redis_round_trip,
     "QDRANT_URL": qdrant_round_trip,
     "AMQP_URL": amqp_round_trip,
-    "MINIO_ENDPOINT_URL": minio_round_trip,
+    "NATS_URL": nats_round_trip,
+    "MINIO_ENDPOINT": minio_round_trip,
     "MLFLOW_TRACKING_URI": mlflow_round_trip,
 }
+
+
+def mlflow_artifacts():
+    return mlflow_artifact_round_trip(os.environ["MLFLOW_TRACKING_URI"])
 
 
 def check():
@@ -90,6 +119,10 @@ def check():
             result[name] = "ok" if fn(url) else "wrong reply"
         except Exception as error:  # noqa: BLE001 - the error text is the diagnostic
             result[name] = "error: {}".format(error)
+    try:
+        result["MLFLOW_ARTIFACTS"] = "ok" if mlflow_artifacts() else "wrong reply"
+    except Exception as error:  # noqa: BLE001
+        result["MLFLOW_ARTIFACTS"] = "error: {}".format(error)
     return result
 
 

@@ -344,6 +344,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "command": {
+          "description": "Start command (Compose command), replacing the image's CMD: a list of arguments such as [\"server\", \"/data\"], or [\"sh\", \"-c\", \"...\"] for a script. Compose reads $ itself, so write $$VAR for a variable the container expands.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" }
+        },
         "capAdd": {
           "description": "Linux capabilities to add (Compose cap_add), such as NET_ADMIN.",
           "type": "array",
@@ -484,7 +490,7 @@
       }
     },
     "provides": {
-      "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type redis, qdrant and rabbitmq write it.",
+      "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type database --framework redis|qdrant|minio|mlflow and --type queue --framework nats|rabbitmq write it.",
       "type": "object",
       "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
       "additionalProperties": { "type": "string", "pattern": "^[A-Za-z0-9_\\-./:@%+=,]+$" }
@@ -551,7 +557,7 @@
       "uniqueItems": true
     },
     "framework": {
-      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). For a database resource it names the database: postgres. Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
+      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). For a database resource it names the database: postgres (the shared Flisk Postgres). For a bring-your-own resource written by flisk resource --type database or queue it records the infrastructure framework (redis, qdrant, minio, mlflow, nats, rabbitmq); the engine ignores it. Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
       "examples": [
         "react",
         "vue",

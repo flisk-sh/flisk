@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  assertInfraFramework,
   assertInfraPresetOptions,
   parseResourceType,
   resourceCommand,
@@ -18,7 +19,7 @@ import { clearDiscoveryCache } from "../../utils/discovery-context.js";
 
 const originalCwd = process.cwd();
 
-describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () => {
+describe("infrastructure frameworks (--type database|queue --framework ...)", () => {
   let tempDir: string;
 
   beforeEach(() => {
@@ -54,12 +55,23 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  async function create(name: string, type: string, args: string[] = []) {
+  async function create(name: string, type: string, framework?: string, args: string[] = []) {
     const originalLog = console.log;
     console.log = () => {};
     try {
       await resourceCommand.parseAsync(
-        ["node", "flisk", name, "--type", type, "--stack", "hqc", "--yes", ...args],
+        [
+          "node",
+          "flisk",
+          name,
+          "--type",
+          type,
+          ...(framework ? ["--framework", framework] : []),
+          "--stack",
+          "hqc",
+          "--yes",
+          ...args,
+        ],
         { from: "node" },
       );
     } finally {
@@ -70,18 +82,27 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
     return JSON.parse(readFileSync(join(dir, "service.json"), "utf-8")) as Record<string, unknown>;
   }
 
-  it.each(["redis", "qdrant", "rabbitmq", "minio", "mlflow"])(
-    "%s is a bring-your-own preset",
-    (type) => {
-      expect(parseResourceType(type)).toBe("bring-your-own");
-    },
-  );
+  it("keeps database and queue as types of their own", () => {
+    expect(parseResourceType("database")).toBe("database");
+    expect(parseResourceType("queue")).toBe("queue");
+  });
+
+  it.each([
+    ["redis", "--type database --framework redis"],
+    ["qdrant", "--type database --framework qdrant"],
+    ["minio", "--type database --framework minio"],
+    ["mlflow", "--type database --framework mlflow"],
+    ["rabbitmq", "--type queue --framework rabbitmq"],
+  ])("--type %s was a preset and is a framework now: %s", (type, replacement) => {
+    expect(() => parseResourceType(type)).toThrow(`${type} is a framework: use ${replacement}.`);
+  });
 
   it("writes a Redis with a probe, its own data volume and the REDIS_URL it provides", async () => {
-    const service = await create("cache", "redis");
+    const service = await create("cache", "database", "redis");
     expect(service).toMatchObject({
       appName: "cache",
       appType: "bring-your-own",
+      framework: "redis",
       stack: "hqc",
       port: 6379,
       image: "redis:7.4-alpine",
@@ -90,85 +111,124 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
       volumes: [{ source: "cache-data", target: "/data" }],
       provides: { REDIS_URL: "redis://cache:6379" },
     });
-    expect(service).not.toHaveProperty("dockerfile");
-    expect(service).not.toHaveProperty("healthCheckPath");
+    for (const key of ["dockerfile", "healthCheckPath", "extraPorts", "container"]) {
+      expect(service).not.toHaveProperty(key);
+    }
     expect(existsSync(join(tempDir, "services", "hqc", "cache", "Dockerfile"))).toBe(false);
   });
 
-  it("writes a Qdrant and a RabbitMQ whose volumes do not collide", async () => {
-    const vectors = await create("vectors", "qdrant");
-    const queue = await create("queue", "rabbitmq");
+  it("keeps --type database on its own the shared Postgres", async () => {
+    const service = await create("db", "database");
+    expect(service).toMatchObject({ appType: "database", framework: "postgres" });
+    expect(service).not.toHaveProperty("image");
+    expect((await create("db2", "database", "postgres")).appType).toBe("database");
+  });
+
+  it("publishes the UI of Qdrant, RabbitMQ and MinIO on 127.0.0.1 only through extraPorts", async () => {
+    const vectors = await create("vectors", "database", "qdrant");
+    const broker = await create("broker", "queue", "rabbitmq");
+    const store = await create("store", "database", "minio");
     expect(vectors).toMatchObject({
+      framework: "qdrant",
       port: 6333,
       healthCheck: { port: 6333 },
+      extraPorts: [{ port: 6333 }],
       volumes: [{ source: "vectors-data", target: "/qdrant/storage" }],
       provides: { QDRANT_URL: "http://vectors:6333" },
     });
-    expect(queue).toMatchObject({
+    expect(broker).toMatchObject({
+      framework: "rabbitmq",
       port: 5672,
       healthCheck: { command: ["rabbitmq-diagnostics", "-q", "ping"] },
-      volumes: [{ source: "queue-data", target: "/var/lib/rabbitmq" }],
+      extraPorts: [{ port: 15672 }],
+      volumes: [{ source: "broker-data", target: "/var/lib/rabbitmq" }],
       params: { RABBITMQ_NODENAME: "rabbit@localhost" },
-      provides: { AMQP_URL: "amqp://guest:guest@queue:5672" },
+      provides: { AMQP_URL: "amqp://guest:guest@broker:5672" },
     });
+    expect(store).toMatchObject({ extraPorts: [{ port: 9001 }] });
+    // No `bind`: the engine publishes on loopback unless service.json opts in to 0.0.0.0.
+    for (const service of [vectors, broker, store]) {
+      expect(JSON.stringify(service.extraPorts)).not.toContain("bind");
+    }
   });
 
-  it("writes MinIO and MLflow with a Dockerfile that supplies the start command", async () => {
-    const store = await create("store", "minio");
-    const tracking = await create("tracking", "mlflow");
+  it("writes MinIO with a start command, the community image and the S3 settings it provides", async () => {
+    const store = await create("store", "database", "minio");
     expect(store).toMatchObject({
+      framework: "minio",
       port: 9000,
-      dockerfile: "./Dockerfile",
+      image: expect.stringMatching(/^pgsty\/minio:RELEASE\./),
+      container: { command: ["server", "/data", "--console-address", ":9001"] },
       healthCheck: { port: 9000 },
+      params: { MINIO_ROOT_USER: "minioadmin", MINIO_ROOT_PASSWORD: "minioadmin" },
       volumes: [{ source: "store-data", target: "/data" }],
-      provides: { MINIO_ENDPOINT_URL: "http://store:9000" },
+      provides: {
+        MINIO_ENDPOINT: "http://store:9000",
+        AWS_ENDPOINT_URL_S3: "http://store:9000",
+        AWS_ACCESS_KEY_ID: "minioadmin",
+        AWS_SECRET_ACCESS_KEY: "minioadmin",
+      },
     });
-    expect(store).not.toHaveProperty("image");
+    expect(store).not.toHaveProperty("dockerfile");
+    expect(existsSync(join(tempDir, "services", "hqc", "store", "Dockerfile"))).toBe(false);
+  });
+
+  it("writes MLflow whose start command picks S3 when a MinIO is a dependency and the volume otherwise", async () => {
+    const tracking = await create("tracking", "database", "mlflow");
     expect(tracking).toMatchObject({
+      framework: "mlflow",
       port: 5000,
-      dockerfile: "./Dockerfile",
-      volumes: [{ source: "tracking-data", target: "/mlflow" }],
+      image: "ghcr.io/mlflow/mlflow:v3.17.2",
+      extraPorts: [{ port: 5000 }],
+      healthCheck: { port: 5000 },
+      volumes: [{ source: "tracking-data", target: "/data" }],
       provides: { MLFLOW_TRACKING_URI: "http://tracking:5000" },
     });
-    const dockerfile = (name: string) =>
-      readFileSync(join(tempDir, "services", "hqc", name, "Dockerfile"), "utf-8");
-    expect(dockerfile("store")).toBe(
-      'FROM cgr.dev/chainguard/minio:latest\nCMD ["server","/data","--console-address",":9001"]\n',
-    );
-    expect(dockerfile("tracking")).toMatch(
-      /^FROM ghcr\.io\/mlflow\/mlflow:v[\d.]+\nCMD \["mlflow","server".*"--backend-store-uri","sqlite:\/\/\/\/mlflow\/mlflow\.db"/,
-    );
+    const [shell, flag, script] = (tracking.container as { command: string[] }).command;
+    expect([shell, flag]).toEqual(["sh", "-c"]);
+    // Compose turns $$ into $ for the shell in the container.
+    expect(script).toContain('if [ -n "$$AWS_ENDPOINT_URL_S3" ]');
+    expect(script).toContain("pip install -q boto3");
+    expect(script).toContain("DEST=s3://mlflow");
+    expect(script).toContain("else DEST=/data/artifacts");
+    expect(script).toContain("create_bucket(Bucket='mlflow')");
+    expect(script).toContain("exec mlflow server --host 0.0.0.0 --port 5000");
+    expect(script).toContain("--backend-store-uri sqlite:////data/mlflow.db");
     // Artifacts go through the tracking server, so a run's URI is mlflow-artifacts:/ and not a path on the client's disk.
-    expect(dockerfile("tracking")).toContain('"--artifacts-destination","/mlflow/artifacts"');
-    expect(dockerfile("tracking")).not.toContain("--default-artifact-root");
+    expect(script).toContain('--serve-artifacts --artifacts-destination "$$DEST"');
+    // A client in another container sends the resource name as Host, which MLflow 3 refuses unless it is listed.
+    expect(script).toContain('--allowed-hosts "tracking:5000,tracking,');
+    expect(script).not.toContain("{name}");
+    expect((tracking.container as { memory: string }).memory).toBe("3g");
+    expect(script).not.toContain("--default-artifact-root");
   });
 
-  it("lets --image replace the image a Dockerfile preset builds from", async () => {
-    await create("store", "minio", ["--image", "minio/minio:latest"]);
-    expect(readFileSync(join(tempDir, "services", "hqc", "store", "Dockerfile"), "utf-8")).toMatch(
-      /^FROM minio\/minio:latest\n/,
-    );
+  it("writes NATS (the default queue) with JetStream on the data volume", async () => {
+    const bus = await create("bus", "queue");
+    expect(bus).toMatchObject({
+      framework: "nats",
+      port: 4222,
+      image: "nats:2.11.8-alpine",
+      healthCheck: { port: 4222 },
+      container: { command: ["-js", "-sd", "/data", "-m", "8222"] },
+      volumes: [{ source: "bus-data", target: "/data" }],
+      provides: { NATS_URL: "nats://bus:4222" },
+    });
+    expect(bus).not.toHaveProperty("extraPorts");
+    expect((await create("bus2", "queue", "nats")).framework).toBe("nats");
   });
 
-  it("refuses to overwrite a Dockerfile that is already in the folder", async () => {
-    const dir = join(tempDir, "services", "hqc", "store");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "Dockerfile"), "FROM scratch\n");
-    // The command reports the FliskError and exits non-zero; the test runner turns process.exit into a throw.
-    await expect(create("store", "minio")).rejects.toThrow("process.exit");
-    expect(readFileSync(join(dir, "Dockerfile"), "utf-8")).toBe("FROM scratch\n");
-    expect(existsSync(join(dir, "service.json"))).toBe(false);
-  });
-
-  it("writes a service.json that validates", async () => {
-    for (const [name, type] of [
-      ["cache", "redis"],
-      ["vectors", "qdrant"],
-      ["queue", "rabbitmq"],
-      ["store", "minio"],
-      ["tracking", "mlflow"],
-    ]) {
-      const service = await create(name, type);
+  it("writes a service.json that validates, for every framework", async () => {
+    const all: Array<[string, string, string]> = [
+      ["cache", "database", "redis"],
+      ["vectors", "database", "qdrant"],
+      ["store", "database", "minio"],
+      ["tracking", "database", "mlflow"],
+      ["bus", "queue", "nats"],
+      ["broker", "queue", "rabbitmq"],
+    ];
+    for (const [name, type, framework] of all) {
+      const service = await create(name, type, framework);
       expect(validateServiceManifest(service, `services/hqc/${name}/service.json`).errors).toEqual(
         [],
       );
@@ -176,8 +236,24 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
   });
 
   it("lets --image replace the pinned image", async () => {
-    const service = await create("cache", "redis", ["--image", "redis:8-alpine"]);
+    const service = await create("cache", "database", "redis", ["--image", "redis:8-alpine"]);
     expect(service).toMatchObject({ image: "redis:8-alpine", port: 6379 });
+  });
+
+  it("refuses a framework of the other type, naming the one that offers it", () => {
+    expect(() => assertInfraFramework("database", "rabbitmq")).toThrow(
+      "--framework rabbitmq is not a database Flisk can run. Use one of: postgres, redis, qdrant, minio, mlflow.",
+    );
+    expect(() => assertInfraFramework("queue", "redis")).toThrow(
+      "--framework redis is not a queue Flisk can run. Use one of: nats, rabbitmq.",
+    );
+    expect(() => assertInfraFramework("queue", "kafka")).toThrow("Use one of: nats, rabbitmq");
+    expect(() => assertInfraFramework("database", "postgres")).not.toThrow();
+    expect(() => assertInfraFramework("queue", undefined)).not.toThrow();
+  });
+
+  it("refuses --framework redis on a backend, as before: it names app frameworks", async () => {
+    await expect(create("api", "backend", "redis")).rejects.toThrow("process.exit");
   });
 
   it("refuses an --image that is not one image reference", () => {
@@ -193,7 +269,7 @@ describe("infrastructure presets (redis, qdrant, rabbitmq, minio, mlflow)", () =
 
   it("refuses --port, because the image listens on its own port", () => {
     expect(() => assertInfraPresetOptions("redis", { port: "7000" })).toThrow(
-      "--port cannot be used with --type redis: the image listens on 6379.",
+      "--port cannot be used with --framework redis: the image listens on 6379.",
     );
     expect(() => assertInfraPresetOptions("qdrant", {})).not.toThrow();
   });

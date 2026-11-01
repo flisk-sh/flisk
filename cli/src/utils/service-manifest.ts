@@ -460,6 +460,7 @@ const CONTAINER_STRING_LISTS = {
 } as const;
 const CONTAINER_KEYS = new Set([
   ...Object.keys(CONTAINER_STRING_LISTS),
+  "command",
   "init",
   "readOnly",
   "user",
@@ -496,6 +497,20 @@ export function containerErrors(manifest: Record<string, unknown>, displayPath: 
     ) {
       errors.push(`${field}.${key}: expected a list of ${expected}`);
     }
+  }
+  const { command } = container;
+  if (
+    command !== undefined &&
+    !(
+      Array.isArray(command) &&
+      command.length > 0 &&
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: a control character would break the generated Compose YAML
+      command.every((part) => typeof part === "string" && /^[^\u0000-\u001f\u007f]+$/.test(part))
+    )
+  ) {
+    errors.push(
+      `${field}.command: expected a list of non-empty strings without control characters`,
+    );
   }
   for (const key of ["init", "readOnly"] as const) {
     if (container[key] !== undefined && typeof container[key] !== "boolean") {

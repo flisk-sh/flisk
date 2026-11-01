@@ -45,6 +45,26 @@ def _string_list(container, key, chars, expected):
     return values
 
 
+def _command_list(container):
+    """`command`: the start command (Compose command), written as a JSON list, which YAML reads as a flow sequence."""
+    command = container.get('command')
+    if command == None:
+        return None
+    ok = type(command) == "list" and len(command) > 0
+    if ok:
+        for part in command:
+            if type(part) != "string" or not part:
+                ok = False
+                break
+            for c in part.elems():
+                if c < " " or c == "\x7f":
+                    ok = False
+                    break
+    if not ok:
+        fail("MANIFEST ERROR: 'container.command' must be a list of non-empty strings without control characters")
+    return command
+
+
 def _valid_size(value):
     if type(value) != "string":
         return False
@@ -127,6 +147,10 @@ def byo_container_options(manifest):
         fail("MANIFEST ERROR: 'container.init' must be true or false")
 
     lines = []
+    command = _command_list(container)
+    if command:
+        # Compose interpolates $: a start command that expands a variable inside the container writes $$VAR.
+        lines.append("    command: {}".format(encode_json(command)))
     for key, compose_key in [('capAdd', 'cap_add'), ('capDrop', 'cap_drop')]:
         caps = _string_list(container, key, _CAP_CHARS, "capability names such as NET_ADMIN or ALL")
         if caps:
