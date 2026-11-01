@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import chalk from "chalk";
@@ -202,13 +203,42 @@ export function checkVolumes(projectRoot = findProjectRoot() ?? process.cwd(), r
         fix: 'Mount a path inside the project, such as "./config", or use a named volume such as "data"',
     };
 }
+/** `docker ps` lines `name|ports`, or "" when Docker cannot be asked. */
+function dockerPublishedPorts() {
+    try {
+        return execFileSync("docker", ["ps", "--format", "{{.Names}}|{{.Ports}}"], {
+            encoding: "utf-8",
+            timeout: 5000,
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+    }
+    catch {
+        return "";
+    }
+}
+/** The non-loopback host address (`0.0.0.0:80/tcp`) a running container publishes this host port on, or null. */
+export function liveNetworkAddress(dockerPs, hostPort, containerPort, protocol) {
+    const suffix = `:${hostPort}->${containerPort}/${protocol}`;
+    for (const line of dockerPs.split("\n")) {
+        const ports = line.slice(line.indexOf("|") + 1);
+        for (const mapping of ports.split(",")) {
+            const text = mapping.trim();
+            if (!text.endsWith(suffix))
+                continue;
+            const address = text.slice(0, text.length - suffix.length).replace(/^\[(.*)\]$/, "$1");
+            if (address && !isLoopbackAddress(address) && address !== "::1")
+                return `${address}${suffix.replace("->", " -> ")}`;
+        }
+    }
+    return null;
+}
 /**
  * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935), or a `publish` that resolves to one (a bare port, 0.0.0.0 or any
  * non-loopback address), is reachable from every device on the network, unlike everything else Flisk publishes. Say so in
  * `flisk doctor`, as a warning, so it stays a visible choice. A `publish` variable is read from the shell and the project `.env`
  * the way Compose reads it; a value that is not a port or address:port is named, because Compose would refuse it.
  */
-export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), dockerPorts = dockerPublishedPorts) {
     const lookup = projectEnvLookup(projectRoot);
     const ports = resources.flatMap((resource) => extraPortsOf(resource, lookup).map((port) => ({ resource, port })));
     const open = ports
@@ -222,7 +252,18 @@ export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd
     const bad = ports
         .filter(({ port }) => port.problem)
         .map(({ resource, port }) => `${resource.name} ${port.problem}`);
-    if (open.length === 0 && bad.length === 0) {
+    // service.json and .env say 127.0.0.1, but a container created before they changed (or by hand) may still be on every interface.
+    const declaredLoopback = ports.filter(({ port }) => !port.problem && isLoopbackAddress(port.bind));
+    const live = declaredLoopback.length > 0 ? dockerPorts() : "";
+    const stale = declaredLoopback
+        .map(({ resource, port }) => ({
+        resource,
+        port,
+        address: liveNetworkAddress(live, port.hostPort, port.containerPort, port.protocol),
+    }))
+        .filter((entry) => entry.address !== null)
+        .map(({ resource, port, address }) => `${resource.name} ${port.address} is declared on this machine only, but a running container publishes ${address}`);
+    if (open.length === 0 && bad.length === 0 && stale.length === 0) {
         return {
             name: "Network ports",
             didPass: true,
@@ -232,6 +273,9 @@ export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd
     const sections = [
         open.length > 0
             ? `${formatCount(open.length, "port")} reachable from the network:\n    ${open.join("\n    ")}`
+            : "",
+        stale.length > 0
+            ? `${formatCount(stale.length, "port")} wider than declared:\n    ${stale.join("\n    ")}`
             : "",
         bad.length > 0 ? `Invalid published address:\n    ${bad.join("\n    ")}` : "",
     ].filter(Boolean);
@@ -244,12 +288,64 @@ export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd
             open.length > 0
                 ? 'Remove "bind": "0.0.0.0" from extraPorts, or start a "publish" default or .env value with 127.0.0.1:, to publish on this machine only'
                 : "",
+            stale.length > 0
+                ? "Recreate the container (flisk restart <resource>) so it picks up the declared bind"
+                : "",
             bad.length > 0
                 ? 'Set the .env value to a port or an IPv4 address:port such as "127.0.0.1:8080"'
                 : "",
         ]
             .filter(Boolean)
             .join(". "),
+    };
+}
+/** The runtimes `docker info` lists, or null when Docker cannot be asked. */
+function dockerRuntimes() {
+    try {
+        const out = execFileSync("docker", ["info", "--format", "{{json .Runtimes}}"], {
+            encoding: "utf-8",
+            timeout: 8000,
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+        return Object.keys(JSON.parse(out) ?? {});
+    }
+    catch {
+        return null;
+    }
+}
+/**
+ * A bring-your-own `container.gpus` reserves NVIDIA devices in the generated Compose file. `config verify` accepts it anywhere, so
+ * on a host whose Docker has no NVIDIA runtime (a laptop, Docker Desktop on a Mac) the failure comes from Docker when the container
+ * is created, after the build. Warn up front instead. A Docker that cannot be asked is not a finding (the Docker checks report it),
+ * and a host using CDI may not list the runtime, so this is a warning, never a gate.
+ */
+export function checkGpuRuntime(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), runtimes = dockerRuntimes) {
+    const wanting = resources
+        .filter((resource) => {
+        const container = resource.config
+            ?.container;
+        return container?.gpus !== undefined;
+    })
+        .map((resource) => resource.name);
+    if (wanting.length === 0) {
+        return { name: "GPU runtime", didPass: true, message: "No service asks for a GPU" };
+    }
+    const found = runtimes();
+    if (found === null || found.includes("nvidia")) {
+        return {
+            name: "GPU runtime",
+            didPass: true,
+            message: found === null
+                ? "Docker did not answer; the GPU runtime was not checked"
+                : "Docker has the NVIDIA runtime",
+        };
+    }
+    return {
+        name: "GPU runtime",
+        didPass: false,
+        isWarning: true,
+        message: `${wanting.join(", ")} ask for a GPU (container.gpus), but Docker lists no nvidia runtime (found: ${found.join(", ") || "none"}); Docker will refuse to create ${wanting.length === 1 ? "it" : "them"}`,
+        fix: "Install the NVIDIA Container Toolkit on a GPU host, or remove container.gpus for this machine",
     };
 }
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */

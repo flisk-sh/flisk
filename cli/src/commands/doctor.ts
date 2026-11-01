@@ -106,6 +106,7 @@ import {
 import {
   checkCircularDependencies,
   checkDependsOnShape,
+  checkGpuRuntime,
   checkNetworkPorts,
   checkSchemaVersions,
   checkServicePorts,
@@ -1844,6 +1845,7 @@ export const doctorCommand = new Command("doctor")
       () => checkServicePorts(),
       () => checkSidecars(),
       () => checkNetworkPorts(),
+      () => checkGpuRuntime(),
       () => checkVolumes(),
       () => checkSchemaVersions(undefined, options.strict),
       () => checkDuplicateResourcePorts(),
