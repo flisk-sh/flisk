@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { join, resolve, sep } from "node:path";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { PROJECT_JSON } from "./constants.js";
+import { projectEnvLookup } from "./extra-port-publish.js";
 import { createHostPortPlan, GATEWAY_DISABLED_REASON, isHostPortAvailable, PREFERRED_HOST_PORTS, withoutGatewayPorts, } from "./host-port-plan.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf } from "./status-ports.js";
@@ -93,8 +94,9 @@ export function resolveRuntimeIngressPort(projectRoot, plannedPort, readDockerPs
 }
 /** Host ports the project's bring-your-own services publish through `extraPorts`. Empty when discovery fails. */
 function reservedExtraPorts(projectRoot) {
+    const lookup = projectEnvLookup(projectRoot);
     try {
-        return new Set(discoverResourcesFromRoot(projectRoot).flatMap((resource) => extraPortsOf(resource).map((port) => port.hostPort)));
+        return new Set(discoverResourcesFromRoot(projectRoot).flatMap((resource) => extraPortsOf(resource, lookup).map((port) => port.hostPort)));
     }
     catch {
         return new Set();

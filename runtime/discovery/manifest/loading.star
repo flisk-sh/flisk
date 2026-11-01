@@ -10,7 +10,7 @@
 # Priority: service.json → synthesize from path
 # =============================================================================
 
-load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error')
+load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('../../engine/topologies/tilt/manifest/constants.star',
      'MANIFEST_DEFAULTS',
      'DEFAULT_SYNCS',
@@ -108,6 +108,7 @@ def load_manifest(resource_path, persist_to_disk=False):
         unsafe_field_error = generated_string_error(manifest, manifest_full_path) if type(manifest) == "dict" else None
         if unsafe_field_error:
             fail(unsafe_field_error)
+        normalize_depends_on(manifest, manifest_full_path)
         manifest_source = 'service.json'
         manifest_path = manifest_full_path
     else:

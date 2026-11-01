@@ -131,6 +131,8 @@ def test_services_without_volumes_are_generated_as_before(result):
         ("[{'source': 'data', 'target': 'data'}]", "'volumes[0].target' must be an absolute path"),
         ("[{'source': 'a', 'target': '/data'}, {'source': 'b', 'target': '/data'}]", "is mounted twice"),
         ("[{'source': 'data', 'target': '/data', 'readOnly': 'yes'}]", "'volumes[0].readOnly' must be true or false"),
+        ("[{'source': 'data', 'target': '/data', 'name': 'x\\nexternal: true'}]", "'volumes[0].name' must be a Docker volume name"),
+        ("[{'source': './conf', 'target': '/conf', 'name': 'conf'}]", "'volumes[0].name' only applies to a named volume"),
     ],
 )
 def test_a_bad_volume_stops_generation(tmp_path, volumes, message):
@@ -142,3 +144,42 @@ def test_a_bad_volume_stops_generation(tmp_path, volumes, message):
 
     assert FAIL_MARKER in output and message in output, output[-2000:]
     assert RESULT_MARKER not in output
+
+
+NAMED_BODY = LOAD + """
+server = {
+    'appType': 'bring-your-own', 'stack': 'tube', 'port': 3010, 'image': 'ghcr.io/biolend83/tubehaus:latest',
+    'volumes': [{'source': 'tubehaus-data', 'target': '/data', 'name': 'tubehaus_tubehaus-data'}],
+}
+caddy = {
+    'appType': 'bring-your-own', 'stack': 'tube', 'port': 8080, 'image': 'caddy:2',
+    'volumes': [{'source': 'tubehaus-data', 'target': '/library', 'readOnly': True, 'name': 'tubehaus_tubehaus-data'}, {'source': 'caddy-data', 'target': '/data'}],
+}
+entries = [
+    generate_backend_compose_entry('services/tube', 'tube', {'name': 'tubehaus'}, server),
+    generate_backend_compose_entry('services/tube', 'tube', {'name': 'caddy'}, caddy),
+]
+r = {'server': entries[0], 'yaml': generate_app_compose_from_entries('services/tube', entries)}
+"""
+
+
+@TILT_REQUIRED
+def test_a_volume_name_reuses_an_existing_compose_install_volume(tmp_path):
+    """tubehaus#40: the old install's data is in tubehaus_tubehaus-data; with `name` Flisk mounts that volume, no copy (#2964)."""
+    output = run_tilt(tmp_path, NAMED_BODY)
+    assert RESULT_MARKER in output, output[-3000:]
+    result = json.loads(output.split(RESULT_MARKER, 1)[1].strip())
+    top = result["yaml"].split("\nvolumes:\n", 1)[1]
+
+    assert "  tubehaus-data:\n    name: tubehaus_tubehaus-data\n" in top
+    # A volume without `name` keeps the generated project's prefix, as before.
+    assert "  caddy-data:\n" in top and "caddy-data:\n    name:" not in top
+    # The service still mounts it by its key.
+    assert "      - tubehaus-data:/data\n" in result["server"]
+
+
+@TILT_REQUIRED
+def test_two_names_for_one_volume_stop_generation(tmp_path):
+    body = NAMED_BODY.replace("'name': 'tubehaus_tubehaus-data'}, {'source': 'caddy-data'", "'name': 'other'}, {'source': 'caddy-data'")
+    output = run_tilt(tmp_path, body)
+    assert FAIL_MARKER in output and "is given two names" in output, output[-2000:]

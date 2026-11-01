@@ -13,6 +13,7 @@ import {
   checkDuplicateResourceNames,
   checkDuplicateResourcePorts,
   checkFrontendBackendUrls,
+  checkInfraFrameworks,
   checkMigrationsInApi,
   checkNatsBroker,
   checkPostgresCredentials,
@@ -968,6 +969,39 @@ describe("checkDuplicateResourcePorts", () => {
     resource("app", "noport", { appType: "backend" });
     resource("app", "noport2", { appType: "backend" });
     expect(checkDuplicateResourcePorts(root).didPass).toBe(true);
+  });
+});
+
+describe("checkInfraFrameworks", () => {
+  const old = {
+    appType: "bring-your-own",
+    port: 6379,
+    image: "redis:7.4-alpine",
+    exposeViaProxy: false,
+  };
+
+  it("warns, not fails, about a preset file written before the frameworks, with the migration command", () => {
+    resource("app", "cache", { ...old, provides: { REDIS_URL: "redis://cache:6379" } });
+    resource("app", "vectors", { ...old, provides: { QDRANT_URL: "http://vectors:6333" } });
+    resource("app", "broker", { ...old, provides: { AMQP_URL: "amqp://guest:guest@broker:5672" } });
+    const result = checkInfraFrameworks(root);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain("flisk resource cache --type database --framework redis");
+    expect(result.message).toContain("flisk resource vectors --type database --framework qdrant");
+    expect(result.message).toContain("flisk resource broker --type queue --framework rabbitmq");
+  });
+
+  it("passes for a file that records its framework, a hand-written provides and other resources", () => {
+    resource("app", "cache", {
+      ...old,
+      framework: "redis",
+      provides: { REDIS_URL: "redis://cache:6379" },
+    });
+    resource("app", "bus", { ...old, provides: { NATS_URL: "nats://bus:4222" } });
+    resource("app", "api", { appType: "backend", port: 4000, provides: { REDIS_URL: "x" } });
+    expect(checkInfraFrameworks(root)).toMatchObject({ didPass: true });
+    expect(checkInfraFrameworks(root).isWarning).toBeUndefined();
   });
 });
 

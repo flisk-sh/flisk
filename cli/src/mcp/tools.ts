@@ -809,13 +809,14 @@ export function createFliskTools(
           type: {
             type: "string",
             enum: [...RESOURCE_CREATE_TYPE_VALUES],
-            description: "Resource type (default backend)",
+            description:
+              "Resource type (default backend). Redis, Qdrant, MinIO, MLflow, NATS and RabbitMQ are frameworks: type database or queue plus framework",
           },
           stack: { type: "string", description: "Stack to assign the resource to" },
           framework: {
             type: "string",
             description:
-              "Frontend: react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next. Backend: hono (default), express, elysia, fastify, nestjs, koa, h3",
+              "Frontend: react (default), vue, svelte, preact, lit, solid, qwik, vanilla, tanstack-router, next. Backend: hono (default), express, elysia, fastify, nestjs, koa, h3. Database: postgres (default, the shared Flisk Postgres), redis, qdrant, minio, mlflow (each its own container; the services that list it in dependsOn get its connection settings). Queue: nats (default), rabbitmq",
           },
           language: {
             type: "string",

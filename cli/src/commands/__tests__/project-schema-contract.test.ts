@@ -33,6 +33,16 @@ describe("project-schema.json", () => {
     return { valid, errors: validateProject.errors ?? [] };
   };
 
+  it("accepts composeProjectNames, which flisk import writes", () => {
+    const { valid, errors } = validate({
+      ...defaults,
+      composeProjectNames: { shop: "myshop", photos: "lychee_1" },
+    });
+    expect(errors).toEqual([]);
+    expect(valid).toBe(true);
+    expect(validate({ ...defaults, composeProjectNames: { shop: "My Shop" } }).valid).toBe(false);
+  });
+
   it("accepts the default .flisk/project.json that flisk project writes", () => {
     const { valid, errors } = validate(defaults);
     expect(errors).toEqual([]);

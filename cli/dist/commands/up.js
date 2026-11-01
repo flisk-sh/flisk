@@ -368,7 +368,7 @@ async function runUpWait(options) {
     process.exit(1);
 }
 export const upCommand = new Command("up")
-    .description("Start all services (optionally filtered by stack)")
+    .description("Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster")
     .alias("deploy")
     .argument("[stack-name]", "Name of the stack to start (optional - runs all if omitted)")
     .option("-v, --verbose", "Enable verbose output", false)

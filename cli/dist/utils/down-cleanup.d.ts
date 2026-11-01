@@ -38,7 +38,7 @@ export declare function stopProjectTiltUp(tiltfilePath: string, platform?: NodeJ
 /** Wait (up to `timeoutMs`) for the `tilt up` processes to exit after TERM, so `tilt down` does not race a live Tilt. */
 export declare function waitForTiltUpExit(tiltfilePath: string, timeoutMs?: number, findPids?: (tiltfilePath: string) => number[]): Promise<boolean>;
 /**
- * The Compose projects whose files live in this project, read from the containers' `com.docker.compose.project.working_dir`
+ * The Compose projects Flisk generated for this project, read from the containers' `com.docker.compose.project.working_dir`
  * label (the folder of the first compose file). Matching the folder, not the project name, keeps a project named `shop`
  * from taking `shop-admin`'s containers.
  */
