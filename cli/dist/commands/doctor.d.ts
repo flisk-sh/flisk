@@ -1,11 +1,12 @@
 import { Command } from "commander";
 import type { CheckResult } from "../types/index.js";
 import { checkDockerBuildCache } from "../utils/docker-build-cache.js";
+import { checkDockerFileSharing } from "../utils/docker-file-sharing.js";
 import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { type ExecAsync } from "../utils/exec-async.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
-export { checkDockerBuildCache, checkPublicEnvSecrets, checkStarlarkLoadExports };
+export { checkDockerBuildCache, checkDockerFileSharing, checkPublicEnvSecrets, checkStarlarkLoadExports, };
 export declare const DOCTOR_FIXES: {
     readonly dockerMissing: "See https://docs.docker.com/get-docker/";
     readonly dockerDaemonDown: "Start Docker Desktop, OrbStack, or Colima, then retry: flisk doctor";

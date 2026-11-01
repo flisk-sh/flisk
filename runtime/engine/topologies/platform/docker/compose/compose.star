@@ -49,7 +49,7 @@ def _load_project_name():
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'flisk-project')
+        return _project_json.get('project', {}).get('name', 'flisk-project').lower()
     return 'flisk-project'
 
 _PROJECT_NAME = _load_project_name()
@@ -192,6 +192,57 @@ def generate_frontend_compose(resource_path, resource_name, res, manifest=None):
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
         healthcheck_timing=compose_healthcheck_timing(DOCKER_HEALTHCHECK["frontend_start_period_seconds"]),
     )
+
+
+def byo_wants_shared_database(manifest):
+    """True when a bring-your-own manifest asks for Flisk's shared Postgres: `dependsOn` lists postgres or database-management (or a
+    `database` resource, which the orchestrator reports as `_sharedDatabase`), or it names its own `databaseName`.
+
+    Keep the alias list in step with SHARED_POSTGRES_DEPENDENCY_NAMES in tilt/resources/shared-platform-postgres.star (this file
+    cannot load it: that one loads the Docker layer).
+    """
+    if manifest.get('_sharedDatabase') != None:
+        return bool(manifest.get('_sharedDatabase'))
+    if manifest.get('databaseName'):
+        return True
+    deps = manifest.get('dependsOn')
+    if type(deps) == "list":
+        for dep in deps:
+            if dep in ["postgres", "database-management"]:
+                return True
+    return False
+
+
+def _platform_env_lines(manifest, is_byo, nats_queue, db_url_for_tilt, nats_url):
+    """The platform environment a backend gets: NATS, the shared database URL, NODE_ENV and the migration switch.
+
+    A bring-your-own container runs an image Flisk did not build, so it gets only what its service.json declares (#2991): Laravel
+    reads DATABASE_URL before DB_CONNECTION and DB_HOST, so an injected Postgres URL beat Lychee's own MariaDB settings and set the
+    project's DB_PASSWORD as the Postgres password. It gets the shared database variables only when it asks for them (see
+    byo_wants_shared_database), never over a DATABASE_URL of its own `env`, and the NATS variables only with the `nats` feature.
+    """
+    if not is_byo:
+        return """      - NATS_QUEUE_GROUP={nats_queue}
+      - TILT_DATABASE_URL={db_url}
+      - TILT_NATS_URL={nats_url}
+      - NODE_ENV=development
+      - DATABASE_URL={db_url}
+      # Per-project escape hatch: set AUTO_MIGRATE=false in the project root .env
+      # to skip Prisma auto-migration at container boot (e.g. while diagnosing a
+      # migration/CLI issue) without touching the generator or any service code.
+      - AUTO_MIGRATE=${{AUTO_MIGRATE:-true}}
+""".format(nats_queue=nats_queue, db_url=db_url_for_tilt, nats_url=nats_url)
+    lines = ""
+    features = manifest.get('featuresEnabled')
+    if type(features) == "list" and 'nats' in features:
+        lines += "      - NATS_QUEUE_GROUP={}\n      - TILT_NATS_URL={}\n".format(nats_queue, nats_url)
+    if byo_wants_shared_database(manifest):
+        own_env = manifest.get('env')
+        has_own_url = type(own_env) == "dict" and 'DATABASE_URL' in own_env
+        lines += "      - TILT_DATABASE_URL={}\n      - NODE_ENV=development\n".format(db_url_for_tilt)
+        if not has_own_url:
+            lines += "      - DATABASE_URL={}\n".format(db_url_for_tilt)
+    return lines
 
 
 def _generate_single_backend_entry(resource_path, resource_name, res, manifest, instance_id=None):
@@ -340,6 +391,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     if is_migrator:
         restart_policy = 'no'
     restart_policy = '"no"' if restart_policy == 'no' else restart_policy
+    platform_env = _platform_env_lines(manifest, is_byo, nats_queue, db_url_for_tilt, nats_url)
     # `container` in service.json (bring-your-own only): capabilities, read-only root, user, security options, shm size (#2907),
     # and GPUs, CPU and memory limits and IPC for GPU and HPC workloads.
     container_options = byo_container_options(manifest)
@@ -406,16 +458,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {infisical_env}
       - RESOURCE_NAME={stack}
 {port_env}{health_env}{agent_env}{migrator_output_env}      - INSTANCE_ID={instance_label}
-      - NATS_QUEUE_GROUP={nats_queue}
-      - TILT_DATABASE_URL={db_url_for_tilt}
-      - TILT_NATS_URL={nats_url}
-      - NODE_ENV=development
-      - DATABASE_URL={db_url_for_tilt}
-      # Per-project escape hatch: set AUTO_MIGRATE=false in the project root .env
-      # to skip Prisma auto-migration at container boot (e.g. while diagnosing a
-      # migration/CLI issue) without touching the generator or any service code.
-      - AUTO_MIGRATE=${{AUTO_MIGRATE:-true}}
-{auth_env}{secrets_env}{byo_env}
+{platform_env}{auth_env}{secrets_env}{byo_env}
 {agent_volume_section}{byo_volume_section}{byo_model_section}    labels:
 {traefik_labels}
 {networks_section}{healthcheck_section}{logging_section}    # Note: depends_on removed - Tilt manages service startup order
@@ -436,6 +479,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         stack=stack,
         internal_port=internal_port,
         port_env=port_env,
+        platform_env=platform_env,
         restart_policy=restart_policy,
         init="true" if container_options.init else "false",
         container_section=container_options.section,

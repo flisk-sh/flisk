@@ -115,12 +115,15 @@ def _ensure_database_management_compose(root_prefix, write_fn):
     """
     compose_rel = "services/platform/database-management/docker-compose.yml"
     compose_file = root_prefix + compose_rel if root_prefix else compose_rel
-    if _file_exists(compose_file):
+    if not write_fn:
         return compose_file
-    if write_fn:
-        write_fn(compose_rel, _generate_database_management_compose())
-        if not _file_exists(compose_file) and compose_file.startswith('/'):
-            write_fn(compose_file, _generate_database_management_compose())
+    # Written on every run (write_fn only touches the file when its text changed): the file carries the project name, its network
+    # and volume names, so a file left from before `.flisk/project.json` was renamed made Compose look for the old network
+    # ("network Lychee_database declared as external, but could not be found", #2993).
+    content = _generate_database_management_compose()
+    write_fn(compose_rel, content)
+    if not _file_exists(compose_file) and compose_file.startswith('/'):
+        write_fn(compose_file, content)
     return compose_file
 
 # No module-level mutable registration flag: Tilt freezes Starlark globals after

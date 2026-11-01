@@ -47,7 +47,7 @@ def _load_golden_prefix():
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        return _project_json.get('project', {}).get('name', 'flisk-project')
+        return _project_json.get('project', {}).get('name', 'flisk-project').lower()
     return 'flisk-project'
 
 _GOLDEN_PREFIX = _load_golden_prefix()

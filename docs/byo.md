@@ -139,8 +139,14 @@ and the project `.env`, so `WEB_HTTP_BIND=127.0.0.1:8080` there publishes on loo
 publishes the default. One string covers the address and the port, which is why `publish` is a single field rather than
 `hostPort` and `bind` each taking a variable (that could not express a `.env` value such as `127.0.0.1:8080`).
 
-- The text is `digits`, `.`, `:` and `${NAME:-default}` only, and **every variable needs a default**, so the safe value is
-  visible in `service.json` and an unset variable cannot leave an empty mapping. The default (and any `.env` value) is a port,
+- The text is `digits`, `.`, `:` and `${NAME:-default}` / `${NAME-default}` / `${NAME}` only. A default keeps the safe value
+  visible in `service.json`; a bare `${NAME}` (any-sync's `"127.0.0.1:${REDIS_PORT}"`) takes its value from the environment
+  (the shell or the project `.env`, the two places Compose reads). It is written as `${NAME:?NAME is not set, add it to .env}`,
+  so Compose stops when `NAME` is unset or empty instead of publishing a different mapping (`${PORT}80` would otherwise become
+  host port 80 on every interface). When the host port is a literal after the last `:` (`${HOST}:80`) it still counts for the
+  published-twice check; when it comes from a variable, `flisk config verify` cannot compare it with the others. A literal that
+  can never be a port (`127.0.0.1:65536${A}`) is refused. The container side stays the literal `port` (any-sync's `:${REDIS_PORT}` container side is written as the port
+  the image listens on). The default (and any `.env` value) is a port,
   which Docker publishes on every interface, or an IPv4 `address:port`. A default like `127.0.0.1:80` keeps the safe behaviour of
   a plain entry; one like `0.0.0.0:80` is the explicit choice. IPv6 and host names are not accepted.
 - `publish` replaces `hostPort` and `bind`; `flisk config verify` refuses them together, a malformed template, and two entries
@@ -275,7 +281,7 @@ use these settings. Each one carries over to a bring-your-own resource:
 | `image` | `image` | May use Compose variables: `postgres:${POSTGRES_VERSION:-18}-alpine`, `ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}`. Written quoted; Compose fills it in from the shell and the project `.env`. |
 | `restart` | `restart` | Also `on-failure:N`, N from 1 to 100: restart after a failure at most N times. |
 | `container.stopGracePeriod` | `stop_grace_period` | A duration such as `30s` or `1m30s`. |
-| `container.extraHosts` | `extra_hosts` | List of `name:address`, where address is `host-gateway`, an IPv4 address or an IPv6 address: `["host.docker.internal:host-gateway", "legacy:10.0.0.5"]`. |
+| `container.extraHosts` | `extra_hosts` | List of `name:address`, where address is `host-gateway`, an IPv4 address or an IPv6 address: `["host.docker.internal:host-gateway", "legacy:10.0.0.5"]`. The address may be a Compose variable: `host.docker.internal:${OM_HOST_GATEWAY:-host-gateway}`, `db:${DB_HOST}` or `db:${DB_HOST-10.0.0.5}`, where a default is an address of the same kinds. |
 | `container.ulimits` | `ulimits` | Per limit name (`nofile`, `nproc`, `memlock`, `core`, `stack`, ...), a number or `{"soft": n, "hard": n}`. `-1` means unlimited. |
 | `container.networkAliases` | `networks.<backend>.aliases` | Extra DNS names for the service on the stack's backend network, which every app service is on: pl_mail's worker answers as `mercure`. Not for a sidecar (`sidecarOf`). |
 | `healthCheck.startPeriod` | `healthcheck.start_period` | Seconds after the container starts before failed probes count, for an app that boots slowly (Lychee uses 10 to 60). Same style as `interval` and `timeout`. It applies with a `healthCheck.port` or `healthCheck.command` probe: a bring-your-own resource has no other container health check. |
@@ -294,7 +300,7 @@ use these settings. Each one carries over to a bring-your-own resource:
 
 A variable can be written `${NAME}`, `${NAME:-default}` (the default when NAME is unset or empty) or `${NAME-default}` (the default
 only when NAME is unset, as in codecov's `"${CODECOV_PORT-8080}:8080"`). The same three forms work in `image`,
-`extraPorts[].publish` (which still needs a default) and `models[].model`. A default uses only the characters its field allows.
+`extraPorts[].publish` and `models[].model`. A default uses only the characters its field allows.
 A value with quotes, spaces, line breaks or other characters Compose would read as YAML is refused by `flisk config verify` and
 before Tilt starts. With `networkAliases` the service's networks are written in Compose's map form; without it they stay a list.
 Checked by `tests/tilt-engine/test_byo_compose_options.py`, which runs the generator through Tilt and `docker compose config` on
@@ -309,7 +315,7 @@ open-mercato, anyproto/any-sync-dockercompose, wger-project/docker and labsai/ED
 | `dependsOn` entry | `depends_on` | A name as before, or `{"name": "db", "condition": "service_healthy"}`. The condition is `service_started`, `service_healthy` or `service_completed_successfully`. Flisk starts services in dependsOn order by name (Tilt `resource_deps`), so the condition is accepted and kept but does not change the order. Applies to every resource type. |
 | `buildArgs` | `build.args` | Object of NAME to string for a bring-your-own resource built from its Dockerfile: `{"NODE_VERSION": "${NODE_VERSION:-22}"}`. |
 | `logging` | `logging` | `{"driver": "json-file", "options": {"max-size": "5m", "max-file": "5"}}`. Option values are strings (#2965). |
-| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}` or `${NAME-./path}`. The default must be a path inside the project, resolved like any other bind path. A value set in the environment is used as Compose reads it, relative to the generated Compose file, so set an absolute path. |
+| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}`, `${NAME-./path}`, or a bare `${STORAGE_DIR}` with no default, and each may be followed by a sub-path: `${STORAGE_DIR}/redis`, `${DATA:-./data}/sub`. A default must be a path inside the project, resolved like any other bind path. A value set in the environment (the shell or the project `.env`) is used as Compose reads it, relative to the generated Compose file, so set an absolute path. A bare `${NAME}` is written as `${NAME:?...}`, so Compose stops when it is unset or empty instead of mounting `/redis` from `${STORAGE_DIR}/redis`. A sub-path has no `.` or `..` segment. `selinux` applies as on any bind mount. |
 | `volumes[].selinux` | `:z` / `:Z` | `"z"` (label shared between containers) or `"Z"` (private) on a bind mount. |
 | `image` | `image` | Also `${NAME:?message}` or `${NAME?message}`: Compose stops with the message when NAME is unset (`dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set}`). The message uses printable ASCII only, with no quotes, backslash, braces, `$` or backtick. |
 
@@ -321,9 +327,28 @@ project name an install ran under), which `flisk import` writes. Flisk accepts i
 `tests/tilt-engine/test_byo_compose_round3.py`, which runs the generator and the manifest loaders through Tilt and
 `docker compose config` on the generated file. A container started with these settings was not part of that test.
 
+## What Flisk adds to a bring-your-own container (and what it no longer does)
+
+A bring-your-own container gets the environment its `service.json` declares, plus `PORT`, `RESOURCE_NAME` and `INSTANCE_ID` (and
+`FLISK_HEALTH_PATH` when it has a health path). It does **not** get Flisk's shared Postgres settings unless it asks for them:
+
+- `DATABASE_URL`, `TILT_DATABASE_URL` and `NODE_ENV=development` are added only when `dependsOn` lists `postgres`,
+  `database-management` or a `database` resource, or the service sets its own `databaseName`. A `DATABASE_URL` in the service's
+  own `env` always wins. (They used to be added to every container: Laravel reads `DATABASE_URL` before `DB_CONNECTION`, so
+  LycheeOrg/Lychee connected to Flisk's Postgres instead of its own MariaDB, #2991.) `AUTO_MIGRATE` is not added.
+- `NATS_QUEUE_GROUP` and `TILT_NATS_URL` are added only with the `nats` feature in `featuresEnabled`.
+- There is no CPU or memory limit unless `container.cpus` or `container.memory` is set (#2992; see the next section).
+
+Project names are lower-cased: `"name": "Lychee"` in `.flisk/project.json` is used as `lychee` for the Compose project, networks,
+containers, volumes and image tags, because Compose refuses uppercase (#1519). `services/platform/database-management/
+docker-compose.yml` is rewritten on every `flisk up` when its text changed, so a renamed project does not keep the old network
+name (#2993). Checked by `tests/tilt-engine/test_byo_flisk_defaults.py`.
+
 ## GPUs, CPU and memory (model servers and simulators)
 
-Every container Flisk generates is limited to 0.5 CPU and 512M of memory. A model server (vLLM, Ollama, llama.cpp) or a
+A container Flisk builds from its own Dockerfile is limited to 0.5 CPU and 512M of memory. A bring-your-own container has **no
+limit** unless `container.cpus` or `container.memory` is set (it runs as it would under plain Compose, and `flisk export compose`
+matches), and only the limit you set is written. A model server (vLLM, Ollama, llama.cpp) or a
 scientific workload (a cuQuantum or Qiskit Aer GPU simulator, a tensor-network or large state-vector simulation) needs more,
 and needs the GPU. Add these keys to the same `container` block:
 

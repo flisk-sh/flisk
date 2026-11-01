@@ -197,7 +197,9 @@ export async function runColdPreflight(opts = {}) {
             let dbUp = false;
             try {
                 const config = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-                const projectName = String(config?.project?.name ?? "").replace(/-/g, "_");
+                const projectName = String(config?.project?.name ?? "")
+                    .toLowerCase()
+                    .replace(/-/g, "_");
                 if (projectName) {
                     const running = execFileSync(findOnPath("docker") ?? "docker", [
                         "ps",

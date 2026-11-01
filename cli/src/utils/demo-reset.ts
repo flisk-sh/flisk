@@ -105,7 +105,7 @@ export function readProjectName(projectDir: string): string | undefined {
     const parsed = JSON.parse(readFileSync(join(projectDir, ".flisk", "project.json"), "utf8")) as {
       project?: { name?: unknown };
     };
-    return typeof parsed.project?.name === "string" ? parsed.project.name : undefined;
+    return typeof parsed.project?.name === "string" ? parsed.project.name.toLowerCase() : undefined;
   } catch {
     return undefined;
   }

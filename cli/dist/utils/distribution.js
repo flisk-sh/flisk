@@ -526,14 +526,18 @@ function listSourceFiles(dir, out = [], depth = 0) {
 export function readToolsAndPrompts(resourceDir) {
     const tools = new Set();
     const prompts = new Set();
-    const patterns = (kind, short) => [
-        new RegExp(`\\bregister${kind}\\(\\s*["'\`]([\\w.-]+)["'\`]`, "g"),
-        new RegExp(`\\bregister${kind}\\(\\s*\\{[^}]*?\\bname\\s*:\\s*["'\`]([\\w.-]+)["'\`]`, "g"),
-        new RegExp(`\\b(?:server|mcp|mcpServer|mcp_server)\\.${short}\\(\\s*["'\`]([\\w.-]+)["'\`]`, "g"),
-        new RegExp(`@\\w+\\.${short}\\b(?:\\([^)]*\\))?\\s*\\n\\s*(?:async\\s+)?def\\s+(\\w+)`, "g"),
+    const toolPatterns = [
+        /\bregisterTool\(\s*["'`]([\w.-]+)["'`]/g,
+        /\bregisterTool\(\s*\{[^}]*?\bname\s*:\s*["'`]([\w.-]+)["'`]/g,
+        /\b(?:server|mcp|mcpServer|mcp_server)\.tool\(\s*["'`]([\w.-]+)["'`]/g,
+        /@\w+\.tool\b(?:\([^)]*\))?\s*\n\s*(?:async\s+)?def\s+(\w+)/g,
     ];
-    const toolPatterns = patterns("Tool", "tool");
-    const promptPatterns = patterns("Prompt", "prompt");
+    const promptPatterns = [
+        /\bregisterPrompt\(\s*["'`]([\w.-]+)["'`]/g,
+        /\bregisterPrompt\(\s*\{[^}]*?\bname\s*:\s*["'`]([\w.-]+)["'`]/g,
+        /\b(?:server|mcp|mcpServer|mcp_server)\.prompt\(\s*["'`]([\w.-]+)["'`]/g,
+        /@\w+\.prompt\b(?:\([^)]*\))?\s*\n\s*(?:async\s+)?def\s+(\w+)/g,
+    ];
     for (const file of listSourceFiles(resourceDir)) {
         const text = fs.readFileSync(file, "utf-8");
         for (const re of toolPatterns)
