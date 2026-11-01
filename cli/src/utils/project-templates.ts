@@ -4,8 +4,8 @@ export interface ProjectTemplate {
   repo: string;
   description: string;
   bundledPath?: string;
-  /** Written by the CLI itself from `cli/templates`, with no clone: `swarm`. */
-  generated?: "swarm";
+  /** Written by the CLI itself from `cli/templates`, with no clone: `swarm` or `security`. */
+  generated?: "swarm" | "security";
   fixedDir?: string;
   /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
   ref?: string;
@@ -61,6 +61,12 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
     generated: "swarm",
     description:
       "Multi-agent swarm: a coordinator splits a goal, three workers pull and finish subtasks (local processes, no Docker)",
+  },
+  security: {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "security",
+    description:
+      "Security agents: a scanner, a triage agent and a reporter in a line (local processes, no Docker)",
   },
   launch: {
     repo: "https://github.com/flisk-sh/flisk-template-launch.git",
