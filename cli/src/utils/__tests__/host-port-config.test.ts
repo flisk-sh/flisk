@@ -218,4 +218,23 @@ describe("ports a bring-your-own service publishes", () => {
     const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
     expect([plan.ingressHttp, plan.ingressHttps]).toEqual([80, 443]);
   });
+
+  it("reserves the host port a publish variable resolves to, from the project .env", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    delete process.env.TUBEHAUS_HTTP_BIND;
+    project([{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:8081}" }]);
+    writeFileSync(join(projectRoot, ".env"), "TUBEHAUS_HTTP_BIND=127.0.0.1:80\n");
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect(plan.ingressHttp).not.toBe(80);
+  });
+
+  it("falls back to the default of publish when the .env does not set it", async () => {
+    delete process.env.FLISK_HTTP_PORT;
+    delete process.env.FLISK_HTTPS_PORT;
+    delete process.env.TUBEHAUS_HTTP_BIND;
+    project([{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }]);
+    const plan = await getHostPortPlan(projectRoot, { isPortFree: async () => true });
+    expect(plan.ingressHttp).not.toBe(80);
+  });
 });

@@ -7,6 +7,7 @@ import { join, resolve, sep } from "node:path";
 import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { PROJECT_JSON } from "./constants.js";
+import { projectEnvLookup } from "./extra-port-publish.js";
 import {
   createHostPortPlan,
   GATEWAY_DISABLED_REASON,
@@ -124,10 +125,11 @@ export function resolveRuntimeIngressPort(
 
 /** Host ports the project's bring-your-own services publish through `extraPorts`. Empty when discovery fails. */
 function reservedExtraPorts(projectRoot: string): Set<number> {
+  const lookup = projectEnvLookup(projectRoot);
   try {
     return new Set(
       discoverResourcesFromRoot(projectRoot).flatMap((resource) =>
-        extraPortsOf(resource).map((port) => port.hostPort),
+        extraPortsOf(resource, lookup).map((port) => port.hostPort),
       ),
     );
   } catch {

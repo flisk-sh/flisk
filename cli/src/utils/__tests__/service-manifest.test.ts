@@ -948,6 +948,69 @@ describe("extraPortsErrors", () => {
   });
 });
 
+describe("extraPortsErrors publish", () => {
+  const file = "services/main/caddy/service.json";
+  const publish = (value: unknown, more: Record<string, unknown> = {}) => ({
+    appType: "bring-your-own",
+    extraPorts: [{ port: 80, publish: value, ...more }],
+  });
+
+  it.each([
+    "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}",
+    "${TUBEHAUS_HTTP_BIND:-80}",
+    "127.0.0.1:${TUBEHAUS_HTTP_PORT:-8080}",
+    "8080",
+    "0.0.0.0:80",
+  ])("accepts %s", (value) => {
+    expect(extraPortsErrors(publish(value), file)).toEqual([]);
+  });
+
+  it.each([
+    ["${A}", "needs a default"],
+    ["${A:-}", "default of ${A} must be a port or address:port"],
+    ["${A:-80", "closing }"],
+    ["${1A:-80}", "variable names"],
+    ["${A:-localhost:80}", "default of ${A} must be a port or address:port"],
+    ["${A:-0}", "must give a port or address:port"],
+    ["${A:-65536}", "must give a port or address:port"],
+    ["${A:-300.0.0.1:80}", "must give a port or address:port"],
+    ["${A:-1.2.3:80}", "must give a port or address:port"],
+    ["${A:-1:2:3}", "must give a port or address:port"],
+    ["[::1]:80", "digits, '.', ':'"],
+    ['0.0.0.0:80"\nprivileged: true', "digits, '.', ':'"],
+    ["0.0.0.0:80\\", "digits, '.', ':'"],
+    ["${A:-80}\nx", "digits, '.', ':'"],
+    ["${A:-80}${B}", "needs a default"],
+    ["", "expected a string"],
+    [80, "expected a string"],
+  ])("refuses %j", (value, message) => {
+    const errors = extraPortsErrors(publish(value), file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(".publish");
+    expect(errors[0]).toContain(message);
+  });
+
+  it("refuses publish next to hostPort or bind", () => {
+    expect(extraPortsErrors(publish("${A:-80}", { hostPort: 81 }), file)).toEqual([
+      `${file}.extraPorts[0].publish: replaces hostPort and bind; remove them`,
+    ]);
+    expect(extraPortsErrors(publish("${A:-80}", { bind: "0.0.0.0" }), file)[0]).toContain(
+      "replaces hostPort and bind",
+    );
+  });
+
+  it("counts the default host port when it looks for a port published twice", () => {
+    const manifest = {
+      appType: "bring-your-own",
+      extraPorts: [
+        { port: 80, publish: "${A:-0.0.0.0:80}" },
+        { port: 81, hostPort: 80 },
+      ],
+    };
+    expect(extraPortsErrors(manifest, file)[0]).toContain("80/tcp is published twice");
+  });
+});
+
 describe("sidecarErrors", () => {
   const file = "services/main/bgutil/service.json";
   const byo = (more: Record<string, unknown>) => ({

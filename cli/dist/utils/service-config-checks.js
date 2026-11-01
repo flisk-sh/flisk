@@ -7,11 +7,12 @@ import { declaredDependsOn, dependencyEdges } from "./dependency-graph.js";
 import { checkDuplicateResourceNames } from "./doctor-wiring.js";
 import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
+import { projectEnvLookup } from "./extra-port-publish.js";
 import { formatCount } from "./formatting.js";
 import { findProjectRoot } from "./paths.js";
 import { providersOf, SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
-import { extraPortsOf } from "./status-ports.js";
+import { extraPortsOf, isLoopbackAddress } from "./status-ports.js";
 function filePath(projectRoot, resource) {
     return relative(projectRoot, resource.configPath) || resource.configPath;
 }
@@ -202,26 +203,53 @@ export function checkVolumes(projectRoot = findProjectRoot() ?? process.cwd(), r
     };
 }
 /**
- * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935) is reachable from every device on the network, unlike everything else
- * Flisk publishes. Say so in `flisk doctor`, as a warning, so it stays a visible choice.
+ * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935), or a `publish` that resolves to one (a bare port, 0.0.0.0 or any
+ * non-loopback address), is reachable from every device on the network, unlike everything else Flisk publishes. Say so in
+ * `flisk doctor`, as a warning, so it stays a visible choice. A `publish` variable is read from the shell and the project `.env`
+ * the way Compose reads it; a value that is not a port or address:port is named, because Compose would refuse it.
  */
 export function checkNetworkPorts(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
-    const open = resources.flatMap((resource) => extraPortsOf(resource)
-        .filter((port) => port.bind === "0.0.0.0")
-        .map((port) => `${resource.name} ${port.address}`));
-    if (open.length === 0) {
+    const lookup = projectEnvLookup(projectRoot);
+    const ports = resources.flatMap((resource) => extraPortsOf(resource, lookup).map((port) => ({ resource, port })));
+    const open = ports
+        .filter(({ port }) => !port.problem && !isLoopbackAddress(port.bind))
+        .map(({ resource, port }) => {
+        const via = port.publish
+            ? ` (${port.publish.variables.join(", ")}, ${port.publish.source === "environment" ? "set in the environment or .env" : "default in service.json"})`
+            : "";
+        return `${resource.name} ${port.address}${via}`;
+    });
+    const bad = ports
+        .filter(({ port }) => port.problem)
+        .map(({ resource, port }) => `${resource.name} ${port.problem}`);
+    if (open.length === 0 && bad.length === 0) {
         return {
             name: "Network ports",
             didPass: true,
             message: "No port is published beyond this machine",
         };
     }
+    const sections = [
+        open.length > 0
+            ? `${formatCount(open.length, "port")} reachable from the network:\n    ${open.join("\n    ")}`
+            : "",
+        bad.length > 0 ? `Invalid published address:\n    ${bad.join("\n    ")}` : "",
+    ].filter(Boolean);
     return {
         name: "Network ports",
         didPass: false,
         isWarning: true,
-        message: `${formatCount(open.length, "port")} reachable from the network:\n    ${open.join("\n    ")}`,
-        fix: 'Remove "bind": "0.0.0.0" from extraPorts to publish on this machine only',
+        message: sections.join("\n  "),
+        fix: [
+            open.length > 0
+                ? 'Remove "bind": "0.0.0.0" from extraPorts, or start a "publish" default or .env value with 127.0.0.1:, to publish on this machine only'
+                : "",
+            bad.length > 0
+                ? 'Set the .env value to a port or an IPv4 address:port such as "127.0.0.1:8080"'
+                : "",
+        ]
+            .filter(Boolean)
+            .join(". "),
     };
 }
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */

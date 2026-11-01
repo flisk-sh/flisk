@@ -26,8 +26,10 @@ export declare function checkSidecars(projectRoot?: string, resources?: Discover
  */
 export declare function checkVolumes(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**
- * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935) is reachable from every device on the network, unlike everything else
- * Flisk publishes. Say so in `flisk doctor`, as a warning, so it stays a visible choice.
+ * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935), or a `publish` that resolves to one (a bare port, 0.0.0.0 or any
+ * non-loopback address), is reachable from every device on the network, unlike everything else Flisk publishes. Say so in
+ * `flisk doctor`, as a warning, so it stays a visible choice. A `publish` variable is read from the shell and the project `.env`
+ * the way Compose reads it; a value that is not a port or address:port is named, because Compose would refuse it.
  */
 export declare function checkNetworkPorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */

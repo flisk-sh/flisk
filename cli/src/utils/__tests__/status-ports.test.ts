@@ -268,3 +268,65 @@ describe("extraPortsOf with bind", () => {
     ]);
   });
 });
+
+describe("extraPortsOf with publish", () => {
+  const caddy = resource("caddy", "bring-your-own", 8080, {
+    extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }],
+  });
+  const lookupOf = (values: Record<string, string>) => (name: string) => values[name];
+
+  it("shows the default of service.json while nothing sets the variable", () => {
+    expect(extraPortsOf(caddy, lookupOf({}))).toEqual([
+      {
+        containerPort: 80,
+        hostPort: 80,
+        protocol: "tcp",
+        bind: "0.0.0.0",
+        address: "0.0.0.0:80/tcp",
+        publish: {
+          template: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}",
+          source: "default",
+          variables: ["TUBEHAUS_HTTP_BIND"],
+        },
+      },
+    ]);
+  });
+
+  it("shows the value the environment or .env sets, like Compose", () => {
+    const [port] = extraPortsOf(caddy, lookupOf({ TUBEHAUS_HTTP_BIND: "127.0.0.1:8080" }));
+    expect(port).toMatchObject({
+      hostPort: 8080,
+      bind: "127.0.0.1",
+      address: "127.0.0.1:8080/tcp",
+      publish: { source: "environment" },
+    });
+  });
+
+  it("treats a bare port as every interface, which is what Docker publishes", () => {
+    const [port] = extraPortsOf(caddy, lookupOf({ TUBEHAUS_HTTP_BIND: "8080" }));
+    expect(port).toMatchObject({ bind: "0.0.0.0", hostPort: 8080 });
+  });
+
+  it("keeps the default's port and reports a value Compose would refuse", () => {
+    const [port] = extraPortsOf(caddy, lookupOf({ TUBEHAUS_HTTP_BIND: "localhost:8080" }));
+    expect(port).toMatchObject({ hostPort: 80, bind: "0.0.0.0" });
+    expect(port?.problem).toContain('resolves to "localhost:8080"');
+  });
+
+  it("skips a template the manifest check refuses", () => {
+    const bad = resource("caddy", "bring-your-own", 8080, {
+      extraPorts: [{ port: 80, publish: "${A}" }],
+    });
+    expect(extraPortsOf(bad, lookupOf({}))).toEqual([]);
+  });
+
+  it("buildServicePorts passes the lookup through", () => {
+    const ports = buildServicePorts(
+      caddy,
+      undefined,
+      undefined,
+      lookupOf({ TUBEHAUS_HTTP_BIND: "127.0.0.1:8080" }),
+    );
+    expect(ports.extraPorts.map((port) => port.address)).toEqual(["127.0.0.1:8080/tcp"]);
+  });
+});
