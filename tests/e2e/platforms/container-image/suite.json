@@ -1,0 +1,16 @@
+{
+  "group": "platforms",
+  "suite": "container-image",
+  "description": "The flisk CLI image (ghcr.io/flisk-sh/flisk) on the host's Docker, run the way docs/install/container.md says: CI1 checks the released version and that doctor finds Docker, Compose and Tilt through the mounted socket (and reports no Docker without it), CI2 scaffolds a backend and runs flisk up from the image, reaches it from the host through Traefik and the Tilt UI on the published port, then flisk down, CI3 speaks MCP over stdio to `docker run -i ... flisk mcp`. The release workflow runs it on the image built from the release candidate, and CI1 again on the published image.",
+  "paths": [
+    "scripts/release/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/platforms/container-image/**",
+    ".github/workflows/release-binaries.yml",
+    ".github/workflows/publish-cli-image.yml"
+  ],
+  "cases": ["CI1", "CI2", "CI3"],
+  "triggers": ["release"],
+  "timeoutMinutes": 30,
+  "needsSecrets": []
+}
