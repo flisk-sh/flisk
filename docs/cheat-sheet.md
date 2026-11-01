@@ -579,7 +579,7 @@ stdout holds one JSON document; diagnostics go to stderr. See [machine-readable 
 
 | Variable | Effect |
 | --- | --- |
-| `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT`, `FLISK_POSTGRES_PORT` | Override the host ports Flisk picks |
+| `FLISK_HTTP_PORT`, `FLISK_HTTPS_PORT`, `FLISK_POSTGRES_PORT` | Override the host ports Flisk picks, from the shell or the project `.env` (the shell wins) |
 | `FLISK_BIND_ADDRESS` | Bind address for dev ports (default `127.0.0.1`; `0.0.0.0` to test from a phone) |
 | `TILT_PORT` | Tilt UI port (default 10350) |
 | `FLISK_SERVICE_BASE_URL` | Base URL for doctor pings and `up` smoke checks (default `<project>.localhost`) |

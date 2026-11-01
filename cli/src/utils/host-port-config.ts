@@ -234,7 +234,14 @@ async function planHostPorts(
     ...(gatewayEnabled ? ["FLISK_HTTP_PORT", "FLISK_HTTPS_PORT"] : []),
     ...(dbEnabled ? ["FLISK_POSTGRES_PORT"] : []),
   ];
-  const hasOverride = overrideKeys.some((key) => process.env[key]);
+  // The shell wins, then the project .env, like Compose and `extraPorts` `publish` (#2971).
+  const lookup = projectEnvLookup(projectRoot);
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of ["FLISK_HTTP_PORT", "FLISK_HTTPS_PORT", "FLISK_POSTGRES_PORT"]) {
+    const value = lookup(key);
+    if (value !== undefined) env[key] = value;
+  }
+  const hasOverride = overrideKeys.some((key) => env[key]);
   // Dry-run must not call Docker. A saved plan is the best representation of
   // the current landscape in that mode; explicit overrides are still planned.
   if (options.inspectDocker === false && saved && !hasOverride) return saved;
@@ -269,6 +276,7 @@ async function planHostPorts(
       database: dbEnabled,
       gateway: gatewayEnabled,
       capabilities: options.capabilities,
+      env,
     });
   if (saved && !hasOverride) {
     const checkedPorts = [
