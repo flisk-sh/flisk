@@ -48,6 +48,8 @@ cp -R "$src/." "services/app/$proj/"
 rm -f "services/app/$proj/README.md"
 (cd "services/app/$proj" && flisk resource "$proj" --type bring-your-own --stack app \
   --register-existing --dockerfile ./Dockerfile --health-path "$health" --yes >/dev/null)
+# Ask for Flisk's Postgres: a bring-your-own service gets DATABASE_URL only when it depends on it (#3010).
+node -e 'const f=process.argv[1]; const fs=require("fs"); const s=JSON.parse(fs.readFileSync(f,"utf8")); s.dependsOn=[...new Set([...(s.dependsOn||[]),"postgres"])]; fs.writeFileSync(f, JSON.stringify(s,null,2)+"\n")' "services/app/$proj/service.json"
 nohup "${FLISK_BIN:-flisk}" up app >"$work/up.log" 2>&1 &
 
 url="http://127.0.0.1:$http_port/api/$proj$health"
