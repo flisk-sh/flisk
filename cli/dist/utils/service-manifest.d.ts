@@ -48,6 +48,12 @@ export declare function volumesErrors(manifest: Record<string, unknown>, display
  */
 export declare function envFileErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
 /**
+ * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
+ * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
+ * generated YAML, so only a model reference or a Compose variable is accepted. Mirrors engine/.../compose/byo_models.star.
+ */
+export declare function modelsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
  * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
  * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
  * engine/.../compose/byo_env.star.

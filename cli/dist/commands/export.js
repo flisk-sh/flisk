@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 /**
- * `flisk export render|wrangler`: runs the pinned @flisk-sh/flisk-export, which writes render.yaml or wrangler.toml
- * from service.json and stops there. It never deploys, never creates DNS records and never calls a cloud API (the
+ * `flisk export render|wrangler|compose`: runs the pinned @flisk-sh/flisk-export, which writes render.yaml, wrangler.toml
+ * or a standalone docker-compose.yml from service.json and stops there. It never deploys, never creates DNS records and never calls a cloud API (the
  * export scope agreed in AGENTS.md, "Local-only by default").
  */
 import { spawn } from "node:child_process";
@@ -12,7 +12,7 @@ import { Command } from "commander";
  * from npm at a pinned version so a push to its main branch cannot change what `flisk export` does. Move the pin
  * when a new version is published. `FLISK_EXPORT_PACKAGE` overrides the package spec.
  */
-export const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.1.0";
+export const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.4.0";
 export function exportInvocation(args, env = process.env, platform = process.platform) {
     const pkg = env.FLISK_EXPORT_PACKAGE || EXPORT_PACKAGE;
     return {
@@ -54,8 +54,8 @@ export function buildForwardedExportArgs(args, options = {}) {
     return forwarded;
 }
 export const exportCommand = new Command("export")
-    .description("Write render.yaml or wrangler.toml from service.json; never deploys or calls a cloud API (runs flisk-export)")
-    .argument("[args...]", "Passed to flisk-export: render [dir] [--resource <name>] [--out <dir>] [--force] | wrangler [dir] --resource <name> [--route <host>] [--out <dir>] [--allow-non-worker] [--force]")
+    .description("Write render.yaml, wrangler.toml or a standalone docker-compose.yml from service.json; never deploys or calls a cloud API (runs flisk-export)")
+    .argument("[args...]", "Passed to flisk-export: render [dir] [--resource <name>] [--out <dir>] [--force] | wrangler [dir] --resource <name> [--route <host>] [--out <dir>] [--allow-non-worker] [--force] | compose [dir] [--out <dir>] [--force] [--check]")
     .option("--dry-run", "Print the file and write nothing", false)
     .allowUnknownOption()
     .helpOption(false)
