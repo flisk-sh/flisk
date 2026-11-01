@@ -36,9 +36,11 @@ on:
 permissions:
   contents: read
 
-# A pull request is cancelled by a newer push; every other trigger queues, so a boot is never cut off mid-way.
+# A pull request is cancelled by a newer push; every other trigger queues, so a boot is never cut off mid-way. Each merge
+# queue branch gets its own group: a group keeps only its newest waiting run, so one shared group cancelled the waiting
+# Journeys run of every queue branch but the last, and those branches could never pass.
 concurrency:
-  group: e2e-journeys${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.pull_request.number) || '' }}
+  group: e2e-journeys${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.pull_request.number) || github.event_name == 'merge_group' && format('-queue-{0}', github.ref) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
