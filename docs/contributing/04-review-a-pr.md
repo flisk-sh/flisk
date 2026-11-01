@@ -139,6 +139,8 @@ Give every problem you find a severity. The severity decides your review.
 
 **Rule: if the PR has any P0, P1, or P2 problem, choose Request changes.** Do not approve it, even with a comment. Approve only when every remaining problem is P3. Put the severity at the start of each comment, for example `P1: up.ts line 52 reads the flag but never passes it on`.
 
+**Put every P0, P1, or P2 problem in a line comment, not only in the summary.** PRs merge themselves through the merge queue once checks are green (see [Who can approve and merge](#who-can-approve-and-merge)). An open line comment is a thread that must be resolved before merge, so it holds the PR. A problem written only in the review summary does not.
+
 ## Leave comments on lines
 
 1. Open the **Files changed** tab.
@@ -225,6 +227,20 @@ gh pr review 123 --request-changes --body "The new flag is never passed to the g
 
 ## Who can approve and merge
 
-- Anyone can comment, approve, or request changes. Every review helps maintainers decide faster.
+`main` uses a [merge queue with auto-merge](https://github.com/orgs/flisk-sh/discussions/2998). A PR merges itself when:
+
+- the required checks pass, and
+- every review thread (line comment) is resolved.
+
+No approval is required. That means a review summary alone does not stop a merge, even with **Request changes**. Only an open line comment or a red check holds a PR. So:
+
+- **To block a PR**, leave each P0, P1, or P2 problem as a line comment and choose **Request changes**. Do not resolve your own thread until the fix is pushed.
+- **Authors** resolve a thread only after fixing it or after the reviewer agrees. Never resolve a thread just to get the PR merged.
+- **When a fix lands**, check the new commits, resolve your threads, and submit a new review.
+
+Other rules:
+
+- Anyone can comment, approve, or request changes. Every review helps.
 - You cannot approve your own PR.
-- Only [maintainers](../project/MAINTAINERS.md) merge. Before merging, they check the reviews and that the required checks pass.
+- Maintainers turn on auto-merge with `gh pr merge <number> --squash --auto`, or the **Enable auto-merge** button. The queue keeps the branch up to date and merges it when green. Do not merge by hand around the queue.
+- Questions about the queue go in the [discussion](https://github.com/orgs/flisk-sh/discussions/2998).
