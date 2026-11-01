@@ -848,9 +848,9 @@ describe("containerErrors", () => {
 
   it("accepts an entrypoint, including an empty one that drops the image's ENTRYPOINT", () => {
     for (const entrypoint of [["/docker-entrypoint.sh"], ["sh", "-c", 'exec "$$@"'], []]) {
-      expect(containerErrors({ appType: "bring-your-own", container: { entrypoint } }, file)).toEqual(
-        [],
-      );
+      expect(
+        containerErrors({ appType: "bring-your-own", container: { entrypoint } }, file),
+      ).toEqual([]);
     }
     expect(
       containerErrors({ appType: "bring-your-own", container: { command: [] } }, file),
