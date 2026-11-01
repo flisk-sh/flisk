@@ -3,6 +3,7 @@
 import json
 import os
 import socket
+import time
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -51,7 +52,31 @@ def amqp_round_trip(url):
         connection.close()
 
 
-CHECKS = {"REDIS_URL": redis_round_trip, "QDRANT_URL": qdrant_round_trip, "AMQP_URL": amqp_round_trip}
+def minio_round_trip(url):
+    with urllib.request.urlopen(url + "/minio/health/live", timeout=5) as r:
+        return r.status == 200
+
+
+def mlflow_round_trip(url):
+    # An experiment created and read back by name; a fresh name per call, because a deleted one still holds its name.
+    name = "probe-{}".format(time.time_ns())
+    body = json.dumps({"name": name}).encode()
+    request = urllib.request.Request(url + "/api/2.0/mlflow/experiments/create", data=body, method="POST")
+    request.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(request, timeout=10) as r:
+        experiment_id = json.load(r)["experiment_id"]
+    query = urllib.parse.urlencode({"experiment_name": name})
+    with urllib.request.urlopen(url + "/api/2.0/mlflow/experiments/get-by-name?" + query, timeout=10) as r:
+        return json.load(r)["experiment"]["experiment_id"] == experiment_id
+
+
+CHECKS = {
+    "REDIS_URL": redis_round_trip,
+    "QDRANT_URL": qdrant_round_trip,
+    "AMQP_URL": amqp_round_trip,
+    "MINIO_ENDPOINT_URL": minio_round_trip,
+    "MLFLOW_TRACKING_URI": mlflow_round_trip,
+}
 
 
 def check():

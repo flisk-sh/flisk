@@ -587,6 +587,14 @@
 		},
 		{
 			"workflow": "release-candidate.yml",
+			"job": "release",
+			"tier": "release",
+			"required": false,
+			"reason": "Dispatches the release workflow from a release/* branch once the plan passes (#2945)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "release-candidate.yml",
 			"job": "gate",
 			"tier": "release",
 			"required": false,

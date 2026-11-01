@@ -138,8 +138,8 @@ export declare const DATABASE_FRAMEWORK = "postgres";
 export declare const RESOURCE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "database", "sdk"];
 /** `--type inference`: a bring-your-own resource preset for an OpenAI-compatible model server. */
 export declare const INFERENCE_RESOURCE_TYPE = "inference";
-/** `--type redis|qdrant|rabbitmq`: bring-your-own presets for infrastructure (utils/infra-presets.ts). */
-export declare const INFRA_RESOURCE_TYPES: readonly ["redis", "qdrant", "rabbitmq"];
+/** `--type redis|qdrant|rabbitmq|minio|mlflow`: bring-your-own presets for infrastructure (utils/infra-presets.ts). */
+export declare const INFRA_RESOURCE_TYPES: readonly ["redis", "qdrant", "rabbitmq", "minio", "mlflow"];
 export type InfraResourceType = (typeof INFRA_RESOURCE_TYPES)[number];
 /**
  * Every value `flisk resource --type` accepts to scaffold a new resource: the creatable types plus
@@ -147,7 +147,7 @@ export type InfraResourceType = (typeof INFRA_RESOURCE_TYPES)[number];
  * already has a service.json, and the `byo` alias because `bring-your-own` is listed. The MCP
  * `resource_create` tool builds its type enum from this list.
  */
-export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference", "redis", "qdrant", "rabbitmq", "database"];
+export declare const RESOURCE_CREATE_TYPE_VALUES: readonly ["backend", "frontend", "worker", "mcp", "agent", "bring-your-own", "inference", "redis", "qdrant", "rabbitmq", "minio", "mlflow", "database"];
 export type CreatableResourceType = Extract<ResourceType, (typeof CREATABLE_RESOURCE_TYPES)[number]>;
 export declare function isCreatableResourceType(value: unknown): value is CreatableResourceType;
 export type ResourceStatus = "ready" | "pending" | "error" | "unknown";

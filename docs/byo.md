@@ -209,14 +209,16 @@ Checked by `tests/tilt-engine/test_byo_gpu_resources.py` (the generator) and
 `/dev/shm` settings, and `docker compose config` accepts the generated GPU reservation; the live GPU check runs only on a host
 with the NVIDIA runtime).
 
-## Redis, Qdrant and RabbitMQ (infrastructure presets)
+## Redis, Qdrant, RabbitMQ, MinIO and MLflow (infrastructure presets)
 
-Postgres and NATS come with every project. For a cache or job queue, a vector store or a message broker, create a preset:
+Postgres and NATS come with every project. For a cache or job queue, a vector store, a message broker, S3-compatible object storage or experiment tracking, create a preset:
 
 ```bash
 flisk resource cache --type redis --stack hqc
 flisk resource vectors --type qdrant --stack hqc
 flisk resource queue --type rabbitmq --stack hqc
+flisk resource store --type minio --stack hqc
+flisk resource tracking --type mlflow --stack hqc
 ```
 
 Each one writes a bring-your-own `service.json` with a pinned image, a readiness probe that runs inside the container, and a
@@ -228,11 +230,18 @@ Traefik; the containers in the stack reach them on the Docker network by name.
 | `redis` | `redis:7.4-alpine` | 6379 | `/data` | `REDIS_URL=redis://<name>:6379` |
 | `qdrant` | `qdrant/qdrant:v1.12.5` | 6333 | `/qdrant/storage` | `QDRANT_URL=http://<name>:6333` |
 | `rabbitmq` | `rabbitmq:4.1-management-alpine` | 5672 | `/var/lib/rabbitmq` | `AMQP_URL=amqp://guest:guest@<name>:5672` |
+| `minio` | `cgr.dev/chainguard/minio:latest` | 9000 | `/data` | `MINIO_ENDPOINT_URL=http://<name>:9000` |
+| `mlflow` | `ghcr.io/mlflow/mlflow:v2.17.2` | 5000 | `/mlflow` | `MLFLOW_TRACKING_URI=http://<name>:5000` |
 
 `--image` replaces the pinned image (`--image redis:8-alpine`); `--port` is refused, because the image listens on its own port.
+MinIO no longer publishes community images, so the `minio` preset uses Chainguard's `latest`, the only tag its free tier has; pass `--image` to pin your own.
+`minio` and `mlflow` need a start command, which bring-your-own does not have, so they write a two-line `Dockerfile`
+(`FROM <image>` and `CMD`) next to the `service.json`; `--image` changes the `FROM`. MinIO uses the development login
+`minioadmin` / `minioadmin` (set in `params`), and MLflow keeps its SQLite store in the volume and serves artifacts through the tracking server (`mlflow-artifacts:/` URIs), so clients in other containers can upload and read them. Neither is
+reachable from outside the stack's Docker network.
 The RabbitMQ preset lets the default `guest` account connect from the other containers, which RabbitMQ allows only from
-localhost by default; the broker is not reachable from outside the stack's Docker network. None of the presets sets a
-password, so do not publish them on the host.
+localhost by default; the broker is not reachable from outside the stack's Docker network. Apart from the MinIO
+development login, none of the presets sets a password, so do not publish them on the host.
 
 ### Connection settings for the services that depend on it (`provides`)
 

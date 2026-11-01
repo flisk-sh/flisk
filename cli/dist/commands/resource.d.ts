@@ -27,6 +27,7 @@ export declare const TYPE_SPECIFIC: Record<CreatableResourceType, TypeSpecificCo
 /** Options an infrastructure preset cannot take: its image listens on a fixed port inside the container. */
 export declare function assertInfraPresetOptions(preset: InfraResourceType, options: {
     port?: string;
+    image?: string;
 }): void;
 /** The port of an `inference` resource: 11434 unless `--port` says otherwise. It is the port inside the container, so any port is allowed. */
 export declare function resolveInferencePort(value: string | undefined, resources: Array<{
@@ -140,8 +141,8 @@ export declare const TSCONFIG_TEMPLATE: {
 };
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 /**
- * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`
- * and `rabbitmq` are presets of it.
+ * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`,
+ * `rabbitmq`, `minio` and `mlflow` are presets of it.
  */
 export declare function parseResourceType(type: string): CreatableResourceType | typeof DATABASE_RESOURCE_TYPE | "sdk";
 /** The service.json of a `database` resource: the project's Postgres, declared so services can name it in `dependsOn`. */

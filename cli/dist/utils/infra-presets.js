@@ -34,6 +34,41 @@ export const INFRA_PRESETS = {
         },
         provides: { AMQP_URL: "amqp://guest:guest@{name}:5672" },
     },
+    minio: {
+        description: "MinIO S3-compatible object storage",
+        // MinIO no longer publishes community images (quay.io needs a login, Docker Hub has none). Chainguard's free tier
+        // publishes only `latest`; pass --image to pin a digest or use your own build.
+        image: "cgr.dev/chainguard/minio:latest",
+        port: 9000,
+        healthCheck: { port: 9000 },
+        dataPath: "/data",
+        startCommand: ["server", "/data", "--console-address", ":9001"],
+        // Development-only credentials; the service is reachable only on the stack's Docker network.
+        params: { MINIO_ROOT_USER: "minioadmin", MINIO_ROOT_PASSWORD: "minioadmin" },
+        provides: { MINIO_ENDPOINT_URL: "http://{name}:9000" },
+    },
+    mlflow: {
+        description: "MLflow tracking server",
+        image: "ghcr.io/mlflow/mlflow:v2.17.2",
+        port: 5000,
+        healthCheck: { port: 5000 },
+        dataPath: "/mlflow",
+        startCommand: [
+            "mlflow",
+            "server",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "5000",
+            "--backend-store-uri",
+            "sqlite:////mlflow/mlflow.db",
+            // Runs get mlflow-artifacts:/ URIs that clients in other containers upload through this server; an explicit
+            // --default-artifact-root would hand them paths on the clients' own disks.
+            "--artifacts-destination",
+            "/mlflow/artifacts",
+        ],
+        provides: { MLFLOW_TRACKING_URI: "http://{name}:5000" },
+    },
 };
 export function isInfraPreset(value) {
     return typeof value === "string" && INFRA_RESOURCE_TYPES.includes(value);
@@ -48,11 +83,18 @@ export function createInfraServiceJson(name, stack, presetId, image) {
         appType: "bring-your-own",
         stack,
         port: preset.port,
-        image: image ?? preset.image,
+        ...(preset.startCommand ? { dockerfile: "./Dockerfile" } : { image: image ?? preset.image }),
         exposeViaProxy: false,
         healthCheck: preset.healthCheck,
         volumes: [{ source: `${name}-data`, target: preset.dataPath }],
         ...(preset.params ? { params: { ...preset.params } } : {}),
         provides: Object.fromEntries(Object.entries(preset.provides).map(([key, value]) => [key, value.replace("{name}", name)])),
     };
+}
+/** The Dockerfile of a preset whose image needs a start command, or undefined when the pinned image is used as it is. */
+export function createInfraDockerfile(presetId, image) {
+    const preset = INFRA_PRESETS[presetId];
+    if (!preset.startCommand)
+        return undefined;
+    return `FROM ${image ?? preset.image}\nCMD ${JSON.stringify(preset.startCommand)}\n`;
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -63,7 +63,12 @@ import {
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
-import { createInfraServiceJson, INFRA_PRESETS, isInfraPreset } from "../utils/infra-presets.js";
+import {
+  createInfraDockerfile,
+  createInfraServiceJson,
+  INFRA_PRESETS,
+  isInfraPreset,
+} from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
@@ -160,12 +165,21 @@ function readServiceJsonPort(path: string): number | undefined {
 }
 
 /** Options an infrastructure preset cannot take: its image listens on a fixed port inside the container. */
-export function assertInfraPresetOptions(preset: InfraResourceType, options: { port?: string }) {
+export function assertInfraPresetOptions(
+  preset: InfraResourceType,
+  options: { port?: string; image?: string },
+) {
   if (options.port !== undefined) {
     throw new FliskError(
       `--port cannot be used with --type ${preset}: the image listens on ${INFRA_PRESETS[preset].port}.`,
       ["Drop --port; other services reach it on the Docker network by its name"],
     );
+  }
+  // The image goes into the `FROM` line of a generated Dockerfile for some presets.
+  if (options.image !== undefined && !/^[A-Za-z0-9._/:@-]+$/.test(options.image)) {
+    throw new FliskError("--image must be an image reference such as ghcr.io/acme/app:1.0.", [
+      "Pass one image reference without spaces or line breaks",
+    ]);
   }
 }
 
@@ -521,8 +535,8 @@ export const TSCONFIG_TEMPLATE = {
 export { getBackendIndexTemplate, getDrizzleBackendIndexTemplate };
 
 /**
- * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`
- * and `rabbitmq` are presets of it.
+ * Resource types `flisk resource --type` accepts; `byo` is an alias of `bring-your-own`, and `inference`, `redis`, `qdrant`,
+ * `rabbitmq`, `minio` and `mlflow` are presets of it.
  */
 export function parseResourceType(
   type: string,
@@ -722,7 +736,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
   .argument("[name]", "Resource name (kebab-case)")
   .option(
     "-t, --type <type>",
-    "Resource type: backend, frontend, worker, mcp, agent, inference, redis, qdrant, rabbitmq, bring-your-own, database, sdk",
+    "Resource type: backend, frontend, worker, mcp, agent, inference, redis, qdrant, rabbitmq, minio, mlflow, bring-your-own, database, sdk",
     "backend",
   )
   .option(
@@ -1217,6 +1231,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
       if (infraPreset) {
         const preset = INFRA_PRESETS[infraPreset];
         console.log(chalk.blue(`\n📁 Creating ${preset.description}...`));
+        const dockerfile = createInfraDockerfile(infraPreset, options.image);
+        const dockerfilePath = resolve(fullPath, "Dockerfile");
+        if (dockerfile && existsSync(dockerfilePath)) {
+          throw new FliskError(`A Dockerfile already exists in ${fullPath}.`, [
+            "Remove it, or choose another path for the preset",
+          ]);
+        }
         mkdirSync(fullPath, { recursive: true });
         const serviceJson = createInfraServiceJson(
           resourceName,
@@ -1224,7 +1245,20 @@ export const resourceCommand = addYesOption(new Command("resource"))
           infraPreset,
           options.image,
         );
-        writeFileSync(resolve(fullPath, SERVICE_JSON), `${JSON.stringify(serviceJson, null, 2)}\n`);
+        const written: string[] = [];
+        try {
+          const serviceJsonPath = resolve(fullPath, SERVICE_JSON);
+          writeFileSync(serviceJsonPath, `${JSON.stringify(serviceJson, null, 2)}\n`);
+          written.push(serviceJsonPath);
+          if (dockerfile) {
+            writeFileSync(dockerfilePath, dockerfile);
+            written.push(dockerfilePath);
+          }
+        } catch (error) {
+          // A service.json left without its Dockerfile would make a retry register it as it is.
+          for (const file of written) rmSync(file, { force: true });
+          throw error;
+        }
         const agentsPath = resolve(fullPath, "AGENTS.md");
         if (!existsSync(agentsPath)) {
           writeFileSync(
