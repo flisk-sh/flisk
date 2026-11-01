@@ -406,6 +406,19 @@ export interface ValidationResult {
   error?: string;
 }
 
+export interface PortOwnerDetails {
+  ownerType: "docker" | "process";
+  port: number;
+  container?: string;
+  name?: string;
+  image?: string;
+  process?: string;
+  command?: string;
+  pid?: number;
+  setting?: string;
+  [key: string]: unknown;
+}
+
 export interface CheckResult {
   name: string;
   didPass: boolean;
@@ -415,6 +428,8 @@ export interface CheckResult {
   isSkipped?: boolean;
   /** Informational warning that does not fail the check unless strict mode is enabled. */
   isWarning?: boolean;
+  /** Structured observed metadata (e.g. busy port owner, process, or container) for machine reports. */
+  observed?: PortOwnerDetails | unknown;
 }
 
 export interface ServiceUrl {

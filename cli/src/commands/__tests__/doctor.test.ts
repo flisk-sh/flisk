@@ -107,6 +107,41 @@ describe("doctor exact guidance", () => {
     expect(port80.fix).toBe(HOST_PORT_FIXES.port80);
     expect(port5432.fix).toBe(HOST_PORT_FIXES.port5432);
   });
+
+  it("identifies process owner when available and updates fix message and observed data", async () => {
+    const mockFindOwner = (port: number) =>
+      port === 5432
+        ? {
+            ownerType: "process" as const,
+            type: "process" as const,
+            kind: "process" as const,
+            port: 5432,
+            process: "postgres",
+            name: "postgres",
+            pid: 1234,
+            setting: "FLISK_POSTGRES_PORT",
+          }
+        : null;
+
+    const result = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 5432 ? "in-use" : "free"),
+      undefined,
+      mockFindOwner,
+    );
+
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("5432 (Postgres) is used by process postgres (pid 1234)");
+    expect(result.fix).toContain("Change FLISK_POSTGRES_PORT to an available port");
+    expect(result.fix).toContain("PID 1234");
+    expect(result.observed).toMatchObject({
+      ownerType: "process",
+      process: "postgres",
+      pid: 1234,
+      port: 5432,
+    });
+  });
 });
 
 describe("doctor frontend Docker preflight", () => {
