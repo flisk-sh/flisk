@@ -16,7 +16,7 @@
 </div>
 
 <p align="center">
-<img src="docs/assets/building-apps-loader.svg" alt="Flisk is building your app: an API, a website, a worker, an AI agent, MCP tools and Postgres" width="722" />
+<img src="docs/assets/ecosystem.svg" alt="The Flisk ecosystem: bring an app in any language (Rust, Go, Python, TypeScript, JVM, Ruby, PHP) from a Compose file, a Tiltfile, a Dockerfile or any image; flisk up runs 77 building blocks: 5 languages, 10 web frameworks, 10 API frameworks, 10 resource types, 8 data and AI services, 23 MCP tools and 11 starter projects; export writes render.yaml or wrangler.toml; a radar watches every running part" width="100%" />
 </p>
 
 ## What is Flisk?
@@ -112,7 +112,7 @@ Three quick questions; click the answer closest to your team. Not technical? Pic
 ## Trusted by
 
 <table align="center">
-  <tr><td align="center" valign="middle"><a href="https://www.linkedin.com/company/lekast/"><img src="docs/assets/trusted-by/lekast.png" alt="Lekast" height="64"></a></td><td align="center" valign="middle"><a href="https://medium.com/@mfin.services"><img src="docs/assets/trusted-by/mfin-services.png" alt="MFin Services" height="64"></a></td><td align="center" valign="middle"><a href="https://www.linkedin.com/company/makeofferio"><img src="docs/assets/trusted-by/makeoffer.png" alt="MakeOffer" height="64"></a></td><td align="center" valign="middle"><a href="https://redmoon.digital/"><img src="docs/assets/trusted-by/redmoon-digital.png" alt="RedMoon.Digital" height="64"></a></td></tr>
+  <tr><td align="center" valign="middle"><a href="https://github.com/biolend83/tubehaus"><img src="docs/assets/trusted-by/tubehaus.png" alt="TubeHaus" height="64"></a></td><td align="center" valign="middle"><a href="https://www.linkedin.com/company/lekast/"><img src="docs/assets/trusted-by/lekast.png" alt="Lekast" height="64"></a></td><td align="center" valign="middle"><a href="https://medium.com/@mfin.services"><img src="docs/assets/trusted-by/mfin-services.png" alt="MFin Services" height="64"></a></td><td align="center" valign="middle"><a href="https://www.linkedin.com/company/makeofferio"><img src="docs/assets/trusted-by/makeoffer.png" alt="MakeOffer" height="64"></a></td><td align="center" valign="middle"><a href="https://redmoon.digital/"><img src="docs/assets/trusted-by/redmoon-digital.png" alt="RedMoon.Digital" height="64"></a></td></tr>
 </table>
 
 <p align="center"><sub>Teams that run <code>flisk up</code> on their own code, listed with their consent. <a href="docs/project/ADOPTERS.md">See all adopters</a> or <a href="https://github.com/flisk-sh/flisk/issues/new?template=we-use-flisk.yml">add yours</a>.</sub></p>
@@ -769,7 +769,7 @@ Contributions are welcome. **First step: [say hello on Discord](https://discord.
     <img src="https://www.bestpractices.dev/assets/openssf_bestpracticesbadge-a908f4124737f3d6b2c5abc82756bd2a435cff474b45615ce469746c31a4288c.svg" alt="OpenSSF Best Practices" height="80" align="middle" style="vertical-align: middle" />
   </a>
   <a href="https://www.bestpractices.dev/projects/15310">
-    <img src="https://img.shields.io/badge/OpenSSF%20Silver-95%25-yellow" alt="OpenSSF Silver: 95%" height="40" align="middle" style="vertical-align: middle" />
+    <img src="https://www.bestpractices.dev/projects/15310/badge" alt="OpenSSF Best Practices: Silver (100%)" height="40" align="middle" style="vertical-align: middle" />
   </a>
 </p>
 

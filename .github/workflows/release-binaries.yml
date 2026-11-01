@@ -65,7 +65,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
-          bun-version: latest
+          bun-version: "1.4.4" # pinned: the compiled binaries are byte-identical only for one Bun version; bump on purpose
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -184,7 +184,8 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: [build, windows-binary]
     runs-on: ubuntu-26.04
-    timeout-minutes: 15
+    # Up to 45 minutes of that is the wait for a candidate that is still running on this commit (--wait below).
+    timeout-minutes: 60
     permissions:
       actions: read
       attestations: write
@@ -204,11 +205,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
-        run: node scripts/check-release-candidate.mjs --sha "$SHA" --repo "$GITHUB_REPOSITORY"
+        # --wait: a candidate that is still running on this exact commit is waited for, so build and windows-binary can run
+        # alongside it; one that failed, or none, refuses at once.
+        run: node scripts/check-release-candidate.mjs --sha "$SHA" --repo "$GITHUB_REPOSITORY" --wait 45
 
       - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
-          bun-version: latest
+          bun-version: "1.4.4" # pinned: the compiled binaries are byte-identical only for one Bun version; bump on purpose
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:

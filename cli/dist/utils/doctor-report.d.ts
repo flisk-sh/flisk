@@ -1,5 +1,6 @@
 import type { CheckResult, DoctorAction, HostPortPlan } from "../types/index.js";
 import type { HostInfo } from "./agent-host.js";
+import type { DockerBuildCacheReport } from "./docker-build-cache.js";
 import { type RankedFix } from "./doctor-fix-first.js";
 import { SCHEMA_VERSION } from "./machine-output.js";
 export interface DoctorError {
@@ -20,6 +21,7 @@ export interface DoctorReport {
         host?: HostInfo & {
             containerRuntimeReachable: boolean | null;
         };
+        buildCache?: DockerBuildCacheReport;
         ports?: {
             http: {
                 requested: number;
@@ -50,7 +52,7 @@ export declare function collectDoctorChecks(machineChecks: DoctorCheck[], projec
     errors: DoctorError[];
 }>;
 /** Produce the same readiness decision for human and machine consumers. */
-export declare function createDoctorReport(checks: CheckResult[], inProject: boolean, errors?: DoctorError[], portPlan?: HostPortPlan | null, host?: HostInfo, capabilities?: string[]): DoctorReport;
+export declare function createDoctorReport(checks: CheckResult[], inProject: boolean, errors?: DoctorError[], portPlan?: HostPortPlan | null, host?: HostInfo, capabilities?: string[], buildCache?: DockerBuildCacheReport): DoctorReport;
 /** 0: ready (warnings permitted), 1: blocking findings, 2: usage/internal failure. */
 export declare function getDoctorExitCode(report: DoctorReport): 0 | 1 | 2;
 export {};

@@ -5,9 +5,12 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { addYesOption, handleDryRun } from "../utils/command-helpers.js";
+import { pruneDockerBuildCache, validateCacheUntil } from "../utils/docker-build-cache.js";
 import {
+  type ComposeFallbackResult,
   findRunningFliskProjects,
   pruneProjectNetworks,
+  stopProjectComposeProjects,
   stopProjectTiltUp,
   waitForTiltUpExit,
 } from "../utils/down-cleanup.js";
@@ -17,6 +20,7 @@ import { writeMachineError } from "../utils/machine-output.js";
 import { readNativeRunState, stopNativeRun } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
+import { promptConfirm } from "../utils/prompt.js";
 import { discoverResources, discoverResourcesFromRoot, discoverStacks } from "../utils/services.js";
 import { buildTiltDownArgs, getTiltfilePath, runTilt } from "../utils/tilt.js";
 
@@ -117,6 +121,15 @@ export const downCommand = addYesOption(new Command("down"))
     "Also remove this project's Docker networks (only those no container is attached to)",
     false,
   )
+  .option(
+    "--prune-cache [age]",
+    "Also prune Docker build cache (shared across all projects on this machine; default age: 24h)",
+    false,
+  )
+  .option(
+    "--cache-until <age>",
+    "With --prune-cache: age filter for prune (e.g. 24h, 168h, 7d; default: 24h)",
+  )
   .option("--dry-run", "Show what would be stopped without stopping", false)
   .option("--json", "Print one JSON object on stdout; implies quiet human output", false)
   .option(
@@ -128,6 +141,18 @@ export const downCommand = addYesOption(new Command("down"))
     // the root wherever it appears, so `flisk down --project <path>` arrives in the global options.
     const project: string | undefined = options.project ?? command.optsWithGlobals().project;
     const resolvedRoot = resolveDownProject({ ...options, project });
+
+    const shouldPruneCache = Boolean(options.pruneCache);
+    const cacheUntil =
+      typeof options.pruneCache === "string" ? options.pruneCache : options.cacheUntil || "24h";
+
+    if (shouldPruneCache && !validateCacheUntil(cacheUntil)) {
+      const error = new FliskError(`Invalid --cache-until format: "${cacheUntil}"`, [
+        "Use a duration such as 24h, 168h, 7d, or 2h30m",
+      ]);
+      if (options.json) writeMachineError(error);
+      return error.exit();
+    }
     // Everything below reads the project from the current folder (Tiltfile, stacks, networks), so stop from its root.
     if (findProjectRoot() !== resolvedRoot) process.chdir(resolvedRoot);
 
@@ -145,7 +170,12 @@ export const downCommand = addYesOption(new Command("down"))
     const projectRoot = findProjectRoot() as string;
     if (isNativeRun(projectRoot)) {
       if (emit && options.dryRun) {
-        emit({ ok: true, dryRun: true, runtime: "native" });
+        emit({
+          ok: true,
+          dryRun: true,
+          runtime: "native",
+          ...(shouldPruneCache ? { wouldPruneCache: { until: cacheUntil } } : {}),
+        });
         return;
       }
       if (
@@ -155,6 +185,13 @@ export const downCommand = addYesOption(new Command("down"))
           "stop the local processes of this project",
         )
       ) {
+        if (shouldPruneCache) {
+          console.log(
+            chalk.gray(
+              `Dry run - not pruning Docker build cache (would run: docker builder prune -f --filter until=${cacheUntil})`,
+            ),
+          );
+        }
         return;
       }
       const stopped = await stopNativeRun(projectRoot);
@@ -170,10 +207,21 @@ export const downCommand = addYesOption(new Command("down"))
     }
     await withTiltCheck(async () => {
       if (emit && options.dryRun) {
-        emit({ ok: true, dryRun: true });
+        emit({
+          ok: true,
+          dryRun: true,
+          ...(shouldPruneCache ? { wouldPruneCache: { until: cacheUntil } } : {}),
+        });
         return;
       }
       if (handleDryRun(options, "not stopping resources", "tilt down")) {
+        if (shouldPruneCache) {
+          console.log(
+            chalk.gray(
+              `Dry run - not pruning Docker build cache (would run: docker builder prune -f --filter until=${cacheUntil})`,
+            ),
+          );
+        }
         return;
       }
 
@@ -205,18 +253,115 @@ export const downCommand = addYesOption(new Command("down"))
         inheritStdio: !options.json,
       });
 
+      // `tilt down` evaluates the Tiltfile, so a Tiltfile that fails (stale after an upgrade, a broken edit) leaves the stack
+      // running. Stop this project's Compose projects directly instead (#2899).
+      let composeFallback: (ComposeFallbackResult & { tiltDownExitCode: number }) | undefined;
       if (result.exitCode !== 0) {
-        handleTiltFailure("down", result.exitCode);
+        let fallback: ComposeFallbackResult;
+        try {
+          fallback = stopProjectComposeProjects(projectRoot);
+        } catch {
+          handleTiltFailure("down", result.exitCode);
+        }
+        if (fallback.failed.length > 0) {
+          for (const failed of fallback.failed) {
+            console.error(
+              chalk.red(`Could not stop Compose project ${failed.name}: ${failed.reason}`),
+            );
+          }
+          handleTiltFailure("down", result.exitCode);
+        }
+        composeFallback = { ...fallback, tiltDownExitCode: result.exitCode };
+        if (!options.json) {
+          console.log(
+            chalk.yellow(
+              fallback.stopped.length > 0
+                ? `tilt down failed (exit ${result.exitCode}); stopped this project's containers with docker compose down instead: ${fallback.stopped.join(", ")}`
+                : `tilt down failed (exit ${result.exitCode}); no containers of this project are left to stop.`,
+            ),
+          );
+        }
       }
 
       let networks: ReturnType<typeof pruneProjectNetworks> | undefined;
       if (options.pruneNetworks) {
         networks = pruneNetworksOrWarn(options.json);
       }
+
+      let cachePruneResult:
+        | { until: string; reclaimed?: string; skipped?: boolean; reason?: string }
+        | undefined;
+      if (shouldPruneCache) {
+        let confirmed = Boolean(options.yes);
+        if (!confirmed) {
+          if (options.json || !process.stdin.isTTY) {
+            cachePruneResult = {
+              until: cacheUntil,
+              skipped: true,
+              reason: "confirmation required; run in a terminal or pass --yes",
+            };
+            if (!options.json) {
+              console.log(
+                chalk.yellow(
+                  "Skipping Docker build cache prune: confirmation required; run in a terminal or pass --yes.",
+                ),
+              );
+            }
+          } else {
+            console.log(
+              chalk.yellow(
+                "Notice: Docker build cache is shared across all projects on this machine.\nPruning it affects other projects and may increase subsequent build times.",
+              ),
+            );
+            try {
+              confirmed = await promptConfirm({
+                message: `Prune Docker build cache older than ${cacheUntil}?`,
+                initial: false,
+              });
+            } catch {
+              confirmed = false;
+            }
+            if (!confirmed) {
+              cachePruneResult = { until: cacheUntil, skipped: true, reason: "not confirmed" };
+              console.log(chalk.gray("Skipped Docker build cache prune."));
+            }
+          }
+        }
+
+        if (confirmed) {
+          try {
+            const pruned = await pruneDockerBuildCache({ until: cacheUntil });
+            cachePruneResult = { until: cacheUntil, reclaimed: pruned.reclaimed };
+            if (!options.json) {
+              console.log(
+                chalk.gray(
+                  `Pruned Docker build cache: ${pruned.reclaimed} reclaimed (filter: until=${cacheUntil}).`,
+                ),
+              );
+            }
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            cachePruneResult = { until: cacheUntil, skipped: true, reason };
+            if (!options.json) {
+              console.log(chalk.yellow(`Could not prune Docker build cache: ${reason}`));
+            }
+          }
+        }
+      }
+
       emit?.({
         ok: true,
         stoppedTilt,
+        ...(composeFallback
+          ? {
+              composeFallback: {
+                tiltDownExitCode: composeFallback.tiltDownExitCode,
+                stopped: composeFallback.stopped,
+              },
+            }
+          : {}),
         ...(networks ? { removedNetworks: networks.removed, keptNetworks: networks.kept } : {}),
+        ...(cachePruneResult ? { prunedCache: cachePruneResult } : {}),
       });
     });
   });

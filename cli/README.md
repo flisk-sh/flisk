@@ -88,6 +88,8 @@ flisk down --force               # ⚙️ Accepted for script compatibility; has
 flisk down --dry-run             # 🔍 Show the command without stopping resources
 flisk down --verbose             # 📝 Verbose output (-v)
 flisk down --prune-networks      # 🧹 Also remove unattached Docker networks for this project
+flisk down --prune-cache         # 🧹 Prune old Docker build cache (default: older than 24h)
+flisk down --prune-cache --cache-until 7d # 🧹 Keep cache newer than 7 days
 flisk down --project ~/code/shop # 📁 Stop the project in that folder, from anywhere
 ```
 

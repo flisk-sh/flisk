@@ -825,6 +825,14 @@ describe("tool list", () => {
     // sdk only registers a package that already has a service.json; byo is an alias of bring-your-own.
     expect(offered).not.toContain("sdk");
     expect(offered).not.toContain("byo");
+    // Redis, Qdrant, MinIO, MLflow, NATS and RabbitMQ are frameworks of database and queue, not types.
+    expect(offered).toEqual(expect.arrayContaining(["database", "queue"]));
+    for (const removed of ["redis", "qdrant", "rabbitmq", "minio", "mlflow"]) {
+      expect(offered).not.toContain(removed);
+    }
+    const description = JSON.stringify(tool?.inputSchema);
+    expect(description).toContain("Queue: nats (default), rabbitmq");
+    expect(description).toContain("Database: postgres (default");
     for (const type of offered) {
       // Every value the tool offers is one `flisk resource --type` accepts, so the two cannot drift.
       expect(() => parseResourceType(type), type).not.toThrow();

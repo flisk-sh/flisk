@@ -3,6 +3,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import type { HealthCheckObjectConfig } from "../types/index.js";
+import { parseHostMapping, publishVariables, substitutePublish } from "./extra-port-publish.js";
 import { FRONTEND_FRAMEWORK_IDS } from "./frontend-framework-ids.js";
 import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
 import { validateSmoke } from "./smoke.js";
@@ -31,8 +32,10 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "backendName",
   "basePath",
   "build",
+  "buildArgs",
   "buildContext",
   "command",
+  "container",
   "databaseName",
   "dependencies",
   "dev",
@@ -40,18 +43,24 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "dockerfile",
   "enabled",
   "env",
+  "envFile",
   "exposeViaProxy",
+  "extraPorts",
   "featuresEnabled",
   "framework",
   "healthCheck",
   "healthCheckPath",
   "image",
   "language",
+  "logging",
+  "models",
   "name",
   "nats",
   "params",
   "profiles",
   "playwright",
+  "provides",
+  "providers",
   "port",
   "replicas",
   "restart",
@@ -59,12 +68,14 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "sablier",
   "schemaVersion",
   "secrets",
+  "sidecarOf",
   "smoke",
   "stack",
   "syncs",
   "toolchain",
   "traefik",
   "type",
+  "volumes",
 ]);
 
 /**
@@ -105,8 +116,14 @@ const GENERATED_STRING_FIELDS: ReadonlyArray<{
   { path: ["stack"], pattern: /^[A-Za-z0-9_-]+$/, expected: "letters, digits, '_' or '-'" },
   {
     path: ["image"],
-    pattern: /^[A-Za-z0-9._/:@-]+$/,
-    expected: "an image reference such as ghcr.io/acme/app:1.0",
+    // Compose variables are allowed (postgres:${POSTGRES_VERSION:-18}-alpine); Compose fills them in from the project .env.
+    // Mirrors image_reference_ok in engine/.../tilt/manifest/parser.star.
+    // `${NAME:?message}` / `${NAME?message}` stop Compose with the message when NAME is unset (any-sync's garage image).
+    // The message is printable ASCII without quotes, backslash, braces, `$` or backtick (IMAGE_MESSAGE_CHARS in parser.star).
+    pattern:
+      /^(?:[A-Za-z0-9._/:@-]|\$\{[A-Za-z_][A-Za-z0-9_]*(?::?-[A-Za-z0-9._/:@-]+|:?\?[A-Za-z0-9 !#%&()*+,./:;<=>?@[\]^_|~-]*)?\})+$/,
+    expected:
+      "an image reference such as ghcr.io/acme/app:1.0, with variables written as ${NAME}, ${NAME:-default}, ${NAME-default} or ${NAME:?message}",
   },
   { path: ["basePath"], pattern: /^\/[a-z0-9/-]*$/, expected: "a path such as /storefront" },
 ];
@@ -439,6 +456,799 @@ export function getInvalidServiceRoutePathFields(value: unknown) {
  */
 const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/**
+ * Patterns for `container` (#2907), the bring-your-own container runtime options. Each value is written into the generated Compose
+ * YAML as it is, so engine/.../compose/byo_container.star checks the same characters.
+ */
+const CONTAINER_STRING_LISTS = {
+  capAdd: { pattern: /^[A-Z_]+$/, expected: "capability names such as NET_ADMIN" },
+  capDrop: { pattern: /^[A-Z_]+$/, expected: "capability names such as ALL" },
+  securityOpt: {
+    pattern: /^[A-Za-z0-9_.:=/-]+$/,
+    expected: "options such as no-new-privileges:true",
+  },
+} as const;
+const CONTAINER_KEYS = new Set([
+  ...Object.keys(CONTAINER_STRING_LISTS),
+  "command",
+  "init",
+  "readOnly",
+  "user",
+  "shmSize",
+  "tmpfs",
+  "gpus",
+  "cpus",
+  "memory",
+  "ipc",
+  "stopGracePeriod",
+  "extraHosts",
+  "ulimits",
+  "networkAliases",
+]);
+const ULIMIT_NAMES = [
+  "as",
+  "core",
+  "cpu",
+  "data",
+  "fsize",
+  "locks",
+  "memlock",
+  "msgqueue",
+  "nice",
+  "nofile",
+  "nproc",
+  "rss",
+  "rtprio",
+  "rttime",
+  "sigpending",
+  "stack",
+];
+const DURATION_PATTERN = /^([0-9]+(\.[0-9]+)?(us|ms|s|m|h))+$/;
+const isUlimit = (value: unknown): value is number =>
+  Number.isInteger(value) && (value as number) >= -1;
+
+/** `name:address` for Compose extra_hosts: host-gateway, an IPv4 address, or an IPv6 address. */
+function isExtraHost(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const colon = value.indexOf(":");
+  if (colon < 0) return false;
+  const name = value.slice(0, colon);
+  const address = value.slice(colon + 1);
+  if (!/^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(name)) return false;
+  if (address === "host-gateway") return true;
+  const octets = address.split(".");
+  if (octets.length === 4 && octets.every((o) => /^[0-9]{1,3}$/.test(o) && Number(o) <= 255)) {
+    return true;
+  }
+  return address.includes(":") && /^[0-9A-Fa-f:]+$/.test(address);
+}
+
+/** Why `container.ulimits` is refused, or undefined. Mirrors _ulimit_lines in engine/.../compose/byo_container.star. */
+function ulimitsError(ulimits: unknown): string | undefined {
+  if (!isPlainObject(ulimits)) {
+    return ': expected an object such as {"nofile": {"soft": 65536, "hard": 65536}}';
+  }
+  for (const [name, value] of Object.entries(ulimits)) {
+    if (!ULIMIT_NAMES.includes(name)) return `.${name}: expected one of ${ULIMIT_NAMES.join(", ")}`;
+    if (isUlimit(value)) continue;
+    if (
+      !isPlainObject(value) ||
+      Object.keys(value).sort().join(",") !== "hard,soft" ||
+      !isUlimit(value.soft) ||
+      !isUlimit(value.hard)
+    ) {
+      return `.${name}: expected a number, or {"soft": <number>, "hard": <number>}`;
+    }
+    if (value.hard !== -1 && (value.soft === -1 || value.soft > value.hard)) {
+      return `.${name}: soft must not be above hard`;
+    }
+  }
+  return undefined;
+}
+const CONTAINER_IPC_MODES = ["host", "private", "shareable", "none"];
+const SIZE_PATTERN = /^[0-9]+([bkmg]b?)?$/i;
+
+/** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
+export function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const container = manifest.container;
+  if (container === undefined || container === null) return [];
+  const field = `${displayPath}.container`;
+  if (!isPlainObject(container)) return [`${field}: expected an object`];
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  for (const key of Object.keys(container)) {
+    if (!CONTAINER_KEYS.has(key)) {
+      errors.push(`${field}.${key}: unknown option (use ${[...CONTAINER_KEYS].join(", ")})`);
+    }
+  }
+  for (const [key, { pattern, expected }] of Object.entries(CONTAINER_STRING_LISTS)) {
+    const values = container[key];
+    if (values === undefined || values === null) continue;
+    if (
+      !Array.isArray(values) ||
+      !values.every((value) => typeof value === "string" && pattern.test(value))
+    ) {
+      errors.push(`${field}.${key}: expected a list of ${expected}`);
+    }
+  }
+  const { command } = container;
+  if (
+    command !== undefined &&
+    !(
+      Array.isArray(command) &&
+      command.length > 0 &&
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: a control character would break the generated Compose YAML
+      command.every((part) => typeof part === "string" && /^[^\u0000-\u001f\u007f]+$/.test(part))
+    )
+  ) {
+    errors.push(
+      `${field}.command: expected a list of non-empty strings without control characters`,
+    );
+  }
+  for (const key of ["init", "readOnly"] as const) {
+    if (container[key] !== undefined && typeof container[key] !== "boolean") {
+      errors.push(`${field}.${key}: expected true or false`);
+    }
+  }
+  if (
+    container.user !== undefined &&
+    !(typeof container.user === "string" && /^[A-Za-z0-9_.:-]+$/.test(container.user))
+  ) {
+    errors.push(`${field}.user: expected a user or uid[:gid] such as 10001:10001`);
+  }
+  if (
+    container.shmSize !== undefined &&
+    !(typeof container.shmSize === "string" && SIZE_PATTERN.test(container.shmSize))
+  ) {
+    errors.push(`${field}.shmSize: expected a size such as 256mb or 1g`);
+  }
+  // GPU and HPC workloads: NVIDIA device reservations, CPU and memory limits (Flisk's defaults are 0.5 CPU and 512M) and IPC.
+  const { gpus, cpus, memory, ipc } = container;
+  if (gpus !== undefined && !(gpus === "all" || (Number.isInteger(gpus) && (gpus as number) > 0))) {
+    errors.push(`${field}.gpus: expected "all" or a GPU count of 1 or more`);
+  }
+  const cpusOk =
+    (Number.isInteger(cpus) && (cpus as number) > 0) ||
+    (typeof cpus === "string" && /^[0-9]+(\.[0-9]{1,2})?$/.test(cpus) && Number(cpus) > 0);
+  if (cpus !== undefined && !cpusOk) {
+    errors.push(`${field}.cpus: expected a CPU count above 0 such as 4 or "2.5"`);
+  }
+  if (
+    memory !== undefined &&
+    !(typeof memory === "string" && SIZE_PATTERN.test(memory) && Number.parseInt(memory, 10) > 0)
+  ) {
+    errors.push(`${field}.memory: expected a size such as 8g or 512mb`);
+  }
+  const { tmpfs } = container;
+  if (
+    tmpfs !== undefined &&
+    !(
+      Array.isArray(tmpfs) &&
+      tmpfs.every(
+        (entry) =>
+          typeof entry === "string" &&
+          /^\/[A-Za-z0-9_./-]*(:[a-z0-9=,_-]+)?$/.test(entry) &&
+          !`${entry.split(":")[0]}/`.includes("/../"),
+      )
+    )
+  ) {
+    errors.push(
+      `${field}.tmpfs: expected a list of absolute paths with optional options, such as /tmp:noexec,nosuid,nodev,size=100m`,
+    );
+  }
+  if (ipc !== undefined && !(typeof ipc === "string" && CONTAINER_IPC_MODES.includes(ipc))) {
+    errors.push(`${field}.ipc: expected one of ${CONTAINER_IPC_MODES.join(", ")}`);
+  }
+  const { stopGracePeriod, extraHosts, ulimits, networkAliases } = container;
+  if (
+    stopGracePeriod !== undefined &&
+    !(typeof stopGracePeriod === "string" && DURATION_PATTERN.test(stopGracePeriod))
+  ) {
+    errors.push(`${field}.stopGracePeriod: expected a duration such as 30s or 1m30s`);
+  }
+  if (extraHosts !== undefined && !(Array.isArray(extraHosts) && extraHosts.every(isExtraHost))) {
+    errors.push(
+      `${field}.extraHosts: expected a list of name:address, such as host.docker.internal:host-gateway or db:10.0.0.5`,
+    );
+  }
+  if (ulimits !== undefined) {
+    const problem = ulimitsError(ulimits);
+    if (problem) errors.push(`${field}.ulimits${problem}`);
+  }
+  if (networkAliases !== undefined) {
+    if (
+      !Array.isArray(networkAliases) ||
+      !networkAliases.every(
+        (alias) => typeof alias === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(alias),
+      )
+    ) {
+      errors.push(
+        `${field}.networkAliases: expected a list of names such as ["mercure"] (letters, digits, '-', '_' and '.')`,
+      );
+    } else if (new Set(networkAliases).size !== networkAliases.length) {
+      errors.push(`${field}.networkAliases: lists a name twice`);
+    } else if (networkAliases.length > 0 && manifest.sidecarOf) {
+      errors.push(
+        `${field}.networkAliases: does not apply to a sidecar (sidecarOf), which shares another container's network`,
+      );
+    }
+  }
+  return errors;
+}
+
+const RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"];
+
+/**
+ * `restart` on a bring-your-own resource: no, on-failure, on-failure:N (N from 1 to 100), unless-stopped or always. Mirrors
+ * byo_restart_policy in engine/.../compose/byo_container.star.
+ */
+export function restartErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const { restart } = manifest;
+  if (restart === undefined || restart === null || manifest.appType !== "bring-your-own") return [];
+  if (typeof restart === "string") {
+    if (RESTART_POLICIES.includes(restart)) return [];
+    const count = /^on-failure:([1-9][0-9]{0,2})$/.exec(restart);
+    if (count && Number(count[1]) <= 100) return [];
+  }
+  return [
+    `${displayPath}.restart: expected one of no, on-failure, on-failure:N (N from 1 to 100), unless-stopped, always`,
+  ];
+}
+
+const isPortNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
+
+/**
+ * The host port a `publish` template gives when no variable is set, or why the template is refused (see extra-port-publish.ts).
+ */
+function publishError(publish: unknown): number | string {
+  if (typeof publish !== "string" || publish === "") {
+    return 'expected a string such as "${WEB_HTTP_BIND:-127.0.0.1:80}"';
+  }
+  const variables = publishVariables(publish);
+  if (typeof variables === "string") return variables;
+  const mapping = parseHostMapping(substitutePublish(publish));
+  if (!mapping) return "must give a port or address:port such as 127.0.0.1:8080 (IPv4 only)";
+  return mapping.port;
+}
+
+/**
+ * `extraPorts` (#2909): plain host ports on 127.0.0.1 for a bring-your-own resource, next to the routed `port`. Mirrors
+ * engine/.../compose/byo_ports.star, which refuses the same values.
+ */
+export function extraPortsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const extra = manifest.extraPorts;
+  if (extra === undefined || extra === null) return [];
+  const field = `${displayPath}.extraPorts`;
+  if (!Array.isArray(extra)) return [`${field}: expected a list such as [{ "port": 443 }]`];
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  if (extra.length > 0 && manifest.replicas !== undefined && manifest.replicas !== 1) {
+    errors.push(`${field}: needs a single container; remove replicas`);
+  }
+  const seen = new Set<string>();
+  extra.forEach((entry: unknown, i) => {
+    const at = `${field}[${i}]`;
+    if (!isPlainObject(entry)) {
+      errors.push(`${at}: expected an object such as { "port": 443 }`);
+      return;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!["port", "hostPort", "protocol", "bind", "publish"].includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use port, hostPort, protocol, bind, publish)`);
+      }
+    }
+    if (!isPortNumber(entry.port))
+      errors.push(`${at}.port: expected a port number from 1 to 65535`);
+    let hostPort: unknown = entry.hostPort ?? entry.port;
+    if (entry.publish !== undefined) {
+      if (entry.hostPort !== undefined || entry.bind !== undefined) {
+        errors.push(`${at}.publish: replaces hostPort and bind; remove them`);
+      }
+      const mapping = publishError(entry.publish);
+      if (typeof mapping === "string") errors.push(`${at}.publish: ${mapping}`);
+      else hostPort = mapping;
+    } else {
+      if (entry.hostPort !== undefined && !isPortNumber(entry.hostPort)) {
+        errors.push(`${at}.hostPort: expected a port number from 1 to 65535`);
+      }
+      if (entry.bind !== undefined && entry.bind !== "127.0.0.1" && entry.bind !== "0.0.0.0") {
+        errors.push(`${at}.bind: expected 127.0.0.1 or 0.0.0.0`);
+      }
+    }
+    const protocol = entry.protocol ?? "tcp";
+    if (protocol !== "tcp" && protocol !== "udp")
+      errors.push(`${at}.protocol: expected tcp or udp`);
+    const key = `${String(hostPort)}/${String(protocol)}`;
+    if (seen.has(key)) errors.push(`${at}.hostPort: ${key} is published twice`);
+    seen.add(key);
+  });
+  return errors;
+}
+
+/**
+ * `sidecarOf` (#2908): a bring-your-own resource that shares another resource's network namespace. Mirrors
+ * engine/.../compose/byo_sidecar.star. Whether the host exists in the same stack is checked across services (checkSidecars).
+ */
+export function sidecarErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const host = manifest.sidecarOf;
+  if (host === undefined || host === null) return [];
+  const field = `${displayPath}.sidecarOf`;
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  if (typeof host !== "string" || !/^[a-z0-9][a-z0-9_.-]*$/.test(host)) {
+    return [`${field}: expected the appName of another resource in the same stack`];
+  }
+  const errors: string[] = [];
+  if (host === manifest.appName) errors.push(`${field}: cannot name the resource itself`);
+  if (Array.isArray(manifest.extraPorts) && manifest.extraPorts.length > 0) {
+    errors.push(
+      `${field}: a sidecar has no ports of its own; publish extraPorts on "${host}" instead`,
+    );
+  }
+  if (manifest.replicas !== undefined && manifest.replicas !== 1) {
+    errors.push(`${field}: needs a single container; remove replicas`);
+  }
+  return errors;
+}
+
+/**
+ * `volumes` (#1748): named volumes and bind mounts for a bring-your-own resource. Mirrors engine/.../compose/byo_volumes.star,
+ * which refuses the same values. A bind mount's `source` is relative to the service directory and must stay inside the project;
+ * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
+ */
+export function volumesErrors(
+  manifest: Record<string, unknown>,
+  displayPath: string,
+  serviceDepth?: number,
+): string[] {
+  const volumes = manifest.volumes;
+  if (volumes === undefined || volumes === null) return [];
+  const field = `${displayPath}.volumes`;
+  if (!Array.isArray(volumes))
+    return [`${field}: expected a list such as [{ "source": "data", "target": "/data" }]`];
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  const targets = new Set<string>();
+  volumes.forEach((entry: unknown, i) => {
+    const at = `${field}[${i}]`;
+    if (!isPlainObject(entry)) {
+      errors.push(`${at}: expected an object such as { "source": "data", "target": "/data" }`);
+      return;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!["source", "target", "readOnly", "name", "selinux"].includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use source, target, readOnly, name, selinux)`);
+      }
+    }
+    const { target, readOnly, name, selinux } = entry;
+    // A bind mount's source may come from the environment: ${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared} (or ${NAME-./path}). The
+    // default is checked like any other bind path.
+    const variable =
+      typeof entry.source === "string"
+        ? /^\$\{[A-Za-z_][A-Za-z0-9_]*:?-(\.{1,2}(?:\/[A-Za-z0-9_.-]+)*\/?)\}$/.exec(entry.source)
+        : null;
+    if (typeof entry.source === "string" && entry.source.startsWith("${") && !variable) {
+      errors.push(
+        `${at}.source: variables must be \${NAME:-./path} or \${NAME-./path}, with a default path starting with ./ or ../`,
+      );
+      return;
+    }
+    const source = variable ? variable[1] : entry.source;
+    if (selinux !== undefined) {
+      if (selinux !== "z" && selinux !== "Z") {
+        errors.push(`${at}.selinux: expected z (shared) or Z (private)`);
+      } else if (typeof source === "string" && !source.startsWith(".")) {
+        errors.push(`${at}.selinux: only applies to a bind mount`);
+      }
+    }
+    if (
+      typeof source !== "string" ||
+      !/^([a-z0-9][a-z0-9_-]*|\.{1,2}(\/[A-Za-z0-9_.-]+)*\/?)$/.test(source)
+    ) {
+      errors.push(
+        `${at}.source: expected a volume name such as data, or a path starting with ./ such as ./config`,
+      );
+    } else if (serviceDepth !== undefined && source.startsWith(".")) {
+      let depth = serviceDepth;
+      for (const segment of source.split("/")) {
+        if (segment === "..") depth -= 1;
+        else if (segment !== "." && segment !== "") depth += 1;
+        if (depth < 0) break;
+      }
+      if (depth < 0) errors.push(`${at}.source: must stay inside the project`);
+    }
+    if (
+      typeof target !== "string" ||
+      !/^\/[A-Za-z0-9_./-]*$/.test(target) ||
+      `${target}/`.includes("/../")
+    ) {
+      errors.push(`${at}.target: expected an absolute path in the container such as /data`);
+    } else if (targets.has(target)) {
+      errors.push(`${at}.target: ${target} is mounted twice`);
+    } else {
+      targets.add(target);
+    }
+    if (readOnly !== undefined && typeof readOnly !== "boolean") {
+      errors.push(`${at}.readOnly: expected true or false`);
+    }
+    // `name` is the Docker volume's own name, such as the one an existing Compose install created (tubehaus_tubehaus-data).
+    if (name !== undefined) {
+      if (typeof name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) {
+        errors.push(
+          `${at}.name: expected a Docker volume name such as myapp_data (letters, digits, '_', '.' and '-')`,
+        );
+      } else if (typeof source === "string" && source.startsWith(".")) {
+        errors.push(`${at}.name: only applies to a named volume, not a bind mount`);
+      }
+    }
+  });
+  return errors;
+}
+
+const DEPENDS_ON_CONDITIONS = [
+  "service_started",
+  "service_healthy",
+  "service_completed_successfully",
+];
+
+/**
+ * `dependsOn`: service or stack names, or Compose-style objects `{ "name": "db", "condition": "service_healthy" }`. Flisk orders by
+ * name (Tilt resource_deps), so the condition is accepted and kept but does not change the order. Mirrors normalize_depends_on in
+ * engine/.../tilt/manifest/parser.star.
+ */
+export function dependsOnErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const deps = manifest.dependsOn;
+  if (!Array.isArray(deps)) return [];
+  const errors: string[] = [];
+  deps.forEach((entry: unknown, i) => {
+    if (typeof entry === "string") return;
+    const at = `${displayPath}.dependsOn[${i}]`;
+    if (!isPlainObject(entry)) {
+      errors.push(
+        `${at}: expected a name, or an object such as { "name": "db", "condition": "service_healthy" }`,
+      );
+      return;
+    }
+    for (const key of Object.keys(entry)) {
+      if (key !== "name" && key !== "condition")
+        errors.push(`${at}.${key}: unknown option (use name, condition)`);
+    }
+    if (typeof entry.name !== "string" || entry.name === "") {
+      errors.push(`${at}.name: expected a service or stack name`);
+    }
+    if (
+      entry.condition !== undefined &&
+      !(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))
+    ) {
+      errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+    }
+  });
+  return errors;
+}
+
+/** Plain text that is safe inside a JSON (double-quoted YAML) string: no line break or control character. */
+const isPlainText = (value: unknown): value is string =>
+  typeof value === "string" && !hasLineBreakOrControl(value);
+
+/**
+ * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
+ * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
+ * engine/.../compose/byo_build_logging.star.
+ */
+export function buildArgsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const args = manifest.buildArgs;
+  if (args === undefined || args === null) return [];
+  const field = `${displayPath}.buildArgs`;
+  if (!isPlainObject(args))
+    return [`${field}: expected an object of string values such as { "NODE_VERSION": "22" }`];
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  if (typeof manifest.image === "string" && manifest.image && !manifest.dockerfile) {
+    return [
+      `${field}: only applies to a resource built from a Dockerfile, not one that runs "image"`,
+    ];
+  }
+  const errors: string[] = [];
+  for (const [name, value] of Object.entries(args)) {
+    if (!ENV_NAME_PATTERN.test(name)) {
+      errors.push(
+        `${field}.${name}: names must be letters, digits or _, not starting with a digit`,
+      );
+    } else if (!isPlainText(value)) {
+      errors.push(`${field}.${name}: expected a string without line breaks or control characters`);
+    }
+  }
+  return errors;
+}
+
+/**
+ * `logging` (bring-your-own, #2965): Compose `logging`, such as `{ "driver": "json-file", "options": { "max-size": "5m" } }`.
+ * Mirrors byo_logging_section in engine/.../compose/byo_build_logging.star.
+ */
+export function loggingErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const logging = manifest.logging;
+  if (logging === undefined || logging === null) return [];
+  const field = `${displayPath}.logging`;
+  if (!isPlainObject(logging)) {
+    return [
+      `${field}: expected an object such as { "driver": "json-file", "options": { "max-size": "5m" } }`,
+    ];
+  }
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  for (const key of Object.keys(logging)) {
+    if (key !== "driver" && key !== "options")
+      errors.push(`${field}.${key}: unknown option (use driver, options)`);
+  }
+  const { driver, options } = logging;
+  if (
+    driver !== undefined &&
+    !(typeof driver === "string" && /^[a-z0-9][a-z0-9_.-]*$/.test(driver))
+  ) {
+    errors.push(`${field}.driver: expected a driver name such as json-file or local`);
+  }
+  if (options !== undefined) {
+    if (!isPlainObject(options)) {
+      errors.push(
+        `${field}.options: expected an object of string values such as { "max-size": "5m" }`,
+      );
+    } else {
+      for (const [key, value] of Object.entries(options)) {
+        if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(key)) {
+          errors.push(
+            `${field}.options: keys must be letters, digits, '-', '_' and '.', such as max-size`,
+          );
+        } else if (!isPlainText(value)) {
+          errors.push(
+            `${field}.options.${key}: expected a string without line breaks or control characters`,
+          );
+        }
+      }
+    }
+  }
+  return errors;
+}
+
+/**
+ * `envFile`: extra env files for a bring-your-own resource, each a path relative to the service directory that must stay inside
+ * the project (`serviceDepth` is how many directories the service sits below the project root, unknown when validating a manifest
+ * alone). A missing file is not an error. Mirrors engine/.../compose/byo_env_file.star.
+ */
+export function envFileErrors(
+  manifest: Record<string, unknown>,
+  displayPath: string,
+  serviceDepth?: number,
+): string[] {
+  const envFile = manifest.envFile;
+  if (envFile === undefined || envFile === null) return [];
+  const field = `${displayPath}.envFile`;
+  if (!Array.isArray(envFile))
+    return [`${field}: expected a list of paths such as ["../../../.env"]`];
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  envFile.forEach((source: unknown, i) => {
+    const at = `${field}[${i}]`;
+    if (typeof source !== "string" || !/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)*$/.test(source)) {
+      errors.push(`${at}: expected a relative file path such as ../../../.env`);
+      return;
+    }
+    if (serviceDepth === undefined) return;
+    let depth = serviceDepth;
+    for (const segment of source.split("/")) {
+      if (segment === "..") depth -= 1;
+      else if (segment !== ".") depth += 1;
+      if (depth < 0) break;
+    }
+    if (depth < 0) errors.push(`${at}: must stay inside the project`);
+    else if (depth === 0) errors.push(`${at}: expected a file inside the project, not its root`);
+  });
+  return errors;
+}
+
+/** A model reference such as ai/smollm2, ai/qwen3:8B-Q4_K_M or hf.co/org/name. */
+const MODEL_REFERENCE = "[A-Za-z0-9][A-Za-z0-9._/:@-]*";
+/** `models[].model`: a model reference, or a Compose variable `${NAME}`, `${NAME:-<model reference>}` or `${NAME-<model reference>}`. */
+const MODEL_VALUE_PATTERN = new RegExp(
+  `^(${MODEL_REFERENCE}|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-${MODEL_REFERENCE})?\\})$`,
+);
+
+/**
+ * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
+ * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
+ * generated YAML, so only a model reference or a Compose variable is accepted. Mirrors engine/.../compose/byo_models.star.
+ */
+export function modelsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const models = manifest.models;
+  if (models === undefined || models === null) return [];
+  const field = `${displayPath}.models`;
+  if (!Array.isArray(models)) {
+    return [`${field}: expected a list such as [{"name": "llm", "model": "ai/smollm2"}]`];
+  }
+  if (manifest.appType !== "bring-your-own") {
+    return [`${field}: only applies to bring-your-own resources (appType "bring-your-own")`];
+  }
+  const errors: string[] = [];
+  const names = new Set<string>();
+  models.forEach((entry: unknown, i) => {
+    const at = `${field}[${i}]`;
+    if (!isPlainObject(entry)) {
+      errors.push(`${at}: expected an object such as {"name": "llm", "model": "ai/smollm2"}`);
+      return;
+    }
+    for (const key of Object.keys(entry)) {
+      if (key !== "name" && key !== "model")
+        errors.push(`${at}.${key}: unknown option (use name, model)`);
+    }
+    const { name, model } = entry;
+    if (typeof name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) {
+      errors.push(
+        `${at}.name: expected a model name such as llm (letters, digits, '-', '_' and '.')`,
+      );
+    } else if (names.has(name)) {
+      errors.push(`${at}.name: ${name} is listed twice`);
+    } else {
+      names.add(name);
+    }
+    if (typeof model !== "string" || !MODEL_VALUE_PATTERN.test(model)) {
+      errors.push(
+        `${at}.model: expected a model such as ai/smollm2, or a variable such as \${LLM_MODEL} or \${LLM_MODEL:-ai/smollm2}`,
+      );
+    }
+  });
+  return errors;
+}
+
+/**
+ * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
+ * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
+ * engine/.../compose/byo_env.star.
+ */
+export function byoEnvErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const env = manifest.env;
+  if (env === undefined || env === null || manifest.appType !== "bring-your-own") return [];
+  if (declaresCommand(manifest)) return [];
+  const field = `${displayPath}.env`;
+  if (!isPlainObject(env)) return [`${field}: expected an object of string values`];
+  const errors: string[] = [];
+  for (const [name, value] of Object.entries(env)) {
+    if (!ENV_NAME_PATTERN.test(name)) {
+      errors.push(
+        `${field}.${name}: names must be letters, digits or _, not starting with a digit`,
+      );
+    } else if (typeof value !== "string") {
+      errors.push(`${field}.${name}: expected a string`);
+    } else if (hasLineBreakOrControl(value)) {
+      errors.push(`${field}.${name}: must not contain line breaks or control characters`);
+    }
+  }
+  return errors;
+}
+
+/**
+ * `provides`: the connection settings a resource gives the services that list it in `dependsOn` (REDIS_URL for a Redis).
+ * Each one is written into the dependent's generated env file, which `flisk config verify` checks and which must hold no
+ * secret, so the values are plain URLs and names. Mirrors _dependency_provides_lines in
+ * engine/.../orchestrator/generators/env.star.
+ */
+export function providesErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const provides = manifest.provides;
+  if (provides === undefined || provides === null) return [];
+  const field = `${displayPath}.provides`;
+  if (!isPlainObject(provides)) {
+    return [`${field}: expected an object such as { "REDIS_URL": "redis://cache:6379" }`];
+  }
+  const errors: string[] = [];
+  for (const [key, value] of Object.entries(provides)) {
+    if (!ENV_NAME_PATTERN.test(key)) {
+      errors.push(`${field}.${key}: expected an environment variable name such as REDIS_URL`);
+    }
+    if (typeof value !== "string" || !/^[A-Za-z0-9_\-./:@%+=,]+$/.test(value)) {
+      errors.push(`${field}.${key}: expected a URL or value without spaces, quotes or $`);
+    }
+  }
+  return errors;
+}
+
+const PROVIDER_KEYS = ["url", "tokenSecret", "fallback", "required"];
+const PROVIDER_TYPES = new Set(["backend", "worker", "mcp", "agent", "bring-your-own"]);
+
+/** One entry of `providers`, with `required` resolved: a token is required unless the provider has a local fallback. */
+export interface ProviderSpec {
+  id: string;
+  url: string;
+  tokenSecret?: string;
+  fallback?: string;
+  required: boolean;
+}
+
+/** The well-formed entries of `providers` (malformed ones are reported by {@link providersErrors}). */
+export function providersOf(manifest: Record<string, unknown> | undefined): ProviderSpec[] {
+  const providers = manifest?.providers;
+  if (!isPlainObject(providers)) return [];
+  return Object.entries(providers).flatMap(([id, entry]) => {
+    if (!isPlainObject(entry) || typeof entry.url !== "string") return [];
+    const tokenSecret = typeof entry.tokenSecret === "string" ? entry.tokenSecret : undefined;
+    const fallback = typeof entry.fallback === "string" ? entry.fallback : undefined;
+    const required =
+      typeof entry.required === "boolean"
+        ? entry.required
+        : tokenSecret !== undefined && fallback === undefined;
+    return [{ id, url: entry.url, tokenSecret, fallback, required }];
+  });
+}
+
+/**
+ * `providers`: external endpoints a service calls (IBM Quantum, Amazon Braket, a hosted model API) with the secret that holds
+ * their token, and optionally a local resource to use while the token is missing. Mirrors
+ * engine/.../docker/secrets/providers.star, which refuses the same values.
+ */
+export function providersErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const providers = manifest.providers;
+  if (providers === undefined || providers === null) return [];
+  const field = `${displayPath}.providers`;
+  if (!isPlainObject(providers)) {
+    return [`${field}: expected an object such as { "ibm-quantum": { "url": "https://..." } }`];
+  }
+  if (typeof manifest.command === "string" || !PROVIDER_TYPES.has(String(manifest.appType))) {
+    return [
+      `${field}: only applies to container services (backend, worker, mcp, agent, bring-your-own)`,
+    ];
+  }
+  const dependsOn = Array.isArray(manifest.dependsOn) ? manifest.dependsOn : [];
+  const errors: string[] = [];
+  for (const [id, entry] of Object.entries(providers)) {
+    const at = `${field}.${id}`;
+    if (!/^[a-z][a-z0-9-]*$/.test(id)) {
+      errors.push(`${at}: name it in lowercase letters, digits and '-', such as ibm-quantum`);
+    }
+    if (!isPlainObject(entry)) {
+      errors.push(`${at}: expected an object such as { "url": "https://..." }`);
+      continue;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!PROVIDER_KEYS.includes(key)) {
+        errors.push(`${at}.${key}: unknown option (use ${PROVIDER_KEYS.join(", ")})`);
+      }
+    }
+    if (typeof entry.url !== "string" || !/^https?:\/\/[A-Za-z0-9_\-./:@%+=,~]+$/.test(entry.url)) {
+      errors.push(`${at}.url: expected an http(s) URL without spaces, quotes or $`);
+    }
+    const token = entry.tokenSecret;
+    if (token !== undefined && !(typeof token === "string" && ENV_NAME_PATTERN.test(token))) {
+      errors.push(
+        `${at}.tokenSecret: expected an environment variable name such as IBM_QUANTUM_TOKEN`,
+      );
+    }
+    const fallback = entry.fallback;
+    if (fallback !== undefined) {
+      if (!(typeof fallback === "string" && /^[a-z][a-z0-9-]*$/.test(fallback))) {
+        errors.push(`${at}.fallback: expected a resource name such as quantum-sim`);
+      } else if (!dependsOn.includes(fallback)) {
+        errors.push(`${at}.fallback: list ${fallback} in dependsOn too, so it starts first`);
+      }
+    }
+    if (entry.required !== undefined && typeof entry.required !== "boolean") {
+      errors.push(`${at}.required: expected true or false`);
+    } else if (entry.required === true && token === undefined) {
+      errors.push(`${at}.required: needs a tokenSecret`);
+    }
+  }
+  return errors;
+}
+
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
   const secrets = manifest.secrets;
@@ -494,6 +1304,7 @@ export interface ParsedHealthCheckConfig {
   interval?: number;
   timeout?: number;
   retries?: number;
+  startPeriod?: number;
   path?: string;
 }
 
@@ -501,6 +1312,7 @@ const HEALTH_CHECK_CONFIG_KEYS = new Set([
   "enabled",
   "interval",
   "timeout",
+  "startPeriod",
   "retries",
   "path",
   "port",
@@ -528,7 +1340,7 @@ export function healthCheckErrors(
   for (const key of Object.keys(hc)) {
     if (!HEALTH_CHECK_CONFIG_KEYS.has(key)) {
       errors.push(
-        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "retries", "path", "port", or "command")`,
+        `${displayPath}.healthCheck: unexpected key "${key}" (expected "enabled", "interval", "timeout", "startPeriod", "retries", "path", "port", or "command")`,
       );
     }
   }
@@ -543,6 +1355,15 @@ export function healthCheckErrors(
   if (hc.timeout !== undefined) {
     if (typeof hc.timeout !== "number" || !Number.isFinite(hc.timeout) || hc.timeout <= 0) {
       errors.push(`${displayPath}.healthCheck.timeout: expected a positive number`);
+    }
+  }
+  if (hc.startPeriod !== undefined) {
+    if (
+      typeof hc.startPeriod !== "number" ||
+      !Number.isFinite(hc.startPeriod) ||
+      hc.startPeriod <= 0
+    ) {
+      errors.push(`${displayPath}.healthCheck.startPeriod: expected a positive number`);
     }
   }
   if (hc.retries !== undefined) {
@@ -654,7 +1475,7 @@ export function parseHealthCheckConfig(
   options: { defaultPath?: string } = {},
 ): ParsedHealthCheckConfig {
   if (isHealthCheckDisabled(manifest)) return { enabled: false };
-  const { interval, timeout, retries } = healthCheckObject(manifest);
+  const { interval, timeout, retries, startPeriod } = healthCheckObject(manifest);
   const path = healthCheckPathOf(manifest, options.defaultPath);
   return {
     enabled: true,
@@ -662,6 +1483,7 @@ export function parseHealthCheckConfig(
     ...(interval !== undefined ? { interval } : {}),
     ...(timeout !== undefined ? { timeout } : {}),
     ...(retries !== undefined ? { retries } : {}),
+    ...(startPeriod !== undefined ? { startPeriod } : {}),
   };
 }
 
@@ -709,6 +1531,19 @@ export function validateServiceManifest(
   errors.push(...fieldTypeErrors(manifest, displayPath));
   errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
   errors.push(...secretsErrors(manifest, displayPath));
+  errors.push(...containerErrors(manifest, displayPath));
+  errors.push(...extraPortsErrors(manifest, displayPath));
+  errors.push(...providesErrors(manifest, displayPath));
+  errors.push(...providersErrors(manifest, displayPath));
+  errors.push(...sidecarErrors(manifest, displayPath));
+  errors.push(...volumesErrors(manifest, displayPath));
+  errors.push(...envFileErrors(manifest, displayPath));
+  errors.push(...modelsErrors(manifest, displayPath));
+  errors.push(...restartErrors(manifest, displayPath));
+  errors.push(...dependsOnErrors(manifest, displayPath));
+  errors.push(...buildArgsErrors(manifest, displayPath));
+  errors.push(...loggingErrors(manifest, displayPath));
+  errors.push(...byoEnvErrors(manifest, displayPath));
   errors.push(...healthCheckErrors(manifest, displayPath));
   if ("profiles" in manifest) {
     const profiles = manifest.profiles;

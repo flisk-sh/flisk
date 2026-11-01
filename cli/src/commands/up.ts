@@ -10,6 +10,7 @@ import {
   ensureProjectRuntimeAssets,
   generateMasterConfigs,
   isTiltfileOrchestration,
+  isVendoredEngineStale,
   isWrappedTiltfileStale,
   ProjectConfigNotFoundError,
   readProjectConfig,
@@ -543,7 +544,9 @@ async function runUpWait(options: { json?: boolean; waitTimeout?: unknown }): Pr
 }
 
 export const upCommand = new Command("up")
-  .description("Start all services (optionally filtered by stack)")
+  .description(
+    "Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster",
+  )
   .alias("deploy")
   .argument("[stack-name]", "Name of the stack to start (optional - runs all if omitted)")
   .option("-v, --verbose", "Enable verbose output", false)
@@ -751,20 +754,25 @@ export const upCommand = new Command("up")
 
       let hasClonedRepos = false;
       if (foundRoot && !options.dryRun) {
+        let repos: ReturnType<typeof readProjectConfig>["repos"];
         try {
-          const config = readProjectConfig(foundRoot);
-          if (config.repos && config.repos.length > 0) {
-            const results = await cloneMissingRepos(foundRoot, config.repos);
+          repos = readProjectConfig(foundRoot).repos;
+        } catch {
+          // A missing or invalid project.json is reported by the checks that run next.
+        }
+        if (repos && repos.length > 0) {
+          try {
+            const results = await cloneMissingRepos(foundRoot, repos);
             if (results.some((r) => r.cloned)) {
               hasClonedRepos = true;
             }
+          } catch (error) {
+            if (error instanceof FliskError) {
+              if (emit) emit({ ok: false }, [toMachineError(error).error]);
+              return error.exit();
+            }
+            throw error;
           }
-        } catch (error) {
-          if (error instanceof FliskError) {
-            if (emit) emit({ ok: false }, [toMachineError(error).error]);
-            return error.exit();
-          }
-          // Non-FliskErrors (e.g. invalid project.json schema) are deferred to discoverResourcesStrict
         }
       }
 
@@ -888,6 +896,17 @@ export const upCommand = new Command("up")
                 isTiltfileOrchestration(projectRoot)
                   ? "Wrapping your Tiltfile; regenerating .flisk/.flisk-out/ ..."
                   : "project.json no longer wraps a Tiltfile; regenerating .flisk/.flisk-out/ ...",
+              ),
+            );
+          }
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && isVendoredEngineStale(projectRoot)) {
+          // After an upgrade (or a checkout on another commit) the vendored engine and the Tiltfile are the old ones, and a
+          // running Tilt keeps loading them. Regenerating replaces both; a running Tilt reloads them on its own (#2899).
+          if (!options.quiet) {
+            console.log(
+              chalk.gray(
+                "This Flisk ships a different engine or templates than .flisk/.flisk-out/ was generated with; regenerating ...",
               ),
             );
           }

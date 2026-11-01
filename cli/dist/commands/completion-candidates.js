@@ -1,7 +1,7 @@
 import { BACKEND_FRAMEWORKS } from "../backend-frameworks/registry.js";
 import { BACKEND_LANGUAGES } from "../backend-languages/registry.js";
 import { FRONTEND_FRAMEWORKS } from "../frontend-frameworks/registry.js";
-import { RESOURCE_TYPE_VALUES } from "../types/index.js";
+import { DATABASE_FRAMEWORKS, QUEUE_FRAMEWORKS, RESOURCE_TYPE_VALUES } from "../types/index.js";
 import { VALID_RESOURCE_TYPES } from "../utils/constants.js";
 /**
  * The positional argument of a command, keyed by the command path (`"agent sessions"`). Only the
@@ -30,7 +30,7 @@ const COMMAND_VALUES = {
 /**
  * The values of the flags that depend on the `--type` of the command line.
  *
- * `--framework` only exists for a frontend or a backend resource, and the framework ids of the two
+ * `--framework` exists for a frontend, a backend, a database or a queue, and the framework ids of the four
  * are disjoint, so the completion offers the frameworks of the type the user asked for. `--language`
  * belongs to a backend, so it offers the languages only for that type.
  */
@@ -39,6 +39,8 @@ const TYPE_VALUES = {
         byType: {
             frontend: Object.keys(FRONTEND_FRAMEWORKS),
             backend: Object.keys(BACKEND_FRAMEWORKS),
+            database: [...DATABASE_FRAMEWORKS],
+            queue: [...QUEUE_FRAMEWORKS],
         },
         // `flisk resource` creates a backend unless the user asks for another type.
         fallback: Object.keys(BACKEND_FRAMEWORKS),

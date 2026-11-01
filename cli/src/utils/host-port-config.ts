@@ -7,6 +7,7 @@ import { join, resolve, sep } from "node:path";
 import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { PROJECT_JSON } from "./constants.js";
+import { projectEnvLookup } from "./extra-port-publish.js";
 import {
   createHostPortPlan,
   GATEWAY_DISABLED_REASON,
@@ -14,6 +15,8 @@ import {
   PREFERRED_HOST_PORTS,
   withoutGatewayPorts,
 } from "./host-port-plan.js";
+import { discoverResourcesFromRoot } from "./services.js";
+import { extraPortsOf } from "./status-ports.js";
 
 const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
 
@@ -120,6 +123,20 @@ export function resolveRuntimeIngressPort(
   return plannedPort;
 }
 
+/** Host ports the project's bring-your-own services publish through `extraPorts`. Empty when discovery fails. */
+function reservedExtraPorts(projectRoot: string): Set<number> {
+  const lookup = projectEnvLookup(projectRoot);
+  try {
+    return new Set(
+      discoverResourcesFromRoot(projectRoot).flatMap((resource) =>
+        extraPortsOf(resource, lookup).map((port) => port.hostPort),
+      ),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 /**
  * Reuse this project's last selection when its ports are still free or held by its own containers. Only the ports of the
  * capabilities that are on are planned: with the gateway off, HTTP and HTTPS are never probed (no Traefik binds them).
@@ -185,7 +202,11 @@ async function planHostPorts(
   }
   const ownedByProject = (port: number) => isDockerPortOwnedByProject(dockerPs, prefix, port);
   const isPortFree = options.isPortFree ?? isHostPortAvailable;
-  const isAvailable = async (port: number) => (await isPortFree(port)) || ownedByProject(port);
+  // A bring-your-own service's `extraPorts` claim their host ports for its own container (a proxy on 80 and 443), so Traefik
+  // must not take them, even while that container holds them and they read as this project's own.
+  const reserved = reservedExtraPorts(projectRoot);
+  const isAvailable = async (port: number) =>
+    !reserved.has(port) && ((await isPortFree(port)) || ownedByProject(port));
   const replan = () =>
     createHostPortPlan({
       isAvailable,

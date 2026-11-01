@@ -3,7 +3,7 @@
 import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { fetchAgentOverview } from "../agent-sessions.js";
+import { fetchAgentOverview, httpGet } from "../agent-sessions.js";
 
 let server: http.Server | undefined;
 
@@ -23,6 +23,76 @@ async function serve(routes: Record<string, [number, unknown]>): Promise<string>
   await new Promise<void>((resolve) => server?.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/bot`;
 }
+
+describe("httpGet", () => {
+  it("returns ok: true and status 200 for a successful request", async () => {
+    server = http.createServer((_req, res) => {
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ status: "healthy" }));
+    });
+    await new Promise<void>((resolve) => server?.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+
+    const res = await httpGet(`http://127.0.0.1:${port}/test`, {}, 5000);
+    expect(res).toEqual({
+      ok: true,
+      status: 200,
+      text: '{"status":"healthy"}',
+    });
+  });
+
+  it("returns ok: false and status 500 for an internal server error", async () => {
+    server = http.createServer((_req, res) => {
+      res.statusCode = 500;
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ error: "internal_error" }));
+    });
+    await new Promise<void>((resolve) => server?.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+
+    const res = await httpGet(`http://127.0.0.1:${port}/test`, {}, 5000);
+    expect(res).toEqual({
+      ok: false,
+      status: 500,
+      text: '{"error":"internal_error"}',
+    });
+  });
+
+  it("forwards custom request headers", async () => {
+    let receivedHeaders: http.IncomingHttpHeaders = {};
+    server = http.createServer((req, res) => {
+      receivedHeaders = req.headers;
+      res.statusCode = 200;
+      res.end("ok");
+    });
+    await new Promise<void>((resolve) => server?.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+
+    const res = await httpGet(
+      `http://127.0.0.1:${port}/custom`,
+      { "x-custom-token": "secret-123", host: "agent.local" },
+      5000,
+    );
+    expect(res.ok).toBe(true);
+    expect(receivedHeaders["x-custom-token"]).toBe("secret-123");
+    expect(receivedHeaders.host).toBe("agent.local");
+  });
+
+  it("rejects on connection failure or connection refused", async () => {
+    await expect(httpGet("http://127.0.0.1:1/nonexistent", {}, 1000)).rejects.toThrow();
+  });
+
+  it("rejects when the request times out", async () => {
+    server = http.createServer((_req, _res) => {
+      // Intentionally do not end response to trigger timeout
+    });
+    await new Promise<void>((resolve) => server?.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+
+    await expect(httpGet(`http://127.0.0.1:${port}/timeout`, {}, 50)).rejects.toThrow();
+  });
+});
 
 describe("fetchAgentOverview", () => {
   it("combines /ready and /sessions", async () => {

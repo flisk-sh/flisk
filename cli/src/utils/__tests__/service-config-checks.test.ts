@@ -8,10 +8,14 @@ import {
   checkCircularDependencies,
   checkCustomDockerfiles,
   checkDependsOnShape,
+  checkGpuRuntime,
+  checkNetworkPorts,
   checkRequiredSecrets,
   checkSchemaVersions,
   checkServiceFields,
   checkServicePorts,
+  checkSidecars,
+  checkVolumes,
   enforceServiceConfigGate,
   warnSchemaVersions,
 } from "../service-config-checks.js";
@@ -565,6 +569,36 @@ describe("the gate accepts what `flisk import` writes for a Compose app", () => 
 });
 
 describe("checkRequiredSecrets", () => {
+  it("requires a provider's token unless the provider has a local fallback", () => {
+    service("agent", {
+      dependsOn: ["quantum-sim"],
+      providers: {
+        braket: { url: "https://braket.example", tokenSecret: "AWS_BRAKET_TOKEN" },
+        "ibm-quantum": {
+          url: "https://quantum.example",
+          tokenSecret: "IBM_QUANTUM_TOKEN",
+          fallback: "quantum-sim",
+        },
+      },
+    });
+    const result = checkRequiredSecrets(root, undefined, {});
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain(
+      "secret AWS_BRAKET_TOKEN (token of provider braket) has no value",
+    );
+    expect(result.message).not.toContain("IBM_QUANTUM_TOKEN");
+    expect(checkRequiredSecrets(root, undefined, { AWS_BRAKET_TOKEN: "t" }).didPass).toBe(true);
+  });
+
+  it("names a token once when secrets.required also lists it", () => {
+    service("agent", {
+      secrets: { required: ["AWS_BRAKET_TOKEN"] },
+      providers: { braket: { url: "https://braket.example", tokenSecret: "AWS_BRAKET_TOKEN" } },
+    });
+    const message = checkRequiredSecrets(root, undefined, {}).message;
+    expect(message.match(/AWS_BRAKET_TOKEN/g)).toHaveLength(1);
+  });
+
   it("fails for a required secret with no value, naming the file and the secret", () => {
     service("api", { secrets: { required: ["SECRET_KEY"], optional: ["TOKEN"] } });
     const result = checkRequiredSecrets(root, undefined, {});
@@ -611,5 +645,190 @@ describe("checkRequiredSecrets", () => {
     ).toThrow("exit 1");
     if (saved !== undefined) process.env.A_KEY = saved;
     expect(messages.join("\n")).toContain("secret A_KEY has no value");
+  });
+});
+
+describe("checkSidecars", () => {
+  const byo = { appType: "bring-your-own", image: "example/x:1" };
+
+  it("passes for a sidecar of a resource in the same stack, and when there are none", () => {
+    service("api");
+    expect(checkSidecars(root).didPass).toBe(true);
+    service("tubehaus", byo);
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    expect(checkSidecars(root).didPass).toBe(true);
+  });
+
+  it("names a host that does not exist", () => {
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    const result = checkSidecars(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain('sidecarOf "tubehaus": no resource has that name');
+    expect(result.fix).toContain("same stack");
+  });
+
+  it("names a host in another stack", () => {
+    service("tubehaus", { ...byo, stack: "media" }, "media/tubehaus");
+    service("bgutil", { ...byo, sidecarOf: "tubehaus" });
+    const result = checkSidecars(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain('is in stack "media", not "app"');
+  });
+
+  it("stops flisk up through the config gate", () => {
+    service("bgutil", { ...byo, sidecarOf: "missing" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.fn() as never;
+    enforceServiceConfigGate(root, {}, exit);
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("checkVolumes", () => {
+  const byo = { appType: "bring-your-own", image: "example/x:1" };
+
+  it("passes for named volumes and bind mounts inside the project", () => {
+    service("api", {
+      ...byo,
+      volumes: [
+        { source: "data", target: "/data" },
+        { source: "../../../web", target: "/srv/web", readOnly: true },
+      ],
+    });
+    expect(checkVolumes(root).didPass).toBe(true);
+  });
+
+  it("refuses a bind mount that leaves the project and stops flisk up", () => {
+    service("api", { ...byo, volumes: [{ source: "../../../../etc", target: "/host-etc" }] });
+    const result = checkVolumes(root);
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("volumes[0].source: must stay inside the project");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exit = vi.fn() as never;
+    enforceServiceConfigGate(root, {}, exit);
+    expect(exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("checkNetworkPorts", () => {
+  const byo = { appType: "bring-your-own", image: "caddy:2" };
+
+  it("passes when every extra port stays on this machine", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }, { port: 443, bind: "127.0.0.1" }] });
+    expect(checkNetworkPorts(root).didPass).toBe(true);
+  });
+
+  it("warns, without failing, about a port opened to the network", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80, bind: "0.0.0.0" }, { port: 443 }] });
+    const result = checkNetworkPorts(root);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("caddy 0.0.0.0:80/tcp");
+    expect(result.message).not.toContain("443");
+  });
+
+  it("warns when a running container publishes wider than service.json declares", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }, { port: 443 }] });
+    const ps = "shop-caddy|0.0.0.0:80->80/tcp, [::]:80->80/tcp, 127.0.0.1:443->443/tcp";
+    const result = checkNetworkPorts(root, undefined, () => ps);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("caddy 127.0.0.1:80/tcp is declared on this machine only");
+    expect(result.message).toContain("0.0.0.0:80 -> 80/tcp");
+    expect(result.message).not.toContain("443");
+    expect(result.fix).toContain("flisk restart");
+  });
+
+  it("passes when the running container matches loopback, or Docker is not running", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }] });
+    expect(checkNetworkPorts(root, undefined, () => "c|127.0.0.1:80->80/tcp").didPass).toBe(true);
+    expect(checkNetworkPorts(root, undefined, () => "").didPass).toBe(true);
+  });
+
+  describe("publish", () => {
+    const proxy = {
+      ...byo,
+      extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }],
+    };
+    const dotenv = (text: string) => writeFileSync(join(root, ".env"), text);
+    let saved: string | undefined;
+    beforeEach(() => {
+      saved = process.env.TUBEHAUS_HTTP_BIND;
+      delete process.env.TUBEHAUS_HTTP_BIND;
+    });
+    afterEach(() => {
+      if (saved === undefined) delete process.env.TUBEHAUS_HTTP_BIND;
+      else process.env.TUBEHAUS_HTTP_BIND = saved;
+    });
+
+    it("warns about the default when nothing sets the variable, and says where it comes from", () => {
+      service("caddy", proxy);
+      const result = checkNetworkPorts(root);
+      expect(result).toMatchObject({ didPass: false, isWarning: true });
+      expect(result.message).toContain(
+        "caddy 0.0.0.0:80/tcp (TUBEHAUS_HTTP_BIND, default in service.json)",
+      );
+    });
+
+    it("passes once the project .env keeps the port on this machine", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=127.0.0.1:8080\n");
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("passes when the default is loopback and the .env leaves it alone", () => {
+      service("caddy", {
+        ...byo,
+        extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}" }],
+      });
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("warns when the .env opens a loopback default to the network", () => {
+      service("caddy", {
+        ...byo,
+        extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}" }],
+      });
+      dotenv("TUBEHAUS_HTTP_BIND=8080\n");
+      expect(checkNetworkPorts(root).message).toContain("caddy 0.0.0.0:8080/tcp");
+    });
+
+    it("lets the shell win over the .env, as Compose does", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=0.0.0.0:80\n");
+      process.env.TUBEHAUS_HTTP_BIND = "127.0.0.1:8080";
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("names a value that is not a port or address:port", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=localhost:8080\n");
+      const result = checkNetworkPorts(root);
+      expect(result.isWarning).toBe(true);
+      expect(result.message).toContain('TUBEHAUS_HTTP_BIND resolves to "localhost:8080"');
+    });
+  });
+});
+
+describe("checkGpuRuntime", () => {
+  const model = { appType: "bring-your-own", image: "vllm:1", container: { gpus: "all" } };
+
+  it("passes when nothing asks for a GPU, without asking Docker", () => {
+    service("api");
+    const runtimes = vi.fn(() => []);
+    expect(checkGpuRuntime(root, undefined, runtimes).didPass).toBe(true);
+    expect(runtimes).not.toHaveBeenCalled();
+  });
+
+  it("warns when Docker has no nvidia runtime", () => {
+    service("llm", model);
+    const result = checkGpuRuntime(root, undefined, () => ["runc", "io.containerd.runc.v2"]);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("llm ask for a GPU");
+    expect(result.fix).toContain("NVIDIA Container Toolkit");
+  });
+
+  it("passes with the nvidia runtime, and when Docker does not answer", () => {
+    service("llm", model);
+    expect(checkGpuRuntime(root, undefined, () => ["runc", "nvidia"]).didPass).toBe(true);
+    expect(checkGpuRuntime(root, undefined, () => null).didPass).toBe(true);
   });
 });

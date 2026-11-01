@@ -22,7 +22,7 @@ import {
   SERVICE_JSON,
   SKIP_DIRECTORIES,
 } from "./constants.js";
-import { dependsOnOf } from "./dependency-graph.js";
+import { declaredDependsOn, dependsOnOf } from "./dependency-graph.js";
 import { errorFactories, FliskError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import { declaresCommand, validateNativeServiceFields } from "./native-service.js";
@@ -175,6 +175,9 @@ function parseResource(serviceJsonPath: string): DiscoveredResource {
     ...parsedConfig,
     appType: (parsedConfig.appType || readLegacyAppType(parsedConfig)) as ResourceConfig["appType"],
   };
+  // `dependsOn` may hold `{ name, condition }` objects; everything after discovery reads names (the engine does the same).
+  const dependsOnNames = declaredDependsOn(parsedConfig);
+  if (Array.isArray(parsedConfig.dependsOn) && dependsOnNames) config.dependsOn = dependsOnNames;
   const resourceDir = dirname(serviceJsonPath);
 
   return {

@@ -23,6 +23,87 @@ export interface ServiceManifestValidation {
     manifest?: Record<string, unknown>;
 }
 export declare function getInvalidServiceRoutePathFields(value: unknown): ("apiPath" | "basePath")[];
+/** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
+export declare function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `restart` on a bring-your-own resource: no, on-failure, on-failure:N (N from 1 to 100), unless-stopped or always. Mirrors
+ * byo_restart_policy in engine/.../compose/byo_container.star.
+ */
+export declare function restartErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `extraPorts` (#2909): plain host ports on 127.0.0.1 for a bring-your-own resource, next to the routed `port`. Mirrors
+ * engine/.../compose/byo_ports.star, which refuses the same values.
+ */
+export declare function extraPortsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `sidecarOf` (#2908): a bring-your-own resource that shares another resource's network namespace. Mirrors
+ * engine/.../compose/byo_sidecar.star. Whether the host exists in the same stack is checked across services (checkSidecars).
+ */
+export declare function sidecarErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `volumes` (#1748): named volumes and bind mounts for a bring-your-own resource. Mirrors engine/.../compose/byo_volumes.star,
+ * which refuses the same values. A bind mount's `source` is relative to the service directory and must stay inside the project;
+ * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
+ */
+export declare function volumesErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
+/**
+ * `dependsOn`: service or stack names, or Compose-style objects `{ "name": "db", "condition": "service_healthy" }`. Flisk orders by
+ * name (Tilt resource_deps), so the condition is accepted and kept but does not change the order. Mirrors normalize_depends_on in
+ * engine/.../tilt/manifest/parser.star.
+ */
+export declare function dependsOnErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
+ * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
+ * engine/.../compose/byo_build_logging.star.
+ */
+export declare function buildArgsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `logging` (bring-your-own, #2965): Compose `logging`, such as `{ "driver": "json-file", "options": { "max-size": "5m" } }`.
+ * Mirrors byo_logging_section in engine/.../compose/byo_build_logging.star.
+ */
+export declare function loggingErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `envFile`: extra env files for a bring-your-own resource, each a path relative to the service directory that must stay inside
+ * the project (`serviceDepth` is how many directories the service sits below the project root, unknown when validating a manifest
+ * alone). A missing file is not an error. Mirrors engine/.../compose/byo_env_file.star.
+ */
+export declare function envFileErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
+/**
+ * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
+ * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
+ * generated YAML, so only a model reference or a Compose variable is accepted. Mirrors engine/.../compose/byo_models.star.
+ */
+export declare function modelsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
+ * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
+ * engine/.../compose/byo_env.star.
+ */
+export declare function byoEnvErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `provides`: the connection settings a resource gives the services that list it in `dependsOn` (REDIS_URL for a Redis).
+ * Each one is written into the dependent's generated env file, which `flisk config verify` checks and which must hold no
+ * secret, so the values are plain URLs and names. Mirrors _dependency_provides_lines in
+ * engine/.../orchestrator/generators/env.star.
+ */
+export declare function providesErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/** One entry of `providers`, with `required` resolved: a token is required unless the provider has a local fallback. */
+export interface ProviderSpec {
+    id: string;
+    url: string;
+    tokenSecret?: string;
+    fallback?: string;
+    required: boolean;
+}
+/** The well-formed entries of `providers` (malformed ones are reported by {@link providersErrors}). */
+export declare function providersOf(manifest: Record<string, unknown> | undefined): ProviderSpec[];
+/**
+ * `providers`: external endpoints a service calls (IBM Quantum, Amazon Braket, a hosted model API) with the secret that holds
+ * their token, and optionally a local resource to use while the token is missing. Mirrors
+ * engine/.../docker/secrets/providers.star, which refuses the same values.
+ */
+export declare function providersErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];
@@ -31,6 +112,7 @@ export interface ParsedHealthCheckConfig {
     interval?: number;
     timeout?: number;
     retries?: number;
+    startPeriod?: number;
     path?: string;
 }
 /**

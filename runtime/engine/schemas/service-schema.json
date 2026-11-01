@@ -330,18 +330,221 @@
       "type": "boolean"
     },
     "restart": {
-      "description": "Docker Compose restart policy for this bring-your-own resource. Use \"no\" or \"on-failure\" for one-shot jobs such as database migrations, so a finished job is not restarted. Defaults to unless-stopped.",
-      "enum": [
-        "no",
-        "on-failure",
-        "unless-stopped",
-        "always"
-      ],
-      "type": "string"
+      "description": "Docker Compose restart policy for this bring-your-own resource. Use \"no\" or \"on-failure\" for one-shot jobs such as database migrations, so a finished job is not restarted. on-failure:N (N from 1 to 100) stops after N failed restarts. Defaults to unless-stopped.",
+      "type": "string",
+      "anyOf": [
+        { "enum": ["no", "on-failure", "unless-stopped", "always"] },
+        { "pattern": "^on-failure:([1-9]|[1-9][0-9]|100)$" }
+      ]
+    },
+    "container": {
+      "description": "Container runtime options for this bring-your-own resource, written into its generated Compose service. Use them when an existing image needs them, for example a VPN client that needs NET_ADMIN, a headless browser that needs a larger /dev/shm, or a model server or simulator that needs GPUs and more memory. Ignored for other resource types.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "description": "Start command (Compose command), replacing the image's CMD: a list of arguments such as [\"server\", \"/data\"], or [\"sh\", \"-c\", \"...\"] for a script. Compose reads $ itself, so write $$VAR for a variable the container expands.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" }
+        },
+        "capAdd": {
+          "description": "Linux capabilities to add (Compose cap_add), such as NET_ADMIN.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z_]+$" }
+        },
+        "capDrop": {
+          "description": "Linux capabilities to drop (Compose cap_drop), such as ALL.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z_]+$" }
+        },
+        "init": {
+          "description": "Run an init process that reaps child processes (Compose init). Defaults to true.",
+          "type": "boolean"
+        },
+        "readOnly": {
+          "description": "Mount the container's root filesystem read-only (Compose read_only).",
+          "type": "boolean"
+        },
+        "user": {
+          "description": "User the container runs as (Compose user), such as 10001:10001.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        },
+        "securityOpt": {
+          "description": "Security options (Compose security_opt), such as no-new-privileges:true.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9_.:=/-]+$" }
+        },
+        "shmSize": {
+          "description": "Size of /dev/shm (Compose shm_size), such as 256mb.",
+          "type": "string",
+          "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
+        },
+        "gpus": {
+          "description": "NVIDIA GPUs to reserve (Compose deploy.resources.reservations.devices): \"all\" or a count. Needs the NVIDIA Container Toolkit on a Linux or WSL host.",
+          "oneOf": [
+            { "const": "all" },
+            { "type": "integer", "minimum": 1 }
+          ]
+        },
+        "cpus": {
+          "description": "CPU limit (Compose deploy.resources.limits.cpus), such as 4 or \"2.5\". Replaces Flisk's default of 0.5.",
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,2})?$" }
+          ]
+        },
+        "memory": {
+          "description": "Memory limit (Compose deploy.resources.limits.memory), such as 16g. Replaces Flisk's default of 512M.",
+          "type": "string",
+          "pattern": "^[0-9]+([bBkKmMgG][bB]?)?$"
+        },
+        "tmpfs": {
+          "description": "In-memory mounts (Compose tmpfs), each an absolute path in the container with optional mount options after a colon, such as /tmp:noexec,nosuid,nodev,size=100m.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^/[A-Za-z0-9_./-]*(:[a-z0-9=,_-]+)?$" }
+        },
+        "stopGracePeriod": {
+          "description": "How long Compose waits after SIGTERM before it kills the container (Compose stop_grace_period), a duration such as 30s or 1m30s.",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(us|ms|s|m|h))+$"
+        },
+        "extraHosts": {
+          "description": "Extra /etc/hosts entries (Compose extra_hosts), each name:address, such as host.docker.internal:host-gateway or db:10.0.0.5.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*:(host-gateway|[0-9.]+|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*)$" }
+        },
+        "ulimits": {
+          "description": "Process limits (Compose ulimits): a number, or soft and hard limits, per limit name, such as {\"nofile\": {\"soft\": 65536, \"hard\": 65536}, \"nproc\": 65535}. -1 means unlimited.",
+          "type": "object",
+          "propertyNames": { "enum": ["as", "core", "cpu", "data", "fsize", "locks", "memlock", "msgqueue", "nice", "nofile", "nproc", "rss", "rtprio", "rttime", "sigpending", "stack"] },
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "integer", "minimum": -1 },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["soft", "hard"],
+                "properties": { "soft": { "type": "integer", "minimum": -1 }, "hard": { "type": "integer", "minimum": -1 } }
+              }
+            ]
+          }
+        },
+        "networkAliases": {
+          "description": "Extra DNS names for this service on the backend network every app service is on (Compose networks.<net>.aliases), such as [\"mercure\"]. Not for a sidecar (sidecarOf).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" }
+        },
+        "ipc": {
+          "description": "IPC namespace (Compose ipc). host shares the host's shared memory, which PyTorch data loaders and vLLM tensor parallelism use.",
+          "enum": ["host", "private", "shareable", "none"]
+        }
+      }
+    },
+    "extraPorts": {
+      "description": "Plain host ports for this bring-your-own resource, next to the routed port: a reverse proxy on 80 and 443, or a second listener such as a SOCKS proxy. Each is published on 127.0.0.1 unless it sets bind to 0.0.0.0. port stays the one Flisk health-checks and routes. Not allowed with replicas.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["port"],
+        "properties": {
+          "port": { "description": "Port the container listens on.", "type": "integer", "minimum": 1, "maximum": 65535 },
+          "hostPort": { "description": "Port on 127.0.0.1 it is published on. Defaults to port.", "type": "integer", "minimum": 1, "maximum": 65535 },
+          "protocol": { "description": "tcp (default) or udp.", "enum": ["tcp", "udp"] },
+          "bind": {
+            "description": "Host address the port is published on: 127.0.0.1 (default, this machine only) or 0.0.0.0 (every interface, so other devices on the network can reach it).",
+            "enum": ["127.0.0.1", "0.0.0.0"]
+          },
+          "publish": {
+            "description": "The host side of the Compose port mapping, taken from the environment: \"${WEB_HTTP_BIND:-127.0.0.1:80}\". Compose resolves ${VAR:-default} (or ${VAR-default}, the default only when VAR is unset) from the shell and the project .env; the value is a port (every interface) or an IPv4 address:port. Every variable needs a default. Replaces hostPort and bind.",
+            "type": "string",
+            "pattern": "^([0-9.:]|\\$\\{[A-Za-z_][A-Za-z0-9_]*:?-[0-9.:]+\\})+$"
+          }
+        }
+      }
+    },
+    "sidecarOf": {
+      "description": "appName of another resource in the same stack whose network namespace this bring-your-own resource shares (Compose network_mode: service:<name>). Each reaches the other on 127.0.0.1. A sidecar has no ports, route or networks of its own, starts after its host, and runs as one container.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_.-]*$"
+    },
+    "envFile": {
+      "description": "Extra env files for this bring-your-own resource (Compose env_file), each a path relative to the service directory such as ../../../.env. It must stay inside the project. A file that does not exist is skipped, not an error.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$" }
+    },
+    "buildArgs": {
+      "description": "Build arguments for a bring-your-own resource built from its Dockerfile (Compose build.args): NAME to a string, which may use Compose variables such as ${NODE_VERSION:-22}.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": { "type": "string" }
+    },
+    "logging": {
+      "description": "Container logging for a bring-your-own resource (Compose logging), such as {\"driver\": \"json-file\", \"options\": {\"max-size\": \"5m\", \"max-file\": \"5\"}}.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "driver": { "description": "Logging driver, such as json-file or local.", "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]*$" },
+        "options": {
+          "description": "Driver options as strings, such as max-size and max-file.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "models": {
+      "description": "Models this bring-your-own resource uses (Compose models, served by Docker Model Runner). Each name is listed under the service's models: and declared once in the stack's top-level models: block. model is a model reference such as ai/smollm2, or a Compose variable such as ${LLM_MODEL} or ${LLM_MODEL:-ai/smollm2}.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "model"],
+        "properties": {
+          "name": { "description": "The model's key, such as llm.", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+          "model": {
+            "description": "The model to run, such as ai/smollm2, ai/qwen3:8B-Q4_K_M or hf.co/org/name, or a Compose variable such as ${LLM_MODEL:-ai/smollm2}.",
+            "type": "string",
+            "pattern": "^([A-Za-z0-9][A-Za-z0-9._/:@-]*|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-[A-Za-z0-9][A-Za-z0-9._/:@-]*)?\\})$"
+          }
+        }
+      }
+    },
+    "volumes": {
+      "description": "Storage for this bring-your-own resource. A source that is a name (\"data\") is a named Docker volume: flisk down keeps it, and two services that name the same volume share it. A source starting with ./ or ../ is a bind mount of a path relative to the service directory, which must stay inside the project.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "target"],
+        "properties": {
+          "source": {
+            "description": "A volume name such as data, or a path such as ./config. A bind path may come from the environment: ${NAME:-./path} or ${NAME-./path}, whose default is a path inside the project.",
+            "type": "string",
+            "pattern": "^([a-z0-9][a-z0-9_-]*|\\.{1,2}(/[A-Za-z0-9_.-]+)*/?|\\$\\{[A-Za-z_][A-Za-z0-9_]*:?-\\.{1,2}(/[A-Za-z0-9_.-]+)*/?\\})$"
+          },
+          "target": {
+            "description": "Absolute path in the container, such as /data.",
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9_./-]*$"
+          },
+          "readOnly": { "description": "Mount read-only. Defaults to false.", "type": "boolean" },
+          "selinux": { "description": "SELinux relabel option for a bind mount (Compose :z or :Z): z shares the label between containers, Z keeps it private.", "enum": ["z", "Z"] },
+          "name": {
+            "description": "The Docker volume's own name, for a named volume. Without it the name gets the generated project's prefix. Set it to the name an existing Compose install created (such as myapp_data, from `docker volume ls`) and Flisk uses that volume and its data as it is, with no copy. Docker creates it when it does not exist.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+          }
+        }
+      }
     },
     "image": {
-      "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type.",
-      "type": "string"
+      "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type. It may use Compose variables, ${NAME}, ${NAME:-default}, ${NAME-default}, or ${NAME:?message} / ${NAME?message} (Compose stops with the message when NAME is unset), which Compose fills in from the project .env, such as postgres:${POSTGRES_VERSION:-18}-alpine.",
+      "type": "string",
+      "pattern": "^([A-Za-z0-9._/:@-]|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-[A-Za-z0-9._/:@-]+|:?\\?[A-Za-z0-9 !#%&()*+,./:;<=>?@\\[\\]^_|~-]*)?\\})+$"
     },
     "stack": {
       "description": "Technology stack this resource belongs to.\nUsed for:\n• Database naming: FLISK_{stack}\n• Traefik routing: /api/{stack}\n• NATS queue: {stack}_backend_svc",
@@ -353,6 +556,28 @@
       },
       "description": "Non-secret configuration parameters (BASE_URL, PORT, etc.). Secrets use 'secrets' section below.",
       "type": "object"
+    },
+    "providers": {
+      "description": "External endpoints this service calls, such as IBM Quantum, Amazon Braket or a hosted model API, by name. For provider ibm-quantum the service gets PROVIDER_IBM_QUANTUM_URL, the token from the project .env under tokenSecret (like secrets), PROVIDER_IBM_QUANTUM_REMOTE=true while that token has a value, and with fallback PROVIDER_IBM_QUANTUM_FALLBACK_URL=http://<fallback>:<port>, a local resource (a simulator) to use instead.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url"],
+        "properties": {
+          "url": { "type": "string", "pattern": "^https?://[A-Za-z0-9_\\-./:@%+=,~]+$", "description": "The remote endpoint." },
+          "tokenSecret": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Name of the secret in the project .env that holds the token, such as IBM_QUANTUM_TOKEN." },
+          "fallback": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "description": "A resource in this project to use while the token is missing, such as a local simulator. List it in dependsOn too." },
+          "required": { "type": "boolean", "description": "Refuse to start without the token. Defaults to true when there is a tokenSecret and no fallback." }
+        }
+      }
+    },
+    "provides": {
+      "description": "Connection settings this resource gives the services that list it in dependsOn, such as { \"REDIS_URL\": \"redis://cache:6379\" }. Each one is added to the dependent's generated env file, so it must not be a secret. flisk resource --type database --framework redis|qdrant|minio|mlflow and --type queue --framework nats|rabbitmq write it.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^[A-Za-z0-9_\\-./:@%+=,]+$" }
     },
     "secrets": {
       "description": "Names of secrets the resource needs. By default each is read from the project .env (gitignored) and injected into the container; with FLISK_SECRET_PROVIDER=infisical they are left to Infisical. NO secret values in params/envVars or anywhere in service.json.",
@@ -416,7 +641,7 @@
       "uniqueItems": true
     },
     "framework": {
-      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). For a database resource it names the database: postgres. Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
+      "description": "Framework provider id. For frontend resources it selects the Vite and TypeScript config (omitted means react, legacy manifests). For backend resources it selects the HTTP framework on the Bun runtime (omitted means hono; not used with a language that owns its runtime, such as python). For a database resource it names the database: postgres (the shared Flisk Postgres). For a bring-your-own resource written by flisk resource --type database or queue it records the infrastructure framework (redis, qdrant, minio, mlflow, nats, rabbitmq); the engine ignores it. Valid ids come from the CLI provider registries, which reject unknown ids before writing a resource.",
       "examples": [
         "react",
         "vue",
@@ -436,7 +661,7 @@
       "type": "string"
     },
     "healthCheck": {
-      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0), and, for container services, interval and timeout in seconds and retries for the Docker health check.",
+      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0), and, for container services, interval, timeout and startPeriod in seconds and retries for the Docker health check.",
       "oneOf": [
         {
           "type": "boolean"
@@ -447,6 +672,7 @@
             "enabled": { "type": "boolean" },
             "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between container health probes." },
             "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
+            "startPeriod": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds after the container starts before failed probes count (Compose start_period), for an app that is slow to boot." },
             "retries": { "type": "integer", "minimum": 0, "description": "Failed container probes before the container is unhealthy." },
             "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "description": "HTTP path to probe; replaces healthCheckPath." },
             "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Ready when this TCP port accepts a connection, for a service with no HTTP route (a gRPC server, a database proxy). Replaces the HTTP probe." },
@@ -472,8 +698,19 @@
     "dependsOn": {
       "description": "Resource dependencies used for startup ordering and frontend dependency env generation.\nEach entry can be a stack (e.g. 'service') or resource name (e.g. 'user-admin-api').\nResources listed here start before this resource. Used for focus mode, health checks, migration order.",
       "items": {
-        "pattern": "^[a-z][a-z0-9-]*$",
-        "type": "string"
+        "oneOf": [
+          { "pattern": "^[a-z][a-z0-9-]*$", "type": "string" },
+          {
+            "description": "Compose-style entry. Flisk orders by name; condition is accepted and kept, and does not change the order.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "description": "The service or stack to start first.", "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+              "condition": { "description": "Compose depends_on condition.", "enum": ["service_started", "service_healthy", "service_completed_successfully"] }
+            }
+          }
+        ]
       },
       "type": "array",
       "uniqueItems": true
@@ -725,7 +962,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Environment variables for a command service. Values may reference ${VAR} (or ${VAR:-default}) from the project .env or the shell.",
+      "description": "Environment variables for a command service or a bring-your-own container. Values may reference ${VAR} (or ${VAR:-default}) from the project .env or the shell. Use it for plain configuration that belongs in the repository; put credentials in secrets.",
       "propertyNames": {
         "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
       },

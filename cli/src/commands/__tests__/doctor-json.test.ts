@@ -205,6 +205,25 @@ describe("doctor JSON command", () => {
     expect(getDoctorExitCode(passingReport)).toBe(0);
   });
 
+  it("includes buildCache in doctor report data when present in checks", () => {
+    const buildCacheCheck = {
+      name: "Docker Build Cache",
+      didPass: true,
+      message: "11.82GB across 780 entries",
+      buildCache: {
+        size: "11.82GB",
+        entries: 780,
+        reclaimable: "11.82GB",
+      },
+    };
+    const report = createDoctorReport([PASSING_CHECK, buildCacheCheck], true);
+    expect(report.data.buildCache).toEqual({
+      size: "11.82GB",
+      entries: 780,
+      reclaimable: "11.82GB",
+    });
+  });
+
   it("emits a single JSON document on Linux without human banners and matches text mode exit code 1 on failure", async () => {
     const platform = Object.getOwnPropertyDescriptor(process, "platform");
     if (!platform) throw new Error("Missing process.platform descriptor");
