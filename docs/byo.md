@@ -367,6 +367,21 @@ A bring-your-own container gets the environment its `service.json` declares, plu
 - `NATS_QUEUE_GROUP` and `TILT_NATS_URL` are added only with the `nats` feature in `featuresEnabled`.
 - There is no CPU or memory limit unless `container.cpus` or `container.memory` is set (#2992; see the next section).
 
+### The router and the shared Postgres start only when something uses them (#2963)
+
+Flisk's own router (Traefik, `127.0.0.1:8080/8443`) and its shared PostgreSQL (`15432`) are platform services. A project whose
+resources are **all** bring-your-own gets each one only when a resource uses it:
+
+- the router: some resource is routed, that is, does not set `"exposeViaProxy": false`;
+- the shared Postgres: some resource lists `postgres` or `database-management` in `dependsOn`, has the `database-management`
+  feature, or is (or depends on) a `database` resource.
+
+A project of unrouted containers that bring their own database therefore publishes only the ports it declares. Any other resource
+type (backend, agent, worker, MCP, frontend) keeps both, as before. A value in `.flisk/project.json` wins over this:
+`"capabilities": { "gateway": true, "database": true }` keeps them on, `false` turns them off. `flisk up` regenerates
+`.flisk/.flisk-out/` when adding or removing a resource changes the answer, and `flisk status` (and `flisk status --json`, field
+`platformServices`) says why each one runs or does not.
+
 Project names are lower-cased: `"name": "Lychee"` in `.flisk/project.json` is used as `lychee` for the Compose project, networks,
 containers, volumes and image tags, because Compose refuses uppercase (#1519). `services/platform/database-management/
 docker-compose.yml` is rewritten on every `flisk up` when its text changed, so a renamed project does not keep the old network

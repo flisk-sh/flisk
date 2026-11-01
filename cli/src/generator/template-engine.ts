@@ -221,8 +221,13 @@ export class TemplateEngine {
     projectConfig: ProjectConfig,
     options: { projectRoot?: string } = {},
   ): GeneratorContext {
-    const dbEnabled = isDatabaseCapabilityEnabled(projectConfig);
-    const gatewayEnabled = isGatewayEnabled(projectConfig);
+    // Generating for a project on disk also drops the platform services its resources do not use (#2963).
+    const dbEnabled =
+      isDatabaseCapabilityEnabled(projectConfig) &&
+      (!options.projectRoot || isDatabaseCapabilityEnabled(options.projectRoot));
+    const gatewayEnabled =
+      isGatewayEnabled(projectConfig) &&
+      (!options.projectRoot || isGatewayEnabled(options.projectRoot));
     // A capability that is off is dropped from the phases as well as from always_enabled_infra: a phase entry reaches
     // RESOURCE_DEFAULTS in the Tiltfile and would start the container anyway.
     const isProvisioned = (name: string): boolean =>
@@ -425,6 +430,23 @@ export function isWrappedTiltfileStale(projectRoot: string): boolean {
   const current = fs.existsSync(generatedPath) ? fs.readFileSync(generatedPath, "utf-8") : "";
   if (!userTiltfile) return current.split(/\r?\n/).includes(TILTFILE_WRAPPER_MARKER);
   return current !== renderTiltfileWrapper(projectConfig.project.name, userTiltfile);
+}
+
+/**
+ * True when the generated spec.master differs from what the project would generate now. The platform services a project
+ * starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back, and
+ * removing the last one must drop it, without a `flisk config regenerate` in between.
+ */
+export function isSpecMasterStale(projectRoot: string): boolean {
+  try {
+    const expected = new TemplateEngine().generateAll(readProjectConfig(projectRoot), {
+      projectRoot,
+    })["spec.master"];
+    const file = path.join(projectRoot, ".flisk", ".flisk-out", "spec.master");
+    return !fs.existsSync(file) || fs.readFileSync(file, "utf-8") !== expected;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -860,6 +882,7 @@ export async function generateMasterConfigs(
 
   if (
     isDatabaseCapabilityEnabled(projectConfig) &&
+    isDatabaseCapabilityEnabled(projectRoot) &&
     isStackFeatureEnabledInStacks(projectConfig.phases, DATABASE_MANAGEMENT_FEATURE)
   ) {
     const composePath = assertFliskGeneratedPath(

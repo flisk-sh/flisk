@@ -9,6 +9,7 @@ import { Command } from "commander";
 import {
   ensureProjectRuntimeAssets,
   generateMasterConfigs,
+  isSpecMasterStale,
   isTiltfileOrchestration,
   isVendoredEngineStale,
   isWrappedTiltfileStale,
@@ -951,6 +952,10 @@ export const upCommand = new Command("up")
               ),
             );
           }
+          await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+        } else if (foundRoot && isSpecMasterStale(projectRoot)) {
+          // The router and the shared Postgres follow the project's resources, so a resource added or removed since the last
+          // run can change what spec.master starts (#2963).
           await generateMasterConfigs(projectRoot, { quiet: options.quiet });
         } else if (databaseTurnedOff || options.gateway === false) {
           // `--no-gateway` regenerates too: outputs generated before project.json turned the gateway off still start Traefik.

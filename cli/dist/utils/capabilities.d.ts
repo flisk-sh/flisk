@@ -1,4 +1,4 @@
-import type { ProjectCapabilities, ProjectConfig } from "../types/index.js";
+import type { DiscoveredResource, ProjectCapabilities, ProjectConfig } from "../types/index.js";
 /**
  * Where a capability is read from: a project root (its `.flisk/project.json`), a project config, or an object that carries
  * `capabilities` or flag-style booleans such as `{ gateway: false }`. Nothing given reads the project the CLI runs in.
@@ -33,3 +33,20 @@ export declare function assertGatewayOptOutIsConfigured(projectRoot: string | nu
  * generated files are now stale and must be regenerated.
  */
 export declare function disableDatabaseCapability(projectRoot: string): boolean;
+/** One Flisk platform service and why it runs or does not, for `flisk status`. */
+export interface PlatformServiceReport {
+    /** The capability that controls it. */
+    capability: "gateway" | "database";
+    /** What the service is called on screen. */
+    name: string;
+    isEnabled: boolean;
+    /** The resources that use it (sorted); empty when none does. */
+    users: string[];
+    /** Why it runs, or why it does not. */
+    reason: string;
+}
+/**
+ * Why the router and the shared Postgres run (or not) for this project (#2963): a setting in `.flisk/project.json` or a
+ * flag first, then the resources that use the service.
+ */
+export declare function describePlatformServices(projectRoot: string | null | undefined, resources: readonly DiscoveredResource[], options?: Record<string, unknown>): PlatformServiceReport[];
