@@ -52,11 +52,11 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.event_name == 'workflow_run' && 'main' || github.ref }}
+          fetch-depth: 2
       - name: Build the matrix for this event
         id: matrix
         env:
           EVENT: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           case "$EVENT" in
             pull_request | merge_group) trigger="pr" ;;
@@ -82,10 +82,12 @@ jobs:
           # registries, resource.ts, the engine, tests/e2e/lib, common.sh, this workflow) runs them all; a change none of the
           # suites read runs none, and the gate passes. The merge queue keeps the full pull request set.
           if [ "$EVENT" = "pull_request" ]; then
-            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            # Diff against the checked-out merge commit's first parent (the base the merge ref was built on), not the event
+            # payload's base.sha: that is frozen when the event fires, so once main moves on the diff would also list main's own
+            # new commits and select every leg for a change that touches none of them.
             before="$RUNNER_TEMP/byo-templates-before.json"
-            git show "$BASE_SHA:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
-            matrix="$(git diff --name-only "$BASE_SHA" HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before")"
+            git show "HEAD^1:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
+            matrix="$(git diff --name-only HEAD^1 HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before")"
           fi
           echo "trigger=$trigger"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
