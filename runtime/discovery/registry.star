@@ -191,10 +191,6 @@ def get_resource_by_path_from_cache(resource_path):
                 return resource
     return None
 
-def persist_cache_to_file():
-    """Persist cache to snapshot file."""
-    pass  # No-op for now
-
 def get_cache_stats():
     """Get cache statistics."""
     return {
@@ -209,12 +205,12 @@ def reinitialize():
     results = _run_discovery()
     return results["app_resources"]
 
+# Cache is strictly in-memory during the Tilt process lifecycle.
 CacheOps = struct(
     add=add_resource_to_cache,
     remove=remove_resource_from_cache,
     has=has_resource_in_cache,
     get_by_path=get_resource_by_path_from_cache,
-    persist=persist_cache_to_file,
     stats=get_cache_stats,
 )
 
@@ -223,7 +219,6 @@ Registry = struct(
     remove=remove_resource_from_cache,
     has=has_resource_in_cache,
     get_by_path=get_resource_by_path_from_cache,
-    persist=persist_cache_to_file,
     stats=get_cache_stats,
     reinitialize=reinitialize,
 )
