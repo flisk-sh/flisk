@@ -32,6 +32,7 @@ import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeI
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
+import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
@@ -635,21 +636,28 @@ export function checkFliskVersion(currentVersion = getPackageVersion()) {
         };
     }
     const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
+    const warning = floor.deprecationWarning ? `\nWarning: ${floor.deprecationWarning}` : "";
     if (floor.status === "none") {
         return {
             name: "Flisk version",
             didPass: true,
             isSkipped: true,
-            message: `flisk ${currentVersion} (no minFliskVersion in .flisk/project.json)`,
+            message: `flisk ${currentVersion} (no minFliskVersion in .flisk/project.json)${warning}`,
         };
     }
     if (floor.status === "malformed" || floor.status === "too-old") {
-        return { name: "Flisk version", didPass: false, message: floor.message, fix: floor.fix };
+        return {
+            name: "Flisk version",
+            didPass: false,
+            message: `${floor.message}${warning}`,
+            fix: floor.fix,
+        };
     }
     return {
         name: "Flisk version",
         didPass: true,
-        message: `flisk ${currentVersion} meets minFliskVersion ${floor.required}`,
+        isWarning: Boolean(floor.deprecationWarning),
+        message: `flisk ${currentVersion} meets minFliskVersion ${floor.required}${warning}`,
     };
 }
 /**
@@ -1467,18 +1475,34 @@ export const doctorCommand = new Command("doctor")
         }
     }
     const containerMachineChecks = [
-        () => hostPortPlan
-            ? {
-                name: "Host Ports",
-                didPass: true,
-                message: describeHostPortPlan(hostPortPlan, portCaps),
+        () => {
+            if (hostPortPlan) {
+                return {
+                    name: "Host Ports",
+                    didPass: true,
+                    message: describeHostPortPlan(hostPortPlan, portCaps),
+                };
             }
-            : {
+            const match = portPlanError?.match(/(?:FLISK_\w+=|port )(\d+)/i);
+            const conflictingPort = match ? Number(match[1]) : undefined;
+            const owner = conflictingPort ? findPortOwner(conflictingPort) : null;
+            if (owner && conflictingPort) {
+                const diag = formatPortOwnerDiagnostic(conflictingPort, owner, portPlanError);
+                return {
+                    name: "Host Ports",
+                    didPass: false,
+                    message: diag.message,
+                    fix: diag.fix,
+                    observed: owner,
+                };
+            }
+            return {
                 name: "Host Ports",
                 didPass: false,
                 message: portPlanError ?? "Could not select host ports",
                 fix: hostPortPlanFix(portCaps),
-            },
+            };
+        },
         ...(gatewayEnabled
             ? [
                 () => hostPortPlan

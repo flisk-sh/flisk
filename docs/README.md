@@ -44,6 +44,7 @@
 - [Running Flisk in CI](ci.md): a GitHub Actions workflow for your repository: `flisk config verify`, then `flisk up` and a health wait
 - [Gradual adoption](gradual-adoption.md): what Flisk adds to an existing repository, what to commit, and how to remove it
 - [Troubleshooting](troubleshooting.md): flisk and Tilt messages as printed, with cause, fix and how each was checked
+- [Troubleshoot Docker layers](troubleshoot-docker-layers.md): overview of golden image layers (L1–L4), identifying build failures, and rebuild methods
 - [Troubleshoot L1 (base image)](troubleshoot-l1.md): Docker build failures in the foundational OS and Bun runtime layer
 - [Troubleshoot L2 (dependency layer)](troubleshoot-l2.md): Docker build failures in package manifests, lockfiles, and dependency caching
 - [Leaving Flisk](leaving-flisk.md): what `flisk eject` really does, what stays usable without Flisk, what you lose

@@ -203,7 +203,8 @@ def byo_wants_shared_database(manifest):
     """
     if manifest.get('_sharedDatabase') != None:
         return bool(manifest.get('_sharedDatabase'))
-    if manifest.get('databaseName'):
+    # Discovery fills `databaseName` in for every service (`_databaseNameComputed`); only one the service wrote itself is a request.
+    if manifest.get('databaseName') and not manifest.get('_databaseNameComputed'):
         return True
     deps = manifest.get('dependsOn')
     if type(deps) == "list":

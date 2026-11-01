@@ -679,4 +679,47 @@ describe("doctor JSON command", () => {
       Object.defineProperty(process, "platform", platform);
     }
   });
+
+  it("includes observed port owner in doctor --json report and check result", async () => {
+    const portCheckWithObserved: CheckResult = {
+      name: "Host Ports",
+      didPass: false,
+      message:
+        "Port 8080 is already in use.\n\nOwner: Docker container shop-api\nImage: example/shop-api:latest\nPort: 8080",
+      fix: "Change FLISK_HTTP_PORT to an available port, or manually stop the conflicting container.",
+      observed: {
+        ownerType: "docker",
+        container: "shop-api",
+        image: "example/shop-api:latest",
+        port: 8080,
+        setting: "FLISK_HTTP_PORT",
+      },
+    };
+
+    vi.mocked(collectDoctorChecks).mockResolvedValue({
+      checks: [portCheckWithObserved],
+      errors: [],
+    });
+
+    const { log, exit } = captureOutput();
+    await expect(doctorCommand.parseAsync(["--json"], { from: "user" })).rejects.toThrow("exit");
+    expect(exit).toHaveBeenCalledWith(1);
+
+    const rawStdout = String(log.mock.calls[0]?.[0]);
+    const report = parseEnvelope(rawStdout);
+
+    expect(report.data.ready).toBe(false);
+    expect(report.data.observed).toMatchObject({
+      ownerType: "docker",
+      container: "shop-api",
+      image: "example/shop-api:latest",
+      port: 8080,
+      setting: "FLISK_HTTP_PORT",
+    });
+    expect(report.data.checks[0].observed).toMatchObject({
+      ownerType: "docker",
+      container: "shop-api",
+      port: 8080,
+    });
+  });
 });

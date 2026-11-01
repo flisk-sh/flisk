@@ -57,6 +57,12 @@ describe("doctor-runtime utilities", () => {
   });
 
   describe("parsePublishedPortHolders", () => {
+    it("reads the image from the name, image, ports format", () => {
+      const psOutput = "c_traefik\ttraefik:v3.1\t0.0.0.0:80->80/tcp";
+      const holders = parsePublishedPortHolders(psOutput, [80]);
+      expect(holders[0]).toMatchObject({ name: "c_traefik", image: "traefik:v3.1" });
+    });
+
     it("parses container lines and matches requested host ports", () => {
       const psOutput = [
         "c_traefik\t0.0.0.0:80->80/tcp, :::80->80/tcp, 0.0.0.0:443->443/tcp",

@@ -30,6 +30,7 @@ function containerRuntimeReachable(checks) {
 /** Produce the same readiness decision for human and machine consumers. */
 export function createDoctorReport(checks, inProject, errors = [], portPlan, host, capabilities, buildCache) {
     const fixFirst = rankDoctorFixes(checks);
+    const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
     const detectedBuildCache = buildCache ??
         checks.find((check) => check.name === "Docker Build Cache")?.buildCache;
     return {
@@ -40,6 +41,7 @@ export function createDoctorReport(checks, inProject, errors = [], portPlan, hos
             inProject,
             checks,
             ...(capabilities ? { capabilities } : {}),
+            ...(observedOwner ? { observed: observedOwner } : {}),
             ...(fixFirst.length > 0 ? { fixFirst } : {}),
             ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
             ...(host
