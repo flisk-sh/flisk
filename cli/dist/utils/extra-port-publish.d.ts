@@ -10,6 +10,8 @@ export interface PublishVariable {
     fallback: string;
     /** `${NAME-default}`: the default only when NAME is unset; `${NAME:-default}` also uses it when NAME is empty. */
     unsetOnly: boolean;
+    /** False for a bare `${NAME}`: the host side then comes from the .env only and is not known before Compose runs. */
+    hasDefault: boolean;
 }
 export interface HostMapping {
     /** The host address, or null when the mapping names only a port (Docker then publishes on every interface). */
