@@ -129,22 +129,38 @@ S2() { # a goal is split and finished
 S3() { # chaos: a worker dies holding a claim
   log "S3 kill -9 a worker that holds a claim"
   ensure_up
-  local id victim before task
-  # Enough subtasks that every worker is busy for a while.
-  id="$(send_goal "a. b. c. d. e. f. g. h. i. j. k. l")"
+  local id victim before task attempt caught=0
   victim=worker-1
-  poll_until "$victim holds a claim on goal $id" 30 bash -c "[ -n \"\$(curl -fsS '$COORDINATOR/goals' | jq -r --arg id '$id' --arg w '$victim' '[.goals[] | select(.id==\$id) | .subtasks[] | select(.status==\"claimed\" and .worker==\$w) | .id][0] // empty')\" ]"
-  task="$(claimed_by "$id" "$victim")"
-  before="$(run_state "$victim")"
-  log "kill -9 $victim (pid $before) while it holds subtask $task"
-  kill -9 "$before"
-  poll_until "the supervisor starts $victim again" 60 pid_replaced "$victim" "$before"
-  poll_until "goal $id done after the claim expired" "$CLAIM_WAIT" goal_done "$id"
-  goals | jq -e --arg id "$id" --arg t "$task" --arg w "$victim" \
-    '.goals[] | select(.id==$id) | .subtasks[] | select(.id==$t) | .attempts >= 2 and .status=="done" and (.error | test($w))' >/dev/null \
-    || { goals | jq --arg t "$task" '.goals[].subtasks[] | select(.id==$t)'; die "subtask $task was not retried after $victim died"; }
-  goals | jq -e --arg id "$id" '.goals[] | select(.id==$id) | all(.subtasks[]; .status=="done")' >/dev/null \
-    || die "goal $id has a subtask that is not done"
+  # A subtask takes the worker 0.5 to 1.5 s, and finding the claim then killing the process takes about as long, so now and then the
+  # claim is finished before the kill lands and there is nothing to retry. That is a miss, not a failure: try again with a new goal
+  # (up to 5 times) and fail only when no attempt ever caught a held claim.
+  for attempt in 1 2 3 4 5; do
+    # Enough subtasks that every worker is busy for a while.
+    id="$(send_goal "a. b. c. d. e. f. g. h. i. j. k. l")"
+    if ! poll_until "$victim holds a claim on goal $id (attempt $attempt)" 30 bash -c "[ -n \"\$(curl -fsS '$COORDINATOR/goals' | jq -r --arg id '$id' --arg w '$victim' '[.goals[] | select(.id==\$id) | .subtasks[] | select(.status==\"claimed\" and .worker==\$w) | .id][0] // empty')\" ]"; then
+      continue
+    fi
+    task="$(claimed_by "$id" "$victim")"
+    [ -n "$task" ] || { log "the claim was finished before it could be read; trying again"; poll_until "goal $id done" "$CLAIM_WAIT" goal_done "$id"; continue; }
+    before="$(run_state "$victim")"
+    log "kill -9 $victim (pid $before) while it holds subtask $task"
+    kill -9 "$before"
+    poll_until "the supervisor starts $victim again" 60 pid_replaced "$victim" "$before"
+    poll_until "goal $id done after the claim expired" "$CLAIM_WAIT" goal_done "$id"
+    if goals | jq -e --arg id "$id" --arg t "$task" \
+         '.goals[] | select(.id==$id) | .subtasks[] | select(.id==$t) | .attempts == 1 and .status=="done" and .error == null' >/dev/null; then
+      log "the claim on $task was finished before the kill landed (a miss, attempt $attempt)"
+      continue
+    fi
+    goals | jq -e --arg id "$id" --arg t "$task" --arg w "$victim" \
+      '.goals[] | select(.id==$id) | .subtasks[] | select(.id==$t) | .attempts >= 2 and .status=="done" and (.error | test($w))' >/dev/null \
+      || { goals | jq --arg t "$task" '.goals[].subtasks[] | select(.id==$t)'; die "subtask $task was not retried after $victim died"; }
+    goals | jq -e --arg id "$id" '.goals[] | select(.id==$id) | all(.subtasks[]; .status=="done")' >/dev/null \
+      || die "goal $id has a subtask that is not done"
+    caught=1
+    break
+  done
+  [ "$caught" -eq 1 ] || die "no attempt caught $victim holding a claim in 5 tries"
 }
 
 S4() { # chaos: the coordinator dies mid-goal
