@@ -5,7 +5,7 @@ export interface ProjectTemplate {
   description: string;
   bundledPath?: string;
   /** Written by the CLI itself from `cli/templates`, with no clone: `swarm` or `security`. */
-  generated?: "swarm" | "security" | "super-agent" | "langgraph";
+  generated?: "swarm" | "security" | "super-agent" | "langgraph" | "tool-loop";
   fixedDir?: string;
   /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
   ref?: string;
@@ -79,6 +79,12 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
     generated: "langgraph",
     description:
       "LangGraph agent: a StateGraph (plan, research, write, check) with durable checkpoints and retries, and an MCP tool server (local processes, no Docker)",
+  },
+  "tool-loop": {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "tool-loop",
+    description:
+      "Plain agent loop: the Anthropic SDK tool runner over an MCP tool server, with a local mock model so it runs offline (local processes, no Docker)",
   },
   launch: {
     repo: "https://github.com/flisk-sh/flisk-template-launch.git",

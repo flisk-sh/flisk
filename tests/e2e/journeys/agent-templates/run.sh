@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# The multi-agent starters (`flisk project swarm`, `flisk project security`, `flisk project super-agent`, `flisk project langgraph`) through a real `flisk up`, as local processes with no
+# The multi-agent starters (`flisk project swarm`, `flisk project security`, `flisk project super-agent`, `flisk project langgraph`, `flisk project tool-loop`) through a real `flisk up`, as local processes with no
 # Docker. The chaos cases kill -9 real processes while work is in flight: the flisk up supervisor must start them again, and the
 # swarm must finish the goal without losing or double-counting a subtask.
 #
@@ -31,6 +31,12 @@
 #   L4  Chaos: kill -9 the tool server while a run starts. LangGraph's retryPolicy retries the research node with backoff until
 #       the supervisor has the tool server back, and the run finishes.
 #   L5  `flisk down` stops the agent and the tool server and frees their ports.
+#   K1  `flisk project tool-loop` + `flisk up`: setup installs the Anthropic SDK, the agent, the MCP tool server and the mock
+#       model are ready natively, and `flisk mcp check tools --call` passes.
+#   K2  A question goes through the SDK's real tool runner: the mock model calls `lookup` once per topic over MCP, then answers.
+#   K3  Chaos: kill -9 the mock model, then ask. The SDK retries the failed connection until the supervisor has it back.
+#   K4  Chaos: kill -9 the tool server, then ask. The agent retries the tool call with backoff until it is back.
+#   K5  `flisk down` stops all four and frees every port.
 #
 #   tests/e2e/journeys/agent-templates/run.sh all     every case in order, then cleanup
 #   tests/e2e/journeys/agent-templates/run.sh S3      one case (it creates and starts the swarm itself when needed)
@@ -46,12 +52,14 @@ AGENT_DIR="$SUITE_ROOT/super-agent-e2e"
 PLANNER="http://localhost:4300"
 GRAPH_DIR="$SUITE_ROOT/langgraph-e2e"
 GRAPH="http://localhost:4400"
+LOOP_DIR="$SUITE_ROOT/tool-loop-e2e"
+LOOP="http://localhost:4500"
 
-# This suite runs four projects, all local processes (no containers): stop each one, even after a failed case, so no process
+# This suite runs five projects, all local processes (no containers): stop each one, even after a failed case, so no process
 # keeps a port the next run needs.
 e2e_cleanup() {
   local dir
-  for dir in "$DIR" "$SECURITY_DIR" "$AGENT_DIR" "$GRAPH_DIR"; do
+  for dir in "$DIR" "$SECURITY_DIR" "$AGENT_DIR" "$GRAPH_DIR" "$LOOP_DIR"; do
     [ -f "$dir/.flisk/native/run.json" ] && (cd "$dir" && flisk down >/dev/null 2>&1 || true)
     rm -rf "$dir"
   done
@@ -431,6 +439,78 @@ L5() { # flisk down stops it
   [ "$RC" -eq 0 ] || die "flisk down exited $RC in the LangGraph project"
   poll_until "the LangGraph ports are free" 30 ports_free 4400 4401
   rm -rf "$GRAPH_DIR"
+}
+
+# ------------------------------------------------------------------------------------------------------------- tool loop
+
+ask_loop() { # <name> <question>: POST /ask, keeping the body in $OUT/<name>.json; fails on a non-2xx
+  curl -fsS --max-time 90 -X POST "$LOOP/ask" -H 'content-type: application/json' \
+    -d "$(jq -cn --arg q "$2" '{question:$q}')" -o "$OUT/$1.json"
+}
+ensure_loop_up() {
+  if [ ! -f "$LOOP_DIR/agent/service.json" ]; then
+    rm -rf "$LOOP_DIR"
+    run_in "$SUITE_ROOT" loop-create project tool-loop --path tool-loop-e2e --json
+    [ "$RC" -eq 0 ] || die "flisk project tool-loop exited $RC"
+  fi
+  if ! all_ready "$LOOP_DIR" 4 >/dev/null 2>&1; then
+    (cd "$LOOP_DIR" && nohup flisk up --json >>"$LOOP_DIR/up.log" 2>&1 &)
+  fi
+  poll_until "setup finished and the agent, the tool server and the mock model are ready, natively" 300 all_ready "$LOOP_DIR" 4
+}
+answered_from_tools() { # <name>: the answer holds both tool notes and came from the mock model through two lookups
+  jq -e '.model == "mock" and .stopReason == "end_turn" and .tools == ["lookup","lookup"] and
+    (.answer | contains("Model Context Protocol") and contains("local development loop"))' "$OUT/$1.json" >/dev/null
+}
+
+K1() { # setup installs the SDK; four local processes; the tool server passes the MCP check
+  log "K1 flisk project tool-loop, flisk up, flisk mcp check"
+  [ -f "$LOOP_DIR/.flisk/native/run.json" ] && (cd "$LOOP_DIR" && flisk down >/dev/null 2>&1 || true)
+  rm -rf "$LOOP_DIR"
+  ensure_loop_up
+  [ -d "$LOOP_DIR/agent/node_modules/@anthropic-ai/sdk" ] || die "the setup job did not install @anthropic-ai/sdk"
+  run_in "$LOOP_DIR" loop-mcp-check mcp check tools --call --no-icon --json
+  [ "$RC" -eq 0 ] || die "flisk mcp check tools exited $RC"
+}
+
+K2() { # a question goes through the SDK's tool runner
+  log "K2 a question goes through the SDK tool runner"
+  ensure_loop_up
+  ask_loop loop-ask "what is mcp and flisk" || die "POST /ask failed"
+  answered_from_tools loop-ask || { cat "$OUT/loop-ask.json"; die "the answer did not come from two lookups over MCP"; }
+}
+
+K3() { # chaos: the model dies, the SDK's retries outlast the restart
+  log "K3 kill -9 the mock model, then ask"
+  ensure_loop_up
+  local before
+  before="$(listening_pid 4502)"
+  log "kill -9 model (pid $before)"
+  kill -9 "$before"
+  ask_loop loop-ask-model "what is mcp and flisk" || die "POST /ask failed while the model was restarting"
+  pid_listening_changed 4502 "$before" || die "the mock model was not restarted"
+  answered_from_tools loop-ask-model || { cat "$OUT/loop-ask-model.json"; die "no answer after the model restart"; }
+}
+
+K4() { # chaos: the tool server dies, the agent's tool retries outlast the restart
+  log "K4 kill -9 the tool server, then ask"
+  ensure_loop_up
+  local before
+  before="$(listening_pid 4501)"
+  log "kill -9 tools (pid $before)"
+  kill -9 "$before"
+  ask_loop loop-ask-tools "what is mcp and flisk" || die "POST /ask failed while the tool server was restarting"
+  pid_listening_changed 4501 "$before" || die "the tool server was not restarted"
+  answered_from_tools loop-ask-tools || { cat "$OUT/loop-ask-tools.json"; die "no tool notes after the tool server restart"; }
+}
+
+K5() { # flisk down stops it
+  log "K5 flisk down"
+  ensure_loop_up
+  run_in "$LOOP_DIR" loop-down down
+  [ "$RC" -eq 0 ] || die "flisk down exited $RC in the tool-loop project"
+  poll_until "the tool-loop ports are free" 30 ports_free 4500 4501 4502
+  rm -rf "$LOOP_DIR"
 }
 
 e2e_main "$@"

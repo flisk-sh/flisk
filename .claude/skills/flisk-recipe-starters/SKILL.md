@@ -10,7 +10,7 @@ metadata:
 
 # Recipe: start from a starter app
 
-A starter is a working multi-service app in the flisk-sh GitHub organisation (`swarm`, `security`, `super-agent` and `langgraph` ship inside the CLI and need no clone or Docker). Starting from one is faster than building from an empty folder, and the user can change it afterwards. Use one when the request clearly matches a row below; use only one starter per project.
+A starter is a working multi-service app in the flisk-sh GitHub organisation (`swarm`, `security`, `super-agent`, `langgraph` and `tool-loop` ship inside the CLI and need no clone or Docker). Starting from one is faster than building from an empty folder, and the user can change it afterwards. Use one when the request clearly matches a row below; use only one starter per project.
 
 | The user asks for | Template | Stacks | What it ships |
 | --- | --- | --- | --- |
@@ -22,6 +22,7 @@ A starter is a working multi-service app in the flisk-sh GitHub organisation (`s
 | security agents, code scanner, vulnerability triage | `security` | none | scanner, triage and reporter agents as local processes (no Docker) |
 | super agent, planner with tools and sub-agents, deep research | `super-agent` | none | planner, MCP tool server, researcher, writer and checker as local processes (no Docker); plans with Claude when `ANTHROPIC_API_KEY` is set |
 | LangGraph, agent graph, durable agent, resumable runs | `langgraph` | none | a LangGraph `StateGraph` agent (plan, research, write, check) with checkpoints that resume after a crash, an MCP tool server, and a setup job that installs its pinned packages; local processes (no Docker) |
+| plain agent loop, tool calling, Anthropic SDK, no framework | `tool-loop` | none | the Anthropic SDK tool runner over an MCP tool server, with a local mock model so it runs offline; local processes (no Docker) |
 | user management, admin portal, accounts, audit | `user-management` | `admin`, `compliance`, `portal` | admin app and API, portal app and API, audit API and worker |
 | the smallest example, orders | `example` | `shop` | orders app, API and worker |
 

@@ -34,6 +34,7 @@ describe("PROJECT_TEMPLATES", () => {
       "security",
       "super-agent",
       "swarm",
+      "tool-loop",
       "user-management",
     ]);
   });
