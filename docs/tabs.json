@@ -257,6 +257,12 @@
           "label": "Prebuilt binary",
           "icon": "download",
           "title": "Install the Flisk binary"
+        },
+        {
+          "slug": "container",
+          "label": "Container image",
+          "icon": "server",
+          "title": "Run Flisk from its container image"
         }
       ]
     }

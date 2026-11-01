@@ -650,9 +650,9 @@ jobs:
   summary:
     name: 📋 Summary
     runs-on: ubuntu-26.04
-    # Waits for the e2e gates, which run for tens of minutes on a pull request. The wait is bounded by the deadline in the
-    # script below.
-    timeout-minutes: 35
+    # Waits for the e2e gates, which run for tens of minutes on a pull request. The wait is bounded by the script's 25-minute
+    # deadline; workflow-pr-speed caps pull request jobs at 30 minutes.
+    timeout-minutes: 30
     if: always()
     needs: [lint, spellcheck, typecheck, test, package, package-smoke, npm-package-smoke, secret-scan, dependency-review, workflow-audit]
     permissions:
