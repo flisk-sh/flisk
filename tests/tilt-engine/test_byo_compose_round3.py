@@ -79,7 +79,7 @@ r = {
     'strings': normalize_depends_on({'dependsOn': ['a', 'b']}),
     'loaded': {'dependsOn': loaded.manifest['dependsOn'], 'conditions': loaded.manifest['dependsOnConditions']},
     'bad_images': [generated_string_error({'image': v}) for v in [
-        'a:${B:?x"y}', 'a:${B:?x\\\\y}', 'a:${B:?x{y}', 'a:${B:?x$y}', 'a:${B:?x\\ny}', 'a:${B:?x`y}', 'a:${B:?caf\\u00e9}',
+        'a:${B:?x"y}', 'a:${B:?x\\\\y}', 'a:${B:?x{y}', 'a:${B:?x$y}', 'a:${B:?x\\ny}', 'a:${B:?x`y}', 'a:${B:?x\\u00e9y}',
     ]],
 }
 """

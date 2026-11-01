@@ -1347,7 +1347,7 @@ describe("Compose settings from imported stacks, round 3", () => {
     "a:${B:?x$y}",
     "a:${B:?x\ny}",
     "a:${B:?x`y}",
-    "a:${B:?caf\u00e9}",
+    "a:${B:?x\u00e9y}",
   ])("refuses the image %j", (image) => {
     expect(validateGeneratedStringFields({ image }, file)).toHaveLength(1);
   });
