@@ -42,7 +42,7 @@ host ports and exports them to Tilt); running Tilt by hand skips them.
 Optional to delete later: this file, and \`.flisk/\` plus the \`service.json\` files if you stop using Flisk.
 Deleting them also removes what the Tiltfile needs.
 
-To go back to Flisk: install it and run \`flisk config regenerate\`.
+To go back to Flisk: install the version named by \`pinnedFliskVersion\` in \`.flisk/project.json\` (if set), then run \`flisk config regenerate\`.
 `;
 export const ejectCommand = addYesOption(new Command("eject"))
     .description("Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)")

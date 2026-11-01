@@ -560,11 +560,11 @@ describe("config version gate", () => {
   const pinnedFliskVersion = "999.999.999";
 
   const commands = [
-    { name: "regenerate", args: ["regenerate"] },
-    { name: "migrate", args: ["migrate"] },
-    { name: "verify", args: ["verify"] },
-    { name: "enable-infra", args: ["enable-infra", "monitoring"] },
-    { name: "disable-infra", args: ["disable-infra", "monitoring"] },
+    { name: "regenerate", args: ["regenerate"], status: undefined },
+    { name: "migrate", args: ["migrate"], status: undefined },
+    { name: "verify", args: ["verify"], status: 1 },
+    { name: "enable-infra", args: ["enable-infra", "monitoring"], status: undefined },
+    { name: "disable-infra", args: ["disable-infra", "monitoring"], status: undefined },
   ];
 
   it.each(commands)(
@@ -591,7 +591,7 @@ describe("config version gate", () => {
     },
   );
 
-  it.each(commands)("allows $name to continue with --ignore-version", async ({ args }) => {
+  it.each(commands)("allows $name to continue with --ignore-version", async ({ args, status }) => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const root = createTempProject({
@@ -602,6 +602,7 @@ describe("config version gate", () => {
     });
 
     const result = await runCommandInProcess(configCommand, [...args, "--ignore-version"], root);
+    expect(result.status).toBe(status);
 
     expect(warning).toHaveBeenCalledWith(expect.stringContaining("--ignore-version set"));
 
@@ -715,6 +716,42 @@ describe("config version gate", () => {
           },
         ],
       });
+    },
+  );
+
+  it.each([
+    {
+      name: "enable-infra",
+      args: ["enable-infra", "monitoring"],
+      optionalInfra: { monitoring: false },
+      expectedEnabled: true,
+    },
+    {
+      name: "disable-infra",
+      args: ["disable-infra", "monitoring"],
+      optionalInfra: { monitoring: true },
+      expectedEnabled: false,
+    },
+  ])(
+    "preserves version requirements when $name updates project.json",
+    async ({ args, optionalInfra, expectedEnabled }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson("config-version-preservation", optionalInfra),
+          minFliskVersion: "1.3.70",
+          pinnedFliskVersion: "1.3.80",
+        },
+      });
+
+      const result = await runCommandInProcess(configCommand, [...args, "--ignore-version"], root);
+
+      expect(result.status).toBeUndefined();
+
+      const saved = JSON.parse(fs.readFileSync(path.join(root, ".flisk", "project.json"), "utf-8"));
+
+      expect(saved.minFliskVersion).toBe("1.3.70");
+      expect(saved.pinnedFliskVersion).toBe("1.3.80");
+      expect(saved.optional_infra.monitoring).toBe(expectedEnabled);
     },
   );
 });

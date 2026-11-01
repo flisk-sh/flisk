@@ -364,7 +364,7 @@ export const upCommand = new Command("up")
     .option("--dry-run", "Show what would be started without starting", false)
     .option("-f, --force", "Kill existing Tilt process before starting", false)
     .option("--ignore-drift", "Start even if generated files differ from service.json", false)
-    .option("--ignore-version", "Start even if this flisk is older than minFliskVersion in .flisk/project.json", false)
+    .option("--ignore-version", "Start even if this flisk does not satisfy pinnedFliskVersion or minFliskVersion in .flisk/project.json", false)
     .option("--no-database", "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)")
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
     .option("--profile <names...>", 'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)')
@@ -395,7 +395,12 @@ export const upCommand = new Command("up")
     if (versionRoot) {
         enforceVersionFloor(versionRoot, {
             ignoreVersion: options.ignoreVersion,
-            onFail: (message) => emit?.({ ok: false }, [{ code: "FLISK_VERSION_TOO_OLD", message }]),
+            onFail: (message, status) => emit?.({ ok: false }, [
+                {
+                    code: status === "mismatch" ? "FLISK_VERSION_MISMATCH" : "FLISK_VERSION_TOO_OLD",
+                    message,
+                },
+            ]),
         });
     }
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated

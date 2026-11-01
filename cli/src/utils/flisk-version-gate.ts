@@ -9,7 +9,7 @@ import { getPackageVersion } from "./paths.js";
 export interface FliskVersionGateOptions {
   ignoreVersion?: boolean;
   json?: boolean;
-  onFail?: (message: string) => void;
+  onFail?: (message: string, status: "malformed" | "too-old" | "mismatch") => void;
 }
 
 /**
@@ -42,7 +42,7 @@ export function enforceFliskVersionGate(
   }
 
   const message = `${result.message}\n${result.fix}`;
-  options.onFail?.(message);
+  options.onFail?.(message, result.status);
 
   if (options.json) {
     throw new FliskError(result.message, [result.fix], 1);

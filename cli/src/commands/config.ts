@@ -723,12 +723,32 @@ async function toggleInfraService(
   }
 
   const wasEnabled = config.optional_infra[service];
-  // Type-safe assignment: service is now narrowed to OptionalInfraKey
-  config.optional_infra[service] = enabled;
 
   const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
-  // ProjectConfig is guaranteed to be JSON-serializable
-  writeJsonFile(projectJsonPath, config as unknown);
+  const rawProjectValue: unknown = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
+
+  if (
+    typeof rawProjectValue !== "object" ||
+    rawProjectValue === null ||
+    Array.isArray(rawProjectValue)
+  ) {
+    throw new FliskError("Invalid project.json: expected an object.");
+  }
+
+  const rawProject = rawProjectValue as Record<string, unknown>;
+  const rawOptionalInfra = rawProject.optional_infra;
+
+  if (
+    typeof rawOptionalInfra !== "object" ||
+    rawOptionalInfra === null ||
+    Array.isArray(rawOptionalInfra)
+  ) {
+    throw new FliskError("Invalid project.json: optional_infra must be an object.");
+  }
+
+  (rawOptionalInfra as Record<string, unknown>)[service] = enabled;
+
+  writeJsonFile(projectJsonPath, rawProject);
 
   const action = enabled ? "Enabled" : "Disabled";
   console.log(chalk.green(`✓ ${action}: ${service}`));

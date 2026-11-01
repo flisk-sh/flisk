@@ -306,7 +306,10 @@ export function enforceDriftGate(
  */
 export function enforceVersionFloor(
   projectRoot: string,
-  options: { ignoreVersion?: boolean; onFail?: (message: string) => void },
+  options: {
+    ignoreVersion?: boolean;
+    onFail?: (message: string, status: "malformed" | "too-old" | "mismatch") => void;
+  },
   currentVersion: string = getPackageVersion(),
   exit: (code: number) => never = process.exit,
 ): void {
@@ -546,7 +549,7 @@ export const upCommand = new Command("up")
   .option("--ignore-drift", "Start even if generated files differ from service.json", false)
   .option(
     "--ignore-version",
-    "Start even if this flisk is older than minFliskVersion in .flisk/project.json",
+    "Start even if this flisk does not satisfy pinnedFliskVersion or minFliskVersion in .flisk/project.json",
     false,
   )
   .option(
@@ -604,7 +607,13 @@ export const upCommand = new Command("up")
     if (versionRoot) {
       enforceVersionFloor(versionRoot, {
         ignoreVersion: options.ignoreVersion,
-        onFail: (message) => emit?.({ ok: false }, [{ code: "FLISK_VERSION_TOO_OLD", message }]),
+        onFail: (message, status) =>
+          emit?.({ ok: false }, [
+            {
+              code: status === "mismatch" ? "FLISK_VERSION_MISMATCH" : "FLISK_VERSION_TOO_OLD",
+              message,
+            },
+          ]),
       });
     }
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated

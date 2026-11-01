@@ -55,6 +55,7 @@ describe("enforceFliskVersionGate", () => {
       expect(exit).toHaveBeenCalledWith(1);
       expect(onFail).toHaveBeenCalledWith(
         expect.stringContaining("npm install -g @flisk-sh/flisk@1.3.80"),
+        "mismatch",
       );
       expect(error).toHaveBeenCalledWith(expect.stringContaining("pinnedFliskVersion 1.3.80"));
     },

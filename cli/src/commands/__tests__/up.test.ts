@@ -559,7 +559,10 @@ describe("enforceVersionFloor", () => {
     expect(err).toHaveBeenCalledWith(
       expect.stringContaining("npm install -g @flisk-sh/flisk@1.3.80"),
     );
-    expect(onFail).toHaveBeenCalledWith(expect.stringContaining("edit pinnedFliskVersion"));
+    expect(onFail).toHaveBeenCalledWith(
+      expect.stringContaining("edit pinnedFliskVersion"),
+      "mismatch",
+    );
   });
 
   it("allows the exact pinned version", () => {
@@ -595,7 +598,7 @@ describe("enforceVersionFloor", () => {
       ),
     );
     expect(err).toHaveBeenCalledWith(expect.stringContaining("Run: flisk upgrade"));
-    expect(onFail).toHaveBeenCalledWith(expect.stringContaining("Run: flisk upgrade"));
+    expect(onFail).toHaveBeenCalledWith(expect.stringContaining("Run: flisk upgrade"), "too-old");
   });
 
   it("exits 1 on a malformed value", () => {
@@ -980,6 +983,54 @@ describe("flisk up --env-file", () => {
     expect(payload.errors[0].message).toContain(".env.integration");
     exit.mockRestore();
   });
+
+  it.each([
+    {
+      name: "pinned version mismatch",
+      versionConfig: { pinnedFliskVersion: "999.999.999" },
+      expectedCode: "FLISK_VERSION_MISMATCH",
+      expectedMessage: "pinnedFliskVersion",
+    },
+    {
+      name: "minimum version failure",
+      versionConfig: { minFliskVersion: "999.999.999" },
+      expectedCode: "FLISK_VERSION_TOO_OLD",
+      expectedMessage: "minFliskVersion",
+    },
+  ])(
+    "writes the correct version error code for $name in --json mode",
+    async ({ versionConfig, expectedCode, expectedMessage }) => {
+      writeFileSync(
+        join(projectDir, ".flisk", "project.json"),
+        `${JSON.stringify({ ...PROJECT_JSON, ...versionConfig })}\n`,
+      );
+
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.mocked(writeSync).mockClear();
+
+      let written = "";
+      vi.mocked(writeSync).mockImplementation(((fd: number, data: string) => {
+        if (fd === 1) written += data;
+        return data.length;
+      }) as never);
+
+      const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+        throw new Error("process.exit");
+      }) as never);
+
+      await expect(upCommand.parseAsync(["--json", "--dry-run"], { from: "user" })).rejects.toThrow(
+        "process.exit",
+      );
+
+      const payload = JSON.parse(written.trim().split("\n")[0] ?? "{}");
+
+      expect(payload.errors[0].code).toBe(expectedCode);
+      expect(payload.errors[0].message).toContain(expectedMessage);
+      expect(runTilt).not.toHaveBeenCalled();
+
+      exit.mockRestore();
+    },
+  );
 
   it("exports the selected file for the engine and names it in the output", async () => {
     writeFileSync(join(dir, ".env.integration"), COMPLETE_ENV);

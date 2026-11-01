@@ -1,7 +1,7 @@
 export interface FliskVersionGateOptions {
     ignoreVersion?: boolean;
     json?: boolean;
-    onFail?: (message: string) => void;
+    onFail?: (message: string, status: "malformed" | "too-old" | "mismatch") => void;
 }
 /**
  * Rejects commands when the running CLI does not satisfy the project's

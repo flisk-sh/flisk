@@ -21,7 +21,7 @@ export function enforceFliskVersionGate(projectRoot, options = {}, currentVersio
         return;
     }
     const message = `${result.message}\n${result.fix}`;
-    options.onFail?.(message);
+    options.onFail?.(message, result.status);
     if (options.json) {
         throw new FliskError(result.message, [result.fix], 1);
     }

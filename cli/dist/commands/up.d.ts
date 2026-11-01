@@ -45,7 +45,7 @@ export declare function enforceDriftGate(projectRoot: string, options: {
  */
 export declare function enforceVersionFloor(projectRoot: string, options: {
     ignoreVersion?: boolean;
-    onFail?: (message: string) => void;
+    onFail?: (message: string, status: "malformed" | "too-old" | "mismatch") => void;
 }, currentVersion?: string, exit?: (code: number) => never): void;
 /**
  * Waits for Tilt to exit, unless startup has already failed. A readiness failure reports and exits 1 at once: Tilt keeps
