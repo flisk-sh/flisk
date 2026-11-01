@@ -725,8 +725,10 @@ export class NativeSupervisor {
       service.plan.dependsOn,
       outputsRecord,
     );
+    // Only keys that reference a migrator are replaced; every other key keeps the value planNativeRun already expanded.
     for (const [k, v] of Object.entries(resolved)) {
-      service.plan.env[k] = v;
+      if (v === service.plan.rawEnv[k]) continue;
+      service.plan.env[k] = expandEnvValue(v, { ...process.env, ...service.plan.env });
     }
   }
 
