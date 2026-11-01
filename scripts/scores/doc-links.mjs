@@ -6,7 +6,7 @@
 // is a path (no scheme, not an #anchor alone, not a template). The #fragment and ?query are dropped; the path resolves
 // against the file's folder, or the repo root when it starts with `/`, the way GitHub renders it, and must exist with
 // that exact case (a link that works on a case-insensitive Mac breaks on Linux CI and on GitHub). Links in fenced code
-// and inline code are examples, not links. Anchors are not checked. Gate at zero broken links.
+// and inline code are examples, not links. Anchors are checked against document headings. Gate at zero broken links.
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { localSkillDocs, read, walk } from "./lib.mjs";
@@ -137,26 +137,142 @@ export function existsExact(root, rel, cache = new Map()) {
 	return true;
 }
 
+// The heading anchor a link points at (without leading #), or null when there is none.
+export function linkAnchor(target) {
+	const t = target.trim().replace(/^<|>$/g, "");
+	if (!t || /\{\{|<|>|\$\{/.test(t) || /^[a-z][a-z0-9+.-]*:/i.test(t) || t.startsWith("//")) return null;
+	const hash = t.indexOf("#");
+	if (hash === -1) return null;
+	const frag = t.slice(hash + 1).split("?")[0].trim();
+	if (!frag) return null;
+	try {
+		return decodeURIComponent(frag).toLowerCase();
+	} catch {
+		return frag.toLowerCase();
+	}
+}
+
+// Convert heading text to GitHub-compatible anchor slug.
+export function githubSlug(text) {
+	// Strip tags until none remain, so "<<b>b>" cannot leave a tag behind.
+	let s = text;
+	let prev;
+	do {
+		prev = s;
+		s = s.replace(/<[^>]+>/g, "");
+	} while (s !== prev);
+	return s
+		.trim()
+		.toLowerCase()
+		.replace(/\r/g, "")
+		.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+		.replace(/[`]/g, "")
+		.replace(/[^\p{Letter}\p{Mark}\p{Number}\p{Connector_Punctuation}\s-]/gu, "")
+		.replace(/\s+/g, "-");
+}
+
+// Extract all valid anchor slugs from Markdown headings and explicit anchor tags.
+export function documentAnchors(markdown) {
+	const anchors = new Set();
+	const counts = new Map();
+	const lines = String(markdown).split("\n");
+	let fence = null;
+	for (let line of lines) {
+		line = line.replace(/\r$/, "");
+		const open = /^\s*(```+|~~~+)/.exec(line);
+		if (!fence && open) {
+			fence = open[1];
+			continue;
+		}
+		if (fence) {
+			if (line.trim().startsWith(fence)) fence = null;
+			continue;
+		}
+		const match = line.match(/^#{1,6}\s+(.+)$/);
+		if (match) {
+			const raw = match[1].replace(/#+\s*$/, "");
+			const base = githubSlug(raw);
+			if (base) {
+				const count = counts.get(base) || 0;
+				counts.set(base, count + 1);
+				const slug = count === 0 ? base : `${base}-${count}`;
+				anchors.add(slug);
+			}
+		}
+		const htmlMatches = line.matchAll(/<(?:a|h[1-6])\b[^>]*?\s(?:id|name)=["']([^"']+)["']/gi);
+		for (const hm of htmlMatches) {
+			anchors.add(hm[1].toLowerCase());
+		}
+	}
+	return anchors;
+}
+
 export function measure({ root }, allowed = ALLOWED) {
 	const cache = new Map();
+	const anchorCache = new Map();
 	const used = new Set();
 	const findings = [];
 	let checked = 0;
 	const files = markdownFiles(root);
-	for (const rel of files)
-		for (const { line, target } of links(read(root, rel))) {
+
+	function getAnchors(relPath) {
+		if (anchorCache.has(relPath)) return anchorCache.get(relPath);
+		try {
+			const md = read(root, relPath);
+			const extracted = documentAnchors(md);
+			anchorCache.set(relPath, extracted);
+			return extracted;
+		} catch {
+			return null;
+		}
+	}
+
+	for (const rel of files) {
+		const docText = read(root, rel);
+		for (const { line, target } of links(docText)) {
 			const p = linkPath(rel, target);
-			if (p === null) continue;
+			const anchor = linkAnchor(target);
+			const isBareAnchor = target.trim().startsWith("#");
+
+			if (p === null && !isBareAnchor) continue;
 			checked++;
-			if (existsExact(root, p, cache)) continue;
-			const known = allowed.find((e) => e.file === rel && e.target === target);
-			if (known) {
-				used.add(known);
+
+			let targetFile = rel;
+			let pathExists = true;
+
+			if (p !== null) {
+				targetFile = p;
+				if (!existsExact(root, p, cache)) {
+					pathExists = false;
+				}
+			}
+
+			if (!pathExists) {
+				const known = allowed.find((e) => e.file === rel && e.target === target);
+				if (known) {
+					used.add(known);
+					continue;
+				}
+				const why = p === ".." || p.startsWith("../") ? "points outside the repository" : `${p} does not exist`;
+				findings.push(`${rel}:${line} ${target}: ${why}`);
 				continue;
 			}
-			const why = p === ".." || p.startsWith("../") ? "points outside the repository" : `${p} does not exist`;
-			findings.push(`${rel}:${line} ${target}: ${why}`);
+
+			if (anchor !== null && /\.md$/i.test(targetFile)) {
+				const available = getAnchors(targetFile);
+				if (available && !available.has(anchor)) {
+					const known = allowed.find((e) => e.file === rel && e.target === target);
+					if (known) {
+						used.add(known);
+						continue;
+					}
+					const where = targetFile === rel ? "current document" : targetFile;
+					findings.push(`${rel}:${line} ${target}: heading #${anchor} does not exist in ${where}`);
+					continue;
+				}
+			}
 		}
+	}
 	for (const e of allowed.filter((x) => !used.has(x)))
 		findings.push(`${e.file} ${e.target}: ALLOWED entry no longer matches a broken link; remove it`);
 	return {
