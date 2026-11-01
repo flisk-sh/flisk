@@ -763,7 +763,6 @@ export async function checkHostPorts(exec = execSync, projectName = getProjectNa
                 port,
                 container: holder.name,
                 name: holder.name,
-                setting: getPortSetting(port),
             };
             problems.push(`${port} (${HOST_PORTS[port]}) is published by container ${holder.name}`);
         }
@@ -777,11 +776,13 @@ export async function checkHostPorts(exec = execSync, projectName = getProjectNa
     }
     const first = inUse.find((port) => problems.some((p) => p.startsWith(`${port} `))) ?? inUse[0];
     let fix;
-    if (detectedOwner?.setting && detectedOwner.ownerType === "docker") {
-        fix = `Change ${detectedOwner.setting} to an available port, or manually stop the conflicting container (docker stop ${detectedOwner.container}).`;
+    // Ports 80 and 5432 are probed at fixed numbers here, so no FLISK_*_PORT
+    // setting moves them; only name the owner to stop.
+    if (detectedOwner?.ownerType === "docker") {
+        fix = `Manually stop the conflicting container (docker stop ${detectedOwner.container}). Then: flisk doctor`;
     }
-    else if (detectedOwner?.setting && detectedOwner.ownerType === "process") {
-        fix = `Change ${detectedOwner.setting} to an available port, or manually stop the conflicting process (PID ${detectedOwner.pid}).`;
+    else if (detectedOwner?.ownerType === "process") {
+        fix = `Manually stop the conflicting process (PID ${detectedOwner.pid}). Then: flisk doctor`;
     }
     else if (first === 80) {
         fix = HOST_PORT_FIXES.port80;

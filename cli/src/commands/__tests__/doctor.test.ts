@@ -133,7 +133,7 @@ describe("doctor exact guidance", () => {
 
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("5432 (Postgres) is used by process postgres (pid 1234)");
-    expect(result.fix).toContain("Change FLISK_POSTGRES_PORT to an available port");
+    expect(result.fix).not.toContain("FLISK_POSTGRES_PORT");
     expect(result.fix).toContain("PID 1234");
     expect(result.observed).toMatchObject({
       ownerType: "process",
