@@ -63,7 +63,7 @@ flisk resource migrate --type bring-your-own --stack shop --dockerfile ./Dockerf
 A service that lists such a job in `dependsOn` starts only after the job exited `0` (a `<job>-done` resource in Tilt waits for it); if the job fails, the services after it are not started.
 
 `--restart` takes `no`, `on-failure`, `unless-stopped` (the default) or `always`, and is written to `service.json` as
-`"restart": "no"`. It is rejected for any other resource type. Checked with a real `flisk up` (PR #275): a dbmate job
+`"restart": "no"`. In `service.json`, `restart` also takes `on-failure:N` (see below). It is rejected for any other resource type. Checked with a real `flisk up` (PR #275): a dbmate job
 (`ghcr.io/amacneil/dbmate:2`, `dbmate up`) with `restart: "no"` applied its migration once and stayed `exited (0)` with zero restarts. A runnable version lives in [`examples/byo-jobs/`](../examples/byo-jobs/README.md); check it with `tests/e2e/resource-types/bring-your-own/verify-byo-job.sh dbmate`.
 
 ## Container runtime options (capabilities, read-only, user)
@@ -123,18 +123,19 @@ Tilt, and `docker compose config` with a `.env`); a container listening on those
 
 ### Taking the binding from `.env` (`publish`)
 
-A Compose project often lets the installer choose how a port is published: `"${TUBEHAUS_HTTP_BIND:-80}:80"` with
-`TUBEHAUS_HTTP_BIND=127.0.0.1:8080` in `.env` for a host behind its own reverse proxy. Give the entry `publish` instead of
-`hostPort` and `bind`, written as the host side of that mapping:
+A Compose project often lets the installer choose how a port is published: `"${WEB_HTTP_BIND:-80}:80"` with
+`WEB_HTTP_BIND=127.0.0.1:8080` in `.env` for a host behind its own reverse proxy. Give the entry `publish` instead of
+`hostPort` and `bind`, written as the host side of that mapping. The variable name is yours: `WEB_HTTP_BIND` here is only an
+example, and any name matching `[A-Za-z_][A-Za-z0-9_]*` works, so keep the one your Compose file and `.env` already use:
 
 ```json
 "extraPorts": [
-  { "port": 80, "publish": "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }
+  { "port": 80, "publish": "${WEB_HTTP_BIND:-0.0.0.0:80}" }
 ]
 ```
 
-The generated Compose file gets `"${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}:80/tcp"`, and Compose resolves the variable from the shell
-and the project `.env`, so `TUBEHAUS_HTTP_BIND=127.0.0.1:8080` there publishes on loopback port 8080 and an unset variable
+The generated Compose file gets `"${WEB_HTTP_BIND:-0.0.0.0:80}:80/tcp"`, and Compose resolves the variable from the shell
+and the project `.env`, so `WEB_HTTP_BIND=127.0.0.1:8080` there publishes on loopback port 8080 and an unset variable
 publishes the default. One string covers the address and the port, which is why `publish` is a single field rather than
 `hostPort` and `bind` each taking a variable (that could not express a `.env` value such as `127.0.0.1:8080`).
 
@@ -184,6 +185,10 @@ A container's filesystem is thrown away when it is recreated. Keep data in `volu
   keeps it, and two services that name the same volume share it. To start from empty, stop the stack with `flisk down` and
   remove the volume: `docker volume ls --filter label=com.docker.compose.volume=library` shows its full name, then
   `docker volume rm <that name>`.
+- **Keep an existing install's data:** a named volume can set `name`, the Docker volume's own name. Without it the name gets
+  the generated project's prefix, so a Compose install's `myapp_data` is not found. With `"name": "myapp_data"` (the name
+  `docker volume ls` shows), `flisk up` mounts that volume as it is: no copy, and `docker compose up` and `flisk up` share the
+  data. Docker creates the volume when it does not exist yet. `flisk import` writes `name` for you from the Compose file.
 - **A path** starting with `./` or `../` is a bind mount, relative to the service directory (where its `service.json` is).
   It must stay inside the project: `flisk up` and `flisk doctor` refuse one that climbs above the project root.
 - `target` is an absolute path in the container; `readOnly: true` mounts it read-only.
@@ -202,7 +207,7 @@ Put configuration that belongs in the repository in `env`, and credentials in `s
 "env": {
   "POSTGRES_DB": "invidious",
   "PROXY": "socks5://tubehaus:1080",
-  "PUBLIC_URL": "${TUBEHAUS_URL:-http://localhost:8081}"
+  "PUBLIC_URL": "${APP_URL:-http://localhost:8081}"
 },
 "secrets": { "required": ["POSTGRES_PASSWORD"] }
 ```
@@ -212,6 +217,109 @@ Each entry is added to the container's Compose `environment`, after Flisk's own 
 reach the container as written. `flisk config verify` refuses a name that is not an environment variable name, a value that is
 not a string, and a line break. Checked by `tests/tilt-engine/test_byo_env.py`, which also runs `docker compose config` on the
 generated file.
+
+## tmpfs mounts and extra env files (Compose stacks such as Lychee)
+
+Two more keys carry over what a Compose file such as LycheeOrg/Lychee's sets:
+
+| Key | Compose key | Value |
+| --- | --- | --- |
+| `container.tmpfs` | `tmpfs` | List of in-memory mounts. Each is an absolute path in the container, optionally followed by `:` and mount options, such as `/tmp:noexec,nosuid,nodev,size=100m`. Options are lowercase letters, digits, `=`, `,`, `_` and `-`. |
+| `envFile` | `env_file` | List of env files, each a path relative to the service directory, such as `../../../.env`. It must stay inside the project. |
+
+```json
+"envFile": ["../../../.env"],
+"container": { "tmpfs": ["/tmp:noexec,nosuid,nodev,size=100m"] }
+```
+
+Each `envFile` path is written after Flisk's own generated env file, relative to the generated Compose file, in Compose's
+`required: false` form: a file that does not exist yet is skipped, not an error. A path that leaves the project, an absolute path,
+or a value with characters Compose would read as YAML is refused by `flisk config verify` and before Tilt starts (`flisk doctor`
+reports a path outside the project). Both keys apply to bring-your-own resources only. Checked by
+`tests/tilt-engine/test_byo_tmpfs_env_file.py` (the generator, run through Tilt); a container started with them was not part of that test.
+
+CPU and memory limits use `container.cpus` and `container.memory`, described in the next section.
+
+## Models (Compose models, Docker Model Runner)
+
+A Compose stack such as nosia asks Docker Model Runner for its models with a top-level `models:` block and lists them on the
+service that uses them. `models` carries that over: `flisk import` writes it from the Compose file, and `flisk export compose`
+writes it back out.
+
+```json
+"models": [
+  { "name": "llm", "model": "${LLM_MODEL:-ai/smollm2}" },
+  { "name": "embedding", "model": "ai/granite-embedding-multilingual" }
+]
+```
+
+The service gets `models: [llm, embedding]`, and the stack's generated Compose file declares each name once at the top level,
+with `model` written quoted. Two services naming the same model share it; one name given two different models stops `flisk up`.
+
+- `name`: letters, digits, `-`, `_` and `.`, starting with a letter or digit. Listed once per service.
+- `model`: a model reference such as `ai/smollm2`, `ai/qwen3:8B-Q4_K_M` or `hf.co/org/name`, or a Compose variable `${NAME}` or
+  `${NAME:-<model reference>}`, which Compose fills in from the project's `.env` or your shell.
+
+Quotes, spaces, backslashes, line breaks and anything else Compose would read as YAML are refused by `flisk config verify` and
+before Tilt starts. `models` applies to bring-your-own resources only. Docker Model Runner must be enabled in Docker Desktop
+(or the `docker-model-plugin` installed) for the container to start. Checked by `tests/tilt-engine/test_byo_models.py`, which also
+runs `docker compose config` on the generated file; pulling and running a model was not part of that test.
+
+## Image variables, restart limits, stop timeout, hosts, ulimits and network aliases (imported Compose stacks)
+
+Compose files such as karatektus/pl_mail, anyproto/any-sync-dockercompose, wger-project/docker, open-mercato and labsai/EDDI
+use these settings. Each one carries over to a bring-your-own resource:
+
+| service.json | Compose key | Value |
+| --- | --- | --- |
+| `image` | `image` | May use Compose variables: `postgres:${POSTGRES_VERSION:-18}-alpine`, `ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}`. Written quoted; Compose fills it in from the shell and the project `.env`. |
+| `restart` | `restart` | Also `on-failure:N`, N from 1 to 100: restart after a failure at most N times. |
+| `container.stopGracePeriod` | `stop_grace_period` | A duration such as `30s` or `1m30s`. |
+| `container.extraHosts` | `extra_hosts` | List of `name:address`, where address is `host-gateway`, an IPv4 address or an IPv6 address: `["host.docker.internal:host-gateway", "legacy:10.0.0.5"]`. |
+| `container.ulimits` | `ulimits` | Per limit name (`nofile`, `nproc`, `memlock`, `core`, `stack`, ...), a number or `{"soft": n, "hard": n}`. `-1` means unlimited. |
+| `container.networkAliases` | `networks.<backend>.aliases` | Extra DNS names for the service on the stack's backend network, which every app service is on: pl_mail's worker answers as `mercure`. Not for a sidecar (`sidecarOf`). |
+| `healthCheck.startPeriod` | `healthcheck.start_period` | Seconds after the container starts before failed probes count, for an app that boots slowly (Lychee uses 10 to 60). Same style as `interval` and `timeout`. It applies with a `healthCheck.port` or `healthCheck.command` probe: a bring-your-own resource has no other container health check. |
+
+```json
+"image": "postgres:${POSTGRES_VERSION:-18}-alpine",
+"restart": "on-failure:5",
+"healthCheck": { "command": ["pg_isready"], "startPeriod": 30 },
+"container": {
+  "stopGracePeriod": "1m30s",
+  "extraHosts": ["host.docker.internal:host-gateway"],
+  "ulimits": { "nofile": { "soft": 65536, "hard": 65536 }, "nproc": 65535 },
+  "networkAliases": ["mercure"]
+}
+```
+
+A variable can be written `${NAME}`, `${NAME:-default}` (the default when NAME is unset or empty) or `${NAME-default}` (the default
+only when NAME is unset, as in codecov's `"${CODECOV_PORT-8080}:8080"`). The same three forms work in `image`,
+`extraPorts[].publish` (which still needs a default) and `models[].model`. A default uses only the characters its field allows.
+A value with quotes, spaces, line breaks or other characters Compose would read as YAML is refused by `flisk config verify` and
+before Tilt starts. With `networkAliases` the service's networks are written in Compose's map form; without it they stay a list.
+Checked by `tests/tilt-engine/test_byo_compose_options.py`, which runs the generator through Tilt and `docker compose config` on
+the generated file; a container started with these settings was not part of that test.
+
+## dependsOn conditions, build args, logging, bind paths from the environment (more imported Compose stacks)
+
+open-mercato, anyproto/any-sync-dockercompose, wger-project/docker and labsai/EDDI also use these:
+
+| service.json | Compose key | Value |
+| --- | --- | --- |
+| `dependsOn` entry | `depends_on` | A name as before, or `{"name": "db", "condition": "service_healthy"}`. The condition is `service_started`, `service_healthy` or `service_completed_successfully`. Flisk starts services in dependsOn order by name (Tilt `resource_deps`), so the condition is accepted and kept but does not change the order. Applies to every resource type. |
+| `buildArgs` | `build.args` | Object of NAME to string for a bring-your-own resource built from its Dockerfile: `{"NODE_VERSION": "${NODE_VERSION:-22}"}`. |
+| `logging` | `logging` | `{"driver": "json-file", "options": {"max-size": "5m", "max-file": "5"}}`. Option values are strings (#2965). |
+| `volumes[].source` | volume source | A bind path may come from the environment: `${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}` or `${NAME-./path}`. The default must be a path inside the project, resolved like any other bind path. A value set in the environment is used as Compose reads it, relative to the generated Compose file, so set an absolute path. |
+| `volumes[].selinux` | `:z` / `:Z` | `"z"` (label shared between containers) or `"Z"` (private) on a bind mount. |
+| `image` | `image` | Also `${NAME:?message}` or `${NAME?message}`: Compose stops with the message when NAME is unset (`dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set}`). The message uses printable ASCII only, with no quotes, backslash, braces, `$` or backtick. |
+
+`env` values already reach Compose as written, so nested and mixed expressions work: `${A:-${B:-file}}` or
+`mongodb://${U:-x}:${P}@db/eddi?a=b&c=d`. `buildArgs`, `logging` options and `env` values are written as JSON strings, which YAML
+reads as double-quoted strings, so they cannot add keys. A line break or control character in any of them is refused by
+`flisk config verify` and before Tilt starts. `.flisk/project.json` can carry `composeProjectNames` (stack to the Compose
+project name an install ran under), which `flisk import` writes. Flisk accepts it and does not use it yet. Checked by
+`tests/tilt-engine/test_byo_compose_round3.py`, which runs the generator and the manifest loaders through Tilt and
+`docker compose config` on the generated file. A container started with these settings was not part of that test.
 
 ## GPUs, CPU and memory (model servers and simulators)
 

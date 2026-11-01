@@ -13,6 +13,7 @@ import { projectEnvLookup } from "./extra-port-publish.js";
 import { formatCount } from "./formatting.js";
 import { findProjectRoot } from "./paths.js";
 import {
+  envFileErrors,
   providersOf,
   SERVICE_MANIFEST_SCHEMA_VERSION,
   secretConflictWarnings,
@@ -224,15 +225,18 @@ export function checkVolumes(
   resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
 ): CheckResult {
   const problems = resources.flatMap((resource) => {
-    if (!resource.config || !("volumes" in resource.config)) return [];
+    if (!resource.config || !("volumes" in resource.config || "envFile" in resource.config)) {
+      return [];
+    }
     const dir = relative(projectRoot, dirname(resource.configPath));
     const depth = dir === "" ? 0 : dir.split(sep).length;
     // The shape of each entry is reported with the other service.json fields (checkServiceFields); this check adds the location.
-    return volumesErrors(
-      resource.config as Record<string, unknown>,
-      filePath(projectRoot, resource),
-      depth,
-    ).filter((problem) => problem.endsWith("must stay inside the project"));
+    const config = resource.config as Record<string, unknown>;
+    const displayPath = filePath(projectRoot, resource);
+    return [
+      ...volumesErrors(config, displayPath, depth),
+      ...envFileErrors(config, displayPath, depth),
+    ].filter((problem) => problem.endsWith("must stay inside the project"));
   });
   if (problems.length === 0) {
     return { name: "Volumes", didPass: true, message: "Every bind mount stays inside the project" };
