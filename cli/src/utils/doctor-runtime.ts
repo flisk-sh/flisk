@@ -693,8 +693,12 @@ export function checkIngressPorts(
   return {
     name: "Ingress Ports",
     didPass: false,
-    message: `Traefik cannot bind ingress ports because another container already owns them:\n    ${details}`,
-    fix: `Stop the foreign container(s), e.g. \`docker stop ${foreign[0]?.name}\`, or shut down the other Flisk/Tilt project using that Traefik. Then re-run \`flisk up\`.`,
+    message: `Traefik cannot bind ingress ports because another container already owns them:\n    ${details}${
+      observed.setting ? `\n    Configuration: ${observed.setting} controls this port.` : ""
+    }`,
+    fix: `Stop the foreign container(s), e.g. \`docker stop ${foreign[0]?.name}\`, or shut down the other Flisk/Tilt project using that Traefik. Then re-run \`flisk up\`.${
+      observed.setting ? ` Or change ${observed.setting} to an available port.` : ""
+    }`,
     observed,
   };
 }

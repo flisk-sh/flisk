@@ -41,11 +41,16 @@ export function getPortSetting(
   port: number,
   env: NodeJS.ProcessEnv = process.env,
 ): string | undefined {
+  // Explicit overrides win: a user who sets FLISK_HTTPS_PORT=8080 owns that port
+  // even though 8080 is not a default ingress port.
+  if (env.FLISK_HTTP_PORT === String(port)) return "FLISK_HTTP_PORT";
+  if (env.FLISK_HTTPS_PORT === String(port)) return "FLISK_HTTPS_PORT";
+  if (env.FLISK_POSTGRES_PORT === String(port)) return "FLISK_POSTGRES_PORT";
+
   if (
     port === 80 ||
     (port >= DEFAULT_HOST_PORT_RANGES.ingressHttp.start &&
-      port <= DEFAULT_HOST_PORT_RANGES.ingressHttp.end) ||
-    env.FLISK_HTTP_PORT === String(port)
+      port <= DEFAULT_HOST_PORT_RANGES.ingressHttp.end)
   ) {
     return "FLISK_HTTP_PORT";
   }
@@ -53,17 +58,14 @@ export function getPortSetting(
   if (
     port === 443 ||
     (port >= DEFAULT_HOST_PORT_RANGES.ingressHttps.start &&
-      port <= DEFAULT_HOST_PORT_RANGES.ingressHttps.end) ||
-    env.FLISK_HTTPS_PORT === String(port)
+      port <= DEFAULT_HOST_PORT_RANGES.ingressHttps.end)
   ) {
     return "FLISK_HTTPS_PORT";
   }
 
   if (
     port === 5432 ||
-    (port >= DEFAULT_HOST_PORT_RANGES.postgres.start &&
-      port <= DEFAULT_HOST_PORT_RANGES.postgres.end) ||
-    env.FLISK_POSTGRES_PORT === String(port)
+    (port >= DEFAULT_HOST_PORT_RANGES.postgres.start && port <= DEFAULT_HOST_PORT_RANGES.postgres.end)
   ) {
     return "FLISK_POSTGRES_PORT";
   }

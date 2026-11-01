@@ -346,3 +346,9 @@ describe("port-owner", () => {
     });
   });
 });
+
+describe("getPortSetting explicit overrides", () => {
+  it("labels an explicitly assigned HTTPS port by its override, not the HTTP default range", () => {
+    expect(getPortSetting(8080, { FLISK_HTTPS_PORT: "8080" })).toBe("FLISK_HTTPS_PORT");
+  });
+});
