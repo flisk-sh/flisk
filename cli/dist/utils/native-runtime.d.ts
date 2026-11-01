@@ -86,11 +86,13 @@ export interface NativeRunState {
     /** The `flisk up` process supervising the services. */
     pid: number;
     startedAt: string;
+    /** `job`: a one-shot job (a migrator, or `"restart": "no"` with no port); once it exits 0 it stays `ready` with no process. */
     services: Record<string, {
         pid?: number;
         port?: number;
         url?: string;
         ready?: boolean;
+        job?: boolean;
     }>;
 }
 export declare function nativeRunStatePath(projectRoot: string): string;

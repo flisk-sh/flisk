@@ -61,7 +61,7 @@ export async function modelClient() {
     return client;
   } catch {
     console.error(
-      "ANTHROPIC_API_KEY is set but @anthropic-ai/sdk is not installed: run `npm install` in planner/",
+      "ANTHROPIC_API_KEY is set but @anthropic-ai/sdk is not installed: run `npm install` in the folder of plan.mjs",
     );
     return null;
   }

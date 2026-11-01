@@ -387,6 +387,12 @@ export function nativeServiceStates(projectRoot, services) {
         if (!isUp || !service)
             return [name, { status: "unknown", reason: "not running" }];
         if (!service.pid || !isProcessAlive(service.pid)) {
+            // A one-shot job is not restarted: one that exited 0 is done, one that did not has failed.
+            if (service.job) {
+                return service.ready
+                    ? [name, { status: "ready", reason: "finished" }]
+                    : [name, { status: "pending", reason: "the job did not exit 0" }];
+            }
             return [name, { status: "pending", reason: "restarting" }];
         }
         return service.ready
@@ -693,6 +699,7 @@ export class NativeSupervisor {
                 port: service.plan.port,
                 url: service.plan.url,
                 ready: service.isReady,
+                ...(service.plan.job ? { job: true } : {}),
             };
         }
         writeNativeRunState(this.projectRoot, {

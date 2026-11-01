@@ -26,6 +26,7 @@ describe("PROJECT_TEMPLATES", () => {
       "erp",
       "example",
       "fullstack",
+      "langgraph",
       "launch",
       "portal",
       "restaurant",

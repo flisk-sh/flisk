@@ -1,14 +1,16 @@
 {
   "group": "journeys",
   "suite": "agent-templates",
-  "description": "The multi-agent starters (flisk project swarm, flisk project security, flisk project super-agent) through a real flisk up as local processes, no Docker. Chaos cases kill -9 a worker holding a claim and the coordinator mid-goal: the flisk up supervisor must start them again and the swarm must still finish the goal, with the killed worker's subtask retried. The super-agent cases kill -9 its MCP tool server and its planner mid-run: retries back off until the tool server is back, and the planner's saved goals survive its restart.",
+  "description": "The multi-agent starters (flisk project swarm, flisk project security, flisk project super-agent, flisk project langgraph) through a real flisk up as local processes, no Docker. Chaos cases kill -9 a worker holding a claim and the coordinator mid-goal: the flisk up supervisor must start them again and the swarm must still finish the goal, with the killed worker's subtask retried. The super-agent cases kill -9 its MCP tool server and its planner mid-run: retries back off until the tool server is back, and the planner's saved goals survive its restart. The LangGraph cases kill -9 the agent between graph nodes (it must resume from its checkpoint without rerunning a finished node) and the tool server (LangGraph's retry policy must outlast the restart).",
   "paths": [
     "cli/templates/swarm/**",
     "cli/templates/security/**",
     "cli/templates/super-agent/**",
+    "cli/templates/langgraph/**",
     "cli/src/utils/swarm-template.ts",
     "cli/src/utils/security-template.ts",
     "cli/src/utils/super-agent-template.ts",
+    "cli/src/utils/langgraph-template.ts",
     "cli/src/utils/project-templates.ts",
     "cli/src/utils/native-*.ts",
     "cli/src/commands/mcp-check.ts",
@@ -34,7 +36,12 @@
     "P2",
     "P3",
     "P4",
-    "P5"
+    "P5",
+    "L1",
+    "L2",
+    "L3",
+    "L4",
+    "L5"
   ],
   "triggers": [
     "pr",
@@ -42,7 +49,7 @@
     "release",
     "manual"
   ],
-  "timeoutMinutes": 30,
+  "timeoutMinutes": 40,
   "needsSecrets": [],
   "checkName": "🤖 Agent starters, with chaos",
   "install": true

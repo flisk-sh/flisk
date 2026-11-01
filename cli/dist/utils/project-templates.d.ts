@@ -3,7 +3,7 @@ export interface ProjectTemplate {
     description: string;
     bundledPath?: string;
     /** Written by the CLI itself from `cli/templates`, with no clone: `swarm` or `security`. */
-    generated?: "swarm" | "security" | "super-agent";
+    generated?: "swarm" | "security" | "super-agent" | "langgraph";
     fixedDir?: string;
     /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
     ref?: string;
