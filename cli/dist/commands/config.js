@@ -15,6 +15,7 @@ import { clearDiscoveryCache } from "../utils/discovery-context.js";
 import { checkPrismaConsistency } from "../utils/doctor-wiring.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand, showError, } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
@@ -55,6 +56,7 @@ export const configCommand = new Command("config")
     .addCommand(new Command("regenerate")
     .description("Regenerate all 4 master config files from .flisk/project.json")
     .option("--dry-run", "Show what would change without writing files")
+    .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Print one JSON envelope on stdout with each master file's change (new, modified, unchanged)", false)
     .action(async (options) => {
     if (options.json) {
@@ -62,6 +64,10 @@ export const configCommand = new Command("config")
             const projectRoot = findProjectRoot();
             if (!projectRoot)
                 throw errorFactories.notInProject();
+            enforceFliskVersionGate(projectRoot, {
+                ignoreVersion: options.ignoreVersion,
+                json: options.json,
+            });
             const changes = regeneratePlan(projectRoot);
             if (!options.dryRun) {
                 await generateMasterConfigs(projectRoot, { discardHandEdits: true, quiet: true });
@@ -80,6 +86,10 @@ export const configCommand = new Command("config")
     }
     await runCommand(async () => {
         const projectRoot = requireProjectRoot();
+        enforceFliskVersionGate(projectRoot, {
+            ignoreVersion: options.ignoreVersion,
+            json: options.json,
+        });
         // The plan is the comparison report, so it supplies its own printer rather than the standard pair.
         if (handleDryRun(options, "", "", () => {
             console.log(chalk.blue("🔍 Dry run - comparing current files with new configuration...\n"));
@@ -211,12 +221,17 @@ export const configCommand = new Command("config")
 }))
     .addCommand(new Command("migrate")
     .description("Migrate service.json files to the current schema version")
+    .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Print one JSON envelope on stdout with the migrated files", false)
     .action(async (options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
         if (!projectRoot)
             throw errorFactories.notInProject();
+        enforceFliskVersionGate(projectRoot, {
+            ignoreVersion: options.ignoreVersion,
+            json: options.json,
+        });
         const warnings = [];
         const failures = [];
         const pendingMigrations = [];
@@ -296,12 +311,17 @@ export const configCommand = new Command("config")
 }))
     .addCommand(new Command("verify")
     .description("Verify that generated files match .flisk/project.json")
+    .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Emit a machine-readable verification report")
     .action(async (options) => {
     const action = async () => {
         const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
         if (!projectRoot)
             throw errorFactories.notInProject();
+        enforceFliskVersionGate(projectRoot, {
+            ignoreVersion: options.ignoreVersion,
+            json: options.json,
+        });
         const { resources, problems } = discoverResourcesWithProblems(projectRoot);
         warnAboutSkippedFiles(problems);
         const manifestPaths = [
@@ -486,6 +506,10 @@ async function toggleInfraService(service, enabled, options = {}) {
     const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
     if (!projectRoot)
         throw errorFactories.notInProject();
+    enforceFliskVersionGate(projectRoot, {
+        ignoreVersion: options.ignoreVersion,
+        json: options.json,
+    });
     // Validates service is in OPTIONAL_INFRA_SERVICES array
     const validation = validateOptionalInfraService(service);
     if (options.json && !validation.valid) {
@@ -514,11 +538,26 @@ async function toggleInfraService(service, enabled, options = {}) {
             `Must be one of: ${Object.keys(config.optional_infra).join(", ")}`, [`flisk config enable-infra ${Object.keys(config.optional_infra)[0] ?? "monitoring"}`]);
     }
     const wasEnabled = config.optional_infra[service];
-    // Type-safe assignment: service is now narrowed to OptionalInfraKey
-    config.optional_infra[service] = enabled;
     const projectJsonPath = join(projectRoot, ".flisk", PROJECT_JSON);
-    // ProjectConfig is guaranteed to be JSON-serializable
-    writeJsonFile(projectJsonPath, config);
+    const rawProjectValue = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
+    if (typeof rawProjectValue !== "object" ||
+        rawProjectValue === null ||
+        Array.isArray(rawProjectValue)) {
+        throw new FliskError("Invalid project.json: expected an object.", [
+            "Fix .flisk/project.json so it holds a JSON object",
+        ]);
+    }
+    const rawProject = rawProjectValue;
+    const rawOptionalInfra = rawProject.optional_infra;
+    if (typeof rawOptionalInfra !== "object" ||
+        rawOptionalInfra === null ||
+        Array.isArray(rawOptionalInfra)) {
+        throw new FliskError("Invalid project.json: optional_infra must be an object.", [
+            "Set optional_infra in .flisk/project.json to an object, or remove it",
+        ]);
+    }
+    rawOptionalInfra[service] = enabled;
+    writeJsonFile(projectJsonPath, rawProject);
     const action = enabled ? "Enabled" : "Disabled";
     console.log(chalk.green(`✓ ${action}: ${service}`));
     console.log(chalk.gray("Run `flisk config regenerate` to apply."));
@@ -529,6 +568,7 @@ function infraToggleCommand(name, enabled) {
     return new Command(name)
         .description(`${enabled ? "Enable" : "Disable"} optional infrastructure service`)
         .argument("<service>", "Service name (monitoring, elk, debezium, golden_image, verdaccio)")
+        .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
         .option("--json", "Print one JSON envelope on stdout with the service and its previous state", false)
         .action(async (service, options) => {
         const action = () => toggleInfraService(service, enabled, options);

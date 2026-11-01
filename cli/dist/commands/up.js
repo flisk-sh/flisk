@@ -17,7 +17,7 @@ import { applyEnvFileSelection, assertEngineSupportsEnvFile, EnvFileError, envFi
 import { completeEnvFile } from "../utils/env-validator.js";
 import { errorFactories, FliskError, getErrorMessage, requireProjectRoot, runCommand, showError, showErrorAndExit, withTiltCheck, } from "../utils/errors.js";
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
-import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { formatCount } from "../utils/formatting.js";
 import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import { exportHostPortPlan, getHostPortPlan, writeSavedHostPortPlan, } from "../utils/host-port-config.js";
@@ -171,24 +171,12 @@ export function enforceDriftGate(projectRoot, options, exit = process.exit) {
     exit(DRIFT_EXIT_CODE);
 }
 /**
- * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minFliskVersion` in
- * .flisk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
- * `ignoreVersion` skips the check and says so. No minFliskVersion means no check.
+ * Checks the project's CLI version requirements before anything starts.
+ * Enforces both minFliskVersion and pinnedFliskVersion, including under --dry-run.
+ * Kept as a compatibility wrapper for existing callers and tests.
  */
 export function enforceVersionFloor(projectRoot, options, currentVersion = getPackageVersion(), exit = process.exit) {
-    if (options.ignoreVersion) {
-        console.warn(chalk.yellow("Warning: --ignore-version set; minFliskVersion was not checked."));
-        return;
-    }
-    const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
-    if (floor.deprecationWarning) {
-        console.warn(chalk.yellow(`Warning: ${floor.deprecationWarning}`));
-    }
-    if (floor.status === "none" || floor.status === "ok")
-        return;
-    options.onFail?.(`${floor.message}\n${floor.fix}`);
-    showError(`${floor.message}\n${floor.fix}`);
-    exit(1);
+    enforceFliskVersionGate(projectRoot, options, currentVersion, exit);
 }
 const STARTUP_FAILED = Symbol("startup-failed");
 /**
@@ -405,7 +393,7 @@ export const upCommand = new Command("up")
     .option("--dry-run", "Show what would be started without starting", false)
     .option("-f, --force", "Kill existing Tilt process before starting", false)
     .option("--ignore-drift", "Start even if generated files differ from service.json", false)
-    .option("--ignore-version", "Start even if this flisk is older than minFliskVersion in .flisk/project.json", false)
+    .option("--ignore-version", "Start even if this flisk does not satisfy pinnedFliskVersion or minFliskVersion in .flisk/project.json", false)
     .option("--no-database", "Do not provision the bundled shared Postgres: saves capabilities.database=false in .flisk/project.json and regenerates .flisk/.flisk-out/ (set it to true to turn Postgres back on)")
     .option("--only <services...>", "Start only these services plus what the Tiltfile enables for them (their dependsOn services and shared infrastructure). With a stack, names must belong to that stack; dependencies may cross stacks")
     .option("--profile <names...>", 'Also start the services whose "profiles" in service.json include one of these names (without it they are left out)')
@@ -436,7 +424,12 @@ export const upCommand = new Command("up")
     if (versionRoot) {
         enforceVersionFloor(versionRoot, {
             ignoreVersion: options.ignoreVersion,
-            onFail: (message) => emit?.({ ok: false }, [{ code: "FLISK_VERSION_TOO_OLD", message }]),
+            onFail: (message, status) => emit?.({ ok: false }, [
+                {
+                    code: status === "mismatch" ? "FLISK_VERSION_MISMATCH" : "FLISK_VERSION_TOO_OLD",
+                    message,
+                },
+            ]),
         });
     }
     // Declared repositories are cloned before either path discovers services, so a native run and a container run both see

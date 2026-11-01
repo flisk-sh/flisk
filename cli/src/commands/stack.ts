@@ -9,6 +9,7 @@ import { addYesOption, assertValid, confirmOrCancel } from "../utils/command-hel
 import { clearDiscoveryCache, createDiscoveryContext } from "../utils/discovery-context.js";
 import { errorFactories, FliskError, requireProjectRoot, runCommand } from "../utils/errors.js";
 import { writeJsonFile } from "../utils/file-helpers.js";
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import {
   formatCount,
   showAllSatisfyCondition,
@@ -66,17 +67,25 @@ export const stackCommand = addYesOption(new Command("stack"))
   .option("--list", "List resources without a stack", false)
   .option("--resources <names...>", "Resource names to add (comma- or space-separated)")
   .option(
+    "--ignore-version",
+    "Continue even if the CLI does not match the project's version requirements",
+    false,
+  )
+  .option(
     "--json",
     "Print one JSON envelope on stdout; implies --yes and needs --list or <stack-name> --resources",
     false,
   )
   .action(async (stackName, options) => {
     const action = async (): Promise<JsonCommandResult> => {
-      if (options.json) {
-        if (!findProjectRoot()) throw errorFactories.notInProject();
-      } else {
-        requireProjectRoot();
-      }
+      const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
+
+      if (!projectRoot) throw errorFactories.notInProject();
+
+      enforceFliskVersionGate(projectRoot, {
+        ignoreVersion: options.ignoreVersion,
+        json: options.json,
+      });
 
       showCommandHeader("Stack Management");
 

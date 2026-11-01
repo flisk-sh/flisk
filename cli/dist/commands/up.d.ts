@@ -39,13 +39,13 @@ export declare function enforceDriftGate(projectRoot: string, options: {
     resources?: DiscoveredResource[];
 }, exit?: (code: number) => never): void;
 /**
- * Runs before anything starts (also under --dry-run, like the drift gate): a project's `minFliskVersion` in
- * .flisk/project.json that this CLI does not meet, or cannot read, exits with 1 and the same text as `flisk doctor`.
- * `ignoreVersion` skips the check and says so. No minFliskVersion means no check.
+ * Checks the project's CLI version requirements before anything starts.
+ * Enforces both minFliskVersion and pinnedFliskVersion, including under --dry-run.
+ * Kept as a compatibility wrapper for existing callers and tests.
  */
 export declare function enforceVersionFloor(projectRoot: string, options: {
     ignoreVersion?: boolean;
-    onFail?: (message: string) => void;
+    onFail?: (message: string, status: "malformed" | "too-old" | "mismatch") => void;
 }, currentVersion?: string, exit?: (code: number) => never): void;
 /**
  * Waits for Tilt to exit, unless startup has already failed. A readiness failure reports and exits 1 at once: Tilt keeps

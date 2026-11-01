@@ -3,6 +3,70 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_JSON } from "./constants.js";
+/**
+ * Evaluates both the repository's minimum supported CLI version and exact pin.
+ * An exact pin takes precedence over a floor mismatch because it provides
+ * the correct version to install. A malformed floor remains a configuration error.
+ */
+export function evaluateFliskVersion(projectRoot, currentVersion) {
+    const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
+    const pin = evaluateFliskVersionPin(projectRoot, currentVersion);
+    const warning = floor.deprecationWarning ? { deprecationWarning: floor.deprecationWarning } : {};
+    if (floor.status === "malformed") {
+        return {
+            status: "malformed",
+            message: floor.message,
+            fix: floor.fix,
+            ...warning,
+        };
+    }
+    if (pin.status === "malformed") {
+        return {
+            status: "malformed",
+            message: pin.message,
+            fix: pin.fix,
+            ...warning,
+        };
+    }
+    if (pin.status === "mismatch") {
+        return {
+            status: "mismatch",
+            required: pin.required,
+            message: pin.message,
+            fix: pin.fix,
+            ...warning,
+        };
+    }
+    if (floor.status === "too-old") {
+        return {
+            status: "too-old",
+            required: floor.required,
+            message: floor.message,
+            fix: floor.fix,
+            ...warning,
+        };
+    }
+    if (pin.status === "ok") {
+        return {
+            status: "ok",
+            source: "pin",
+            required: pin.required,
+            ...warning,
+        };
+    }
+    if (floor.status === "ok") {
+        return {
+            status: "ok",
+            source: "floor",
+            required: floor.required,
+            ...warning,
+        };
+    }
+    return {
+        status: "none",
+        ...warning,
+    };
+}
 function toParts(raw) {
     const match = raw.trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
     if (!match)

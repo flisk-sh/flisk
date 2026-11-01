@@ -63,9 +63,8 @@ export declare namespace checkDockerOperatingSystem {
 }
 export declare function checkBun(exec?: ExecAsync): Promise<CheckResult>;
 /**
- * A repo can pin the oldest CLI it works with: `"minFliskVersion": "1.3.80"` in
- * .flisk/project.json. An older `flisk` fails here, so a team sees one clear line
- * instead of a half-working `flisk up`.
+ * Checks the project's minimum and exact pinned CLI version.
+ * Shared with `flisk up` so both commands report the same message and fix.
  */
 export declare function checkFliskVersion(currentVersion?: string): CheckResult;
 /**

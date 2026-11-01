@@ -1266,6 +1266,38 @@ describe("doctor Flisk version pin", () => {
     expect(result.didPass).toBe(false);
     expect(result.message).toContain("minFliskVersion");
   });
+
+  it("passes when the CLI exactly matches the repository pin", () => {
+    writeProject({ pinnedFliskVersion: "1.3.80" });
+
+    const result = checkFliskVersion("1.3.80");
+
+    expect(result.didPass).toBe(true);
+    expect(result.message).toContain("matches pinnedFliskVersion 1.3.80");
+  });
+
+  it.each(["1.3.79", "1.3.81"])(
+    "fails when the CLI version %s differs from the repository pin",
+    (currentVersion) => {
+      writeProject({ pinnedFliskVersion: "1.3.80" });
+
+      const result = checkFliskVersion(currentVersion);
+
+      expect(result.didPass).toBe(false);
+      expect(result.message).toContain("pinnedFliskVersion 1.3.80");
+      expect(result.fix).toContain("npm install -g @flisk-sh/flisk@1.3.80");
+      expect(result.fix).toContain("edit pinnedFliskVersion");
+    },
+  );
+
+  it("fails when the repository pin is malformed", () => {
+    writeProject({ pinnedFliskVersion: "latest" });
+
+    const result = checkFliskVersion("1.3.80");
+
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("pinnedFliskVersion");
+  });
 });
 
 describe("checkSharedStackRoutes", () => {

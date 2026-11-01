@@ -50,6 +50,10 @@ const SHIPPED = /^(cli\/(src|templates|shared-platform-engineering)|runtime)\/|^
 // is a finding, so the list cannot go stale.
 export const INTERNAL = [
 	{
+		name: "FLISK_VERSION_MISMATCH",
+		reason: "an error code in the --json envelope (up.ts), not an environment variable",
+	},
+	{
 		name: "FLISK_VERSION_TOO_OLD",
 		reason: "an error code in the --json envelope (up.ts), not an environment variable",
 	},

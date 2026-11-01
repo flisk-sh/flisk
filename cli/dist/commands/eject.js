@@ -6,6 +6,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { addYesOption, confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 // Same location `flisk up` hands to Tilt (see getTiltfilePath in utils/tilt.ts), relative to the project root.
@@ -41,11 +42,12 @@ host ports and exports them to Tilt); running Tilt by hand skips them.
 Optional to delete later: this file, and \`.flisk/\` plus the \`service.json\` files if you stop using Flisk.
 Deleting them also removes what the Tiltfile needs.
 
-To go back to Flisk: install it and run \`flisk config regenerate\`.
+To go back to Flisk: install the version named by \`pinnedFliskVersion\` in \`.flisk/project.json\` (if set), then run \`flisk config regenerate\`.
 `;
 export const ejectCommand = addYesOption(new Command("eject"))
     .description("Write EJECTED.md describing the generated Tilt files (copies and generates nothing; they stay in .flisk/.flisk-out/)")
     .option("--dry-run", "List the generated files and what would be written, without changing the project", false)
+    .option("--ignore-version", "Continue even if the CLI does not match the project's version requirements", false)
     .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
     .action(async (options) => {
     const action = async () => {
@@ -53,6 +55,10 @@ export const ejectCommand = addYesOption(new Command("eject"))
         if (!projectRoot) {
             throw errorFactories.notInProject();
         }
+        enforceFliskVersionGate(projectRoot, {
+            ignoreVersion: options.ignoreVersion,
+            json: options.json,
+        });
         const generatedPaths = [".flisk/.flisk-out"];
         const presentPaths = generatedPaths.filter((path) => existsSync(join(projectRoot, path)));
         const files = presentPaths.flatMap((path) => {

@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PROJECT_JSON } from "./constants.js";
-import { evaluateFliskVersionFloor, evaluateFliskVersionPin } from "./flisk-version.js";
+import {
+  evaluateFliskVersion,
+  evaluateFliskVersionFloor,
+  evaluateFliskVersionPin,
+} from "./flisk-version.js";
 
 let projectRoot: string;
 
@@ -281,5 +285,115 @@ describe("evaluateFliskVersionFloor with a prerelease CLI", () => {
       JSON.stringify({ minFliskVersion: "1.4.0" }),
     );
     expect(evaluateFliskVersionFloor(root, "1.4.28-rc.1").status).toBe("ok");
+  });
+});
+
+describe("evaluateFliskVersion", () => {
+  describe("none", () => {
+    it("returns none when the project has no version requirements", () => {
+      writeProjectJson({ name: "demo" });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.80")).toEqual({
+        status: "none",
+      });
+    });
+  });
+
+  describe("pin", () => {
+    it("rejects a malformed floor even when the pin matches", () => {
+      writeProjectJson({
+        minFliskVersion: "latest",
+        pinnedFliskVersion: "1.3.80",
+      });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.80")).toMatchObject({
+        status: "malformed",
+        message: expect.stringContaining("minFliskVersion"),
+      });
+    });
+
+    it("passes when the current version exactly matches the pin", () => {
+      writeProjectJson({ pinnedFliskVersion: "1.3.80" });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.80")).toEqual({
+        status: "ok",
+        source: "pin",
+        required: "1.3.80",
+      });
+    });
+
+    it.each(["1.3.79", "1.3.81", "2.0.0"])(
+      "reports mismatch when the current version is %s",
+      (current) => {
+        writeProjectJson({ pinnedFliskVersion: "1.3.80" });
+
+        expect(evaluateFliskVersion(projectRoot, current)).toMatchObject({
+          status: "mismatch",
+          required: "1.3.80",
+          message: expect.stringContaining("pinnedFliskVersion 1.3.80"),
+          fix: expect.stringContaining("npm install -g @flisk-sh/flisk@1.3.80"),
+        });
+      },
+    );
+
+    it("reports malformed configuration when the pin is invalid", () => {
+      writeProjectJson({ pinnedFliskVersion: "latest" });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.80")).toMatchObject({
+        status: "malformed",
+        message: expect.stringContaining("pinnedFliskVersion"),
+      });
+    });
+
+    it("reports malformed configuration when the pin is below the floor", () => {
+      writeProjectJson({
+        minFliskVersion: "1.3.80",
+        pinnedFliskVersion: "1.3.79",
+      });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.79")).toMatchObject({
+        status: "malformed",
+        message: expect.stringContaining("lower than minFliskVersion"),
+      });
+    });
+  });
+
+  describe("floor fallback", () => {
+    it("uses the floor when no exact pin is configured", () => {
+      writeProjectJson({ minFliskVersion: "1.3.80" });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.80")).toEqual({
+        status: "ok",
+        source: "floor",
+        required: "1.3.80",
+      });
+    });
+
+    it("preserves the floor failure when no pin is configured", () => {
+      writeProjectJson({ minFliskVersion: "1.3.80" });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.79")).toMatchObject({
+        status: "too-old",
+        required: "1.3.80",
+        message: expect.stringContaining("1.3.79"),
+        fix: "Run: flisk upgrade",
+      });
+    });
+  });
+
+  describe("deprecation warning", () => {
+    it("preserves the legacy minTdkVersion warning when a pin matches", () => {
+      writeProjectJson({
+        minTdkVersion: "1.3.80",
+        pinnedFliskVersion: "1.3.80",
+      });
+
+      expect(evaluateFliskVersion(projectRoot, "1.3.80")).toMatchObject({
+        status: "ok",
+        source: "pin",
+        required: "1.3.80",
+        deprecationWarning: expect.stringContaining("minTdkVersion is deprecated"),
+      });
+    });
   });
 });

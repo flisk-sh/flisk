@@ -556,6 +556,206 @@ describe("config enable-infra and disable-infra", () => {
   });
 });
 
+describe("config version gate", () => {
+  const pinnedFliskVersion = "999.999.999";
+
+  const commands = [
+    { name: "regenerate", args: ["regenerate"], status: undefined },
+    { name: "migrate", args: ["migrate"], status: undefined },
+    { name: "verify", args: ["verify"], status: 1 },
+    { name: "enable-infra", args: ["enable-infra", "monitoring"], status: undefined },
+    { name: "disable-infra", args: ["disable-infra", "monitoring"], status: undefined },
+  ];
+
+  it.each(commands)(
+    "rejects $name when the CLI does not match pinnedFliskVersion",
+    async ({ args }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson(),
+          pinnedFliskVersion,
+        },
+        resources: {
+          "shop/api": {
+            type: "api",
+            stack: "core",
+          },
+        },
+      });
+
+      const result = await runCommandInProcess(configCommand, args, root);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`does not match pinnedFliskVersion ${pinnedFliskVersion}`);
+      expect(result.stderr).toContain(`npm install -g @flisk-sh/flisk@${pinnedFliskVersion}`);
+    },
+  );
+
+  it.each(commands)("allows $name to continue with --ignore-version", async ({ args, status }) => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const root = createTempProject({
+      projectJson: {
+        ...projectJson(),
+        pinnedFliskVersion,
+      },
+    });
+
+    const result = await runCommandInProcess(configCommand, [...args, "--ignore-version"], root);
+    expect(result.status).toBe(status);
+
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("--ignore-version set"));
+
+    expect(result.stderr).not.toContain(`does not match pinnedFliskVersion ${pinnedFliskVersion}`);
+
+    expect(result.stdout.trim()).not.toBe("");
+  });
+
+  it("does not generate files when regenerate is blocked by the version gate", async () => {
+    const root = createTempProject({
+      projectJson: {
+        ...projectJson(),
+        pinnedFliskVersion,
+      },
+    });
+
+    const result = await runCommandInProcess(configCommand, ["regenerate"], root);
+
+    expect(result.status).toBe(1);
+    expect(fs.existsSync(path.join(root, ".flisk", ".flisk-out", "spec.master"))).toBe(false);
+  });
+
+  it("does not migrate service.json when migrate is blocked by the version gate", async () => {
+    const root = createTempProject({
+      projectJson: {
+        ...projectJson(),
+        pinnedFliskVersion,
+      },
+      resources: {
+        "shop/api": {
+          type: "api",
+          stack: "core",
+        },
+      },
+    });
+
+    const file = serviceFile(root, "shop/api");
+    const before = fs.readFileSync(file);
+
+    const result = await runCommandInProcess(configCommand, ["migrate"], root);
+
+    expect(result.status).toBe(1);
+    expect(fs.readFileSync(file)).toEqual(before);
+  });
+
+  it.each([
+    {
+      name: "enable-infra",
+      args: ["enable-infra", "monitoring"],
+      optionalInfra: { monitoring: false },
+    },
+    {
+      name: "disable-infra",
+      args: ["disable-infra", "monitoring"],
+      optionalInfra: { monitoring: true },
+    },
+  ])(
+    "does not modify project.json when $name is blocked by the version gate",
+    async ({ args, optionalInfra }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson("config-version-gate", optionalInfra),
+          pinnedFliskVersion,
+        },
+      });
+
+      const file = path.join(root, ".flisk", "project.json");
+      const before = fs.readFileSync(file);
+
+      const result = await runCommandInProcess(configCommand, args, root);
+
+      expect(result.status).toBe(1);
+      expect(fs.readFileSync(file)).toEqual(before);
+    },
+  );
+
+  it.each([
+    { name: "regenerate", args: ["regenerate", "--json"] },
+    { name: "migrate", args: ["migrate", "--json"] },
+    { name: "verify", args: ["verify", "--json"] },
+    {
+      name: "enable-infra",
+      args: ["enable-infra", "monitoring", "--json"],
+    },
+    {
+      name: "disable-infra",
+      args: ["disable-infra", "monitoring", "--json"],
+    },
+  ])(
+    "emits a valid JSON error envelope when $name is blocked by the version gate",
+    async ({ args }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson(),
+          pinnedFliskVersion,
+        },
+      });
+
+      const result = await runCommandInProcess(configCommand, args, root);
+
+      expect(result.status).toBe(1);
+
+      expect(parseEnvelope(result.stdout)).toMatchObject({
+        schemaVersion: 1,
+        data: null,
+        errors: [
+          {
+            message: expect.stringContaining(
+              `does not match pinnedFliskVersion ${pinnedFliskVersion}`,
+            ),
+          },
+        ],
+      });
+    },
+  );
+
+  it.each([
+    {
+      name: "enable-infra",
+      args: ["enable-infra", "monitoring"],
+      optionalInfra: { monitoring: false },
+      expectedEnabled: true,
+    },
+    {
+      name: "disable-infra",
+      args: ["disable-infra", "monitoring"],
+      optionalInfra: { monitoring: true },
+      expectedEnabled: false,
+    },
+  ])(
+    "preserves version requirements when $name updates project.json",
+    async ({ args, optionalInfra, expectedEnabled }) => {
+      const root = createTempProject({
+        projectJson: {
+          ...projectJson("config-version-preservation", optionalInfra),
+          minFliskVersion: "1.3.70",
+          pinnedFliskVersion: "1.3.80",
+        },
+      });
+
+      const result = await runCommandInProcess(configCommand, [...args, "--ignore-version"], root);
+
+      expect(result.status).toBeUndefined();
+
+      const saved = JSON.parse(fs.readFileSync(path.join(root, ".flisk", "project.json"), "utf-8"));
+
+      expect(saved.minFliskVersion).toBe("1.3.70");
+      expect(saved.pinnedFliskVersion).toBe("1.3.80");
+      expect(saved.optional_infra.monitoring).toBe(expectedEnabled);
+    },
+  );
+});
+
 describe("config edit", () => {
   it("opens project.json in a known editor with its own arguments", async () => {
     vi.stubEnv("EDITOR", "code --wait");
