@@ -484,7 +484,7 @@ const isPortNumber = (value) => typeof value === "number" && Number.isInteger(va
  */
 function publishError(publish) {
     if (typeof publish !== "string" || publish === "") {
-        return 'expected a string such as "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}"';
+        return 'expected a string such as "${WEB_HTTP_BIND:-127.0.0.1:80}"';
     }
     const variables = publishVariables(publish);
     if (typeof variables === "string")

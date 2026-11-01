@@ -123,18 +123,19 @@ Tilt, and `docker compose config` with a `.env`); a container listening on those
 
 ### Taking the binding from `.env` (`publish`)
 
-A Compose project often lets the installer choose how a port is published: `"${TUBEHAUS_HTTP_BIND:-80}:80"` with
-`TUBEHAUS_HTTP_BIND=127.0.0.1:8080` in `.env` for a host behind its own reverse proxy. Give the entry `publish` instead of
-`hostPort` and `bind`, written as the host side of that mapping:
+A Compose project often lets the installer choose how a port is published: `"${WEB_HTTP_BIND:-80}:80"` with
+`WEB_HTTP_BIND=127.0.0.1:8080` in `.env` for a host behind its own reverse proxy. Give the entry `publish` instead of
+`hostPort` and `bind`, written as the host side of that mapping. The variable name is yours: `WEB_HTTP_BIND` here is only an
+example, and any name matching `[A-Za-z_][A-Za-z0-9_]*` works, so keep the one your Compose file and `.env` already use:
 
 ```json
 "extraPorts": [
-  { "port": 80, "publish": "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }
+  { "port": 80, "publish": "${WEB_HTTP_BIND:-0.0.0.0:80}" }
 ]
 ```
 
-The generated Compose file gets `"${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}:80/tcp"`, and Compose resolves the variable from the shell
-and the project `.env`, so `TUBEHAUS_HTTP_BIND=127.0.0.1:8080` there publishes on loopback port 8080 and an unset variable
+The generated Compose file gets `"${WEB_HTTP_BIND:-0.0.0.0:80}:80/tcp"`, and Compose resolves the variable from the shell
+and the project `.env`, so `WEB_HTTP_BIND=127.0.0.1:8080` there publishes on loopback port 8080 and an unset variable
 publishes the default. One string covers the address and the port, which is why `publish` is a single field rather than
 `hostPort` and `bind` each taking a variable (that could not express a `.env` value such as `127.0.0.1:8080`).
 
@@ -202,7 +203,7 @@ Put configuration that belongs in the repository in `env`, and credentials in `s
 "env": {
   "POSTGRES_DB": "invidious",
   "PROXY": "socks5://tubehaus:1080",
-  "PUBLIC_URL": "${TUBEHAUS_URL:-http://localhost:8081}"
+  "PUBLIC_URL": "${APP_URL:-http://localhost:8081}"
 },
 "secrets": { "required": ["POSTGRES_PASSWORD"] }
 ```

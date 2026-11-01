@@ -6,7 +6,7 @@
 # second listener (a SOCKS proxy next to HTTP) also needs plain host ports. They are published on 127.0.0.1 unless an entry opts
 # in with "bind": "0.0.0.0", which a self-hosted app needs so phones and TVs on the same network can reach it. The host port
 # defaults to the container port. An entry may give `publish` instead of `hostPort` and `bind`: the host side of the Compose
-# mapping, "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}", so a Compose project's `.env` setting keeps working (#2947). It is written
+# mapping, "${WEB_HTTP_BIND:-127.0.0.1:80}", so a Compose project's `.env` setting keeps working (#2947). It is written
 # into the file as it is, so only digits, ".", ":" and ${NAME:-default} are accepted; every variable needs a default. Keep in step with extraPortsErrors in
 # cli/src/utils/service-manifest.ts and extraPortsOf in cli/src/utils/status-ports.ts. This file has no load() on purpose.
 # =============================================================================
@@ -38,7 +38,7 @@ def _only(text, allowed):
 def _publish_default(value, field):
     """The host port a `publish` template gives with every variable at its default, after refusing anything unsafe or malformed."""
     if type(value) != "string" or not value:
-        fail("MANIFEST ERROR: '{}.publish' must be a string such as \"${{TUBEHAUS_HTTP_BIND:-127.0.0.1:80}}\"".format(field))
+        fail("MANIFEST ERROR: '{}.publish' must be a string such as \"${{WEB_HTTP_BIND:-127.0.0.1:80}}\"".format(field))
     parts = value.split("${")
     resolved = parts[0]
     if not _only(parts[0], _LITERAL):
