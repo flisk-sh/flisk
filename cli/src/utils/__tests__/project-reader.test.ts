@@ -54,6 +54,11 @@ describe("project-reader", () => {
       expect(readProjectNameOrUndefined(root)).toBe("my-app");
     });
 
+    it("lower-cases the name, as Compose project names must be (#1519)", () => {
+      const root = makeTempProject(JSON.stringify({ project: { name: "Lychee" } }));
+      expect(readProjectNameOrUndefined(root)).toBe("lychee");
+    });
+
     it("returns undefined when project.json is missing", () => {
       const root = makeTempProject();
       expect(readProjectNameOrUndefined(root)).toBeUndefined();

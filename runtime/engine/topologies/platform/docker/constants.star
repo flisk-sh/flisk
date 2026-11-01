@@ -19,7 +19,9 @@ def _load_project_names():
     
     if os.path.exists(project_json_path):
         _project_json = read_json(project_json_path)
-        _PROJECT_NAME_HYPHEN = _project_json.get('project', {}).get('name', 'flisk-project')
+        # Lowercase: Compose project names (and the container, network and volume names built from them) must be lowercase, so
+        # "Lychee" is used as "lychee" everywhere (#1519). Keep in step with readProjectNameOrUndefined in cli/src/utils/project-reader.ts.
+        _PROJECT_NAME_HYPHEN = _project_json.get('project', {}).get('name', 'flisk-project').lower()
         # Convert hyphenated name to underscore (e.g., "my-project" -> "my_project")
         _PROJECT_NAME = _PROJECT_NAME_HYPHEN.replace('-', '_')
         return _PROJECT_NAME, _PROJECT_NAME_HYPHEN

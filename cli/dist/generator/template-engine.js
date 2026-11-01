@@ -373,8 +373,9 @@ function dedupePhaseEnabledStacks(phases) {
     }
     return deduped;
 }
-function toComposeProjectName(projectName) {
-    return projectName.replace(/-/g, "_");
+/** The Compose project name: lowercase (Compose refuses uppercase, #1519) with `-` as `_`. Mirrors PROJECT_NAME in constants.star. */
+export function toComposeProjectName(projectName) {
+    return projectName.toLowerCase().replace(/-/g, "_");
 }
 export function generateDatabaseManagementCompose(projectConfig) {
     const name = toComposeProjectName(projectConfig.project.name || "flisk_project");
