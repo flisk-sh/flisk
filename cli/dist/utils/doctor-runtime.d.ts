@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import type { CheckResult, DiscoveredResource, ProjectCapabilities } from "../types/index.js";
+import { type PortOwnerDetails } from "./port-owner.js";
 import { type HealthProbe } from "./service-urls.js";
 import type { SmokeResult } from "./smoke.js";
 export declare const HOST_PORT_FIXES: {
@@ -16,11 +17,12 @@ export declare const INGRESS_PORTS: readonly [80, 443];
 export declare function toComposeProjectPrefix(projectName: string): string;
 export interface PublishedPortHolder {
     name: string;
+    image?: string;
     ports: string;
     publishedPorts: number[];
 }
 /**
- * Parse `docker ps --format '{{.Names}}\t{{.Ports}}'` lines into containers that
+ * Parse `docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'` lines into containers that
  * publish specific host ports (e.g. 0.0.0.0:80->80/tcp).
  */
 export declare function parsePublishedPortHolders(dockerPsOutput: string, ports: readonly number[]): PublishedPortHolder[];
@@ -124,7 +126,7 @@ export declare function summarizeAdvertisedProbes(probes: HealthProbe[]): CheckR
  * are reported by checkIngressPorts, so only 5432 is checked against other
  * containers here.
  */
-export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>, options?: Record<string, unknown>): Promise<CheckResult>;
+export declare function checkHostPorts(exec?: typeof execSync, projectName?: string, probe?: (port: number) => Promise<PortState>, options?: Record<string, unknown>, findOwner?: (port: number) => PortOwnerDetails | null): Promise<CheckResult>;
 /**
  * When a Tilt session is active, surface resource update errors (Traefik port
  * binds, image builds, etc.) instead of claiming the environment is ready

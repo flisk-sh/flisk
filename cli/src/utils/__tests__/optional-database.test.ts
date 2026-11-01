@@ -29,6 +29,9 @@ import {
   evaluateSharedPlatformPostgres,
 } from "../shared-platform-postgres.js";
 
+// Stub the host owner lookup so tests never shell out to lsof.
+const noOwner = () => null;
+
 function makeStack(name: string, resources: DiscoveredResource[]): DiscoveredStack {
   return { name, resources, resourceCount: resources.length };
 }
@@ -201,16 +204,28 @@ describe("Optional Database Capability", () => {
   describe("Doctor and Preflight checks with database disabled", () => {
     it("skips port 5432 in checkHostPorts when database capability is disabled", async () => {
       // With database enabled and port 5432 in use, checkHostPorts fails
-      const failingResult = await checkHostPorts(noDocker, "shop", inUse([5432]), {
-        database: true,
-      });
+      const failingResult = await checkHostPorts(
+        noDocker,
+        "shop",
+        inUse([5432]),
+        {
+          database: true,
+        },
+        noOwner,
+      );
       expect(failingResult.didPass).toBe(false);
       expect(failingResult.message).toContain("5432 (Postgres)");
 
       // With database disabled and port 5432 in use, checkHostPorts ignores 5432 and passes
-      const passingResult = await checkHostPorts(noDocker, "shop", inUse([5432]), {
-        database: false,
-      });
+      const passingResult = await checkHostPorts(
+        noDocker,
+        "shop",
+        inUse([5432]),
+        {
+          database: false,
+        },
+        noOwner,
+      );
       expect(passingResult.didPass).toBe(true);
       expect(passingResult.message).toBe("Host ports 80, 443 are free");
     });

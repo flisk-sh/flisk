@@ -95,6 +95,7 @@ import {
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
+import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
@@ -1790,19 +1791,34 @@ export const doctorCommand = new Command("doctor")
     }
 
     const containerMachineChecks: Array<() => CheckResult | Promise<CheckResult>> = [
-      () =>
-        hostPortPlan
-          ? {
-              name: "Host Ports",
-              didPass: true,
-              message: describeHostPortPlan(hostPortPlan, portCaps),
-            }
-          : {
-              name: "Host Ports",
-              didPass: false,
-              message: portPlanError ?? "Could not select host ports",
-              fix: hostPortPlanFix(portCaps),
-            },
+      () => {
+        if (hostPortPlan) {
+          return {
+            name: "Host Ports",
+            didPass: true,
+            message: describeHostPortPlan(hostPortPlan, portCaps),
+          };
+        }
+        const match = portPlanError?.match(/(?:FLISK_\w+=|port )(\d+)/i);
+        const conflictingPort = match ? Number(match[1]) : undefined;
+        const owner = conflictingPort ? findPortOwner(conflictingPort) : null;
+        if (owner && conflictingPort) {
+          const diag = formatPortOwnerDiagnostic(conflictingPort, owner, portPlanError);
+          return {
+            name: "Host Ports",
+            didPass: false,
+            message: diag.message,
+            fix: diag.fix,
+            observed: owner,
+          };
+        }
+        return {
+          name: "Host Ports",
+          didPass: false,
+          message: portPlanError ?? "Could not select host ports",
+          fix: hostPortPlanFix(portCaps),
+        };
+      },
       ...(gatewayEnabled
         ? [
             () =>

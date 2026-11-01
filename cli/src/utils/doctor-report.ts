@@ -30,6 +30,7 @@ export interface DoctorReport {
       https: { requested: number; chosen: number | null; explicit: boolean; reason: string };
       postgres?: { requested: number; chosen: number | null; explicit: boolean; reason: string };
     };
+    observed?: unknown;
   };
   errors: DoctorError[];
 }
@@ -78,6 +79,7 @@ export function createDoctorReport(
   buildCache?: DockerBuildCacheReport,
 ): DoctorReport {
   const fixFirst = rankDoctorFixes(checks);
+  const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
   const detectedBuildCache =
     buildCache ??
     (
@@ -94,6 +96,7 @@ export function createDoctorReport(
       inProject,
       checks,
       ...(capabilities ? { capabilities } : {}),
+      ...(observedOwner ? { observed: observedOwner } : {}),
       ...(fixFirst.length > 0 ? { fixFirst } : {}),
       ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
       ...(host
