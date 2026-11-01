@@ -7,6 +7,8 @@ Teams that run `flisk up` on their own repositories. There are two ways to be li
 
 Each row needs the organization, a link to their repository or a public write-up, and the Flisk version. The 100-service `/health` fixture (`flisk-erp-system`, `docs/benchmarks/results`) is a benchmark, not an adopter, and must not be listed here.
 
+What each adopter needed from Flisk, and which Compose features are covered, partly covered or still open, is tracked in [ADOPTER-COVERAGE.md](ADOPTER-COVERAGE.md).
+
 ## What counts
 
 **A good link** is public and shows that the team runs Flisk on its own code:
