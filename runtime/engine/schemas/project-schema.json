@@ -21,6 +21,16 @@
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
       "description": "Oldest flisk CLI this project works with, as MAJOR.MINOR.PATCH. flisk doctor fails on an older CLI."
     },
+    "minTdkVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Deprecated alias for minFliskVersion. Use minFliskVersion instead."
+    },
+    "pinnedFliskVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Exact flisk CLI version this project requires, as MAJOR.MINOR.PATCH."
+    },
     "project": {
       "type": "object",
       "additionalProperties": true,
