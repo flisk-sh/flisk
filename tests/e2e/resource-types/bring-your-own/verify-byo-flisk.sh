@@ -48,6 +48,15 @@ cp -R "$src/." "services/app/$proj/"
 rm -f "services/app/$proj/README.md"
 (cd "services/app/$proj" && flisk resource "$proj" --type bring-your-own --stack app \
   --register-existing --dockerfile ./Dockerfile --health-path "$health" --yes >/dev/null)
+# The app needs Flisk's shared Postgres, so it asks for it: DATABASE_URL and the Postgres itself reach only a service that
+# lists postgres in dependsOn (#2991, #2963).
+node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+manifest.dependsOn = [...new Set([...(manifest.dependsOn || []), "postgres"])];
+fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
+' "services/app/$proj/service.json"
 nohup "${FLISK_BIN:-flisk}" up app >"$work/up.log" 2>&1 &
 
 url="http://127.0.0.1:$http_port/api/$proj$health"
