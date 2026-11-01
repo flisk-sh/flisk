@@ -53,6 +53,10 @@ asks = {'appType': 'bring-your-own', 'stack': 'photos', 'port': 8001, 'image': '
 asks_dm = {'appType': 'bring-your-own', 'stack': 'photos', 'port': 8002, 'image': 'example/app:1', 'dependsOn': ['database-management']}
 asks_db = {'appType': 'bring-your-own', 'stack': 'photos', 'port': 8003, 'image': 'example/app:1', 'databaseName': 'photos_db'}
 asks_flag = {'appType': 'bring-your-own', 'stack': 'photos', 'port': 8004, 'image': 'example/app:1', '_sharedDatabase': True}
+computed_db = {
+    'appType': 'bring-your-own', 'stack': 'photos', 'port': 8007, 'image': 'example/app:1', 'databaseName': 'flisk_photos',
+    '_databaseNameComputed': True,
+}
 own_url = {
     'appType': 'bring-your-own', 'stack': 'photos', 'port': 8005, 'image': 'example/app:1', 'dependsOn': ['postgres'],
     'env': {'DATABASE_URL': 'mysql://root:secret@mariadb/lychee'},
@@ -69,6 +73,7 @@ r = {
     'asks': generate_backend_compose_entry('services/photos', 'photos', {'name': 'asks'}, asks),
     'asks_dm': generate_backend_compose_entry('services/photos', 'photos', {'name': 'asks-dm'}, asks_dm),
     'asks_db': generate_backend_compose_entry('services/photos', 'photos', {'name': 'asks-db'}, asks_db),
+    'computed_db': generate_backend_compose_entry('services/photos', 'photos', {'name': 'computed-db'}, computed_db),
     'asks_flag': generate_backend_compose_entry('services/photos', 'photos', {'name': 'asks-flag'}, asks_flag),
     'nats': generate_backend_compose_entry('services/photos', 'photos', {'name': 'nats'}, nats),
     'backend': generate_backend_compose_entry('services/photos', 'photos', {'name': 'api'}, backend),
@@ -124,6 +129,15 @@ def test_a_bring_your_own_service_gets_no_database_variables_it_did_not_ask_for(
     # What it declares, and the documented PORT, are still there.
     assert '      - "DB_CONNECTION=mysql"\n' in entry
     assert "      - PORT=8000\n" in entry
+
+
+@TILT_REQUIRED
+def test_a_database_name_discovery_computed_is_not_a_request_for_the_shared_database(result):
+    """Discovery gives every service a `databaseName` (#2991); only one the service wrote itself is a request."""
+    entry = result["computed_db"]
+
+    for line in DATABASE_LINES:
+        assert line not in entry, line
 
 
 @TILT_REQUIRED
