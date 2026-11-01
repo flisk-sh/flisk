@@ -4,6 +4,8 @@ export interface ProjectTemplate {
   repo: string;
   description: string;
   bundledPath?: string;
+  /** Written by the CLI itself from `cli/templates`, with no clone: `swarm`. */
+  generated?: "swarm";
   fixedDir?: string;
   /** A commit SHA: project creation checks out exactly this commit after cloning, instead of the default branch. */
   ref?: string;
@@ -53,6 +55,12 @@ export const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
   "agent-stack": {
     repo: "https://github.com/flisk-sh/flisk-agent-stack.git",
     description: "AI agent stack: Bun agent + MCP tool server + Postgres + NATS",
+  },
+  swarm: {
+    repo: "https://github.com/flisk-sh/flisk.git",
+    generated: "swarm",
+    description:
+      "Multi-agent swarm: a coordinator splits a goal, three workers pull and finish subtasks (local processes, no Docker)",
   },
   launch: {
     repo: "https://github.com/flisk-sh/flisk-template-launch.git",
