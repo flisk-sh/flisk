@@ -75,7 +75,7 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | the platform Compose file kept the old project name after a rename | #2993 | fixed in 1.4.29 |
 | the unused router and a Postgres start for a project that only has bring-your-own services | #2963 | open |
 | the router's ports are read from the shell, not from `.env` | #2971 | open |
-| status and logs read another project's Tilt | #2943 | open |
+| status and logs read another project's Tilt | #2943 | fixed in 1.4.29 (#2969, by a contributor); not yet re-checked with two projects running |
 | `flisk up` writes a workspace `package.json`, `.tiltignore` and `shared-platform-engineering/` into the repository root | none yet | open: the adopter has to ignore them |
 
 ## Updating this file
