@@ -42,6 +42,7 @@ export interface DoctorReport {
                 reason: string;
             };
         };
+        observed?: unknown;
     };
     errors: DoctorError[];
 }

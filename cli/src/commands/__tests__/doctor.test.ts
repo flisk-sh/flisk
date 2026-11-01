@@ -48,6 +48,9 @@ import {
   WSL2_DOCTOR_MESSAGE,
 } from "../doctor.js";
 
+// Stub the host owner lookup so tests never shell out to lsof.
+const noOwner = () => null;
+
 vi.mock("../../utils/windows-doctor.js", () => ({
   checkWindowsRuntimeTools: vi.fn(() => ({
     name: "Windows Runtime Tools",
@@ -97,15 +100,58 @@ describe("doctor exact guidance", () => {
   });
 
   it("uses exact remediation copy for ports 80 and 5432", async () => {
-    const port80 = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
-      port === 80 ? "in-use" : "free",
+    const port80 = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 80 ? "in-use" : "free"),
+      undefined,
+      noOwner,
     );
-    const port5432 = await checkHostPorts((() => "") as never, "flisk-project", async (port) =>
-      port === 5432 ? "in-use" : "free",
+    const port5432 = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 5432 ? "in-use" : "free"),
+      undefined,
+      noOwner,
     );
 
     expect(port80.fix).toBe(HOST_PORT_FIXES.port80);
     expect(port5432.fix).toBe(HOST_PORT_FIXES.port5432);
+  });
+
+  it("identifies process owner when available and updates fix message and observed data", async () => {
+    const mockFindOwner = (port: number) =>
+      port === 5432
+        ? {
+            ownerType: "process" as const,
+            type: "process" as const,
+            kind: "process" as const,
+            port: 5432,
+            process: "postgres",
+            name: "postgres",
+            pid: 1234,
+            setting: "FLISK_POSTGRES_PORT",
+          }
+        : null;
+
+    const result = await checkHostPorts(
+      (() => "") as never,
+      "flisk-project",
+      async (port) => (port === 5432 ? "in-use" : "free"),
+      undefined,
+      mockFindOwner,
+    );
+
+    expect(result.didPass).toBe(false);
+    expect(result.message).toContain("5432 (Postgres) is used by process postgres (pid 1234)");
+    expect(result.fix).not.toContain("FLISK_POSTGRES_PORT");
+    expect(result.fix).toContain("PID 1234");
+    expect(result.observed).toMatchObject({
+      ownerType: "process",
+      process: "postgres",
+      pid: 1234,
+      port: 5432,
+    });
   });
 });
 
