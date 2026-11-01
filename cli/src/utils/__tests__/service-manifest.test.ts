@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { substitutePublish } from "../extra-port-publish.js";
 import {
   byoEnvErrors,
   containerErrors,
@@ -16,6 +17,7 @@ import {
   modelsErrors,
   providersErrors,
   providersOf,
+  restartErrors,
   SERVICE_MANIFEST_SCHEMA_URL,
   SERVICE_MANIFEST_SCHEMA_VERSION,
   secretConflictWarnings,
@@ -966,6 +968,8 @@ describe("extraPortsErrors publish", () => {
     "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}",
     "${TUBEHAUS_HTTP_BIND:-80}",
     "127.0.0.1:${TUBEHAUS_HTTP_PORT:-8080}",
+    "${CODECOV_PORT-8080}",
+    "127.0.0.1:${CODECOV_PORT-8080}",
     "8080",
     "0.0.0.0:80",
   ])("accepts %s", (value) => {
@@ -975,6 +979,9 @@ describe("extraPortsErrors publish", () => {
   it.each([
     ["${A}", "needs a default"],
     ["${A:-}", "default of ${A} must be a port or address:port"],
+    ["${A-}", "default of ${A} must be a port or address:port"],
+    ["${A-localhost:80}", "default of ${A} must be a port or address:port"],
+    ["${A-80\nprivileged: true}", "default of ${A} must be a port or address:port"],
     ["${A:-80", "closing }"],
     ["${1A:-80}", "variable names"],
     ["${A:-localhost:80}", "default of ${A} must be a port or address:port"],
@@ -995,6 +1002,15 @@ describe("extraPortsErrors publish", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(".publish");
     expect(errors[0]).toContain(message);
+  });
+
+  it("substitutes ${A-default} only when A is unset, and ${A:-default} also when A is empty, like Compose", () => {
+    const lookup = (values: Record<string, string>) => (name: string) => values[name];
+    expect(substitutePublish("${A-8080}", lookup({}))).toBe("8080");
+    expect(substitutePublish("${A-8080}", lookup({ A: "9090" }))).toBe("9090");
+    expect(substitutePublish("${A-8080}", lookup({ A: "" }))).toBe("");
+    expect(substitutePublish("${A:-8080}", lookup({ A: "" }))).toBe("8080");
+    expect(substitutePublish("127.0.0.1:${A-80}:${B:-81}", lookup({}))).toBe("127.0.0.1:80:81");
   });
 
   it("refuses publish next to hostPort or bind", () => {
@@ -1193,6 +1209,150 @@ describe("envFileErrors", () => {
   });
 });
 
+describe("Compose options for imported stacks", () => {
+  const file = "services/mail/worker/service.json";
+  const byo = (fields: Record<string, unknown>) => ({
+    appName: "worker",
+    appType: "bring-your-own",
+    stack: "mail",
+    schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+    image: "nginx:alpine",
+    ...fields,
+  });
+
+  it("accepts every option in a valid manifest, with no warnings", () => {
+    const result = validateServiceManifest(
+      byo({
+        image: "postgres:${POSTGRES_VERSION:-18}-alpine",
+        restart: "on-failure:5",
+        container: {
+          stopGracePeriod: "1m30s",
+          extraHosts: ["host.docker.internal:host-gateway", "legacy:10.0.0.5", "v6:fd00::1"],
+          ulimits: {
+            nofile: { soft: 65536, hard: 65536 },
+            nproc: 65535,
+            memlock: { soft: -1, hard: -1 },
+          },
+          networkAliases: ["mercure", "mercure.local"],
+        },
+      }),
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it.each([
+    "ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}",
+    "postgres:${POSTGRES_VERSION:-18}-alpine",
+    "${REGISTRY:-ghcr.io}/acme/app:${TAG:-1.0}",
+    "nginx:${NGINX_TAG-alpine}",
+    "ghcr.io/acme/app:1.0",
+  ])("accepts the image %s", (image) => {
+    expect(validateGeneratedStringFields({ image }, file)).toEqual([]);
+  });
+
+  it.each([
+    "a${B",
+    "a${B:-}",
+    "a${B-}",
+    'a${B-x"}',
+    "a${1B}",
+    'a${B:-x"}',
+    "a${B:-x y}",
+    "a$B",
+    "a${B}}",
+    'x"y',
+    "a{b}",
+    "a\nprivileged: true",
+  ])("refuses the image %j", (image) => {
+    const errors = validateGeneratedStringFields({ image }, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(".image");
+  });
+
+  it.each(["no", "on-failure", "on-failure:1", "on-failure:100", "unless-stopped", "always"])(
+    "accepts restart %s",
+    (restart) => {
+      expect(restartErrors({ appType: "bring-your-own", restart }, file)).toEqual([]);
+    },
+  );
+
+  it.each([
+    "on-failure:0",
+    "on-failure:101",
+    "on-failure:05",
+    "on-failure:",
+    "on-failure:5\nprivileged: true",
+    "sometimes",
+    5,
+  ])("refuses restart %j", (restart) => {
+    const errors = restartErrors({ appType: "bring-your-own", restart }, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("restart: expected one of");
+  });
+
+  it.each([
+    [{ startPeriod: 30 }, []],
+    [{ startPeriod: 2.5, interval: 5, timeout: 3, retries: 3 }, []],
+  ])("accepts healthCheck %j", (healthCheck, expected) => {
+    expect(validateServiceManifest(byo({ healthCheck }), file).errors).toEqual(expected);
+  });
+
+  it.each([0, -1, "30s", Number.NaN])("refuses healthCheck.startPeriod %j", (startPeriod) => {
+    expect(validateServiceManifest(byo({ healthCheck: { startPeriod } }), file).errors).toEqual([
+      `${file}.healthCheck.startPeriod: expected a positive number`,
+    ]);
+  });
+
+  it("leaves restart on other resource types to the type check", () => {
+    expect(restartErrors({ appType: "backend", restart: "on-failure:5" }, file)).toEqual([]);
+  });
+
+  const container = (options: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+    appType: "bring-your-own",
+    container: options,
+    ...extra,
+  });
+
+  it.each([
+    [container({ stopGracePeriod: "30" }), "container.stopGracePeriod: expected a duration"],
+    [container({ stopGracePeriod: "1.s" }), "container.stopGracePeriod: expected a duration"],
+    [container({ stopGracePeriod: "30s\nprivileged: true" }), "container.stopGracePeriod"],
+    [container({ stopGracePeriod: 30 }), "container.stopGracePeriod"],
+    [container({ extraHosts: "a:1.2.3.4" }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a"] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a:1.2.3.999"] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a b:1.2.3.4"] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ['a:"x'] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a:1.2.3.4\nprivileged: true"] }), "container.extraHosts"],
+    [container({ ulimits: ["nofile"] }), "container.ulimits: expected an object"],
+    [container({ ulimits: { bogus: 1 } }), "container.ulimits.bogus: expected one of"],
+    [container({ ulimits: { nofile: "1" } }), "container.ulimits.nofile: expected a number"],
+    [
+      container({ ulimits: { nofile: { soft: 1 } } }),
+      "container.ulimits.nofile: expected a number",
+    ],
+    [container({ ulimits: { nofile: -2 } }), "container.ulimits.nofile: expected a number"],
+    [
+      container({ ulimits: { nofile: { soft: 2, hard: 1 } } }),
+      "container.ulimits.nofile: soft must not be above hard",
+    ],
+    [container({ networkAliases: "mercure" }), "container.networkAliases: expected a list"],
+    [container({ networkAliases: ["-mercure"] }), "container.networkAliases: expected a list"],
+    [container({ networkAliases: ["mercure\n  privileged: true"] }), "container.networkAliases"],
+    [container({ networkAliases: ["a", "a"] }), "container.networkAliases: lists a name twice"],
+    [
+      container({ networkAliases: ["mercure"] }, { sidecarOf: "app" }),
+      "container.networkAliases: does not apply to a sidecar",
+    ],
+  ])("reports %j", (manifest, message) => {
+    const errors = containerErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+});
+
 describe("modelsErrors", () => {
   const file = "services/nosia/web/service.json";
   const byo = (models: unknown) => ({ appType: "bring-your-own", models });
@@ -1207,6 +1367,7 @@ describe("modelsErrors", () => {
           { name: "hf.model_1", model: "hf.co/org/name" },
           { name: "var", model: "${LLM_MODEL}" },
           { name: "var-default", model: "${LLM_MODEL:-ai/smollm2}" },
+          { name: "var-unset-default", model: "${LLM_MODEL-ai/smollm2}" },
         ]),
         file,
       ),
@@ -1247,6 +1408,8 @@ describe("modelsErrors", () => {
     [byo([{ name: "llm", model: ": x" }]), "models[0].model: expected a model"],
     [byo([{ name: "llm", model: "${LLM_MODEL" }]), "models[0].model: expected a model"],
     [byo([{ name: "llm", model: "${LLM_MODEL:-}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL-}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL-ai/x y}" }]), "models[0].model: expected a model"],
     [byo([{ name: "llm", model: "${1BAD}" }]), "models[0].model: expected a model"],
     [byo([{ name: "llm", model: '${LLM_MODEL:-ai/x"}' }]), "models[0].model: expected a model"],
     [byo([{ name: "llm", model: "${A}${B}" }]), "models[0].model: expected a model"],

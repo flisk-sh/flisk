@@ -30,7 +30,7 @@ def _is_reference(value):
 
 
 def model_value_ok(value):
-    """A model reference such as ai/smollm2, or ${NAME} / ${NAME:-<model reference>}."""
+    """A model reference such as ai/smollm2, or ${NAME}, ${NAME:-<model reference>} or ${NAME-<model reference>}."""
     if type(value) != "string" or not value:
         return False
     if not value.startswith("${"):
@@ -38,6 +38,9 @@ def model_value_ok(value):
     if not value.endswith("}"):
         return False
     variable, sep, default = value[2:-1].partition(":-")
+    if not sep:
+        # ${NAME-default}: the default only when NAME is unset.
+        variable, sep, default = value[2:-1].partition("-")
     if not variable or variable[0] in "0123456789" or not _only(variable, _VARIABLE_CHARS):
         return False
     return not sep or _is_reference(default)

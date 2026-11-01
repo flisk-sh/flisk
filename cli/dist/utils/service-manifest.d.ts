@@ -26,6 +26,11 @@ export declare function getInvalidServiceRoutePathFields(value: unknown): ("apiP
 /** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
 export declare function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /**
+ * `restart` on a bring-your-own resource: no, on-failure, on-failure:N (N from 1 to 100), unless-stopped or always. Mirrors
+ * byo_restart_policy in engine/.../compose/byo_container.star.
+ */
+export declare function restartErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
  * `extraPorts` (#2909): plain host ports on 127.0.0.1 for a bring-your-own resource, next to the routed `port`. Mirrors
  * engine/.../compose/byo_ports.star, which refuses the same values.
  */
@@ -90,6 +95,7 @@ export interface ParsedHealthCheckConfig {
     interval?: number;
     timeout?: number;
     retries?: number;
+    startPeriod?: number;
     path?: string;
 }
 /**

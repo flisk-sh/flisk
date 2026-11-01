@@ -330,14 +330,12 @@
       "type": "boolean"
     },
     "restart": {
-      "description": "Docker Compose restart policy for this bring-your-own resource. Use \"no\" or \"on-failure\" for one-shot jobs such as database migrations, so a finished job is not restarted. Defaults to unless-stopped.",
-      "enum": [
-        "no",
-        "on-failure",
-        "unless-stopped",
-        "always"
-      ],
-      "type": "string"
+      "description": "Docker Compose restart policy for this bring-your-own resource. Use \"no\" or \"on-failure\" for one-shot jobs such as database migrations, so a finished job is not restarted. on-failure:N (N from 1 to 100) stops after N failed restarts. Defaults to unless-stopped.",
+      "type": "string",
+      "anyOf": [
+        { "enum": ["no", "on-failure", "unless-stopped", "always"] },
+        { "pattern": "^on-failure:([1-9]|[1-9][0-9]|100)$" }
+      ]
     },
     "container": {
       "description": "Container runtime options for this bring-your-own resource, written into its generated Compose service. Use them when an existing image needs them, for example a VPN client that needs NET_ADMIN, a headless browser that needs a larger /dev/shm, or a model server or simulator that needs GPUs and more memory. Ignored for other resource types.",
@@ -407,6 +405,38 @@
           "type": "array",
           "items": { "type": "string", "pattern": "^/[A-Za-z0-9_./-]*(:[a-z0-9=,_-]+)?$" }
         },
+        "stopGracePeriod": {
+          "description": "How long Compose waits after SIGTERM before it kills the container (Compose stop_grace_period), a duration such as 30s or 1m30s.",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(us|ms|s|m|h))+$"
+        },
+        "extraHosts": {
+          "description": "Extra /etc/hosts entries (Compose extra_hosts), each name:address, such as host.docker.internal:host-gateway or db:10.0.0.5.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*:(host-gateway|[0-9.]+|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*)$" }
+        },
+        "ulimits": {
+          "description": "Process limits (Compose ulimits): a number, or soft and hard limits, per limit name, such as {\"nofile\": {\"soft\": 65536, \"hard\": 65536}, \"nproc\": 65535}. -1 means unlimited.",
+          "type": "object",
+          "propertyNames": { "enum": ["as", "core", "cpu", "data", "fsize", "locks", "memlock", "msgqueue", "nice", "nofile", "nproc", "rss", "rtprio", "rttime", "sigpending", "stack"] },
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "integer", "minimum": -1 },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["soft", "hard"],
+                "properties": { "soft": { "type": "integer", "minimum": -1 }, "hard": { "type": "integer", "minimum": -1 } }
+              }
+            ]
+          }
+        },
+        "networkAliases": {
+          "description": "Extra DNS names for this service on the backend network every app service is on (Compose networks.<net>.aliases), such as [\"mercure\"]. Not for a sidecar (sidecarOf).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" }
+        },
         "ipc": {
           "description": "IPC namespace (Compose ipc). host shares the host's shared memory, which PyTorch data loaders and vLLM tensor parallelism use.",
           "enum": ["host", "private", "shareable", "none"]
@@ -429,9 +459,9 @@
             "enum": ["127.0.0.1", "0.0.0.0"]
           },
           "publish": {
-            "description": "The host side of the Compose port mapping, taken from the environment: \"${WEB_HTTP_BIND:-127.0.0.1:80}\". Compose resolves ${VAR:-default} from the shell and the project .env; the value is a port (every interface) or an IPv4 address:port. Every variable needs a default. Replaces hostPort and bind.",
+            "description": "The host side of the Compose port mapping, taken from the environment: \"${WEB_HTTP_BIND:-127.0.0.1:80}\". Compose resolves ${VAR:-default} (or ${VAR-default}, the default only when VAR is unset) from the shell and the project .env; the value is a port (every interface) or an IPv4 address:port. Every variable needs a default. Replaces hostPort and bind.",
             "type": "string",
-            "pattern": "^([0-9.:]|\\$\\{[A-Za-z_][A-Za-z0-9_]*:-[0-9.:]+\\})+$"
+            "pattern": "^([0-9.:]|\\$\\{[A-Za-z_][A-Za-z0-9_]*:?-[0-9.:]+\\})+$"
           }
         }
       }
@@ -458,7 +488,7 @@
           "model": {
             "description": "The model to run, such as ai/smollm2, ai/qwen3:8B-Q4_K_M or hf.co/org/name, or a Compose variable such as ${LLM_MODEL:-ai/smollm2}.",
             "type": "string",
-            "pattern": "^([A-Za-z0-9][A-Za-z0-9._/:@-]*|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:-[A-Za-z0-9][A-Za-z0-9._/:@-]*)?\\})$"
+            "pattern": "^([A-Za-z0-9][A-Za-z0-9._/:@-]*|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-[A-Za-z0-9][A-Za-z0-9._/:@-]*)?\\})$"
           }
         }
       }
@@ -491,8 +521,9 @@
       }
     },
     "image": {
-      "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type.",
-      "type": "string"
+      "description": "Docker image name instead of building from Dockerfile. Optional for bring-your-own type. It may use Compose variables, ${NAME}, ${NAME:-default} or ${NAME-default}, which Compose fills in from the project .env, such as postgres:${POSTGRES_VERSION:-18}-alpine.",
+      "type": "string",
+      "pattern": "^([A-Za-z0-9._/:@-]|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-[A-Za-z0-9._/:@-]+)?\\})+$"
     },
     "stack": {
       "description": "Technology stack this resource belongs to.\nUsed for:\n• Database naming: FLISK_{stack}\n• Traefik routing: /api/{stack}\n• NATS queue: {stack}_backend_svc",
@@ -609,7 +640,7 @@
       "type": "string"
     },
     "healthCheck": {
-      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0), and, for container services, interval and timeout in seconds and retries for the Docker health check.",
+      "description": "Health check settings. false (or { \"enabled\": false }) turns health checks off: no container or Traefik probe, and a native command service counts as ready while its process runs instead of waiting for its port or health path. An object keeps them on and can set one probe, path (an HTTP path; replaces healthCheckPath), port (a TCP port that accepts a connection) or command (exits 0), and, for container services, interval, timeout and startPeriod in seconds and retries for the Docker health check.",
       "oneOf": [
         {
           "type": "boolean"
@@ -620,6 +651,7 @@
             "enabled": { "type": "boolean" },
             "interval": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds between container health probes." },
             "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a container health probe may take." },
+            "startPeriod": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds after the container starts before failed probes count (Compose start_period), for an app that is slow to boot." },
             "retries": { "type": "integer", "minimum": 0, "description": "Failed container probes before the container is unhealthy." },
             "path": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "description": "HTTP path to probe; replaces healthCheckPath." },
             "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Ready when this TCP port accepts a connection, for a service with no HTTP route (a gRPC server, a database proxy). Replaces the HTTP probe." },

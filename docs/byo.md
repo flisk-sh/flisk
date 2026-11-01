@@ -63,7 +63,7 @@ flisk resource migrate --type bring-your-own --stack shop --dockerfile ./Dockerf
 A service that lists such a job in `dependsOn` starts only after the job exited `0` (a `<job>-done` resource in Tilt waits for it); if the job fails, the services after it are not started.
 
 `--restart` takes `no`, `on-failure`, `unless-stopped` (the default) or `always`, and is written to `service.json` as
-`"restart": "no"`. It is rejected for any other resource type. Checked with a real `flisk up` (PR #275): a dbmate job
+`"restart": "no"`. In `service.json`, `restart` also takes `on-failure:N` (see below). It is rejected for any other resource type. Checked with a real `flisk up` (PR #275): a dbmate job
 (`ghcr.io/amacneil/dbmate:2`, `dbmate up`) with `restart: "no"` applied its migration once and stayed `exited (0)` with zero restarts. A runnable version lives in [`examples/byo-jobs/`](../examples/byo-jobs/README.md); check it with `tests/e2e/resource-types/bring-your-own/verify-byo-job.sh dbmate`.
 
 ## Container runtime options (capabilities, read-only, user)
@@ -264,6 +264,41 @@ Quotes, spaces, backslashes, line breaks and anything else Compose would read as
 before Tilt starts. `models` applies to bring-your-own resources only. Docker Model Runner must be enabled in Docker Desktop
 (or the `docker-model-plugin` installed) for the container to start. Checked by `tests/tilt-engine/test_byo_models.py`, which also
 runs `docker compose config` on the generated file; pulling and running a model was not part of that test.
+
+## Image variables, restart limits, stop timeout, hosts, ulimits and network aliases (imported Compose stacks)
+
+Compose files such as karatektus/pl_mail, anyproto/any-sync-dockercompose, wger-project/docker, open-mercato and labsai/EDDI
+use these settings. Each one carries over to a bring-your-own resource:
+
+| service.json | Compose key | Value |
+| --- | --- | --- |
+| `image` | `image` | May use Compose variables: `postgres:${POSTGRES_VERSION:-18}-alpine`, `ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}`. Written quoted; Compose fills it in from the shell and the project `.env`. |
+| `restart` | `restart` | Also `on-failure:N`, N from 1 to 100: restart after a failure at most N times. |
+| `container.stopGracePeriod` | `stop_grace_period` | A duration such as `30s` or `1m30s`. |
+| `container.extraHosts` | `extra_hosts` | List of `name:address`, where address is `host-gateway`, an IPv4 address or an IPv6 address: `["host.docker.internal:host-gateway", "legacy:10.0.0.5"]`. |
+| `container.ulimits` | `ulimits` | Per limit name (`nofile`, `nproc`, `memlock`, `core`, `stack`, ...), a number or `{"soft": n, "hard": n}`. `-1` means unlimited. |
+| `container.networkAliases` | `networks.<backend>.aliases` | Extra DNS names for the service on the stack's backend network, which every app service is on: pl_mail's worker answers as `mercure`. Not for a sidecar (`sidecarOf`). |
+| `healthCheck.startPeriod` | `healthcheck.start_period` | Seconds after the container starts before failed probes count, for an app that boots slowly (Lychee uses 10 to 60). Same style as `interval` and `timeout`. It applies with a `healthCheck.port` or `healthCheck.command` probe: a bring-your-own resource has no other container health check. |
+
+```json
+"image": "postgres:${POSTGRES_VERSION:-18}-alpine",
+"restart": "on-failure:5",
+"healthCheck": { "command": ["pg_isready"], "startPeriod": 30 },
+"container": {
+  "stopGracePeriod": "1m30s",
+  "extraHosts": ["host.docker.internal:host-gateway"],
+  "ulimits": { "nofile": { "soft": 65536, "hard": 65536 }, "nproc": 65535 },
+  "networkAliases": ["mercure"]
+}
+```
+
+A variable can be written `${NAME}`, `${NAME:-default}` (the default when NAME is unset or empty) or `${NAME-default}` (the default
+only when NAME is unset, as in codecov's `"${CODECOV_PORT-8080}:8080"`). The same three forms work in `image`,
+`extraPorts[].publish` (which still needs a default) and `models[].model`. A default uses only the characters its field allows.
+A value with quotes, spaces, line breaks or other characters Compose would read as YAML is refused by `flisk config verify` and
+before Tilt starts. With `networkAliases` the service's networks are written in Compose's map form; without it they stay a list.
+Checked by `tests/tilt-engine/test_byo_compose_options.py`, which runs the generator through Tilt and `docker compose config` on
+the generated file; a container started with these settings was not part of that test.
 
 ## GPUs, CPU and memory (model servers and simulators)
 

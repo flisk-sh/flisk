@@ -15,6 +15,8 @@ export interface HealthCheckObjectConfig {
     interval?: number;
     timeout?: number;
     retries?: number;
+    /** Seconds after start before failed probes count (Compose start_period). */
+    startPeriod?: number;
     path?: string;
     /** Ready when this TCP port accepts a connection (#2875). */
     port?: number;
