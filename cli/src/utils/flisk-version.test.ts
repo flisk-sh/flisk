@@ -271,3 +271,15 @@ describe("evaluateFliskVersionPin", () => {
     });
   });
 });
+
+describe("evaluateFliskVersionFloor with a prerelease CLI", () => {
+  it("treats 1.4.28-rc.1 as meeting 1.4.0", () => {
+    const root = mkdtempSync(join(tmpdir(), "flisk-floor-"));
+    mkdirSync(join(root, ".flisk"));
+    writeFileSync(
+      join(root, ".flisk", "project.json"),
+      JSON.stringify({ minFliskVersion: "1.4.0" }),
+    );
+    expect(evaluateFliskVersionFloor(root, "1.4.28-rc.1").status).toBe("ok");
+  });
+});

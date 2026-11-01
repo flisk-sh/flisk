@@ -154,7 +154,9 @@ export function evaluateFliskVersionFloor(
     };
   }
 
-  const current = toParts(currentVersion);
+  // The running CLI may be a prerelease or v-prefixed build; only the pinned floor is strict.
+  const currentMatch = currentVersion.match(/(\d+)\.(\d+)\.(\d+)/);
+  const current = currentMatch ? currentMatch.slice(1).map(Number) : null;
   const requiredText = required.join(".");
   const meets = current !== null && compareVersions(current, required) >= 0;
 
