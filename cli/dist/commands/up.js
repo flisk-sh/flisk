@@ -19,6 +19,7 @@ import { errorFactories, FliskError, getErrorMessage, requireProjectRoot, runCom
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
 import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
+import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import { exportHostPortPlan, getHostPortPlan, writeSavedHostPortPlan, } from "../utils/host-port-config.js";
 import { formatHostPortPlan } from "../utils/host-port-plan.js";
 import { createJsonEmitter } from "../utils/json-output.js";
@@ -732,6 +733,10 @@ export const upCommand = new Command("up")
                 }
             }
             const copiedAssets = ensureProjectRuntimeAssets(projectRoot);
+            const ignoredGenerated = foundRoot ? ensureGeneratedRootIgnored(projectRoot) : [];
+            if (ignoredGenerated.length > 0 && !options.quiet) {
+                console.log(chalk.gray(`Added to .gitignore (generated, not yours to commit): ${ignoredGenerated.join(", ")}`));
+            }
             if (copiedAssets.length > 0 && options.verbose && !options.quiet) {
                 console.log(chalk.gray(`Refreshed runtime assets: ${copiedAssets.join(", ")}`));
             }
