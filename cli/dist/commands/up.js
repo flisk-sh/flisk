@@ -881,7 +881,14 @@ export const upCommand = new Command("up")
             if (uiReady && emit) {
                 const deferred = getDeferredResourceNames(discoveredResources);
                 const dependsOn = Object.fromEntries(discoveredResources.map((r) => [r.name, dependsOnOf(r.config)]));
+                const parsedWaitTimeout = typeof options.waitTimeout !== "undefined"
+                    ? parseWaitTimeout(options.waitTimeout)
+                    : undefined;
+                const waitTimeoutMs = parsedWaitTimeout?.ok
+                    ? parsedWaitTimeout.seconds * 1000
+                    : undefined;
                 const readiness = await waitForTiltResourcesReady(port, {
+                    timeoutMs: waitTimeoutMs,
                     deferred,
                     // Only what the caller named must be enabled. Dependencies are the Tiltfile's call (it skips some on purpose).
                     expected: options.only
@@ -910,13 +917,18 @@ export const upCommand = new Command("up")
                         return `${f.name}: ${f.message}${fix ? `. ${fix}` : ""}`;
                     })
                         .join("; ");
+                    const stillBuildingMsg = readiness.stillBuilding && readiness.stillBuilding.length > 0
+                        ? ` (${readiness.stillBuilding.join(", ")} still building)`
+                        : "";
                     emit({ ok: false, tiltUrl: `http://localhost:${port}`, failures: readiness.failures }, [
                         {
                             code: readiness.timedOut ? "UP_TIMEOUT" : "UP_RESOURCE_FAILED",
-                            message: `${readiness.timedOut ? "Timed out waiting for resources" : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
+                            message: `${readiness.timedOut ? `Timed out waiting for resources${stillBuildingMsg}` : "Resources failed"}${detail ? ` (${detail})` : ""}. Tilt is still running; inspect it or run: flisk down`,
                             suggestions: upFailureHints({
                                 kind: "services",
                                 failed: readiness.failures.map((failure) => failure.name),
+                                timedOut: readiness.timedOut,
+                                stillBuilding: readiness.stillBuilding,
                             }),
                         },
                     ]);
@@ -937,7 +949,14 @@ export const upCommand = new Command("up")
                     deferred,
                     columns: process.stdout.columns,
                 });
+                const parsedWaitTimeout = typeof options.waitTimeout !== "undefined"
+                    ? parseWaitTimeout(options.waitTimeout)
+                    : undefined;
+                const waitTimeoutMs = parsedWaitTimeout?.ok
+                    ? parsedWaitTimeout.seconds * 1000
+                    : undefined;
                 const readiness = await waitForTiltResourcesReady(port, {
+                    timeoutMs: waitTimeoutMs,
                     deferred,
                     isStalled: (text) => isStartupStalled(text, dependsOn, deferred),
                     fetchJson: fetchWithProgress(tiltGetUiResources, progress),
@@ -955,13 +974,19 @@ export const upCommand = new Command("up")
                             })),
                             blocked: [],
                             starting: [],
+                            stillBuilding: readiness.stillBuilding,
                         };
+                    if (readiness.stillBuilding && readiness.stillBuilding.length > 0) {
+                        report.stillBuilding = readiness.stillBuilding;
+                    }
                     const machineFixes = await machineProblemFixes(report.failed, (name) => tiltResourceLogs(port, name));
-                    const reportLines = formatStartupReport(report, readiness.timedOut, (port) => findPortOccupant(port), machineFixes);
+                    const reportLines = formatStartupReport(report, readiness.timedOut, (port) => findPortOccupant(port), machineFixes, readiness.lastLogs);
                     if (reportLines.length > 0) {
                         showError(reportLines.join("\n"), undefined, upFailureHints({
                             kind: "services",
                             failed: report.failed.map((failure) => failure.name),
+                            timedOut: readiness.timedOut,
+                            stillBuilding: readiness.stillBuilding,
                         }));
                     }
                 }

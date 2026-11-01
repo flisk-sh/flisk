@@ -32,14 +32,34 @@ export function classifyUpProgress(jsonText, deferred) {
     }
     return services.sort((a, b) => a.name.localeCompare(b.name));
 }
-/** `5/9 ready`, then the services in each unfinished state. */
+export function formatProgressDuration(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    if (totalSeconds < 60)
+        return `${totalSeconds}s`;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+}
+/** `5/9 ready`, then the services in each unfinished state, including duration for building services. */
 export function formatUpProgressLine(services) {
     const ready = services.filter((service) => service.state === "ready").length;
     const parts = [`${ready}/${services.length} ready`];
     for (const state of ["failed", "building", "starting", "waiting"]) {
-        const names = services.filter((service) => service.state === state).map((s) => s.name);
-        if (names.length > 0)
-            parts.push(`${state}: ${names.join(", ")}`);
+        const matching = services.filter((service) => service.state === state);
+        if (matching.length === 0)
+            continue;
+        if (state === "building") {
+            const descriptions = matching.map((s) => {
+                if (s.buildingDurationMs !== undefined && s.buildingDurationMs >= 1000) {
+                    return `${s.name} (${formatProgressDuration(s.buildingDurationMs)})`;
+                }
+                return s.name;
+            });
+            parts.push(`building: ${descriptions.join(", ")}`);
+        }
+        else {
+            parts.push(`${state}: ${matching.map((s) => s.name).join(", ")}`);
+        }
     }
     return parts.join(" · ");
 }
@@ -63,6 +83,7 @@ export function shouldRedrawUpProgress(input) {
  */
 export function createUpProgressReporter(options) {
     const previous = new Map();
+    const buildingStartedAt = new Map();
     let lineShown = false;
     const clearLine = () => {
         if (lineShown)
@@ -72,7 +93,10 @@ export function createUpProgressReporter(options) {
     return {
         update(jsonText) {
             let services;
+            let items = [];
             try {
+                const parsed = JSON.parse(jsonText);
+                items = parsed.items ?? [];
                 services = classifyUpProgress(jsonText, options.deferred);
             }
             catch {
@@ -80,6 +104,27 @@ export function createUpProgressReporter(options) {
             }
             if (services.length === 0)
                 return;
+            const now = options.now ?? Date.now;
+            const currentTime = now();
+            const byName = new Map(items.map((i) => [i.metadata?.name, i]));
+            for (const service of services) {
+                if (service.state === "building") {
+                    const item = byName.get(service.name);
+                    const rawStart = item?.status?.currentBuild?.startTime;
+                    const tiltStart = rawStart ? Date.parse(rawStart) : NaN;
+                    if (!Number.isNaN(tiltStart)) {
+                        buildingStartedAt.set(service.name, tiltStart);
+                    }
+                    else if (!buildingStartedAt.has(service.name)) {
+                        buildingStartedAt.set(service.name, currentTime);
+                    }
+                    const startedAt = buildingStartedAt.get(service.name) ?? currentTime;
+                    service.buildingDurationMs = Math.max(0, currentTime - startedAt);
+                }
+                else {
+                    buildingStartedAt.delete(service.name);
+                }
+            }
             const ready = services.filter((service) => service.state === "ready").length;
             const changed = services.filter((service) => previous.get(service.name) !== service.state);
             for (const service of services)
