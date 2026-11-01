@@ -33,6 +33,7 @@ import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
+import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
 import { checkPublicEnvSecrets } from "../utils/public-env-secrets.js";
 import { checkRemoteEnvHosts } from "../utils/remote-env-hosts.js";
@@ -1537,6 +1538,9 @@ export const doctorCommand = new Command("doctor")
     ];
     const containerProjectChecks = [
         () => checkFliskVersion(),
+        () => checkProjectRepos(projectRoot ?? process.cwd(), undefined, undefined, {
+            strict: options.strict,
+        }),
         checkMasterConfigs,
         checkGeneratedProjectRuntimeAssets,
         () => checkGeneratedFiles(options.strict),
@@ -1616,6 +1620,9 @@ export const doctorCommand = new Command("doctor")
     const projectChecks = nativeResources
         ? [
             () => checkFliskVersion(),
+            () => checkProjectRepos(projectRoot ?? process.cwd(), undefined, undefined, {
+                strict: options.strict,
+            }),
             () => checkDuplicateResourceNames(),
             () => checkDependsOnShape(),
             () => checkNativeDependsOn(nativeResources),

@@ -30,6 +30,8 @@ describe("PROJECT_TEMPLATES", () => {
       "portal",
       "restaurant",
       "saas",
+      "security",
+      "swarm",
       "user-management",
     ]);
   });

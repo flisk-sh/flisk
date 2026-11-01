@@ -48,6 +48,8 @@ export interface StackPort {
 export type StackPortsOptions = {
     capabilities?: ProjectCapabilities;
     gateway?: boolean;
+    /** Every service runs as a local process (`command` in service.json): no Traefik, each one answers on localhost. */
+    native?: boolean;
 } | ProjectCapabilities | boolean;
 export declare function buildServicePorts(resource: DiscoveredResource, ingressHttp?: number, options?: StackPortsOptions, lookup?: (name: string) => string | undefined): ServicePorts;
 /** Ports a client should forward or open: ingress, Tilt UI, and the published datastore. Not one per service. */

@@ -22,6 +22,8 @@ interface GeneratorContext {
     project: ProjectConfig["project"];
     phases: ProjectConfig["phases"];
     alwaysEnabledInfra: string[];
+    /** Platform resources the project turned off or does not use: the Tiltfile never enables them, focus mode included. */
+    disabledPlatformInfra: string[];
     optionalInfra: ProjectConfig["optional_infra"];
     serviceDescriptions: Record<string, string>;
     infraDescriptions: Record<string, string>;
@@ -79,8 +81,12 @@ export declare function isTiltfileOrchestration(projectRoot: string): boolean;
  * generated before `flisk import tiltfile`), or the generated one is a wrapper but project.json no longer selects one.
  */
 export declare function isWrappedTiltfileStale(projectRoot: string): boolean;
-/** The Compose project name: lowercase (Compose refuses uppercase, #1519) with `-` as `_`. Mirrors PROJECT_NAME in constants.star. */
-export declare function toComposeProjectName(projectName: string): string;
+/**
+ * True when the generated spec.master or Tiltfile differ from what the project would generate now. The platform services a
+ * project starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back,
+ * and removing the last one must drop it, without a `flisk config regenerate` in between.
+ */
+export declare function areMasterFilesStale(projectRoot: string): boolean;
 export declare function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string;
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
 export declare class ProjectConfigNotFoundError extends FliskError {

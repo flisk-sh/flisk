@@ -7,7 +7,9 @@ import { join } from "node:path";
 import chalk from "chalk";
 import { dependsOnOf } from "./dependency-graph.js";
 import { FliskError } from "./errors.js";
+import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
 import { commandProgram } from "./native-service.js";
+import { findProjectRoot } from "./paths.js";
 import { healthCheckPathOf, isHealthCheckDisabled, readinessProbeOf, } from "./service-manifest.js";
 import { findOnPath } from "./which.js";
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
@@ -76,7 +78,8 @@ export function dependencyWaves(services) {
  * Turns the selected `command` services into start plans and reports what would stop the run: a dependsOn that is not a service
  * of the selection (a database or the gateway needs Docker for now), and two services on one port.
  */
-export function planNativeRun(selected, vars = process.env) {
+export function planNativeRun(selected, vars = process.env, projectRoot) {
+    const root = projectRoot ?? findProjectRoot(selected[0]?.path ?? process.cwd()) ?? process.cwd();
     const errors = [];
     const missingVars = [];
     const names = new Set(selected.map((resource) => resource.name));
@@ -111,9 +114,26 @@ export function planNativeRun(selected, vars = process.env) {
             else
                 portOwners.set(port, resource.name);
         }
+        const rawEnv = {};
+        for (const [key, value] of Object.entries(config.env ?? {})) {
+            rawEnv[key] = String(value);
+        }
+        try {
+            validateMigratorOutputReferences(resource.name, rawEnv, dependsOn);
+        }
+        catch (err) {
+            if (err instanceof FliskError)
+                errors.push(err.message);
+            else
+                throw err;
+        }
         const env = {};
         for (const [key, value] of Object.entries(config.env ?? {})) {
             env[key] = expandEnvValue(String(value), { ...vars, ...env }, (name) => missingVars.push(`${resource.name}: ${name}`));
+        }
+        const job = isOneShotJob(config) && port === undefined;
+        if (job) {
+            env.FLISK_OUTPUT = getMigratorOutputPath(root, resource.name);
         }
         if (port !== undefined)
             env.PORT = String(port);
@@ -123,13 +143,13 @@ export function planNativeRun(selected, vars = process.env) {
         const readiness = readinessProbeOf(config);
         // A one-shot job with no port (every migrator, and a "restart": "no" process that serves nothing) is ready once it exits 0.
         // One that has a port keeps the port or health check as its readiness, like any other service.
-        const job = isOneShotJob(config) && port === undefined;
         return {
             name: resource.name,
             command: String(config.command),
             cwd: resource.path,
             port,
             env,
+            ...(Object.keys(rawEnv).length > 0 ? { rawEnv } : {}),
             dependsOn: [...new Set(dependsOn)],
             healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
             url: port !== undefined ? localUrl(port) : undefined,
@@ -352,6 +372,7 @@ export async function stopNativeRun(projectRoot, options = {}) {
             await stopProcessGroup(service.pid);
     }
     rmSync(nativeRunStatePath(projectRoot), { force: true });
+    clearMigratorOutputs(projectRoot);
     return { wasRunning: true, services: Object.keys(state.services), supervisorPid: state.pid };
 }
 /**
@@ -423,6 +444,7 @@ export class NativeSupervisor {
     events;
     options;
     services = new Map();
+    migratorOutputs = new Map();
     startedAt = new Date().toISOString();
     stopping = false;
     constructor(projectRoot, plans, events = {}, options = {}) {
@@ -463,6 +485,14 @@ export class NativeSupervisor {
                 }
                 if (this.stopping)
                     return false;
+                try {
+                    this.resolveServiceEnv(service);
+                }
+                catch (err) {
+                    const reason = err instanceof Error ? err.message : String(err);
+                    failures.push({ name, reason });
+                    return false;
+                }
                 this.spawn(service);
                 // A one-shot job is ready when it has run to completion with exit code 0.
                 const isReady = service.plan.job
@@ -510,13 +540,37 @@ export class NativeSupervisor {
             }
         }
         rmSync(nativeRunStatePath(this.projectRoot), { force: true });
+        clearMigratorOutputs(this.projectRoot);
     }
     /** The current process id of a service, for tests and diagnostics. */
     pidOf(name) {
         return this.services.get(name)?.child?.pid;
     }
+    /** Parsed outputs produced by finished migrators (for inspection and tests). */
+    outputsOf(migratorName) {
+        return this.migratorOutputs.get(migratorName);
+    }
+    resolveServiceEnv(service) {
+        if (!service.plan.rawEnv)
+            return;
+        const outputsRecord = {};
+        for (const [k, v] of this.migratorOutputs) {
+            outputsRecord[k] = v;
+        }
+        const resolved = resolveMigratorOutputsInEnv(service.plan.name, service.plan.rawEnv, service.plan.dependsOn, outputsRecord);
+        // Only keys that reference a migrator are replaced; every other key keeps the value planNativeRun already expanded.
+        for (const [k, v] of Object.entries(resolved)) {
+            if (v === service.plan.rawEnv[k])
+                continue;
+            service.plan.env[k] = expandEnvValue(v, { ...process.env, ...service.plan.env });
+        }
+    }
     spawn(service) {
         const { plan } = service;
+        if (plan.job) {
+            plan.env.FLISK_OUTPUT = prepareMigratorOutputFile(this.projectRoot, plan.name);
+            this.migratorOutputs.delete(plan.name);
+        }
         service.startedAt = Date.now();
         // `command` is a shell command line the project owner wrote in their own service.json (`PORT=1 node s.js`, `$PORT`,
         // `a && b`), run with the same trust as an npm script or a Procfile entry; nothing from outside the project reaches it.
@@ -553,8 +607,24 @@ export class NativeSupervisor {
         if (service.plan.job) {
             service.gaveUp = code !== 0;
             service.isReady = code === 0;
+            if (code === 0) {
+                try {
+                    const outputPath = getMigratorOutputPath(this.projectRoot, service.plan.name);
+                    const outputs = parseMigratorOutputFile(outputPath);
+                    this.migratorOutputs.set(service.plan.name, outputs);
+                }
+                catch (err) {
+                    service.gaveUp = true;
+                    service.isReady = false;
+                    this.events.onNote?.(service.plan.name, `output file error: ${err instanceof Error ? err.message : String(err)}`);
+                }
+            }
+            else {
+                this.migratorOutputs.delete(service.plan.name);
+                clearMigratorOutputs(this.projectRoot, service.plan.name);
+            }
             this.saveState();
-            this.events.onNote?.(service.plan.name, code === 0 ? "finished (exit code 0)" : `${how}; a job is not restarted`);
+            this.events.onNote?.(service.plan.name, service.isReady ? "finished (exit code 0)" : `${how}; a job is not restarted`);
             return;
         }
         if (!service.plan.restart) {

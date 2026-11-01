@@ -30,6 +30,7 @@ export const HUMAN_ONLY = {
 	upgrade: "replaces the installed CLI, a person's call",
 	export: "writes deploy files (render.yaml, wrangler.toml) for a person to review and commit; the export scope agreed in AGENTS.md keeps it opt-in and off MCP",
 	distribute: "writes listing text and a channel grid that a person reviews and submits by hand",
+	repos: "clones external git repositories; an opt-in developer action or run by flisk up",
 };
 
 // Whether a command path ("maintainers check") belongs to a human-only command.

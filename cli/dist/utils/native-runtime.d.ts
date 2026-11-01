@@ -21,6 +21,8 @@ export interface NativeServicePlan {
     port?: number;
     /** The service's own environment (`env` from service.json, expanded) plus PORT. The process also inherits the shell's. */
     env: Record<string, string>;
+    /** Raw unexpanded env map from service.json, preserved so ${migrator:KEY} can be resolved at runtime. */
+    rawEnv?: Record<string, string>;
     dependsOn: string[];
     /** Polled until it answers below 400 before dependents start. */
     healthUrl?: string;
@@ -65,7 +67,7 @@ export interface NativeRunPlan {
  * Turns the selected `command` services into start plans and reports what would stop the run: a dependsOn that is not a service
  * of the selection (a database or the gateway needs Docker for now), and two services on one port.
  */
-export declare function planNativeRun(selected: readonly DiscoveredResource[], vars?: Readonly<Record<string, string | undefined>>): NativeRunPlan;
+export declare function planNativeRun(selected: readonly DiscoveredResource[], vars?: Readonly<Record<string, string | undefined>>, projectRoot?: string): NativeRunPlan;
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
 export declare function findMissingPrograms(plans: readonly NativeServicePlan[], find?: (program: string) => string | null, exists?: (path: string) => boolean): Array<{
     name: string;
@@ -159,6 +161,7 @@ export declare class NativeSupervisor {
     private readonly events;
     private readonly options;
     private readonly services;
+    private readonly migratorOutputs;
     private readonly startedAt;
     private stopping;
     constructor(projectRoot: string, plans: readonly NativeServicePlan[], events?: SupervisorEvents, options?: {
@@ -181,6 +184,9 @@ export declare class NativeSupervisor {
     stop(): Promise<void>;
     /** The current process id of a service, for tests and diagnostics. */
     pidOf(name: string): number | undefined;
+    /** Parsed outputs produced by finished migrators (for inspection and tests). */
+    outputsOf(migratorName: string): Record<string, string> | undefined;
+    private resolveServiceEnv;
     private spawn;
     private onExit;
     private pipeLines;

@@ -243,6 +243,20 @@ describe("checkNatsBroker", () => {
     expect(result.fix).toContain("reports_demo_nats");
   });
 
+  it("uses flisk-project fallback when project.json is missing or has no project name", () => {
+    const noNameRoot = mkdtempSync(join(tmpdir(), "flisk-nats-no-name-"));
+    const dir = join(noNameRoot, "services", "app", "worker");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "service.json"),
+      JSON.stringify({ appName: "worker", appType: "worker", featuresEnabled: ["nats"] }),
+    );
+    const result = checkNatsBroker(noNameRoot);
+    expect(result.didPass).toBe(false);
+    expect(result.fix).toContain("container_name flisk_project_nats");
+    expect(result.fix).toContain("network flisk_project_backend");
+  });
+
   it("passes when the messaging compose file is there", () => {
     resource("app", "worker", { appType: "worker", featuresEnabled: ["nats"] });
     mkdirSync(join(root, "services", "platform", "messaging"), { recursive: true });

@@ -26,6 +26,7 @@ load("./byo_ports.star", "byo_extra_ports")
 load("./byo_sidecar.star", "byo_sidecar_of")
 load("./byo_volumes.star", "VOLUME_MARKER", "byo_volumes")
 load("./byo_env.star", "byo_environment_lines")
+load("./byo_shared_database.star", "byo_wants_shared_database")
 load("./byo_env_file.star", "byo_env_file_lines")
 load("./byo_models.star", "MODEL_MARKER", "byo_models")
 load("./byo_build_logging.star", "byo_build_args_lines", "byo_logging_section")
@@ -192,26 +193,6 @@ def generate_frontend_compose(resource_path, resource_name, res, manifest=None):
         network_backend=PlatformDockerConstants.NETWORK_BACKEND,
         healthcheck_timing=compose_healthcheck_timing(DOCKER_HEALTHCHECK["frontend_start_period_seconds"]),
     )
-
-
-def byo_wants_shared_database(manifest):
-    """True when a bring-your-own manifest asks for Flisk's shared Postgres: `dependsOn` lists postgres or database-management (or a
-    `database` resource, which the orchestrator reports as `_sharedDatabase`), or it names its own `databaseName`.
-
-    Keep the alias list in step with SHARED_POSTGRES_DEPENDENCY_NAMES in tilt/resources/shared-platform-postgres.star (this file
-    cannot load it: that one loads the Docker layer).
-    """
-    if manifest.get('_sharedDatabase') != None:
-        return bool(manifest.get('_sharedDatabase'))
-    # Discovery fills `databaseName` in for every service (`_databaseNameComputed`); only one the service wrote itself is a request.
-    if manifest.get('databaseName') and not manifest.get('_databaseNameComputed'):
-        return True
-    deps = manifest.get('dependsOn')
-    if type(deps) == "list":
-        for dep in deps:
-            if dep in ["postgres", "database-management"]:
-                return True
-    return False
 
 
 def _platform_env_lines(manifest, is_byo, nats_queue, db_url_for_tilt, nats_url):
@@ -403,6 +384,9 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     health_env = "      - FLISK_HEALTH_PATH={}\n".format(health_path) if health_path else ""
     # A migrator listens on nothing, so it gets no PORT.
     port_env = "" if is_migrator else "      - PORT={}\n".format(internal_port)
+    # A one-shot job receives FLISK_OUTPUT pointing to its output path in the container
+    is_job = is_migrator or (is_byo and manifest.get("restart") == "no")
+    migrator_output_env = "      - FLISK_OUTPUT=/tmp/flisk-output.env\n" if is_job else ""
     # An agent with files durability keeps its session checkpoints in a named volume. The volume is declared at the top of the
     # generated file (generate_app_compose_from_entries reads the marker line below), so flisk down keeps it.
     agent_env = ""
@@ -455,7 +439,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {byo_env_file_section}    environment:
 {infisical_env}
       - RESOURCE_NAME={stack}
-{port_env}{health_env}{agent_env}      - INSTANCE_ID={instance_label}
+{port_env}{health_env}{agent_env}{migrator_output_env}      - INSTANCE_ID={instance_label}
 {platform_env}{auth_env}{secrets_env}{byo_env}
 {agent_volume_section}{byo_volume_section}{byo_model_section}    labels:
 {traefik_labels}
@@ -505,6 +489,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         healthcheck_section=healthcheck_section,
         health_env=health_env,
         agent_env=agent_env,
+        migrator_output_env=migrator_output_env,
         agent_volume_section=agent_volume_section,
         byo_volume_section=byo_volume_section,
         byo_model_section=byo_model_section,
