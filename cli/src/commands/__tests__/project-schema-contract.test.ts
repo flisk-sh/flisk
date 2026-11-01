@@ -122,4 +122,19 @@ describe("project-schema.json", () => {
       }),
     ]);
   });
+
+  it("rejects a non-string legacy minTdkVersion", () => {
+    const { valid, errors } = validate({
+      ...defaults,
+      minTdkVersion: 1.3,
+    });
+
+    expect(valid).toBe(false);
+    expect(errors).toEqual([
+      expect.objectContaining({
+        keyword: "type",
+        instancePath: "/minTdkVersion",
+      }),
+    ]);
+  });
 });
