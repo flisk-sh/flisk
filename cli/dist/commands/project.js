@@ -22,6 +22,7 @@ import { PROJECT_FEATURES } from "../utils/project-features.js";
 import { listProjectTemplates, PROJECT_TEMPLATES, templateGitCommands, } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { discoverStackNames } from "../utils/services.js";
+import { writeSwarmProject } from "../utils/swarm-template.js";
 import { isPathSafe } from "../utils/validation.js";
 /**
  * Stack names discovered from service.json files already in the repo (e.g. a
@@ -121,14 +122,17 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
     if (!options.quiet) {
         showCommandHeader(`Cloning template: ${templateName}`);
         showDetail(`${template.description}\n`, 0);
-        showDetail(`Source: ${template.bundledPath ? "bundled Flisk example" : template.repo}`, 0);
+        showDetail(`Source: ${template.bundledPath || template.generated ? "bundled Flisk example" : template.repo}`, 0);
         if (template.ref)
             showDetail(`Commit: ${template.ref}`, 0);
         showDetail(`Destination: ${destination}\n`, 0);
     }
     let gitStep = "clone";
     try {
-        if (template.bundledPath) {
+        if (template.generated === "swarm") {
+            writeSwarmProject(destination);
+        }
+        else if (template.bundledPath) {
             const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
             cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });
             const projectSlug = basename(destination).replace(/-/g, "_");
