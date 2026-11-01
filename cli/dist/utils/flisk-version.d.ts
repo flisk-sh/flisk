@@ -32,6 +32,27 @@ export type FliskVersionPin = {
     message: string;
     fix: string;
 };
+export type FliskVersionEvaluation = {
+    status: "none";
+    deprecationWarning?: string;
+} | {
+    status: "ok";
+    source: "pin" | "floor";
+    required: string;
+    deprecationWarning?: string;
+} | {
+    status: "malformed" | "too-old" | "mismatch";
+    message: string;
+    fix: string;
+    required?: string;
+    deprecationWarning?: string;
+};
+/**
+ * Evaluates both the repository's minimum supported CLI version and exact pin.
+ * An exact pin takes precedence over a floor mismatch because it provides
+ * the correct version to install. A malformed floor remains a configuration error.
+ */
+export declare function evaluateFliskVersion(projectRoot: string, currentVersion: string): FliskVersionEvaluation;
 /**
  * A repo can pin the oldest CLI it works with:
  * `"minFliskVersion": "1.3.80"` in .flisk/project.json.

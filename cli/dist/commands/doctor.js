@@ -26,7 +26,7 @@ import { checkStarlarkLoadExports } from "../utils/doctor-starlark.js";
 import { checkDockerNetworkCapacity, checkDuplicateResourceNames, checkDuplicateResourcePorts, checkFrontendBackendUrls, checkInfraFrameworks, checkMigrationsInApi, checkNatsBroker, checkPostgresCredentials, checkPrismaConsistency, checkResourcePackageJson, checkServiceUrlPorts, checkSharedPlatformPostgres, checkSharedStackRoutes, checkTiltInstances, } from "../utils/doctor-wiring.js";
 import { validateEnvFile } from "../utils/env-validator.js";
 import { execAsync, isExecTimeout } from "../utils/exec-async.js";
-import { evaluateFliskVersionFloor } from "../utils/flisk-version.js";
+import { evaluateFliskVersion } from "../utils/flisk-version.js";
 import { formatCount } from "../utils/formatting.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
@@ -621,9 +621,8 @@ function checkMasterConfigs() {
     };
 }
 /**
- * A repo can pin the oldest CLI it works with: `"minFliskVersion": "1.3.80"` in
- * .flisk/project.json. An older `flisk` fails here, so a team sees one clear line
- * instead of a half-working `flisk up`.
+ * Checks the project's minimum and exact pinned CLI version.
+ * Shared with `flisk up` so both commands report the same message and fix.
  */
 export function checkFliskVersion(currentVersion = getPackageVersion()) {
     const projectRoot = findProjectRoot();
@@ -635,29 +634,32 @@ export function checkFliskVersion(currentVersion = getPackageVersion()) {
             message: "Not in a project - skipping Flisk version check",
         };
     }
-    const floor = evaluateFliskVersionFloor(projectRoot, currentVersion);
-    const warning = floor.deprecationWarning ? `\nWarning: ${floor.deprecationWarning}` : "";
-    if (floor.status === "none") {
+    const version = evaluateFliskVersion(projectRoot, currentVersion);
+    const warning = version.deprecationWarning ? `\nWarning: ${version.deprecationWarning}` : "";
+    if (version.status === "none") {
         return {
             name: "Flisk version",
             didPass: true,
             isSkipped: true,
-            message: `flisk ${currentVersion} (no minFliskVersion in .flisk/project.json)${warning}`,
+            message: `flisk ${currentVersion} (no minFliskVersion or pinnedFliskVersion in .flisk/project.json)${warning}`,
         };
     }
-    if (floor.status === "malformed" || floor.status === "too-old") {
+    if (version.status !== "ok") {
         return {
             name: "Flisk version",
             didPass: false,
-            message: `${floor.message}${warning}`,
-            fix: floor.fix,
+            message: `${version.message}${warning}`,
+            fix: version.fix,
         };
     }
+    const requirement = version.source === "pin"
+        ? `matches pinnedFliskVersion ${version.required}`
+        : `meets minFliskVersion ${version.required}`;
     return {
         name: "Flisk version",
         didPass: true,
-        isWarning: Boolean(floor.deprecationWarning),
-        message: `flisk ${currentVersion} meets minFliskVersion ${floor.required}${warning}`,
+        isWarning: Boolean(version.deprecationWarning),
+        message: `flisk ${currentVersion} ${requirement}${warning}`,
     };
 }
 /**

@@ -57,6 +57,7 @@ describe("stackCommand", () => {
     stackCommand.setOptionValue("list", false);
     stackCommand.setOptionValue("json", false);
     stackCommand.setOptionValue("yes", false);
+    stackCommand.setOptionValue("ignoreVersion", false);
   });
 
   afterEach(() => {
@@ -105,6 +106,15 @@ describe("stackCommand", () => {
     return paths;
   }
 
+  function pinProjectVersion(version = "999.999.999"): void {
+    const projectJsonPath = join(tempDir, ".flisk", "project.json");
+    const project = JSON.parse(readFileSync(projectJsonPath, "utf-8"));
+
+    project.pinnedFliskVersion = version;
+
+    writeFileSync(projectJsonPath, JSON.stringify(project, null, 2));
+  }
+
   it("rejects when run outside a Flisk project", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -133,6 +143,93 @@ describe("stackCommand", () => {
     expect(exit).toHaveBeenCalled();
     const envelope = parseEnvelope(stdoutData);
     expect(envelope.errors[0]?.code).toBe("COMMAND_FAILED");
+  });
+
+  it("rejects stack assignment when the CLI does not match pinnedFliskVersion", async () => {
+    const paths = setupProject([{ name: "users-api" }]);
+    pinProjectVersion();
+
+    const manifestPath = paths["main/users-api"];
+
+    if (!manifestPath) {
+      throw new Error("Expected users-api fixture path");
+    }
+    const originalManifest = readFileSync(manifestPath, "utf-8");
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { exit } = captureExit();
+
+    await expect(
+      stackCommand.parseAsync(["node", "flisk", "core", "--resources", "users-api", "--yes"], {
+        from: "node",
+      }),
+    ).rejects.toThrow();
+
+    expect(exit).toHaveBeenCalledWith(1);
+
+    const output = errorSpy.mock.calls.flat().join("\n");
+
+    expect(output).toContain("does not match pinnedFliskVersion 999.999.999");
+    expect(output).toContain("npm install -g @flisk-sh/flisk@999.999.999");
+    expect(originalManifest).toBe(readFileSync(manifestPath, "utf-8"));
+  });
+
+  it("allows stack assignment with --ignore-version", async () => {
+    const paths = setupProject([{ name: "users-api" }]);
+    pinProjectVersion();
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await stackCommand.parseAsync(
+      ["node", "flisk", "core", "--resources", "users-api", "--yes", "--ignore-version"],
+      { from: "node" },
+    );
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("--ignore-version"));
+
+    const manifestPath = paths["main/users-api"];
+
+    if (!manifestPath) {
+      throw new Error("Expected users-api fixture path");
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    expect(manifest.stack).toBe("core");
+  });
+
+  it("returns a JSON error when stack assignment is blocked by pinnedFliskVersion", async () => {
+    const paths = setupProject([{ name: "users-api" }]);
+    pinProjectVersion();
+
+    const manifestPath = paths["main/users-api"];
+
+    if (!manifestPath) {
+      throw new Error("Expected users-api fixture path");
+    }
+    const originalManifest = readFileSync(manifestPath, "utf-8");
+
+    let stdoutData = "";
+
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdoutData += String(chunk);
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    const { exit } = captureExit();
+
+    await expect(
+      stackCommand.parseAsync(["node", "flisk", "core", "--resources", "users-api", "--json"], {
+        from: "node",
+      }),
+    ).rejects.toThrow();
+
+    expect(exit).toHaveBeenCalledWith(1);
+
+    const envelope = parseEnvelope(stdoutData);
+
+    expect(envelope.errors[0]?.message).toContain("does not match pinnedFliskVersion 999.999.999");
+
+    expect(readFileSync(manifestPath, "utf-8")).toBe(originalManifest);
   });
 
   it("warns when no resources are discovered and --resources is not set", async () => {

@@ -8,6 +8,7 @@ import { Command } from "commander";
 import type { JsonCommandResult } from "../types/index.js";
 import { addYesOption, confirmOrCancel, handleDryRun } from "../utils/command-helpers.js";
 import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { findProjectRoot } from "../utils/paths.js";
 
@@ -67,6 +68,11 @@ export const ejectCommand = addYesOption(new Command("eject"))
     "List the generated files and what would be written, without changing the project",
     false,
   )
+  .option(
+    "--ignore-version",
+    "Continue even if the CLI does not match the project's version requirements",
+    false,
+  )
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .action(async (options) => {
     const action = async (): Promise<JsonCommandResult> => {
@@ -74,6 +80,12 @@ export const ejectCommand = addYesOption(new Command("eject"))
       if (!projectRoot) {
         throw errorFactories.notInProject();
       }
+
+      enforceFliskVersionGate(projectRoot, {
+        ignoreVersion: options.ignoreVersion,
+        json: options.json,
+      });
+
       const generatedPaths = [".flisk/.flisk-out"];
       const presentPaths = generatedPaths.filter((path) => existsSync(join(projectRoot, path)));
       const files = presentPaths.flatMap((path) => {

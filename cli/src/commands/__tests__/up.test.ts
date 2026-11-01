@@ -544,6 +544,33 @@ describe("enforceVersionFloor", () => {
     vi.restoreAllMocks();
   });
 
+  it("rejects a CLI version that differs from the repository pin", () => {
+    write({ pinnedFliskVersion: "1.3.80" });
+
+    const e = exit();
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onFail = vi.fn();
+
+    expect(() => enforceVersionFloor(dir, { onFail }, "1.3.81", e)).toThrow("exit 1");
+
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining("does not match pinnedFliskVersion 1.3.80"),
+    );
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining("npm install -g @flisk-sh/flisk@1.3.80"),
+    );
+    expect(onFail).toHaveBeenCalledWith(expect.stringContaining("edit pinnedFliskVersion"));
+  });
+
+  it("allows the exact pinned version", () => {
+    write({ pinnedFliskVersion: "1.3.80" });
+
+    const e = exit();
+    enforceVersionFloor(dir, {}, "1.3.80", e);
+
+    expect(e).not.toHaveBeenCalled();
+  });
+
   it("warns when the project uses legacy minTdkVersion", () => {
     write({ minTdkVersion: "1.3.80" });
 

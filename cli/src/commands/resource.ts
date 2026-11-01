@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -98,6 +98,8 @@ export {
   getTestTemplate,
   getWorkerIndexTemplate,
 } from "../generator/resource-templates.js";
+
+import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 
 export const BASE_TEMPLATE = {
   port: 0, // Will be assigned
@@ -812,6 +814,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "--durability <kind>",
     "Where agent sessions are checkpointed (for agent only): files (default, named volume) or postgres",
   )
+  .option(
+    "--ignore-version",
+    "Continue even if the CLI does not match the project's version requirements",
+    false,
+  )
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .action(async (name, options, command: Command) => {
     // The frontend listing is the historical default; `--type` selects the listing when it is given.
@@ -833,6 +840,10 @@ export const resourceCommand = addYesOption(new Command("resource"))
     const action = async (): Promise<JsonCommandResult> => {
       const projectRoot = options.json ? findProjectRoot() : requireProjectRoot();
       if (!projectRoot) throw errorFactories.notInProject();
+      enforceFliskVersionGate(projectRoot, {
+        ignoreVersion: options.ignoreVersion,
+        json: options.json,
+      });
       // Support --resource-path as alias for --path
       const resourcePath = options.resourcePath || options.path;
 
