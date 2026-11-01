@@ -12,7 +12,7 @@ import { Command } from "commander";
  * from npm at a pinned version so a push to its main branch cannot change what `flisk export` does. Move the pin
  * when a new version is published. `FLISK_EXPORT_PACKAGE` overrides the package spec.
  */
-export const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.4.1";
+export const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.4.2";
 export function exportInvocation(args, env = process.env, platform = process.platform) {
     const pkg = env.FLISK_EXPORT_PACKAGE || EXPORT_PACKAGE;
     return {

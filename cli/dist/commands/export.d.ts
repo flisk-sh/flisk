@@ -10,7 +10,7 @@ import { Command } from "commander";
  * from npm at a pinned version so a push to its main branch cannot change what `flisk export` does. Move the pin
  * when a new version is published. `FLISK_EXPORT_PACKAGE` overrides the package spec.
  */
-export declare const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.4.1";
+export declare const EXPORT_PACKAGE = "@flisk-sh/flisk-export@0.4.2";
 type SpawnFn = (command: string, args: string[], options: SpawnOptions) => ReturnType<typeof spawn>;
 export declare function exportInvocation(args: string[], env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform): {
     command: string;
