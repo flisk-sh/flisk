@@ -95,6 +95,8 @@ jobs:
         with:
           node-version: 22
       - run: bash tests/e2e/static/skills-and-docs.sh
+      - run: node --test scripts/check-doc-links.test.mjs
+      - run: node scripts/check-doc-links.mjs
       - run: node --test scripts/docs/tabs.test.mjs
       - run: node --test scripts/docs/fit.test.mjs
       - run: node --test scripts/docs/llms-demo-links.test.mjs
