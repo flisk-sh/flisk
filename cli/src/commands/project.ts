@@ -35,6 +35,7 @@ import {
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
 import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
+import { writeSuperAgentProject } from "../utils/super-agent-template.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { isPathSafe } from "../utils/validation.js";
 
@@ -185,6 +186,8 @@ export async function cloneProjectTemplate(
       writeSwarmProject(destination);
     } else if (template.generated === "security") {
       writeSecurityProject(destination);
+    } else if (template.generated === "super-agent") {
+      writeSuperAgentProject(destination);
     } else if (template.bundledPath) {
       const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
       cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });

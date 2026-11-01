@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# The multi-agent starters (`flisk project swarm`, `flisk project security`) through a real `flisk up`, as local processes with no
+# The multi-agent starters (`flisk project swarm`, `flisk project security`, `flisk project super-agent`) through a real `flisk up`, as local processes with no
 # Docker. The chaos cases kill -9 real processes while work is in flight: the flisk up supervisor must start them again, and the
 # swarm must finish the goal without losing or double-counting a subtask.
 #
@@ -16,6 +16,13 @@
 #   S5  `flisk down` stops every process and frees every port.
 #   B1  `flisk project security` + `flisk up`: a scan of code with a hardcoded secret and a plain-http URL reports the secret as
 #       critical, first; then `flisk down`.
+#   P1  `flisk project super-agent` + `flisk up`: the planner, the tool server and three sub-agents are ready natively, and
+#       `flisk mcp check tools --call` passes against the tool server.
+#   P2  A goal is planned (rules, no API key), researched with the MCP `lookup` tool, written and checked.
+#   P3  Chaos: kill -9 the tool server, then send a goal. The researcher fails while it is down; the planner backs off, the
+#       supervisor starts the tool server again, and a later attempt finishes the research and the goal.
+#   P4  Chaos: kill -9 the planner right after a goal. The supervisor starts it again and the goal is still there and done.
+#   P5  `flisk down` stops all five and frees every port.
 #
 #   tests/e2e/journeys/agent-templates/run.sh all     every case in order, then cleanup
 #   tests/e2e/journeys/agent-templates/run.sh S3      one case (it creates and starts the swarm itself when needed)
@@ -27,6 +34,18 @@ source "$SUITE_DIR/../../lib/lib.sh"
 e2e_init agent-templates swarm-e2e
 RESOURCES=(coordinator worker-1 worker-2 worker-3)
 SECURITY_DIR="$SUITE_ROOT/security-e2e"
+AGENT_DIR="$SUITE_ROOT/super-agent-e2e"
+PLANNER="http://localhost:4300"
+
+# This suite runs three projects, all local processes (no containers): stop each one, even after a failed case, so no process
+# keeps a port the next run needs.
+e2e_cleanup() {
+  local dir
+  for dir in "$DIR" "$SECURITY_DIR" "$AGENT_DIR"; do
+    [ -f "$dir/.flisk/native/run.json" ] && (cd "$dir" && flisk down >/dev/null 2>&1 || true)
+    rm -rf "$dir"
+  done
+}
 COORDINATOR="http://localhost:4100"
 # The template's claim deadline is 15 s; a killed worker's subtask is retried after it.
 CLAIM_WAIT=60
@@ -222,6 +241,90 @@ B1() { # the security agents report a hardcoded secret first
   [ "$RC" -eq 0 ] || die "flisk down exited $RC in the security project"
   poll_until "every security port is free" 30 ports_free 4200 4201 4202
   rm -rf "$SECURITY_DIR"
+}
+
+# ------------------------------------------------------------------------------------------------------------- super agent
+
+plans() { curl -fsS --max-time 5 "$PLANNER/goals"; }
+plan_status() { plans | jq -er --arg id "$1" '.goals[] | select(.id==$id) | .status'; } # <goal id>
+plan_done() { [ "$(plan_status "$1")" = "done" ]; }
+send_plan() { # <text>: prints the new goal's id
+  curl -fsS --max-time 30 -X POST "$PLANNER/goals" -H 'content-type: application/json' \
+    -d "$(jq -cn --arg g "$1" '{goal:$g}')" | jq -er .id
+}
+ensure_agent_up() {
+  if [ ! -f "$AGENT_DIR/planner/service.json" ]; then
+    rm -rf "$AGENT_DIR"
+    run_in "$SUITE_ROOT" agent-create project super-agent --path super-agent-e2e --json
+    [ "$RC" -eq 0 ] || die "flisk project super-agent exited $RC"
+  fi
+  if ! all_ready "$AGENT_DIR" 5 >/dev/null 2>&1; then
+    # No API key: the planner must plan with its rules, so the suite is free and deterministic.
+    (cd "$AGENT_DIR" && ANTHROPIC_API_KEY= nohup flisk up --json >>"$AGENT_DIR/up.log" 2>&1 &)
+  fi
+  poll_until "flisk status lists the planner, the tool server and three sub-agents ready, natively" 120 all_ready "$AGENT_DIR" 5
+}
+
+P1() { # five local processes, and the tool server passes flisk mcp check
+  log "P1 flisk project super-agent, flisk up, flisk mcp check"
+  [ -f "$AGENT_DIR/.flisk/native/run.json" ] && (cd "$AGENT_DIR" && flisk down >/dev/null 2>&1 || true)
+  rm -rf "$AGENT_DIR"
+  ensure_agent_up
+  run_in "$AGENT_DIR" agent-mcp-check mcp check tools --call --no-icon --json
+  [ "$RC" -eq 0 ] || die "flisk mcp check tools exited $RC"
+  assert check "$OUT/agent-mcp-check.out" 'j.data.didPass === true && j.data.serverName === "super-agent-tools"' \
+    "the tool server passes every MCP check, tool calls included"
+}
+
+P2() { # a goal goes through plan, research, write and check
+  log "P2 a goal is planned, researched with MCP tools, written and checked"
+  ensure_agent_up
+  local id
+  id="$(send_plan "explain flisk and mcp")"
+  poll_until "goal $id done" 60 plan_done "$id"
+  plans | jq -e --arg id "$id" '.goals[] | select(.id==$id) |
+      .planner == "rules" and ([.steps[].kind] == ["research","research","write","check"]) and
+      (.answer | contains("local development loop") and contains("Model Context Protocol"))' >/dev/null \
+    || { plans | jq --arg id "$id" '.goals[] | select(.id==$id)'; die "goal $id did not go through every step with the tool notes"; }
+}
+
+P3() { # chaos: the tool server dies, research retries after it is back
+  log "P3 kill -9 the tool server, then send a goal"
+  ensure_agent_up
+  local before id
+  before="$(listening_pid 4301)"
+  [ -n "$before" ] || die "nothing listens on the tool server port 4301"
+  log "kill -9 tools (pid $before)"
+  kill -9 "$before"
+  id="$(send_plan "retries")"
+  poll_until "the supervisor starts the tool server again" 60 pid_listening_changed 4301 "$before"
+  poll_until "goal $id done after the tool server restart" 60 plan_done "$id"
+  plans | jq -e --arg id "$id" '.goals[] | select(.id==$id) | .steps[] | select(.kind=="research") | .attempts >= 2 and (.error | type) == "string"' >/dev/null \
+    || { plans | jq --arg id "$id" '.goals[] | select(.id==$id) | .steps'; die "the research step of goal $id was not retried after the tool server died"; }
+}
+
+P4() { # chaos: the planner dies right after a goal
+  log "P4 kill -9 the planner right after a goal"
+  ensure_agent_up
+  local before id
+  id="$(send_plan "agents and retries")"
+  before="$(listening_pid 4300)"
+  log "kill -9 planner (pid $before) with goal $id sent"
+  kill -9 "$before"
+  poll_until "the supervisor starts the planner again" 60 pid_listening_changed 4300 "$before"
+  poll_until "the restarted planner answers" 30 plans
+  plans | jq -e --arg id "$id" '.goals[] | select(.id==$id)' >/dev/null || die "goal $id was lost when the planner died"
+  poll_until "goal $id done after the planner restart" 60 plan_done "$id"
+  [ -f "$AGENT_DIR/planner/.data/super-agent-state.json" ] || die "the planner saved no state file"
+}
+
+P5() { # flisk down stops all five
+  log "P5 flisk down"
+  ensure_agent_up
+  run_in "$AGENT_DIR" agent-down down
+  [ "$RC" -eq 0 ] || die "flisk down exited $RC in the super-agent project"
+  poll_until "every super-agent port is free" 30 ports_free 4300 4301 4302 4303 4304
+  rm -rf "$AGENT_DIR"
 }
 
 e2e_main "$@"
