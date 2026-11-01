@@ -54,8 +54,8 @@ jobs:
     name: 🌀 service.json chaos
     runs-on: ubuntu-26.04
     # A pull request: about 2 minutes of graph tier, under 1 for the gates, 6 for the Docker tier. The nightly 40 sequences and
-    # 30 million sets take about 30 minutes.
-    timeout-minutes: 60
+    # 30 million sets take about 30 minutes, so only the nightly run gets an hour.
+    timeout-minutes: ${{ github.event_name == 'schedule' && 60 || 30 }}
     defaults:
       run:
         working-directory: tests/chaos
