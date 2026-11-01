@@ -120,6 +120,8 @@ interface GeneratorContext {
   project: ProjectConfig["project"];
   phases: ProjectConfig["phases"];
   alwaysEnabledInfra: string[];
+  /** Platform resources the project turned off or does not use: the Tiltfile never enables them, focus mode included. */
+  disabledPlatformInfra: string[];
   optionalInfra: ProjectConfig["optional_infra"];
   serviceDescriptions: Record<string, string>;
   infraDescriptions: Record<string, string>;
@@ -267,6 +269,10 @@ export class TemplateEngine {
       project: projectConfig.project,
       phases,
       alwaysEnabledInfra,
+      disabledPlatformInfra: [
+        ...(gatewayEnabled ? [] : [...GATEWAY_RESOURCE_NAMES]),
+        ...(dbEnabled ? [] : [DATABASE_MANAGEMENT_FEATURE]),
+      ],
       optionalInfra: projectConfig.optional_infra,
       serviceDescriptions: RESOURCE_DESCRIPTIONS,
       infraDescriptions: INFRA_DESCRIPTIONS,
@@ -434,17 +440,19 @@ export function isWrappedTiltfileStale(projectRoot: string): boolean {
 }
 
 /**
- * True when the generated spec.master differs from what the project would generate now. The platform services a project
- * starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back, and
- * removing the last one must drop it, without a `flisk config regenerate` in between.
+ * True when the generated spec.master or Tiltfile differ from what the project would generate now. The platform services a
+ * project starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back,
+ * and removing the last one must drop it, without a `flisk config regenerate` in between.
  */
-export function isSpecMasterStale(projectRoot: string): boolean {
+export function areMasterFilesStale(projectRoot: string): boolean {
   try {
     const expected = new TemplateEngine().generateAll(readProjectConfig(projectRoot), {
       projectRoot,
-    })["spec.master"];
-    const file = path.join(projectRoot, ".flisk", ".flisk-out", "spec.master");
-    return !fs.existsSync(file) || fs.readFileSync(file, "utf-8") !== expected;
+    });
+    return (["spec.master", "Tiltfile"] as const).some((name) => {
+      const file = path.join(projectRoot, ".flisk", ".flisk-out", name);
+      return !fs.existsSync(file) || fs.readFileSync(file, "utf-8") !== expected[name];
+    });
   } catch {
     return false;
   }

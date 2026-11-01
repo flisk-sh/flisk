@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
@@ -31,6 +31,7 @@ import {
   getTestTemplate,
   getWorkerIndexTemplate,
 } from "../generator/resource-templates.js";
+import { areMasterFilesStale, generateMasterConfigs } from "../generator/template-engine.js";
 import type {
   AgentConfig,
   CreatableResourceType,
@@ -1720,9 +1721,28 @@ This file contains the resource configuration for Flisk.
       return report("created");
     };
 
+    // Which platform services a project starts follows its resources (#2963), so a new resource can change the generated
+    // spec.master and Tiltfile. Refresh them here, or `flisk config verify` reports them out of sync right after `flisk resource`.
+    const refreshGenerated = async (): Promise<void> => {
+      try {
+        const root = findProjectRoot();
+        if (
+          root &&
+          existsSync(join(root, ".flisk", ".flisk-out", "spec.master")) &&
+          areMasterFilesStale(root)
+        ) {
+          await generateMasterConfigs(root, { quiet: true });
+        }
+      } catch {
+        // The resource exists; `flisk up` regenerates a stale spec.master on its own.
+      }
+    };
+
     if (options.json) {
       await runJsonCommand("RESOURCE_FAILED", "flisk resource", action);
+      await refreshGenerated();
       return;
     }
     await runCommand(action);
+    await refreshGenerated();
   });

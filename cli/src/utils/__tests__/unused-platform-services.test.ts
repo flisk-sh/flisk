@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  areMasterFilesStale,
   generateMasterConfigs,
-  isSpecMasterStale,
   verifyMasterConfigs,
 } from "../../generator/template-engine.js";
 import { makeResource } from "../../test-support/index.js";
@@ -86,6 +86,18 @@ describe("platform services follow the resources (#2963)", () => {
     expect(spec).not.toContain('"proxy"');
     expect(spec).not.toContain("database-management");
     expect(verifyMasterConfigs(root).errors).toEqual([]);
+    // Focus mode adds traefik and postgres from CORE_INFRA, so the Tiltfile itself must refuse them.
+    const tiltfile = readFileSync(join(root, ".flisk", ".flisk-out", "Tiltfile"), "utf-8");
+    expect(tiltfile).toContain(
+      'DISABLED_PLATFORM_INFRA = ["proxy", "traefik", "database-management"]',
+    );
+  });
+
+  it("a project that uses both leaves the Tiltfile's disabled list empty", async () => {
+    const root = project({ api: { appType: "backend" } });
+    await generateMasterConfigs(root, { quiet: true });
+    const tiltfile = readFileSync(join(root, ".flisk", ".flisk-out", "Tiltfile"), "utf-8");
+    expect(tiltfile).toContain("DISABLED_PLATFORM_INFRA = []");
   });
 
   it("a routed bring-your-own service keeps the router, and still skips Postgres", async () => {
@@ -130,7 +142,7 @@ describe("platform services follow the resources (#2963)", () => {
   it("adding a routed service later makes spec.master stale, and regenerating brings the router back", async () => {
     const root = project({ caddy: byo() });
     await generateMasterConfigs(root, { quiet: true });
-    expect(isSpecMasterStale(root)).toBe(false);
+    expect(areMasterFilesStale(root)).toBe(false);
 
     mkdirSync(join(root, "services", "api"), { recursive: true });
     writeFileSync(
@@ -143,9 +155,9 @@ describe("platform services follow the resources (#2963)", () => {
         port: 4200,
       }),
     );
-    expect(isSpecMasterStale(root)).toBe(true);
+    expect(areMasterFilesStale(root)).toBe(true);
     await generateMasterConfigs(root, { quiet: true });
-    expect(isSpecMasterStale(root)).toBe(false);
+    expect(areMasterFilesStale(root)).toBe(false);
     expect(readFileSync(join(root, ".flisk", ".flisk-out", "spec.master"), "utf-8")).toContain(
       "proxy",
     );
