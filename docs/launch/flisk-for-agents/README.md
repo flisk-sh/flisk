@@ -150,9 +150,9 @@ Do not post a second Show HN on launch day. The Show HN for the Flisk CLI is pla
 
 > The agent side is the flisk mcp server that ships in the CLI: 21 tools (doctor, up, status, logs, resource_create, config_verify and so on) over stdio. Each tool runs the same CLI command and returns its JSON envelope or text output, so what the agent sees is what you would see. Setup for Claude Code, Cursor and Codex is `flisk connect <host>`: docs/agents/flisk-for-agents.md.
 
-## Note to the four adopter teams
+## Note to the five adopter teams
 
-Send one personal message to each team (Lekast, MakeOffer, mfin.services, Red Moon Digital), from the maker, by whatever channel you already use with them. Change the first line per team so it is personal. Do not ask for votes, do not send the same text as a group message, and do not ask them to create Product Hunt accounts.
+Send one personal message to each team (Lekast, MakeOffer, mfin.services, Red Moon Digital, TubeHaus), from the maker, by whatever channel you already use with them. Change the first line per team so it is personal. Do not ask for votes, do not send the same text as a group message, and do not ask them to create Product Hunt accounts.
 
 > Hi (name),
 >
