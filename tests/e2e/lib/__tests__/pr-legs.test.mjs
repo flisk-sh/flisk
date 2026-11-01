@@ -25,6 +25,16 @@ const frontendLabels = frontends.map((f) => `frontend-${f}`);
 const languageLabels = ["bun", "python", "rust", "go", "node"];
 const canary = all.filter((l) => CANARY.includes(l));
 const sorted = (xs) => [...xs].sort();
+// One bring-your-own leg per case of its suite.json: the first variant listed for each case.
+const byoVariants = JSON.parse(readFileSync(path.join(e2eDir, "resource-types/bring-your-own/suite.json"), "utf8")).variants;
+const byoPerCase = byoLabels.filter((l) => byoVariants.find((v) => `bring-your-own-${v.id}` === l && byoVariants.find((w) => w.case === v.case) === v));
+
+test("an engine change runs one bring-your-own leg per case, not every template", () => {
+  const cases = new Set(byoVariants.map((v) => v.case));
+  assert.equal(byoPerCase.length, cases.size);
+  assert.ok(byoPerCase.length < byoLabels.length);
+  assert.ok(byoPerCase.includes("bring-your-own-example") && !byoPerCase.includes("bring-your-own-template-vue"));
+});
 
 test("the PR matrix has a leg per frontend and per BYO variant", () => {
   assert.ok(all.includes("frontend-lit") && all.includes("frontend-vue"));
@@ -126,8 +136,8 @@ test("an engine file that belongs to one area runs only that area", () => {
   for (const file of [`${engine}/tilt/generators/vite/frontend.star`, `${engine}/tilt/generators/typescript/frontend_tsconfig.star`, `${engine}/platform/docker/build/frontend_build_plan.star`, `${engine}/tilt/resources/orchestrator/generators/frontend.star`]) {
     assert.deepEqual(labels([file]), frontendLabels, file);
   }
-  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_container.star`]), byoLabels);
-  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_ports.star`]), byoLabels);
+  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_container.star`]), byoPerCase);
+  assert.deepEqual(labels([`${engine}/platform/docker/compose/byo_ports.star`]), byoPerCase);
   assert.deepEqual(sorted(labels([`${engine}/platform/docker/layers/prisma/migrate_script.star`])), ["migrator", "prisma"]);
   assert.deepEqual(labels([`${engine}/tilt/resources/orchestrator/apply_migrator_orchestration.star`]), ["migrator"]);
   assert.deepEqual(labels(["runtime/engine/AGENTS.md", "runtime/engine/docs/README.md", `${engine}/tilt/manifest/tests/test_validator.star`]), []);
@@ -156,7 +166,8 @@ test("real PRs that ran every leg now run a fraction", () => {
     assert.ok(got.length <= canary.length + byoLabels.length, `#${pr} ran ${got.length}`);
     assert.ok(!got.includes("frontend-lit") && !got.includes("frontend-vue") && !got.includes("frontend-next"), `#${pr}: ${got}`);
   }
-  assert.deepEqual(labels(["runtime/engine/topologies/platform/docker/compose/byo_shared_database.star"]), byoLabels);
+  assert.deepEqual(labels(["runtime/engine/topologies/platform/docker/compose/byo_shared_database.star"]), byoPerCase);
+  assert.ok(labels(prs[3032]).length <= 15, `#3032 ran ${labels(prs[3032]).length}`);
 });
 
 // The workflow must diff a PR against its checked-out merge commit's first parent, not the event's frozen base.sha (#2960 ran 32 legs for a
