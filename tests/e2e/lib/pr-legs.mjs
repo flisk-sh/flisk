@@ -17,7 +17,7 @@
 //      case runs that script;
 //   7. a file inside one suite's folder (tests/e2e/<group>/<suite>/) selects that suite's legs;
 //   8. an engine file that belongs to one area selects that area's legs (ENGINE_AREAS): a vite framework file its frontend leg,
-//      the vite and frontend generators every frontend leg, byo_*.star the bring-your-own legs, the prisma layer prisma and
+//      the vite and frontend generators every frontend leg, byo_*.star the first bring-your-own variant of each case, the prisma layer prisma and
 //      migrator; engine docs and Starlark unit tests select nothing;
 //   9. the files that decide the matrix (FULL_PATHS: this workflow, pr-legs.mjs, suite-matrix.mjs) select every leg;
 //  10. any other file that matches SHARED_PATHS (shared CLI code, the rest of the engine, tests/e2e/lib, common.sh) selects the
@@ -36,7 +36,8 @@ export const ENGINE_AREAS = [
     /^runtime\/engine\/topologies\/(tilt\/generators\/vite\/|tilt\/generators\/typescript\/frontend_[a-z_]+\.star$|platform\/docker\/build\/frontend_build_plan\.star$|tilt\/resources\/orchestrator\/generators\/frontend\.star$)/,
     () => FRONTEND,
   ],
-  [/^runtime\/engine\/topologies\/platform\/docker\/compose\/byo_[a-z_]+\.star$/, () => (leg) => leg.dir === "resource-types/bring-your-own"],
+  // The variants of one case run the same engine code with different apps, so an engine change runs the first variant of each case.
+  [/^runtime\/engine\/topologies\/platform\/docker\/compose\/byo_[a-z_]+\.star$/, () => (leg, byo) => leg.dir === BYO_DIR && byo.firstOfCase.has(leg.variant)],
   [
     /^runtime\/engine\/topologies\/(platform\/docker\/layers\/prisma\/|tilt\/generators\/typescript\/prisma_config\.star$)/,
     () => (leg) => ["orm/prisma", "resource-types/migrator"].includes(leg.dir),
@@ -81,7 +82,8 @@ function byoSuite(e2eDir) {
       }
     }
   }
-  return { dir, variants, scriptsByCase };
+  const firstOfCase = new Set([...new Map([...variants].reverse().map((v) => [v.case, v.id])).values()]);
+  return { dir, variants, scriptsByCase, firstOfCase };
 }
 
 // The folders of examples/byo whose templates.json entry differs between two versions of the file (added, removed or changed).
@@ -164,7 +166,8 @@ export function prLegs(matrix, files, { e2eDir, templatesBefore, templatesAfter 
     }
     const area = ENGINE_AREAS.find(([re]) => re.test(file));
     if (area) {
-      pick(area[1](file.match(area[0]))); // rule 8
+      const inArea = area[1](file.match(area[0]));
+      pick((leg) => inArea(leg, byo)); // rule 8
       continue;
     }
     if (FULL_PATHS.test(file)) {
