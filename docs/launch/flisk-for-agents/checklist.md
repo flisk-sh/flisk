@@ -18,7 +18,7 @@ The copy for every step is in [README.md](README.md). Why each step is here is i
 | 17:30 | Maker | **Schedule** the listing for Wed Oct 28, 00:01 PT (Product Hunt lets you schedule up to a month ahead). Open the scheduled listing's preview once and check every image, link and line. Do not use "Launch now". | [ ] |
 | 18:00 | Maker | If an active Product Hunt member who has really used Flisk offers to hunt it, accept and add them before the post goes live. Do not look for or pay a hunter: Product Hunt says a third-party hunter gives no discernible advantage, and paying anyone to hunt is forbidden. | [ ] |
 | 18:00 | Maker | Warm-up, without asking for votes: one message in the Flisk Discord and one post on X saying the agent launch is tomorrow, with the setup page link so people can try it tonight. | [ ] |
-| 18:00 | Maker | Send the personal note to Lekast, MakeOffer, mfin.services, Red Moon Digital and TubeHaus (README, "Note to the five adopter teams"), one message per team. | [ ] |
+| 18:00 | Maker | Send the personal note to TubeHaus, Lekast, MakeOffer, mfin.services and Red Moon Digital (README, "Note to the five adopter teams"), one message per team. | [ ] |
 | 20:00 | Maker | Agree the comment rota: who answers 00:01 to 06:00 PT (European morning) and who answers 06:00 to 10:00 PT (US morning). Copy the launch log template from [docs/marketing/launch-plan.md](../../marketing/launch-plan.md) for the day. | [ ] |
 
 ## Launch: Wed Oct 28, 00:01 PT (08:01 CET)

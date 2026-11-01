@@ -152,7 +152,7 @@ Do not post a second Show HN on launch day. The Show HN for the Flisk CLI is pla
 
 ## Note to the five adopter teams
 
-Send one personal message to each team (Lekast, MakeOffer, mfin.services, Red Moon Digital, TubeHaus), from the maker, by whatever channel you already use with them. Change the first line per team so it is personal. Do not ask for votes, do not send the same text as a group message, and do not ask them to create Product Hunt accounts.
+Send one personal message to each team (TubeHaus, Lekast, MakeOffer, mfin.services, Red Moon Digital), from the maker, by whatever channel you already use with them. Change the first line per team so it is personal. Do not ask for votes, do not send the same text as a group message, and do not ask them to create Product Hunt accounts.
 
 > Hi (name),
 >
