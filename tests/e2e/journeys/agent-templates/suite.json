@@ -1,14 +1,17 @@
 {
   "group": "journeys",
   "suite": "agent-templates",
-  "description": "The multi-agent starters (flisk project swarm, flisk project security) through a real flisk up as local processes, no Docker. Chaos cases kill -9 a worker holding a claim and the coordinator mid-goal: the flisk up supervisor must start them again and the swarm must still finish the goal, with the killed worker's subtask retried.",
+  "description": "The multi-agent starters (flisk project swarm, flisk project security, flisk project super-agent) through a real flisk up as local processes, no Docker. Chaos cases kill -9 a worker holding a claim and the coordinator mid-goal: the flisk up supervisor must start them again and the swarm must still finish the goal, with the killed worker's subtask retried. The super-agent cases kill -9 its MCP tool server and its planner mid-run: retries back off until the tool server is back, and the planner's saved goals survive its restart.",
   "paths": [
     "cli/templates/swarm/**",
     "cli/templates/security/**",
+    "cli/templates/super-agent/**",
     "cli/src/utils/swarm-template.ts",
     "cli/src/utils/security-template.ts",
+    "cli/src/utils/super-agent-template.ts",
     "cli/src/utils/project-templates.ts",
     "cli/src/utils/native-*.ts",
+    "cli/src/commands/mcp-check.ts",
     "cli/src/commands/project.ts",
     "cli/src/commands/up.ts",
     "cli/src/commands/down.ts",
@@ -18,9 +21,28 @@
     "tests/e2e/journeys/agent-templates/**",
     ".github/workflows/e2e-journeys.yml"
   ],
-  "cases": ["T1", "T2", "S1", "S2", "S3", "S4", "S5", "B1"],
-  "triggers": ["pr", "nightly", "release", "manual"],
-  "timeoutMinutes": 20,
+  "cases": [
+    "T1",
+    "T2",
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S5",
+    "B1",
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5"
+  ],
+  "triggers": [
+    "pr",
+    "nightly",
+    "release",
+    "manual"
+  ],
+  "timeoutMinutes": 30,
   "needsSecrets": [],
   "checkName": "🤖 Agent starters, with chaos",
   "install": true
