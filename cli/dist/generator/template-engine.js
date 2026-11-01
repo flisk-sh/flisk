@@ -525,7 +525,8 @@ function normalizeProjectConfig(value) {
                 typeof item.url !== "string" ||
                 typeof item.dir !== "string" ||
                 !item.url.trim() ||
-                !item.dir.trim()) {
+                !item.dir.trim() ||
+                (item.branch !== undefined && typeof item.branch !== "string")) {
                 return null;
             }
             repos.push({
@@ -594,7 +595,8 @@ export function readProjectConfig(projectRoot) {
             "phases (object with pre_alpha/alpha/beta/out_of_scope enabledStacks), " +
             "optional_infra (object with boolean flags), " +
             "discovery (object with paths array), " +
-            "capabilities (optional object of booleans)");
+            "capabilities (optional object of booleans), " +
+            "repos (optional array of { url, dir, branch? } with non-empty url and dir)");
     }
     return projectConfig;
 }

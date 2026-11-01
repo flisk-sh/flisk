@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from "vitest";
+import { FliskError } from "../../utils/errors.js";
 import { reposCommand } from "../repos.js";
 
 const { readProjectConfigMock, requireProjectRootMock, cloneMissingReposMock } = vi.hoisted(() => ({
@@ -13,7 +14,8 @@ vi.mock("../../generator/template-engine.js", () => ({
   readProjectConfig: readProjectConfigMock,
 }));
 
-vi.mock("../../utils/errors.js", () => ({
+vi.mock("../../utils/errors.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/errors.js")>()),
   requireProjectRoot: requireProjectRootMock,
 }));
 
@@ -117,6 +119,25 @@ describe("repos command", () => {
     ]);
     expect(output.data.existing).toEqual([]);
     expect(output.errors).toEqual([]);
+    logSpy.mockRestore();
+  });
+
+  it("writes one REPOS_FAILED envelope on stdout when a clone fails with --json", async () => {
+    readProjectConfigMock.mockReturnValue({
+      name: "mock-proj",
+      repos: [{ url: "https://github.com/acme/orders.git", dir: "services/orders" }],
+    });
+    cloneMissingReposMock.mockRejectedValue(new FliskError("Failed to clone repository"));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await reposCommand.parseAsync(["node", "flisk", "clone", "--json"]);
+
+    const output = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+    expect(output.data).toBeNull();
+    expect(output.errors[0].code).toBe("REPOS_FAILED");
+    expect(output.errors[0].message).toContain("Failed to clone repository");
+    expect(process.exitCode).toBe(1);
+    process.exitCode = 0;
     logSpy.mockRestore();
   });
 });

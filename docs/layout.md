@@ -92,12 +92,10 @@ platform-hub/                      hub / orchestrator repository
         service.json               discovered automatically once cloned
 ```
 
-When services are developed in separate Git repositories but run together as a local platform, Layout C allows `.flisk/project.json` to declare the repositories that compose the workspace:
+When services are developed in separate Git repositories but run together as a local platform, Layout C allows `.flisk/project.json` to declare the repositories that compose the workspace. The block below is a fragment: merge its `repos` array into the existing `.flisk/project.json`, which must also keep the required `version`, `project`, `phases`, `optional_infra`, and `discovery` fields.
 
 ```json
 {
-  "$schema": "https://flisk.dev/schemas/project-schema.json",
-  "name": "shop-platform",
   "repos": [
     {
       "url": "git@github.com:acme/orders-api.git",

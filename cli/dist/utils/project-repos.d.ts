@@ -10,6 +10,8 @@ export interface CloneRepoResult {
     skipped: boolean;
     reason?: string;
 }
+/** Replaces user-info (tokens, passwords) in any URL inside a string, so it can be printed safely. */
+export declare function redactRepoUrl(text: string): string;
 /** Validates that a git repository URL is safe and supported. */
 export declare function validateRepoUrl(url: string): {
     valid: boolean;
@@ -43,4 +45,6 @@ export declare function cloneMissingRepos(projectRoot: string, repos?: RepoConfi
 /**
  * Doctor check for configured service repositories. Read-only: never modifies repository state.
  */
-export declare function checkProjectRepos(projectRoot: string, repos?: RepoConfig[], runner?: GitRunner): Promise<CheckResult>;
+export declare function checkProjectRepos(projectRoot: string, repos?: RepoConfig[], runner?: GitRunner, options?: {
+    strict?: boolean;
+}): Promise<CheckResult>;

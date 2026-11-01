@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { readProjectConfig } from "../generator/template-engine.js";
 import { requireProjectRoot } from "../utils/errors.js";
+import { createMachineEnvelope, toMachineError } from "../utils/machine-output.js";
 import { cloneMissingRepos } from "../utils/project-repos.js";
 
 export const reposCommand = new Command("repos").description(
@@ -15,42 +16,42 @@ reposCommand
   .description("Clone missing service repositories configured in .flisk/project.json")
   .option("--json", "Output JSON result", false)
   .action(async (options) => {
+    if (options.json) {
+      try {
+        const projectRoot = requireProjectRoot();
+        const repos = readProjectConfig(projectRoot).repos ?? [];
+        const results = repos.length > 0 ? await cloneMissingRepos(projectRoot, repos) : [];
+        console.log(
+          JSON.stringify({
+            schemaVersion: 1,
+            data: {
+              cloned: results.filter((r) => r.cloned).map((r) => ({ url: r.url, dir: r.dir })),
+              existing: results.filter((r) => r.skipped).map((r) => ({ url: r.url, dir: r.dir })),
+            },
+            errors: [],
+          }),
+        );
+      } catch (error) {
+        // Every --json failure writes one error envelope on stdout, as the other --json commands do.
+        const { error: machineError, exitCode } = toMachineError(error);
+        console.log(
+          JSON.stringify(createMachineEnvelope(null, [{ ...machineError, code: "REPOS_FAILED" }])),
+        );
+        process.exitCode = exitCode;
+      }
+      return;
+    }
+
     const projectRoot = requireProjectRoot();
     const config = readProjectConfig(projectRoot);
     const repos = config.repos ?? [];
 
     if (repos.length === 0) {
-      if (options.json) {
-        console.log(
-          JSON.stringify({
-            schemaVersion: 1,
-            data: { cloned: [], existing: [] },
-            errors: [],
-          }),
-        );
-      } else {
-        console.log(chalk.gray("No external repositories configured in .flisk/project.json."));
-      }
+      console.log(chalk.gray("No external repositories configured in .flisk/project.json."));
       return;
     }
 
     const results = await cloneMissingRepos(projectRoot, repos);
-    const cloned = results.filter((r) => r.cloned);
-    const existing = results.filter((r) => r.skipped);
-
-    if (options.json) {
-      console.log(
-        JSON.stringify({
-          schemaVersion: 1,
-          data: {
-            cloned: cloned.map((r) => ({ url: r.url, dir: r.dir })),
-            existing: existing.map((r) => ({ url: r.url, dir: r.dir })),
-          },
-          errors: [],
-        }),
-      );
-      return;
-    }
 
     for (const item of results) {
       if (item.cloned) {

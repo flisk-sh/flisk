@@ -9,8 +9,16 @@ function hasControlCharacters(str: string): boolean {
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { execFile } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, realpathSync, rmSync } from "node:fs";
-import { dirname, isAbsolute, normalize, relative, resolve } from "node:path";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import { basename, dirname, isAbsolute, normalize, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { readProjectConfig } from "../generator/template-engine.js";
 import type { CheckResult, RepoConfig } from "../types/index.js";
@@ -43,6 +51,29 @@ function firstLine(error: unknown): string {
   const stderr = String((error as { stderr?: Buffer | string }).stderr ?? error).trim();
   return stderr.split(/\r?\n/)[0] ?? "";
 }
+
+/** Replaces user-info (tokens, passwords) in any URL inside a string, so it can be printed safely. */
+export function redactRepoUrl(text: string): string {
+  return text.replace(/([a-z][a-z0-9+.-]*:\/\/)[^@/\s]+@/gi, "$1***@");
+}
+
+/**
+ * Resolves a path to its canonical location, following symlinks in the deepest existing ancestor.
+ * A destination that does not exist yet is resolved through the ancestor that does.
+ */
+function canonicalPath(path: string): string {
+  const missing: string[] = [];
+  let current = resolve(path);
+  while (!existsSync(current)) {
+    const parent = dirname(current);
+    if (parent === current) break;
+    missing.unshift(basename(current));
+    current = parent;
+  }
+  return resolve(realpathSync(current), ...missing);
+}
+
+const RESERVED_SEGMENTS = [".git", ".flisk", "node_modules"];
 
 /** Validates that a git repository URL is safe and supported. */
 export function validateRepoUrl(url: string): { valid: boolean; reason?: string } {
@@ -149,6 +180,16 @@ export function validateRepoDir(
     return { valid: false, reason: `Could not verify destination safety for "${trimmed}"` };
   }
 
+  // An in-root symlink can point a destination at a reserved path, so check the canonical target too.
+  const canonicalRel = relative(realpathSync(projectRoot), canonicalPath(targetPath));
+  const canonicalParts = canonicalRel.split(/[\\/]/);
+  if (canonicalRel === "" || canonicalParts.some((part) => RESERVED_SEGMENTS.includes(part))) {
+    return {
+      valid: false,
+      reason: `Destination directory "${trimmed}" points to a reserved project path`,
+    };
+  }
+
   return { valid: true, targetPath };
 }
 
@@ -174,7 +215,7 @@ export function validateRepoList(
       return { valid: false, reason: dirValidation.reason };
     }
 
-    const norm = normalize(dirValidation.targetPath ?? "").replace(/\\/g, "/");
+    const norm = canonicalPath(dirValidation.targetPath ?? "").replace(/\\/g, "/");
     if (seenDirs.has(norm)) {
       return { valid: false, reason: `Duplicate destination directory configured: "${repo.dir}"` };
     }
@@ -224,6 +265,12 @@ export async function cloneRepo(
 
   const targetPath = dirValidation.targetPath;
   if (existsSync(targetPath)) {
+    if (!statSync(targetPath).isDirectory()) {
+      throw new FliskError(
+        `Cannot clone "${redactRepoUrl(repo.url)}": "${repo.dir}" exists and is not a directory`,
+        ["Move or remove the file, then run flisk repos clone again"],
+      );
+    }
     return {
       url: repo.url,
       dir: repo.dir,
@@ -233,43 +280,59 @@ export async function cloneRepo(
     };
   }
 
-  mkdirSync(dirname(targetPath), { recursive: true });
+  try {
+    mkdirSync(dirname(targetPath), { recursive: true });
+  } catch (error) {
+    throw new FliskError(
+      `Failed to create the parent directory for "${redactRepoUrl(repo.url)}" at "${repo.dir}": ${(error as Error).message}`,
+      ["Check that the parent path is writable and is not a file"],
+    );
+  }
 
+  // Clone into a sibling temp directory and rename it into place, so a concurrent clone of the same
+  // destination is never removed by this process, and a failed clone leaves nothing at targetPath.
+  const tempPath = `${targetPath}.flisk-clone-${process.pid}-${Date.now()}`;
   const gitArgs = [
     "clone",
     "--quiet",
     ...(repo.branch ? ["--branch", repo.branch] : []),
     "--",
     repo.url,
-    targetPath,
+    tempPath,
   ];
 
   try {
-    await runner(gitArgs);
-    return {
-      url: repo.url,
-      dir: repo.dir,
-      cloned: true,
-      skipped: false,
-    };
+    await runner(gitArgs, { cwd: projectRoot });
   } catch (error) {
-    // If the clone failed partway through and left an incomplete directory, clean it up
-    if (existsSync(targetPath)) {
-      try {
-        rmSync(targetPath, { recursive: true, force: true });
-      } catch {
-        // Keep original error
-      }
-    }
-    const hint = firstLine(error);
+    rmSync(tempPath, { recursive: true, force: true });
+    const hint = redactRepoUrl(firstLine(error));
     throw new FliskError(
-      `Failed to clone repository "${repo.url}" into "${repo.dir}": ${hint || "git clone failed"}`,
+      `Failed to clone repository "${redactRepoUrl(repo.url)}" into "${repo.dir}": ${hint || "git clone failed"}`,
       [
         "Verify your Git network access and authentication (SSH keys or personal access tokens)",
-        `Try cloning manually to inspect details: git clone ${repo.url} ${repo.dir}`,
+        `Try cloning manually to inspect details: git clone ${redactRepoUrl(repo.url)} ${repo.dir}`,
       ],
     );
   }
+
+  if (existsSync(targetPath)) {
+    // Another process created the destination while this clone ran; keep its copy.
+    rmSync(tempPath, { recursive: true, force: true });
+    return {
+      url: repo.url,
+      dir: repo.dir,
+      cloned: false,
+      skipped: true,
+      reason: "destination directory already exists",
+    };
+  }
+  renameSync(tempPath, targetPath);
+  return {
+    url: repo.url,
+    dir: repo.dir,
+    cloned: true,
+    skipped: false,
+  };
 }
 
 /**
@@ -305,6 +368,7 @@ export async function checkProjectRepos(
   projectRoot: string,
   repos?: RepoConfig[],
   runner: GitRunner = defaultGitRunner,
+  options: { strict?: boolean } = {},
 ): Promise<CheckResult> {
   let repoList = repos;
   if (!repoList) {
@@ -351,11 +415,12 @@ export async function checkProjectRepos(
       continue;
     }
 
-    // Target exists: verify it is a git repo
+    // Target exists: verify it is the top level of its own git repo. Git searches parent directories,
+    // so a plain folder inside another repository would otherwise be checked against that repository.
     let isGit = false;
     try {
-      await runner(["rev-parse", "--git-dir"], { cwd: targetPath });
-      isGit = true;
+      const topLevel = (await runner(["rev-parse", "--show-toplevel"], { cwd: targetPath })).trim();
+      isGit = realpathSync(topLevel) === realpathSync(targetPath);
     } catch {
       isGit = false;
     }
@@ -387,7 +452,7 @@ export async function checkProjectRepos(
         warnings.push(`${repo.dir} has local uncommitted changes`);
       }
     } catch {
-      // Leave unflagged
+      warnings.push(`${repo.dir} could not be checked for uncommitted changes`);
     }
 
     present.push(repo.dir);
@@ -406,7 +471,7 @@ export async function checkProjectRepos(
     return {
       name: "Service Repositories",
       didPass: false,
-      isWarning: true,
+      isWarning: !options.strict,
       message: `${present.length} repository cloned, with notes: ${warnings.join("; ")}`,
       fix: "Check your local Git branches and uncommitted changes.",
     };

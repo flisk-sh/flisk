@@ -778,6 +778,34 @@ describe("template-engine", () => {
       throw new Error("Expected readProjectConfig to throw");
     }
 
+    it("rejects a repos entry whose branch is not a string, instead of cloning the default branch", () => {
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-repos-branch-"));
+      try {
+        const fliskDir = path.join(projectRoot, ".flisk");
+        fs.mkdirSync(fliskDir, { recursive: true });
+        const config = {
+          version: "1.0",
+          project: { name: "hub", version: "0.1.0" },
+          phases: {
+            pre_alpha: { enabledStacks: [] },
+            alpha: { enabledStacks: [] },
+            beta: { enabledStacks: [] },
+            out_of_scope: { enabledStacks: [] },
+          },
+          optional_infra: {},
+          discovery: { paths: ["services"] },
+          repos: [{ url: "https://github.com/acme/orders.git", dir: "services/orders", branch: 7 }],
+        };
+        fs.writeFileSync(path.join(fliskDir, "project.json"), JSON.stringify(config), "utf-8");
+
+        const message = (catchFromReadProjectConfig(projectRoot) as Error).message;
+
+        expect(message).toContain("repos (optional array of { url, dir, branch? }");
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    });
+
     it("throws an Error with the file path and parse reason when .flisk/project.json is malformed (#1521)", () => {
       const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "flisk-malformed-project-json-"));
       try {

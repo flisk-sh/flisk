@@ -1828,7 +1828,10 @@ export const doctorCommand = new Command("doctor")
     ];
     const containerProjectChecks: Array<() => CheckResult | Promise<CheckResult>> = [
       () => checkFliskVersion(),
-      () => checkProjectRepos(projectRoot ?? process.cwd()),
+      () =>
+        checkProjectRepos(projectRoot ?? process.cwd(), undefined, undefined, {
+          strict: options.strict,
+        }),
       checkMasterConfigs,
       checkGeneratedProjectRuntimeAssets,
       () => checkGeneratedFiles(options.strict),
@@ -1910,7 +1913,10 @@ export const doctorCommand = new Command("doctor")
     const projectChecks = nativeResources
       ? [
           () => checkFliskVersion(),
-          () => checkProjectRepos(projectRoot ?? process.cwd()),
+          () =>
+            checkProjectRepos(projectRoot ?? process.cwd(), undefined, undefined, {
+              strict: options.strict,
+            }),
           () => checkDuplicateResourceNames(),
           () => checkDependsOnShape(),
           () => checkNativeDependsOn(nativeResources),

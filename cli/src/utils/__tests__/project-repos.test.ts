@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -21,6 +22,12 @@ import {
   validateRepoList,
   validateRepoUrl,
 } from "../project-repos.js";
+
+/** Stands in for `git clone`: creates the destination directory that is the last argument. */
+const createCloneDestination = async (args: string[]): Promise<string> => {
+  mkdirSync(args[args.length - 1] as string, { recursive: true });
+  return "";
+};
 
 describe("project-repos utility", () => {
   let tempDir: string;
@@ -190,7 +197,7 @@ describe("project-repos utility", () => {
     });
 
     it("invokes runner with structured git arguments and branch when missing", async () => {
-      const runner = vi.fn().mockResolvedValue("");
+      const runner = vi.fn().mockImplementation(createCloneDestination);
       const res = await cloneRepo(
         { url: "https://github.com/acme/orders.git", dir: "services/orders", branch: "develop" },
         tempDir,
@@ -201,22 +208,24 @@ describe("project-repos utility", () => {
       expect(res.skipped).toBe(false);
       expect(runner).toHaveBeenCalledTimes(1);
       const [args] = runner.mock.calls[0];
-      expect(args).toEqual([
+      expect(args.slice(0, 6)).toEqual([
         "clone",
         "--quiet",
         "--branch",
         "develop",
         "--",
         "https://github.com/acme/orders.git",
-        resolve(tempDir, "services/orders"),
       ]);
+      expect(args[6]).toMatch(/services[\\/]orders\.flisk-clone-/);
+      expect(runner.mock.calls[0]?.[1]).toEqual({ cwd: tempDir });
     });
 
-    it("cleans up target directory on failure and throws FliskError", async () => {
+    it("cleans up the temporary clone on failure and throws FliskError", async () => {
       const targetDir = join(tempDir, "services/failed-repo");
-      const runner = vi.fn().mockImplementation(async () => {
-        mkdirSync(targetDir, { recursive: true });
-        writeFileSync(join(targetDir, "partial.tmp"), "corrupt");
+      const runner = vi.fn().mockImplementation(async (args: string[]) => {
+        const tempPath = args[args.length - 1] as string;
+        mkdirSync(tempPath, { recursive: true });
+        writeFileSync(join(tempPath, "partial.tmp"), "corrupt");
         throw new Error("fatal: remote branch not found");
       });
 
@@ -229,10 +238,43 @@ describe("project-repos utility", () => {
       ).rejects.toThrow(FliskError);
 
       expect(existsSync(targetDir)).toBe(false);
+      expect(readdirSync(join(tempDir, "services"))).toEqual([]);
+    });
+
+    it("throws FliskError when the destination exists as a file", async () => {
+      const targetFile = join(tempDir, "services/file-repo");
+      mkdirSync(join(tempDir, "services"), { recursive: true });
+      writeFileSync(targetFile, "not a folder");
+      const runner = vi.fn();
+
+      await expect(
+        cloneRepo(
+          { url: "https://github.com/acme/file.git", dir: "services/file-repo" },
+          tempDir,
+          runner,
+        ),
+      ).rejects.toThrow(/exists and is not a directory/);
+      expect(runner).not.toHaveBeenCalled();
+    });
+
+    it("redacts credentials from clone failure messages", async () => {
+      const runner = vi
+        .fn()
+        .mockRejectedValue(new Error("fatal: could not read https://user:secret@host/acme/x.git"));
+
+      const error = await cloneRepo(
+        { url: "https://user:secret@github.com/acme/x.git", dir: "services/x" },
+        tempDir,
+        runner,
+      ).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(FliskError);
+      expect((error as FliskError).message).not.toContain("secret");
+      expect((error as FliskError).message).toContain("***@github.com");
     });
 
     it("clones multiple missing repos via cloneMissingRepos", async () => {
-      const runner = vi.fn().mockResolvedValue("");
+      const runner = vi.fn().mockImplementation(createCloneDestination);
       const results = await cloneMissingRepos(
         tempDir,
         [
@@ -285,7 +327,7 @@ describe("project-repos utility", () => {
       mkdirSync(targetDir, { recursive: true });
 
       const runner = vi.fn().mockImplementation(async (args: string[]) => {
-        if (args.includes("--git-dir")) return ".git\n";
+        if (args.includes("--show-toplevel")) return `${targetDir}\n`;
         if (args.includes("HEAD")) return "feature-x\n";
         if (args.includes("--porcelain")) return "";
         return "";
@@ -307,7 +349,7 @@ describe("project-repos utility", () => {
       mkdirSync(targetDir, { recursive: true });
 
       const runner = vi.fn().mockImplementation(async (args: string[]) => {
-        if (args.includes("--git-dir")) return ".git\n";
+        if (args.includes("--show-toplevel")) return `${targetDir}\n`;
         if (args.includes("HEAD")) return "main\n";
         if (args.includes("--porcelain")) return " M file.ts\n";
         return "";
@@ -329,7 +371,7 @@ describe("project-repos utility", () => {
       mkdirSync(targetDir, { recursive: true });
 
       const runner = vi.fn().mockImplementation(async (args: string[]) => {
-        if (args.includes("--git-dir")) return ".git\n";
+        if (args.includes("--show-toplevel")) return `${targetDir}\n`;
         if (args.includes("HEAD")) return "main\n";
         if (args.includes("--porcelain")) return "";
         return "";
