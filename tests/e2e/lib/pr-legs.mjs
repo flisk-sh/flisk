@@ -8,22 +8,49 @@
 //
 // Each changed file selects legs by the first rule that applies:
 //   1. a unit test in cli/src (*.test.ts, __tests__/) selects nothing: it does not change the CLI a leg runs;
-//   2. cli/src/frontend-frameworks/<name>.ts (not registry.ts or types.ts) selects frontend-<name>;
-//   3. cli/src/backend-languages/<lang>.ts (not registry.ts or types.ts) selects the <lang> language legs;
+//   2. cli/src/frontend-frameworks/<name>.ts selects frontend-<name>; its registry.ts or types.ts every frontend leg and the canary;
+//   3. cli/src/backend-languages/<lang>.ts selects the <lang> language legs; its registry.ts or types.ts every language and the canary;
 //   4. cli/src/agent-runtimes/** selects the agent leg;
 //   5. examples/byo/<folder>/** or examples/byo-jobs/<folder>/** selects the bring-your-own legs whose variant args name
 //      <folder>; an entry of examples/byo/templates.json counts as its folder (pass the base version with --templates-before);
 //   6. a verify script of the bring-your-own suite, or a tests/e2e/fixtures/<dir>/ that one reads, selects the variants whose
 //      case runs that script;
 //   7. a file inside one suite's folder (tests/e2e/<group>/<suite>/) selects that suite's legs;
-//   8. any other file that matches SHARED_PATHS (shared CLI code, the engine, tests/e2e/lib, common.sh, this workflow) selects
-//      every leg;
-//   9. anything else (docs, unrelated code) selects nothing.
+//   8. an engine file that belongs to one area selects that area's legs (ENGINE_AREAS): a vite framework file its frontend leg,
+//      the vite and frontend generators every frontend leg, byo_*.star the bring-your-own legs, the prisma layer prisma and
+//      migrator; engine docs and Starlark unit tests select nothing;
+//   9. the files that decide the matrix (FULL_PATHS: this workflow, pr-legs.mjs, suite-matrix.mjs) select every leg;
+//  10. any other file that matches SHARED_PATHS (shared CLI code, the rest of the engine, tests/e2e/lib, common.sh) selects the
+//      CANARY legs, one per kind of suite; the merge queue and nightly still run every leg;
+//  11. anything else (docs, unrelated code) selects nothing.
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Rule 8. Keep in step with what the resource-type and ORM suites read (their suite.json paths).
+// Rule 8. Engine files that belong to one area, first match wins: [pattern, legs], where legs is a leg predicate built from the match.
+const FRONTEND = (leg) => leg.dir === "resource-types/frontend";
+export const ENGINE_AREAS = [
+  [/^runtime\/engine\/(.*\.md|topologies\/tilt\/manifest\/tests\/.*)$/, () => () => false],
+  [/^runtime\/engine\/topologies\/tilt\/generators\/vite\/frameworks\/([a-z0-9-]+)\.star$/, (m) => (leg) => FRONTEND(leg) && leg.framework === m[1]],
+  [
+    /^runtime\/engine\/topologies\/(tilt\/generators\/vite\/|tilt\/generators\/typescript\/frontend_[a-z_]+\.star$|platform\/docker\/build\/frontend_build_plan\.star$|tilt\/resources\/orchestrator\/generators\/frontend\.star$)/,
+    () => FRONTEND,
+  ],
+  [/^runtime\/engine\/topologies\/platform\/docker\/compose\/byo_[a-z_]+\.star$/, () => (leg) => leg.dir === "resource-types/bring-your-own"],
+  [
+    /^runtime\/engine\/topologies\/(platform\/docker\/layers\/prisma\/|tilt\/generators\/typescript\/prisma_config\.star$)/,
+    () => (leg) => ["orm/prisma", "resource-types/migrator"].includes(leg.dir),
+  ],
+  [/^runtime\/engine\/(topologies\/tilt\/resources\/orchestrator\/apply_migrator_orchestration\.star|assets\/scripts\/cleanup-completed-migrator-images\.sh)$/, () => (leg) => leg.dir === "resource-types/migrator"],
+];
+
+// Rule 9. The files that decide which legs run: a change to them is checked against every leg.
+export const FULL_PATHS = /^(\.github\/workflows\/e2e-resource-types\.yml|tests\/e2e\/lib\/(pr-legs|suite-matrix)\.mjs)$/;
+
+// Rule 10. One leg per kind of suite, run for a shared change on a pull request.
+export const CANARY = ["bun", "frontend-react", "bring-your-own-example", "agent", "migrator", "prisma"];
+
+// Rule 10. Keep in step with what the resource-type and ORM suites read (their suite.json paths).
 export const SHARED_PATHS =
   /^(cli\/src\/commands\/(agent|restart|resource)\.ts$|cli\/src\/mcp\/|cli\/src\/frontend-frameworks\/|cli\/src\/backend-languages\/|cli\/src\/backend-frameworks\/|runtime\/engine\/|\.claude\/skills\/|scripts\/sync-flisk-skills\.sh$|tests\/e2e\/(lib|resource-types|orm)\/|\.github\/workflows\/e2e-resource-types\.yml$)/;
 
@@ -93,6 +120,14 @@ export function prLegs(matrix, files, { e2eDir, templatesBefore, templatesAfter 
       pick((leg) => leg.group === LANGUAGE_GROUP && leg.language === language); // rule 3
       continue;
     }
+    if (/^cli\/src\/frontend-frameworks\/(registry|types)\.ts$/.test(file)) {
+      pick((leg) => leg.dir === FRONTEND_DIR || CANARY.includes(leg.label)); // rule 2: every framework, plus the canary
+      continue;
+    }
+    if (/^cli\/src\/backend-languages\/(registry|types)\.ts$/.test(file)) {
+      pick((leg) => leg.group === LANGUAGE_GROUP || CANARY.includes(leg.label)); // rule 3: every language, plus the canary
+      continue;
+    }
     if (file.startsWith("cli/src/agent-runtimes/")) {
       pick((leg) => leg.dir === AGENT_DIR); // rule 4
       continue;
@@ -127,8 +162,17 @@ export function prLegs(matrix, files, { e2eDir, templatesBefore, templatesAfter 
       pick((leg) => leg.dir === dir); // rule 7
       continue;
     }
-    if (SHARED_PATHS.test(file)) pick(() => true); // rule 8
-    // rule 9: nothing
+    const area = ENGINE_AREAS.find(([re]) => re.test(file));
+    if (area) {
+      pick(area[1](file.match(area[0]))); // rule 8
+      continue;
+    }
+    if (FULL_PATHS.test(file)) {
+      pick(() => true); // rule 9
+      continue;
+    }
+    if (SHARED_PATHS.test(file)) pick((leg) => CANARY.includes(leg.label)); // rule 10
+    // rule 11: nothing
   }
   return { include: legs.filter((_, i) => selected.has(i)) };
 }
