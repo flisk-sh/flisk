@@ -25,13 +25,22 @@ export declare function checkSidecars(projectRoot?: string, resources?: Discover
  * container files Flisk was never asked to share. The generator refuses it too, after `flisk up` has said yes.
  */
 export declare function checkVolumes(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+/** The non-loopback host address (`0.0.0.0:80/tcp`) a running container publishes this host port on, or null. */
+export declare function liveNetworkAddress(dockerPs: string, hostPort: number, containerPort: number, protocol: string): string | null;
 /**
  * An `extraPorts` entry with `"bind": "0.0.0.0"` (#2935), or a `publish` that resolves to one (a bare port, 0.0.0.0 or any
  * non-loopback address), is reachable from every device on the network, unlike everything else Flisk publishes. Say so in
  * `flisk doctor`, as a warning, so it stays a visible choice. A `publish` variable is read from the shell and the project `.env`
  * the way Compose reads it; a value that is not a port or address:port is named, because Compose would refuse it.
  */
-export declare function checkNetworkPorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+export declare function checkNetworkPorts(projectRoot?: string, resources?: DiscoveredResource[], dockerPorts?: () => string): CheckResult;
+/**
+ * A bring-your-own `container.gpus` reserves NVIDIA devices in the generated Compose file. `config verify` accepts it anywhere, so
+ * on a host whose Docker has no NVIDIA runtime (a laptop, Docker Desktop on a Mac) the failure comes from Docker when the container
+ * is created, after the build. Warn up front instead. A Docker that cannot be asked is not a finding (the Docker checks report it),
+ * and a host using CDI may not list the runtime, so this is a warning, never a gate.
+ */
+export declare function checkGpuRuntime(projectRoot?: string, resources?: DiscoveredResource[], runtimes?: () => string[] | null): CheckResult;
 /** A port outside 1-65535 can never be bound, and `flisk up` would otherwise find out only when Docker fails. */
 export declare function checkServicePorts(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
 /**

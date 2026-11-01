@@ -8,6 +8,7 @@ import {
   checkCircularDependencies,
   checkCustomDockerfiles,
   checkDependsOnShape,
+  checkGpuRuntime,
   checkNetworkPorts,
   checkRequiredSecrets,
   checkSchemaVersions,
@@ -725,6 +726,23 @@ describe("checkNetworkPorts", () => {
     expect(result.message).not.toContain("443");
   });
 
+  it("warns when a running container publishes wider than service.json declares", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }, { port: 443 }] });
+    const ps = "shop-caddy|0.0.0.0:80->80/tcp, [::]:80->80/tcp, 127.0.0.1:443->443/tcp";
+    const result = checkNetworkPorts(root, undefined, () => ps);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("caddy 127.0.0.1:80/tcp is declared on this machine only");
+    expect(result.message).toContain("0.0.0.0:80 -> 80/tcp");
+    expect(result.message).not.toContain("443");
+    expect(result.fix).toContain("flisk restart");
+  });
+
+  it("passes when the running container matches loopback, or Docker is not running", () => {
+    service("caddy", { ...byo, extraPorts: [{ port: 80 }] });
+    expect(checkNetworkPorts(root, undefined, () => "c|127.0.0.1:80->80/tcp").didPass).toBe(true);
+    expect(checkNetworkPorts(root, undefined, () => "").didPass).toBe(true);
+  });
+
   describe("publish", () => {
     const proxy = {
       ...byo,
@@ -787,5 +805,30 @@ describe("checkNetworkPorts", () => {
       expect(result.isWarning).toBe(true);
       expect(result.message).toContain('TUBEHAUS_HTTP_BIND resolves to "localhost:8080"');
     });
+  });
+});
+
+describe("checkGpuRuntime", () => {
+  const model = { appType: "bring-your-own", image: "vllm:1", container: { gpus: "all" } };
+
+  it("passes when nothing asks for a GPU, without asking Docker", () => {
+    service("api");
+    const runtimes = vi.fn(() => []);
+    expect(checkGpuRuntime(root, undefined, runtimes).didPass).toBe(true);
+    expect(runtimes).not.toHaveBeenCalled();
+  });
+
+  it("warns when Docker has no nvidia runtime", () => {
+    service("llm", model);
+    const result = checkGpuRuntime(root, undefined, () => ["runc", "io.containerd.runc.v2"]);
+    expect(result).toMatchObject({ didPass: false, isWarning: true });
+    expect(result.message).toContain("llm ask for a GPU");
+    expect(result.fix).toContain("NVIDIA Container Toolkit");
+  });
+
+  it("passes with the nvidia runtime, and when Docker does not answer", () => {
+    service("llm", model);
+    expect(checkGpuRuntime(root, undefined, () => ["runc", "nvidia"]).didPass).toBe(true);
+    expect(checkGpuRuntime(root, undefined, () => null).didPass).toBe(true);
   });
 });
