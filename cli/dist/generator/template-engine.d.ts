@@ -79,6 +79,8 @@ export declare function isTiltfileOrchestration(projectRoot: string): boolean;
  * generated before `flisk import tiltfile`), or the generated one is a wrapper but project.json no longer selects one.
  */
 export declare function isWrappedTiltfileStale(projectRoot: string): boolean;
+/** The Compose project name: lowercase (Compose refuses uppercase, #1519) with `-` as `_`. Mirrors PROJECT_NAME in constants.star. */
+export declare function toComposeProjectName(projectName: string): string;
 export declare function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string;
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
 export declare class ProjectConfigNotFoundError extends FliskError {

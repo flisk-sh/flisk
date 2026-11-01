@@ -327,9 +327,28 @@ project name an install ran under), which `flisk import` writes. Flisk accepts i
 `tests/tilt-engine/test_byo_compose_round3.py`, which runs the generator and the manifest loaders through Tilt and
 `docker compose config` on the generated file. A container started with these settings was not part of that test.
 
+## What Flisk adds to a bring-your-own container (and what it no longer does)
+
+A bring-your-own container gets the environment its `service.json` declares, plus `PORT`, `RESOURCE_NAME` and `INSTANCE_ID` (and
+`FLISK_HEALTH_PATH` when it has a health path). It does **not** get Flisk's shared Postgres settings unless it asks for them:
+
+- `DATABASE_URL`, `TILT_DATABASE_URL` and `NODE_ENV=development` are added only when `dependsOn` lists `postgres`,
+  `database-management` or a `database` resource, or the service sets its own `databaseName`. A `DATABASE_URL` in the service's
+  own `env` always wins. (They used to be added to every container: Laravel reads `DATABASE_URL` before `DB_CONNECTION`, so
+  LycheeOrg/Lychee connected to Flisk's Postgres instead of its own MariaDB, #2991.) `AUTO_MIGRATE` is not added.
+- `NATS_QUEUE_GROUP` and `TILT_NATS_URL` are added only with the `nats` feature in `featuresEnabled`.
+- There is no CPU or memory limit unless `container.cpus` or `container.memory` is set (#2992; see the next section).
+
+Project names are lower-cased: `"name": "Lychee"` in `.flisk/project.json` is used as `lychee` for the Compose project, networks,
+containers, volumes and image tags, because Compose refuses uppercase (#1519). `services/platform/database-management/
+docker-compose.yml` is rewritten on every `flisk up` when its text changed, so a renamed project does not keep the old network
+name (#2993). Checked by `tests/tilt-engine/test_byo_flisk_defaults.py`.
+
 ## GPUs, CPU and memory (model servers and simulators)
 
-Every container Flisk generates is limited to 0.5 CPU and 512M of memory. A model server (vLLM, Ollama, llama.cpp) or a
+A container Flisk builds from its own Dockerfile is limited to 0.5 CPU and 512M of memory. A bring-your-own container has **no
+limit** unless `container.cpus` or `container.memory` is set (it runs as it would under plain Compose, and `flisk export compose`
+matches), and only the limit you set is written. A model server (vLLM, Ollama, llama.cpp) or a
 scientific workload (a cuQuantum or Qiskit Aer GPU simulator, a tensor-network or large state-vector simulation) needs more,
 and needs the GPU. Add these keys to the same `container` block:
 
