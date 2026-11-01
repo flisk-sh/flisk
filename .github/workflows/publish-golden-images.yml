@@ -1,8 +1,10 @@
 name: 🐳 Release | Publish golden images
 
-# Builds the eight golden layers from the Dockerfile that `flisk up` generates and pushes them to Docker Hub
-# (docker.io/flisk-sh/golden-<layer>:<hash12>). A project with FLISK_GOLDEN_REGISTRY=docker.io/flisk-sh pulls
-# these instead of building them. Run it by hand after a change to the golden layers; it does nothing else.
+# Builds the eight golden layers from the Dockerfile that `flisk up` generates and pushes them to GitHub's registry
+# (ghcr.io/flisk-sh/golden-<layer>:<hash12>) and to Docker Hub (docker.io/alexdykyi), the same image in both. A project
+# with FLISK_GOLDEN_REGISTRY=ghcr.io/flisk-sh pulls these instead of building them. Run it by hand after a change to the
+# golden layers; it does nothing else. GHCR makes a new package private: after the first push of a layer, an org owner
+# sets that golden-* package to public in its package settings, or anonymous pulls fail and projects build locally.
 on:
   workflow_dispatch:
 
@@ -13,12 +15,16 @@ jobs:
   publish:
     runs-on: ubuntu-26.04
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write # push ghcr.io/flisk-sh/golden-* with GITHUB_TOKEN
     env:
-      # Repository secrets: the flisk-sh Docker Hub user and an access token that can push to flisk-sh/golden-*.
+      # Repository secrets: the Docker Hub user and an access token that can push to <namespace>/golden-*.
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Publishes under the personal namespace until docker.io/flisk-sh exists; then switch this one line.
-      REGISTRY: docker.io/alexdykyi
+      GHCR_REGISTRY: ghcr.io/flisk-sh
+      # Docker Hub stays on the personal namespace until docker.io/flisk-sh exists; then switch this one line.
+      DOCKERHUB_REGISTRY: docker.io/alexdykyi
     steps:
       - name: Stop when Docker Hub is not configured
         run: |
@@ -43,6 +49,12 @@ jobs:
 
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
@@ -50,4 +62,4 @@ jobs:
         run: bash scripts/golden/render-golden-dockerfile.sh "$RUNNER_TEMP/golden"
 
       - name: Build and push the eight golden layers
-        run: bash scripts/golden/push-golden-images.sh "$RUNNER_TEMP/golden" "$REGISTRY"
+        run: bash scripts/golden/push-golden-images.sh "$RUNNER_TEMP/golden" "$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"
