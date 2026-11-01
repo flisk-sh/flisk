@@ -329,6 +329,10 @@
       "description": "Whether this bring-your-own resource receives a Traefik route. Defaults to true.",
       "type": "boolean"
     },
+    "webUi": {
+      "description": "bring-your-own only: true when the app serves a web UI from its root (pages and assets at /). It is then routed on its own host name, <name>.<project>.localhost, with no path prefix, instead of the /api/<name> prefix that only an API can serve. Has no effect with exposeViaProxy false. Defaults to false.",
+      "type": "boolean"
+    },
     "restart": {
       "description": "Docker Compose restart policy for this bring-your-own resource. Use \"no\" or \"on-failure\" for one-shot jobs such as database migrations, so a finished job is not restarted. on-failure:N (N from 1 to 100) stops after N failed restarts. Defaults to unless-stopped.",
       "type": "string",

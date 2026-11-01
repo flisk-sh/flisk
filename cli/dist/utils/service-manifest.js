@@ -70,6 +70,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "traefik",
     "type",
     "volumes",
+    "webUi",
 ]);
 /**
  * String fields written into the generated Docker Compose, Traefik and NATS config as they are. A newline or YAML syntax in one of
@@ -240,6 +241,7 @@ const FIELD_KINDS = {
     restart: "string",
     enabled: "boolean",
     exposeViaProxy: "boolean",
+    webUi: "boolean",
     agent: "object",
     build: "object",
     nats: "object",
@@ -592,6 +594,20 @@ export function containerErrors(manifest, displayPath) {
         }
     }
     return errors;
+}
+/** `webUi` (#2997) is read for bring-your-own resources only: the app serves pages from `/`, so it gets a host name, not a path prefix. */
+export function webUiErrors(manifest, displayPath) {
+    if (manifest.webUi === undefined || manifest.webUi === null)
+        return [];
+    if (manifest.appType !== "bring-your-own")
+        return [
+            `${displayPath}.webUi: only applies to bring-your-own resources (appType "bring-your-own")`,
+        ];
+    if (manifest.webUi === true && manifest.sidecarOf)
+        return [
+            `${displayPath}.webUi: does not apply to a sidecar (sidecarOf), which has no route of its own`,
+        ];
+    return [];
 }
 const RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"];
 /**
@@ -1409,6 +1425,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...envFileErrors(manifest, displayPath));
     errors.push(...modelsErrors(manifest, displayPath));
     errors.push(...restartErrors(manifest, displayPath));
+    errors.push(...webUiErrors(manifest, displayPath));
     errors.push(...dependsOnErrors(manifest, displayPath));
     errors.push(...buildArgsErrors(manifest, displayPath));
     errors.push(...loggingErrors(manifest, displayPath));

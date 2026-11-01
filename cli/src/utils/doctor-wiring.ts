@@ -487,7 +487,10 @@ export function checkSharedStackRoutes(
     const config = resource.config;
     const routable =
       isApiServiceType(config?.appType) ||
-      (config?.appType === BRING_YOUR_OWN_TYPE && config.exposeViaProxy !== false);
+      // A web UI has its own host name and no stack-scoped router (#2997), so it cannot share a route with the stack's backends.
+      (config?.appType === BRING_YOUR_OWN_TYPE &&
+        config.exposeViaProxy !== false &&
+        config.webUi !== true);
     if (!routable) continue;
     const directory = dirname(resource.path);
     const stack = config?.stack ?? basename(directory);

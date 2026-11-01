@@ -227,6 +227,34 @@ describe("resolveServiceUrl", () => {
   it("has no URL for a service without a Traefik route", () => {
     expect(resolveServiceUrl(makeResource("mailer", "worker"), 8080)).toBeUndefined();
   });
+
+  // #2997: a web UI cannot be served under /api/<name>, so it gets its own host name.
+  it("gives a bring-your-own web UI its own host name and no path", () => {
+    const app = makeResource("app", "bring-your-own", { webUi: true });
+    expect(resolveServiceUrl(app, 8280)).toBe("http://app.demo.localhost:8280");
+    expect(resolveServicePath(app)).toBe("");
+    expect(resolveServiceUrl(makeResource("trek", "bring-your-own", { webUi: true }), 8280)).toBe(
+      "http://trek.demo.localhost:8280",
+    );
+  });
+
+  it("keeps the /api/<name> path for a bring-your-own API, and has no URL for a private web UI", () => {
+    expect(resolveServiceUrl(makeResource("app", "bring-your-own"), 8280)).toBe(
+      "http://api.demo.localhost:8280/api/app",
+    );
+    expect(
+      resolveServiceUrl(
+        makeResource("app", "bring-your-own", { webUi: true, exposeViaProxy: false }),
+        8280,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("advertises a web UI at its host name", () => {
+    expect(
+      buildAdvertisedTargets([makeResource("app", "bring-your-own", { webUi: true })], 8280),
+    ).toEqual([{ name: "app", appType: "bring-your-own", url: "http://app.demo.localhost:8280" }]);
+  });
 });
 
 describe("buildHealthTargets", () => {

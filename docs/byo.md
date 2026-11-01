@@ -31,6 +31,9 @@ Aliases: `byo`, `bring-your-own`
 - If Dockerfile exists, it will not be overwritten
 - BYO resources receive the standard Traefik route by default. Use `--no-proxy` to disable it;
   this writes `exposeViaProxy: false` to the service manifest
+- A routed resource is reached at `http://api.<project>.localhost/api/<name>`: a path prefix, which Flisk strips before the
+  request reaches the container. That suits an API. An app that serves its own pages and assets from `/` (a React or Svelte
+  UI in one container) cannot work under a prefix. Set `"webUi": true` for it (see "Web UIs" below)
 - Use `--yes` in scripts to skip the create confirmation
 - `--port` accepts an unused integer from 4000 through 5999
 - By default, Flisk writes an Nginx Dockerfile and health endpoint that listen on the assigned
@@ -38,6 +41,31 @@ Aliases: `byo`, `bring-your-own`
 - Set `"buildContext"` in `service.json` (a path relative to the resource directory) to build from a source tree elsewhere in the repo, as `flisk-import` does for an existing Dockerfile. `dockerfile` is then relative to that context. Without it the context is the resource directory
 - Pass `--dockerfile <path>` to select a custom Dockerfile, or `--image <image>` to use an
   existing image without creating a Dockerfile
+
+## Web UIs (`webUi`)
+
+A bring-your-own app that serves a web page from `/` is routed on its own host name, with no path prefix:
+
+```json
+{ "appName": "app", "appType": "bring-your-own", "stack": "trek", "port": 3000, "image": "mauriceboe/trek", "webUi": true,
+  "healthCheckPath": "/api/health" }
+```
+
+`flisk up` then prints `http://app.<project>.localhost:<ingress port>` (the name is the resource's `appName`) and Traefik
+routes `Host(<name>.<project>.localhost)` to the container with nothing stripped, so the page, its assets and its own `/api/...`
+calls work as they do without Flisk. There is no `/api/<name>` route for it. `*.localhost` names resolve to this machine in
+browsers and in current `curl`, with no `/etc/hosts` entry.
+
+- Without `webUi` (the default) nothing changes: a routed resource stays an API at `/api/<name>`.
+- `webUi` applies to bring-your-own resources only and has no effect with `exposeViaProxy: false` (no route at all).
+- An explicit `traefik.host` is an extra host name for the same route; `traefik.pathPrefix` is ignored for a web UI.
+- The route uses the resource's `healthCheckPath` (or `healthCheck.command`) as before; keep it a path that answers 2xx or 3xx.
+- A web UI keeps no stack-scoped router, so it does not take the stack's shared route away from the stack's backends.
+- `flisk import` does not set `webUi`: Compose does not say whether a container serves pages or an API, so add it by hand to the
+  resources that serve a UI.
+
+Checked by `tests/tilt-engine/test_byo_web_ui.py` (the generated labels, run through Tilt) and the CLI URL tests; a browser
+loading a page through the host route under a real `flisk up` was not part of those tests.
 
 ## Inference (a local model server)
 

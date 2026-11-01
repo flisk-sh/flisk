@@ -30,6 +30,7 @@ import {
   validateServiceManifest,
   validateServiceManifestFile,
   volumesErrors,
+  webUiErrors,
 } from "../service-manifest.js";
 
 function manifestBase(): Record<string, unknown> {
@@ -1791,5 +1792,21 @@ describe("providersErrors", () => {
       ["c", true],
       ["d", false],
     ]);
+  });
+});
+
+describe("webUiErrors", () => {
+  it("accepts webUi on a bring-your-own resource, set or unset", () => {
+    expect(webUiErrors({ appType: "bring-your-own", webUi: true }, "svc")).toEqual([]);
+    expect(webUiErrors({ appType: "bring-your-own" }, "svc")).toEqual([]);
+  });
+
+  it("refuses webUi on another resource type and on a sidecar", () => {
+    expect(webUiErrors({ appType: "backend", webUi: true }, "svc")).toEqual([
+      'svc.webUi: only applies to bring-your-own resources (appType "bring-your-own")',
+    ]);
+    expect(
+      webUiErrors({ appType: "bring-your-own", webUi: true, sidecarOf: "host" }, "svc"),
+    ).toHaveLength(1);
   });
 });
