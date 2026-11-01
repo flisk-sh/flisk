@@ -4,7 +4,7 @@
 `models` in a bring-your-own service.json (Compose models, served by Docker Model Runner).
 
 A Compose stack such as nosia declares `models: {llm: {model: ai/smollm2}}` at the top and lists `models: [llm]` on the service
-that uses it. flisk-import@0.10.0 and flisk-export@0.4.0 write `"models": [{"name": "llm", "model": "ai/smollm2"}]`; without this
+that uses it. flisk-import (0.10.0 and later) and flisk-export (0.4.0 and later) write `"models": [{"name": "llm", "model": "ai/smollm2"}]`; without this
 key the generated Compose file dropped the model. `model` can also be a Compose variable (`${LLM_MODEL:-ai/smollm2}`).
 
 Runs the real Compose generator through Tilt's interpreter (`tilt alpha tiltfile-result`), like test_byo_env.py, and checks with

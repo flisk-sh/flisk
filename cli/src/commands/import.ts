@@ -11,7 +11,7 @@ import { getPackageVersion } from "../utils/paths.js";
  * pinned version so a push to its main branch cannot change what `flisk import` does. Move the pin
  * when a new importer is published. `FLISK_IMPORT_PACKAGE` overrides the package spec.
  */
-export const IMPORT_PACKAGE = "flisk-import@0.10.0";
+export const IMPORT_PACKAGE = "flisk-import@0.11.0";
 
 /** The flisk-import subcommand that registers a Tiltfile (flisk-import 0.4.1 or later), forwarded as its first argument. */
 export const TILTFILE_IMPORTER = "tiltfile";

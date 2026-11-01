@@ -39,7 +39,7 @@ describe("flisk export", () => {
     expect(EXPORT_PACKAGE).toMatch(/^@flisk-sh\/flisk-export@\d+\.\d+\.\d+$/);
   });
 
-  it("lists the compose exporter (flisk-export 0.4.0) next to render and wrangler", () => {
+  it("lists the compose exporter (flisk-export 0.4.1) next to render and wrangler", () => {
     expect(exportCommand.description()).toContain("docker-compose.yml");
     const usage = exportCommand.registeredArguments[0]?.description ?? "";
     expect(usage).toContain("render [dir]");
