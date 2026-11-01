@@ -59,6 +59,26 @@ describe("declaredDependsOn", () => {
     expect(declaredDependsOn({ dependsOn: null })).toBeNull();
     expect(declaredDependsOn({ dependsOn: "api" })).toBeNull();
   });
+
+  it("reads Compose-style { name, condition } entries by their name", () => {
+    expect(
+      declaredDependsOn({
+        dependsOn: ["cache", { name: "db", condition: "service_healthy" }, { name: "job" }],
+      }),
+    ).toEqual(["cache", "db", "job"]);
+    expect(declaredDependsOn({ dependsOn: [{ condition: "service_healthy" }] })).toBeNull();
+    expect(declaredDependsOn({ dependsOn: [{ name: "" }] })).toBeNull();
+    expect(declaredDependsOn({ dependsOn: [["db"]] })).toBeNull();
+  });
+
+  it("gives the same edges for object entries as for names", () => {
+    const edges = dependencyEdges([
+      svc("api", { dependsOn: [{ name: "db", condition: "service_healthy" }] }),
+      svc("db"),
+    ]);
+    expect(edges.get("api")).toEqual(["db"]);
+    expect(dependsOnOf({ dependsOn: [{ name: "db" }, "cache"] })).toEqual(["db", "cache"]);
+  });
 });
 
 describe("dependencyEdges", () => {

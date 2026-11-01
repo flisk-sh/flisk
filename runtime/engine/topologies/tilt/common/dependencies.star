@@ -27,9 +27,14 @@ def declared_dependencies(manifest):
         value = manifest.get(key)
         # All or nothing, as in the CLI (cli/src/utils/dependency-graph.ts): a list with a non-string entry has no valid reading,
         # and keeping its string entries would give Tilt edges the CLI does not see (and its cycle check cannot account for).
-        if type(value) != 'list' or [entry for entry in value if type(entry) != 'string']:
+        # A `{"name": "db", "condition": ...}` entry counts by its name (normalize_depends_on in manifest/parser.star turns them
+        # into names on load; this keeps a manifest that skipped it readable, like dependsOnEntryName in the CLI).
+        if type(value) != 'list':
             continue
-        for entry in value:
+        entries = [entry.get('name') if type(entry) == 'dict' else entry for entry in value]
+        if [entry for entry in entries if type(entry) != 'string']:
+            continue
+        for entry in entries:
             if entry not in names:
                 names.append(entry)
     # A bring-your-own sidecar shares its host's network namespace (#2908), so it waits for the host like a dependsOn.
