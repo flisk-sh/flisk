@@ -966,7 +966,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Environment variables for a command service or a bring-your-own container. Values may reference ${VAR} (or ${VAR:-default}) from the project .env or the shell. Use it for plain configuration that belongs in the repository; put credentials in secrets.",
+      "description": "Environment variables for a command service or a bring-your-own container. Values may reference ${VAR} (or ${VAR:-default}) from the project .env or the shell, or ${<migrator>:<KEY>} from an authorized migrator declared in dependsOn. Use it for plain configuration that belongs in the repository; put credentials in secrets.",
       "propertyNames": {
         "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
       },

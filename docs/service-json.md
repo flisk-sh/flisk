@@ -116,7 +116,7 @@ A service that declares `command` needs `schemaVersion`, `appName` and `appType`
 | --- | --- | --- | --- |
 | `command` | shell command; optional | local processes | Runs the service as a local process instead of a container: `flisk up` starts it from the service directory with `PORT` set to `port`, waits for it, restarts it when it exits, and stops it on `flisk down`. Cannot be combined with `image` or `dockerfile`. All services that `flisk up` starts must declare it (or none). Not the same as `dev.command`, the dev command inside a generated container. |
 | `toolchain` | `<tool>@<version>`; optional | local processes | The runtime the command needs: `node@24`, `bun@1.3`, `python@3.12`, `go@1.23`, `deno@2` or `ruby@3.3`. `flisk doctor` and `flisk up` compare it with the program on `PATH` (every part given must match, so `node@24` accepts 24.1.0) and refuse to start on a mismatch, naming the service and both versions. Without it, a `.nvmrc`, `.node-version` or `.python-version` in the service folder is a hint: a mismatch only warns. Flisk installs nothing. |
-| `env` | string map; optional | local processes | Environment variables for the command. Values may use `${VAR}` or `${VAR:-default}` from the project `.env` or the shell. |
+| `env` | string map; optional | services | Environment variables for the command or service. Values may use `${VAR}` or `${VAR:-default}` from the project `.env` or the shell, or `${<migrator>:<KEY>}` (or `${<migrator>:<KEY>:-default}`) from an authorized migrator declared in `dependsOn` (#2864). |
 
 For a local process, `port`, `healthCheckPath`, `dependsOn` and `restart: "no"` keep their meaning, without the container port ranges.
 
@@ -264,6 +264,30 @@ Reading it from the bottom up: `orders-api` lists `orders-api-migrator`, and the
 Keep the migration command in the migrator, not in the API's start command. The migrator runs when `flisk up` starts it, and the API only starts after it, so restarting the API does not re-run migrations. The scaffolded migrator's `start` script is `prisma migrate deploy`. A `migrator` gets a one-shot Compose service: `restart: "no"`, no `PORT`, no health check and no Traefik route. `flisk up` and `flisk status` count it as ready once it exits 0, and as failed if it exits with another code. A service that lists the migrator in `dependsOn` starts only after the migrator exited 0: Tilt shows a `<migrator>-done` resource that waits for that, and when the migrator fails, the services after it are not started. For a migrator that is not Prisma, see [One-shot jobs](byo.md#one-shot-jobs-migrations-seeders) and the runnable [`examples/byo-jobs/`](../examples/byo-jobs/README.md), which set `"restart": "no"` so the job is not started again after it exits.
 
 The two manifests above pass the service schema and `flisk config verify` (no manifest or dependency error). That Tilt holds the API until the migrator finishes is **not checked here**, because it needs a running stack.
+
+### Migrator output propagation
+
+A migrator or seeder job can generate service tokens, IDs, or credentials and pass them to downstream services that declare it in `dependsOn` (#2864).
+
+1. **The migrator writes outputs:** Flisk passes the `$FLISK_OUTPUT` environment variable to every one-shot job. The migrator writes `KEY=value` lines to that file:
+   ```bash
+   printf "SERVICE_TOKEN=%s\n" "$generated_token" > "$FLISK_OUTPUT"
+   ```
+2. **The dependent service consumes the output:** In the dependent service's `service.json`, reference the output using `${<migrator>:<KEY>}`:
+   ```json
+   {
+     "dependsOn": ["orders-api-migrator"],
+     "env": {
+       "PLATFORM_API_KEY": "${orders-api-migrator:SERVICE_TOKEN}"
+     }
+   }
+   ```
+   A fallback may also be provided: `${orders-api-migrator:SERVICE_TOKEN:-default_token}`.
+3. **Security and lifecycle:**
+   - **Authorization:** Only services that declare the migrator directly in `dependsOn` are authorized to receive its outputs. Referencing an unauthorized migrator throws a `FliskError`.
+   - **Secret protection:** Outputs are stored in the local `.flisk/outputs/` state directory with restrictive permissions (`0o600`). Secret values are never committed, never evaluated as shell code, and never exposed in `flisk status --json`, `flisk up --dry-run`, or process diagnostic logs.
+   - **Clean lifecycle:** Outputs are purged before each rerun so stale credentials from failed or past runs are never reused, and cleaned up on `flisk down`.
+
 
 ## Build and container fields
 

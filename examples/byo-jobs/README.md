@@ -13,3 +13,22 @@ container to exit `0` with `0` restarts, then runs the folder's `verify.sql` aga
 result with `verify.expect`. It removes only what it started. Needs Docker, Tilt and a built CLI.
 
 Every folder has its own `README.md`, so adding a job only adds a folder.
+
+## Passing outputs to dependent services
+
+A one-shot job can generate service tokens or credentials and pass them directly to downstream services (#2864):
+
+1. The job writes `KEY=value` lines to `$FLISK_OUTPUT`:
+   ```bash
+   printf "SERVICE_TOKEN=%s\n" "$generated_token" > "$FLISK_OUTPUT"
+   ```
+2. Any dependent service that declares this job in `dependsOn` references the output in its `service.json`:
+   ```json
+   {
+     "dependsOn": ["seed-job"],
+     "env": {
+       "API_AUTH_TOKEN": "${seed-job:SERVICE_TOKEN}"
+     }
+   }
+   ```
+   Outputs are stored securely in `.flisk/outputs/` with restricted permissions and never logged or exposed in machine-readable status.

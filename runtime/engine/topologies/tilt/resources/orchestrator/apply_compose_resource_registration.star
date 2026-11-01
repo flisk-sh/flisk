@@ -877,7 +877,9 @@ _JOB_DONE_SCRIPT = (
     + 'id="$("$@" ps -a -q "$job" | head -n 1)"; '
     + 'if [ -z "$id" ]; then echo "no container for $job"; exit 1; fi; '
     + 'code="$(docker wait "$id")"; '
-    + 'if [ "$code" != "0" ]; then echo "$job exited with code $code"; exit 1; fi; '
+    + 'if [ "$code" != "0" ]; then rm -f ".flisk/outputs/$job.env" 2>/dev/null; echo "$job exited with code $code"; exit 1; fi; '
+    + 'mkdir -p .flisk/outputs && chmod 700 .flisk/outputs 2>/dev/null || true; '
+    + 'docker cp "$id":/tmp/flisk-output.env ".flisk/outputs/$job.env" 2>/dev/null && chmod 600 ".flisk/outputs/$job.env" 2>/dev/null || true; '
     + 'echo "$job finished (exit code 0)"'
 )
 

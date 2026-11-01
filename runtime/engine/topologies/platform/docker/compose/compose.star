@@ -403,6 +403,9 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
     health_env = "      - FLISK_HEALTH_PATH={}\n".format(health_path) if health_path else ""
     # A migrator listens on nothing, so it gets no PORT.
     port_env = "" if is_migrator else "      - PORT={}\n".format(internal_port)
+    # A one-shot job receives FLISK_OUTPUT pointing to its output path in the container
+    is_job = is_migrator or (is_byo and manifest.get("restart") == "no")
+    migrator_output_env = "      - FLISK_OUTPUT=/tmp/flisk-output.env\n" if is_job else ""
     # An agent with files durability keeps its session checkpoints in a named volume. The volume is declared at the top of the
     # generated file (generate_app_compose_from_entries reads the marker line below), so flisk down keeps it.
     agent_env = ""
@@ -455,7 +458,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
 {byo_env_file_section}    environment:
 {infisical_env}
       - RESOURCE_NAME={stack}
-{port_env}{health_env}{agent_env}      - INSTANCE_ID={instance_label}
+{port_env}{health_env}{agent_env}{migrator_output_env}      - INSTANCE_ID={instance_label}
 {platform_env}{auth_env}{secrets_env}{byo_env}
 {agent_volume_section}{byo_volume_section}{byo_model_section}    labels:
 {traefik_labels}
@@ -505,6 +508,7 @@ def _generate_single_backend_entry(resource_path, resource_name, res, manifest, 
         healthcheck_section=healthcheck_section,
         health_env=health_env,
         agent_env=agent_env,
+        migrator_output_env=migrator_output_env,
         agent_volume_section=agent_volume_section,
         byo_volume_section=byo_volume_section,
         byo_model_section=byo_model_section,
