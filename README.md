@@ -16,7 +16,7 @@
 </div>
 
 <p align="center">
-<img src="docs/assets/building-apps-loader.svg" alt="Flisk is building your app: an API, a website, a worker, an AI agent, MCP tools and Postgres" width="722" />
+<img src="docs/assets/ecosystem.svg" alt="The Flisk ecosystem: bring an app in any language (Rust, Go, Python, TypeScript, JVM, Ruby, PHP) from a Compose file, a Tiltfile, a Dockerfile or any image; flisk up runs 77 building blocks: 5 languages, 10 web frameworks, 10 API frameworks, 10 resource types, 8 data and AI services, 23 MCP tools and 11 starter projects; export writes render.yaml or wrangler.toml; a radar watches every running part" width="100%" />
 </p>
 
 ## What is Flisk?
