@@ -51,3 +51,4 @@ Do not copy that example into the table.
 | MakeOffer | https://www.linkedin.com/company/makeofferio | 1.3.180 |
 | Red Moon Digital | https://redmoon.digital/ | 1.3.81 |
 | TubeHaus | https://github.com/biolend83/tubehaus | 1.4.25 |
+| TubeHaus | https://github.com/biolend83/tubehaus | 1.4.25 |
