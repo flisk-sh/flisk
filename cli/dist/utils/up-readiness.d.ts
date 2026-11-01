@@ -11,6 +11,10 @@ export interface ReadinessResult {
     timedOut: boolean;
     /** Names of the resources Tilt has enabled (everything not `Disabled`), so callers report what actually started. */
     enabled: string[];
+    /** Names of services that were still building when the timeout occurred. */
+    stillBuilding?: string[];
+    /** Last log lines of services that timed out before becoming ready. */
+    lastLogs?: Record<string, string>;
 }
 export declare function tiltGetUiResources(port: number): Promise<string | null>;
 export declare function tiltResourceLogs(port: number, name: string): Promise<string | null>;
@@ -41,14 +45,19 @@ export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<st
     result: ReadinessResult;
     settled: boolean;
 };
+export declare function findBuildingResourceNames(jsonText: string, deferred?: Set<string>): string[];
+export declare function findPendingResourceNames(jsonText: string, deferred?: Set<string>): string[];
+export declare function formatTail(text: string, maxLines?: number): string;
 /**
  * Waits until every non-deferred Tilt resource is built and running. Resolves not-ready as soon as the rest has settled
- * with an errored resource, or at the deadline. Sablier-deferred resources are excluded: they stay idle by design.
+ * with an errored resource, or after a period of no progress (progress-aware timeout). While builds or image pulls
+ * produce output, the wait does not time out. Sablier-deferred resources are excluded: they stay idle by design.
  */
 export declare function waitForTiltResourcesReady(port: number, options?: {
     timeoutMs?: number;
     intervalMs?: number;
     fetchJson?: (port: number) => Promise<string | null>;
+    fetchLogs?: (port: number, name: string) => Promise<string | null>;
     deferred?: Set<string>;
     /** Resource names that must be present, enabled, and ready (a `--only` selection). */
     expected?: string[];
@@ -56,4 +65,5 @@ export declare function waitForTiltResourcesReady(port: number, options?: {
     isStalled?: (jsonText: string) => boolean;
     /** Resource names whose health checks are disabled. */
     disabledHealth?: Set<string>;
+    now?: () => number;
 }): Promise<ReadinessResult>;

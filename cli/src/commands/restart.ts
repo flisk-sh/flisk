@@ -10,6 +10,7 @@ import {
   runCommand,
   showErrorAndExit,
 } from "../utils/errors.js";
+import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { isTiltAvailable, runTilt } from "../utils/tilt.js";
@@ -40,7 +41,7 @@ export const restartCommand = new Command("restart")
       if (!root) {
         const error = errorFactories.notInProject();
         if (options.json) writeMachineError(error);
-        error.exit();
+        return error.exit();
       }
 
       let tiltAvailable = false;
@@ -65,14 +66,32 @@ export const restartCommand = new Command("restart")
         throw new FliskError(msg, ["Start the stack first with: flisk up"]);
       }
 
-      const result = await runTilt("trigger", [resourceName, "--port", portText], {
+      const effectivePort =
+        options.port !== undefined
+          ? portText
+          : resolveRuntimeTiltPort(root, { envPort: process.env.TILT_PORT });
+      if (effectivePort === null) {
+        const msg = tiltUnreachableMessage(portText);
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              createMachineEnvelope(null, [{ code: "TILT_NOT_RUNNING", message: msg }]),
+            ),
+          );
+          process.exit(1);
+        }
+        throw new FliskError(msg, ["Start the stack first with: flisk up"]);
+      }
+      const activePortText = String(effectivePort);
+
+      const result = await runTilt("trigger", [resourceName, "--port", activePortText], {
         inheritStdio: false,
       });
 
       if (result.exitCode !== 0) {
         const detail = result.stderr.trim();
         if (!detail || isTiltConnectionFailure(detail)) {
-          const msg = tiltUnreachableMessage(portText);
+          const msg = tiltUnreachableMessage(activePortText);
           if (options.json) {
             console.log(
               JSON.stringify(

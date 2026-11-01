@@ -372,3 +372,91 @@ describe("checkExpectedResources", () => {
     expect(expected).toEqual(originalExpected);
   });
 });
+
+describe("progress-aware timeout in waitForTiltResourcesReady", () => {
+  it("does not time out while builds make progress through log output", async () => {
+    let tick = 0;
+    const nowFn = () => tick;
+    const buildingItem = json(item("api", "in_progress", "pending"));
+    const readyItem = json(item("api", "ok", "ok"));
+
+    const logs = [
+      "Step 1/5: FROM node:20",
+      "Step 2/5: COPY package.json",
+      "Step 3/5: RUN npm install",
+      "Step 4/5: COPY . .",
+      "Step 5/5: RUN npm run build",
+    ];
+
+    let logIndex = 0;
+    const result = await waitForTiltResourcesReady(1, {
+      intervalMs: 1,
+      timeoutMs: 50,
+      deferred: new Set(),
+      now: nowFn,
+      fetchJson: async () => {
+        tick += 20; // 20ms per poll
+        if (logIndex >= logs.length) return readyItem;
+        return buildingItem;
+      },
+      fetchLogs: async (_port, name) => {
+        if (name === "api" && logIndex < logs.length) {
+          return logs[logIndex++] as string;
+        }
+        return null;
+      },
+    });
+
+    // Total time elapsed is 6 * 20 = 120ms, which is > timeoutMs (50ms),
+    // but because logs progressed each poll, it never timed out!
+    expect(result.ready).toBe(true);
+    expect(result.timedOut).toBe(false);
+  });
+
+  it("times out with service name, stillBuilding, and last log lines when progress stops", async () => {
+    let tick = 0;
+    const nowFn = () => tick;
+    const buildingItem = json(item("api", "in_progress", "pending"));
+
+    const result = await waitForTiltResourcesReady(1, {
+      intervalMs: 1,
+      timeoutMs: 30,
+      deferred: new Set(),
+      now: nowFn,
+      fetchJson: async () => {
+        tick += 10;
+        return buildingItem;
+      },
+      fetchLogs: async () =>
+        "Step 1/3: RUN make slow\nCompiling module 1\nCompiling module 2\nStuck here...",
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.timedOut).toBe(true);
+    expect(result.stillBuilding).toEqual(["api"]);
+    expect(result.lastLogs?.api).toContain("Stuck here...");
+  });
+
+  it("times out a service that never becomes ready, capturing its last log lines", async () => {
+    let tick = 0;
+    const nowFn = () => tick;
+    // Built ok, but container never becomes ready (starting / none runtime)
+    const startingItem = json(item("postgres", "ok", "pending"));
+
+    const result = await waitForTiltResourcesReady(1, {
+      intervalMs: 1,
+      timeoutMs: 30,
+      deferred: new Set(),
+      now: nowFn,
+      fetchJson: async () => {
+        tick += 10;
+        return startingItem;
+      },
+      fetchLogs: async () => "PostgreSQL init...\nWaiting for connection on 5432...",
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.timedOut).toBe(true);
+    expect(result.lastLogs?.postgres).toBe("PostgreSQL init...\nWaiting for connection on 5432...");
+  });
+});
