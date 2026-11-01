@@ -58,12 +58,12 @@ def check(observed, full_hash):
     return problems
 
 
+_OPENER = urllib.request.build_opener(urllib.request.HTTPSHandler())
+
+
 def _open(request, timeout):
-    """urlopen for registry URLs, which are always built with an https:// prefix."""
-    url = request if isinstance(request, str) else request.full_url
-    if not url.startswith("https://"):
-        raise ValueError(f"refusing non-https registry URL: {url}")
-    return urllib.request.urlopen(request, timeout=timeout)  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+    """GET a registry URL. The opener only has an HTTPS handler, so any other scheme fails instead of being fetched."""
+    return _OPENER.open(request, timeout=timeout)
 
 
 def _split(registry):
