@@ -275,18 +275,10 @@
 		},
 		{
 			"workflow": "codeql.yml",
-			"job": "changes",
-			"tier": "gate",
-			"required": false,
-			"reason": "Workflow change detection; gates the actions leg of analyze on PRs (#1284)",
-			"owner": "maintainers"
-		},
-		{
-			"workflow": "codeql.yml",
 			"job": "analyze",
 			"tier": "security",
 			"required": false,
-			"reason": "Code scanning; javascript-typescript on every PR, actions only when workflows change (#1284); weekly",
+			"reason": "Code scanning; javascript-typescript and actions on every PR (the main ruleset waits for both categories); weekly",
 			"owner": "maintainers"
 		},
 		{
