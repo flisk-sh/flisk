@@ -33,6 +33,7 @@ import {
   templateGitCommands,
 } from "../utils/project-templates.js";
 import { promptConfirm, promptMultiSelect, promptText } from "../utils/prompt.js";
+import { writeSecurityProject } from "../utils/security-template.js";
 import { discoverStackNames } from "../utils/services.js";
 import { writeSwarmProject } from "../utils/swarm-template.js";
 import { isPathSafe } from "../utils/validation.js";
@@ -182,6 +183,8 @@ export async function cloneProjectTemplate(
   try {
     if (template.generated === "swarm") {
       writeSwarmProject(destination);
+    } else if (template.generated === "security") {
+      writeSecurityProject(destination);
     } else if (template.bundledPath) {
       const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
       cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });

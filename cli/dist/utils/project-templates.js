@@ -39,6 +39,11 @@ export const PROJECT_TEMPLATES = {
         generated: "swarm",
         description: "Multi-agent swarm: a coordinator splits a goal, three workers pull and finish subtasks (local processes, no Docker)",
     },
+    security: {
+        repo: "https://github.com/flisk-sh/flisk.git",
+        generated: "security",
+        description: "Security agents: a scanner, a triage agent and a reporter in a line (local processes, no Docker)",
+    },
     launch: {
         repo: "https://github.com/flisk-sh/flisk-template-launch.git",
         ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
