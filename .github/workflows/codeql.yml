@@ -19,34 +19,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
-  # Pull requests only. The javascript-typescript leg runs on every pull request, so Scorecard's SAST check sees each
-  # merged change as scanned (#835). The actions leg runs only when a workflow file changes.
-  changes:
-    name: 🔎 Detect Workflow Changes
-    runs-on: ubuntu-26.04
-    timeout-minutes: 2 # every job finishes in under 20s; fail fast if one hangs
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: read # paths-filter lists the files of a pull request
-    outputs:
-      workflows: ${{ steps.filter.outputs.workflows }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
-        id: filter
-        with:
-          filters: |
-            workflows:
-              - '.github/workflows/**'
-
   analyze:
     name: 🔬 Analyze (${{ matrix.language }})
-    needs: changes
-    # `changes` is skipped on push and schedule, so `!cancelled()` keeps this job from inheriting that skip.
-    if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
@@ -60,15 +34,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      # The actions leg is a step-level gate: a matrix leg cannot take its own job-level `if`, so on a pull request
-      # without workflow changes it reports success with these two steps skipped. Anything but 'false' runs it.
+      # Both legs run on every pull request: the main ruleset's code-scanning rule waits for a CodeQL result in every
+      # category main has, so skipping the actions leg left every PR blocked. The actions leg takes under 20 seconds.
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
-        if: ${{ matrix.language != 'actions' || github.event_name != 'pull_request' || needs.changes.outputs.workflows != 'false' }}
         with:
           languages: ${{ matrix.language }}
           build-mode: none
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
-        if: ${{ matrix.language != 'actions' || github.event_name != 'pull_request' || needs.changes.outputs.workflows != 'false' }}
         with:
           category: /language:${{ matrix.language }}
 
