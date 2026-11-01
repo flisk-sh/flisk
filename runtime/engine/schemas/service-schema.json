@@ -422,6 +422,11 @@
           "bind": {
             "description": "Host address the port is published on: 127.0.0.1 (default, this machine only) or 0.0.0.0 (every interface, so other devices on the network can reach it).",
             "enum": ["127.0.0.1", "0.0.0.0"]
+          },
+          "publish": {
+            "description": "The host side of the Compose port mapping, taken from the environment: \"${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}\". Compose resolves ${VAR:-default} from the shell and the project .env; the value is a port (every interface) or an IPv4 address:port. Every variable needs a default. Replaces hostPort and bind.",
+            "type": "string",
+            "pattern": "^([0-9.:]|\\$\\{[A-Za-z_][A-Za-z0-9_]*:-[0-9.:]+\\})+$"
           }
         }
       }

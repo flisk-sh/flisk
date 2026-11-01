@@ -724,4 +724,68 @@ describe("checkNetworkPorts", () => {
     expect(result.message).toContain("caddy 0.0.0.0:80/tcp");
     expect(result.message).not.toContain("443");
   });
+
+  describe("publish", () => {
+    const proxy = {
+      ...byo,
+      extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}" }],
+    };
+    const dotenv = (text: string) => writeFileSync(join(root, ".env"), text);
+    let saved: string | undefined;
+    beforeEach(() => {
+      saved = process.env.TUBEHAUS_HTTP_BIND;
+      delete process.env.TUBEHAUS_HTTP_BIND;
+    });
+    afterEach(() => {
+      if (saved === undefined) delete process.env.TUBEHAUS_HTTP_BIND;
+      else process.env.TUBEHAUS_HTTP_BIND = saved;
+    });
+
+    it("warns about the default when nothing sets the variable, and says where it comes from", () => {
+      service("caddy", proxy);
+      const result = checkNetworkPorts(root);
+      expect(result).toMatchObject({ didPass: false, isWarning: true });
+      expect(result.message).toContain(
+        "caddy 0.0.0.0:80/tcp (TUBEHAUS_HTTP_BIND, default in service.json)",
+      );
+    });
+
+    it("passes once the project .env keeps the port on this machine", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=127.0.0.1:8080\n");
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("passes when the default is loopback and the .env leaves it alone", () => {
+      service("caddy", {
+        ...byo,
+        extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}" }],
+      });
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("warns when the .env opens a loopback default to the network", () => {
+      service("caddy", {
+        ...byo,
+        extraPorts: [{ port: 80, publish: "${TUBEHAUS_HTTP_BIND:-127.0.0.1:80}" }],
+      });
+      dotenv("TUBEHAUS_HTTP_BIND=8080\n");
+      expect(checkNetworkPorts(root).message).toContain("caddy 0.0.0.0:8080/tcp");
+    });
+
+    it("lets the shell win over the .env, as Compose does", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=0.0.0.0:80\n");
+      process.env.TUBEHAUS_HTTP_BIND = "127.0.0.1:8080";
+      expect(checkNetworkPorts(root).didPass).toBe(true);
+    });
+
+    it("names a value that is not a port or address:port", () => {
+      service("caddy", proxy);
+      dotenv("TUBEHAUS_HTTP_BIND=localhost:8080\n");
+      const result = checkNetworkPorts(root);
+      expect(result.isWarning).toBe(true);
+      expect(result.message).toContain('TUBEHAUS_HTTP_BIND resolves to "localhost:8080"');
+    });
+  });
 });
