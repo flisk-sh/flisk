@@ -1118,7 +1118,9 @@ def register_compose_resources(resource_config, ctx, runtime_flags, manifest_sta
             manifest = dict(manifest)
             manifest['_stackBackendCount'] = stack_backend_counts.get(manifest.get('stack', resource_name), 1)
             # A bring-your-own container gets the shared database variables only when it asks for them (#2991).
-            manifest['_sharedDatabase'] = manifest_needs_shared_platform_postgres(manifest, database_resource_names(all_services_map)) or bool(manifest.get('databaseName'))
+            # A `databaseName` discovery computed for every service is not a request; one the service wrote itself is.
+            wrote_database_name = bool(manifest.get('databaseName')) and not manifest.get('_databaseNameComputed')
+            manifest['_sharedDatabase'] = manifest_needs_shared_platform_postgres(manifest, database_resource_names(all_services_map)) or wrote_database_name
         
         # Skip non-app resources - they don't use the golden app Dockerfile pipeline.
         # infra (e.g. verdaccio) is loaded via registries/verdaccio_loader.star instead.
