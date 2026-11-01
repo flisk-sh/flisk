@@ -4,11 +4,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_CAPABILITIES } from "../config/platform-standards.js";
-import type { ProjectCapabilities, ProjectConfig } from "../types/index.js";
+import type { DiscoveredResource, ProjectCapabilities, ProjectConfig } from "../types/index.js";
 import { PROJECT_JSON } from "./constants.js";
 import { FliskError } from "./errors.js";
 import { writeJsonFile } from "./file-helpers.js";
 import { findProjectRoot } from "./paths.js";
+import { evaluatePlatformServiceNeeds } from "./platform-services.js";
+import { discoverResourcesWithProblems } from "./services.js";
 
 /**
  * Where a capability is read from: a project root (its `.flisk/project.json`), a project config, or an object that carries
@@ -54,6 +56,33 @@ function applyFlags(caps: Record<string, boolean>, flags: unknown): void {
 }
 
 /**
+ * A platform service the project's resources do not use is off unless project.json says `true` for it (#2963): a project of
+ * only bring-your-own containers that publish their own ports gets neither Traefik nor the shared PostgreSQL. An explicit
+ * value, either way, always wins. A project that wraps its own Tiltfile, and one without resources, keeps the defaults.
+ */
+function applyUnusedPlatformServices(
+  caps: Record<string, boolean>,
+  configObj: Record<string, unknown> | undefined,
+  projectRoot: string,
+): void {
+  if (!configObj || configObj.orchestration) return;
+  const declared = (configObj.capabilities ?? {}) as Record<string, unknown>;
+  const inferable = ["gateway", "database"].filter((name) => typeof declared[name] !== "boolean");
+  if (inferable.length === 0) return;
+  let needs: ReturnType<typeof evaluatePlatformServiceNeeds>;
+  try {
+    const { resources } = discoverResourcesWithProblems(projectRoot);
+    if (resources.length === 0) return;
+    needs = evaluatePlatformServiceNeeds(resources);
+  } catch {
+    return;
+  }
+  for (const name of inferable) {
+    if (!needs[name as "gateway" | "database"].isNeeded) caps[name] = false;
+  }
+}
+
+/**
  * The project's capabilities: the defaults, then `capabilities` in `.flisk/project.json` (or the config passed in), then
  * flags. A flag only turns a capability off. Commander sets `database: true` when `--no-database` is not given, so a
  * `true` from the options must not undo a project that opted out in project.json. An object source may also carry
@@ -65,15 +94,18 @@ export function resolveProjectCapabilities(
 ): ProjectCapabilities {
   const caps: Record<string, boolean> = { ...DEFAULT_CAPABILITIES };
   let configObj: Record<string, unknown> | undefined;
+  let projectRoot: string | null | undefined;
   if (typeof projectRootOrConfig === "string") {
+    projectRoot = projectRootOrConfig;
     configObj = readProjectJson(projectRootOrConfig);
   } else if (projectRootOrConfig && typeof projectRootOrConfig === "object") {
     configObj = projectRootOrConfig as Record<string, unknown>;
   } else {
-    const root = findProjectRoot();
-    if (root) configObj = readProjectJson(root);
+    projectRoot = findProjectRoot();
+    if (projectRoot) configObj = readProjectJson(projectRoot);
   }
   applyBooleans(caps, configObj?.capabilities);
+  if (projectRoot) applyUnusedPlatformServices(caps, configObj, projectRoot);
   if (typeof projectRootOrConfig === "object" && projectRootOrConfig !== null) {
     for (const [key, val] of Object.entries(projectRootOrConfig)) {
       if (val === false && key in caps) caps[key] = false;
@@ -150,4 +182,43 @@ export function disableDatabaseCapability(projectRoot: string): boolean {
   config.capabilities = { ...caps, database: false };
   writeJsonFile(file, config);
   return true;
+}
+
+/** One Flisk platform service and why it runs or does not, for `flisk status`. */
+export interface PlatformServiceReport {
+  /** The capability that controls it. */
+  capability: "gateway" | "database";
+  /** What the service is called on screen. */
+  name: string;
+  isEnabled: boolean;
+  /** Why it runs, or why it does not. */
+  reason: string;
+}
+
+/**
+ * Why the router and the shared Postgres run (or not) for this project (#2963): a setting in `.flisk/project.json` or a
+ * flag first, then the resources that use the service.
+ */
+export function describePlatformServices(
+  projectRoot: string | null | undefined,
+  resources: readonly DiscoveredResource[],
+  options?: Record<string, unknown>,
+): PlatformServiceReport[] {
+  const caps = resolveProjectCapabilities(projectRoot ?? undefined, options);
+  const declared = ((projectRoot ? readProjectJson(projectRoot)?.capabilities : undefined) ??
+    {}) as Record<string, unknown>;
+  const needs = evaluatePlatformServiceNeeds(resources);
+  const labels = { gateway: "router (Traefik)", database: "PostgreSQL" } as const;
+  return (["gateway", "database"] as const).map((capability) => {
+    const isEnabled = caps[capability] !== false;
+    const setting = `capabilities.${capability} in .flisk/project.json`;
+    let reason: string;
+    if (declared[capability] === false) reason = `off: ${setting} is false`;
+    else if (!isEnabled && needs[capability].isNeeded) reason = "off: turned off by a flag";
+    else if (declared[capability] === true) reason = `on: ${setting} is true`;
+    else if (!isEnabled) reason = `off: ${needs[capability].reason}`;
+    else if (resources.length === 0) reason = "on: default, the project has no resources yet";
+    else reason = `on: ${needs[capability].reason}`;
+    return { capability, name: labels[capability], isEnabled, reason };
+  });
 }

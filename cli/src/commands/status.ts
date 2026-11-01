@@ -4,7 +4,11 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { HostPortPlan, ServiceRuntimeState } from "../types/index.js";
-import { getEnabledCapabilities, isGatewayEnabled } from "../utils/capabilities.js";
+import {
+  describePlatformServices,
+  getEnabledCapabilities,
+  isGatewayEnabled,
+} from "../utils/capabilities.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { createDiscoveryContext } from "../utils/discovery-context.js";
 import { findStaleDisabledResources, getDeferredResourceNames } from "../utils/doctor-runtime.js";
@@ -53,6 +57,7 @@ export const statusCommand = new Command("status")
             )
           : null;
       const gatewayEnabled = isGatewayEnabled(projectRoot, options);
+      const platformServices = describePlatformServices(projectRoot, discovery.resources, options);
       // `extraPorts` published through ${VAR:-default} resolve from the shell and the project .env, like Compose.
       const envLookup = projectEnvLookup(projectRoot ?? undefined);
       let tiltAvailable = false;
@@ -205,6 +210,7 @@ export const statusCommand = new Command("status")
           })),
           unassignedResources: discovery.unassignedResources.map((resource) => resource.name),
           sharedInfra: sharedInfraGroup,
+          platformServices,
           capabilities: getEnabledCapabilities(projectRoot, options),
           // Names of the failing or pending services, so a caller need not filter `resources` itself.
           unhealthy: unhealthyServiceNames(discovery.resources, serviceStates),
@@ -268,6 +274,14 @@ export const statusCommand = new Command("status")
               showDetail(`${resource.name}`);
             }
           }
+        }
+      }
+
+      if (!unhealthyOnly) {
+        console.log();
+        console.log(chalk.bold("Platform services:"));
+        for (const service of platformServices) {
+          showDetail(`${service.name}: ${service.reason}`);
         }
       }
 

@@ -79,6 +79,12 @@ export declare function isTiltfileOrchestration(projectRoot: string): boolean;
  * generated before `flisk import tiltfile`), or the generated one is a wrapper but project.json no longer selects one.
  */
 export declare function isWrappedTiltfileStale(projectRoot: string): boolean;
+/**
+ * True when the generated spec.master differs from what the project would generate now. The platform services a project
+ * starts follow its resources (#2963): adding a routed service to a bring-your-own project must bring the router back, and
+ * removing the last one must drop it, without a `flisk config regenerate` in between.
+ */
+export declare function isSpecMasterStale(projectRoot: string): boolean;
 export declare function generateDatabaseManagementCompose(projectConfig: ProjectConfig): string;
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
 export declare class ProjectConfigNotFoundError extends FliskError {

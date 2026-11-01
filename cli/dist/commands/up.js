@@ -5,7 +5,7 @@ import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isVendoredEngineStale, isWrappedTiltfileStale, ProjectConfigNotFoundError, readProjectConfig, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { ensureProjectRuntimeAssets, generateMasterConfigs, isSpecMasterStale, isTiltfileOrchestration, isVendoredEngineStale, isWrappedTiltfileStale, ProjectConfigNotFoundError, readProjectConfig, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, } from "../utils/capabilities.js";
@@ -705,6 +705,11 @@ export const upCommand = new Command("up")
                 if (!options.quiet) {
                     console.log(chalk.gray("This Flisk ships a different engine or templates than .flisk/.flisk-out/ was generated with; regenerating ..."));
                 }
+                await generateMasterConfigs(projectRoot, { quiet: options.quiet });
+            }
+            else if (foundRoot && isSpecMasterStale(projectRoot)) {
+                // The router and the shared Postgres follow the project's resources, so a resource added or removed since the last
+                // run can change what spec.master starts (#2963).
                 await generateMasterConfigs(projectRoot, { quiet: options.quiet });
             }
             else if (databaseTurnedOff || options.gateway === false) {
