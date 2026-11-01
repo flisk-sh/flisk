@@ -4,7 +4,7 @@
 # Container runtime options for a bring-your-own resource (service.json `container`, #2907).
 # Compose keys that a real image needs and that Flisk cannot infer: capabilities (WARP needs NET_ADMIN), a read-only root,
 # a fixed user, security options and a larger /dev/shm (a headless browser). GPU and HPC workloads (vLLM, Ollama, cuQuantum,
-# large state-vector simulators) also set GPUs, CPU and memory limits and IPC. Imported Compose stacks also set a stop grace
+# large state-vector simulators) also set GPUs, CPU and memory limits and IPC. Imported Compose stacks also set a command and an entrypoint, a stop grace
 # period, extra /etc/hosts entries, ulimits and extra DNS names on the backend network (networkAliases), and `restart` can be
 # on-failure:N. Each value is checked character by character,
 # because it is written into the generated Compose YAML as it is. Keep in step with containerErrors in
@@ -171,12 +171,14 @@ def byo_restart_policy(manifest):
     fail("MANIFEST ERROR: 'restart' must be one of no, on-failure, on-failure:N (N from 1 to 100), unless-stopped, always")
 
 
-def _command_list(container):
-    """`command`: the start command (Compose command), written as a JSON list, which YAML reads as a flow sequence."""
-    command = container.get('command')
+def _command_list(container, key = 'command'):
+    """`command` / `entrypoint`: the start command or entrypoint (Compose command, entrypoint), written as a JSON list, which YAML reads as a flow sequence.
+
+    An empty `entrypoint` is allowed: Compose reads `entrypoint: []` as "drop the image's ENTRYPOINT". An empty `command` is not."""
+    command = container.get(key)
     if command == None:
         return None
-    ok = type(command) == "list" and len(command) > 0
+    ok = type(command) == "list" and (len(command) > 0 or key == 'entrypoint')
     if ok:
         for part in command:
             if type(part) != "string" or not part:
@@ -187,7 +189,7 @@ def _command_list(container):
                     ok = False
                     break
     if not ok:
-        fail("MANIFEST ERROR: 'container.command' must be a list of non-empty strings without control characters")
+        fail("MANIFEST ERROR: 'container.{}' must be a list of non-empty strings without control characters{}".format(key, " (an empty list drops the image's ENTRYPOINT)" if key == 'entrypoint' else ""))
     return command
 
 
@@ -298,9 +300,12 @@ def byo_container_options(manifest):
         fail("MANIFEST ERROR: 'container.init' must be true or false")
 
     lines = []
+    # Compose interpolates $: a command or entrypoint that expands a variable inside the container writes $$VAR.
+    entrypoint = _command_list(container, 'entrypoint')
+    if entrypoint != None:
+        lines.append("    entrypoint: {}".format(encode_json(entrypoint)))
     command = _command_list(container)
     if command:
-        # Compose interpolates $: a start command that expands a variable inside the container writes $$VAR.
         lines.append("    command: {}".format(encode_json(command)))
     for key, compose_key in [('capAdd', 'cap_add'), ('capDrop', 'cap_drop')]:
         caps = _string_list(container, key, _CAP_CHARS, "capability names such as NET_ADMIN or ALL")
