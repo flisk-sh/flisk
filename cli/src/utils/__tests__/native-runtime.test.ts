@@ -149,9 +149,43 @@ describe("native run planning", () => {
     ]);
     expect(plan.errors).toEqual([
       expect.stringMatching(
-        /^service "api" dependsOn "postgres", which is not a service with a command/,
+        /^service "api" dependsOn "postgres", which is not a service in this project/,
       ),
       'services "api" and "web" both use port 4100',
+    ]);
+  });
+
+  it("plans an image service as a docker run line, its probe inside the container, no PORT", () => {
+    const plan = planNativeRun(
+      [
+        makeResource("postgres", "bring-your-own", {
+          image: "postgres:15-alpine",
+          port: 5432,
+          env: { POSTGRES_PASSWORD: ref("PG_PASSWORD") },
+          healthCheck: { command: ["pg_isready"] },
+        }),
+        makeResource("api", "bring-your-own", { command: "node s.js", dependsOn: ["postgres"] }),
+      ],
+      { PG_PASSWORD: "pw" },
+      "/tmp",
+      "shop",
+    );
+    expect(plan.errors).toEqual([]);
+    const db = plan.services.find((service) => service.name === "postgres");
+    expect(db).toMatchObject({
+      container: "flisk-shop-postgres",
+      env: { POSTGRES_PASSWORD: "pw" },
+      readiness: {
+        kind: "command",
+        command: ["docker", "exec", "flisk-shop-postgres", "pg_isready"],
+      },
+      url: "localhost:5432",
+    });
+    expect(db?.command).toContain("-p 127.0.0.1:5432:5432 -e POSTGRES_PASSWORD");
+    // The value reaches docker through its environment, never its arguments.
+    expect(db?.command).not.toContain("pw");
+    expect(plan.services.find((service) => service.name === "api")?.dependsOn).toEqual([
+      "postgres",
     ]);
   });
 

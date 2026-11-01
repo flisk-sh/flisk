@@ -179,6 +179,23 @@ describe("runtime mode of a selection", () => {
     // Tilt discovers every service.json, so a native sibling outside the selection is in the way too.
     expect(resolveRuntimeMode([api], [api, web])).toEqual({ mode: "container", mixed: ["web"] });
   });
+
+  it("runs ready-made image containers next to local processes (a mixed run)", () => {
+    const db = makeResource("postgres", "bring-your-own", { image: "postgres:15-alpine" });
+    const api = nativeResource("api", { dependsOn: ["postgres"] });
+    expect(resolveRuntimeMode([db, api])).toEqual({ mode: "native", mixed: [] });
+    expect(isNativeProject([db, api])).toBe(true);
+    // Images alone are still the Docker + Tilt path.
+    expect(resolveRuntimeMode([db])).toEqual({ mode: "container", mixed: [] });
+    expect(isNativeProject([db])).toBe(false);
+  });
+
+  it("refuses a service built from a Dockerfile next to a local process", () => {
+    const built = makeResource("worker", "bring-your-own", { dockerfile: "Dockerfile" });
+    const api = nativeResource("api");
+    expect(resolveRuntimeMode([built, api])).toEqual({ mode: "container", mixed: ["api"] });
+    expect(isNativeProject([built, api])).toBe(false);
+  });
 });
 
 describe("programs a command starts", () => {

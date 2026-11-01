@@ -1,3 +1,4 @@
+import { isNativeContainerService } from "./native-container.js";
 /**
  * The minimal service contract (openspec/changes/make-flisk-unopinionated, #2227): a service.json that declares a top-level
  * `command` runs as a local process started by `flisk up`, with no image, no Dockerfile and no generated files.
@@ -58,27 +59,36 @@ function serviceLabel(manifest) {
     return typeof name === "string" && name ? `"${name}"` : "(unnamed)";
 }
 /**
- * How `flisk up` runs a selection: natively when every selected service declares `command`, in containers (Docker + Tilt) when
- * none does. A selection that mixes both, or a container selection in a project that also holds native services (Tilt discovers
- * every service.json, not just the selected ones), cannot run yet: `mixed` lists the native services in the way.
+ * How `flisk up` runs a selection: natively when every selected service declares `command`, or declares `command` or a
+ * ready-made `image` with at least one `command` (a mixed run: the images start with `docker run` next to the local processes),
+ * and in containers (Docker + Tilt) when none declares `command`. Any other mix (a service built from a Dockerfile next to a
+ * local process), or a container selection in a project that also holds native services (Tilt discovers every service.json,
+ * not just the selected ones), cannot run: `mixed` lists the native services in the way.
  */
 export function resolveRuntimeMode(selected, all = selected) {
     const native = all.filter(isNativeService).map((resource) => resource.name);
-    if (selected.length > 0 && selected.every(isNativeService))
+    if (selected.some(isNativeService) &&
+        selected.every((resource) => isNativeService(resource) || isNativeContainerService(resource))) {
         return { mode: "native", mixed: [] };
+    }
     return { mode: "container", mixed: native };
 }
 /** The refusal for a selection that mixes native and container services. */
 export function formatMixedRuntimeRefusal(nativeNames, containerNames) {
     return [
         `This run mixes services that run as local processes (${nativeNames.join(", ")}) with services that run in Docker (${containerNames.join(", ")}).`,
-        "Flisk cannot start both kinds in one project yet.",
-        "Give every service a `command` to run without Docker, or remove `command` from these services to run them in Docker.",
+        "A local-process run can start containers only from a ready-made `image` (a database, a cache); a service built from a Dockerfile cannot join it.",
+        "Give the Docker services an `image` instead of a Dockerfile, give every service a `command`, or remove `command` from the local services to run everything in Docker.",
     ].join("\n");
 }
-/** True when a project's services all run natively, so Docker, Compose and Tilt are not needed. An empty project is not native. */
+/**
+ * True when `flisk up` runs a project as local processes, so Compose, Tilt and the gateway are not used: every service declares
+ * `command`, or some do and the rest are ready-made `image` containers (a mixed run, which still needs Docker for those). An
+ * empty project is not native.
+ */
 export function isNativeProject(resources) {
-    return resources.length > 0 && resources.every(isNativeService);
+    return (resources.some(isNativeService) &&
+        resources.every((resource) => isNativeService(resource) || isNativeContainerService(resource)));
 }
 /** The program a shell command runs first (`node` for `PORT=1 node server.js`), or null when it cannot be told. */
 export function commandProgram(command) {

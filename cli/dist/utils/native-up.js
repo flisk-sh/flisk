@@ -6,8 +6,10 @@ import chalk from "chalk";
 import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
+import { isDockerRunning } from "./native-container.js";
 import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
+import { readProjectNameOrUndefined } from "./project-reader.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 /** Variables `${VAR}` in a service's env may reference: the env file of the run, overridden by the shell. */
 /** What a local process starts with: the project .env (or --env-file), overridden by the shell. */
@@ -31,7 +33,7 @@ export async function runNativeUp(input) {
         return exit(1);
     };
     const vars = runVariables(projectRoot, input.envFilePath);
-    const plan = planNativeRun(selected, vars);
+    const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
     if (plan.errors.length > 0)
         fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
     // A "toolchain" in service.json is binding: a service on the wrong runtime fails later in ways that never name the version.
@@ -48,6 +50,7 @@ export async function runNativeUp(input) {
             .map(({ name, program }) => `service "${name}" runs ${program}, which is not installed (not found on PATH). Install it, or change "command" in its service.json.`)
             .join("\n"));
     }
+    const containers = plan.services.filter((service) => service.container);
     const serviceNames = plan.services.map((service) => service.name);
     const startOrder = dependencyWaves(plan.services);
     const description = input.only
@@ -56,10 +59,13 @@ export async function runNativeUp(input) {
             ? `stack "${input.stackName}"`
             : formatCount(serviceNames.length, "service");
     if (!quiet) {
-        console.log(chalk.blue(`${input.dryRun ? "Would start" : "Starting"} ${description} as local processes (no Docker, no Tilt)...`));
+        console.log(chalk.blue(`${input.dryRun ? "Would start" : "Starting"} ${description} as local processes${containers.length > 0 ? `, ${containers.map((service) => service.name).join(", ")} with docker run (no Tilt)` : " (no Docker, no Tilt)"}...`));
         for (const service of plan.services) {
             const after = service.dependsOn.length > 0 ? ` (after ${service.dependsOn.join(", ")})` : "";
-            console.log(chalk.gray(`  - ${service.name}: ${service.command}${after}`));
+            const what = service.container
+                ? `container ${String(selected.find((resource) => resource.name === service.name)?.config?.image)}`
+                : service.command;
+            console.log(chalk.gray(`  - ${service.name}: ${what}${after}`));
         }
     }
     if (input.dryRun) {
@@ -71,6 +77,7 @@ export async function runNativeUp(input) {
             services: serviceNames,
             ...(input.only ? { requested: input.only, declaredDependencies: input.dependencies } : {}),
             startOrder,
+            ...(containers.length > 0 ? { containers: containers.map((service) => service.name) } : {}),
         });
         if (!quiet)
             console.log(chalk.yellow("Dry run: not starting services"));
@@ -91,6 +98,9 @@ export async function runNativeUp(input) {
     if (running) {
         // A previous run that was replaced (--force) or killed without cleaning up: stop whatever it left behind.
         await stopNativeRun(projectRoot);
+    }
+    if (containers.length > 0 && !isDockerRunning()) {
+        fail("DOCKER_NOT_RUNNING", `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack or Colima, then run flisk up again.`);
     }
     for (const service of plan.services) {
         if (service.port !== undefined && (await isPortListening(service.port))) {
@@ -148,7 +158,12 @@ export async function runNativeUp(input) {
         urls: Object.fromEntries(plan.services.flatMap((service) => (service.url ? [[service.name, service.url]] : []))),
     });
     if (!quiet) {
-        const lines = ["Flisk is up (local processes, no Docker).", "Services:"];
+        const lines = [
+            containers.length > 0
+                ? `Flisk is up (local processes, ${formatCount(containers.length, "container")} with docker run).`
+                : "Flisk is up (local processes, no Docker).",
+            "Services:",
+        ];
         for (const service of plan.services) {
             const health = service.healthUrl ? ` (health: ${service.healthUrl})` : "";
             lines.push(`  ✓ ${service.name}${service.url ? ` → ${service.url}` : ""}${health}`);

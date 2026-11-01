@@ -122,12 +122,41 @@ A service has exactly one runtime source: a `command`, or a container (`image`, 
 
 Remove `command` and use the [Docker + Tilt path](quickstart.md) for:
 
-- a database such as Postgres, or other shared infrastructure (`dependsOn: ["postgres"]` is refused here);
 - one gateway URL for every service, with routing by host and path (Traefik);
 - running the same container image you deploy;
 - live update inside containers, generated API clients, and the other generated files.
 
-One project cannot mix the two yet: if some services declare `command` and others do not, `flisk up` stops and lists both groups. For live reload without Docker, use your runtime's own watch mode in the command, for example `node --watch server.js`, `bun --watch server.ts` or `uvicorn main:app --reload`.
+A database or a cache does not need this path: see the next section. A service built from a Dockerfile cannot run next to `command` services: if some services declare `command` and others are built, `flisk up` stops with `MIXED_RUNTIME` and lists both groups. For live reload without Docker, use your runtime's own watch mode in the command, for example `node --watch server.js`, `bun --watch server.ts` or `uvicorn main:app --reload`.
+
+## A database or cache in Docker (mixed run)
+
+Many apps keep Postgres or Redis in Docker and run their own code with `npm run dev`: the database is easy to start, and the code reloads the moment you save. Flisk runs that setup with one command. Give the database a ready-made `image` and no `command`, and `flisk up` starts it with `docker run` next to the local processes, in `dependsOn` order, with no Tilt, no gateway and no generated files. Docker must be running; the local processes still need nothing else.
+
+```json
+{
+  "schemaVersion": 1,
+  "appName": "postgres",
+  "appType": "bring-your-own",
+  "image": "postgres:15-alpine",
+  "port": 5432,
+  "env": { "POSTGRES_USER": "${POSTGRES_USER}", "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD}", "POSTGRES_DB": "app" },
+  "healthCheck": { "command": ["pg_isready", "-U", "${POSTGRES_USER}"] },
+  "volumes": [{ "source": "postgres", "target": "/var/lib/postgresql/data", "name": "myapp_postgres" }]
+}
+```
+
+The API lists `"dependsOn": ["postgres"]` and connects to `localhost:5432`. What each field does in a mixed run:
+
+| Field | In a mixed run |
+| --- | --- |
+| `image` | Started with `docker run --rm`, named `flisk-<project>-<service>`. A service with a `dockerfile` cannot join (build it as an image first, or use the Docker + Tilt path). |
+| `port` | The port the container listens on, published on `127.0.0.1` at the same number. `extraPorts` are published too. |
+| `env` | Expanded from `.env` and the shell, and passed to the container by name, so the values never show in `ps`. |
+| `healthCheck.command` | Runs inside the container (`docker exec`); the services that depend on it start once it exits 0. Use it for a database: Docker accepts connections on the published port before the database inside is ready. |
+| `volumes` | A named volume is `<project>_<source>`, or `name` when set: give it the volume your Compose file already uses (`docker volume ls`) and both share the data. A `./` path is a bind mount inside the project. |
+| `container` | `command`, `entrypoint`, `user`, `init`, `capAdd`, `capDrop`, `securityOpt`, `readOnly` and `shmSize` become the matching `docker run` options. `$$VAR` is written as `$VAR`, as in Compose. |
+
+Its output is prefixed with the service name like any other, `flisk logs --service postgres` reads it, `flisk status` and `flisk doctor` include it, and `flisk down` (or Ctrl+C) stops the processes and removes the containers; named volumes are kept. After a `flisk up` that was killed, `flisk down` or the next `flisk up` removes the containers it left. The containers share no Docker network with each other, so a local process reaches them at `localhost`, not by service name.
 
 Native Windows runs local processes too: each `command` runs through `cmd.exe`, and `flisk down` ends each service's whole process tree. Only the Docker path needs WSL2.
 

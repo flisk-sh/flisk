@@ -25,7 +25,7 @@ Start local services from `service.json` manifests. Flisk writes the Docker and 
 A service whose `service.json` declares `command` (for example `"command": "node server.js"`, with `appName`, `appType`, `port`, `dependsOn` and an optional `healthCheckPath`) runs as a local process. When every selected service has one, `flisk up` needs no Docker and no Tilt: it starts them in `dependsOn` order, prints `http://localhost:<port>` for each, prefixes their output, and restarts a service that exits. It stays in the foreground; `flisk down` stops it from another terminal.
 
 - Prefer `command` services for a simple app (an API, a website, a worker). Use Docker services when the app needs a database, one gateway URL, or the container it deploys.
-- Do not mix the two in one project: `flisk up` refuses with `MIXED_RUNTIME`.
+- A database or cache can run in Docker next to `command` services: give it an `image` (no `command`, no `dockerfile`) and `flisk up` starts it with `docker run` (a mixed run, docs/run-without-docker.md). Any other mix, such as a service built from a Dockerfile next to a `command` service, is refused with `MIXED_RUNTIME`.
 - `flisk up --json` reports `"runtime": "native"` and each service's URL. Read output with `flisk logs --service <name>`.
 - Guide: docs/run-without-docker.md.
 

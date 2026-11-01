@@ -12,9 +12,11 @@ export declare function isNativeService(resource: DiscoveredResource): boolean;
  */
 export declare function validateNativeServiceFields(manifest: Record<string, unknown>): string[];
 /**
- * How `flisk up` runs a selection: natively when every selected service declares `command`, in containers (Docker + Tilt) when
- * none does. A selection that mixes both, or a container selection in a project that also holds native services (Tilt discovers
- * every service.json, not just the selected ones), cannot run yet: `mixed` lists the native services in the way.
+ * How `flisk up` runs a selection: natively when every selected service declares `command`, or declares `command` or a
+ * ready-made `image` with at least one `command` (a mixed run: the images start with `docker run` next to the local processes),
+ * and in containers (Docker + Tilt) when none declares `command`. Any other mix (a service built from a Dockerfile next to a
+ * local process), or a container selection in a project that also holds native services (Tilt discovers every service.json,
+ * not just the selected ones), cannot run: `mixed` lists the native services in the way.
  */
 export declare function resolveRuntimeMode(selected: DiscoveredResource[], all?: DiscoveredResource[]): {
     mode: RuntimeMode;
@@ -22,7 +24,11 @@ export declare function resolveRuntimeMode(selected: DiscoveredResource[], all?:
 };
 /** The refusal for a selection that mixes native and container services. */
 export declare function formatMixedRuntimeRefusal(nativeNames: string[], containerNames: string[]): string;
-/** True when a project's services all run natively, so Docker, Compose and Tilt are not needed. An empty project is not native. */
+/**
+ * True when `flisk up` runs a project as local processes, so Compose, Tilt and the gateway are not used: every service declares
+ * `command`, or some do and the rest are ready-made `image` containers (a mixed run, which still needs Docker for those). An
+ * empty project is not native.
+ */
 export declare function isNativeProject(resources: readonly DiscoveredResource[]): boolean;
 /** The program a shell command runs first (`node` for `PORT=1 node server.js`), or null when it cannot be told. */
 export declare function commandProgram(command: string): string | null;

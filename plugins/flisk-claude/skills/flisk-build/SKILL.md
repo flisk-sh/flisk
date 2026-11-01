@@ -19,7 +19,7 @@ Pick the path before anything else.
 - **No Docker (prefer it for a simple app):** every part can be started with one command and none needs a database, one gateway URL, or the container it deploys. Examples: an API and a website, a static site and a webhook receiver, an agent that calls an external model API. Follow "Simple app without Docker" below and skip the Workflow.
 - **Docker + Tilt:** the app stores data in Postgres, needs Redis or another image, or the user asks for the same container they deploy. Follow the Workflow.
 
-Do not mix the two in one project: `flisk up` refuses with `MIXED_RUNTIME`.
+A database or cache can run in Docker next to `command` services: give it an `image` (no `command`, no `dockerfile`) and `flisk up` starts it with `docker run` (a mixed run, docs/run-without-docker.md). Any other mix, such as a service built from a Dockerfile next to a `command` service, is refused with `MIXED_RUNTIME`.
 
 ## Simple app without Docker
 

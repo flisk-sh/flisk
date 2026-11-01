@@ -4,7 +4,7 @@ import type { CheckResult, DiscoveredResource } from "../types/index.js";
  * checks what those processes need (their programs, their dependsOn, their ports) instead of Docker, Compose and Tilt.
  */
 /** Says which runtime doctor checked, so a missing Docker check reads as intended and not as forgotten. */
-export declare function checkNativeRuntime(resources: readonly DiscoveredResource[]): CheckResult;
+export declare function checkNativeRuntime(resources: readonly DiscoveredResource[], dockerRunning?: () => boolean): CheckResult;
 /** Each service's command starts a program that is installed. */
 export declare function checkNativeCommands(resources: readonly DiscoveredResource[], find?: (program: string) => string | null): CheckResult;
 /** A dependsOn name must be another service of the project: local processes cannot start a database or gateway for it. */

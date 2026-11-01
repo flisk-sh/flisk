@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { connect } from "node:net";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
@@ -23,6 +23,13 @@ import {
   resolveMigratorOutputsInEnv,
   validateMigratorOutputReferences,
 } from "./migrator-output.js";
+import {
+  dockerRunArgs,
+  dockerRunLine,
+  isNativeContainerService,
+  nativeContainerName,
+  removeNativeContainers,
+} from "./native-container.js";
 import { commandProgram } from "./native-service.js";
 import { findProjectRoot } from "./paths.js";
 import {
@@ -69,6 +76,8 @@ export interface NativeServicePlan {
   readiness?: ReadinessProbe;
   /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
   job?: boolean;
+  /** The container name when the service is a ready-made `image` that `docker run` starts in a mixed run. */
+  container?: string;
 }
 
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
@@ -165,8 +174,10 @@ export function planNativeRun(
   selected: readonly DiscoveredResource[],
   vars: Readonly<Record<string, string | undefined>> = process.env,
   projectRoot?: string,
+  projectName?: string,
 ): NativeRunPlan {
   const root = projectRoot ?? findProjectRoot(selected[0]?.path ?? process.cwd()) ?? process.cwd();
+  const containerProject = projectName ?? basename(root);
   const errors: string[] = [];
   const missingVars: string[] = [];
   const names = new Set(selected.map((resource) => resource.name));
@@ -188,7 +199,7 @@ export function planNativeRun(
           if (member !== resource.name) dependsOn.push(member);
       } else {
         errors.push(
-          `service "${resource.name}" dependsOn "${dep}", which is not a service with a command in this project. Shared infrastructure such as a database or the gateway still needs Docker: add a "${dep}" service with a command, or remove it from dependsOn.`,
+          `service "${resource.name}" dependsOn "${dep}", which is not a service in this project. Add a "${dep}" service with a command, or with an "image" to run it as a container (a database, a cache), or remove it from dependsOn.`,
         );
       }
     }
@@ -214,31 +225,56 @@ export function planNativeRun(
         missingVars.push(`${resource.name}: ${name}`),
       );
     }
+    const containerName = isNativeContainerService(resource)
+      ? nativeContainerName(containerProject, resource.name)
+      : undefined;
+    let command = String(config.command);
+    if (containerName) {
+      const run = dockerRunArgs(resource, {
+        projectName: containerProject,
+        projectRoot: root,
+        envKeys: Object.keys(env),
+      });
+      errors.push(...run.errors);
+      command = dockerRunLine(run.args, containerName);
+    }
     const job = isOneShotJob(config) && port === undefined;
     if (job) {
       env.FLISK_OUTPUT = getMigratorOutputPath(root, resource.name);
     }
-    if (port !== undefined) env.PORT = String(port);
+    if (port !== undefined && !containerName) env.PORT = String(port);
     // Without a health path a service is ready once its port listens, which is what gates its dependents.
     const healthDisabled = isHealthCheckDisabled(config);
     const healthPath = healthDisabled ? undefined : healthCheckPathOf(config);
-    const readiness = readinessProbeOf(config);
+    const probe = readinessProbeOf(config);
+    // A container's healthCheck.command runs inside it, as the Compose health check does.
+    const readiness =
+      containerName && probe?.kind === "command"
+        ? { kind: "command" as const, command: ["docker", "exec", containerName, ...probe.command] }
+        : probe;
     // A one-shot job with no port (every migrator, and a "restart": "no" process that serves nothing) is ready once it exits 0.
     // One that has a port keeps the port or health check as its readiness, like any other service.
     return {
       name: resource.name,
-      command: String(config.command),
+      command,
       cwd: resource.path,
       port,
       env,
       ...(Object.keys(rawEnv).length > 0 ? { rawEnv } : {}),
       dependsOn: [...new Set(dependsOn)],
       healthUrl: port !== undefined && healthPath ? localUrl(port, healthPath) : undefined,
-      url: port !== undefined ? localUrl(port) : undefined,
+      // A container with no HTTP health path is a database or a cache: print its address, not a web link.
+      url:
+        port === undefined
+          ? undefined
+          : containerName && !healthPath
+            ? `localhost:${port}`
+            : localUrl(port),
       restart: config.restart !== "no" && !job,
       ...(healthDisabled ? { healthCheckDisabled: true } : {}),
       ...(readiness ? { readiness } : {}),
       ...(job ? { job: true } : {}),
+      ...(containerName ? { container: containerName } : {}),
     };
   });
   try {
@@ -370,7 +406,15 @@ export interface NativeRunState {
   /** `job`: a one-shot job (a migrator, or `"restart": "no"` with no port); once it exits 0 it stays `ready` with no process. */
   services: Record<
     string,
-    { pid?: number; port?: number; url?: string; ready?: boolean; job?: boolean }
+    {
+      pid?: number;
+      port?: number;
+      url?: string;
+      ready?: boolean;
+      job?: boolean;
+      /** A container started with `docker run` in a mixed run. */
+      container?: string;
+    }
   >;
 }
 
@@ -483,6 +527,10 @@ export async function stopNativeRun(
   }
   for (const service of Object.values(state.services)) {
     if (service.pid && isProcessAlive(service.pid)) await stopProcessGroup(service.pid);
+  }
+  // A `docker run` killed before it passed the stop on leaves its container running.
+  if (Object.values(state.services).some((service) => service.container)) {
+    removeNativeContainers(projectRoot);
   }
   rmSync(nativeRunStatePath(projectRoot), { force: true });
   clearMigratorOutputs(projectRoot);
@@ -709,6 +757,9 @@ export class NativeSupervisor {
         await stopProcessGroup(pid);
       }
     }
+    if ([...this.services.values()].some((service) => service.plan.container)) {
+      removeNativeContainers(this.projectRoot);
+    }
     rmSync(nativeRunStatePath(this.projectRoot), { force: true });
     clearMigratorOutputs(this.projectRoot);
   }
@@ -886,6 +937,7 @@ export class NativeSupervisor {
         url: service.plan.url,
         ready: service.isReady,
         ...(service.plan.job ? { job: true } : {}),
+        ...(service.plan.container ? { container: service.plan.container } : {}),
       };
     }
     writeNativeRunState(this.projectRoot, {
