@@ -1,0 +1,27 @@
+{
+  "group": "journeys",
+  "suite": "agent-templates",
+  "description": "The multi-agent starters (flisk project swarm, flisk project security) through a real flisk up as local processes, no Docker. Chaos cases kill -9 a worker holding a claim and the coordinator mid-goal: the flisk up supervisor must start them again and the swarm must still finish the goal, with the killed worker's subtask retried.",
+  "paths": [
+    "cli/templates/swarm/**",
+    "cli/templates/security/**",
+    "cli/src/utils/swarm-template.ts",
+    "cli/src/utils/security-template.ts",
+    "cli/src/utils/project-templates.ts",
+    "cli/src/utils/native-*.ts",
+    "cli/src/commands/project.ts",
+    "cli/src/commands/up.ts",
+    "cli/src/commands/down.ts",
+    "cli/src/commands/status.ts",
+    "cli/dist/**",
+    "tests/e2e/lib/**",
+    "tests/e2e/journeys/agent-templates/**",
+    ".github/workflows/e2e-journeys.yml"
+  ],
+  "cases": ["T1", "T2", "S1", "S2", "S3", "S4", "S5", "B1"],
+  "triggers": ["pr", "nightly", "release", "manual"],
+  "timeoutMinutes": 20,
+  "needsSecrets": [],
+  "checkName": "🤖 Agent starters, with chaos",
+  "install": true
+}

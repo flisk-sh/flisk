@@ -30,11 +30,16 @@ async function loop() {
       const { task } = await post("/claim", { worker: name });
       if (task) {
         try {
-          await post("/complete", { id: task.id, result: await work(task.text) });
+          await post("/complete", {
+            id: task.id,
+            attempt: task.attempt,
+            result: await work(task.text),
+          });
         } catch (error) {
           // Tell the coordinator, so it retries the subtask now instead of waiting for the claim to expire.
           await post("/fail", {
             id: task.id,
+            attempt: task.attempt,
             error: error instanceof Error ? error.message : String(error),
           });
         }

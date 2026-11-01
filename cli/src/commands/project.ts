@@ -234,6 +234,16 @@ export async function cloneProjectTemplate(
 
   if (options.quiet) return destination;
 
+  if (template.generated) {
+    // Every service of a generated starter declares `command`: it runs as local processes, with no Docker or Tilt.
+    console.log(chalk.green(`\n✅ Created "${templateName}" in ${dirName}/`));
+    showDetail("\nNext steps:", 0);
+    showDetail(`1. cd ${dirName}`);
+    showDetail("2. flisk up       # start it as local processes (no Docker needed)");
+    showDetail("3. cat README.md  # what to send it");
+    return destination;
+  }
+
   console.log(chalk.green(`\n✅ Cloned "${templateName}" into ${dirName}/`));
   showDetail("\nNext steps:", 0);
   showDetail(`1. cd ${dirName}`);
