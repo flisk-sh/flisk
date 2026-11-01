@@ -5,6 +5,7 @@ import { STANDARD_PORTS } from "../utils/constants.js";
 import { dependsOnOf } from "../utils/dependency-graph.js";
 import { getDeferredResourceNames } from "../utils/doctor-runtime.js";
 import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../utils/errors.js";
+import { resolveRuntimeTiltPort } from "../utils/host-port-config.js";
 import { createMachineEnvelope } from "../utils/machine-output.js";
 import { nativeServiceStates, readNativeLogLines } from "../utils/native-runtime.js";
 import { isNativeProject } from "../utils/native-service.js";
@@ -180,8 +181,15 @@ export const logsCommand = new Command("logs")
         if (!(await isTiltAvailable())) {
             fail("TILT_MISSING", "Tilt is not installed. Run: flisk doctor");
         }
+        const effectivePort = options.port !== undefined
+            ? portText
+            : resolveRuntimeTiltPort(projectRoot, { envPort: process.env.TILT_PORT });
+        if (effectivePort === null) {
+            fail("TILT_NOT_RUNNING", tiltUnreachableMessage(portText));
+        }
+        const activePortText = String(effectivePort);
         if (services.length > 0) {
-            const known = await tiltResourceNames(portText);
+            const known = await tiltResourceNames(activePortText);
             const unknown = services.filter((name) => known && !known.includes(name));
             if (unknown.length > 0) {
                 const error = errorFactories.unknownServices(unknown, known ?? []);
@@ -191,15 +199,15 @@ export const logsCommand = new Command("logs")
         }
         let selectedServices = services;
         if (options.unhealthy) {
-            const bad = await tiltUnhealthyNames(projectRoot, portText);
+            const bad = await tiltUnhealthyNames(projectRoot, activePortText);
             if (bad === null)
-                fail("TILT_NOT_RUNNING", tiltUnreachableMessage(portText));
+                fail("TILT_NOT_RUNNING", tiltUnreachableMessage(activePortText));
             selectedServices =
                 services.length > 0 ? services.filter((n) => bad?.includes(n)) : (bad ?? []);
             if (selectedServices.length === 0)
                 return reportAllHealthy();
         }
-        const args = ["--port", portText, "--tail", String(tail)];
+        const args = ["--port", activePortText, "--tail", String(tail)];
         if (options.since !== undefined)
             args.push("--since", options.since);
         if (options.json)
@@ -211,7 +219,7 @@ export const logsCommand = new Command("logs")
         if (result.exitCode !== 0) {
             const detail = result.stderr.trim();
             if (!detail || isTiltConnectionFailure(detail)) {
-                fail("TILT_NOT_RUNNING", tiltUnreachableMessage(portText));
+                fail("TILT_NOT_RUNNING", tiltUnreachableMessage(activePortText));
             }
             fail("TILT_LOGS_FAILED", `tilt logs failed: ${detail}`);
         }
