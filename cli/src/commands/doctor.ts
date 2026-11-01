@@ -1664,7 +1664,7 @@ export const doctorCommand = new Command("doctor")
     if (!options.json) {
       console.log(
         nativeResources
-          ? "Flisk doctor checks what this project's local processes need; its services declare commands, so Docker and Tilt are not checked."
+          ? "Flisk doctor checks what this project's local processes need; its services declare commands (and image containers, if any), so Compose and Tilt are not checked."
           : "Flisk doctor checks your local Docker + Tilt development environment; it does not check cluster deployments.",
       );
     }

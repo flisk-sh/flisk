@@ -18,7 +18,7 @@ Work on a branch. Read the repo and list the parts that start together: websites
 
 ## 2. Pick one path per project
 
-Do not mix runtimes in one project: `flisk up` refuses with `MIXED_RUNTIME`.
+A database or cache can run in Docker next to `command` services: give it an `image` (no `command`, no `dockerfile`) and `flisk up` starts it with `docker run` (a mixed run, docs/run-without-docker.md). Any other mix, such as a service built from a Dockerfile next to a `command` service, is refused with `MIXED_RUNTIME`.
 
 | The app | Path |
 | --- | --- |

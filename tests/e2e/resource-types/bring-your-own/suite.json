@@ -1,7 +1,7 @@
 {
   "group": "resource-types",
   "suite": "bring-your-own",
-  "description": "A bring-your-own app, job, pair or Python service in each byoVariant on its own check: example (the container alone), flisk (through flisk up and Traefik with Flisk's Postgres), job (a one-shot through flisk up), pair (a dependency and an app through flisk up), python-dry-run (the resource contract and up --dry-run, no Docker) and python-boot (the Python fixture boots and answers its health route), hpc (GPUs, CPU and memory limits and IPC from the container block reach the container and the generated Compose file), infra (the redis, qdrant, minio, mlflow, nats and rabbitmq frameworks, reached by a service that depends on them through the settings they provide) and providers (an external provider falls back to a local simulator without its token and switches to remote after the token is added and the service restarts). ports (extraPorts publish takes its host binding from the project .env: the default of service.json, then a value from .env, on a real container). The matrix runs one leg per variant (#1297).",
+  "description": "A bring-your-own app, job, pair or Python service in each byoVariant on its own check: example (the container alone), flisk (through flisk up and Traefik with Flisk's Postgres), job (a one-shot through flisk up), pair (a dependency and an app through flisk up), python-dry-run (the resource contract and up --dry-run, no Docker) and python-boot (the Python fixture boots and answers its health route), hpc (GPUs, CPU and memory limits and IPC from the container block reach the container and the generated Compose file), infra (the redis, qdrant, minio, mlflow, nats and rabbitmq frameworks, reached by a service that depends on them through the settings they provide) and providers (an external provider falls back to a local simulator without its token and switches to remote after the token is added and the service restarts). ports (extraPorts publish takes its host binding from the project .env: the default of service.json, then a value from .env, on a real container). mixed (Postgres and Redis from images next to an API run as a local process, through one flisk up, status, logs and down, and a killed run). The matrix runs one leg per variant (#1297).",
   "paths": [
     "docs/byo.md",
     "cli/src/commands/resource.ts",
@@ -20,7 +20,10 @@
     "tests/e2e/fixtures/byo-provider-probe/**",
     "cli/src/utils/infra-presets.ts",
     "cli/src/utils/extra-port-publish.ts",
-    "cli/src/utils/status-ports.ts"
+    "cli/src/utils/status-ports.ts",
+    "cli/src/utils/native-container.ts",
+    "cli/src/utils/native-runtime.ts",
+    "cli/src/utils/native-up.ts"
   ],
   "cases": [
     "BY1",
@@ -32,7 +35,8 @@
     "BY7",
     "BY8",
     "BY9",
-    "BY10"
+    "BY10",
+    "BY11"
   ],
   "variants": [
     {
@@ -44,7 +48,6 @@
       "id": "example-lobster",
       "case": "BY1",
       "args": "lobster /health"
-
     },
     {
       "id": "example-goose",
@@ -119,6 +122,11 @@
     {
       "id": "ports",
       "case": "BY10",
+      "args": ""
+    },
+    {
+      "id": "mixed",
+      "case": "BY11",
       "args": ""
     }
   ],

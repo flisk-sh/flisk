@@ -8,6 +8,7 @@ import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
 import type { JsonEmitter } from "./json-output.js";
+import { isDockerRunning } from "./native-container.js";
 import {
   dependencyWaves,
   findMissingPrograms,
@@ -22,6 +23,7 @@ import {
   stopNativeRun,
 } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
+import { readProjectNameOrUndefined } from "./project-reader.js";
 import { describeToolchainFinding, findToolchainMismatches } from "./toolchain.js";
 
 export interface NativeUpInput {
@@ -71,7 +73,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   };
 
   const vars = runVariables(projectRoot, input.envFilePath);
-  const plan = planNativeRun(selected, vars);
+  const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
   if (plan.errors.length > 0) fail("INVALID_SERVICE_CONFIG", plan.errors.join("\n"));
   // A "toolchain" in service.json is binding: a service on the wrong runtime fails later in ways that never name the version.
   const toolchainMismatches = findToolchainMismatches(selected).filter(
@@ -103,6 +105,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
     );
   }
 
+  const containers = plan.services.filter((service) => service.container);
   const serviceNames = plan.services.map((service) => service.name);
   const startOrder = dependencyWaves(plan.services);
   const description = input.only
@@ -113,12 +116,15 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   if (!quiet) {
     console.log(
       chalk.blue(
-        `${input.dryRun ? "Would start" : "Starting"} ${description} as local processes (no Docker, no Tilt)...`,
+        `${input.dryRun ? "Would start" : "Starting"} ${description} as local processes${containers.length > 0 ? `, ${containers.map((service) => service.name).join(", ")} with docker run (no Tilt)` : " (no Docker, no Tilt)"}...`,
       ),
     );
     for (const service of plan.services) {
       const after = service.dependsOn.length > 0 ? ` (after ${service.dependsOn.join(", ")})` : "";
-      console.log(chalk.gray(`  - ${service.name}: ${service.command}${after}`));
+      const what = service.container
+        ? `container ${String(selected.find((resource) => resource.name === service.name)?.config?.image)}`
+        : service.command;
+      console.log(chalk.gray(`  - ${service.name}: ${what}${after}`));
     }
   }
   if (input.dryRun) {
@@ -130,6 +136,7 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
       services: serviceNames,
       ...(input.only ? { requested: input.only, declaredDependencies: input.dependencies } : {}),
       startOrder,
+      ...(containers.length > 0 ? { containers: containers.map((service) => service.name) } : {}),
     });
     if (!quiet) console.log(chalk.yellow("Dry run: not starting services"));
     return;
@@ -150,6 +157,13 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
   if (running) {
     // A previous run that was replaced (--force) or killed without cleaning up: stop whatever it left behind.
     await stopNativeRun(projectRoot);
+  }
+
+  if (containers.length > 0 && !isDockerRunning()) {
+    fail(
+      "DOCKER_NOT_RUNNING",
+      `${containers.map((service) => service.name).join(", ")} run from an image, which needs Docker, and Docker is not running. Start Docker Desktop, OrbStack or Colima, then run flisk up again.`,
+    );
   }
 
   for (const service of plan.services) {
@@ -220,7 +234,12 @@ export async function runNativeUp(input: NativeUpInput): Promise<void> {
     ),
   });
   if (!quiet) {
-    const lines = ["Flisk is up (local processes, no Docker).", "Services:"];
+    const lines = [
+      containers.length > 0
+        ? `Flisk is up (local processes, ${formatCount(containers.length, "container")} with docker run).`
+        : "Flisk is up (local processes, no Docker).",
+      "Services:",
+    ];
     for (const service of plan.services) {
       const health = service.healthUrl ? ` (health: ${service.healthUrl})` : "";
       lines.push(`  ✓ ${service.name}${service.url ? ` → ${service.url}` : ""}${health}`);

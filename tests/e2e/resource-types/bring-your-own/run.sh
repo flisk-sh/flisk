@@ -12,6 +12,7 @@
 #   BYO_VARIANT=infra tests/e2e/resource-types/bring-your-own/run.sh all      redis, qdrant, minio, mlflow, nats and rabbitmq frameworks (BY8)
 #   BYO_VARIANT=providers tests/e2e/resource-types/bring-your-own/run.sh all  external providers and their tokens (BY9)
 #   BYO_VARIANT=ports tests/e2e/resource-types/bring-your-own/run.sh all      extraPorts publish from .env (BY10)
+#   BYO_VARIANT=mixed tests/e2e/resource-types/bring-your-own/run.sh all      image containers next to a local process (BY11)
 #   tests/e2e/resource-types/bring-your-own/run.sh BY1                         a single case
 #
 # The verify scripts build images, run them and clean up after themselves, so this suite has no resources of its own.
@@ -78,6 +79,7 @@ BY8() { run_verify verify-byo-infra.sh "BY8 the six infrastructure frameworks re
 BY9() { run_verify verify-byo-providers.sh "BY9 an external provider falls back to a local simulator, then uses its rotated token"; }
 
 BY10() { run_verify verify-byo-ports.sh "BY10 extraPorts publish takes its host binding from .env: default, then an override"; }
+BY11() { run_verify verify-byo-mixed.sh "BY11 image containers next to a local process: one flisk up, status, logs, down, a killed run"; }
 
 # \`all\` runs only this variant's case: every leg of this suite is one variant, not every case in suite.json.
 args=()

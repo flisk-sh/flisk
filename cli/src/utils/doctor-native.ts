@@ -4,6 +4,7 @@
 import type { CheckResult, DiscoveredResource } from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
 import { formatCount } from "./formatting.js";
+import { isDockerRunning, isNativeContainerService } from "./native-container.js";
 import {
   findMissingPrograms,
   isPortListening,
@@ -12,7 +13,6 @@ import {
   planNativeRun,
   readNativeRunState,
 } from "./native-runtime.js";
-import { isNativeService } from "./native-service.js";
 import { findOnPath } from "./which.js";
 
 /**
@@ -21,7 +21,22 @@ import { findOnPath } from "./which.js";
  */
 
 /** Says which runtime doctor checked, so a missing Docker check reads as intended and not as forgotten. */
-export function checkNativeRuntime(resources: readonly DiscoveredResource[]): CheckResult {
+export function checkNativeRuntime(
+  resources: readonly DiscoveredResource[],
+  dockerRunning: () => boolean = isDockerRunning,
+): CheckResult {
+  const containers = resources.filter(isNativeContainerService).map((resource) => resource.name);
+  if (containers.length > 0) {
+    const running = dockerRunning();
+    return {
+      name: "Runtime",
+      didPass: running,
+      message: running
+        ? `Local processes, plus ${formatCount(containers.length, "container")} (${containers.join(", ")}) started with docker run; Compose and Tilt are not needed`
+        : `${containers.join(", ")} run from an image, which needs Docker, and Docker is not running`,
+      ...(running ? {} : { fix: "Start Docker Desktop, OrbStack or Colima, then run flisk up" }),
+    };
+  }
   return {
     name: "Runtime",
     didPass: true,
@@ -34,10 +49,7 @@ export function checkNativeCommands(
   resources: readonly DiscoveredResource[],
   find: (program: string) => string | null = findOnPath,
 ): CheckResult {
-  const missing = findMissingPrograms(
-    planNativeRun(resources.filter(isNativeService)).services,
-    find,
-  );
+  const missing = findMissingPrograms(planNativeRun(resources).services, find);
   if (missing.length === 0) {
     return {
       name: "Service commands",
@@ -72,7 +84,7 @@ export function checkNativeDependsOn(resources: readonly DiscoveredResource[]): 
     name: "Service dependencies",
     didPass: false,
     message: problems.join("\n    "),
-    fix: "Add the missing service with a command, or remove it from dependsOn. A database or the gateway still needs the Docker path.",
+    fix: 'Add the missing service with a command, or with an "image" to run it as a container (a database, a cache), or remove it from dependsOn.',
   };
 }
 
@@ -95,7 +107,7 @@ export async function checkNativeServiceHealth(
     };
   }
   const failing: string[] = [];
-  for (const plan of planNativeRun(resources.filter(isNativeService)).services) {
+  for (const plan of planNativeRun(resources).services) {
     if (plan.port === undefined) continue;
     const answered = plan.healthUrl
       ? await fetch(plan.healthUrl, { signal: AbortSignal.timeout(timeoutMs) })

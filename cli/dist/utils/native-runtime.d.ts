@@ -35,6 +35,8 @@ export interface NativeServicePlan {
     readiness?: ReadinessProbe;
     /** A one-shot job with no port (a migrator, or `"restart": "no"`): ready once it exits 0, never restarted (#2871). */
     job?: boolean;
+    /** The container name when the service is a ready-made `image` that `docker run` starts in a mixed run. */
+    container?: string;
 }
 /** True for a resource that runs once and exits: a migrator, or a bring-your-own resource with `"restart": "no"`. */
 export declare function isOneShotJob(config: ResourceConfig | undefined): boolean;
@@ -67,7 +69,7 @@ export interface NativeRunPlan {
  * Turns the selected `command` services into start plans and reports what would stop the run: a dependsOn that is not a service
  * of the selection (a database or the gateway needs Docker for now), and two services on one port.
  */
-export declare function planNativeRun(selected: readonly DiscoveredResource[], vars?: Readonly<Record<string, string | undefined>>, projectRoot?: string): NativeRunPlan;
+export declare function planNativeRun(selected: readonly DiscoveredResource[], vars?: Readonly<Record<string, string | undefined>>, projectRoot?: string, projectName?: string): NativeRunPlan;
 /** Services whose command starts a program that is not on PATH (a relative path such as ./bin/api is checked in the service directory). */
 export declare function findMissingPrograms(plans: readonly NativeServicePlan[], find?: (program: string) => string | null, exists?: (path: string) => boolean): Array<{
     name: string;
@@ -93,6 +95,8 @@ export interface NativeRunState {
         url?: string;
         ready?: boolean;
         job?: boolean;
+        /** A container started with `docker run` in a mixed run. */
+        container?: string;
     }>;
 }
 export declare function nativeRunStatePath(projectRoot: string): string;
