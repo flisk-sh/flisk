@@ -119,6 +119,8 @@ interface GeneratorContext {
   project: ProjectConfig["project"];
   phases: ProjectConfig["phases"];
   alwaysEnabledInfra: string[];
+  /** Platform resources the project turned off or does not use: the Tiltfile never enables them, focus mode included. */
+  disabledPlatformInfra: string[];
   optionalInfra: ProjectConfig["optional_infra"];
   serviceDescriptions: Record<string, string>;
   infraDescriptions: Record<string, string>;
@@ -266,6 +268,10 @@ export class TemplateEngine {
       project: projectConfig.project,
       phases,
       alwaysEnabledInfra,
+      disabledPlatformInfra: [
+        ...(gatewayEnabled ? [] : [...GATEWAY_RESOURCE_NAMES]),
+        ...(dbEnabled ? [] : [DATABASE_MANAGEMENT_FEATURE]),
+      ],
       optionalInfra: projectConfig.optional_infra,
       serviceDescriptions: RESOURCE_DESCRIPTIONS,
       infraDescriptions: INFRA_DESCRIPTIONS,

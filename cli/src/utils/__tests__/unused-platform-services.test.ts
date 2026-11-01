@@ -86,6 +86,18 @@ describe("platform services follow the resources (#2963)", () => {
     expect(spec).not.toContain('"proxy"');
     expect(spec).not.toContain("database-management");
     expect(verifyMasterConfigs(root).errors).toEqual([]);
+    // Focus mode adds traefik and postgres from CORE_INFRA, so the Tiltfile itself must refuse them.
+    const tiltfile = readFileSync(join(root, ".flisk", ".flisk-out", "Tiltfile"), "utf-8");
+    expect(tiltfile).toContain(
+      'DISABLED_PLATFORM_INFRA = ["proxy", "traefik", "database-management"]',
+    );
+  });
+
+  it("a project that uses both leaves the Tiltfile's disabled list empty", async () => {
+    const root = project({ api: { appType: "backend" } });
+    await generateMasterConfigs(root, { quiet: true });
+    const tiltfile = readFileSync(join(root, ".flisk", ".flisk-out", "Tiltfile"), "utf-8");
+    expect(tiltfile).toContain("DISABLED_PLATFORM_INFRA = []");
   });
 
   it("a routed bring-your-own service keeps the router, and still skips Postgres", async () => {

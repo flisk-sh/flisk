@@ -189,6 +189,10 @@ export class TemplateEngine {
             project: projectConfig.project,
             phases,
             alwaysEnabledInfra,
+            disabledPlatformInfra: [
+                ...(gatewayEnabled ? [] : [...GATEWAY_RESOURCE_NAMES]),
+                ...(dbEnabled ? [] : [DATABASE_MANAGEMENT_FEATURE]),
+            ],
             optionalInfra: projectConfig.optional_infra,
             serviceDescriptions: RESOURCE_DESCRIPTIONS,
             infraDescriptions: INFRA_DESCRIPTIONS,
