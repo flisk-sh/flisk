@@ -846,6 +846,17 @@ describe("containerErrors", () => {
     ).toEqual([]);
   });
 
+  it("accepts an entrypoint, including an empty one that drops the image's ENTRYPOINT", () => {
+    for (const entrypoint of [["/docker-entrypoint.sh"], ["sh", "-c", 'exec "$$@"'], []]) {
+      expect(containerErrors({ appType: "bring-your-own", container: { entrypoint } }, file)).toEqual(
+        [],
+      );
+    }
+    expect(
+      containerErrors({ appType: "bring-your-own", container: { command: [] } }, file),
+    ).toHaveLength(1);
+  });
+
   it("refuses container on a resource Flisk builds itself", () => {
     expect(containerErrors({ appType: "backend", container: { readOnly: true } }, file)).toEqual([
       `${file}.container: only applies to bring-your-own resources (appType "bring-your-own")`,
@@ -861,6 +872,10 @@ describe("containerErrors", () => {
     [byo({ command: [] }), "container.command: expected a list"],
     [byo({ command: ["sh", ""] }), "container.command: expected a list"],
     [byo({ command: ["sh", "a\nb"] }), "container.command: expected a list"],
+    [byo({ entrypoint: "/entry.sh" }), "container.entrypoint: expected a list"],
+    [byo({ entrypoint: [""] }), "container.entrypoint: expected a list"],
+    [byo({ entrypoint: ["sh", "a\nb"] }), "container.entrypoint: expected a list"],
+    [byo({ entrypoint: ["sh", 3] }), "container.entrypoint: expected a list"],
     [byo({ readOnly: "yes" }), "container.readOnly: expected true or false"],
     [byo({ init: 1 }), "container.init: expected true or false"],
     [byo({ user: "root\nprivileged: true" }), "container.user: expected a user"],
