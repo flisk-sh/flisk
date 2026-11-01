@@ -352,6 +352,11 @@
           "minItems": 1,
           "items": { "type": "string", "minLength": 1, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" }
         },
+        "entrypoint": {
+          "description": "Entrypoint (Compose entrypoint), replacing the image's ENTRYPOINT: a list of arguments such as [\"/docker-entrypoint.sh\"]. An empty list drops the image's ENTRYPOINT. Exec form only, no shell. Compose reads $ itself, so write $$VAR for a variable the container expands. Not the top-level `command`, which starts a local process.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" }
+        },
         "capAdd": {
           "description": "Linux capabilities to add (Compose cap_add), such as NET_ADMIN.",
           "type": "array",

@@ -15,4 +15,12 @@ Flisk 是一款用于本地开发的命令行工具。它在你的电脑上把�
 npx @flisk-sh/flisk demo
 ```
 
+```bash
+mkdir my-shop && cd my-shop
+flisk project --yes
+flisk resource orders-api --type backend --stack shop --yes
+flisk resource shop-web --type frontend --stack shop --yes
+flisk up shop
+```
+
 完整说明请参阅[英文 README](../README.md)。

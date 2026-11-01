@@ -473,6 +473,7 @@ const CONTAINER_STRING_LISTS = {
 const CONTAINER_KEYS = new Set([
   ...Object.keys(CONTAINER_STRING_LISTS),
   "command",
+  "entrypoint",
   "init",
   "readOnly",
   "user",
@@ -583,19 +584,20 @@ export function containerErrors(manifest: Record<string, unknown>, displayPath: 
       errors.push(`${field}.${key}: expected a list of ${expected}`);
     }
   }
-  const { command } = container;
-  if (
-    command !== undefined &&
-    !(
-      Array.isArray(command) &&
-      command.length > 0 &&
+  for (const key of ["command", "entrypoint"] as const) {
+    const value = container[key];
+    if (value === undefined) continue;
+    const good =
+      Array.isArray(value) &&
+      // An empty entrypoint drops the image's ENTRYPOINT (Compose `entrypoint: []`); an empty command is refused.
+      (value.length > 0 || key === "entrypoint") &&
       // biome-ignore lint/suspicious/noControlCharactersInRegex: a control character would break the generated Compose YAML
-      command.every((part) => typeof part === "string" && /^[^\u0000-\u001f\u007f]+$/.test(part))
-    )
-  ) {
-    errors.push(
-      `${field}.command: expected a list of non-empty strings without control characters`,
-    );
+      value.every((part) => typeof part === "string" && /^[^\u0000-\u001f\u007f]+$/.test(part));
+    if (!good) {
+      errors.push(
+        `${field}.${key}: expected a list of non-empty strings without control characters${key === "entrypoint" ? " (an empty list drops the image's ENTRYPOINT)" : ""}`,
+      );
+    }
   }
   for (const key of ["init", "readOnly"] as const) {
     if (container[key] !== undefined && typeof container[key] !== "boolean") {

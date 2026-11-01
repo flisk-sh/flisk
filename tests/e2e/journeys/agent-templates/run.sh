@@ -32,6 +32,11 @@ COORDINATOR="http://localhost:4100"
 CLAIM_WAIT=60
 
 run_state() { jq -r --arg s "$1" '.services[$s].pid' "$DIR/.flisk/native/run.json"; } # <service>: its pid in the native run state
+listening_pid() { # <port>: the pid of the process listening on it (the run state keeps only the first pid of a restarted service)
+  if command -v ss >/dev/null 2>&1; then ss -ltnpH "sport = :$1" 2>/dev/null | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2
+  else lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -1; fi
+}
+pid_listening_changed() { local now; now="$(listening_pid "$1")"; [ -n "$now" ] && [ "$now" != "$2" ]; } # <port> <old pid>
 service_alive() { local pid; pid="$(run_state "$1" 2>/dev/null)"; [ -n "$pid" ] && [ "$pid" != null ] && kill -0 "$pid" 2>/dev/null; } # <service>: its recorded pid is a live process
 goals() { curl -fsS --max-time 5 "$COORDINATOR/goals"; }
 goal_status() { goals | jq -er --arg id "$1" '.goals[] | select(.id==$id) | .status'; } # <goal id>
@@ -130,14 +135,16 @@ S2() { # a goal is split and finished
 S3() { # chaos: a worker dies holding a claim
   log "S3 kill -9 a worker that holds a claim"
   ensure_up
-  local id victim before task attempt caught=0
+  local id victim port before task attempt caught=0
   victim=worker-1
+  port="$(jq -r --arg v "$victim" '.data.resources[] | select(.name==$v) | .port' "$OUT/swarm-status.out" 2>/dev/null)"
+  [ -n "$port" ] && [ "$port" != null ] || port=4101
   # A subtask takes the worker 0.5 to 1.5 s, and finding the claim then killing the process takes about as long, so now and then the
   # claim is finished before the kill lands and there is nothing to retry. That is a miss, not a failure: try again with a new goal
   # (up to 5 times) and fail only when no attempt ever caught a held claim.
   for attempt in 1 2 3 4 5; do
     # After an earlier kill the supervisor is still starting the worker again: wait for a live process before the next try.
-    poll_until "$victim has a live process" 60 service_alive "$victim" || true
+    poll_until "$victim listens on $port" 60 bash -c "[ -n \"\$(ss -ltnpH 'sport = :$port' 2>/dev/null | grep -o 'pid=[0-9]*' | head -1)\" ] || [ -n \"\$(lsof -nP -iTCP:$port -sTCP:LISTEN -t 2>/dev/null | head -1)\" ]" || true
     # Enough subtasks that every worker is busy for a while.
     id="$(send_goal "a. b. c. d. e. f. g. h. i. j. k. l")"
     if ! poll_until "$victim holds a claim on goal $id (attempt $attempt)" 30 bash -c "[ -n \"\$(curl -fsS '$COORDINATOR/goals' | jq -r --arg id '$id' --arg w '$victim' '[.goals[] | select(.id==\$id) | .subtasks[] | select(.status==\"claimed\" and .worker==\$w) | .id][0] // empty')\" ]"; then
@@ -145,14 +152,14 @@ S3() { # chaos: a worker dies holding a claim
     fi
     task="$(claimed_by "$id" "$victim")"
     [ -n "$task" ] || { log "the claim was finished before it could be read; trying again"; poll_until "goal $id done" "$CLAIM_WAIT" goal_done "$id"; continue; }
-    before="$(run_state "$victim")"
-    log "kill -9 $victim (pid $before) while it holds subtask $task"
-    if ! kill -9 "$before" 2>/dev/null; then
+    before="$(listening_pid "$port")"
+    log "kill -9 $victim (pid ${before:-none}, port $port) while it holds subtask $task"
+    if [ -z "$before" ] || ! kill -9 "$before" 2>/dev/null; then
       log "$victim (pid $before) was already gone (a miss, attempt $attempt)"
       poll_until "goal $id done" "$CLAIM_WAIT" goal_done "$id" || true
       continue
     fi
-    poll_until "the supervisor starts $victim again" 60 pid_replaced "$victim" "$before"
+    poll_until "the supervisor starts $victim again" 60 pid_listening_changed "$port" "$before"
     poll_until "goal $id done after the claim expired" "$CLAIM_WAIT" goal_done "$id"
     if goals | jq -e --arg id "$id" --arg t "$task" \
          '.goals[] | select(.id==$id) | .subtasks[] | select(.id==$t) | .attempts == 1 and .status=="done" and .error == null' >/dev/null; then
@@ -175,10 +182,13 @@ S4() { # chaos: the coordinator dies mid-goal
   ensure_up
   local id before
   id="$(send_goal "one. two. three. four. five. six")"
-  before="$(run_state coordinator)"
-  log "kill -9 coordinator (pid $before) with goal $id in flight"
+  # The pid in the run state is the shell that starts the service; killing it would leave the real process holding the port and
+  # the restarted one would crash with EADDRINUSE. Kill the process that listens, which is what a crash of the service is.
+  before="$(listening_pid 4100)"
+  [ -n "$before" ] || die "nothing listens on the coordinator's port 4100"
+  log "kill -9 coordinator (pid $before, port 4100) with goal $id in flight"
   kill -9 "$before"
-  poll_until "the supervisor starts the coordinator again" 60 pid_replaced coordinator "$before"
+  poll_until "the supervisor starts the coordinator again" 60 pid_listening_changed 4100 "$before"
   poll_until "the restarted coordinator answers" 30 goals
   goals | jq -e --arg id "$id" '.goals[] | select(.id==$id)' >/dev/null || die "goal $id was lost when the coordinator died"
   poll_until "goal $id done after the coordinator restart" "$CLAIM_WAIT" goal_done "$id"

@@ -7,6 +7,7 @@ import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { type McpCheckReport, runMcpCheck } from "../utils/mcp-check.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { buildServicePorts } from "../utils/status-ports.js";
 
@@ -78,7 +79,10 @@ async function resolveResourceUrl(name: string): Promise<string> {
   } catch {
     ingressHttp = undefined;
   }
-  const { url } = buildServicePorts(resource, ingressHttp);
+  // A local process has no ingress route: it answers on localhost at its own port.
+  const native = isNativeProject(resources);
+  const ports = buildServicePorts(resource, ingressHttp, { native });
+  const url = native ? ports.directUrl : ports.url;
   if (!url) {
     throw new FliskError(
       `Resource "${name}" has no HTTP route, so it cannot serve MCP`,

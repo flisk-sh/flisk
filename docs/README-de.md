@@ -15,4 +15,12 @@ Schnellstart:
 npx @flisk-sh/flisk demo
 ```
 
+```bash
+mkdir my-shop && cd my-shop
+flisk project --yes
+flisk resource orders-api --type backend --stack shop --yes
+flisk resource shop-web --type frontend --stack shop --yes
+flisk up shop
+```
+
 Die vollständige Anleitung finden Sie in der [englischen README](../README.md).
