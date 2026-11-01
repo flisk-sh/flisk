@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# PreToolUse(Read): deny a full read of a file longer than SHUNT_MIN_LINES (default 350) and point at the bulk-reader skill.
+# Targeted reads (offset or limit), small files, missing files and nested shunt workers pass through. Exit 2 denies, stderr is the reason.
+set -u
+[ -n "${SHUNT_NESTED:-}" ] && exit 0
+min="${SHUNT_MIN_LINES:-350}"
+case "$min" in '' | *[!0-9]*) min=350 ;; esac
+
+input=$(cat)
+file=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')
+offset=$(printf '%s' "$input" | jq -r '.tool_input.offset // empty')
+limit=$(printf '%s' "$input" | jq -r '.tool_input.limit // empty')
+
+[ -n "$offset" ] || [ -n "$limit" ] && exit 0
+[ -n "$file" ] && [ -f "$file" ] || exit 0
+# Images, PDFs and notebooks are not line-oriented text.
+case "$file" in *.png | *.jpg | *.jpeg | *.gif | *.webp | *.pdf | *.ipynb) exit 0 ;; esac
+
+lines=$(wc -l <"$file" | tr -d ' ')
+[ "$lines" -le "$min" ] && exit 0
+
+echo "shunt: $file is $lines lines (threshold $min). Use the bulk-reader skill (scripts/bulk-read) to ask a question about it without loading it into context. If you need exact text to edit, re-read with offset and limit for just that section." >&2
+exit 2

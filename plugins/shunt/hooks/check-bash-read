@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# PreToolUse(Bash): deny `cat|head|tail|less|more FILE` of a file longer than SHUNT_MIN_LINES when it reads the whole file into context.
+# Pipes, redirections, flags (head -n, tail -f, ...) and chained commands are treated as targeted and pass through.
+set -u
+[ -n "${SHUNT_NESTED:-}" ] && exit 0
+min="${SHUNT_MIN_LINES:-350}"
+case "$min" in '' | *[!0-9]*) min=350 ;; esac
+
+cmd=$(jq -r '.tool_input.command // empty')
+[ -n "$cmd" ] || exit 0
+
+# Only a lone `cat FILE` style command; anything with shell operators or flags is targeted.
+case "$cmd" in *'|'* | *'>'* | *'<'* | *';'* | *'&'* | *'$'* | *'`'*) exit 0 ;; esac
+read -r -a words <<<"$cmd"
+[ "${#words[@]}" -eq 2 ] || exit 0
+case "${words[0]}" in cat | head | tail | less | more) ;; *) exit 0 ;; esac
+file="${words[1]}"
+case "$file" in -*) exit 0 ;; esac
+[ -f "$file" ] || exit 0
+
+lines=$(wc -l <"$file" | tr -d ' ')
+[ "$lines" -le "$min" ] && exit 0
+
+echo "shunt: ${words[0]} $file would load $lines lines (threshold $min). Use the bulk-reader skill (scripts/bulk-read), or read a section with the Read tool's offset and limit." >&2
+exit 2

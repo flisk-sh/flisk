@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# bulk-read --question "..." --paths FILE [FILE ...]
+# Asks a worker model a question about files without loading them into Claude's context. Each call stands alone.
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/backend.sh
+. "$here/lib/backend.sh"
+
+question=""
+paths=()
+mode=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --question) question="${2:?--question needs a value}"; mode=""; shift 2 ;;
+    --paths) mode=paths; shift ;;
+    --*) echo "bulk-read: unknown option $1" >&2; exit 2 ;;
+    *) if [ "$mode" = paths ]; then paths+=("$1"); shift; else echo "bulk-read: unexpected argument $1" >&2; exit 2; fi ;;
+  esac
+done
+[ -n "$question" ] && [ "${#paths[@]}" -gt 0 ] || { echo "usage: bulk-read --question \"...\" --paths FILE [FILE ...]" >&2; exit 2; }
+
+corpus=""
+for p in "${paths[@]}"; do
+  [ -f "$p" ] || { echo "bulk-read: no such file: $p" >&2; exit 1; }
+  corpus+=$(printf '<file path="%s">\n%s\n</file>\n' "$p" "$(cat "$p")")$'\n'
+done
+
+system="You are a precise code analyst. Read the provided files and answer the question concisely. Output structured bullets only. No greetings, no prose, no preambles, no summaries. Lead every bullet with the exact name, type, or line number. Skip anything the caller did not ask for. If the files do not contain the answer, say so."
+printf '%s\nQuestion: %s\n' "$corpus" "$question" | shunt_ask "$system"

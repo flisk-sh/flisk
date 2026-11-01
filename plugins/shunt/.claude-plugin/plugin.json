@@ -1,0 +1,14 @@
+{
+  "name": "shunt",
+  "version": "0.1.0",
+  "description": "Saves tokens by shunting big file reads and boilerplate generation to a local Ollama model, falling back to Claude Haiku. A hook blocks full reads of large files and points Claude at the bulk-read script.",
+  "author": {
+    "name": "Flisk",
+    "url": "https://flisk.sh"
+  },
+  "homepage": "https://flisk.sh",
+  "repository": "https://github.com/flisk-sh/flisk",
+  "license": "MIT",
+  "keywords": ["token-optimization", "delegation", "ollama", "haiku"],
+  "skills": "./skills/"
+}

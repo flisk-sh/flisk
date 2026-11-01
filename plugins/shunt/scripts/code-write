@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# code-write --spec "..." --reference FILE [FILE ...] [--target OUT]
+# Has a worker model write boilerplate that matches the reference files. Writes to --target, or stdout without it.
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/backend.sh
+. "$here/lib/backend.sh"
+
+spec=""
+target=""
+refs=()
+mode=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --spec) spec="${2:?--spec needs a value}"; mode=""; shift 2 ;;
+    --target) target="${2:?--target needs a value}"; mode=""; shift 2 ;;
+    --reference) mode=refs; shift ;;
+    --*) echo "code-write: unknown option $1" >&2; exit 2 ;;
+    *) if [ "$mode" = refs ]; then refs+=("$1"); shift; else echo "code-write: unexpected argument $1" >&2; exit 2; fi ;;
+  esac
+done
+[ -n "$spec" ] && [ "${#refs[@]}" -gt 0 ] || { echo "usage: code-write --spec \"...\" --reference FILE [FILE ...] [--target OUT]" >&2; exit 2; }
+
+corpus=""
+for p in "${refs[@]}"; do
+  [ -f "$p" ] || { echo "code-write: no such file: $p" >&2; exit 1; }
+  corpus+=$(printf '<reference path="%s">\n%s\n</reference>\n' "$p" "$(cat "$p")")$'\n'
+done
+
+system="You generate code files from a spec and reference files. Match the existing patterns, conventions, naming and style exactly. Output only the code: no explanations and no markdown fences. If the spec is ambiguous, choose what matches the reference code."
+out=$(printf '%s\nSpec: %s\n' "$corpus" "$spec" | shunt_ask "$system")
+# Drop a wrapping markdown fence if the worker added one anyway.
+out=$(printf '%s\n' "$out" | awk 'NR==1 && /^```/ {next} {lines[++n]=$0} END {if (n && lines[n] ~ /^```/) n--; for (i=1;i<=n;i++) print lines[i]}')
+
+if [ -n "$target" ]; then
+  mkdir -p "$(dirname "$target")"
+  printf '%s\n' "$out" >"$target"
+  echo "code-write: wrote $target ($(wc -l <"$target" | tr -d ' ') lines). Review it before relying on it."
+else
+  printf '%s\n' "$out"
+fi
