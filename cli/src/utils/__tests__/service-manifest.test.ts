@@ -873,6 +873,8 @@ describe("containerErrors", () => {
     [byo({ command: ["sh", ""] }), "container.command: expected a list"],
     [byo({ command: ["sh", "a\nb"] }), "container.command: expected a list"],
     [byo({ entrypoint: "/entry.sh" }), "container.entrypoint: expected a list"],
+    [byo({ entrypoint: null }), "container.entrypoint: expected a list"],
+    [byo({ command: null }), "container.command: expected a list"],
     [byo({ entrypoint: [""] }), "container.entrypoint: expected a list"],
     [byo({ entrypoint: ["sh", "a\nb"] }), "container.entrypoint: expected a list"],
     [byo({ entrypoint: ["sh", 3] }), "container.entrypoint: expected a list"],

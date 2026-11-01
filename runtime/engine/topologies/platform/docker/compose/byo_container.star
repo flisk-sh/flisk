@@ -177,6 +177,9 @@ def _command_list(container, key = 'command'):
     An empty `entrypoint` is allowed: Compose reads `entrypoint: []` as "drop the image's ENTRYPOINT". An empty `command` is not."""
     command = container.get(key)
     if command == None:
+        if key in container:
+            # `"command": null` is a value, not an absence: the CLI refuses it, so the generator must not drop it silently.
+            fail("MANIFEST ERROR: 'container.{}' must be a list of non-empty strings without control characters".format(key))
         return None
     ok = type(command) == "list" and (len(command) > 0 or key == 'entrypoint')
     if ok:

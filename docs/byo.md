@@ -129,7 +129,7 @@ as `$HOME`), and `${VAR}` for one Compose fills in from the project `.env`. Chec
 
 `entrypoint` replaces the image's `ENTRYPOINT` (Compose `entrypoint`) and takes the same list form. Compose also drops the
 image's default `CMD` when an `entrypoint` is set, so set `command` too if the image needs its arguments. An empty list
-(`"entrypoint": []`) removes the image's `ENTRYPOINT` and keeps its `CMD`. Both keys are exec form: there is no shell
+(`"entrypoint": []`) removes the image's `ENTRYPOINT` and, with Docker Compose 5.1.3 (checked with `docker compose create` and `docker inspect`), keeps its `CMD`, unlike a non-empty `entrypoint`, which clears it. Both keys are exec form: there is no shell
 unless you start one with `["sh", "-c", "..."]`, so `"command": ["echo $HOME"]` is not expanded. The `$$` rule is the same
 for both: `$$VAR` reaches the container as `$VAR`, a lone `$VAR` is read by Compose from the project `.env` (or becomes empty).
 They apply to an image and to a `build:` service alike (a `buildContext` resource). Do not confuse them with the top-level

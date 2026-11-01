@@ -189,7 +189,7 @@ def test_compose_reads_command_and_keeps_the_escaped_dollar(tmp_path):
 @TILT_REQUIRED
 @pytest.mark.parametrize(
     "command",
-    ["'server'", "[]", "['']", "['a', 3]", "['a\\nb']"],
+    ["'server'", "[]", "['']", "['a', 3]", "['a\\nb']", "None"],
 )
 def test_a_bad_command_stops_generation(tmp_path, command):
     body = LOAD + (
@@ -263,7 +263,7 @@ def test_compose_reads_entrypoint_and_keeps_the_escaped_dollar(tmp_path):
 
 
 @TILT_REQUIRED
-@pytest.mark.parametrize("entrypoint", ["'/entry.sh'", "['']", "['a', 3]", "['a\\nb']"])
+@pytest.mark.parametrize("entrypoint", ["'/entry.sh'", "['']", "['a', 3]", "['a\\nb']", "None"])
 def test_a_bad_entrypoint_stops_generation(tmp_path, entrypoint):
     body = LOAD + (
         "m = {{'appType': 'bring-your-own', 'stack': 'tube', 'port': 9000, 'image': 'nginx:alpine', 'container': {{'entrypoint': {}}}}}\n"
