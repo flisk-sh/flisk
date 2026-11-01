@@ -1,9 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { BRING_YOUR_OWN_TYPE, PROJECT_JSON } from "./constants.js";
+import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { findProjectRoot } from "./paths.js";
+import { readProjectNameWithFallback } from "./project-reader.js";
 import { isApiServiceType } from "./resource-kind.js";
 /**
  * A bring-your-own service with a Traefik route (the default; `exposeViaProxy: false` turns it off). The engine routes it like a
@@ -21,17 +20,7 @@ export function getProjectName() {
 }
 /** The project name of a specific project root, for tools that work outside the current directory. */
 export function getProjectNameFor(root) {
-    if (root) {
-        try {
-            const content = readFileSync(join(root, ".flisk", PROJECT_JSON), "utf-8");
-            const parsed = JSON.parse(content);
-            if (parsed?.project?.name) {
-                return parsed.project.name;
-            }
-        }
-        catch { }
-    }
-    return "flisk-project";
+    return readProjectNameWithFallback(root, "flisk-project");
 }
 export function resolveSubdomainBases(ingressPort, projectRoot) {
     const projectName = getProjectNameFor(projectRoot ?? findProjectRoot());

@@ -422,6 +422,7 @@ export interface HostPortPlan {
     ingressHttp: number;
     ingressHttps: number;
     postgres: number;
+    tiltUi?: number;
     requested: {
         ingressHttp: number;
         ingressHttps: number;

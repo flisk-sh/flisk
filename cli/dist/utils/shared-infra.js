@@ -1,9 +1,8 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled, } from "./capabilities.js";
-import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
+import { DATABASE_MANAGEMENT_FEATURE } from "./constants.js";
+import { readProjectNameOrUndefined } from "./project-reader.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 export const SHARED_INFRA_SERVICES = {
     traefik: {
@@ -84,11 +83,5 @@ export function groupSharedPostgres(projectName, stacks, options) {
 }
 /** `project.name` from `.flisk/project.json`, or null when the project file is missing or unreadable. */
 export function readProjectName(projectRoot) {
-    try {
-        const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        return typeof parsed?.project?.name === "string" ? parsed.project.name : null;
-    }
-    catch {
-        return null;
-    }
+    return readProjectNameOrUndefined(projectRoot) ?? null;
 }
