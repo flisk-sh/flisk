@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { existsExact, linkPath, links, markdownFiles, measure } from "./doc-links.mjs";
+import { documentAnchors, existsExact, githubSlug, linkAnchor, linkPath, links, markdownFiles, measure } from "./doc-links.mjs";
 
 function fixture(files) {
 	const root = mkdtempSync(path.join(tmpdir(), "doc-links-"));
@@ -74,7 +74,7 @@ test("existsExact needs the exact case and stays inside the root", () => {
 test("a missing target, a wrong case and a path outside the repo are findings; files and folders that exist are not", () => {
 	const r = run({
 		"README.md": "[ok](docs/guide.md) [dir](docs/) [root](/docs/guide.md#x) [gone](docs/gone.md)\n",
-		"docs/guide.md": "[up](../README.md)\n\n[case](../readme.md) [out](../../other/x.md)\n",
+		"docs/guide.md": "[up](../README.md)\n\n[case](../readme.md) [out](../../other/x.md)\n\n# X\n",
 	});
 	assert.deepEqual(r.findings, [
 		"README.md:1 docs/gone.md: docs/gone.md does not exist",
@@ -125,4 +125,66 @@ test("ALLOWED clears a broken link and goes stale loudly", () => {
 	assert.deepEqual(run({ "docs/a.md": "" }, allowed).findings, [
 		"docs/a.md gen.md: ALLOWED entry no longer matches a broken link; remove it",
 	]);
+});
+
+test("linkAnchor extracts fragment anchors and ignores schemes and templates", () => {
+	assert.equal(linkAnchor("#part"), "part");
+	assert.equal(linkAnchor("docs/a.md#section-one"), "section-one");
+	assert.equal(linkAnchor("docs/a.md#title?plain=1"), "title");
+	assert.equal(linkAnchor("docs/a.md#with%20space"), "with space");
+	assert.equal(linkAnchor("<docs/a.md#angled>"), "angled");
+	for (const t of ["docs/a.md", "https://x.dev#sec", "mailto:a@b.c#x", "//cdn/x.js#y", "{{ link }}", "<name>.md", "${dir}/a.md#z", ""])
+		assert.equal(linkAnchor(t), null, t);
+});
+
+test("githubSlug converts headings to standard GitHub anchors", () => {
+	assert.equal(githubSlug("What is Flisk?"), "what-is-flisk");
+	assert.equal(githubSlug("`service.json` schema"), "servicejson-schema");
+	assert.equal(githubSlug("See [guide](guide.md) here"), "see-guide-here");
+	assert.equal(githubSlug("🚀 First five minutes"), "-first-five-minutes");
+	assert.equal(githubSlug("日本語見出し"), "日本語見出し");
+});
+
+test("documentAnchors extracts heading anchors, duplicate disambiguation, and HTML anchors", () => {
+	const md = [
+		"# Overview",
+		"## Details",
+		"## Details",
+		"```md",
+		"# Fenced heading inside code",
+		"```",
+		'<a id="manual-anchor"></a>',
+		'<h3 name="custom-target">Sub</h3>',
+	].join("\n");
+	assert.deepEqual(Array.from(documentAnchors(md)), [
+		"overview",
+		"details",
+		"details-1",
+		"manual-anchor",
+		"custom-target",
+	]);
+});
+
+test("heading anchors: valid anchors resolve, broken anchors in local or external doc are findings", () => {
+	const r = run({
+		"README.md": [
+			"[self-ok](#overview)",
+			"[self-bad](#missing-local)",
+			"[ext-ok](docs/guide.md#details)",
+			"[ext-bad](docs/guide.md#missing-ext)",
+			"[dup-ok](docs/guide.md#details-1)",
+			"[html-ok](docs/guide.md#manual-target)",
+		].join("\n") + "\n\n# Overview\n",
+		"docs/guide.md": [
+			"# Guide",
+			"## Details",
+			"## Details",
+			'<a id="manual-target"></a>',
+		].join("\n") + "\n",
+	});
+	assert.deepEqual(r.findings, [
+		"README.md:2 #missing-local: heading #missing-local does not exist in current document",
+		"README.md:4 docs/guide.md#missing-ext: heading #missing-ext does not exist in docs/guide.md",
+	]);
+	assert.equal(r.value, 2);
 });
