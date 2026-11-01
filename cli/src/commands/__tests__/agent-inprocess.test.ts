@@ -109,6 +109,18 @@ describe("flisk agent sessions in-process", () => {
     );
   });
 
+  it("reaches an agent that runs as a local process on localhost at its own port", async () => {
+    vi.mocked(fetchAgent).mockResolvedValue({ kind: "ok", body: LISTED });
+    const root = createTempProject({
+      resources: { bot: { appType: "agent", port: 4999, command: "node server.js" } },
+    });
+    const result = await run(root, ["bot"], { json: true });
+    expect(result.status).toBeUndefined();
+    expect(fetchAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ url: "http://localhost:4999/sessions" }),
+    );
+  });
+
   it("reports SESSION_LIST_UNSUPPORTED when the agent answers /sessions with another shape", async () => {
     vi.mocked(fetchAgent).mockResolvedValue({ kind: "ok", body: { hello: "world" } });
     const result = await run(botProject(), ["bot"], { json: true });

@@ -9,6 +9,7 @@ import { errorFactories, FliskError, runCommand } from "../utils/errors.js";
 import { formatBytes } from "../utils/formatting.js";
 import { getHostPortPlan } from "../utils/host-port-config.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { buildServicePorts } from "../utils/status-ports.js";
 export { formatAge } from "../utils/agent-format.js";
@@ -89,7 +90,10 @@ agentCommand
         const portPlan = root
             ? await getHostPortPlan(root, { inspectDocker: false }).catch(() => null)
             : null;
-        const routeUrl = buildServicePorts(resource, portPlan?.ingressHttp).url;
+        // A local process has no ingress route: it answers on localhost at its own port.
+        const native = isNativeProject(discovery.resources);
+        const ports = buildServicePorts(resource, portPlan?.ingressHttp, { native });
+        const routeUrl = native ? ports.directUrl : ports.url;
         if (!routeUrl) {
             fail({
                 code: "NO_ROUTE",

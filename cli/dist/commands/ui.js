@@ -10,6 +10,7 @@ import { createTUITheme, sectionTitle, TUIThemeContext, useTUITheme, } from "../
 import { fetchAgentOverview } from "../utils/agent-sessions.js";
 import { errorFactories, requireProjectRoot } from "../utils/errors.js";
 import { readSavedHostPortPlan } from "../utils/host-port-config.js";
+import { isNativeProject } from "../utils/native-service.js";
 import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { describeSearch } from "../utils/search-status.js";
@@ -82,6 +83,19 @@ function formatEventDetails(value, width) {
         ? normalized.slice(0, maxLength - suffix.length).trimEnd() + suffix
         : normalized;
 }
+/**
+ * The address the agent panel reads the selected agent through: its ingress route, or localhost at its own port when every
+ * service runs as a local process. Null when the selection is not an agent or it has no address.
+ */
+export function agentRouteOf(services, selectedService, ingressPort) {
+    const resource = services.find((s) => s.name === selectedService);
+    if (!resource || (resource.config?.appType ?? resource.type) !== "agent")
+        return null;
+    const native = isNativeProject(services);
+    const ports = buildServicePorts(resource, ingressPort, { native });
+    const url = native ? ports.directUrl : ports.url;
+    return url ? { name: resource.name, url } : null;
+}
 export const TUIApp = ({ animated = true }) => {
     const theme = useTUITheme();
     const { exit } = useApp();
@@ -148,13 +162,7 @@ export const TUIApp = ({ animated = true }) => {
     }, [services]);
     // Readiness and sessions of the selected agent resource, read from the agent itself through its ingress route.
     const [agentOverview, setAgentOverview] = useState(null);
-    const agentRoute = useMemo(() => {
-        const resource = services.find((s) => s.name === selectedService);
-        if (!resource || (resource.config?.appType ?? resource.type) !== "agent")
-            return null;
-        const url = buildServicePorts(resource, ingressPort).url;
-        return url ? { name: resource.name, url } : null;
-    }, [services, selectedService, ingressPort]);
+    const agentRoute = useMemo(() => agentRouteOf(services, selectedService, ingressPort), [services, selectedService, ingressPort]);
     const agentPollRef = useRef(async () => { });
     useEffect(() => {
         if (!agentRoute) {
