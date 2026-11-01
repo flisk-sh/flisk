@@ -31,13 +31,27 @@ export function upFailureHints(failure) {
             const logs = failure.failed.length > 0
                 ? [`See why ${failure.failed[0]} failed: flisk logs -s ${failure.failed[0]}`]
                 : [];
-            return failure.kind === "smoke"
-                ? [...logs, `Smoke checks: ${UP_HINT_DOCS.smoke}`]
-                : [
+            if (failure.kind === "smoke") {
+                return [...logs, `Smoke checks: ${UP_HINT_DOCS.smoke}`];
+            }
+            if (failure.timedOut) {
+                const timeoutHints = [];
+                if (failure.stillBuilding && failure.stillBuilding.length > 0) {
+                    timeoutHints.push("Run flisk up again to resume with cached image layers: flisk up");
+                }
+                timeoutHints.push("Increase the timeout with: flisk up --wait-timeout <seconds>");
+                return [
                     ...logs,
+                    ...timeoutHints,
                     "Check the whole stack: flisk doctor",
                     `Troubleshooting: ${UP_HINT_DOCS.unhealthy}`,
                 ];
+            }
+            return [
+                ...logs,
+                "Check the whole stack: flisk doctor",
+                `Troubleshooting: ${UP_HINT_DOCS.unhealthy}`,
+            ];
         }
     }
 }
