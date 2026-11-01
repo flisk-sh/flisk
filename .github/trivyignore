@@ -7,3 +7,8 @@
 CVE-2026-109869 exp:2026-12-01
 CVE-2026-109924 exp:2026-12-01
 CVE-2026-111997 exp:2026-12-01
+
+# glob 13.0.6 and minimatch 10.2.5 are bundled inside npm 12.2.1 (the latest npm), same situation as above: the fixes are in glob
+# 14.0.2 and minimatch 11.0.1. Both are denial of service on crafted patterns, and the release workflow passes neither any input.
+CVE-2026-118773 exp:2026-12-01
+CVE-2026-118764 exp:2026-12-01

@@ -56,11 +56,14 @@ ENV PATH="/opt/flisk:${PATH}" \
 LABEL org.opencontainers.image.title="flisk" \
   org.opencontainers.image.version="${VERSION}"
 
+# trivy:ignore:DS-0002
 # No USER, on purpose: the image's whole job is to drive the host's Docker through the mounted /var/run/docker.sock, which is
 # root-owned (or group-owned by a gid that differs per host), so a fixed non-root user could not open it. Whoever can use the
 # socket already has root on the host, so a root process here adds no reach. A caller who wants less can pass
 # `--user "$(id -u):$(id -g)" --group-add "$(stat -c %g /var/run/docker.sock)"`; HOME above is writable for that.
 EXPOSE 10350
+# `flisk --version` only proves the binary starts, which is all this image can promise without a stack mounted.
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 CMD ["flisk", "--version"]
 # nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
 ENTRYPOINT ["/usr/bin/tini", "--", "flisk"]
 # nosemgrep: dockerfile.security.missing-user.missing-user

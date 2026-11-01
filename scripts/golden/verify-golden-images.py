@@ -58,6 +58,14 @@ def check(observed, full_hash):
     return problems
 
 
+def _open(request, timeout):
+    """urlopen for registry URLs, which are always built with an https:// prefix."""
+    url = request if isinstance(request, str) else request.full_url
+    if not url.startswith("https://"):
+        raise ValueError(f"refusing non-https registry URL: {url}")
+    return urllib.request.urlopen(request, timeout=timeout)  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+
+
 def _split(registry):
     host, _, namespace = registry.partition("/")
     return ("registry-1.docker.io" if host == "docker.io" else host), namespace
@@ -65,7 +73,7 @@ def _split(registry):
 
 def _token(host, repo):
     try:
-        urllib.request.urlopen(f"https://{host}/v2/", timeout=30)
+        _open(f"https://{host}/v2/", timeout=30)
         return None
     except urllib.error.HTTPError as err:
         challenge = err.headers.get("WWW-Authenticate", "")
@@ -75,7 +83,7 @@ def _token(host, repo):
     user, secret = os.environ.get("DOCKERHUB_USERNAME"), os.environ.get("DOCKERHUB_TOKEN")
     if host == "registry-1.docker.io" and user and secret:
         request.add_header("Authorization", "Basic " + base64.b64encode(f"{user}:{secret}".encode()).decode())
-    body = json.load(urllib.request.urlopen(request, timeout=30))
+    body = json.load(_open(request, timeout=30))
     return body.get("token") or body.get("access_token")
 
 
@@ -88,7 +96,7 @@ def _inspect(registry, layer, tag):
         headers["Authorization"] = f"Bearer {token}"
 
     def get(path):
-        response = urllib.request.urlopen(urllib.request.Request(f"https://{host}/v2/{repo}/{path}", headers=headers), timeout=60)
+        response = _open(urllib.request.Request(f"https://{host}/v2/{repo}/{path}", headers=headers), timeout=60)
         return response.headers.get("Docker-Content-Digest"), json.load(response)
 
     digest, index = get(f"manifests/{tag}")
