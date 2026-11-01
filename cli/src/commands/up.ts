@@ -1145,6 +1145,8 @@ export const upCommand = new Command("up")
       }
 
       process.env.TILT_PORT = port.toString();
+      hostPortPlan.tiltUi = port;
+      writeSavedHostPortPlan(projectRoot, hostPortPlan);
 
       await stopTiltForUp(
         { force, quiet: options.quiet, port },

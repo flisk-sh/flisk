@@ -1,6 +1,9 @@
 import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
+import { type TiltPortOwner } from "./tilt-port-owner.js";
 export declare function isDockerPortOwnedByProject(dockerPs: string, projectPrefix: string, port: number): boolean;
 export declare function readSavedHostPortPlan(projectRoot: string): HostPortPlan | null;
+/** Reads the saved Tilt UI port selected during the last successful or ongoing `flisk up`. */
+export declare function readSavedTiltPort(projectRoot: string): number | null;
 export declare function writeSavedHostPortPlan(projectRoot: string, plan: HostPortPlan): void;
 export declare function exportHostPortPlan(plan: HostPortPlan): void;
 /**
@@ -16,6 +19,16 @@ export declare function isPortHeldByProjectContainers(dockerPs: string, projectR
  * containers hold the saved port, probe that one.
  */
 export declare function resolveRuntimeIngressPort(projectRoot: string, plannedPort: number | undefined, readDockerPs?: () => string): number | undefined;
+/**
+ * Resolves the Tilt UI port for runtime inspection commands (`status`, `logs`, `restart`).
+ * Prefers an active Tilt owned by this project or recorded in host-ports.json.
+ * If the default port is held by another project's Tilt, ignores it and falls back to
+ * this project's saved port or reports foreign isolation.
+ */
+export declare function resolveRuntimeTiltPort(projectRoot: string, options?: {
+    envPort?: string;
+    ownerOf?: (port: number) => TiltPortOwner | null;
+}): number | null;
 /**
  * Reuse this project's last selection when its ports are still free or held by its own containers. Only the ports of the
  * capabilities that are on are planned: with the gateway off, HTTP and HTTPS are never probed (no Traefik binds them).
