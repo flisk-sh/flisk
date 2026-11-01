@@ -5,6 +5,7 @@ import {
   classifyUpProgress,
   createUpProgressReporter,
   fetchWithProgress,
+  formatProgressDuration,
   formatUpProgressLine,
   shouldRedrawUpProgress,
 } from "../up-progress.js";
@@ -67,6 +68,17 @@ describe("classifyUpProgress", () => {
   });
 });
 
+describe("formatProgressDuration", () => {
+  it("formats seconds and minutes correctly", () => {
+    expect(formatProgressDuration(0)).toBe("0s");
+    expect(formatProgressDuration(5_000)).toBe("5s");
+    expect(formatProgressDuration(45_000)).toBe("45s");
+    expect(formatProgressDuration(60_000)).toBe("1m");
+    expect(formatProgressDuration(75_000)).toBe("1m 15s");
+    expect(formatProgressDuration(130_000)).toBe("2m 10s");
+  });
+});
+
 describe("formatUpProgressLine", () => {
   it("shows the ready count and the services in each unfinished state", () => {
     expect(
@@ -76,6 +88,23 @@ describe("formatUpProgressLine", () => {
         { name: "web", state: "starting" },
       ]),
     ).toBe("1/3 ready · building: api · starting: web");
+  });
+
+  it("includes building elapsed duration when >= 1s", () => {
+    expect(
+      formatUpProgressLine([
+        { name: "api", state: "building", buildingDurationMs: 45_000 },
+        { name: "db", state: "ready" },
+        { name: "web", state: "starting" },
+      ]),
+    ).toBe("1/3 ready · building: api (45s) · starting: web");
+
+    expect(
+      formatUpProgressLine([
+        { name: "api", state: "building", buildingDurationMs: 75_000 },
+        { name: "worker", state: "building", buildingDurationMs: 12_000 },
+      ]),
+    ).toBe("0/2 ready · building: api (1m 15s), worker (12s)");
   });
 });
 
@@ -140,6 +169,23 @@ describe("createUpProgressReporter", () => {
     progress.update(json());
     progress.finish();
     expect(text()).toBe("");
+  });
+
+  it("shows building duration as time advances in redraw mode", () => {
+    let now = 1_000_000;
+    const out: string[] = [];
+    const progress = createUpProgressReporter({
+      write: (text) => out.push(text),
+      redraw: true,
+      deferred: new Set(),
+      columns: 200,
+      now: () => now,
+    });
+    progress.update(json(item("api", "in_progress", "pending")));
+    now += 45_000;
+    progress.update(json(item("api", "in_progress", "pending")));
+    progress.finish();
+    expect(out.join("")).toContain("building: api (45s)");
   });
 });
 

@@ -4,16 +4,29 @@
  * - an entry is a service name, or a stack name (the stack's other services, not its frontends, as with `--focus`);
  * - a frontend also waits for its `backendName`;
  * - a name that is neither (a typo, the shared Postgres) is not an edge;
- * - a `dependsOn` that is not a list of strings cannot be followed and gives no edges.
+ * - an entry may be a Compose-style object `{ "name": "db", "condition": "service_healthy" }`: its name is the edge;
+ * - a `dependsOn` that is not a list of names (or such objects) cannot be followed and gives no edges.
  */
-/** The dependsOn names a service declares: none when absent, null when it is not an array of strings. */
+/** The name of one dependsOn entry: the string itself, or the `name` of a `{ name, condition }` object; null otherwise. */
+export function dependsOnEntryName(entry) {
+    if (typeof entry === "string")
+        return entry;
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+        const name = entry.name;
+        if (typeof name === "string" && name !== "")
+            return name;
+    }
+    return null;
+}
+/** The dependsOn names a service declares: none when absent, null when it is not an array of names or `{ name }` objects. */
 export function declaredDependsOn(config) {
     const value = config?.dependsOn;
     if (value === undefined)
         return [];
-    if (Array.isArray(value) && value.every((entry) => typeof entry === "string"))
-        return value;
-    return null;
+    if (!Array.isArray(value))
+        return null;
+    const names = value.map(dependsOnEntryName);
+    return names.every((name) => name !== null) ? names : null;
 }
 /**
  * The dependency names that can be followed: `dependsOn`, plus the deprecated `dependencies` key the generators still read, plus

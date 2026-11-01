@@ -50,6 +50,20 @@ Use `--image <name>` instead of `--dockerfile` for a ready-made image, `--regist
 4. If something is red, read `flisk logs --service <name>` and use the flisk-troubleshoot skill.
 5. Stop with `flisk down`.
 
+## 5. Prove it on a real run (for a PR to someone else's repo)
+
+A dry run and a green CI check are not evidence. Before asking a maintainer to merge, run the converted stack for real and show it. The reference is the self-review on [biolend83/tubehaus#42](https://github.com/biolend83/tubehaus/pull/42#issuecomment-6556357152), which was merged:
+
+- **Start it for real** with the released Flisk the docs name (`flisk up`, not only `--dry-run`), with the values a user would set in `.env`. Use a throwaway project name or fresh volumes so an older test's data (an old database password) cannot fake a failure or a pass, and remove those volumes afterwards. On Colima, run from under `$HOME`: bind mounts from `/tmp` arrive empty.
+- **Show the app working**, not just containers up: screenshots of the main page, one real action (a search, a video playing, a login page), and numbers where you can read them (a player's `currentTime`, an HTTP status).
+- **Show Flisk's side**: the end of the `flisk up` output, the Tilt UI with every resource green, and the logs of the service you changed.
+- **Trace each setting you migrated end to end**: `.env` → `service.json` → the generated Compose file → what Docker actually did (`docker inspect`, `docker ps`). For ports, test from the outside too: loopback answers, the machine's LAN address does not (or does, if that is what Compose did).
+- **Put the raw text under each screenshot** (a collapsible block per log), mask anything private (egress IPs, keys), and keep the files.
+- **Read logs, not badges**: a `continue-on-error` CI step is green even when it fails.
+- **Review your own diff in a comment** before the maintainer does: what you checked, what you fixed after reviewing (with commits), behaviour changes they should know about, what belongs to Flisk and not to their repo (link the Flisk issue), and what you did not verify (other OS or architecture, a second machine).
+- **Offer Flisk as an option**: keep their Compose file as the main way unless they ask otherwise, reuse the same Docker volume names so no data is copied, and disclose that you work on Flisk and that an AI assistant was used.
+- **Every gap you hit is a Flisk bug**: fix it in Flisk (or file it) instead of working around it in their repo.
+
 ## Guardrails
 
 - Never delete or rewrite the app's Compose file, Tiltfile or charts. Flisk does not replace them.

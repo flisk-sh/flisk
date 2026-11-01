@@ -26,6 +26,11 @@ export declare function getInvalidServiceRoutePathFields(value: unknown): ("apiP
 /** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
 export declare function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /**
+ * `restart` on a bring-your-own resource: no, on-failure, on-failure:N (N from 1 to 100), unless-stopped or always. Mirrors
+ * byo_restart_policy in engine/.../compose/byo_container.star.
+ */
+export declare function restartErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
  * `extraPorts` (#2909): plain host ports on 127.0.0.1 for a bring-your-own resource, next to the routed `port`. Mirrors
  * engine/.../compose/byo_ports.star, which refuses the same values.
  */
@@ -41,6 +46,35 @@ export declare function sidecarErrors(manifest: Record<string, unknown>, display
  * `serviceDepth` is how many directories the service sits below the project root (unknown when validating a manifest alone).
  */
 export declare function volumesErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
+/**
+ * `dependsOn`: service or stack names, or Compose-style objects `{ "name": "db", "condition": "service_healthy" }`. Flisk orders by
+ * name (Tilt resource_deps), so the condition is accepted and kept but does not change the order. Mirrors normalize_depends_on in
+ * engine/.../tilt/manifest/parser.star.
+ */
+export declare function dependsOnErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `buildArgs` (bring-your-own): Compose `build.args` for a resource built from its Dockerfile. Values are text, Compose
+ * variables included (`${NODE_VERSION:-22}`), written as JSON strings. Mirrors byo_build_args_lines in
+ * engine/.../compose/byo_build_logging.star.
+ */
+export declare function buildArgsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `logging` (bring-your-own, #2965): Compose `logging`, such as `{ "driver": "json-file", "options": { "max-size": "5m" } }`.
+ * Mirrors byo_logging_section in engine/.../compose/byo_build_logging.star.
+ */
+export declare function loggingErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/**
+ * `envFile`: extra env files for a bring-your-own resource, each a path relative to the service directory that must stay inside
+ * the project (`serviceDepth` is how many directories the service sits below the project root, unknown when validating a manifest
+ * alone). A missing file is not an error. Mirrors engine/.../compose/byo_env_file.star.
+ */
+export declare function envFileErrors(manifest: Record<string, unknown>, displayPath: string, serviceDepth?: number): string[];
+/**
+ * `models` (Compose / Docker Model Runner): models a bring-your-own resource uses, each `{ "name": "llm", "model": "ai/smollm2" }`.
+ * The service gets `models: [llm]` and the stack's Compose file a top-level `models:` entry. `model` is written quoted into the
+ * generated YAML, so only a model reference or a Compose variable is accepted. Mirrors engine/.../compose/byo_models.star.
+ */
+export declare function modelsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /**
  * `env` on a bring-your-own resource (#2923): plain, committed configuration written into the container's Compose `environment`.
  * A command service's `env` is checked with the other command-service fields (validateNativeServiceFields). Mirrors
@@ -78,6 +112,7 @@ export interface ParsedHealthCheckConfig {
     interval?: number;
     timeout?: number;
     retries?: number;
+    startPeriod?: number;
     path?: string;
 }
 /**

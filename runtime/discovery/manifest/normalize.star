@@ -7,7 +7,7 @@
 # Purpose: Normalize manifests and provide helper accessors
 # =============================================================================
 
-load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error')
+load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('./constants.star', 'MANIFEST_DEFAULTS', 'MANIFEST_FILENAME')
 load('./loading.star', 'apply_manifest_defaults', 'check_prisma_folder', 'get_default_syncs_for_type')
 load('./validation.star', 'validate_manifest')
@@ -64,6 +64,7 @@ def _load_and_normalize(manifest_path, warn_only=True):
     unsafe_field_error = generated_string_error(manifest, manifest_path) if type(manifest) == "dict" else None
     if unsafe_field_error:
         fail(unsafe_field_error)
+    normalize_depends_on(manifest, manifest_path)
     
     # Validate
     issues = validate_manifest(manifest)

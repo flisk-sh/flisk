@@ -4,16 +4,23 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { substitutePublish } from "../extra-port-publish.js";
 import {
+  buildArgsErrors,
   byoEnvErrors,
   containerErrors,
+  dependsOnErrors,
   dockerNameErrors,
+  envFileErrors,
   extraPortsErrors,
   generatedFieldErrorsForFile,
   getInvalidServiceRoutePathFields,
   isDockerSafeName,
+  loggingErrors,
+  modelsErrors,
   providersErrors,
   providersOf,
+  restartErrors,
   SERVICE_MANIFEST_SCHEMA_URL,
   SERVICE_MANIFEST_SCHEMA_VERSION,
   secretConflictWarnings,
@@ -964,6 +971,8 @@ describe("extraPortsErrors publish", () => {
     "${TUBEHAUS_HTTP_BIND:-0.0.0.0:80}",
     "${TUBEHAUS_HTTP_BIND:-80}",
     "127.0.0.1:${TUBEHAUS_HTTP_PORT:-8080}",
+    "${CODECOV_PORT-8080}",
+    "127.0.0.1:${CODECOV_PORT-8080}",
     "8080",
     "0.0.0.0:80",
   ])("accepts %s", (value) => {
@@ -973,6 +982,9 @@ describe("extraPortsErrors publish", () => {
   it.each([
     ["${A}", "needs a default"],
     ["${A:-}", "default of ${A} must be a port or address:port"],
+    ["${A-}", "default of ${A} must be a port or address:port"],
+    ["${A-localhost:80}", "default of ${A} must be a port or address:port"],
+    ["${A-80\nprivileged: true}", "default of ${A} must be a port or address:port"],
     ["${A:-80", "closing }"],
     ["${1A:-80}", "variable names"],
     ["${A:-localhost:80}", "default of ${A} must be a port or address:port"],
@@ -993,6 +1005,15 @@ describe("extraPortsErrors publish", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(".publish");
     expect(errors[0]).toContain(message);
+  });
+
+  it("substitutes ${A-default} only when A is unset, and ${A:-default} also when A is empty, like Compose", () => {
+    const lookup = (values: Record<string, string>) => (name: string) => values[name];
+    expect(substitutePublish("${A-8080}", lookup({}))).toBe("8080");
+    expect(substitutePublish("${A-8080}", lookup({ A: "9090" }))).toBe("9090");
+    expect(substitutePublish("${A-8080}", lookup({ A: "" }))).toBe("");
+    expect(substitutePublish("${A:-8080}", lookup({ A: "" }))).toBe("8080");
+    expect(substitutePublish("127.0.0.1:${A-80}:${B:-81}", lookup({}))).toBe("127.0.0.1:80:81");
   });
 
   it("refuses publish next to hostPort or bind", () => {
@@ -1056,6 +1077,7 @@ describe("volumesErrors", () => {
           { source: "tubehaus-data", target: "/data" },
           { source: "./config", target: "/etc/app", readOnly: true },
           { source: "../shared/web", target: "/srv/web", readOnly: true },
+          { source: "library", target: "/library", name: "tubehaus_tubehaus-data" },
         ]),
         file,
         3,
@@ -1096,6 +1118,14 @@ describe("volumesErrors", () => {
       byo([{ source: "data", target: "/data", driver: "nfs" }]),
       "volumes[0].driver: unknown option",
     ],
+    [
+      byo([{ source: "data", target: "/data", name: "x\nexternal: true" }]),
+      "volumes[0].name: expected a Docker volume name",
+    ],
+    [
+      byo([{ source: "./conf", target: "/conf", name: "conf" }]),
+      "volumes[0].name: only applies to a named volume",
+    ],
   ])("reports %j", (manifest, message) => {
     const errors = volumesErrors(manifest, file, 3);
     expect(errors).toHaveLength(1);
@@ -1109,6 +1139,444 @@ describe("volumesErrors", () => {
       `${file}.volumes[0].source: must stay inside the project`,
     ]);
     expect(volumesErrors(byo([{ source: "../../..", target: "/project" }]), file, 3)).toEqual([]);
+  });
+});
+
+describe("container.tmpfs", () => {
+  const file = "services/main/app/service.json";
+  const byo = (tmpfs: unknown) => ({ appType: "bring-your-own", container: { tmpfs } });
+
+  it("accepts paths with and without mount options", () => {
+    expect(
+      containerErrors(byo(["/tmp:noexec,nosuid,nodev,size=100m", "/run", "/var/cache/app"]), file),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [byo("/tmp"), "container.tmpfs: expected a list"],
+    [byo(["tmp"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp/../etc"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp:"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp:SIZE=1"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp\nprivileged: true"]), "container.tmpfs: expected a list"],
+    [byo(["/tmp:size=1m\nprivileged: true"]), "container.tmpfs: expected a list"],
+    [byo(['/tmp:size="1m"']), "container.tmpfs: expected a list"],
+  ])("reports %j", (manifest, message) => {
+    const errors = containerErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+});
+
+describe("envFileErrors", () => {
+  const file = "services/main/app/service.json";
+  const byo = (envFile: unknown) => ({ appType: "bring-your-own", envFile });
+
+  it("accepts paths that stay inside the project, and an absent value", () => {
+    expect(envFileErrors({ appType: "bring-your-own" }, file, 3)).toEqual([]);
+    expect(envFileErrors(byo(["../../../.env", "./app.env", "config/app.env"]), file, 3)).toEqual(
+      [],
+    );
+    expect(envFileErrors(byo(["../../../../.env"]), file)).toEqual([]);
+  });
+
+  it.each([
+    [byo("../.env"), "envFile: expected a list"],
+    [{ appType: "backend", envFile: [".env"] }, "only applies to bring-your-own"],
+    [byo([".env\nprivileged: true"]), "envFile[0]: expected a relative file path"],
+    [byo(["/etc/passwd"]), "envFile[0]: expected a relative file path"],
+    [byo(["a b"]), "envFile[0]: expected a relative file path"],
+    [byo(["../../../../.env"]), "envFile[0]: must stay inside the project"],
+    [byo([42]), "envFile[0]: expected a relative file path"],
+  ])("reports %j", (manifest, message) => {
+    const errors = envFileErrors(manifest, file, 3);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("is part of validateServiceManifest", () => {
+    const result = validateServiceManifest(
+      {
+        appName: "app",
+        appType: "bring-your-own",
+        stack: "main",
+        schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+        image: "example/app:1",
+        envFile: ["../../../.env"],
+        container: { tmpfs: ["/tmp:noexec"] },
+      },
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+});
+
+describe("Compose settings from imported stacks, round 3", () => {
+  const file = "services/shop/web/service.json";
+  const byo = (fields: Record<string, unknown>) => ({
+    appName: "web",
+    appType: "bring-your-own",
+    stack: "shop",
+    schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+    dockerfile: "Dockerfile",
+    ...fields,
+  });
+
+  it("accepts every new shape in one manifest, with no warnings", () => {
+    const result = validateServiceManifest(
+      byo({
+        dependsOn: [
+          "cache",
+          { name: "db", condition: "service_healthy" },
+          { name: "migrate", condition: "service_completed_successfully" },
+          { name: "queue", condition: "service_started" },
+          { name: "search" },
+        ],
+        buildArgs: { NODE_VERSION: "${NODE_VERSION:-22}", APP_ENV: "production", TAG: "${TAG-1}" },
+        logging: { driver: "json-file", options: { "max-size": "5m", "max-file": "5" } },
+        env: {
+          CONFIG: "${A:-${B:-file}}",
+          MONGO_URL: "mongodb://${U:-x}:${P}@db/eddi?a=b&c=d",
+        },
+        volumes: [
+          { source: "${OM_MCP_SHARED_DIR:-./.mercato/mcp-shared}", target: "/shared" },
+          { source: "${OM_CACHE-../cache}", target: "/cache", readOnly: true, selinux: "z" },
+          { source: "./data", target: "/data", selinux: "Z" },
+        ],
+      }),
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it.each([
+    [[{ name: "db", condition: "service_ready" }], "dependsOn[0].condition: expected one of"],
+    [[{ name: "db", restart: true }], "dependsOn[0].restart: unknown option"],
+    [[{ condition: "service_healthy" }], "dependsOn[0].name: expected a service or stack name"],
+    [[42], "dependsOn[0]: expected a name, or an object"],
+  ])("refuses dependsOn %j", (dependsOn, message) => {
+    const errors = dependsOnErrors({ dependsOn }, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it.each([
+    [byo({ buildArgs: ["A=b"] }), "buildArgs: expected an object"],
+    [byo({ buildArgs: { "1A": "b" } }), "names must be letters"],
+    [
+      byo({ buildArgs: { A: "b\nprivileged: true" } }),
+      "buildArgs.A: expected a string without line breaks",
+    ],
+    [byo({ buildArgs: { A: 1 } }), "buildArgs.A: expected a string"],
+    [
+      byo({ dockerfile: undefined, image: "nginx:alpine", buildArgs: { A: "b" } }),
+      "only applies to a resource built from a Dockerfile",
+    ],
+    [{ appType: "backend", buildArgs: { A: "b" } }, "only applies to bring-your-own"],
+  ])("refuses buildArgs in %j", (manifest, message) => {
+    const errors = buildArgsErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it.each([
+    [byo({ logging: "json-file" }), "logging: expected an object"],
+    [byo({ logging: { driver: "json-file", labels: "x" } }), "logging.labels: unknown option"],
+    [byo({ logging: { driver: "json file" } }), "logging.driver: expected a driver name"],
+    [byo({ logging: { driver: "json-file\n    privileged: true" } }), "logging.driver"],
+    [byo({ logging: { options: { "max-size\n  x": "5m" } } }), "logging.options: keys must be"],
+    [
+      byo({ logging: { options: { "max-size": "5m\nprivileged: true" } } }),
+      "logging.options.max-size",
+    ],
+    [
+      byo({ logging: { options: { "max-file": 5 } } }),
+      "logging.options.max-file: expected a string",
+    ],
+    [{ appType: "backend", logging: { driver: "local" } }, "only applies to bring-your-own"],
+  ])("refuses logging in %j", (manifest, message) => {
+    const errors = loggingErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  const volume = (entry: Record<string, unknown>) => ({
+    appType: "bring-your-own",
+    volumes: [{ target: "/x", ...entry }],
+  });
+
+  it.each([
+    [volume({ source: "${A:-/etc}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A:-data}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${1A:-./x}" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A:-./x" }), "volumes[0].source: variables must be"],
+    [volume({ source: "${A:-./x\n  privileged: true}" }), "volumes[0].source: variables must be"],
+    [
+      volume({ source: "./x", selinux: "Zz" }),
+      "volumes[0].selinux: expected z (shared) or Z (private)",
+    ],
+    [volume({ source: "data", selinux: "Z" }), "volumes[0].selinux: only applies to a bind mount"],
+  ])("refuses the volume %j", (manifest, message) => {
+    const errors = volumesErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("checks that a variable's default bind path stays inside the project", () => {
+    expect(volumesErrors(volume({ source: "${A:-../../../../etc}" }), file, 3)).toEqual([
+      `${file}.volumes[0].source: must stay inside the project`,
+    ]);
+    expect(volumesErrors(volume({ source: "${A:-../../../shared}" }), file, 3)).toEqual([]);
+  });
+
+  it.each([
+    "dxflrs/garage:${GARAGE_VERSION:?GARAGE_VERSION is not set, see .env.example}",
+    "app:${TAG?TAG must be set}",
+    "app:${TAG:?}",
+  ])("accepts the image %s", (image) => {
+    expect(validateGeneratedStringFields({ image }, file)).toEqual([]);
+  });
+
+  it.each([
+    'a:${B:?x"y}',
+    "a:${B:?x\\y}",
+    "a:${B:?x{y}",
+    "a:${B:?x$y}",
+    "a:${B:?x\ny}",
+    "a:${B:?x`y}",
+    "a:${B:?x\u00e9y}",
+  ])("refuses the image %j", (image) => {
+    expect(validateGeneratedStringFields({ image }, file)).toHaveLength(1);
+  });
+});
+
+describe("Compose options for imported stacks", () => {
+  const file = "services/mail/worker/service.json";
+  const byo = (fields: Record<string, unknown>) => ({
+    appName: "worker",
+    appType: "bring-your-own",
+    stack: "mail",
+    schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+    image: "nginx:alpine",
+    ...fields,
+  });
+
+  it("accepts every option in a valid manifest, with no warnings", () => {
+    const result = validateServiceManifest(
+      byo({
+        image: "postgres:${POSTGRES_VERSION:-18}-alpine",
+        restart: "on-failure:5",
+        container: {
+          stopGracePeriod: "1m30s",
+          extraHosts: ["host.docker.internal:host-gateway", "legacy:10.0.0.5", "v6:fd00::1"],
+          ulimits: {
+            nofile: { soft: 65536, hard: 65536 },
+            nproc: 65535,
+            memlock: { soft: -1, hard: -1 },
+          },
+          networkAliases: ["mercure", "mercure.local"],
+        },
+      }),
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it.each([
+    "ghcr.io/anyproto/any-sync-node:${ANY_SYNC_NODE_VERSION}",
+    "postgres:${POSTGRES_VERSION:-18}-alpine",
+    "${REGISTRY:-ghcr.io}/acme/app:${TAG:-1.0}",
+    "nginx:${NGINX_TAG-alpine}",
+    "ghcr.io/acme/app:1.0",
+  ])("accepts the image %s", (image) => {
+    expect(validateGeneratedStringFields({ image }, file)).toEqual([]);
+  });
+
+  it.each([
+    "a${B",
+    "a${B:-}",
+    "a${B-}",
+    'a${B-x"}',
+    "a${1B}",
+    'a${B:-x"}',
+    "a${B:-x y}",
+    "a$B",
+    "a${B}}",
+    'x"y',
+    "a{b}",
+    "a\nprivileged: true",
+  ])("refuses the image %j", (image) => {
+    const errors = validateGeneratedStringFields({ image }, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(".image");
+  });
+
+  it.each(["no", "on-failure", "on-failure:1", "on-failure:100", "unless-stopped", "always"])(
+    "accepts restart %s",
+    (restart) => {
+      expect(restartErrors({ appType: "bring-your-own", restart }, file)).toEqual([]);
+    },
+  );
+
+  it.each([
+    "on-failure:0",
+    "on-failure:101",
+    "on-failure:05",
+    "on-failure:",
+    "on-failure:5\nprivileged: true",
+    "sometimes",
+    5,
+  ])("refuses restart %j", (restart) => {
+    const errors = restartErrors({ appType: "bring-your-own", restart }, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("restart: expected one of");
+  });
+
+  it.each([
+    [{ startPeriod: 30 }, []],
+    [{ startPeriod: 2.5, interval: 5, timeout: 3, retries: 3 }, []],
+  ])("accepts healthCheck %j", (healthCheck, expected) => {
+    expect(validateServiceManifest(byo({ healthCheck }), file).errors).toEqual(expected);
+  });
+
+  it.each([0, -1, "30s", Number.NaN])("refuses healthCheck.startPeriod %j", (startPeriod) => {
+    expect(validateServiceManifest(byo({ healthCheck: { startPeriod } }), file).errors).toEqual([
+      `${file}.healthCheck.startPeriod: expected a positive number`,
+    ]);
+  });
+
+  it("leaves restart on other resource types to the type check", () => {
+    expect(restartErrors({ appType: "backend", restart: "on-failure:5" }, file)).toEqual([]);
+  });
+
+  const container = (options: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+    appType: "bring-your-own",
+    container: options,
+    ...extra,
+  });
+
+  it.each([
+    [container({ stopGracePeriod: "30" }), "container.stopGracePeriod: expected a duration"],
+    [container({ stopGracePeriod: "1.s" }), "container.stopGracePeriod: expected a duration"],
+    [container({ stopGracePeriod: "30s\nprivileged: true" }), "container.stopGracePeriod"],
+    [container({ stopGracePeriod: 30 }), "container.stopGracePeriod"],
+    [container({ extraHosts: "a:1.2.3.4" }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a"] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a:1.2.3.999"] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a b:1.2.3.4"] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ['a:"x'] }), "container.extraHosts: expected a list"],
+    [container({ extraHosts: ["a:1.2.3.4\nprivileged: true"] }), "container.extraHosts"],
+    [container({ ulimits: ["nofile"] }), "container.ulimits: expected an object"],
+    [container({ ulimits: { bogus: 1 } }), "container.ulimits.bogus: expected one of"],
+    [container({ ulimits: { nofile: "1" } }), "container.ulimits.nofile: expected a number"],
+    [
+      container({ ulimits: { nofile: { soft: 1 } } }),
+      "container.ulimits.nofile: expected a number",
+    ],
+    [container({ ulimits: { nofile: -2 } }), "container.ulimits.nofile: expected a number"],
+    [
+      container({ ulimits: { nofile: { soft: 2, hard: 1 } } }),
+      "container.ulimits.nofile: soft must not be above hard",
+    ],
+    [container({ networkAliases: "mercure" }), "container.networkAliases: expected a list"],
+    [container({ networkAliases: ["-mercure"] }), "container.networkAliases: expected a list"],
+    [container({ networkAliases: ["mercure\n  privileged: true"] }), "container.networkAliases"],
+    [container({ networkAliases: ["a", "a"] }), "container.networkAliases: lists a name twice"],
+    [
+      container({ networkAliases: ["mercure"] }, { sidecarOf: "app" }),
+      "container.networkAliases: does not apply to a sidecar",
+    ],
+  ])("reports %j", (manifest, message) => {
+    const errors = containerErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+});
+
+describe("modelsErrors", () => {
+  const file = "services/nosia/web/service.json";
+  const byo = (models: unknown) => ({ appType: "bring-your-own", models });
+
+  it("accepts model references and Compose variables, and an absent value", () => {
+    expect(modelsErrors({ appType: "bring-your-own" }, file)).toEqual([]);
+    expect(
+      modelsErrors(
+        byo([
+          { name: "llm", model: "ai/smollm2" },
+          { name: "qwen", model: "ai/qwen3:8B-Q4_K_M" },
+          { name: "hf.model_1", model: "hf.co/org/name" },
+          { name: "var", model: "${LLM_MODEL}" },
+          { name: "var-default", model: "${LLM_MODEL:-ai/smollm2}" },
+          { name: "var-unset-default", model: "${LLM_MODEL-ai/smollm2}" },
+        ]),
+        file,
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    [byo({ name: "llm", model: "ai/smollm2" }), "models: expected a list"],
+    [
+      { appType: "backend", models: [{ name: "llm", model: "ai/smollm2" }] },
+      "only applies to bring-your-own",
+    ],
+    [byo(["llm"]), "models[0]: expected an object"],
+    [byo([{ name: "llm", model: "ai/smollm2", x: 1 }]), "models[0].x: unknown option"],
+    [byo([{ model: "ai/smollm2" }]), "models[0].name: expected a model name"],
+    [byo([{ name: "-llm", model: "ai/smollm2" }]), "models[0].name: expected a model name"],
+    [byo([{ name: "llm\n  evil:", model: "ai/smollm2" }]), "models[0].name: expected a model name"],
+    [
+      byo([
+        { name: "llm", model: "ai/a" },
+        { name: "llm", model: "ai/b" },
+      ]),
+      "models[1].name: llm is listed twice",
+    ],
+    [byo([{ name: "llm" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: 7 }]), "models[0].model: expected a model"],
+    [
+      byo([{ name: "llm", model: "ai/smollm2\n    privileged: true" }]),
+      "models[0].model: expected a model",
+    ],
+    [
+      byo([{ name: "llm", model: 'ai/smollm2" privileged: true' }]),
+      "models[0].model: expected a model",
+    ],
+    [byo([{ name: "llm", model: "ai/smollm2\\" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "ai/smollm2 x" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: ": x" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL:-}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL-}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${LLM_MODEL-ai/x y}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${1BAD}" }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: '${LLM_MODEL:-ai/x"}' }]), "models[0].model: expected a model"],
+    [byo([{ name: "llm", model: "${A}${B}" }]), "models[0].model: expected a model"],
+  ])("reports %j", (manifest, message) => {
+    const errors = modelsErrors(manifest, file);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+
+  it("is part of validateServiceManifest, with no unknown-key warning", () => {
+    const result = validateServiceManifest(
+      {
+        appName: "web",
+        appType: "bring-your-own",
+        stack: "nosia",
+        schemaVersion: SERVICE_MANIFEST_SCHEMA_VERSION,
+        image: "ghcr.io/nosia-ai/nosia:latest",
+        models: [{ name: "llm", model: "${LLM_MODEL:-ai/smollm2}" }],
+      },
+      file,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
   });
 });
 

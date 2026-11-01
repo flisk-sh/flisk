@@ -48,12 +48,13 @@ def dockerfile_healthcheck_flags(start_period_seconds = None):
 def compose_healthcheck_timing(start_period_seconds = None, indent = "      ", overrides = None):
     """Timing keys for a compose `healthcheck:` block (everything except `test:`).
 
-    `overrides` is a service's `healthCheck` settings (see manifest_health_check): its `interval` and `timeout` (seconds)
-    and `retries` replace the defaults.
+    `overrides` is a service's `healthCheck` settings (see manifest_health_check): its `interval`, `timeout` and
+    `startPeriod` (seconds) and `retries` replace the defaults.
     """
     h = DOCKER_HEALTHCHECK
     o = overrides or {}
     start_period = start_period_seconds if start_period_seconds != None else h["start_period_seconds"]
+    start_period = o.get("startPeriod", start_period)
     return (
         indent + "interval: {}s\n".format(o.get("interval", h["interval_seconds"]))
         + indent + "timeout: {}s\n".format(o.get("timeout", h["timeout_seconds"]))
@@ -75,7 +76,7 @@ def manifest_health_check(manifest):
       path     - `healthCheck.path`, or None (the caller then uses `healthCheckPath` or its default).
       port     - `healthCheck.port`: ready when that TCP port accepts a connection (#2875), or None.
       command  - `healthCheck.command`: ready when that command exits 0 (#2875), or None.
-      timing   - the `interval` / `timeout` (seconds) / `retries` the service set, for compose_healthcheck_timing.
+      timing   - the `interval` / `timeout` / `startPeriod` (seconds) / `retries` the service set, for compose_healthcheck_timing.
     At most one of path, port and command is set.
     """
     value = manifest.get("healthCheck") if type(manifest) == "dict" else None
@@ -86,7 +87,7 @@ def manifest_health_check(manifest):
     if value.get("enabled") == False:
         return struct(disabled = True, path = None, port = None, command = None, timing = {})
     timing = {}
-    for key in ["interval", "timeout"]:
+    for key in ["interval", "timeout", "startPeriod"]:
         if key in value:
             if not _is_number(value[key]) or value[key] <= 0:
                 fail("MANIFEST ERROR: 'healthCheck.{}' must be a positive number of seconds".format(key))

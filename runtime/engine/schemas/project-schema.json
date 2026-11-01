@@ -71,6 +71,12 @@
         "type": "string"
       }
     },
+    "composeProjectNames": {
+      "type": "object",
+      "description": "Stack name to the Compose project name its services ran under before flisk import (docker compose -p), written by flisk import so an existing install can be found. Flisk accepts it; it does not change the generated project name yet.",
+      "propertyNames": { "pattern": "^[A-Za-z0-9_-]+$" },
+      "additionalProperties": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" }
+    },
     "allowedHosts": {
       "type": "array",
       "description": "Hosts outside the local stack that env values may point at on purpose (a payment sandbox, a model API). flisk doctor does not report them. \"*.example.com\" matches every subdomain.",

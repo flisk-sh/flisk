@@ -307,6 +307,41 @@ describe("getResourcesForStack with real temp dir", () => {
   });
 });
 
+describe("dependsOn objects at discovery", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "flisk-depends-on-"));
+    vi.mocked(findProjectRoot).mockReturnValue(tmpDir);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("turns { name, condition } entries into names, so everything after discovery reads names", async () => {
+    mkdirSync(join(tmpDir, ".flisk"), { recursive: true });
+    writeFileSync(join(tmpDir, ".flisk", "project.json"), JSON.stringify({ version: "2" }));
+    mkdirSync(join(tmpDir, "services", "shop", "web"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, "services", "shop", "web", "service.json"),
+      JSON.stringify({
+        appName: "web",
+        appType: "bring-your-own",
+        stack: "shop",
+        schemaVersion: 1,
+        port: 3000,
+        image: "nginx:alpine",
+        dependsOn: ["cache", { name: "db", condition: "service_healthy" }],
+      }),
+    );
+    const { discoverResourcesFromRoot } = await import("../services.js");
+    const [web] = discoverResourcesFromRoot(tmpDir);
+    expect(web?.config?.dependsOn).toEqual(["cache", "db"]);
+  });
+});
+
 describe("stackExists with real temp dir", () => {
   let tmpDir: string;
 

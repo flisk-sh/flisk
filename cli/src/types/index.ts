@@ -31,6 +31,8 @@ export interface HealthCheckObjectConfig {
   interval?: number;
   timeout?: number;
   retries?: number;
+  /** Seconds after start before failed probes count (Compose start_period). */
+  startPeriod?: number;
   path?: string;
   /** Ready when this TCP port accepts a connection (#2875). */
   port?: number;
@@ -49,6 +51,10 @@ export interface ResourceConfigFields {
   replicas?: number;
   runtime?: string;
   featuresEnabled?: string[];
+  /**
+   * Names after discovery. service.json may also write `{ "name": "db", "condition": "service_healthy" }` entries
+   * (dependsOnErrors checks them); parseResource turns them into their names.
+   */
   dependsOn?: string[];
   /** Deprecated spelling of dependsOn; still read, and counted with it. */
   dependencies?: string[];
@@ -341,6 +347,8 @@ export interface ProjectConfig {
     out_of_scope: LegacyProjectStackDefinition;
   };
   always_enabled_infra?: string[];
+  /** stack -> the Compose project name an imported Compose file ran under (written by flisk import); accepted, not yet read. */
+  composeProjectNames?: Record<string, string>;
   optional_infra: ProjectOptionalInfra;
   discovery: ProjectDiscovery;
   overrides?: Record<string, JsonValue>;
@@ -568,6 +576,7 @@ export interface HostPortPlan {
   ingressHttp: number;
   ingressHttps: number;
   postgres: number;
+  tiltUi?: number;
   requested: { ingressHttp: number; ingressHttps: number; postgres: number };
   explicit: {
     ingressHttp: boolean;

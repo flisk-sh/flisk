@@ -43,7 +43,7 @@ For a file-by-file guide to service outputs, see [Generated service files](gener
 
 `flisk import` runs the published importer, [`flisk-import`](https://www.npmjs.com/package/flisk-import), at the exact version pinned in `cli/src/commands/import.ts` (`IMPORT_PACKAGE`). `FLISK_IMPORT_PACKAGE` overrides it. When a new importer is published, move the pin in a CLI release.
 
-`flisk export` runs the published exporter, [`@flisk-sh/flisk-export`](https://github.com/flisk-sh/flisk-export), at the exact version pinned in `cli/src/commands/export.ts`. `FLISK_EXPORT_PACKAGE` overrides it. It only writes render.yaml or wrangler.toml; it never deploys.
+`flisk export` runs the published exporter, [`@flisk-sh/flisk-export`](https://github.com/flisk-sh/flisk-export), at the exact version pinned in `cli/src/commands/export.ts`. `FLISK_EXPORT_PACKAGE` overrides it. It only writes render.yaml, wrangler.toml or a standalone docker-compose.yml (`flisk export compose`); it never deploys.
 
 It reads one file, the root `docker-compose.yml`, and writes one bring-your-own `service.json` per Compose service, plus `.flisk/project.json` if the directory is not a Flisk project. It does not read other Compose file names, override files, Dockerfiles, `package.json` or Procfiles, and it names what it did not translate. See the importer's [import.md](https://github.com/flisk-sh/flisk-import/blob/main/docs/import.md) for the mapping.
 
