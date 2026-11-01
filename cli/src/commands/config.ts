@@ -732,7 +732,9 @@ async function toggleInfraService(
     rawProjectValue === null ||
     Array.isArray(rawProjectValue)
   ) {
-    throw new FliskError("Invalid project.json: expected an object.");
+    throw new FliskError("Invalid project.json: expected an object.", [
+      "Fix .flisk/project.json so it holds a JSON object",
+    ]);
   }
 
   const rawProject = rawProjectValue as Record<string, unknown>;
@@ -743,7 +745,9 @@ async function toggleInfraService(
     rawOptionalInfra === null ||
     Array.isArray(rawOptionalInfra)
   ) {
-    throw new FliskError("Invalid project.json: optional_infra must be an object.");
+    throw new FliskError("Invalid project.json: optional_infra must be an object.", [
+      "Set optional_infra in .flisk/project.json to an object, or remove it",
+    ]);
   }
 
   (rawOptionalInfra as Record<string, unknown>)[service] = enabled;
