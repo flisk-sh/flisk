@@ -4,7 +4,11 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { isPortHeldByProjectContainers, resolveRuntimeIngressPort } from "../host-port-config.js";
+import {
+  isPortHeldByProjectContainers,
+  resolveRuntimeIngressPort,
+  resolveRuntimeTiltPort,
+} from "../host-port-config.js";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -155,5 +159,62 @@ describe("isPortHeldByProjectContainers", () => {
     expect(
       isPortHeldByProjectContainers(line("a", ":8080->80/tcp", join(root, ".flisk")), link, 8080),
     ).toBe(true);
+  });
+});
+
+describe("resolveRuntimeTiltPort", () => {
+  it("resolves to default port 10350 when no saved port and 10350 is not foreign", () => {
+    const root = project(null);
+    expect(resolveRuntimeTiltPort(root, { ownerOf: () => null })).toBe(10350);
+  });
+
+  it("resolves to saved tiltUi port when present and not foreign", () => {
+    const root = project(null);
+    writeFileSync(
+      join(root, ".flisk", ".flisk-out", "host-ports.json"),
+      JSON.stringify({
+        ingressHttp: 80,
+        ingressHttps: 443,
+        postgres: 5432,
+        tiltUi: 10352,
+        requested: { ingressHttp: 80, ingressHttps: 443, postgres: 5432 },
+        explicit: { ingressHttp: false, ingressHttps: false, postgres: false },
+        reason: { ingressHttp: "default", ingressHttps: "default", postgres: "default" },
+      }),
+    );
+    expect(
+      resolveRuntimeTiltPort(root, {
+        ownerOf: (port) => (port === 10350 ? { pid: 99, root: "/foreign/project" } : null),
+      }),
+    ).toBe(10352);
+  });
+
+  it("returns null when port 10350 belongs to another project and this project has no saved Tilt", () => {
+    const root = project(null);
+    expect(
+      resolveRuntimeTiltPort(root, {
+        ownerOf: () => ({ pid: 99, root: "/foreign/project" }),
+      }),
+    ).toBeNull();
+  });
+
+  it("returns null when TILT_PORT belongs to another project", () => {
+    const root = project(null);
+    expect(
+      resolveRuntimeTiltPort(root, {
+        envPort: "10355",
+        ownerOf: (port) => (port === 10355 ? { pid: 99, root: "/foreign/project" } : null),
+      }),
+    ).toBeNull();
+  });
+
+  it("respects valid TILT_PORT when it is this project's or owner is unknown", () => {
+    const root = project(null);
+    expect(
+      resolveRuntimeTiltPort(root, {
+        envPort: "10355",
+        ownerOf: () => null,
+      }),
+    ).toBe(10355);
   });
 });

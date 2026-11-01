@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { findStaleDisabledResources, getDeferredResourceNames, parseTiltResourceFailures, } from "./doctor-runtime.js";
 import { isHealthCheckDisabled } from "./service-manifest.js";
 import { discoverResources } from "./services.js";
+import { effectiveRuntimeStatus } from "./tilt-resource-state.js";
 import { findOnPath } from "./which.js";
 export { findStaleDisabledResources };
 export function tiltGetUiResources(port) {
@@ -122,17 +123,90 @@ export function evaluateTiltReadiness(jsonText, deferred, expected, disabledHeal
         settled: result.ready || (result.failures.length > 0 && result.pending === 0),
     };
 }
+export function findBuildingResourceNames(jsonText, deferred) {
+    try {
+        const parsed = JSON.parse(jsonText);
+        return (parsed.items ?? [])
+            .filter((item) => {
+            const name = item.metadata?.name;
+            if (!name || name === "(Tiltfile)" || deferred?.has(name) || isAdvisoryResource(name)) {
+                return false;
+            }
+            if (item.status?.disableStatus?.state === "Disabled")
+                return false;
+            return item.status?.updateStatus === "in_progress";
+        })
+            .map((item) => item.metadata?.name);
+    }
+    catch {
+        return [];
+    }
+}
+export function findPendingResourceNames(jsonText, deferred) {
+    try {
+        const parsed = JSON.parse(jsonText);
+        return (parsed.items ?? [])
+            .filter((item) => {
+            const name = item.metadata?.name;
+            if (!name || name === "(Tiltfile)" || deferred?.has(name) || isAdvisoryResource(name)) {
+                return false;
+            }
+            if (item.status?.disableStatus?.state === "Disabled")
+                return false;
+            const update = item.status?.updateStatus ?? "";
+            const runtime = effectiveRuntimeStatus(item.status);
+            if (update === "error" || runtime === "error")
+                return false;
+            return update !== "ok" || runtime !== "ok";
+        })
+            .map((item) => item.metadata?.name);
+    }
+    catch {
+        return [];
+    }
+}
+export function formatTail(text, maxLines = 10) {
+    const lines = text
+        .trimEnd()
+        .split("\n")
+        .map((l) => l.trimEnd())
+        .filter((l) => l.length > 0);
+    return lines.slice(-maxLines).join("\n");
+}
+function stateFingerprint(jsonText) {
+    try {
+        const parsed = JSON.parse(jsonText);
+        return (parsed.items ?? [])
+            .map((i) => {
+            const s = i.status;
+            return `${i.metadata?.name}:${s?.updateStatus}:${s?.runtimeStatus}:${s?.disableStatus?.state}:${s?.composeResourceInfo?.healthStatus}:${s?.currentBuild?.startTime}:${s?.buildHistory?.length}`;
+        })
+            .join(";");
+    }
+    catch {
+        return jsonText;
+    }
+}
 /**
  * Waits until every non-deferred Tilt resource is built and running. Resolves not-ready as soon as the rest has settled
- * with an errored resource, or at the deadline. Sablier-deferred resources are excluded: they stay idle by design.
+ * with an errored resource, or after a period of no progress (progress-aware timeout). While builds or image pulls
+ * produce output, the wait does not time out. Sablier-deferred resources are excluded: they stay idle by design.
  */
 export async function waitForTiltResourcesReady(port, options = {}) {
     const timeoutMs = options.timeoutMs ?? Number(process.env.FLISK_UP_READY_TIMEOUT_MS ?? 900_000);
     const intervalMs = options.intervalMs ?? 2_000;
     const fetchJson = options.fetchJson ?? tiltGetUiResources;
+    const fetchLogs = options.fetchLogs ??
+        (options.fetchJson && options.fetchJson !== tiltGetUiResources
+            ? async () => null
+            : tiltResourceLogs);
     const deferred = options.deferred ?? getDeferredResourceNames();
     const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
-    const deadline = Date.now() + timeoutMs;
+    const now = options.now ?? Date.now;
+    let lastProgressAt = now();
+    let previousFingerprint = "";
+    const previousLogLengths = new Map();
+    let lastJsonText = null;
     let last = {
         ready: false,
         failures: [],
@@ -143,6 +217,7 @@ export async function waitForTiltResourcesReady(port, options = {}) {
     for (;;) {
         const text = await fetchJson(port);
         if (text) {
+            lastJsonText = text;
             try {
                 const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth);
                 last = evaluation.result;
@@ -150,13 +225,56 @@ export async function waitForTiltResourcesReady(port, options = {}) {
                     return last;
                 if (last.failures.length > 0 && options.isStalled?.(text))
                     return last;
+                const currentFingerprint = stateFingerprint(text);
+                if (currentFingerprint !== previousFingerprint) {
+                    previousFingerprint = currentFingerprint;
+                    lastProgressAt = now();
+                }
+                else {
+                    // While building, check if active builds are producing output.
+                    const building = findBuildingResourceNames(text, deferred);
+                    if (building.length > 0) {
+                        for (const name of building) {
+                            const logs = await fetchLogs(port, name);
+                            if (logs !== null) {
+                                const prev = previousLogLengths.get(name);
+                                if (prev === undefined || logs.length !== prev) {
+                                    previousLogLengths.set(name, logs.length);
+                                    lastProgressAt = now();
+                                }
+                            }
+                        }
+                    }
+                }
             }
             catch {
                 /* Tilt may emit partial output while starting; retry. */
             }
         }
-        if (Date.now() >= deadline)
-            return { ...last, ready: false, timedOut: true };
+        if (now() - lastProgressAt >= timeoutMs) {
+            const stillBuilding = lastJsonText ? findBuildingResourceNames(lastJsonText, deferred) : [];
+            const pendingNames = lastJsonText ? findPendingResourceNames(lastJsonText, deferred) : [];
+            const unfinished = [...new Set([...stillBuilding, ...pendingNames])];
+            const lastLogs = {};
+            for (const name of unfinished) {
+                try {
+                    const logs = await fetchLogs(port, name);
+                    if (logs && logs.trim().length > 0) {
+                        lastLogs[name] = formatTail(logs, 10);
+                    }
+                }
+                catch {
+                    // Ignore log retrieval failure on timeout
+                }
+            }
+            return {
+                ...last,
+                ready: false,
+                timedOut: true,
+                stillBuilding,
+                lastLogs: Object.keys(lastLogs).length > 0 ? lastLogs : undefined,
+            };
+        }
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
 }

@@ -127,3 +127,75 @@ class TestDocsNameAPublishedRegistry:
 
         assert suggested, "the golden docs should show how to set FLISK_GOLDEN_REGISTRY"
         assert set(suggested) <= set(self._workflow_registries())
+
+
+def _load_verifier():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("verify_golden_images", REPO_ROOT / "scripts" / "golden" / "verify-golden-images.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestVerifyPublishedImages:
+    """verify-golden-images.py check(): what the workflow asserts after the push."""
+
+    HASH = "e5f25839a578" + "0" * 52
+    REGISTRIES = ["ghcr.io/flisk-sh", "docker.io/alexdykyi"]
+
+    def _observed(self):
+        image = lambda layer: {"digest": f"sha256:{layer}", "sizes": {"amd64": 51_200_000, "arm64": 52_200_000}, "hash_label": self.HASH}
+        return {registry: {layer: image(layer) for layer in LAYERS} for registry in self.REGISTRIES}
+
+    def test_good_images_pass(self):
+        assert _load_verifier().check(self._observed(), self.HASH) == []
+
+    def test_an_almost_empty_image_fails(self):
+        observed = self._observed()
+        observed["ghcr.io/flisk-sh"]["l1"]["sizes"]["arm64"] = 2_000_000
+
+        problems = _load_verifier().check(observed, self.HASH)
+
+        assert len(problems) == 1
+        assert "golden-l1:e5f25839a578: linux/arm64 is 2.0 MB" in problems[0]
+
+    def test_an_oversized_image_fails(self):
+        observed = self._observed()
+        observed["docker.io/alexdykyi"]["l4-migrator"]["sizes"]["amd64"] = 900_000_000
+
+        assert any("linux/amd64 is 900.0 MB" in p for p in _load_verifier().check(observed, self.HASH))
+
+    def test_a_missing_platform_fails(self):
+        observed = self._observed()
+        del observed["ghcr.io/flisk-sh"]["l2"]["sizes"]["arm64"]
+
+        assert _load_verifier().check(observed, self.HASH) == ["ghcr.io/flisk-sh/golden-l2:e5f25839a578: no linux/arm64 image"]
+
+    def test_a_private_or_missing_package_fails(self):
+        observed = self._observed()
+        observed["ghcr.io/flisk-sh"]["l3-backend"] = {"error": "HTTP Error 403: Forbidden"}
+
+        problems = _load_verifier().check(observed, self.HASH)
+
+        assert problems == ["ghcr.io/flisk-sh/golden-l3-backend:e5f25839a578: cannot pull without a login (HTTP Error 403: Forbidden)"]
+
+    def test_a_wrong_hash_label_fails(self):
+        observed = self._observed()
+        observed["ghcr.io/flisk-sh"]["l4-frontend"]["hash_label"] = None
+
+        assert any("flisk.golden.hash label is None" in p for p in _load_verifier().check(observed, self.HASH))
+
+    def test_different_images_in_the_two_registries_fail(self):
+        observed = self._observed()
+        observed["docker.io/alexdykyi"]["l1"]["digest"] = "sha256:other"
+
+        assert any(p.startswith("golden-l1: registries hold different images") for p in _load_verifier().check(observed, self.HASH))
+
+    def test_workflow_verifies_both_registries_after_the_push(self):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        push = text.index("push-golden-images.sh")
+        verify = text.index("verify-golden-images.py")
+
+        assert push < verify
+        assert '"$GHCR_REGISTRY" "$DOCKERHUB_REGISTRY"' in text[verify:]
