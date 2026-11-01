@@ -191,6 +191,8 @@ export interface PlatformServiceReport {
   /** What the service is called on screen. */
   name: string;
   isEnabled: boolean;
+  /** The resources that use it (sorted); empty when none does. */
+  users: string[];
   /** Why it runs, or why it does not. */
   reason: string;
 }
@@ -219,6 +221,12 @@ export function describePlatformServices(
     else if (!isEnabled) reason = `off: ${needs[capability].reason}`;
     else if (resources.length === 0) reason = "on: default, the project has no resources yet";
     else reason = `on: ${needs[capability].reason}`;
-    return { capability, name: labels[capability], isEnabled, reason };
+    return {
+      capability,
+      name: labels[capability],
+      isEnabled,
+      users: needs[capability].users,
+      reason,
+    };
   });
 }

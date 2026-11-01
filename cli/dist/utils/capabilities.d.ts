@@ -40,6 +40,8 @@ export interface PlatformServiceReport {
     /** What the service is called on screen. */
     name: string;
     isEnabled: boolean;
+    /** The resources that use it (sorted); empty when none does. */
+    users: string[];
     /** Why it runs, or why it does not. */
     reason: string;
 }

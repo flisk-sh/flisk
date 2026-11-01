@@ -180,6 +180,12 @@ export function describePlatformServices(projectRoot, resources, options) {
             reason = "on: default, the project has no resources yet";
         else
             reason = `on: ${needs[capability].reason}`;
-        return { capability, name: labels[capability], isEnabled, reason };
+        return {
+            capability,
+            name: labels[capability],
+            isEnabled,
+            users: needs[capability].users,
+            reason,
+        };
     });
 }

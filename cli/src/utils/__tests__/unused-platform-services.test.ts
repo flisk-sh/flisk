@@ -164,7 +164,8 @@ describe("platform services follow the resources (#2963)", () => {
       makeResource("api", "backend"),
     ]);
     expect(used.map((service) => service.isEnabled)).toEqual([true, true]);
-    expect(used[0]?.reason).toContain("api");
+    expect(used[0]?.users).toEqual(["api"]);
+    expect(used[0]?.reason).not.toContain("api");
 
     const forced = describePlatformServices(
       project({ caddy: byo() }, { database: true }),

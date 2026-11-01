@@ -6,10 +6,6 @@ const POSTGRES_NAMES = ["postgres", DATABASE_MANAGEMENT_FEATURE];
 function isBringYourOwn(resource) {
     return resource.config?.appType === BRING_YOUR_OWN_TYPE;
 }
-function listUsers(users) {
-    const shown = users.slice(0, 4).join(", ");
-    return users.length > 4 ? `${shown} and ${users.length - 4} more` : shown;
-}
 function wantsSharedPostgres(resource, databaseNames) {
     const features = resource.config?.featuresEnabled;
     if (Array.isArray(features) && features.includes(DATABASE_MANAGEMENT_FEATURE))
@@ -41,14 +37,14 @@ export function evaluatePlatformServiceNeeds(resources) {
             isNeeded: gatewayUsers.length > 0,
             users: gatewayUsers,
             reason: gatewayUsers.length > 0
-                ? `routed services: ${listUsers(gatewayUsers)}`
+                ? `${gatewayUsers.length} routed ${gatewayUsers.length === 1 ? "service" : "services"}`
                 : 'no routed service (every resource is bring-your-own with "exposeViaProxy": false)',
         },
         database: {
             isNeeded: databaseUsers.length > 0,
             users: databaseUsers,
             reason: databaseUsers.length > 0
-                ? `used by: ${listUsers(databaseUsers)}`
+                ? `used by ${databaseUsers.length} ${databaseUsers.length === 1 ? "resource" : "resources"}`
                 : "no database resource and no dependsOn postgres",
         },
     };
