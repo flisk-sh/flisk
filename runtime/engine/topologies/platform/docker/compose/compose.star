@@ -611,20 +611,32 @@ services:
     # mark them with a "# flisk-agent-volume: <name>" or "# flisk-byo-volume: <name>" line, so the declaration follows the
     # services without a separate registry. Two services naming the same volume share it.
     volume_names = []
+    # A bring-your-own marker can carry the Docker volume's own name after the volume ("data myapp_data", #2964).
+    docker_names = {}
     for entry in resource_entries:
         for line in entry.split("\n"):
             name = None
+            docker_name = None
             if line.strip().startswith("# flisk-agent-volume: "):
                 name = line.strip()[len("# flisk-agent-volume: "):]
             elif line.strip().startswith(VOLUME_MARKER.strip()):
-                name = line.strip()[len(VOLUME_MARKER):]
+                parts = line.strip()[len(VOLUME_MARKER):].split(" ")
+                name = parts[0]
+                docker_name = parts[1] if len(parts) > 1 else None
             if name:
                 # Replicas of one agent repeat the marker; Compose rejects a duplicate key under volumes:.
                 if name not in volume_names:
                     volume_names.append(name)
+                if docker_name:
+                    if docker_names.get(name, docker_name) != docker_name:
+                        fail("MANIFEST ERROR: volume '{}' is given two names, '{}' and '{}'".format(name, docker_names[name], docker_name))
+                    docker_names[name] = docker_name
     volumes_section = ""
     if volume_names:
-        volumes_section = "\nvolumes:\n" + "".join(["  {}:\n".format(name) for name in volume_names])
+        volumes_section = "\nvolumes:\n" + "".join([
+            "  {}:\n".format(name) + ("    name: {}\n".format(docker_names[name]) if name in docker_names else "")
+            for name in volume_names
+        ])
 
     footer = """
 networks:

@@ -1057,6 +1057,7 @@ describe("volumesErrors", () => {
           { source: "tubehaus-data", target: "/data" },
           { source: "./config", target: "/etc/app", readOnly: true },
           { source: "../shared/web", target: "/srv/web", readOnly: true },
+          { source: "library", target: "/library", name: "tubehaus_tubehaus-data" },
         ]),
         file,
         3,
@@ -1096,6 +1097,14 @@ describe("volumesErrors", () => {
     [
       byo([{ source: "data", target: "/data", driver: "nfs" }]),
       "volumes[0].driver: unknown option",
+    ],
+    [
+      byo([{ source: "data", target: "/data", name: "x\nexternal: true" }]),
+      "volumes[0].name: expected a Docker volume name",
+    ],
+    [
+      byo([{ source: "./conf", target: "/conf", name: "conf" }]),
+      "volumes[0].name: only applies to a named volume",
     ],
   ])("reports %j", (manifest, message) => {
     const errors = volumesErrors(manifest, file, 3);

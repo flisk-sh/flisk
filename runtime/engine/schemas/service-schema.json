@@ -464,7 +464,12 @@
             "type": "string",
             "pattern": "^/[A-Za-z0-9_./-]*$"
           },
-          "readOnly": { "description": "Mount read-only. Defaults to false.", "type": "boolean" }
+          "readOnly": { "description": "Mount read-only. Defaults to false.", "type": "boolean" },
+          "name": {
+            "description": "The Docker volume's own name, for a named volume. Without it the name gets the generated project's prefix. Set it to the name an existing Compose install created (such as myapp_data, from `docker volume ls`) and Flisk uses that volume and its data as it is, with no copy. Docker creates it when it does not exist.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+          }
         }
       }
     },
