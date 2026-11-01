@@ -13,6 +13,8 @@ _CAP_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 _USER_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-:"
 _SECURITY_OPT_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-:=/"
 _SIZE_UNITS = ["b", "k", "kb", "m", "mb", "g", "gb"]
+_PATH_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./-"
+_TMPFS_OPTION_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789=,_-"
 _IPC_MODES = ["host", "private", "shareable", "none"]
 _SIZE_FACTORS = {"": 1, "b": 1, "k": 1024, "kb": 1024, "m": 1024 * 1024, "mb": 1024 * 1024, "g": 1024 * 1024 * 1024, "gb": 1024 * 1024 * 1024}
 
@@ -43,6 +45,16 @@ def _string_list(container, key, chars, expected):
         if not _only(value, chars):
             fail("MANIFEST ERROR: 'container.{}' entries must be {}".format(key, expected))
     return values
+
+
+def _tmpfs_entry(value):
+    """`/tmp` or `/tmp:noexec,nosuid,nodev,size=100m`: an absolute path in the container, then optional mount options."""
+    if type(value) != "string":
+        return False
+    path, colon, options = value.partition(":")
+    if not path.startswith("/") or not _only(path, _PATH_CHARS) or "/../" in path + "/":
+        return False
+    return not colon or _only(options, _TMPFS_OPTION_CHARS)
 
 
 def _command_list(container):
@@ -179,6 +191,17 @@ def byo_container_options(manifest):
         if not _valid_size(shm_size):
             fail("MANIFEST ERROR: 'container.shmSize' must be a size such as 256mb or 1g")
         lines.append('    shm_size: "{}"'.format(shm_size))
+
+    tmpfs = container.get('tmpfs')
+    if tmpfs != None:
+        if type(tmpfs) != "list":
+            fail("MANIFEST ERROR: 'container.tmpfs' must be a list of paths such as /tmp:noexec,nosuid,size=100m")
+        for entry in tmpfs:
+            if not _tmpfs_entry(entry):
+                fail("MANIFEST ERROR: 'container.tmpfs' entries must be an absolute path with optional options, such as /tmp:noexec,nosuid,size=100m")
+        if tmpfs:
+            lines.append("    tmpfs:")
+            lines.extend(['      - "{}"'.format(entry) for entry in tmpfs])
 
     ipc = container.get('ipc')
     if ipc != None:

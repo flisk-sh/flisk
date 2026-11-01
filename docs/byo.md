@@ -218,6 +218,28 @@ reach the container as written. `flisk config verify` refuses a name that is not
 not a string, and a line break. Checked by `tests/tilt-engine/test_byo_env.py`, which also runs `docker compose config` on the
 generated file.
 
+## tmpfs mounts and extra env files (Compose stacks such as Lychee)
+
+Two more keys carry over what a Compose file such as LycheeOrg/Lychee's sets:
+
+| Key | Compose key | Value |
+| --- | --- | --- |
+| `container.tmpfs` | `tmpfs` | List of in-memory mounts. Each is an absolute path in the container, optionally followed by `:` and mount options, such as `/tmp:noexec,nosuid,nodev,size=100m`. Options are lowercase letters, digits, `=`, `,`, `_` and `-`. |
+| `envFile` | `env_file` | List of env files, each a path relative to the service directory, such as `../../../.env`. It must stay inside the project. |
+
+```json
+"envFile": ["../../../.env"],
+"container": { "tmpfs": ["/tmp:noexec,nosuid,nodev,size=100m"] }
+```
+
+Each `envFile` path is written after Flisk's own generated env file, relative to the generated Compose file, in Compose's
+`required: false` form: a file that does not exist yet is skipped, not an error. A path that leaves the project, an absolute path,
+or a value with characters Compose would read as YAML is refused by `flisk config verify` and before Tilt starts (`flisk doctor`
+reports a path outside the project). Both keys apply to bring-your-own resources only. Checked by
+`tests/tilt-engine/test_byo_tmpfs_env_file.py` (the generator, run through Tilt); a container started with them was not part of that test.
+
+CPU and memory limits use `container.cpus` and `container.memory`, described in the next section.
+
 ## GPUs, CPU and memory (model servers and simulators)
 
 Every container Flisk generates is limited to 0.5 CPU and 512M of memory. A model server (vLLM, Ollama, llama.cpp) or a
