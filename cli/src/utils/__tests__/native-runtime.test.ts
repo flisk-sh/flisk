@@ -15,6 +15,7 @@ import {
   NativeSupervisor,
   nativeLogPath,
   nativeRunStatePath,
+  nativeServiceStates,
   planNativeRun,
   readNativeLogLines,
   readNativeRunState,
@@ -407,6 +408,56 @@ describe("stopping a native run from another process", () => {
     await waitFor(() => !isProcessAlive(orphan.pid as number));
     expect(existsSync(nativeRunStatePath(root))).toBe(false);
     expect(await stopNativeRun(root)).toEqual({ wasRunning: false, services: [] });
+  });
+});
+
+describe("nativeServiceStates", () => {
+  it("reports a one-shot job that exited 0 as ready, and only a crashed long-running service as restarting", async () => {
+    const root = createTempDir();
+    const exited = spawn(process.execPath, ["-e", ""]);
+    await new Promise((resolve) => exited.once("exit", resolve));
+    const live = spawn("sleep", ["300"], { stdio: "ignore" });
+    try {
+      mkdirSync(join(root, ".flisk", "native"), { recursive: true });
+      writeFileSync(
+        nativeRunStatePath(root),
+        JSON.stringify({
+          // This test process stands in for the supervisor, so the run counts as up.
+          pid: process.pid,
+          startedAt: new Date().toISOString(),
+          services: {
+            setup: { pid: exited.pid, ready: true, job: true },
+            broken: { pid: exited.pid, ready: false, job: true },
+            api: { pid: exited.pid, port: 4000, ready: false },
+            web: { pid: live.pid, port: 3000, ready: true },
+          },
+        }),
+      );
+      expect(nativeServiceStates(root, ["setup", "broken", "api", "web"])).toEqual({
+        setup: { status: "ready", reason: "finished" },
+        broken: { status: "pending", reason: "the job did not exit 0" },
+        api: { status: "pending", reason: "restarting" },
+        web: { status: "ready" },
+      });
+    } finally {
+      live.kill();
+    }
+  });
+
+  it("records a one-shot job in the run state, so status can tell it from a crash", async () => {
+    const root = createTempDir();
+    const plan = planNativeRun([
+      nativeService(root, "setup", { command: "exit 0", restart: "no" }),
+    ]);
+    const supervisor = new NativeSupervisor(root, plan.services, {});
+    supervisors.push(supervisor);
+    await supervisor.start();
+    expect(readNativeRunState(root)?.services.setup).toMatchObject({ ready: true, job: true });
+    // The supervisor writes its own pid as the run's, and it is this test process: the run is up.
+    expect(nativeServiceStates(root, ["setup"]).setup).toEqual({
+      status: "ready",
+      reason: "finished",
+    });
   });
 });
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
-# The multi-agent starters (`flisk project swarm`, `flisk project security`, `flisk project super-agent`) through a real `flisk up`, as local processes with no
+# The multi-agent starters (`flisk project swarm`, `flisk project security`, `flisk project super-agent`, `flisk project langgraph`) through a real `flisk up`, as local processes with no
 # Docker. The chaos cases kill -9 real processes while work is in flight: the flisk up supervisor must start them again, and the
 # swarm must finish the goal without losing or double-counting a subtask.
 #
@@ -23,6 +23,14 @@
 #       supervisor starts the tool server again, and a later attempt finishes the research and the goal.
 #   P4  Chaos: kill -9 the planner right after a goal. The supervisor starts it again and the goal is still there and done.
 #   P5  `flisk down` stops all five and frees every port.
+#   L1  `flisk project langgraph` + `flisk up`: the setup job installs the pinned LangGraph packages and reads as finished, the
+#       agent starts only after it, and `flisk mcp check tools --call` passes.
+#   L2  A run goes through the real LangGraph graph: plan, research (MCP lookup), write, check, each node once.
+#   L3  Chaos: kill -9 the agent between nodes (STEP_DELAY_MS slows it down). The supervisor starts it again, it resumes the run
+#       from its LangGraph checkpoint, and the trace shows every node exactly once: finished nodes did not run again.
+#   L4  Chaos: kill -9 the tool server while a run starts. LangGraph's retryPolicy retries the research node with backoff until
+#       the supervisor has the tool server back, and the run finishes.
+#   L5  `flisk down` stops the agent and the tool server and frees their ports.
 #
 #   tests/e2e/journeys/agent-templates/run.sh all     every case in order, then cleanup
 #   tests/e2e/journeys/agent-templates/run.sh S3      one case (it creates and starts the swarm itself when needed)
@@ -36,12 +44,14 @@ RESOURCES=(coordinator worker-1 worker-2 worker-3)
 SECURITY_DIR="$SUITE_ROOT/security-e2e"
 AGENT_DIR="$SUITE_ROOT/super-agent-e2e"
 PLANNER="http://localhost:4300"
+GRAPH_DIR="$SUITE_ROOT/langgraph-e2e"
+GRAPH="http://localhost:4400"
 
-# This suite runs three projects, all local processes (no containers): stop each one, even after a failed case, so no process
+# This suite runs four projects, all local processes (no containers): stop each one, even after a failed case, so no process
 # keeps a port the next run needs.
 e2e_cleanup() {
   local dir
-  for dir in "$DIR" "$SECURITY_DIR" "$AGENT_DIR"; do
+  for dir in "$DIR" "$SECURITY_DIR" "$AGENT_DIR" "$GRAPH_DIR"; do
     [ -f "$dir/.flisk/native/run.json" ] && (cd "$dir" && flisk down >/dev/null 2>&1 || true)
     rm -rf "$dir"
   done
@@ -325,6 +335,102 @@ P5() { # flisk down stops all five
   [ "$RC" -eq 0 ] || die "flisk down exited $RC in the super-agent project"
   poll_until "every super-agent port is free" 30 ports_free 4300 4301 4302 4303 4304
   rm -rf "$AGENT_DIR"
+}
+
+# ------------------------------------------------------------------------------------------------------------- langgraph
+
+graph_runs() { curl -fsS --max-time 5 "$GRAPH/runs"; }
+graph_run() { graph_runs | jq -ec --arg id "$1" '.runs[] | select(.id==$id)'; } # <run id>
+graph_done() { [ "$(graph_run "$1" | jq -r .status)" = "done" ]; }
+graph_at() { graph_run "$1" | jq -e --arg n "$2" '.next | index($n) != null' >/dev/null; } # <run id> <node>: it runs next
+send_run() { # <goal>: prints the new run's id
+  curl -fsS --max-time 10 -X POST "$GRAPH/runs" -H 'content-type: application/json' -d "$(jq -cn --arg g "$1" '{goal:$g}')" | jq -er .id
+}
+graph_up() { # [VAR=value ...]: (re)start the LangGraph project with this environment
+  [ -f "$GRAPH_DIR/.flisk/native/run.json" ] && (cd "$GRAPH_DIR" && flisk down >/dev/null 2>&1 || true)
+  poll_until "the LangGraph ports are free" 30 ports_free 4400 4401
+  (cd "$GRAPH_DIR" && env ANTHROPIC_API_KEY= "$@" nohup flisk up --json >>"$GRAPH_DIR/up.log" 2>&1 &)
+  # The setup job runs npm install, which can take a minute on a cold cache.
+  poll_until "the setup job finished and the agent and the tool server are ready, natively" 300 all_ready "$GRAPH_DIR" 3
+}
+ensure_graph_up() {
+  if [ ! -f "$GRAPH_DIR/agent/service.json" ]; then
+    rm -rf "$GRAPH_DIR"
+    run_in "$SUITE_ROOT" graph-create project langgraph --path langgraph-e2e --json
+    [ "$RC" -eq 0 ] || die "flisk project langgraph exited $RC"
+  fi
+  all_ready "$GRAPH_DIR" 3 >/dev/null 2>&1 || graph_up
+}
+once_each() { # <run id>: the trace lists plan, research, write and check exactly once, in that order
+  graph_run "$1" | jq -e '[.trace[].node] == ["plan","research","write","check"]' >/dev/null
+}
+
+L1() { # setup installs, the agent waits for it, and the tool server passes the MCP check
+  log "L1 flisk project langgraph, flisk up, flisk mcp check"
+  [ -f "$GRAPH_DIR/.flisk/native/run.json" ] && (cd "$GRAPH_DIR" && flisk down >/dev/null 2>&1 || true)
+  rm -rf "$GRAPH_DIR"
+  ensure_graph_up
+  run_in "$GRAPH_DIR" graph-status status --json
+  assert check "$OUT/graph-status.out" \
+    'j.data.resources.find((r) => r.name === "setup").statusReason === "finished"' \
+    "the finished setup job reads as finished, not as restarting"
+  [ -d "$GRAPH_DIR/agent/node_modules/@langchain/langgraph" ] || die "the setup job did not install @langchain/langgraph"
+  run_in "$GRAPH_DIR" graph-mcp-check mcp check tools --call --no-icon --json
+  [ "$RC" -eq 0 ] || die "flisk mcp check tools exited $RC"
+}
+
+L2() { # a run goes through every node of the graph once
+  log "L2 a run goes through the LangGraph graph"
+  ensure_graph_up
+  local id
+  id="$(send_run "explain flisk and mcp")"
+  poll_until "run $id done" 60 graph_done "$id"
+  once_each "$id" || { graph_run "$id"; die "run $id did not go through plan, research, write and check once each"; }
+  graph_run "$id" | jq -e '.planner == "rules" and .review.ok and (.answer | contains("Model Context Protocol"))' >/dev/null \
+    || { graph_run "$id"; die "run $id has no checked answer with the tool notes"; }
+}
+
+L3() { # chaos: the agent dies between nodes and resumes from its checkpoint
+  log "L3 kill -9 the agent between nodes"
+  ensure_graph_up
+  graph_up STEP_DELAY_MS=1500
+  local id before
+  id="$(send_run "flisk and retries")"
+  poll_until "run $id reached the write node" 60 graph_at "$id" write
+  before="$(listening_pid 4400)"
+  log "kill -9 agent (pid $before) with run $id at the write node"
+  kill -9 "$before"
+  poll_until "the supervisor starts the agent again" 60 pid_listening_changed 4400 "$before"
+  poll_until "run $id done after the agent restart" 90 graph_done "$id"
+  graph_run "$id" | jq -e '.resumed >= 1' >/dev/null || die "run $id was not resumed by the restarted agent"
+  once_each "$id" || { graph_run "$id" | jq -c .trace; die "a node of run $id ran again after the restart"; }
+  # plan and research had finished in the killed process and come from its checkpoint; check ran in the new one.
+  graph_run "$id" | jq -e --argjson old "$before" '.trace[0].pid == $old and .trace[1].pid == $old and .trace[3].pid != $old' >/dev/null \
+    || { graph_run "$id" | jq -c .trace; die "run $id did not keep the nodes the killed agent had finished"; }
+}
+
+L4() { # chaos: the tool server dies as a run starts, and LangGraph's retry policy outlasts it
+  log "L4 kill -9 the tool server as a run starts"
+  ensure_graph_up
+  graph_up STEP_DELAY_MS=0
+  local id before
+  before="$(listening_pid 4401)"
+  log "kill -9 tools (pid $before)"
+  kill -9 "$before"
+  id="$(send_run "mcp")"
+  poll_until "the supervisor starts the tool server again" 60 pid_listening_changed 4401 "$before"
+  poll_until "run $id done after the tool server restart" 90 graph_done "$id"
+  graph_run "$id" | jq -e '.review.ok and (.notes.mcp | contains("Model Context Protocol"))' >/dev/null \
+    || { graph_run "$id"; die "run $id has no note from the restarted tool server"; }
+}
+
+L5() { # flisk down stops it
+  log "L5 flisk down"
+  ensure_graph_up
+  run_in "$GRAPH_DIR" graph-down down
+  [ "$RC" -eq 0 ] || die "flisk down exited $RC in the LangGraph project"
+  poll_until "the LangGraph ports are free" 30 ports_free 4400 4401
+  rm -rf "$GRAPH_DIR"
 }
 
 e2e_main "$@"

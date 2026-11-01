@@ -25,6 +25,7 @@ import {
   showSuccess,
 } from "../utils/formatting.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { writeLanggraphProject } from "../utils/langgraph-template.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
 import {
@@ -188,6 +189,8 @@ export async function cloneProjectTemplate(
       writeSecurityProject(destination);
     } else if (template.generated === "super-agent") {
       writeSuperAgentProject(destination);
+    } else if (template.generated === "langgraph") {
+      writeLanggraphProject(destination);
     } else if (template.bundledPath) {
       const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
       cpSync(resolve(packageRoot, template.bundledPath), destination, { recursive: true });

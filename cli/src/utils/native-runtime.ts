@@ -367,7 +367,11 @@ export interface NativeRunState {
   /** The `flisk up` process supervising the services. */
   pid: number;
   startedAt: string;
-  services: Record<string, { pid?: number; port?: number; url?: string; ready?: boolean }>;
+  /** `job`: a one-shot job (a migrator, or `"restart": "no"` with no port); once it exits 0 it stays `ready` with no process. */
+  services: Record<
+    string,
+    { pid?: number; port?: number; url?: string; ready?: boolean; job?: boolean }
+  >;
 }
 
 export function nativeRunStatePath(projectRoot: string): string {
@@ -500,6 +504,12 @@ export function nativeServiceStates(
       const service = state?.services[name];
       if (!isUp || !service) return [name, { status: "unknown", reason: "not running" }];
       if (!service.pid || !isProcessAlive(service.pid)) {
+        // A one-shot job is not restarted: one that exited 0 is done, one that did not has failed.
+        if (service.job) {
+          return service.ready
+            ? [name, { status: "ready", reason: "finished" }]
+            : [name, { status: "pending", reason: "the job did not exit 0" }];
+        }
         return [name, { status: "pending", reason: "restarting" }];
       }
       return service.ready
@@ -875,6 +885,7 @@ export class NativeSupervisor {
         port: service.plan.port,
         url: service.plan.url,
         ready: service.isReady,
+        ...(service.plan.job ? { job: true } : {}),
       };
     }
     writeNativeRunState(this.projectRoot, {

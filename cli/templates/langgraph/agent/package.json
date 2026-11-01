@@ -1,0 +1,12 @@
+{
+  "name": "langgraph-agent",
+  "private": true,
+  "type": "module",
+  "description": "The LangGraph agent. The setup job runs `npm install` here before the agent starts.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0",
+    "@langchain/core": "1.2.18",
+    "@langchain/langgraph": "1.5.1",
+    "zod": "4.6.7"
+  }
+}

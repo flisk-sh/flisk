@@ -49,6 +49,11 @@ export const PROJECT_TEMPLATES = {
         generated: "super-agent",
         description: "Super agent: a planner, an MCP tool server and researcher, writer and checker sub-agents; plans with Claude when ANTHROPIC_API_KEY is set (local processes, no Docker)",
     },
+    langgraph: {
+        repo: "https://github.com/flisk-sh/flisk.git",
+        generated: "langgraph",
+        description: "LangGraph agent: a StateGraph (plan, research, write, check) with durable checkpoints and retries, and an MCP tool server (local processes, no Docker)",
+    },
     launch: {
         repo: "https://github.com/flisk-sh/flisk-template-launch.git",
         ref: "f97e03a11d026715573a610a8370c3c7546c5af8",

@@ -17,6 +17,7 @@ import { errorFactories, FliskError, runCommand, showErrorAndExit } from "../uti
 import { ensureDirectory, ensureGitignore, writeJsonFile } from "../utils/file-helpers.js";
 import { showCancelled, showCommandHeader, showDetail, showStep, showSuccess, } from "../utils/formatting.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { writeLanggraphProject } from "../utils/langgraph-template.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { PROJECT_FEATURES } from "../utils/project-features.js";
 import { listProjectTemplates, PROJECT_TEMPLATES, templateGitCommands, } from "../utils/project-templates.js";
@@ -139,6 +140,9 @@ export async function cloneProjectTemplate(templateName, targetDir, runtimeNextS
         }
         else if (template.generated === "super-agent") {
             writeSuperAgentProject(destination);
+        }
+        else if (template.generated === "langgraph") {
+            writeLanggraphProject(destination);
         }
         else if (template.bundledPath) {
             const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../");
