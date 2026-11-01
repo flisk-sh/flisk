@@ -4,48 +4,162 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_JSON } from "./constants.js";
 function toParts(raw) {
-    const match = raw.trim().match(/(\d+)\.(\d+)(?:\.(\d+))?/);
-    return match ? [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)] : null;
+    const match = raw.trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+    if (!match)
+        return null;
+    const parts = [Number(match[1]), Number(match[2]), Number(match[3])];
+    return parts.every(Number.isSafeInteger) ? parts : null;
 }
-function readMinFliskVersion(projectRoot) {
+function compareVersions(left, right) {
+    for (let index = 0; index < 3; index++) {
+        const difference = (left[index] ?? 0) - (right[index] ?? 0);
+        if (difference !== 0)
+            return difference > 0 ? 1 : -1;
+    }
+    return 0;
+}
+function readProjectConfig(projectRoot) {
     try {
         const parsed = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-        return parsed?.minFliskVersion;
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+            return undefined;
+        }
+        return parsed;
     }
     catch {
         return undefined;
     }
 }
-export function evaluateFliskVersionFloor(projectRoot, currentVersion) {
-    const minimum = readMinFliskVersion(projectRoot);
-    if (minimum === undefined)
-        return { status: "none" };
-    const required = typeof minimum === "string" ? toParts(minimum) : null;
-    if (!required || !/^\d+\.\d+\.\d+$/.test(String(minimum).trim())) {
+/**
+ * Resolve the canonical minimum version and its deprecated legacy alias.
+ * minFliskVersion always takes precedence when both fields are present.
+ */
+function resolveMinimumVersion(project) {
+    const canonical = project.minFliskVersion;
+    const legacy = project.minTdkVersion;
+    if (canonical !== undefined) {
         return {
-            status: "malformed",
-            message: `.flisk/project.json minFliskVersion ${JSON.stringify(minimum)} is not a version like "1.3.80"`,
-            fix: 'Set minFliskVersion to a MAJOR.MINOR.PATCH string, for example "1.3.80".',
+            value: canonical,
+            field: "minFliskVersion",
+            ...(legacy !== undefined
+                ? {
+                    deprecationWarning: "minTdkVersion is deprecated and ignored because minFliskVersion is set. Remove minTdkVersion from .flisk/project.json.",
+                }
+                : {}),
         };
     }
-    const current = toParts(currentVersion);
-    const meets = current !== null &&
-        (() => {
-            for (const [index, need] of required.entries()) {
-                const actual = current[index] ?? 0;
-                if (actual !== need)
-                    return actual > need;
-            }
-            return true;
-        })();
+    if (legacy !== undefined) {
+        return {
+            value: legacy,
+            field: "minTdkVersion",
+            deprecationWarning: "minTdkVersion is deprecated. Use minFliskVersion in .flisk/project.json instead.",
+        };
+    }
+    return { value: undefined };
+}
+function parseExactVersion(raw) {
+    if (typeof raw !== "string" || !/^\d+\.\d+\.\d+$/.test(raw)) {
+        return null;
+    }
+    const parts = raw.split(".").map(Number);
+    if (!parts.every(Number.isSafeInteger)) {
+        return null;
+    }
+    return { value: raw, parts };
+}
+/**
+ * A repo can pin the oldest CLI it works with:
+ * `"minFliskVersion": "1.3.80"` in .flisk/project.json.
+ * `minTdkVersion` remains supported as a deprecated alias for one release.
+ * Shared by `flisk doctor` and `flisk up` so both say the same thing.
+ */
+export function evaluateFliskVersionFloor(projectRoot, currentVersion) {
+    const project = readProjectConfig(projectRoot);
+    if (!project)
+        return { status: "none" };
+    const minimumConfig = resolveMinimumVersion(project);
+    const minimum = minimumConfig.value;
+    const field = minimumConfig.field ?? "minFliskVersion";
+    const warning = minimumConfig.deprecationWarning
+        ? { deprecationWarning: minimumConfig.deprecationWarning }
+        : {};
+    if (minimum === undefined) {
+        return { status: "none", ...warning };
+    }
+    const required = typeof minimum === "string" ? toParts(minimum) : null;
+    if (!required) {
+        return {
+            status: "malformed",
+            message: `.flisk/project.json ${field} ${JSON.stringify(minimum)} is not a version like "1.3.80"`,
+            fix: 'Set minFliskVersion to a MAJOR.MINOR.PATCH string, for example "1.3.80".',
+            ...warning,
+        };
+    }
+    // The running CLI may be a prerelease or v-prefixed build; only the pinned floor is strict.
+    const currentMatch = currentVersion.match(/(\d+)\.(\d+)\.(\d+)/);
+    const current = currentMatch ? currentMatch.slice(1).map(Number) : null;
     const requiredText = required.join(".");
+    const meets = current !== null && compareVersions(current, required) >= 0;
     if (!meets) {
         return {
             status: "too-old",
             required: requiredText,
-            message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (minFliskVersion)`,
+            message: `flisk ${currentVersion} is older than the ${requiredText} this project requires (${field})`,
             fix: "Run: flisk upgrade",
+            ...warning,
         };
     }
-    return { status: "ok", required: requiredText };
+    return {
+        status: "ok",
+        required: requiredText,
+        ...warning,
+    };
+}
+/**
+ * A repository can require one exact CLI version through
+ * `pinnedFliskVersion` in .flisk/project.json.
+ */
+export function evaluateFliskVersionPin(projectRoot, currentVersion) {
+    const project = readProjectConfig(projectRoot);
+    if (!project || project.pinnedFliskVersion === undefined) {
+        return { status: "none" };
+    }
+    const pin = parseExactVersion(project.pinnedFliskVersion);
+    if (!pin) {
+        return {
+            status: "malformed",
+            message: `.flisk/project.json pinnedFliskVersion ${JSON.stringify(project.pinnedFliskVersion)} is not a version like "1.3.80"`,
+            fix: 'Set pinnedFliskVersion to a MAJOR.MINOR.PATCH string, for example "1.3.80".',
+        };
+    }
+    const minimumConfig = resolveMinimumVersion(project);
+    if (minimumConfig.value !== undefined) {
+        const minimumText = typeof minimumConfig.value === "string" ? minimumConfig.value.trim() : "";
+        const minimumParts = /^\d+\.\d+\.\d+$/.test(minimumText) ? toParts(minimumText) : null;
+        if (minimumParts && compareVersions(pin.parts, minimumParts) < 0) {
+            const field = minimumConfig.field ?? "minFliskVersion";
+            return {
+                status: "malformed",
+                message: `pinnedFliskVersion ${pin.value} is lower than ${field} ${minimumText}`,
+                fix: `Set pinnedFliskVersion to ${minimumText} or a newer version, or lower ${field} deliberately.`,
+            };
+        }
+    }
+    const current = parseExactVersion(currentVersion);
+    if (current && compareVersions(pin.parts, current.parts) === 0) {
+        return {
+            status: "ok",
+            required: pin.value,
+        };
+    }
+    return {
+        status: "mismatch",
+        required: pin.value,
+        current: currentVersion,
+        message: `flisk ${currentVersion} does not match pinnedFliskVersion ${pin.value} in .flisk/project.json`,
+        fix: [
+            `Run: npm install -g @flisk-sh/flisk@${pin.value}`,
+            "To move the pin deliberately, edit pinnedFliskVersion in .flisk/project.json.",
+        ].join("\n"),
+    };
 }

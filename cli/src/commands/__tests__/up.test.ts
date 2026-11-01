@@ -544,6 +544,18 @@ describe("enforceVersionFloor", () => {
     vi.restoreAllMocks();
   });
 
+  it("warns when the project uses legacy minTdkVersion", () => {
+    write({ minTdkVersion: "1.3.80" });
+
+    const e = exit();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    enforceVersionFloor(dir, {}, "1.3.80", e);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("minTdkVersion is deprecated"));
+    expect(e).not.toHaveBeenCalled();
+  });
+
   it("exits 1 with doctor's message when the CLI is older", () => {
     write({ minFliskVersion: "1.3.80" });
     const e = exit();

@@ -1228,6 +1228,16 @@ describe("doctor Flisk version pin", () => {
     writeFileSync(join(testDir, ".flisk", "project.json"), JSON.stringify(config));
   }
 
+  it("warns when the project uses legacy minTdkVersion", () => {
+    writeProject({ minTdkVersion: "1.3.80" });
+
+    const result = checkFliskVersion("1.3.80");
+
+    expect(result.didPass).toBe(true);
+    expect(result.isWarning).toBe(true);
+    expect(result.message).toContain("minTdkVersion is deprecated");
+  });
+
   it("skips when the project sets no minFliskVersion", () => {
     writeProject({});
     const result = checkFliskVersion("1.3.80");
