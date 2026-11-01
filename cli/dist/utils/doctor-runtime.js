@@ -39,10 +39,11 @@ function runHostCommand(exec, command, args, shellCommand, options) {
     }
     return exec(shellCommand, options);
 }
+import { toComposeProjectName } from "./compose-project-name.js";
 /** Host ports Traefik publishes for local ingress. Without these, app routes never come up. */
 export const INGRESS_PORTS = [80, 443];
 export function toComposeProjectPrefix(projectName) {
-    return projectName.replace(/-/g, "_");
+    return toComposeProjectName(projectName);
 }
 /**
  * Parse `docker ps --format '{{.Names}}\t{{.Ports}}'` lines into containers that

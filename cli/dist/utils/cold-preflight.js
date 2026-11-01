@@ -9,6 +9,7 @@ import { projectNeedsBun } from "./bun-requirement.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
 import { readyNextStep } from "./cli-command.js";
 import { checkColima } from "./colima.js";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { PROJECT_JSON } from "./constants.js";
 import { checkNatsBroker } from "./doctor-wiring.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix } from "./host-port-config.js";
@@ -197,7 +198,7 @@ export async function runColdPreflight(opts = {}) {
             let dbUp = false;
             try {
                 const config = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-                const projectName = String(config?.project?.name ?? "").replace(/-/g, "_");
+                const projectName = toComposeProjectName(String(config?.project?.name ?? ""));
                 if (projectName) {
                     const running = execFileSync(findOnPath("docker") ?? "docker", [
                         "ps",

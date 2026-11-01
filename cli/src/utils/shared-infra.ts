@@ -9,6 +9,7 @@ import {
   isDatabaseCapabilityEnabled,
   isGatewayEnabled,
 } from "./capabilities.js";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { DATABASE_MANAGEMENT_FEATURE, PROJECT_JSON } from "./constants.js";
 import { databaseResourceNames, namesSharedPlatformPostgres } from "./shared-platform-postgres.js";
 
@@ -119,7 +120,7 @@ export function groupSharedPostgres(
 ): SharedPostgresInstance | null {
   // A project that opted out of the shared Postgres has none to show.
   if (options && !isDatabaseCapabilityEnabled(options.projectRoot, { ...options })) return null;
-  const prefix = projectName.replace(/-/g, "_");
+  const prefix = toComposeProjectName(projectName);
   const databases: SharedInfraDatabase[] = [];
 
   const databaseNames = databaseResourceNames(stacks.flatMap((stack) => stack.resources));

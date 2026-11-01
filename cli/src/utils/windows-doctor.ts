@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
 import type { CheckResult } from "../types/index.js";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { parsePublishedPortHolders, probeHostPort } from "./doctor-runtime.js";
 import { findProjectRoot } from "./paths.js";
 import { getProjectName } from "./service-urls.js";
@@ -30,7 +31,7 @@ export function findExternallyOccupiedPorts(
   dockerHolders: ReturnType<typeof parsePublishedPortHolders>,
   projectName: string,
 ): number[] {
-  const prefix = projectName.replace(/-/g, "_").toLowerCase();
+  const prefix = toComposeProjectName(projectName).toLowerCase();
   return occupied.filter((port) => {
     const holder = dockerHolders.find((candidate) => candidate.publishedPorts.includes(port));
     if (!holder || !prefix) return true;
