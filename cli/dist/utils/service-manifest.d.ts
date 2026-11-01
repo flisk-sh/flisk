@@ -25,6 +25,8 @@ export interface ServiceManifestValidation {
 export declare function getInvalidServiceRoutePathFields(value: unknown): ("apiPath" | "basePath")[];
 /** `container` is only read for bring-your-own resources, and only with the keys and characters the generator writes. */
 export declare function containerErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/** `webUi` (#2997) is read for bring-your-own resources only: the app serves pages from `/`, so it gets a host name, not a path prefix. */
+export declare function webUiErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 /**
  * `restart` on a bring-your-own resource: no, on-failure, on-failure:N (N from 1 to 100), unless-stopped or always. Mirrors
  * byo_restart_policy in engine/.../compose/byo_container.star.

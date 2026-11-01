@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { BRING_YOUR_OWN_TYPE } from "./constants.js";
 import { isApiServiceType } from "./resource-kind.js";
 import { createEnvRedactor } from "./secret-redaction.js";
-import { resolveServicePath, resolveSubdomainBases } from "./service-urls.js";
+import { resolveRouteBase, resolveServicePath } from "./service-urls.js";
 export const DEFAULT_SMOKE_TIMEOUT_SECONDS = 60;
 const RETRY_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -85,7 +85,6 @@ export function buildSmokePlans(resources, ingressPort, options = {}) {
     // Smoke steps go through the gateway URL. With the gateway off no such URL answers, so there is nothing to check.
     if (options.gateway === false)
         return [];
-    const { appBase, apiBase } = resolveSubdomainBases(ingressPort);
     const plans = [];
     for (const resource of resources) {
         const config = resource.config;
@@ -97,7 +96,7 @@ export function buildSmokePlans(resources, ingressPort, options = {}) {
             continue;
         if (config.exposeViaProxy === false)
             continue;
-        const base = isApi ? apiBase : appBase;
+        const base = resolveRouteBase(resource, ingressPort);
         // The container healthcheck path (default /health for APIs) is the one request that is safe to repeat while the route comes up.
         const readyPath = config.healthCheckPath || (isApi && appType !== BRING_YOUR_OWN_TYPE ? "/health" : undefined);
         plans.push({

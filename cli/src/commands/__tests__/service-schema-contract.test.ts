@@ -58,6 +58,7 @@ const RESOURCE_CONFIG_FIELDS = [
   "dockerfile",
   "image",
   "exposeViaProxy",
+  "webUi",
   "agent",
   "command",
   "env",

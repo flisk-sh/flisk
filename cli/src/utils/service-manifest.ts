@@ -76,6 +76,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "traefik",
   "type",
   "volumes",
+  "webUi",
 ]);
 
 /**
@@ -259,6 +260,7 @@ const FIELD_KINDS: Readonly<Record<string, FieldKind>> = {
   restart: "string",
   enabled: "boolean",
   exposeViaProxy: "boolean",
+  webUi: "boolean",
   agent: "object",
   build: "object",
   nats: "object",
@@ -684,6 +686,20 @@ export function containerErrors(manifest: Record<string, unknown>, displayPath: 
     }
   }
   return errors;
+}
+
+/** `webUi` (#2997) is read for bring-your-own resources only: the app serves pages from `/`, so it gets a host name, not a path prefix. */
+export function webUiErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  if (manifest.webUi === undefined || manifest.webUi === null) return [];
+  if (manifest.appType !== "bring-your-own")
+    return [
+      `${displayPath}.webUi: only applies to bring-your-own resources (appType "bring-your-own")`,
+    ];
+  if (manifest.webUi === true && manifest.sidecarOf)
+    return [
+      `${displayPath}.webUi: does not apply to a sidecar (sidecarOf), which has no route of its own`,
+    ];
+  return [];
 }
 
 const RESTART_POLICIES = ["no", "on-failure", "unless-stopped", "always"];
@@ -1586,6 +1602,7 @@ export function validateServiceManifest(
   errors.push(...envFileErrors(manifest, displayPath));
   errors.push(...modelsErrors(manifest, displayPath));
   errors.push(...restartErrors(manifest, displayPath));
+  errors.push(...webUiErrors(manifest, displayPath));
   errors.push(...dependsOnErrors(manifest, displayPath));
   errors.push(...buildArgsErrors(manifest, displayPath));
   errors.push(...loggingErrors(manifest, displayPath));

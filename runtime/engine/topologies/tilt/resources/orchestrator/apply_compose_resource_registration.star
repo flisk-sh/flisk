@@ -1028,7 +1028,7 @@ def _build_resource_config(res, manifest, resource_config, full_res_path, infra_
 
 
 def count_routable_backends_by_stack(resource_config, resource_manifests, default_stack):
-    """Count the backends of each stack that get a Traefik route (workers, migrators, frontends, SDKs, libraries and unproxied BYO do not)."""
+    """Count the backends of each stack that get a Traefik route (workers, migrators, frontends, SDKs, libraries, unproxied BYO and BYO web UIs do not)."""
     counts = {}
     for resource in resource_config.get('resources', []):
         manifest = resource_manifests.get(resource['name'], {})
@@ -1036,6 +1036,9 @@ def count_routable_backends_by_stack(resource_config, resource_manifests, defaul
         if resource.get('frontend', False) or app_type in ['frontend', 'worker', 'migrator', 'library', 'sdk', 'infra', 'database']:
             continue
         if app_type == 'bring-your-own' and not manifest.get('exposeViaProxy', True):
+            continue
+        # A web UI has its own host name and no stack-scoped router (#2997), so it shares nothing with the stack's backends.
+        if app_type == 'bring-your-own' and manifest.get('webUi') == True:
             continue
         stack = manifest.get('stack', default_stack)
         counts[stack] = counts.get(stack, 0) + 1
