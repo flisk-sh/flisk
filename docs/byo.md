@@ -185,6 +185,10 @@ A container's filesystem is thrown away when it is recreated. Keep data in `volu
   keeps it, and two services that name the same volume share it. To start from empty, stop the stack with `flisk down` and
   remove the volume: `docker volume ls --filter label=com.docker.compose.volume=library` shows its full name, then
   `docker volume rm <that name>`.
+- **Keep an existing install's data:** a named volume can set `name`, the Docker volume's own name. Without it the name gets
+  the generated project's prefix, so a Compose install's `myapp_data` is not found. With `"name": "myapp_data"` (the name
+  `docker volume ls` shows), `flisk up` mounts that volume as it is: no copy, and `docker compose up` and `flisk up` share the
+  data. Docker creates the volume when it does not exist yet. `flisk import` writes `name` for you from the Compose file.
 - **A path** starting with `./` or `../` is a bind mount, relative to the service directory (where its `service.json` is).
   It must stay inside the project: `flisk up` and `flisk doctor` refuse one that climbs above the project root.
 - `target` is an absolute path in the container; `readOnly: true` mounts it read-only.

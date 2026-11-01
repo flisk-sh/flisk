@@ -605,11 +605,11 @@ export function volumesErrors(manifest, displayPath, serviceDepth) {
             return;
         }
         for (const key of Object.keys(entry)) {
-            if (!["source", "target", "readOnly"].includes(key)) {
-                errors.push(`${at}.${key}: unknown option (use source, target, readOnly)`);
+            if (!["source", "target", "readOnly", "name"].includes(key)) {
+                errors.push(`${at}.${key}: unknown option (use source, target, readOnly, name)`);
             }
         }
-        const { source, target, readOnly } = entry;
+        const { source, target, readOnly, name } = entry;
         if (typeof source !== "string" ||
             !/^([a-z0-9][a-z0-9_-]*|\.{1,2}(\/[A-Za-z0-9_.-]+)*\/?)$/.test(source)) {
             errors.push(`${at}.source: expected a volume name such as data, or a path starting with ./ such as ./config`);
@@ -640,6 +640,15 @@ export function volumesErrors(manifest, displayPath, serviceDepth) {
         }
         if (readOnly !== undefined && typeof readOnly !== "boolean") {
             errors.push(`${at}.readOnly: expected true or false`);
+        }
+        // `name` is the Docker volume's own name, such as the one an existing Compose install created (tubehaus_tubehaus-data).
+        if (name !== undefined) {
+            if (typeof name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) {
+                errors.push(`${at}.name: expected a Docker volume name such as myapp_data (letters, digits, '_', '.' and '-')`);
+            }
+            else if (typeof source === "string" && source.startsWith(".")) {
+                errors.push(`${at}.name: only applies to a named volume, not a bind mount`);
+            }
         }
     });
     return errors;

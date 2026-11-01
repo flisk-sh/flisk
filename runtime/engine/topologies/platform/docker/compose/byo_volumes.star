@@ -6,6 +6,8 @@
 # without them every restart starts from nothing. Two kinds:
 #   - a named volume ("source": "library"): declared at the top of the stack's Compose file, kept by `flisk down`;
 #   - a bind mount ("source": "./config"): a path relative to the service directory that must stay inside the project.
+# A named volume can set "name", the Docker volume's own name (#2964). Without it Compose prefixes the generated project's
+# name, so an existing Compose install's volume (myapp_data) is not found and its data looks lost; with it, both use one volume.
 # Each value is checked character by character, because it is written into the generated Compose YAML as it is. Keep in step
 # with volumesErrors in cli/src/utils/service-manifest.ts. This file has no load() on purpose.
 # =============================================================================
@@ -14,6 +16,7 @@ VOLUME_MARKER = "# flisk-byo-volume: "
 
 _NAME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_-"
 _PATH_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-/"
+_DOCKER_NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
 
 
 def _only(value, chars):
@@ -73,6 +76,7 @@ def byo_volumes(manifest, service_path, compose_dir):
         source = entry.get('source')
         target = entry.get('target')
         read_only = entry.get('readOnly', False)
+        docker_name = entry.get('name')
         if type(target) != "string" or not target.startswith('/') or not _only(target, _PATH_CHARS) or '/../' in target + '/':
             fail("MANIFEST ERROR: '{}.target' must be an absolute path in the container such as /data".format(field))
         if target in targets:
@@ -82,6 +86,11 @@ def byo_volumes(manifest, service_path, compose_dir):
             fail("MANIFEST ERROR: '{}.readOnly' must be true or false".format(field))
         if type(source) != "string" or not source:
             fail("MANIFEST ERROR: '{}.source' must be a volume name such as data, or a path such as ./config".format(field))
+        if docker_name != None:
+            if type(docker_name) != "string" or not docker_name or not _only(docker_name, _DOCKER_NAME_CHARS) or docker_name[0] in "_.-":
+                fail("MANIFEST ERROR: '{}.name' must be a Docker volume name such as myapp_data".format(field))
+            if _is_bind(source):
+                fail("MANIFEST ERROR: '{}.name' only applies to a named volume, not a bind mount".format(field))
         if _is_bind(source):
             if not _only(source, _PATH_CHARS):
                 fail("MANIFEST ERROR: '{}.source' must be a path such as ./config".format(field))
@@ -93,7 +102,7 @@ def byo_volumes(manifest, service_path, compose_dir):
             host = source
             if source not in named:
                 named.append(source)
-                markers.append("    {}{}".format(VOLUME_MARKER, source))
+                markers.append("    {}{}{}".format(VOLUME_MARKER, source, (" " + docker_name) if docker_name else ""))
         lines.append("      - {}:{}{}".format(host, target, ":ro" if read_only else ""))
 
     if not lines:
