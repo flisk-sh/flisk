@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
 import { join, relative as relativePath, resolve as resolvePath, sep } from "node:path";
+import { toComposeProjectName } from "./compose-project-name.js";
 const run = (command, args) => execFileSync(command, args, { encoding: "utf-8", stdio: "pipe", windowsHide: true });
 /** Network names the engine creates per project (see engine/.../docker/constants.star and init-networks). */
 const PROJECT_NETWORK_SUFFIXES = [
@@ -16,7 +17,7 @@ const PROJECT_NETWORK_SUFFIXES = [
 ];
 /** The engine prefixes networks with the project name, hyphens turned into underscores. */
 export function projectNetworkNames(projectName) {
-    const prefix = projectName.replace(/-/g, "_");
+    const prefix = toComposeProjectName(projectName);
     return PROJECT_NETWORK_SUFFIXES.map((suffix) => `${prefix}_${suffix}`);
 }
 /**

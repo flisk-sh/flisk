@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { join, resolve, sep } from "node:path";
 import type { HostPortPlan, ProjectCapabilities } from "../types/index.js";
 import { isDatabaseCapabilityEnabled, isGatewayEnabled } from "./capabilities.js";
+import { toComposeProjectName } from "./compose-project-name.js";
 import { PROJECT_JSON } from "./constants.js";
 import { projectEnvLookup } from "./extra-port-publish.js";
 import {
@@ -240,9 +241,7 @@ async function planHostPorts(
   let prefix = "";
   try {
     const project = JSON.parse(readFileSync(join(projectRoot, ".flisk", PROJECT_JSON), "utf-8"));
-    prefix = String(project?.project?.name ?? "flisk-project")
-      .replace(/-/g, "_")
-      .toLowerCase();
+    prefix = toComposeProjectName(String(project?.project?.name ?? "flisk-project")).toLowerCase();
   } catch {
     prefix = "flisk_project";
   }
