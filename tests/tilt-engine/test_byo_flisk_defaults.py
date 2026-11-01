@@ -234,3 +234,50 @@ def test_the_platform_compose_follows_a_renamed_project(tmp_path):
     assert "name: lychee_database\n" in text
     assert "container_name: lychee_postgres\n" in text
     assert "lychee_postgres_data:" in text
+
+
+ENV_FILE_BODY = """
+load('@ENGINE/topologies/tilt/resources/orchestrator/generators/env.star', 'EnvGenerators')
+base = {'stack': 'photos', 'port': 8000, '_resource_path': 'services/photos/x'}
+def gen(**extra):
+    manifest = dict(base)
+    manifest.update(extra)
+    return EnvGenerators.generate_env_file(manifest, None, None)
+r = {
+    'plain': gen(appType='bring-your-own', image='example/app:1'),
+    'computed': gen(appType='bring-your-own', image='example/app:1', databaseName='flisk_photos', _databaseNameComputed=True),
+    'own_name': gen(appType='bring-your-own', image='example/app:1', databaseName='photos_db'),
+    'depends': gen(appType='bring-your-own', image='example/app:1', dependsOn=['postgres']),
+    'database_resource': gen(appType='bring-your-own', image='example/app:1', _sharedDatabase=True),
+    'backend': gen(appType='backend'),
+}
+"""
+
+
+@pytest.fixture(scope="module")
+def env_files(tmp_path_factory) -> dict:
+    if shutil.which("tilt") is None:
+        pytest.skip("tilt CLI not installed")
+    output = run_tilt(tmp_path_factory.mktemp("envfile") / "photos", ENV_FILE_BODY)
+    assert RESULT_MARKER in output, output[-3000:]
+    return json.loads(output.split(RESULT_MARKER, 1)[1].strip())
+
+
+@TILT_REQUIRED
+@pytest.mark.parametrize("name", ["plain", "computed"])
+def test_a_plain_bring_your_own_env_file_has_no_database_name(env_files, name):
+    """#3026: DATABASE_NAME named a database that does not exist for a container that never asked for the shared Postgres."""
+    assert "DATABASE_NAME" not in env_files[name]
+    assert "PORT=8000\n" in env_files[name]
+    assert "API_URL=" in env_files[name]
+
+
+@TILT_REQUIRED
+@pytest.mark.parametrize("name", ["own_name", "depends", "database_resource"])
+def test_a_bring_your_own_service_that_asks_for_the_shared_database_gets_its_name(env_files, name):
+    assert "DATABASE_NAME=" in env_files[name]
+
+
+@TILT_REQUIRED
+def test_the_env_file_of_a_service_flisk_builds_keeps_the_database_name(env_files):
+    assert "DATABASE_NAME=" in env_files["backend"]
