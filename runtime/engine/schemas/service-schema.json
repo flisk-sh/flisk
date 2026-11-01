@@ -411,9 +411,9 @@
           "pattern": "^([0-9]+(\\.[0-9]+)?(us|ms|s|m|h))+$"
         },
         "extraHosts": {
-          "description": "Extra /etc/hosts entries (Compose extra_hosts), each name:address, such as host.docker.internal:host-gateway or db:10.0.0.5.",
+          "description": "Extra /etc/hosts entries (Compose extra_hosts), each name:address, such as host.docker.internal:host-gateway or db:10.0.0.5. The address may be a Compose variable: ${NAME}, ${NAME:-address} or ${NAME-address}.",
           "type": "array",
-          "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*:(host-gateway|[0-9.]+|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*)$" }
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*:((host-gateway|[0-9.]+|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*:[0-9A-Fa-f:]*)|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-(host-gateway|[0-9.]+|[0-9A-Fa-f:]*:[0-9A-Fa-f:]*:[0-9A-Fa-f:]*))?\\})$" }
         },
         "ulimits": {
           "description": "Process limits (Compose ulimits): a number, or soft and hard limits, per limit name, such as {\"nofile\": {\"soft\": 65536, \"hard\": 65536}, \"nproc\": 65535}. -1 means unlimited.",
@@ -459,9 +459,9 @@
             "enum": ["127.0.0.1", "0.0.0.0"]
           },
           "publish": {
-            "description": "The host side of the Compose port mapping, taken from the environment: \"${WEB_HTTP_BIND:-127.0.0.1:80}\". Compose resolves ${VAR:-default} (or ${VAR-default}, the default only when VAR is unset) from the shell and the project .env; the value is a port (every interface) or an IPv4 address:port. Every variable needs a default. Replaces hostPort and bind.",
+            "description": "The host side of the Compose port mapping, taken from the environment: \"${WEB_HTTP_BIND:-127.0.0.1:80}\". Compose resolves ${VAR:-default} (or ${VAR-default}, the default only when VAR is unset) from the shell and the project .env; the value is a port (every interface) or an IPv4 address:port. A bare ${VAR} takes its value from the environment (shell or project .env); the generated file requires it (${VAR:?...}), so Compose stops when it is unset. The container side is always port. Replaces hostPort and bind.",
             "type": "string",
-            "pattern": "^([0-9.:]|\\$\\{[A-Za-z_][A-Za-z0-9_]*:?-[0-9.:]+\\})+$"
+            "pattern": "^([0-9.:]|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-[0-9.:]+)?\\})+$"
           }
         }
       }
@@ -522,9 +522,9 @@
         "required": ["source", "target"],
         "properties": {
           "source": {
-            "description": "A volume name such as data, or a path such as ./config. A bind path may come from the environment: ${NAME:-./path} or ${NAME-./path}, whose default is a path inside the project.",
+            "description": "A volume name such as data, or a path such as ./config. A bind path may come from the environment: ${NAME:-./path} or ${NAME-./path}, whose default is a path inside the project, or a bare ${NAME} (an absolute path from the .env), each optionally followed by /sub/path such as ${STORAGE_DIR}/redis.",
             "type": "string",
-            "pattern": "^([a-z0-9][a-z0-9_-]*|\\.{1,2}(/[A-Za-z0-9_.-]+)*/?|\\$\\{[A-Za-z_][A-Za-z0-9_]*:?-\\.{1,2}(/[A-Za-z0-9_.-]+)*/?\\})$"
+            "pattern": "^([a-z0-9][a-z0-9_-]*|\\.{1,2}(/[A-Za-z0-9_.-]+)*/?|\\$\\{[A-Za-z_][A-Za-z0-9_]*(:?-\\.{1,2}(/[A-Za-z0-9_.-]+)*/?)?\\}(/(?!\\.{1,2}(/|$))[A-Za-z0-9_.-]+)*)$"
           },
           "target": {
             "description": "Absolute path in the container, such as /data.",
