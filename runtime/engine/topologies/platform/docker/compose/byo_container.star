@@ -404,3 +404,4 @@ def byo_container_options(manifest):
         deploy = _deploy_section(cpus, memory, gpus),
         network_aliases = aliases,
     )
+# proof
