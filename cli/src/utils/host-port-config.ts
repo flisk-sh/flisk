@@ -18,6 +18,7 @@ import {
 } from "./host-port-plan.js";
 import { discoverResourcesFromRoot } from "./services.js";
 import { extraPortsOf } from "./status-ports.js";
+import { findTiltPortOwner, isForeignTilt, type TiltPortOwner } from "./tilt-port-owner.js";
 
 const CONFIG_PATH = join(".flisk", ".flisk-out", "host-ports.json");
 
@@ -53,10 +54,22 @@ export function readSavedHostPortPlan(projectRoot: string): HostPortPlan | null 
       !plan.reason
     )
       return null;
+    if (
+      plan.tiltUi !== undefined &&
+      (!Number.isInteger(plan.tiltUi) || plan.tiltUi < 1 || plan.tiltUi > 65535)
+    ) {
+      delete plan.tiltUi;
+    }
     return plan as HostPortPlan;
   } catch {
     return null;
   }
+}
+
+/** Reads the saved Tilt UI port selected during the last successful or ongoing `flisk up`. */
+export function readSavedTiltPort(projectRoot: string): number | null {
+  const plan = readSavedHostPortPlan(projectRoot);
+  return plan?.tiltUi ?? null;
 }
 
 export function writeSavedHostPortPlan(projectRoot: string, plan: HostPortPlan): void {
@@ -122,6 +135,50 @@ export function resolveRuntimeIngressPort(
     // Docker unavailable: keep the planned port.
   }
   return plannedPort;
+}
+
+/**
+ * Resolves the Tilt UI port for runtime inspection commands (`status`, `logs`, `restart`).
+ * Prefers an active Tilt owned by this project or recorded in host-ports.json.
+ * If the default port is held by another project's Tilt, ignores it and falls back to
+ * this project's saved port or reports foreign isolation.
+ */
+export function resolveRuntimeTiltPort(
+  projectRoot: string,
+  options: {
+    envPort?: string;
+    ownerOf?: (port: number) => TiltPortOwner | null;
+  } = {},
+): number | null {
+  const ownerOf = options.ownerOf ?? findTiltPortOwner;
+  const savedPort = readSavedTiltPort(projectRoot);
+
+  if (options.envPort !== undefined && options.envPort !== "") {
+    const parsed = Number(options.envPort);
+    if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65535) {
+      const owner = ownerOf(parsed);
+      if (owner && isForeignTilt(owner, projectRoot)) return null;
+      return parsed;
+    }
+    return null;
+  }
+
+  if (savedPort !== null) {
+    const owner = ownerOf(savedPort);
+    if (owner && isForeignTilt(owner, projectRoot)) {
+      // Saved port has been taken by a foreign project; do not query it
+    } else {
+      return savedPort;
+    }
+  }
+
+  const defaultPort = 10350;
+  const defaultOwner = ownerOf(defaultPort);
+  if (defaultOwner && isForeignTilt(defaultOwner, projectRoot)) {
+    return null;
+  }
+
+  return defaultPort;
 }
 
 /** Host ports the project's bring-your-own services publish through `extraPorts`. Empty when discovery fails. */

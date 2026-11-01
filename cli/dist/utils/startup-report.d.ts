@@ -14,6 +14,10 @@ export interface StartupReport {
     }>;
     /** Not ready with nothing failed upstream: still building or starting. */
     starting: string[];
+    /** Services whose images were still actively building when timed out. */
+    stillBuilding?: string[];
+    /** Last log lines for services that timed out. */
+    lastLogs?: Record<string, string>;
 }
 /**
  * Tilt's error for a failed local command is only "exit status 1"; the reason (for example Docker's "all predefined
@@ -30,4 +34,4 @@ export declare function transitiveDependencies(name: string, dependsOn: Record<s
 export declare function buildStartupReport(jsonText: string, dependsOn: Record<string, string[]>, deferred?: Set<string>): StartupReport;
 /** A failure exists and everything still pending is blocked by it, so waiting longer cannot help. */
 export declare function isStartupStalled(jsonText: string, dependsOn: Record<string, string[]>, deferred?: Set<string>): boolean;
-export declare function formatStartupReport(report: StartupReport, timedOut: boolean, occupantOf?: (port: number) => PortOccupant | null, machineFixes?: Map<string, string>): string[];
+export declare function formatStartupReport(report: StartupReport, timedOut: boolean, occupantOf?: (port: number) => PortOccupant | null, machineFixes?: Map<string, string>, lastLogs?: Record<string, string>): string[];

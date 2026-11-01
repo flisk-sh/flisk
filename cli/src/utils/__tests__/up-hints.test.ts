@@ -47,6 +47,29 @@ describe("upFailureHints", () => {
     );
   });
 
+  it("suggests flisk up again with cached layers and --wait-timeout when timed out while building", () => {
+    const hints = upFailureHints({
+      kind: "services",
+      failed: [],
+      timedOut: true,
+      stillBuilding: ["api"],
+    });
+    expect(hints).toContain("Run flisk up again to resume with cached image layers: flisk up");
+    expect(hints).toContain("Increase the timeout with: flisk up --wait-timeout <seconds>");
+    expect(hints).toContain("Check the whole stack: flisk doctor");
+  });
+
+  it("suggests --wait-timeout when timed out waiting for services to start", () => {
+    const hints = upFailureHints({
+      kind: "services",
+      failed: [],
+      timedOut: true,
+      stillBuilding: [],
+    });
+    expect(hints).not.toContain("Run flisk up again to resume with cached image layers: flisk up");
+    expect(hints).toContain("Increase the timeout with: flisk up --wait-timeout <seconds>");
+  });
+
   it("points a smoke failure at the service's logs and the smoke docs", () => {
     expect(upFailureHints({ kind: "smoke", failed: ["api"] })).toEqual([
       "See why api failed: flisk logs -s api",
