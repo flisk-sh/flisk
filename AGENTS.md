@@ -75,5 +75,5 @@ Run `make help` to inspect all available targets:
 
 - Stale `cli/dist/`: The CLI is committed as compiled output in `cli/dist/`. When modifying `cli/src/`, always run `npm --prefix cli run build` (or `npm --prefix cli run check:dist`). Newly emitted files in `cli/dist/` are gitignored by default; force-stage them with `git add -f cli/dist`.
 - Biome execution: Run Biome through `npm --prefix cli run lint` or `cd cli && ./node_modules/.bin/biome check .`. Do not run bare `npx biome` at the repository root, which executes an obsolete package that exits 0 without checking.
-- Clean test artifacts before linting: Running tests with coverage creates `cli/test-results/` and `cli/coverage/`, which cause Biome checks to fail. Remove these directories before running `biome check .`.
+- Clean test artifacts before linting: Running tests with coverage creates cli/test-results/ and cli/coverage/, which cause Biome checks to fail. Remove these directories before running `biome check .`.
 - Repository memory: Check `.claude/memory/MEMORY.md` before opening a PR for an up-to-date list of verification and CI traps observed across previous runs. Add a line when a task uncovers a new trap.
