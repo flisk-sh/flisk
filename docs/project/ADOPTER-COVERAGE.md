@@ -70,13 +70,13 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | What happened | Issue | State |
 |---|---|---|
 | Flisk injected its own `DATABASE_URL` into services that never asked for the shared Postgres | #2991 | fixed in 1.4.30 (#3010) |
-| a hidden 512 MB memory limit killed images that need more | #2992 | fixed in 1.4.29 |
-| an uppercase project name refused to start | #1519, #2995 | fixed in 1.4.29, import 0.17 lowercases it |
-| the platform Compose file kept the old project name after a rename | #2993 | fixed in 1.4.29 |
-| the unused router and a Postgres start for a project that only has bring-your-own services | #2963 | open |
-| the router's ports are read from the shell, not from `.env` | #2971 | open |
+| a hidden 512 MB memory limit killed images that need more | #2992 | fixed in 1.4.29 (#3001) |
+| an uppercase project name refused to start | #1519, #2995 | fixed in 1.4.29 (#3001), import 0.17 lowercases it |
+| the platform Compose file kept the old project name after a rename | #2993 | fixed in 1.4.29 (#3001) |
+| the unused router and a Postgres start for a project that only has bring-your-own services | #2963 | fixed in 1.4.30 (#3025); the Tiltfile check from #3034 is not released yet |
+| the router's ports are read from the shell, not from `.env` | #2971 | fixed in 1.4.30 (#3028) |
 | status and logs read another project's Tilt | #2943 | fixed in 1.4.29 (#2969, by a contributor); not yet re-checked with two projects running |
-| `flisk up` writes a workspace `package.json`, `.tiltignore` and `shared-platform-engineering/` into the repository root | none yet | open: the adopter has to ignore them |
+| `flisk up` writes a workspace `package.json`, `.tiltignore` and `shared-platform-engineering/` into the repository root | #3043 | open: the adopter has to ignore them |
 
 ## Updating this file
 
