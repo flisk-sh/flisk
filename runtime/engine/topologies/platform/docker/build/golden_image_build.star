@@ -97,7 +97,7 @@ def _pull_line(key, ref):
 
 def _pull_block(pull_lines):
     """
-    Opt-in prebuilt images. With FLISK_GOLDEN_REGISTRY set (for example docker.io/flisk-sh), every golden image is pulled
+    Opt-in prebuilt images. With FLISK_GOLDEN_REGISTRY set (for example ghcr.io/flisk-sh), every golden image is pulled
     for this Dockerfile's hash before anything is built. If any pull is missing, the local build runs as before.
     """
     return '\n'.join([
