@@ -512,6 +512,31 @@ function normalizeProjectConfig(value) {
     if (config.capabilities !== undefined && !isCapabilityMap(config.capabilities)) {
         return null;
     }
+    let repos;
+    if (config.repos !== undefined) {
+        if (!Array.isArray(config.repos)) {
+            return null;
+        }
+        repos = [];
+        for (const item of config.repos) {
+            if (!item ||
+                typeof item !== "object" ||
+                typeof item.url !== "string" ||
+                typeof item.dir !== "string" ||
+                !item.url.trim() ||
+                !item.dir.trim() ||
+                (item.branch !== undefined && typeof item.branch !== "string")) {
+                return null;
+            }
+            repos.push({
+                url: item.url.trim(),
+                dir: item.dir.trim(),
+                ...(typeof item.branch === "string" && item.branch.trim()
+                    ? { branch: item.branch.trim() }
+                    : {}),
+            });
+        }
+    }
     const capabilities = config.capabilities;
     return {
         version: config.version,
@@ -523,6 +548,7 @@ function normalizeProjectConfig(value) {
         overrides: config.overrides,
         orchestration: config.orchestration,
         ...(capabilities ? { capabilities } : {}),
+        ...(repos ? { repos } : {}),
     };
 }
 /** The project has no .flisk/project.json yet, as opposed to one that exists but is unreadable or invalid. */
@@ -568,7 +594,8 @@ export function readProjectConfig(projectRoot) {
             "phases (object with pre_alpha/alpha/beta/out_of_scope enabledStacks), " +
             "optional_infra (object with boolean flags), " +
             "discovery (object with paths array), " +
-            "capabilities (optional object of booleans)");
+            "capabilities (optional object of booleans), " +
+            "repos (optional array of { url, dir, branch? } with non-empty url and dir)");
     }
     return projectConfig;
 }

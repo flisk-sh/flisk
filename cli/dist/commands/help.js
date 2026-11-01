@@ -27,6 +27,11 @@ const COMMAND_GROUPS = [
                 alias: "--dry-run --yes",
             },
             {
+                name: "repos",
+                desc: "Manage declared Git service repositories",
+                alias: "clone",
+            },
+            {
                 name: "export",
                 desc: "Write render.yaml, wrangler.toml or docker-compose.yml from service.json (runs flisk-export; never deploys)",
                 alias: "render|wrangler|compose --dry-run",

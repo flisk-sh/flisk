@@ -5,7 +5,7 @@ import { connect } from "node:net";
 import { join } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isVendoredEngineStale, isWrappedTiltfileStale, ProjectConfigNotFoundError, verifyMasterConfigs, } from "../generator/template-engine.js";
+import { ensureProjectRuntimeAssets, generateMasterConfigs, isTiltfileOrchestration, isVendoredEngineStale, isWrappedTiltfileStale, ProjectConfigNotFoundError, readProjectConfig, verifyMasterConfigs, } from "../generator/template-engine.js";
 import { cliInvocation } from "../mcp/tools.js";
 import { DEVCONTAINER_DOCKER_FIX, detectHost, isContainerHost, WEBCONTAINER_UP_MESSAGE, } from "../utils/agent-host.js";
 import { assertGatewayOptOutIsConfigured, disableDatabaseCapability, isDatabaseCapabilityEnabled, isGatewayEnabled, } from "../utils/capabilities.js";
@@ -32,6 +32,7 @@ import { findAvailablePort } from "../utils/port-assignment.js";
 import { formatPortFallbackNotice } from "../utils/port-fallback-notice.js";
 import { findPortOccupant } from "../utils/port-occupant.js";
 import { applyProfiles, declaredProfiles, describeSkipped, } from "../utils/profiles.js";
+import { cloneMissingRepos } from "../utils/project-repos.js";
 import { isApiServiceType } from "../utils/resource-kind.js";
 import { enforceSchemaVersionGate } from "../utils/schema-version-gate.js";
 import { enforceServiceConfigGate, warnSchemaVersions, warnSecretConflicts, } from "../utils/service-config-checks.js";
@@ -367,6 +368,33 @@ async function runUpWait(options) {
     }
     process.exit(1);
 }
+/** Clones the repositories declared in .flisk/project.json that are missing. Returns true when one was cloned. */
+async function cloneDeclaredRepos(projectRoot) {
+    let repos;
+    try {
+        repos = readProjectConfig(projectRoot).repos;
+    }
+    catch {
+        // A missing or invalid project.json is reported by the checks that run next.
+    }
+    if (!repos || repos.length === 0)
+        return false;
+    const results = await cloneMissingRepos(projectRoot, repos);
+    return results.some((result) => result.cloned);
+}
+/** Directories of declared repositories that do not exist yet. */
+function missingDeclaredRepoDirs(projectRoot) {
+    if (!projectRoot)
+        return [];
+    let repos;
+    try {
+        repos = readProjectConfig(projectRoot).repos;
+    }
+    catch {
+        return [];
+    }
+    return (repos ?? []).map((repo) => repo.dir).filter((dir) => !existsSync(join(projectRoot, dir)));
+}
 export const upCommand = new Command("up")
     .description("Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster")
     .alias("deploy")
@@ -409,6 +437,25 @@ export const upCommand = new Command("up")
             ignoreVersion: options.ignoreVersion,
             onFail: (message) => emit?.({ ok: false }, [{ code: "FLISK_VERSION_TOO_OLD", message }]),
         });
+    }
+    // Declared repositories are cloned before either path discovers services, so a native run and a container run both see
+    // the services they hold. A dry run never clones: it reports what is missing instead.
+    let hasClonedRepos = false;
+    if (!options.dryRun) {
+        const declaredRoot = findProjectRoot();
+        if (declaredRoot) {
+            try {
+                hasClonedRepos = await cloneDeclaredRepos(declaredRoot);
+            }
+            catch (error) {
+                if (error instanceof FliskError) {
+                    if (emit)
+                        emit({ ok: false }, [toMachineError(error).error]);
+                    return error.exit();
+                }
+                throw error;
+            }
+        }
     }
     // Every selected service declares `command`: run them as local processes, with no Docker, Compose, Tilt or generated
     // files (#2229). Decided before any Docker or Tilt check; a project without `command` services never enters this branch.
@@ -533,7 +580,14 @@ export const upCommand = new Command("up")
             assertGatewayOptOutIsConfigured(foundRoot);
         // With the gateway off nothing publishes the routed URLs, so none is printed or smoke-checked.
         const gatewayEnabled = isGatewayEnabled(projectRoot, options);
-        const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot ? initialDiscovery : undefined);
+        const discoveredResources = discoverResourcesStrict(foundRoot && foundRoot === schemaRoot && !hasClonedRepos ? initialDiscovery : undefined);
+        // Services in a repository that was just cloned were not in the discovery the gate above checked.
+        if (foundRoot && hasClonedRepos) {
+            enforceSchemaVersionGate(foundRoot, {
+                resources: discoveredResources,
+                onInvalid: (message) => emit?.({ ok: false }, [{ code: "INVALID_SCHEMA_VERSION", message }]),
+            });
+        }
         let discoveredStacks;
         let discoveredStackNames = [];
         if (!options.only || stackName) {
@@ -551,7 +605,14 @@ export const upCommand = new Command("up")
                 ? getResourcesForStack(stackName, discoveredResources)
                 : discoveredResources;
             const unknown = findUnknownServices(options.only, candidates);
-            if (unknown.length > 0) {
+            // A dry run does not clone, so a service in a declared repository that is not cloned yet is pending, not unknown.
+            const pendingClone = options.dryRun ? missingDeclaredRepoDirs(foundRoot) : [];
+            if (unknown.length > 0 && pendingClone.length > 0) {
+                if (!emit && !options.quiet) {
+                    console.warn(chalk.yellow(`Pending clone: ${unknown.join(", ")} may be in a repository not cloned yet (${pendingClone.join(", ")}). A real run clones it first.`));
+                }
+            }
+            else if (unknown.length > 0) {
                 const validNames = candidates.map((service) => service.name);
                 const error = errorFactories.unknownServices(unknown, validNames);
                 emit?.({ ok: false }, [
