@@ -6,6 +6,7 @@ import chalk from "chalk";
 import { readEnvFileValues } from "./env-selection.js";
 import { showError } from "./errors.js";
 import { formatCount } from "./formatting.js";
+import { ensureGeneratedSecrets } from "./generated-secrets.js";
 import { isDockerRunning } from "./native-container.js";
 import { dependencyWaves, findMissingPrograms, formatPrefix, isPortListening, isProcessAlive, NATIVE_DIR, NativeSupervisor, nativeRunStatePath, planNativeRun, readNativeRunState, stopNativeRun, } from "./native-runtime.js";
 import { findPortOccupant } from "./port-occupant.js";
@@ -32,6 +33,14 @@ export async function runNativeUp(input) {
         showError(message);
         return exit(1);
     };
+    // Names a service declares in secrets.generate are written once to the env file before anything starts (never printed).
+    const generatedNames = ensureGeneratedSecrets(projectRoot, selected, {
+        envFilePath: input.envFilePath,
+        dryRun: input.dryRun,
+    });
+    if (generatedNames.length > 0 && !quiet && !input.dryRun) {
+        console.log(chalk.gray(`Generated ${generatedNames.join(", ")} into the env file (once; existing values unchanged)`));
+    }
     const vars = runVariables(projectRoot, input.envFilePath);
     const plan = planNativeRun(selected, vars, projectRoot, readProjectNameOrUndefined(projectRoot));
     if (plan.errors.length > 0)

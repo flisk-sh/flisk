@@ -608,11 +608,14 @@
           },
           "type": "array",
           "uniqueItems": true
+        },
+        "generate": {
+          "description": "Secrets Flisk generates once on the first `flisk up`: { NAME: \"hex:N\" | \"base64:N\" }, N random bytes (8 to 128). A name missing from the project .env is appended to it (git-ignored, mode 0600); an existing value is never changed. The service reads it through ${NAME}. Not combinable with a fixed NAME in env/params.",
+          "additionalProperties": { "type": "string", "pattern": "^(hex|base64):[0-9]+$" },
+          "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "type": "object"
         }
       },
-      "required": [
-        "required"
-      ],
       "type": "object"
     },
     "featuresEnabled": {
