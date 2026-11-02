@@ -169,6 +169,8 @@ Many apps keep Postgres or Redis in Docker and run their own code with `npm run 
 }
 ```
 
+The mount is `/var/lib/postgresql/data` for Postgres 17 and older; from 18 it must be `/var/lib/postgresql`, or the container refuses to start (`flisk config verify` and `flisk doctor` warn about it).
+
 The API lists `"dependsOn": ["postgres"]` and connects to `localhost:5432`. What each field does in a mixed run:
 
 | Field | In a mixed run |

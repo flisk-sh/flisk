@@ -10,6 +10,7 @@ import {
   checkDependsOnShape,
   checkGpuRuntime,
   checkNetworkPorts,
+  checkPostgresVolumes,
   checkRequiredSecrets,
   checkSchemaVersions,
   checkServiceFields,
@@ -17,6 +18,7 @@ import {
   checkSidecars,
   checkVolumes,
   enforceServiceConfigGate,
+  postgresImageMajor,
   warnSchemaVersions,
 } from "../service-config-checks.js";
 
@@ -831,4 +833,73 @@ describe("checkGpuRuntime", () => {
     expect(checkGpuRuntime(root, undefined, () => ["runc", "nvidia"]).didPass).toBe(true);
     expect(checkGpuRuntime(root, undefined, () => null).didPass).toBe(true);
   });
+});
+
+describe("postgresImageMajor", () => {
+  it.each([
+    ["postgres:18", 18],
+    ["postgres:18-alpine", 18],
+    ["postgres:18.1", 18],
+    ["postgres:18-bookworm", 18],
+    ["pgvector/pgvector:pg18", 18],
+    ["docker.io/library/postgres:19", 19],
+    ["postgres:17", 17],
+    ["postgres:15-alpine", 15],
+    ["pgvector/pgvector:pg17", 17],
+  ])("reads %s as major %s", (image, major) => {
+    expect(postgresImageMajor(image)).toBe(major);
+  });
+
+  it.each(["postgres", "postgres:latest", "postgres@sha256:abc123", "redis:18", undefined])(
+    "has no numeric major for %s",
+    (image) => {
+      expect(postgresImageMajor(image)).toBeNull();
+    },
+  );
+});
+
+describe("checkPostgresVolumes", () => {
+  const withVolume = (image: string, target: string) =>
+    service("db", {
+      appType: "bring-your-own",
+      image,
+      volumes: [{ source: "pg", target }],
+    });
+
+  it.each(["postgres:18", "postgres:18-alpine", "pgvector/pgvector:pg18"])(
+    "warns, without failing, for %s at the pre-18 path",
+    (image) => {
+      withVolume(image, "/var/lib/postgresql/data");
+      const result = checkPostgresVolumes(root);
+      expect(result.didPass).toBe(false);
+      expect(result.isWarning).toBe(true);
+      expect(result.message).toContain("volumes[0].target");
+      expect(result.fix).toContain("/var/lib/postgresql");
+    },
+  );
+
+  it("fails, not only warns, under --strict", () => {
+    withVolume("postgres:18", "/var/lib/postgresql/data");
+    const result = checkPostgresVolumes(root, undefined, true);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(false);
+  });
+
+  it("warns for a trailing slash", () => {
+    withVolume("postgres:18", "/var/lib/postgresql/data/");
+    expect(checkPostgresVolumes(root).didPass).toBe(false);
+  });
+
+  it("passes when 18 mounts /var/lib/postgresql", () => {
+    withVolume("postgres:18-alpine", "/var/lib/postgresql");
+    expect(checkPostgresVolumes(root).didPass).toBe(true);
+  });
+
+  it.each(["postgres:17", "postgres:latest", "postgres", "postgres@sha256:abc123"])(
+    "passes for %s at /var/lib/postgresql/data",
+    (image) => {
+      withVolume(image, "/var/lib/postgresql/data");
+      expect(checkPostgresVolumes(root).didPass).toBe(true);
+    },
+  );
 });
