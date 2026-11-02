@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { parseTiltResourceFailures, summarizeTiltBuildError } from "./doctor-runtime.js";
 import { conflictPort, portConflictFix } from "./port-conflict-fix.js";
-import { effectiveRuntimeStatus, isTiltResourcePending } from "./tilt-resource-state.js";
+import { effectiveRuntimeStatus, isNeverStarted, isTiltResourcePending, } from "./tilt-resource-state.js";
 import { onlyEnabledResources } from "./up-readiness.js";
 /** The resources Tilt says this one is waiting for. */
 function waitingOn(item) {
@@ -46,8 +46,10 @@ export function transitiveDependencies(name, dependsOn) {
     visit(name);
     return seen;
 }
+// Same rule as parseTiltResourceFailures: a resource never queued or deployed (auto_init=False) is not starting.
 function isPending(item) {
-    return isTiltResourcePending(item.status?.updateStatus ?? "", effectiveRuntimeStatus(item.status));
+    return (isTiltResourcePending(item.status?.updateStatus ?? "", effectiveRuntimeStatus(item.status)) &&
+        !isNeverStarted(item.status));
 }
 export function buildStartupReport(jsonText, dependsOn, deferred = new Set()) {
     const enabledJson = onlyEnabledResources(jsonText);

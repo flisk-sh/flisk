@@ -4,7 +4,11 @@
 import type { PortOccupant } from "../types/index.js";
 import { parseTiltResourceFailures, summarizeTiltBuildError } from "./doctor-runtime.js";
 import { conflictPort, portConflictFix } from "./port-conflict-fix.js";
-import { effectiveRuntimeStatus, isTiltResourcePending } from "./tilt-resource-state.js";
+import {
+  effectiveRuntimeStatus,
+  isNeverStarted,
+  isTiltResourcePending,
+} from "./tilt-resource-state.js";
 import { onlyEnabledResources } from "./up-readiness.js";
 
 export interface StartupReport {
@@ -84,10 +88,11 @@ export function transitiveDependencies(
   return seen;
 }
 
+// Same rule as parseTiltResourceFailures: a resource never queued or deployed (auto_init=False) is not starting.
 function isPending(item: Item): boolean {
-  return isTiltResourcePending(
-    item.status?.updateStatus ?? "",
-    effectiveRuntimeStatus(item.status),
+  return (
+    isTiltResourcePending(item.status?.updateStatus ?? "", effectiveRuntimeStatus(item.status)) &&
+    !isNeverStarted(item.status)
   );
 }
 

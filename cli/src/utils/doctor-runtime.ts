@@ -380,14 +380,11 @@ export function parseTiltResourceFailures(
       continue;
     }
 
-    if (
-      name !== "(Tiltfile)" &&
-      isTiltResourcePending(updateStatus, runtimeStatus) &&
-      !isNeverStarted(item.status)
-    ) {
+    if (name !== "(Tiltfile)" && isTiltResourcePending(updateStatus, runtimeStatus)) {
+      // A sablier.deferStart resource is never started on purpose, so check it before the never-started skip.
       if (deferredNames.has(name)) {
         deferredCount += 1;
-      } else {
+      } else if (!isNeverStarted(item.status)) {
         pendingCount += 1;
       }
     }
