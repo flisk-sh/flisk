@@ -170,6 +170,29 @@ describe("doctor-runtime utilities", () => {
   });
 
   describe("parseTiltResourceFailures", () => {
+    it("does not count a never-started resource (auto_init=False) as pending", () => {
+      const tiltJson = JSON.stringify({
+        items: [
+          {
+            metadata: { name: "healthy-api" },
+            status: { updateStatus: "ok", runtimeStatus: "ok" },
+          },
+          {
+            metadata: { name: "redis" },
+            status: {
+              updateStatus: "none",
+              runtimeStatus: "none",
+              lastDeployTime: null,
+              pendingBuildSince: null,
+            },
+          },
+        ],
+      });
+      const parsed = parseTiltResourceFailures(tiltJson);
+      expect(parsed.pendingCount).toBe(0);
+      expect(parsed.okCount).toBe(1);
+    });
+
     it("categorizes ok, error, pending, and deferred resources", () => {
       const tiltJson = JSON.stringify({
         items: [

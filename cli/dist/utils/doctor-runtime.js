@@ -13,7 +13,7 @@ import { isApiServiceType } from "./resource-kind.js";
 import { healthCheckPathOf, isHealthCheckDisabled } from "./service-manifest.js";
 import { getProjectName } from "./service-urls.js";
 import { discoverResources, discoverResourcesFromRoot } from "./services.js";
-import { effectiveRuntimeStatus, isTiltResourcePending, UNHEALTHY_CONTAINER_MESSAGE, } from "./tilt-resource-state.js";
+import { effectiveRuntimeStatus, isNeverStarted, isTiltResourcePending, UNHEALTHY_CONTAINER_MESSAGE, } from "./tilt-resource-state.js";
 import { getTiltPollingPort } from "./tilt-startup.js";
 import { findOnPath } from "./which.js";
 const EXEC_TIMEOUT_MS = 10_000;
@@ -287,7 +287,9 @@ export function parseTiltResourceFailures(jsonText, deferredNames = new Set()) {
             okCount += 1;
             continue;
         }
-        if (name !== "(Tiltfile)" && isTiltResourcePending(updateStatus, runtimeStatus)) {
+        if (name !== "(Tiltfile)" &&
+            isTiltResourcePending(updateStatus, runtimeStatus) &&
+            !isNeverStarted(item.status)) {
             if (deferredNames.has(name)) {
                 deferredCount += 1;
             }

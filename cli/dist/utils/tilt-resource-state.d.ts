@@ -3,6 +3,17 @@
  * (`in_progress`). Readiness must treat all of these as not ready.
  */
 export declare function isTiltResourcePending(updateStatus: string, runtimeStatus: string): boolean;
+/**
+ * A resource Flisk registers but never starts (`auto_init=False`, such as a compose service kept only so the file loads).
+ * Tilt lists it with both statuses `none` and no build queued or deploy done, so it is waiting on nothing and must not
+ * hold the stack back. Once it is queued or has deployed, it counts as pending again.
+ */
+export declare function isNeverStarted(status?: {
+    lastDeployTime?: string | null;
+    pendingBuildSince?: string | null;
+    updateStatus?: string;
+    runtimeStatus?: string;
+}): boolean;
 /** What a Tilt failure says when the container runs but Docker reports its health check as failing. */
 export declare const UNHEALTHY_CONTAINER_MESSAGE = "container is running, but its health check is failing";
 /**
