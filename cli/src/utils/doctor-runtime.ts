@@ -22,6 +22,7 @@ import { discoverResources, discoverResourcesFromRoot } from "./services.js";
 import type { SmokeResult } from "./smoke.js";
 import {
   effectiveRuntimeStatus,
+  isNeverStarted,
   isTiltResourcePending,
   UNHEALTHY_CONTAINER_MESSAGE,
 } from "./tilt-resource-state.js";
@@ -379,7 +380,11 @@ export function parseTiltResourceFailures(
       continue;
     }
 
-    if (name !== "(Tiltfile)" && isTiltResourcePending(updateStatus, runtimeStatus)) {
+    if (
+      name !== "(Tiltfile)" &&
+      isTiltResourcePending(updateStatus, runtimeStatus) &&
+      !isNeverStarted(item.status)
+    ) {
       if (deferredNames.has(name)) {
         deferredCount += 1;
       } else {
