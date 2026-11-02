@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
 import { spawn } from "child_process";
-import { writeFileSync, mkdirSync, rmSync } from "fs";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const TEST_PORT = 9999;
 const TEST_STATE_DIR = join(import.meta.dir, ".test-agent-state");
@@ -200,7 +201,9 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
     // Check sessions list: session should be idle now
     const sessRes = await fetch(`http://localhost:${TEST_PORT}/sessions`);
-    const sessList = (await sessRes.json()) as { sessions: Array<{ sessionId: string; status: string }> };
+    const sessList = (await sessRes.json()) as {
+      sessions: Array<{ sessionId: string; status: string }>;
+    };
     const sess = sessList.sessions.find((s) => s.sessionId === "test-session-1");
     expect(sess).toBeDefined();
     expect(sess!.status).toBe("idle");
@@ -216,7 +219,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         method: "POST",
         headers: { "x-session-id": sessionId, "content-type": "application/json" },
         body: JSON.stringify({ input: `message-${i}` }),
-      })
+      }),
     );
 
     const responses = await Promise.all(requests);
@@ -224,7 +227,9 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
     // Check sessions list: session should be idle after all complete
     const sessRes = await fetch(`http://localhost:${TEST_PORT}/sessions`);
-    const sessList = (await sessRes.json()) as { sessions: Array<{ sessionId: string; status: string }> };
+    const sessList = (await sessRes.json()) as {
+      sessions: Array<{ sessionId: string; status: string }>;
+    };
     const sess = sessList.sessions.find((s) => s.sessionId === sessionId);
     expect(sess).toBeDefined();
     expect(sess!.status).toBe("idle"); // Should be idle after all concurrent requests complete
@@ -240,7 +245,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
         method: "POST",
         headers: { "x-session-id": sessionId, "content-type": "application/json" },
         body: JSON.stringify({ input: `msg-${i}` }),
-      })
+      }),
     );
 
     const responses = await Promise.all(requests);
@@ -248,10 +253,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
     // Load checkpoint - should have all messages saved atomically
     const checkpoint = JSON.parse(
-      require("fs").readFileSync(
-        join(TEST_STATE_DIR, `${sessionId}.json`),
-        "utf8"
-      )
+      require("fs").readFileSync(join(TEST_STATE_DIR, `${sessionId}.json`), "utf8"),
     );
     expect(checkpoint.messages.length).toBe(concurrency * 2); // Each request adds 2 messages (user + agent)
     expect(checkpoint.sessionId).toBe(sessionId);
