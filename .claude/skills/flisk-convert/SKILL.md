@@ -14,7 +14,7 @@ Take an app that already exists and make `flisk up` start it. Change as little a
 
 ## 0. Whose repo is it?
 
-Your own repo, or one the user owns: go on. **Someone else's repo: check its size first** (`gh repo view OWNER/REPO --json stargazerCount -q .stargazerCount`). More than 150 stars means no pull request from us, ever: a maintainer of a large org blocked us for one (2026-11-02). Do not open it, and do not push a branch to a fork "for later". You may still convert a local clone to try Flisk, if the user asks; tell them it stays local. Under 150 stars, follow the repo's CONTRIBUTING, disclose that you are a Flisk maintainer using an AI assistant, and open an issue or discussion before a large change.
+Your own repo, or one the user owns: go on. **Someone else's repo: check its size first** (`gh repo view OWNER/REPO --json stargazerCount -q .stargazerCount`). More than 500 stars means no pull request from us, ever: a maintainer of a large org blocked us for one (2026-11-02). Do not open it, and do not push a branch to a fork "for later". You may still convert a local clone to try Flisk, if the user asks; tell them it stays local. At 500 stars or fewer, follow the repo's CONTRIBUTING, disclose that you are a Flisk maintainer using an AI assistant, and open an issue or discussion before a large change.
 
 ## 1. Look before you change
 
