@@ -19,6 +19,7 @@ import { errorFactories, FliskError, getErrorMessage, requireProjectRoot, runCom
 import { ensureSmokeRecordsIgnored } from "../utils/file-helpers.js";
 import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { formatCount } from "../utils/formatting.js";
+import { ensureGeneratedSecrets } from "../utils/generated-secrets.js";
 import { ensureGeneratedRootIgnored } from "../utils/gitignore-generated.js";
 import { exportHostPortPlan, getHostPortPlan, writeSavedHostPortPlan, } from "../utils/host-port-config.js";
 import { formatHostPortPlan } from "../utils/host-port-plan.js";
@@ -667,6 +668,13 @@ export const upCommand = new Command("up")
                 const addedEnvKeys = completeEnvFile(projectRoot);
                 if (addedEnvKeys.length > 0 && !options.quiet) {
                     console.log(chalk.gray(`Added ${addedEnvKeys.join(", ")} to .env (generated; existing values unchanged)`));
+                }
+            }
+            // Names in secrets.generate are appended to the .env once (#3140); the values are never printed.
+            if (foundRoot && !envFileSelection) {
+                const generatedNames = ensureGeneratedSecrets(projectRoot, discoveredResources);
+                if (generatedNames.length > 0 && !options.quiet) {
+                    console.log(chalk.gray(`Generated ${generatedNames.join(", ")} into .env (once; existing values unchanged)`));
                 }
             }
             // `--no-database` is saved in project.json and the generated files are rebuilt from it, so the flag also takes effect on a

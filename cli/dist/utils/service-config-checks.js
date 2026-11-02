@@ -10,6 +10,7 @@ import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
 import { projectEnvLookup } from "./extra-port-publish.js";
 import { formatCount } from "./formatting.js";
+import { generateEntries } from "./generated-secrets.js";
 import { findProjectRoot } from "./paths.js";
 import { envFileErrors, providersOf, SERVICE_MANIFEST_SCHEMA_VERSION, secretConflictWarnings, validateServiceManifest, volumesErrors, } from "./service-manifest.js";
 import { discoverResourcesFromRoot } from "./services.js";
@@ -450,8 +451,13 @@ export function checkRequiredSecrets(projectRoot = findProjectRoot() ?? process.
     const problems = resources.flatMap((resource) => {
         const required = resource.config?.secrets
             ?.required;
+        // `secrets.generate` names are written to the env file by `flisk up` before anything starts.
+        const generated = generateEntries(resource.config);
         const missingSecrets = (Array.isArray(required) ? required : [])
-            .filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !has(name))
+            .filter((name) => typeof name === "string" &&
+            /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) &&
+            !has(name) &&
+            !generated.has(name))
             .map((name) => `${filePath(projectRoot, resource)}: secret ${name} has no value`);
         // A provider's token is required unless the provider has a local fallback (service.json `providers`).
         const missingTokens = providersOf(resource.config)

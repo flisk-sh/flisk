@@ -11,6 +11,7 @@ import { PROJECT_ENV_FILE_VAR } from "./env-selection.js";
 import { parseEnv } from "./env-validator.js";
 import { projectEnvLookup } from "./extra-port-publish.js";
 import { formatCount } from "./formatting.js";
+import { generateEntries } from "./generated-secrets.js";
 import { findProjectRoot } from "./paths.js";
 import {
   envFileErrors,
@@ -524,10 +525,15 @@ export function checkRequiredSecrets(
   const problems = resources.flatMap((resource) => {
     const required: unknown = (resource.config?.secrets as { required?: unknown } | undefined)
       ?.required;
+    // `secrets.generate` names are written to the env file by `flisk up` before anything starts.
+    const generated = generateEntries(resource.config as Record<string, unknown> | undefined);
     const missingSecrets = (Array.isArray(required) ? required : [])
       .filter(
         (name): name is string =>
-          typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !has(name),
+          typeof name === "string" &&
+          /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) &&
+          !has(name) &&
+          !generated.has(name),
       )
       .map((name) => `${filePath(projectRoot, resource)}: secret ${name} has no value`);
     // A provider's token is required unless the provider has a local fallback (service.json `providers`).

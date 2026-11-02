@@ -106,6 +106,19 @@ A service has exactly one runtime source: a `command`, or a container (`image`, 
 - **Checks before it starts.** It refuses to start when a command's program is not installed, a port is already in use (it names the process that holds it), two services share a port, or a `dependsOn` name is not a service with a command.
 - **Nothing generated.** It writes `.flisk/project.json` the first time, plus `.flisk/native/` for logs and the process list (that folder ignores itself in git). No Dockerfile, Compose file, Tiltfile, Vite or TypeScript config.
 
+## Generated dev secrets
+
+A service that needs a key for local development (an auth secret, an encryption key) should not carry a fixed fallback in `service.json`, because that value ends up in every checkout and in real installs. Declare it under `secrets.generate` instead:
+
+```json
+{ "secrets": { "generate": { "BETTER_AUTH_SECRET": "hex:32", "APP_ENCRYPTION_KEY": "base64:32" } },
+  "env": { "AUTH_SECRET": "${BETTER_AUTH_SECRET}" } }
+```
+
+`"hex:N"` or `"base64:N"` makes N random bytes (8 to 128). On `flisk up`, before any service starts, each name missing from the project `.env` is appended to it once, with a value from `crypto.randomBytes`. A new `.env` is created with mode 0600; existing lines are never changed or reordered, and a name that already has a value in `.env` (or in the shell) is kept, so the value is stable across restarts. Services read it through `${NAME}`. `flisk up` prints the names it generated, never the values, and `.env` is git-ignored by `flisk up`/`flisk init`. Back the `.env` up if the key protects data you cannot lose: a deleted `.env` gets a new key.
+
+`flisk config verify` refuses a bad spec (unknown format, N out of range, invalid name) and a generated name that also has a fixed value in the service's `env` or `params`. A name in `secrets.required` that is also generated counts as satisfied. With `--env-file`, the names are appended to that file instead.
+
 ## Other commands
 
 | Command | With local processes |
