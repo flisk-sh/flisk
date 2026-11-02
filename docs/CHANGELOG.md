@@ -4,6 +4,18 @@ Notable changes to the `flisk` CLI. Versions match [npm](https://www.npmjs.com/p
 
 ## Unreleased
 
+## 1.4.33 (2026-11-02)
+
+- Cycle-time scorer with median, p90, and slow PR detection (#3147): `flisk scores` now tracks cycle time (time from open to merge) for each PR, reporting the median and 90th percentile to help identify process bottlenecks.
+
+- Shared project checks between container and local-process lists (#3146): `flisk doctor` refactored to deduplicate project validation logic, ensuring the same checks run whether services use Docker or run locally.
+
+- Postgres 18+ image volume mount validation (#3142): `flisk doctor` warns when a `postgres:18+` image mounts its volume at a non-standard path, as the default `/var/lib/postgresql/data` is required for proper data persistence.
+
+- Service directory .env expansion (#3143): Services can now use `${VAR}` in their `env` values, with variables read from the service folder's `.env` file, allowing environment-specific configuration.
+
+- Secrets generation to .env (#3144): `flisk secrets generate` now writes generated development secrets directly into the git-ignored `.env` file once, avoiding repeated prompts during local development.
+
 ## 1.4.24 (2026-10-31)
 
 - Opt-in profiles (#2873): `"profiles": ["admin"]` in a `service.json` leaves the service out of `flisk up` unless `flisk up --profile admin` (or `--only <service>`) asks for it, so heavy parts stay off by default. `flisk up` says what it left out and refuses a profile no service declares. `scripts/benchmark/memory-footprint.mjs` measures a running stack's idle memory per profile; the restaurant demo idles at about 203 MiB ([memory footprint](benchmarks/memory-footprint.md)).
