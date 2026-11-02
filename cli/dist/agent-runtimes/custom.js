@@ -171,7 +171,7 @@ const server = createServer(async (req, res) => {
       const body = await readJson(req);
       const input = String(body.input ?? '');
       // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
-      await queueSessionOperation(sessionId, async () => {
+      return await queueSessionOperation(sessionId, async () => {
         activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
         try {
           const checkpoint = await store.load(sessionId);
@@ -366,7 +366,7 @@ const server = createServer(async (req, res) => {
       const body = await readJson(req);
       const input = String(body.input ?? '');
       // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
-      await queueSessionOperation(sessionId, async () => {
+      return await queueSessionOperation(sessionId, async () => {
         activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
         try {
           const checkpoint = await store.load(sessionId);
