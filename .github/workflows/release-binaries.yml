@@ -573,8 +573,12 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
-          if gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists, leaving it alone."
+          if existing_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" --jq '.object.sha' 2>/dev/null); then
+            if [ "$existing_sha" != "$GITHUB_SHA" ]; then
+              echo "::warning::Tag v${VERSION} already exists at ${existing_sha}, but this run published ${GITHUB_SHA}. Leaving the tag alone."
+            else
+              echo "Tag v${VERSION} already exists at ${existing_sha}, leaving it alone."
+            fi
           else
             gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/v${VERSION}" -f sha="$GITHUB_SHA" >/dev/null
           fi
