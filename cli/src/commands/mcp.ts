@@ -15,6 +15,9 @@ export const mcpCommand = new Command("mcp")
     const server = createMcpServer(createFliskTools(), {
       name: "flisk",
       version: getPackageVersion(),
+      icons: [
+        { src: "https://mcp.flisk.sh/icon-512.png", mimeType: "image/png", sizes: ["512x512"] },
+      ],
     });
     // Stdout is the protocol channel. Nothing else may write to it; diagnostics go to stderr.
     const lines = createInterface({ input: process.stdin });

@@ -29,7 +29,14 @@ export interface McpServer {
     /** Handle one line from the client; returns the line to send back, or null for notifications. */
     handleLine(line: string): Promise<string | null>;
 }
+/** An icon a client may show next to the server (MCP Implementation.icons). */
+export interface McpIcon {
+    src: string;
+    mimeType?: string;
+    sizes?: string[];
+}
 export declare function createMcpServer(tools: McpTool[], info: {
     name: string;
     version: string;
+    icons?: McpIcon[];
 }): McpServer;

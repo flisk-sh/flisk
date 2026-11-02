@@ -216,3 +216,16 @@ describe("mcp server", () => {
     }
   });
 });
+
+describe("serverInfo icons", () => {
+  it("returns the icons it was given, so clients can show them", async () => {
+    const icons = [
+      { src: "https://mcp.flisk.sh/icon-512.png", mimeType: "image/png", sizes: ["512x512"] },
+    ];
+    const withIcons = createMcpServer([echo], { name: "flisk", version: "1.0.0", icons });
+    const raw = await withIcons.handleLine(
+      JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    );
+    expect(JSON.parse(raw ?? "").result.serverInfo.icons).toEqual(icons);
+  });
+});
