@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { parseTiltResourceFailures, summarizeTiltBuildError } from "./doctor-runtime.js";
 import { conflictPort, portConflictFix } from "./port-conflict-fix.js";
-import { effectiveRuntimeStatus, isTiltResourcePending } from "./tilt-resource-state.js";
+import { effectiveRuntimeStatus, isNeverStarted, isTiltResourcePending, } from "./tilt-resource-state.js";
 import { onlyEnabledResources } from "./up-readiness.js";
 /** The resources Tilt says this one is waiting for. */
 function waitingOn(item) {
@@ -76,7 +76,12 @@ export function buildStartupReport(jsonText, dependsOn, deferred = new Set()) {
     const stillBuilding = [];
     for (const item of items) {
         const name = item.metadata?.name ?? "unknown";
-        if (name === "(Tiltfile)" || failedNames.has(name) || deferred.has(name))
+        // A resource Flisk registers but never starts waits on nothing, so it is neither blocked nor starting:
+        // parseTiltResourceFailures leaves it out of pendingCount, and this report must agree with it.
+        if (name === "(Tiltfile)" ||
+            failedNames.has(name) ||
+            deferred.has(name) ||
+            isNeverStarted(item.status))
             continue;
         const because = [...transitiveDependencies(name, deps)]
             .filter((dep) => failedNames.has(dep))

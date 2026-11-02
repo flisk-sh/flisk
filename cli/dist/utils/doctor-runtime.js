@@ -287,13 +287,13 @@ export function parseTiltResourceFailures(jsonText, deferredNames = new Set()) {
             okCount += 1;
             continue;
         }
-        if (name !== "(Tiltfile)" &&
-            isTiltResourcePending(updateStatus, runtimeStatus) &&
-            !isNeverStarted(item.status)) {
+        if (name !== "(Tiltfile)" && isTiltResourcePending(updateStatus, runtimeStatus)) {
+            // A deferred resource (sablier.deferStart) also sits at none/none, so it has to be recognised before
+            // never-started resources are dropped, or it would be counted as neither deferred nor pending.
             if (deferredNames.has(name)) {
                 deferredCount += 1;
             }
-            else {
+            else if (!isNeverStarted(item.status)) {
                 pendingCount += 1;
             }
         }
