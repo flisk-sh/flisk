@@ -224,6 +224,73 @@ describe("native run planning", () => {
   });
 });
 
+describe("service directory .env expansion (#3141)", () => {
+  const envOf = (dir: string, vars: Record<string, string>) => {
+    const plan = planNativeRun(
+      [
+        nativeService(dir, "web", {
+          command: "node s.js",
+          env: {
+            A: ref("A", "from-default"),
+            B: ref("B", "from-default"),
+            C: ref("C", "from-default"),
+            D: ref("D", "from-default"),
+          },
+        }),
+      ],
+      vars,
+      dir,
+    );
+    return { env: plan.services[0]?.env, missing: plan.missingVars };
+  };
+
+  it("resolves shell > project .env > service .env > default", () => {
+    const dir = createTempDir();
+    writeFileSync(join(dir, ".env"), "A=svc-a\nB=svc-b\nC=svc-c\n");
+    // `vars` is the shell merged over the project .env, as runNativeUp builds it.
+    const { env, missing } = envOf(dir, { A: "shell-a", B: "project-b" });
+    expect(env).toMatchObject({
+      A: "shell-a",
+      B: "project-b",
+      C: "svc-c",
+      D: "from-default",
+    });
+    expect(missing).toEqual([]);
+  });
+
+  it("ignores a missing service .env", () => {
+    const { env, missing } = envOf(createTempDir(), { A: "shell-a" });
+    expect(env).toMatchObject({ A: "shell-a", B: "from-default" });
+    expect(missing).toEqual([]);
+  });
+
+  it("hands the child the value from the service .env", async () => {
+    const root = createTempDir();
+    writeFileSync(join(root, ".env"), "GREETING=from-service-dotenv\n");
+    writeFileSync(
+      join(root, "p.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync("out.txt", process.env.GREETING + "|" + process.env.OTHER);`,
+    );
+    const plan = planNativeRun(
+      [
+        nativeService(root, "job", {
+          command: `${NODE} p.mjs`,
+          restart: "no",
+          env: { GREETING: ref("GREETING", "default"), OTHER: ref("OTHER", "dflt") },
+        }),
+      ],
+      { OTHER: "from-shell" },
+      root,
+    );
+    const supervisor = new NativeSupervisor(root, plan.services);
+    supervisors.push(supervisor);
+    await supervisor.start();
+    await waitFor(() => existsSync(join(root, "out.txt")));
+    expect(readFileSync(join(root, "out.txt"), "utf-8")).toBe("from-service-dotenv|from-shell");
+  });
+});
+
 describe("native supervisor", () => {
   it("starts a service only after its dependency answers, and serves both", async () => {
     const root = createTempDir();

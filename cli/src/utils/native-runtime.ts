@@ -14,6 +14,7 @@ import { basename, join } from "node:path";
 import chalk from "chalk";
 import type { DiscoveredResource, ResourceConfig } from "../types/index.js";
 import { dependsOnOf } from "./dependency-graph.js";
+import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
 import {
   clearMigratorOutputs,
@@ -158,6 +159,16 @@ export function dependencyWaves(
   return waves;
 }
 
+/** The service directory's own `.env`, read only to expand `${VAR}`. A missing or unreadable file is ignored; values are never printed. */
+function readServiceDotenv(dir: string | undefined): Record<string, string> {
+  if (!dir) return {};
+  try {
+    return Object.fromEntries(parseEnv(readFileSync(join(dir, ".env"), "utf-8")));
+  } catch {
+    return {};
+  }
+}
+
 export interface NativeRunPlan {
   services: NativeServicePlan[];
   /** Problems that stop the run before anything starts, each naming the service. */
@@ -220,8 +231,10 @@ export function planNativeRun(
       else throw err;
     }
     const env: Record<string, string> = {};
+    // `vars` is already shell over project .env; the service directory's .env ranks below both and above the default.
+    const serviceDotenv = readServiceDotenv(resource.path);
     for (const [key, value] of Object.entries(config.env ?? {})) {
-      env[key] = expandEnvValue(String(value), { ...vars, ...env }, (name) =>
+      env[key] = expandEnvValue(String(value), { ...serviceDotenv, ...vars, ...env }, (name) =>
         missingVars.push(`${resource.name}: ${name}`),
       );
     }

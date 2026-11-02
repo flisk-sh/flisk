@@ -98,6 +98,17 @@ A service has exactly one runtime source: a `command`, or a container (`image`, 
 
 `dev.command` is a different field: it is the development command inside a container Flisk generates for languages such as Python. It does not make a service run without Docker.
 
+### Where `${VAR}` in `env` comes from
+
+For a local process, `${VAR}` and `${VAR:-default}` in `env` resolve in this order, first match wins:
+
+1. your shell
+2. the project `.env`
+3. the service's own `.env` (`<service dir>/.env`, next to its `service.json`)
+4. the `:-default`
+
+A missing service `.env` is ignored. So `"PORT_API": "${API_PORT:-4000}"` picks up `API_PORT` from `apps/web/.env` instead of shadowing it with the default.
+
 ## What `flisk up` does
 
 - **Order.** It starts services in `dependsOn` order. A service starts once every service it depends on is ready. Ready means the health URL answers; without `healthCheckPath`, that the port accepts connections; without a port, that the process is still running after a second. It waits up to 60 seconds per service.
