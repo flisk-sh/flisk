@@ -121,6 +121,8 @@ let draining = false;
 let inFlight = 0;
 // Turns in flight per session, so GET /sessions can tell an active session from an idle one.
 const activeTurns = new Map<string, number>();
+// Per-session operation queues to serialize activeTurns updates and prevent race conditions.
+const sessionOperationQueues = new Map<string, Promise<void>>();
 const SESSION_LIST_LIMIT = 500;
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
@@ -134,6 +136,13 @@ async function readJson(req: IncomingMessage): Promise<any> {
   for await (const chunk of req) chunks.push(chunk as Buffer);
   const raw = Buffer.concat(chunks).toString('utf8');
   return raw ? JSON.parse(raw) : {};
+}
+
+function queueSessionOperation(sessionId: string, operation: () => Promise<void>): Promise<void> {
+  const currentQueue = sessionOperationQueues.get(sessionId) ?? Promise.resolve();
+  const newQueue = currentQueue.then(operation).catch(() => {});
+  sessionOperationQueues.set(sessionId, newQueue);
+  return newQueue;
 }
 
 const server = createServer(async (req, res) => {
@@ -161,19 +170,22 @@ const server = createServer(async (req, res) => {
       }
       const body = await readJson(req);
       const input = String(body.input ?? '');
-      activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
-      try {
-        const checkpoint = await store.load(sessionId);
-        checkpoint.messages.push({ role: 'user', content: input, at: new Date().toISOString() });
-        const reply = await runTurn(checkpoint, input);
-        checkpoint.messages.push({ role: 'agent', content: reply, at: new Date().toISOString() });
-        await store.save(checkpoint);
-        return sendJson(res, 200, { sessionId, reply, turns: checkpoint.messages.length / 2 });
-      } finally {
-        const left = (activeTurns.get(sessionId) ?? 1) - 1;
-        if (left > 0) activeTurns.set(sessionId, left);
-        else activeTurns.delete(sessionId);
-      }
+      // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
+      return await queueSessionOperation(sessionId, async () => {
+        activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
+        try {
+          const checkpoint = await store.load(sessionId);
+          checkpoint.messages.push({ role: 'user', content: input, at: new Date().toISOString() });
+          const reply = await runTurn(checkpoint, input);
+          checkpoint.messages.push({ role: 'agent', content: reply, at: new Date().toISOString() });
+          await store.save(checkpoint);
+          return sendJson(res, 200, { sessionId, reply, turns: checkpoint.messages.length / 2 });
+        } finally {
+          const left = (activeTurns.get(sessionId) ?? 1) - 1;
+          if (left > 0) activeTurns.set(sessionId, left);
+          else activeTurns.delete(sessionId);
+        }
+      });
     }
 
     if (url.pathname === '/session' && req.method === 'GET') {
@@ -304,6 +316,8 @@ let draining = false;
 let inFlight = 0;
 // Turns in flight per session, so GET /sessions can tell an active session from an idle one.
 const activeTurns = new Map<string, number>();
+// Per-session operation queues to serialize activeTurns updates and prevent race conditions.
+const sessionOperationQueues = new Map<string, Promise<void>>();
 const SESSION_LIST_LIMIT = 500;
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
@@ -317,6 +331,13 @@ async function readJson(req: IncomingMessage): Promise<any> {
   for await (const chunk of req) chunks.push(chunk as Buffer);
   const raw = Buffer.concat(chunks).toString('utf8');
   return raw ? JSON.parse(raw) : {};
+}
+
+function queueSessionOperation(sessionId: string, operation: () => Promise<void>): Promise<void> {
+  const currentQueue = sessionOperationQueues.get(sessionId) ?? Promise.resolve();
+  const newQueue = currentQueue.then(operation).catch(() => {});
+  sessionOperationQueues.set(sessionId, newQueue);
+  return newQueue;
 }
 
 const server = createServer(async (req, res) => {
@@ -344,19 +365,22 @@ const server = createServer(async (req, res) => {
       }
       const body = await readJson(req);
       const input = String(body.input ?? '');
-      activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
-      try {
-        const checkpoint = await store.load(sessionId);
-        checkpoint.messages.push({ role: 'user', content: input, at: new Date().toISOString() });
-        const reply = await runTurn(checkpoint, input);
-        checkpoint.messages.push({ role: 'agent', content: reply, at: new Date().toISOString() });
-        await store.save(checkpoint);
-        return sendJson(res, 200, { sessionId, reply, turns: checkpoint.messages.length / 2 });
-      } finally {
-        const left = (activeTurns.get(sessionId) ?? 1) - 1;
-        if (left > 0) activeTurns.set(sessionId, left);
-        else activeTurns.delete(sessionId);
-      }
+      // Queue the turn operation per-session to serialize activeTurns updates and prevent race conditions
+      return await queueSessionOperation(sessionId, async () => {
+        activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
+        try {
+          const checkpoint = await store.load(sessionId);
+          checkpoint.messages.push({ role: 'user', content: input, at: new Date().toISOString() });
+          const reply = await runTurn(checkpoint, input);
+          checkpoint.messages.push({ role: 'agent', content: reply, at: new Date().toISOString() });
+          await store.save(checkpoint);
+          return sendJson(res, 200, { sessionId, reply, turns: checkpoint.messages.length / 2 });
+        } finally {
+          const left = (activeTurns.get(sessionId) ?? 1) - 1;
+          if (left > 0) activeTurns.set(sessionId, left);
+          else activeTurns.delete(sessionId);
+        }
+      });
     }
 
     if (url.pathname === '/session' && req.method === 'GET') {

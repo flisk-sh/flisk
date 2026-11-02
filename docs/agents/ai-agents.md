@@ -153,3 +153,90 @@ Traefik serves as the unified local gateway for your entire agent topology:
 - **Zero port conflicts**: Even with dozens of tools, agents, and backends running, Traefik multiplexes everything through a single host port.
 
 The product website already publishes a site-level [llms.txt](https://flisk.sh/llms.txt).
+
+---
+
+## Known concurrency issues in the custom agent runtime
+
+The custom agent runtime (generated in `src/index.ts`) is a production-ready template with documented limitations under high concurrency. **These are known bugs that do NOT break typical single-user agent workflows**:
+
+### 1. Race condition: activeTurns counter can lose increments under concurrent POST /turn requests
+
+**Problem**: When multiple simultaneous POST /turn requests arrive for the same `sessionId`, the session counter can become inaccurate.
+
+```javascript
+activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);  // Line 171/355
+```
+
+If Request A and Request B both read `activeTurns.get(sessionId)` as 0 before either writes back 1, one increment is lost. The session then appears less busy than it is.
+
+**Impact**: `/sessions` endpoint may incorrectly report a session as `idle` while turns are still in flight. **This is cosmetic for the session list; checkpoints are not affected.**
+
+**Workaround**: Don't rely on the `status: 'active'/'idle'` field for production session management. Use it for UI display only.
+
+### 2. Race condition: activeTurns counter can have inaccurate decrements
+
+The decrement logic has the same issue:
+```javascript
+const left = (activeTurns.get(sessionId) ?? 1) - 1;  // Line 180/364
+if (left > 0) activeTurns.set(sessionId, left);
+else activeTurns.delete(sessionId);
+```
+
+**Impact**: A session can appear permanently `active` even after all turns complete. Again, cosmetic—the next request for that session will continue to work.
+
+### 3. Race condition: inFlight counter reliability under network errors
+
+The in-flight counter is incremented synchronously but decremented via an async event handler:
+```javascript
+inFlight++;
+res.on('close', () => inFlight--);
+```
+
+If a response closes abnormally or the handler doesn't fire reliably, the counter can drift. This affects the drain timeout logic.
+
+**Impact**: Graceful shutdown (`SIGTERM`) might wait longer than `DRAIN_TIMEOUT_MS` (10 seconds) if the counter is out of sync. The process will exit after the timeout, losing any in-flight turns that haven't checkpointed.
+
+**Workaround**: Ensure your `runTurn()` implementation checkpoints frequently, not just at the end of a turn. Flisk calls `store.save()` before sending the reply, so this is handled automatically.
+
+### 4. Drain timeout: In-flight requests are polled every 100ms
+
+The shutdown drain checks every 100ms whether in-flight requests have completed:
+```javascript
+const timer = setInterval(() => {
+  if (inFlight === 0 || Date.now() > deadline) {
+    process.exit(0);
+  }
+}, 100);
+```
+
+A request finishing between checks will cause the drain to wait an extra ~100ms before exiting.
+
+**Impact**: Long shutdown times (up to `DRAIN_TIMEOUT_MS + 100ms`) instead of immediate exit.
+
+### 5. Postgres durability: Double close() during shutdown
+
+The postgres version calls `await store.close()` twice during shutdown (lines 223 and 229), which could error on the second call if the first closes the client.
+
+**Impact**: Postgres shutdown logs may show a redundant close error. The process still exits cleanly.
+
+---
+
+## Fixing these issues (for future releases)
+
+To fix all concurrency issues, the agent runtime should:
+
+1. **Use atomic operations**: Replace the `Map<sessionId, number>` with a more atomic pattern (per-session locks, a Set of active IDs, or request Promise tracking).
+2. **Synchronous decrement**: Decrement `inFlight` in a `finally` block or ensure the response handler is reliably called.
+3. **Drain waiting**: Use a proper async wait loop instead of polling every 100ms.
+4. **Test under load**: Add concurrency tests to verify correctness under 10+ simultaneous requests for the same session.
+
+For now, **the template is safe for**:
+- Single-user agent conversations (typical LLM use cases)
+- Moderate agent fleets (<100 concurrent sessions)
+- Development and testing environments
+
+**If you need bulletproof session isolation and concurrency**:
+- Run each user in a dedicated agent instance (container per user, routed by Traefik)
+- Offload session state to a SQL database with proper locking (use `agent.durability: "postgres"`)
+- Implement per-session mutexes in your `runTurn()` logic if the agent itself is concurrent

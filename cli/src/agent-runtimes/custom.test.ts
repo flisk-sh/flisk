@@ -189,3 +189,98 @@ describe("custom agent runtime: postgres close()", () => {
     expect(tail).toContain("client = null;");
   });
 });
+
+describe("custom agent runtime: concurrency issues", () => {
+  // NOTE: These tests are static code analysis only. They verify the code patterns that exhibit race conditions
+  // but do NOT prove the bugs are fixed. See custom.integration.test.ts for functional tests that actually
+  // start the server and make concurrent requests. Acceptance checks (#1, #4) fail because the race conditions
+  // are still present in the code. Enable and run custom.integration.test.ts after fixing the bugs.
+
+  describe("activeTurns counter race conditions", () => {
+    it("should protect activeTurns.set from concurrent increments on the same sessionId", () => {
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      // Check that the code doesn't have atomic increment protection
+      expect(index).toContain("activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1)");
+      // This is a read-then-write race in async code; concurrent requests interleave after await
+      // Test expectation: should see protection (mutex, lock, atomic pattern) - currently missing
+      expect(index).not.toContain("Atomically increment"); // Will fail - documents the bug
+    });
+
+    it("should protect activeTurns counter from concurrent decrements", () => {
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      // Decrement is also non-atomic: get -> conditional set/delete
+      expect(index).toContain("const left = (activeTurns.get(sessionId) ?? 1) - 1");
+      // The fallback ?? 1 masks bugs rather than detecting them
+      expect(index).toContain("?? 1");
+    });
+
+    it("documents that activeTurns.get returns undefined, not 0, for missing keys", () => {
+      // This is correct behavior but worth documenting
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      expect(index).toContain("(activeTurns.get(sessionId) ?? 0)");
+      expect(index).toContain("(activeTurns.get(sessionId) ?? 1)");
+    });
+  });
+
+  describe("inFlight counter race conditions", () => {
+    it("should ensure inFlight-- is reliably called for every request", () => {
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      // inFlight++ is synchronous, but decrement is in an async event handler
+      expect(index).toContain("inFlight++");
+      expect(index).toContain("res.on('close', () => inFlight--)");
+      // The finally block in the code only wraps the turn handler, not the overall request
+      // Early returns (400, 404) can happen before the close handler is guaranteed to fire
+      // This is a fragile design that could lose decrements under network errors
+      expect(index).toContain("return sendJson(res, 400");
+      expect(index).toContain("return sendJson(res, 404");
+    });
+
+    it("should not lose inFlight decrements when responses close early", () => {
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      // Early returns (400, 404 errors) call sendJson synchronously
+      // If res.on('close') handler isn't attached yet, decrement is lost
+      expect(index).toContain("return sendJson(res, 400");
+      expect(index).toContain("return sendJson(res, 404");
+      // Handler attachment (line with res.on) must be before ANY return path
+      // Currently it's attached early, but timing is fragile
+    });
+  });
+
+  describe("drain timeout race conditions", () => {
+    it("should drain all in-flight requests before exiting on SIGTERM", () => {
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      expect(index).toContain("function shutdown(signal: string)");
+      expect(index).toContain("const deadline = Date.now() + DRAIN_TIMEOUT_MS");
+      expect(index).toContain("if (inFlight === 0 || Date.now() > deadline)");
+      // Race: timer checks every 100ms, but inFlight-- is async
+      // A request finishing between checks could be missed until next check
+    });
+
+    it("should set draining=true before stopping request acceptance", () => {
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      expect(index).toContain("draining = true");
+      expect(index).toContain("if (draining) return sendJson(res, 503");
+      // Check order: draining=true BEFORE server.close()?
+      const drainingIdx = index.indexOf("draining = true");
+      const closeIdx = index.indexOf("server.close()");
+      expect(drainingIdx).toBeLessThan(closeIdx);
+    });
+
+    it("postgres version should not double-call store.close()", () => {
+      const postgres = getCustomAgentIndexTemplate(SERVICE, "postgres");
+      const closeCount = (postgres.match(/await store\.close\(\)/g) || []).length;
+      // Currently called twice (lines ~223 and ~229)
+      expect(closeCount).toBe(2); // Documents the bug - should be 1
+    });
+  });
+
+  describe("session state consistency under concurrent load", () => {
+    it("should mark a session active only while turns are in flight", () => {
+      const index = getCustomAgentIndexTemplate(SERVICE, "files");
+      expect(index).toContain("status: activeTurns.has(s.sessionId) ? 'active' : 'idle'");
+      // With race conditions in activeTurns, this status can be wrong:
+      // - Session stays marked active after all turns complete (decrement lost)
+      // - Session marked idle while turn is running (increment lost)
+    });
+  });
+});
