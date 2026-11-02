@@ -37,7 +37,11 @@ import { enforceFliskVersionGate } from "../utils/flisk-version-gate.js";
 import { runJsonCommand } from "../utils/json-command.js";
 import { createMachineEnvelope, writeMachineError } from "../utils/machine-output.js";
 import { findProjectRoot } from "../utils/paths.js";
-import { checkCircularDependencies, checkDependsOnShape } from "../utils/service-config-checks.js";
+import {
+  checkCircularDependencies,
+  checkDependsOnShape,
+  postgresVolumeWarnings,
+} from "../utils/service-config-checks.js";
 import {
   SERVICE_MANIFEST_SCHEMA_VERSION,
   validateServiceManifest,
@@ -454,7 +458,12 @@ export const configCommand = new Command("config")
             ...resources.map((r) => r.configPath),
             ...problems.map((p) => p.path),
           ];
-          const result = verifyMasterConfigs(projectRoot, { manifestPaths });
+          const verified = verifyMasterConfigs(projectRoot, { manifestPaths });
+          // A warning only: Postgres 18+ with a volume at the pre-18 path is valid config that will not start.
+          const result = {
+            ...verified,
+            warnings: [...verified.warnings, ...postgresVolumeWarnings(projectRoot, resources)],
+          };
           // Same predicate as flisk doctor's Shared platform Postgres check.
           const sharedPostgres = evaluateSharedPlatformPostgres(projectRoot, resources);
           const prismaConsistency = checkPrismaConsistency(projectRoot, resources);
