@@ -33,7 +33,7 @@ export declare function postgresImageMajor(image: unknown): number | null;
  */
 export declare function postgresVolumeWarnings(projectRoot: string, resources: DiscoveredResource[]): string[];
 /** A warning, never an error: the project is valid, the container just will not start. */
-export declare function checkPostgresVolumes(projectRoot?: string, resources?: DiscoveredResource[]): CheckResult;
+export declare function checkPostgresVolumes(projectRoot?: string, resources?: DiscoveredResource[], strict?: boolean): CheckResult;
 /** The non-loopback host address (`0.0.0.0:80/tcp`) a running container publishes this host port on, or null. */
 export declare function liveNetworkAddress(dockerPs: string, hostPort: number, containerPort: number, protocol: string): string | null;
 /**

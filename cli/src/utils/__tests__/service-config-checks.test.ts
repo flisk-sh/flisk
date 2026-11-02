@@ -878,6 +878,13 @@ describe("checkPostgresVolumes", () => {
     },
   );
 
+  it("fails, not only warns, under --strict", () => {
+    withVolume("postgres:18", "/var/lib/postgresql/data");
+    const result = checkPostgresVolumes(root, undefined, true);
+    expect(result.didPass).toBe(false);
+    expect(result.isWarning).toBe(false);
+  });
+
   it("warns for a trailing slash", () => {
     withVolume("postgres:18", "/var/lib/postgresql/data/");
     expect(checkPostgresVolumes(root).didPass).toBe(false);

@@ -291,6 +291,7 @@ export function postgresVolumeWarnings(
 export function checkPostgresVolumes(
   projectRoot = findProjectRoot() ?? process.cwd(),
   resources: DiscoveredResource[] = discoverResourcesFromRoot(projectRoot),
+  strict = false,
 ): CheckResult {
   const problems = postgresVolumeWarnings(projectRoot, resources);
   if (problems.length === 0) {
@@ -303,7 +304,7 @@ export function checkPostgresVolumes(
   return {
     name: "Postgres volume",
     didPass: false,
-    isWarning: true,
+    isWarning: !strict,
     message: `${formatCount(problems.length, "Postgres 18+ volume")} at the pre-18 path:\n    ${problems.join("\n    ")}`,
     fix: 'Set the volume "target" to /var/lib/postgresql (Postgres 18+ images store data in a versioned directory below it)',
   };

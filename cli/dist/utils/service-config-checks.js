@@ -248,7 +248,7 @@ export function postgresVolumeWarnings(projectRoot, resources) {
     });
 }
 /** A warning, never an error: the project is valid, the container just will not start. */
-export function checkPostgresVolumes(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot)) {
+export function checkPostgresVolumes(projectRoot = findProjectRoot() ?? process.cwd(), resources = discoverResourcesFromRoot(projectRoot), strict = false) {
     const problems = postgresVolumeWarnings(projectRoot, resources);
     if (problems.length === 0) {
         return {
@@ -260,7 +260,7 @@ export function checkPostgresVolumes(projectRoot = findProjectRoot() ?? process.
     return {
         name: "Postgres volume",
         didPass: false,
-        isWarning: true,
+        isWarning: !strict,
         message: `${formatCount(problems.length, "Postgres 18+ volume")} at the pre-18 path:\n    ${problems.join("\n    ")}`,
         fix: 'Set the volume "target" to /var/lib/postgresql (Postgres 18+ images store data in a versioned directory below it)',
     };
