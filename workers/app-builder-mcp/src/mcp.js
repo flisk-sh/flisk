@@ -146,7 +146,7 @@ export async function appBuilderMcpRoute(request, json) {
       rpc(id, {
         protocolVersion: PROTOCOL,
         capabilities: { tools: {}, prompts: {} },
-        serverInfo: { name: "flisk-app-builder", version: "1.0.0" },
+        serverInfo: { name: "flisk-app-builder", version: "1.0.0", icons: [{ src: "https://mcp.flisk.sh/icon-512.png", mimeType: "image/png", sizes: ["512x512"] }] },
         instructions: "plan_app turns a plain description of an app into the parts it needs and the commands to run it on the user's own computer. list_app_starters shows ready-made apps. Prompts build_my_app and pick_a_starter start those two flows.",
       }),
     );

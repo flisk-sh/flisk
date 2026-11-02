@@ -59,9 +59,16 @@ export interface McpServer {
   handleLine(line: string): Promise<string | null>;
 }
 
+/** An icon a client may show next to the server (MCP Implementation.icons). */
+export interface McpIcon {
+  src: string;
+  mimeType?: string;
+  sizes?: string[];
+}
+
 export function createMcpServer(
   tools: McpTool[],
-  info: { name: string; version: string },
+  info: { name: string; version: string; icons?: McpIcon[] },
 ): McpServer {
   // Aliases first, so a tool's own name always wins over another tool's former name.
   const byName = new Map<string, McpTool>();
