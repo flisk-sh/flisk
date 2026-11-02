@@ -1961,6 +1961,7 @@ export const doctorCommand = new Command("doctor")
           () => checkDuplicateResourceNames(),
           () => checkDependsOnShape(),
           () => checkNativeDependsOn(nativeResources),
+          () => checkPostgresVolumes(projectRoot ?? process.cwd(), nativeResources, options.strict),
           () => checkCircularDependencies(),
           () => checkServicePorts(),
           () => checkSchemaVersions(undefined, options.strict),
