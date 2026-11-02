@@ -868,7 +868,8 @@ export class NativeSupervisor {
       return;
     }
     if (!service.plan.restart) {
-      service.gaveUp = true;
+      // A "restart": "no" service with no port that exits 0 has simply finished (a migration under another appType): not a failure.
+      service.gaveUp = !(code === 0 && service.plan.port === undefined);
       this.events.onNote?.(service.plan.name, `${how}; not restarting ("restart": "no")`);
       return;
     }

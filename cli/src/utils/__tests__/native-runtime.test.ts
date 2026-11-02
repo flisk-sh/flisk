@@ -308,6 +308,26 @@ describe("native supervisor", () => {
     expect((await fetch(localUrl(port, "/health"))).status).toBe(200);
   });
 
+  it('starts the services that depend on a no-port "restart": "no" service that exits 0, whatever its appType', async () => {
+    const root = createTempDir();
+    const worker = makeResource("migrate", "worker", { command: "exit 0", restart: "no" });
+    const plan = planNativeRun([
+      { ...worker, path: root, configPath: join(root, "service.json") },
+      nativeService(root, "web", { command: "sleep 30", dependsOn: ["migrate"] }),
+    ]);
+    const notes: string[] = [];
+    const supervisor = new NativeSupervisor(
+      root,
+      plan.services,
+      { onNote: (_name, message) => notes.push(message) },
+      { restartDelayMs: 10 },
+    );
+    supervisors.push(supervisor);
+    expect(await supervisor.start()).toEqual([]);
+    // The exit was seen before start() returned, so this ran the case it names (an exit inside the readiness grace).
+    expect(notes).toContain('exited with code 0; not restarting ("restart": "no")');
+  });
+
   it("stops restarting a service that keeps exiting, and reports it", async () => {
     const root = createTempDir();
     const plan = planNativeRun([nativeService(root, "job", { command: "exit 3" })]);
