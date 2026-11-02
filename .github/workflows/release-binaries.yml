@@ -573,7 +573,15 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
-          if existing_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" --jq '.object.sha' 2>/dev/null); then
+          if tag_json=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" 2>/dev/null); then
+            object_type=$(jq -r '.object.type' <<<"$tag_json")
+            object_sha=$(jq -r '.object.sha' <<<"$tag_json")
+            if [ "$object_type" = "tag" ]; then
+              # Annotated tag: the ref points at the tag object, so peel it to the commit it annotates.
+              existing_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${object_sha}" --jq '.object.sha' 2>/dev/null || echo "$object_sha")
+            else
+              existing_sha=$object_sha
+            fi
             if [ "$existing_sha" != "$GITHUB_SHA" ]; then
               echo "::warning::Tag v${VERSION} already exists at ${existing_sha}, but this run published ${GITHUB_SHA}. Leaving the tag alone."
             else
@@ -679,8 +687,22 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           # The checkout keeps no credentials, so push with the token explicitly (same as the version bump step).
           remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if git ls-remote --exit-code --tags "$remote" "refs/tags/v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists, leaving it alone."
+          # Same guard as the no-bump route: an existing tag that points somewhere else stays alone and warns,
+          # instead of silently diverging from the commit this run would tag.
+          if tag_json=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" 2>/dev/null); then
+            object_type=$(jq -r '.object.type' <<<"$tag_json")
+            object_sha=$(jq -r '.object.sha' <<<"$tag_json")
+            if [ "$object_type" = "tag" ]; then
+              # Annotated tag: the ref points at the tag object, so peel it to the commit it annotates.
+              existing_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${object_sha}" --jq '.object.sha' 2>/dev/null || echo "$object_sha")
+            else
+              existing_sha=$object_sha
+            fi
+            if [ "$existing_sha" != "$GITHUB_SHA" ]; then
+              echo "::warning::Tag v${VERSION} already exists at ${existing_sha}, but this run would tag ${GITHUB_SHA}. Leaving the tag alone."
+            else
+              echo "Tag v${VERSION} already exists at ${existing_sha}, leaving it alone."
+            fi
           else
             git tag "v${VERSION}" "$GITHUB_SHA"
             git push "$remote" "refs/tags/v${VERSION}"
