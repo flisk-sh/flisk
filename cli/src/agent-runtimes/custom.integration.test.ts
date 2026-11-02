@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { spawn } from "child_process";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { join } from "path";
+import { spawn } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const TEST_PORT = 9999;
@@ -205,8 +205,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       sessions: Array<{ sessionId: string; status: string }>;
     };
     const sess = sessList.sessions.find((s) => s.sessionId === "test-session-1");
-    expect(sess).toBeDefined();
-    expect(sess!.status).toBe("idle");
+    expect(sess?.status).toBe("idle");
   });
 
   it("activeTurns counter: concurrent requests for same sessionId should track correctly", async () => {
@@ -231,8 +230,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
       sessions: Array<{ sessionId: string; status: string }>;
     };
     const sess = sessList.sessions.find((s) => s.sessionId === sessionId);
-    expect(sess).toBeDefined();
-    expect(sess!.status).toBe("idle"); // Should be idle after all concurrent requests complete
+    expect(sess?.status).toBe("idle"); // Should be idle after all concurrent requests complete
   });
 
   it("checkpoint atomicity: concurrent saves for same sessionId should produce consistent checkpoint", async () => {
@@ -252,9 +250,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     expect(responses.every((r) => r.status === 200)).toBe(true);
 
     // Load checkpoint - should have all messages saved atomically
-    const checkpoint = JSON.parse(
-      require("fs").readFileSync(join(TEST_STATE_DIR, `${sessionId}.json`), "utf8"),
-    );
+    const checkpoint = JSON.parse(readFileSync(join(TEST_STATE_DIR, `${sessionId}.json`), "utf8"));
     expect(checkpoint.messages.length).toBe(concurrency * 2); // Each request adds 2 messages (user + agent)
     expect(checkpoint.sessionId).toBe(sessionId);
   });
