@@ -1866,12 +1866,31 @@ export const doctorCommand = new Command("doctor")
       requiresContainerRuntime("Docker File Sharing", () => checkDockerFileSharing()),
       () => checkDuplicateFliskInstalls(),
     ];
-    const containerProjectChecks: Array<() => CheckResult | Promise<CheckResult>> = [
+    // Project checks both the container list and the local-process list run, in the same order in each.
+    const checkDir = projectRoot ?? process.cwd();
+    type ProjectCheck = () => CheckResult | Promise<CheckResult>;
+    const versionAndRepoChecks: ProjectCheck[] = [
       () => checkFliskVersion(),
-      () =>
-        checkProjectRepos(projectRoot ?? process.cwd(), undefined, undefined, {
-          strict: options.strict,
-        }),
+      () => checkProjectRepos(checkDir, undefined, undefined, { strict: options.strict }),
+    ];
+    const declarationChecks: ProjectCheck[] = [
+      () => checkDuplicateResourceNames(),
+      () => checkDependsOnShape(),
+    ];
+    const graphChecks: ProjectCheck[] = [
+      () => checkCircularDependencies(),
+      () => checkServicePorts(),
+    ];
+    const schemaAndPortChecks: ProjectCheck[] = [
+      () => checkSchemaVersions(undefined, options.strict),
+      () => checkDuplicateResourcePorts(),
+    ];
+    const envHygieneChecks: ProjectCheck[] = [
+      () => checkPublicEnvSecrets(checkDir, options.strict),
+      () => checkRemoteEnvHosts(checkDir, options.strict),
+    ];
+    const containerProjectChecks: Array<() => CheckResult | Promise<CheckResult>> = [
+      ...versionAndRepoChecks,
       checkMasterConfigs,
       checkGeneratedProjectRuntimeAssets,
       () => checkGeneratedFiles(options.strict),
@@ -1884,17 +1903,14 @@ export const doctorCommand = new Command("doctor")
       checkResourceDiscovery,
       // Wiring mistakes that otherwise surface minutes into `flisk up`.
       () => checkResourcePackageJson(),
-      () => checkDuplicateResourceNames(),
-      () => checkDependsOnShape(),
-      () => checkCircularDependencies(),
-      () => checkServicePorts(),
+      ...declarationChecks,
+      ...graphChecks,
       () => checkSidecars(),
       () => checkNetworkPorts(),
       () => checkGpuRuntime(),
       () => checkVolumes(),
       () => checkPostgresVolumes(undefined, undefined, options.strict),
-      () => checkSchemaVersions(undefined, options.strict),
-      () => checkDuplicateResourcePorts(),
+      ...schemaAndPortChecks,
       () => checkInfraFrameworks(),
       () => checkServiceUrlPorts(),
       () => checkFrontendBackendUrls(),
@@ -1909,8 +1925,7 @@ export const doctorCommand = new Command("doctor")
       () => checkMigrationsInApi(),
       () => checkTiltInstances(),
       checkEnvironmentVariables,
-      () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
-      () => checkRemoteEnvHosts(projectRoot ?? process.cwd(), options.strict),
+      ...envHygieneChecks,
       // Preflight: Verdaccio down causes ImageBuild bun install ConnectionRefused.
       async () => {
         const root = findProjectRoot() ?? process.cwd();
@@ -1951,23 +1966,15 @@ export const doctorCommand = new Command("doctor")
           () => checkDuplicateFliskInstalls(),
         ]
       : containerMachineChecks;
-    const projectChecks = nativeResources
+    const projectChecks: ProjectCheck[] = nativeResources
       ? [
-          () => checkFliskVersion(),
-          () =>
-            checkProjectRepos(projectRoot ?? process.cwd(), undefined, undefined, {
-              strict: options.strict,
-            }),
-          () => checkDuplicateResourceNames(),
-          () => checkDependsOnShape(),
+          ...versionAndRepoChecks,
+          ...declarationChecks,
           () => checkNativeDependsOn(nativeResources),
-          () => checkPostgresVolumes(projectRoot ?? process.cwd(), nativeResources, options.strict),
-          () => checkCircularDependencies(),
-          () => checkServicePorts(),
-          () => checkSchemaVersions(undefined, options.strict),
-          () => checkDuplicateResourcePorts(),
-          () => checkPublicEnvSecrets(projectRoot ?? process.cwd(), options.strict),
-          () => checkRemoteEnvHosts(projectRoot ?? process.cwd(), options.strict),
+          () => checkPostgresVolumes(checkDir, nativeResources, options.strict),
+          ...graphChecks,
+          ...schemaAndPortChecks,
+          ...envHygieneChecks,
         ]
       : containerProjectChecks;
 
