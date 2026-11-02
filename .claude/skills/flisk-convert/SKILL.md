@@ -12,6 +12,10 @@ metadata:
 
 Take an app that already exists and make `flisk up` start it. Change as little as possible: keep the app's code, its Compose file, Tiltfile and Helm charts. Flisk only adds `service.json` files and a `.flisk/` folder.
 
+## 0. Whose repo is it?
+
+Your own repo, or one the user owns: go on. **Someone else's repo: check its size first** (`gh repo view OWNER/REPO --json stargazerCount -q .stargazerCount`). More than 150 stars means no pull request from us, ever: a maintainer of a large org blocked us for one (2026-11-02). Do not open it, and do not push a branch to a fork "for later". You may still convert a local clone to try Flisk, if the user asks; tell them it stays local. Under 150 stars, follow the repo's CONTRIBUTING, disclose that you are a Flisk maintainer using an AI assistant, and open an issue or discussion before a large change.
+
 ## 1. Look before you change
 
 Work on a branch. Read the repo and list the parts that start together: websites, APIs, workers, agents, databases. For each part note the start command, the port it listens on, and an HTTP path that answers 200 when it is healthy. Run `git status` so you can see what Flisk adds later.
