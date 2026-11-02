@@ -120,7 +120,7 @@ gh pr list --search "automatic version bump" --state open
 gh pr checks <number> --watch && gh pr review <number> --approve
 ```
 
-Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, which tags `v<version>` on the bump commit and publishes the checksums draft. It only publishes a draft that already exists; it never creates the release.
+Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, which tags `v<version>` and publishes the checksums draft. The bump PR body names the published commit (`Published from commit: <sha>`). If the bump commit is that commit plus the version files, it is the tag target. If `main` moved after the publish, the squash commit also carries later merges that are not in the npm package, so the tag goes on a new commit made by `scripts/release-tag-target.mjs`: the published commit with the bump's version files (`package.json`, `cli/package.json`, `bun.lock`, `docs/CHANGELOG.md`). The run then shows a warning and lists the extra files in its summary. That tag is not on `main`'s history; its parent is the published commit (1.4.30 was tagged on the bump commit and shipped without #3024, #3025 and #3028, #3054). It only publishes a draft that already exists; it never creates the release.
 
 ## Where to look
 
@@ -210,6 +210,7 @@ There is no unscoped `flisk` package, and the release does not try to publish on
 | Workflow red but npm and `flisk-sh/releases` are live | A post-publication step failed (bump push, signing) | [Repair a half-finished release](#repair-a-half-finished-release) |
 | GitHub Packages verify: `bin/flisk: No such file or directory` | Pre-rebrand releases link `bin/flisk`, newer ones link `bin/flisk` | The backfill workflow accepts both names |
 | Tag exists but `package.json` on it is one version behind | Tag pointed at the pre-bump commit | Tags must point at the version-bump commit (`tag-bumped-release` does this; fix by re-tagging the bump commit) |
+| The npm package lacks a fix that the tag and the release notes have | The tag was put on the squash bump commit, which carried merges made after the publish (1.4.30, #3054) | Unpack the tarball and grep `cli/dist-bundle` for the fix. `tag-bumped-release` now tags the published commit plus the version files (`scripts/release-tag-target.mjs`); to correct an old tag run it by hand with `--published <npm gitHead or run sha> --bump <bump commit>` and re-point the tag only if you accept moving a published tag |
 
 ## Settings and secrets
 
