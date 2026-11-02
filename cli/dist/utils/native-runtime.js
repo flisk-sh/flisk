@@ -6,6 +6,7 @@ import { connect } from "node:net";
 import { basename, join } from "node:path";
 import chalk from "chalk";
 import { dependsOnOf } from "./dependency-graph.js";
+import { parseEnv } from "./env-validator.js";
 import { FliskError } from "./errors.js";
 import { clearMigratorOutputs, getMigratorOutputPath, parseMigratorOutputFile, prepareMigratorOutputFile, resolveMigratorOutputsInEnv, validateMigratorOutputReferences, } from "./migrator-output.js";
 import { dockerRunArgs, dockerRunLine, isNativeContainerService, nativeContainerName, removeNativeContainers, } from "./native-container.js";
@@ -75,6 +76,17 @@ export function dependencyWaves(services) {
     }
     return waves;
 }
+/** The service directory's own `.env`, read only to expand `${VAR}`. A missing or unreadable file is ignored; values are never printed. */
+function readServiceDotenv(dir) {
+    if (!dir)
+        return {};
+    try {
+        return Object.fromEntries(parseEnv(readFileSync(join(dir, ".env"), "utf-8")));
+    }
+    catch {
+        return {};
+    }
+}
 /**
  * Turns the selected `command` services into start plans and reports what would stop the run: a dependsOn that is not a service
  * of the selection (a database or the gateway needs Docker for now), and two services on one port.
@@ -130,8 +142,10 @@ export function planNativeRun(selected, vars = process.env, projectRoot, project
                 throw err;
         }
         const env = {};
+        // `vars` is already shell over project .env; the service directory's .env ranks below both and above the default.
+        const serviceDotenv = readServiceDotenv(resource.path);
         for (const [key, value] of Object.entries(config.env ?? {})) {
-            env[key] = expandEnvValue(String(value), { ...vars, ...env }, (name) => missingVars.push(`${resource.name}: ${name}`));
+            env[key] = expandEnvValue(String(value), { ...serviceDotenv, ...vars, ...env }, (name) => missingVars.push(`${resource.name}: ${name}`));
         }
         const containerName = isNativeContainerService(resource)
             ? nativeContainerName(containerProject, resource.name)
