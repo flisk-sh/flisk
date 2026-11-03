@@ -15,6 +15,12 @@ Flisk أداة سطر أوامر للتطوير المحلي. تشغّل كل ج
 npx @flisk-sh/flisk demo
 ```
 
+تريد اختيار مجموعتك بنفسك؟ أجب عن بضعة أسئلة باستخدام مفاتيح الأسهم وEnter:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

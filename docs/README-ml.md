@@ -15,6 +15,12 @@ Flisk ലോക്കൽ ഡെവലപ്മെന്റിനുള്ള ഒ
 npx @flisk-sh/flisk demo
 ```
 
+സ്വന്തമായി സ്റ്റാക്ക് തിരഞ്ഞെടുക്കണോ? ആരോ കീകളും Enter ഉം ഉപയോഗിച്ച് ചില ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകുക:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

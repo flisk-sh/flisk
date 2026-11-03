@@ -31,6 +31,14 @@ npx @flisk-sh/flisk demo
 
 With Docker running and Tilt installed, that starts the full restaurant demo: six services, Postgres, one gateway and live reload. Without them (or on native Windows), it starts a small menu app as two local processes in about a second and opens it in your browser. You should see the menu at `http://localhost:3000`, with its API answering at `http://localhost:4000/api/menu`. `flisk down` in the demo folder stops either one.
 
+Want to choose your own stack? Answer a few questions with the arrow keys and Enter, and Flisk writes a project that runs:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
+It asks what you are building (a web app, an API, a SaaS starter, an AI agent stack, a multi-agent swarm), then the website and API framework and any extras (NATS queue, worker, MCP tool server, AI agent, Redis). The project name comes last and Enter takes `my-app`. Add `--dry-run` to see the commands it would run, or flags such as `--kind web --extras queue --yes` to skip the questions in a script.
+
 Install Flisk with `npm install -g @flisk-sh/flisk`, then, in a new folder:
 
 ```bash
@@ -496,6 +504,7 @@ The commands you will use every day:
 
 | You want to | Flisk does | Command |
 | --- | --- | --- |
+| Pick a stack with a few questions | Asks what you are building, then writes a project that runs | `flisk create` |
 | Start a new project | Creates the project and first services | `flisk project --yes` |
 | Add a service | Writes its `service.json` and generated files | `flisk resource <name> --type backend --stack <stack> --yes` |
 | Start a whole stack | Starts Postgres, your services, and the routing, and prints the URLs | `flisk up <stack>` |

@@ -15,6 +15,12 @@ Flisk 是用於本機開發的命令列工具。它在你的電腦上，把應�
 npx @flisk-sh/flisk demo
 ```
 
+想自己選擇技術堆疊？用方向鍵和 Enter 回答幾個問題即可：
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

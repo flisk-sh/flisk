@@ -15,6 +15,12 @@ Pornire rapidă:
 npx @flisk-sh/flisk demo
 ```
 
+Vrei să îți alegi singur stack-ul? Răspunde la câteva întrebări cu săgețile și Enter:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

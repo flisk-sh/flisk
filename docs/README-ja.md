@@ -15,6 +15,12 @@ Flisk はローカル開発用のコマンドラインツールです。アプ�
 npx @flisk-sh/flisk demo
 ```
 
+スタックを自分で選びたいですか？矢印キーと Enter でいくつかの質問に答えるだけです：
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

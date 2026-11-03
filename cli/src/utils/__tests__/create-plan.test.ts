@@ -66,13 +66,13 @@ describe("buildCreatePlan", () => {
 
   it("adds one resource per extra, with the right type and framework", () => {
     const steps = argsOf({ extras: ["queue", "redis", "worker", "mcp", "agent"] });
-    const resource = (name: string) => steps.find((s) => s[1] === name);
-    expect(resource("shop-queue")).toContain("nats");
-    expect(resource("shop-queue")?.[3]).toBe("queue");
-    expect(resource("shop-redis")?.slice(3, 6)).toEqual(["database", "--framework", "redis"]);
-    expect(resource("shop-worker")?.[3]).toBe("worker");
-    expect(resource("shop-tools")?.[3]).toBe("mcp");
-    expect(resource("shop-agent")?.[3]).toBe("agent");
+    const stepFor = (name: string) => steps.find((s) => s[1] === name);
+    expect(stepFor("shop-queue")).toContain("nats");
+    expect(stepFor("shop-queue")?.[3]).toBe("queue");
+    expect(stepFor("shop-redis")?.slice(3, 6)).toEqual(["database", "--framework", "redis"]);
+    expect(stepFor("shop-worker")?.[3]).toBe("worker");
+    expect(stepFor("shop-tools")?.[3]).toBe("mcp");
+    expect(stepFor("shop-agent")?.[3]).toBe("agent");
   });
 
   it("puts every generated resource in the same stack and never asks a question", () => {

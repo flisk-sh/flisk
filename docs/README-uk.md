@@ -15,6 +15,12 @@ Flisk — це інструмент командного рядка для ло�
 npx @flisk-sh/flisk demo
 ```
 
+Хочете самі обрати стек? Дайте відповідь на кілька запитань стрілками та Enter:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes
