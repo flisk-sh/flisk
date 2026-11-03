@@ -49,6 +49,7 @@ See also the product site [llms.txt](https://flisk.sh/llms.txt).
   - For MCP servers: `flisk resource <name> --type mcp --stack <stack>`
 - `flisk demo`: Run Flisk's own one-command starter project (not a personal demo; personal demos are the demo.flisk.sh links). It needs no Docker: when Docker is not running, Compose or Tilt is missing, or on native Windows, it starts a small two-service demo (a menu API and a website) as local processes instead of the full restaurant stack.
 - `flisk up [stack] [--only <service...>] [--dry-run] [--json]`: Start local containers and live reload.
+- `flisk up <git-url>`: Shallow-clone the repository into `./<repo name>` (an existing checkout there is reused) and start it from that folder.
 - `flisk down [--json]`: Stop services and clean up containers (named volumes survive; remove agent-state volumes with `docker volume rm`).
 - `flisk status [--json]`: Report health, readiness, and active URLs.
 - `flisk doctor [--fix] [--json]`: Verify what the project uses: the container engine (Docker/Podman/Colima), Tilt and ports, or, for a project of `command` services, only that their programs are installed.
