@@ -239,8 +239,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Free host Postgres port before project integration tests
         uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
-      # One Vitest run does both jobs: the test verdict and the report-only coverage output (text, HTML and JSON-summary reports
-      # in cli/coverage/, no threshold). It writes the JSON report with the failed test names for the PR summary (#1385) even
+      # One Vitest run does both jobs: the test verdict and the coverage output (text, HTML and JSON-summary reports in
+      # cli/coverage/). It fails below 57% lines, the floor the main ruleset used to hold through Code Quality, so the
+      # required Summary check enforces it for every PR, forks included, at no cost. It writes the JSON report with the failed test names for the PR summary (#1385) even
       # when a test fails. Running the suite a second time for coverage doubled the slowest CI job.
       - name: Run TypeScript unit tests with coverage
         working-directory: cli
