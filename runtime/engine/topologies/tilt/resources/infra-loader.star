@@ -134,6 +134,35 @@ def _ensure_database_management_compose(root_prefix, write_fn):
 # Tiltfile evaluation registers `postgres` at most once on its own path.
 
 
+_HEALTHY_POSTGRES_SCRIPT = (
+    'name="$1"; '
+    + 'cname="${name}_postgres"; '
+    + 'id=""; '
+    + 'for i in $(seq 1 30); do '
+    + '  id="$(docker ps -a -q -f "name=^/${cname}$" 2>/dev/null | head -n 1)"; '
+    + '  if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=${cname}" 2>/dev/null | head -n 1)"; fi; '
+    + '  if [ -n "$id" ]; then break; fi; '
+    + '  sleep 1; '
+    + 'done; '
+    + 'if [ -z "$id" ]; then echo "ERROR: no container found for postgres ($cname)"; exit 1; fi; '
+    + 'for i in $(seq 1 90); do '
+    + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    echo "ERROR: container postgres exited unexpectedly with code $code"; exit 1; '
+    + '  fi; '
+    + '  health="$(docker inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$health" = "healthy" ]; then echo "postgres is healthy"; exit 0; fi; '
+    + '  if [ "$health" = "unhealthy" ]; then echo "ERROR: postgres is unhealthy"; exit 1; fi; '
+    + '  if [ "$health" = "none" ] && [ "$state" = "running" ]; then '
+    + '    echo "postgres has no health check configured, proceeding once running"; exit 0; '
+    + '  fi; '
+    + '  sleep 1; '
+    + 'done; '
+    + 'echo "ERROR: timed out waiting for postgres to become healthy"; exit 1'
+)
+
+
 def _register_platform_postgres(should_enable, root_prefix="", env_file=None, write_fn=None, required=False):
     """Materialize the platform compose and register the shared `postgres` Tilt resource.
 
@@ -148,6 +177,13 @@ def _register_platform_postgres(should_enable, root_prefix="", env_file=None, wr
         debug_log("INFRA: Loading postgres compose from {}".format(postgres_compose))
         _docker_compose(postgres_compose, env_file, 'database-management')
         dc_resource('postgres', labels=['infra.tools'], resource_deps=['init-networks'], auto_init=True)
+        local_resource(
+            name='postgres-healthy',
+            cmd=['sh', '-c', _HEALTHY_POSTGRES_SCRIPT, 'sh', PlatformDockerConstants.PROJECT_NAME],
+            labels=['infra.tools', 'health'],
+            resource_deps=['postgres'],
+            auto_init=True,
+        )
         return
     message = "Shared platform Postgres compose was not materialized at {}".format(postgres_compose)
     if required:

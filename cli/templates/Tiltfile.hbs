@@ -254,6 +254,7 @@ _DEFERRED_IMAGE_RESOURCES = set()
 _KNOWN_TILT_RESOURCES.add('service-discovery-daemon')
 _KNOWN_TILT_RESOURCES.add('init-networks')
 _KNOWN_TILT_RESOURCES.add('postgres')
+_KNOWN_TILT_RESOURCES.add('postgres-healthy')
 _KNOWN_TILT_RESOURCES.add('nats')
 _KNOWN_TILT_RESOURCES.add('infisical')
 _KNOWN_TILT_RESOURCES.add('infisical-db')
@@ -275,6 +276,7 @@ for _KNOWN_SVC in _app_resources_list:
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME)
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-run-only')
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-config-gen')
+                _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-healthy')
                 # A frontend whose build script is the standard `tsc && vite build` gets a
                 # non-blocking <service>-typecheck resource (see Docker frontend registration).
                 # Name it here, from the same plan and path, so focus mode can enable it.
@@ -308,6 +310,8 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
                 _FILTERED_RESOURCES.append(_R + '-typecheck')
             if _R + '-done' in _KNOWN_TILT_RESOURCES:
                 _FILTERED_RESOURCES.append(_R + '-done')
+            if _R + '-healthy' in _KNOWN_TILT_RESOURCES:
+                _FILTERED_RESOURCES.append(_R + '-healthy')
             # Focus expansion normally resolves stack names to concrete
             # resources before this loop, so the stack branch below is not
             # reached for the common `flisk up <stack>` path. Keep a deferred
@@ -333,6 +337,8 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
                     _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-typecheck')
                 if _STACK_RES_NAME + '-done' in _KNOWN_TILT_RESOURCES:
                     _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-done')
+                if _STACK_RES_NAME + '-healthy' in _KNOWN_TILT_RESOURCES:
+                    _FILTERED_RESOURCES.append(_STACK_RES_NAME + '-healthy')
         else:
             _MATCHED = [kr for kr in _KNOWN_TILT_RESOURCES if kr != 'service-discovery-daemon' and kr.startswith(_R + '-')]
             _FILTERED_RESOURCES.extend(_MATCHED)
@@ -358,6 +364,7 @@ if FOCUS_MODE and FOCUS_ENABLED_RESOURCES:
         _ALWAYS_ENABLED_INFRA_RESOURCES.append('service-discovery-daemon')
     if should_enable('database-management') or TILT_CONTEXT.get('_shared_platform_postgres_force_started', False):
         _ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres')
+        _ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres-healthy')
     _messaging_compose_path = PROJECT_ROOT + '/services/platform/messaging/docker-compose.yml'
     if str(local(["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", _messaging_compose_path], quiet=True, echo_off=True)).strip() == 'yes':
         # infra-loader.star only creates these Tilt resources when this file

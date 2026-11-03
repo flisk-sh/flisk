@@ -379,21 +379,45 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
             res_deps.append(migrator_name)
     
     # Resolve dependsOn from the manifest: services, stacks (their backend-side services) and the shared Postgres.
+    conditions = dict(manifest.get('dependsOnConditions', {})) if manifest and type(manifest.get('dependsOnConditions')) == 'dict' else {}
+    if manifest and type(manifest.get('dependsOn')) == 'list':
+        for entry in manifest['dependsOn']:
+            if type(entry) == 'dict':
+                entry_name = entry.get('name')
+                entry_cond = entry.get('condition')
+                if entry_name and entry_cond and entry_name not in conditions:
+                    conditions[entry_name] = entry_cond
+
     for dep in declared_dependencies(manifest):
         resolved = _resolve_dependency_to_resources(dep, all_services_map)
         if not resolved and not _is_unregistered_resource(dep, all_services_map):
             # Not a service or stack: keep the name Tilt has always been given (a `-yaml` echo resource, or nothing).
             resolved = [_resolve_dependency_to_resource(dep, all_services_map or {})]
+        
+        dep_condition = conditions.get(dep, "service_started")
+
         for resolved_dep in resolved:
             if resolved_dep and resolved_dep != res_name and resolved_dep not in res_deps:
                 res_deps.append(resolved_dep)
-            # A one-shot job is done when it exited 0, not when its container started: wait for its `-done` resource too.
-            if resolved_dep and resolved_dep != res_name and _is_job_resource(resolved_dep, all_services_map):
+            
+            # Condition: service_healthy
+            if dep_condition == "service_healthy" and resolved_dep and resolved_dep != res_name and not resolved_dep.endswith("-yaml"):
+                healthy = job_healthy_resource_name(resolved_dep)
+                if healthy not in res_deps:
+                    res_deps.append(healthy)
+
+            # Condition: service_completed_successfully OR one-shot job
+            if (dep_condition == "service_completed_successfully" or _is_job_resource(resolved_dep, all_services_map)) and resolved_dep and resolved_dep != res_name and not resolved_dep.endswith("-yaml"):
                 done = job_done_resource_name(resolved_dep)
                 if done not in res_deps:
                     res_deps.append(done)
     
     return res_deps
+
+
+def job_healthy_resource_name(svc):
+    """The Tilt resource that waits for a service to become healthy (see _register_healthy_resource)."""
+    return svc + '-healthy'
 
 
 def job_done_resource_name(job):
@@ -868,8 +892,66 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
     _register_run_only_resource(config, resource_path, compose_project_name, effective_auto_init)
     if is_one_shot_job(config.get('manifest', {})):
         _register_job_done_resource(config, resource_path, compose_project_name, effective_auto_init)
+    else:
+        _register_healthy_resource(config, resource_path, compose_project_name, effective_auto_init)
     _register_replicas(config, effective_auto_init)
     register_python_test_resource(config, resource_path, compose_project_name, effective_auto_init)
+
+
+_HEALTHY_SCRIPT = (
+    'job="$1"; shift; '
+    + 'id=""; '
+    + 'for i in $(seq 1 30); do '
+    + '  if [ "$#" -gt 0 ]; then '
+    + '    id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; '
+    + '  else '
+    + '    id="$(docker ps -a -q -f "name=$job" 2>/dev/null | head -n 1)"; '
+    + '  fi; '
+    + '  if [ -n "$id" ]; then break; fi; '
+    + '  sleep 1; '
+    + 'done; '
+    + 'if [ -z "$id" ]; then echo "ERROR: no container found for $job"; exit 1; fi; '
+    + 'for i in $(seq 1 90); do '
+    + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    echo "ERROR: container $job exited unexpectedly with code $code"; exit 1; '
+    + '  fi; '
+    + '  has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$has_health" = "no" ]; then '
+    + '    if [ "$state" = "running" ]; then '
+    + '      echo "$job has no health check configured, proceeding once running"; exit 0; '
+    + '    fi; '
+    + '  else '
+    + '    health="$(docker inspect --format="{{.State.Health.Status}}" "$id" 2>/dev/null)"; '
+    + '    if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi; '
+    + '    if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi; '
+    + '  fi; '
+    + '  sleep 1; '
+    + 'done; '
+    + 'echo "ERROR: timed out waiting for $job to become healthy"; exit 1'
+)
+
+
+def _register_healthy_resource(config, resource_path, compose_project_name, auto_init_apps=True):
+    """`<res>-healthy`: waits until a service's container is healthy (#3061).
+
+    Tilt counts a Compose resource as ready once its container starts running, which allows
+    dependents with `condition: "service_healthy"` to start before the dependency's health
+    check has passed. This local_resource monitors the container's health status via Docker
+    inspect until it reports 'healthy', failing fast if the container exits or reports 'unhealthy'.
+    If no healthcheck is configured, it proceeds as soon as the container is running.
+    """
+    argv = ['sh', '-c', _HEALTHY_SCRIPT, 'sh', config['res_name']]
+    argv.extend(_compose_project_argv(config, resource_path, compose_project_name))
+    local_resource(
+        name=job_healthy_resource_name(config['res_name']),
+        cmd=argv,
+        labels=config['labels'] + ['health'],
+        resource_deps=[config['res_name']],
+        auto_init=auto_init_apps,
+        allow_parallel=True,
+    )
 
 
 _JOB_DONE_SCRIPT = (
