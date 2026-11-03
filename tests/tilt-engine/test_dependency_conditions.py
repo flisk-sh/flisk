@@ -798,3 +798,43 @@ local_resource(
 
         finally:
             subprocess.run(["docker", "rm", "-f", other_proj_cname, exact_cname], capture_output=True)
+
+    def test_live_healthy_script_succeeds_on_running_container_without_healthcheck(self, tmp_path):
+        """Companion <svc>-healthy must proceed once running if no healthcheck is configured (#3061)."""
+        cname = f"flisk-test-no-hc-{uuid.uuid4().hex[:8]}"
+        try:
+            subprocess.run(
+                [
+                    "docker", "run", "-d", "--name", cname,
+                    "alpine", "sh", "-c", "sleep 30",
+                ],
+                check=True,
+                capture_output=True,
+            )
+            poller_cmd = [
+                "sh", "-c",
+                f'job="{cname}"; max_polls=5; exited_count=0; '
+                + 'for i in $(seq 1 "$max_polls"); do '
+                + '  id="$(docker ps -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; '
+                + '  if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; fi; '
+                + '  if [ -z "$id" ]; then sleep 1; continue; fi; '
+                + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
+                + '  has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}" "$id" 2>/dev/null)"; '
+                + '  if [ "$has_health" = "no" ]; then '
+                + '    if [ "$state" = "running" ]; then '
+                + '      echo "$job has no health check configured, proceeding once running"; exit 0; '
+                + '    fi; '
+                + '  else '
+                + '    health="$(docker inspect --format="{{.State.Health.Status}}" "$id" 2>/dev/null)"; '
+                + '    if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi; '
+                + '    if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi; '
+                + '  fi; '
+                + '  sleep 1; '
+                + 'done; '
+                + 'echo "ERROR: timed out waiting for $job to become healthy"; exit 1',
+            ]
+            res = subprocess.run(poller_cmd, capture_output=True, text=True)
+            assert res.returncode == 0, f"Script failed: {res.stderr}\n{res.stdout}"
+            assert "has no health check configured, proceeding once running" in res.stdout
+        finally:
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
