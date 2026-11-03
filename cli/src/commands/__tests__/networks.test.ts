@@ -194,6 +194,16 @@ describe("networksCommand and helpers", () => {
       expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("running");
 
       vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
+        createMockChildProcess({ stdout: "401" }),
+      );
+      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("running");
+
+      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
+        createMockChildProcess({ stdout: "403" }),
+      );
+      expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("running");
+
+      vi.mocked(childProcess.spawn).mockImplementationOnce(() =>
         createMockChildProcess({ stdout: "502" }),
       );
       expect(await checkServiceStatus("web", 3000, "http://app.acme.localhost/")).toBe("stopped");
@@ -290,6 +300,30 @@ describe("networksCommand and helpers", () => {
       const output = stripVTControlCharacters(lines.join("\n"));
       expect(output).not.toContain("No routable services found");
       expect(output).toContain("http://api.localhost:80/api/vote");
+    });
+
+    it("lists a proxied bring-your-own service at its apiPath", async () => {
+      setupProject("flisk-project", [
+        { name: "vote", appType: "bring-your-own", port: 80, apiPath: "/ballots" },
+      ]);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(childProcess.execFileSync).mockImplementation(() => {
+        throw new Error("Docker daemon not running");
+      });
+      vi.mocked(childProcess.spawn).mockImplementation(() =>
+        createMockChildProcess({ stdout: "200" }),
+      );
+
+      const lines: string[] = [];
+      vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      });
+
+      await networksCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+      const output = stripVTControlCharacters(lines.join("\n"));
+      expect(output).toContain("http://api.localhost:80/ballots");
+      expect(output).not.toContain("/api/vote");
     });
 
     it("renders two networks across stacks with running and stopped statuses and custom domain tip", async () => {

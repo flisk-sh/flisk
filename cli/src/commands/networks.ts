@@ -173,7 +173,8 @@ export async function checkServiceStatus(
 
       const code = statusCode.trim();
 
-      if (/^[23]\d\d$/.test(code)) {
+      // 401 and 403 mean the service answered and asked for credentials.
+      if (/^[23]\d\d$/.test(code) || code === "401" || code === "403") {
         return "running";
       }
 
@@ -266,10 +267,8 @@ export const networksCommand = new Command("networks")
               isApiRoutedBringYourOwn(s),
           )
           .map(async (s) => {
-            // A bring-your-own service that is routed as an API is served at /api/<name> on the api host, like a backend.
-            const resolvedPath = isApiRoutedBringYourOwn(s)
-              ? `/api/${s.name.replace(/-api$/, "")}`
-              : resolveServicePath(s);
+            // A bring-your-own service routed as an API is served on the api host at its apiPath, like a backend.
+            const resolvedPath = resolveServicePath(s);
             const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
             const isBackend =
               isApiServiceType((s.config as { appType?: string })?.appType) ||
