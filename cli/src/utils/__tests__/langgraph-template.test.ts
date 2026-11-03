@@ -74,4 +74,9 @@ describe("langgraph template", () => {
     );
     expect(readFileSync(join(dir, ".gitignore"), "utf-8")).toBe(".data/\nnode_modules/\n");
   });
+  it("keeps error details in the agent's log instead of sending them to the caller", () => {
+    const server = readFileSync(join(templates, "langgraph/agent/server.mjs"), "utf-8");
+    expect(server).toContain("console.error(error);");
+    expect(server).not.toMatch(/(json\(response, 502|run\.error =).*error\.message/);
+  });
 });

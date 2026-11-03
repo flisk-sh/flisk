@@ -35,7 +35,9 @@ async function drive(run, input) {
     run.status = "done";
   } catch (error) {
     run.status = "failed";
-    run.error = error instanceof Error ? error.message : String(error);
+    // The details stay in the agent's log; GET /runs only says that the run failed.
+    console.error(error);
+    run.error = "the run failed; see the agent logs";
   }
   saveRuns();
 }
