@@ -713,13 +713,13 @@
         "oneOf": [
           { "pattern": "^[a-z][a-z0-9-]*$", "type": "string" },
           {
-            "description": "Compose-style entry. Flisk orders by name; condition is accepted and kept, and does not change the order.",
+            "description": "Compose-style dependency condition entry. Flisk enforces startup conditions: 'service_started' waits for container start; 'service_healthy' gates on container health checks passing; 'service_completed_successfully' gates on successful one-shot job completion (exit 0). Stack dependencies expand conditions across member services and migrators.",
             "type": "object",
             "additionalProperties": false,
             "required": ["name"],
             "properties": {
               "name": { "description": "The service or stack to start first.", "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-              "condition": { "description": "Compose depends_on condition.", "enum": ["service_started", "service_healthy", "service_completed_successfully"] }
+              "condition": { "description": "Startup condition: 'service_started' (container running), 'service_healthy' (health check passes), or 'service_completed_successfully' (one-shot job exits 0).", "enum": ["service_started", "service_healthy", "service_completed_successfully"] }
             }
           }
         ]
