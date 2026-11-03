@@ -31,6 +31,7 @@ flisk down                                                    # stop it all
 | --- | --- |
 | Start everything | `flisk up` |
 | Start one service and what it needs | `flisk up --only orders-api` |
+| Clone a repository and start it | `flisk up https://github.com/org/repo` |
 | See what is running | `flisk status --tilt` |
 | Get the URLs | `flisk networks --raw` |
 | Read recent logs | `flisk logs -s orders-api --since 5m` |
@@ -88,7 +89,7 @@ flisk version                 # aliases: flisk v, flisk -v, flisk --version
 | `flisk resources` | | List resources |
 | `flisk stack [stack-name]` | | Assign resources to a stack |
 | `flisk stacks` | `ls` | List stacks |
-| `flisk up [stack-name]` | `deploy` | Start services |
+| `flisk up [stack-name \| git-url]` | `deploy` | Start services; a git URL is cloned into `./<repo>` first |
 | `flisk down` | | Stop services |
 | `flisk status` | | Show stack and service state |
 | `flisk logs` | | Print recent logs from the running stack |
