@@ -270,6 +270,28 @@ describe("networksCommand and helpers", () => {
       );
     });
 
+    it("lists a proxied bring-your-own service at its /api/<name> URL", async () => {
+      setupProject("flisk-project", [{ name: "vote", appType: "bring-your-own", port: 80 }]);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.mocked(childProcess.execFileSync).mockImplementation(() => {
+        throw new Error("Docker daemon not running");
+      });
+      vi.mocked(childProcess.spawn).mockImplementation(() =>
+        createMockChildProcess({ stdout: "200" }),
+      );
+
+      const lines: string[] = [];
+      vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+        lines.push(args.map(String).join(" "));
+      });
+
+      await networksCommand.parseAsync(["node", "flisk"], { from: "node" });
+
+      const output = stripVTControlCharacters(lines.join("\n"));
+      expect(output).not.toContain("No routable services found");
+      expect(output).toContain("http://api.localhost:80/api/vote");
+    });
+
     it("renders two networks across stacks with running and stopped statuses and custom domain tip", async () => {
       setupProject("flisk-project", [
         { name: "web", appType: "frontend", stack: "shop", port: 5173, basePath: "/" },

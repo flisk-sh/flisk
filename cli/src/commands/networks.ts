@@ -27,6 +27,17 @@ import { stackExists } from "../utils/services.js";
 import { isValidPort, sanitizeForShell } from "../utils/validation.js";
 import { findOnPath } from "../utils/which.js";
 
+/**
+ * A bring-your-own service that Traefik routes as an API: proxied (exposeViaProxy is not false) and not a web UI, which
+ * is routed on its own host. Such services are listed by `flisk networks` at the same URL `flisk up` prints.
+ */
+function isApiRoutedBringYourOwn(service: {
+  config?: { appType?: string; exposeViaProxy?: boolean; webUi?: boolean };
+}): boolean {
+  const config = service.config;
+  return config?.appType === "bring-your-own" && config.exposeViaProxy !== false && !config.webUi;
+}
+
 function execSafe(
   command: string,
   args: string[],
@@ -248,11 +259,21 @@ export const networksCommand = new Command("networks")
       const services = discovery.resources;
       const servicesWithUrls: ServiceUrl[] = await Promise.all(
         services
-          .filter((s) => s.config?.appType === "frontend" || isApiServiceType(s.config?.appType))
+          .filter(
+            (s) =>
+              s.config?.appType === "frontend" ||
+              isApiServiceType(s.config?.appType) ||
+              isApiRoutedBringYourOwn(s),
+          )
           .map(async (s) => {
-            const resolvedPath = resolveServicePath(s);
+            // A bring-your-own service that is routed as an API is served at /api/<name> on the api host, like a backend.
+            const resolvedPath = isApiRoutedBringYourOwn(s)
+              ? `/api/${s.name.replace(/-api$/, "")}`
+              : resolveServicePath(s);
             const basePath = resolvedPath.startsWith("/") ? resolvedPath : `/${resolvedPath}`;
-            const isBackend = isApiServiceType((s.config as { appType?: string })?.appType);
+            const isBackend =
+              isApiServiceType((s.config as { appType?: string })?.appType) ||
+              isApiRoutedBringYourOwn(s);
             const host = isBackend ? apiDomain : appDomain;
             const url = `http://${host}:${httpPort}${basePath}`;
             const port = s.config?.port;
