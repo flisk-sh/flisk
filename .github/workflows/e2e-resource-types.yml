@@ -46,6 +46,11 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
     timeout-minutes: 3
+    permissions:
+      contents: read
+      # queue-reuse-base.sh reads the pull request and this workflow's runs on its head.
+      actions: read
+      pull-requests: read
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
@@ -58,6 +63,8 @@ jobs:
         id: matrix
         env:
           EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: e2e-resource-types.yml
         run: |
           case "$EVENT" in
             pull_request | merge_group) trigger="pr" ;;
@@ -82,7 +89,18 @@ jobs:
           # framework, backend language, agent runtime, bring-your-own template or engine area (byo_*.star, vite, prisma) runs
           # only its own legs; other shared code (resource.ts, the rest of the engine, tests/e2e/lib, common.sh) runs the canary,
           # one leg per kind of suite; this workflow, pr-legs.mjs and suite-matrix.mjs run every leg; a change none of the suites
-          # read runs none, and the gate passes. The merge queue keeps the full pull request set.
+          # read runs none, and the gate passes. The merge queue keeps the full pull request set, unless this workflow already
+          # passed on the queued pull request's head: then it runs only the legs that main's newer commits touch.
+          reuse=""
+          if [ "$EVENT" = "merge_group" ]; then
+            reuse="$(scripts/e2e/queue-reuse-base.sh)"
+            if [ -n "$reuse" ]; then
+              echo "Reusing the pull request's passing run on $reuse; selecting legs for main's changes since then."
+              before="$RUNNER_TEMP/byo-templates-before.json"
+              git show "$reuse:examples/byo/templates.json" >"$before" 2>/dev/null || : >"$before"
+              matrix="$(git diff --name-only "$reuse" HEAD | node tests/e2e/lib/pr-legs.mjs "$matrix" --templates-before "$before")"
+            fi
+          fi
           if [ "$EVENT" = "pull_request" ]; then
             # Diff against the checked-out merge commit's first parent (the base the merge ref was built on), not the event
             # payload's base.sha: that is frozen when the event fires, so once main moves on the diff would also list main's own
