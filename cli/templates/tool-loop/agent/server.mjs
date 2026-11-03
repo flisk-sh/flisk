@@ -107,7 +107,9 @@ createServer(async (request, response) => {
     try {
       return json(response, 200, await ask(body.question));
     } catch (error) {
-      return json(response, 502, { error: error instanceof Error ? error.message : String(error) });
+      // The details stay in the agent's log; the caller only learns that the request failed.
+      console.error(error);
+      return json(response, 502, { error: "the agent could not answer; see the agent logs" });
     }
   }
   json(response, 404, { error: "not found" });

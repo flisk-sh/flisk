@@ -80,4 +80,9 @@ describe("tool-loop mock model", () => {
       stop_reason: "end_turn",
     });
   });
+  it("keeps error details in the agent's log instead of sending them to the caller", () => {
+    const server = readFileSync(join(templates, "tool-loop/agent/server.mjs"), "utf-8");
+    expect(server).toContain("console.error(error);");
+    expect(server).not.toMatch(/(json\(response, 502|run\.error =).*error\.message/);
+  });
 });

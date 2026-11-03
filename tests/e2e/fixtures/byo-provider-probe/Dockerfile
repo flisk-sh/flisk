@@ -1,5 +1,5 @@
 # Probe for the external providers e2e (verify-byo-providers.sh). It is also the stand-in local simulator: GET /health.
-FROM python:3.12-alpine
+FROM python:3.12-alpine@sha256:e6dae589c1c05976188fd3bd019afd091445fc533ed2ea29001beddc7368a9c8
 RUN adduser -D -u 10001 probe
 WORKDIR /app
 COPY probe.py .
