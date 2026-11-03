@@ -609,7 +609,12 @@ jobs:
               exit 1
             fi
           done
-          gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --tag "v${VERSION}" --draft=false --latest=false
+          # Mark this release Latest only when it is at least as new as the current Latest, so publishing or repairing an
+          # older release never rolls the repository's Latest badge back. Before this, every release passed --latest=false
+          # and the badge stayed on v1.4.0 while npm was on 1.4.33.
+          current=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name' 2>/dev/null || echo v0.0.0)
+          if [ "$(printf '%s\n%s\n' "${current#v}" "$VERSION" | sort -V | tail -n1)" = "$VERSION" ]; then latest=true; else latest=false; fi
+          gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --tag "v${VERSION}" --draft=false --latest="$latest"
 
   publish-github-packages:
     name: Publish npm package to GitHub Packages
@@ -739,9 +744,14 @@ jobs:
             git tag "v${VERSION}" "$target"
             git push "$remote" "refs/tags/v${VERSION}"
           fi
+          # Mark this release Latest only when it is at least as new as the current Latest, so publishing or repairing an
+          # older release never rolls the repository's Latest badge back. Before this, every release passed --latest=false
+          # and the badge stayed on v1.4.0 while npm was on 1.4.33.
+          current=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name' 2>/dev/null || echo v0.0.0)
+          if [ "$(printf '%s\n%s\n' "${current#v}" "$VERSION" | sort -V | tail -n1)" = "$VERSION" ]; then latest=true; else latest=false; fi
           if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+            gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft=false --latest="$latest"
           else
-            gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --latest=false --title "v${VERSION}" \
+            gh release create "v${VERSION}" --repo "$GITHUB_REPOSITORY" --latest="$latest" --title "v${VERSION}" \
               --notes "flisk ${VERSION}. Binaries: https://github.com/flisk-sh/releases/releases/tag/v${VERSION} (all releases: https://github.com/flisk-sh/releases)"
           fi
