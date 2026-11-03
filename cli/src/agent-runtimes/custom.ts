@@ -147,9 +147,11 @@ async function readJson(req: IncomingMessage): Promise<any> {
 
 function queueSessionOperation(sessionId: string, operation: () => Promise<void>): Promise<void> {
   const currentQueue = sessionOperationQueues.get(sessionId) ?? Promise.resolve();
-  const newQueue = currentQueue.then(operation).catch(() => {});
-  sessionOperationQueues.set(sessionId, newQueue);
-  return newQueue;
+  // Hand the caller the operation's own promise so a failed turn reaches the handler's catch and answers 500; the stored
+  // tail never rejects, so the next operation for this session still runs.
+  const run = currentQueue.then(operation);
+  sessionOperationQueues.set(sessionId, run.catch(() => {}));
+  return run;
 }
 
 const server = createServer(async (req, res) => {
@@ -343,9 +345,11 @@ async function readJson(req: IncomingMessage): Promise<any> {
 
 function queueSessionOperation(sessionId: string, operation: () => Promise<void>): Promise<void> {
   const currentQueue = sessionOperationQueues.get(sessionId) ?? Promise.resolve();
-  const newQueue = currentQueue.then(operation).catch(() => {});
-  sessionOperationQueues.set(sessionId, newQueue);
-  return newQueue;
+  // Hand the caller the operation's own promise so a failed turn reaches the handler's catch and answers 500; the stored
+  // tail never rejects, so the next operation for this session still runs.
+  const run = currentQueue.then(operation);
+  sessionOperationQueues.set(sessionId, run.catch(() => {}));
+  return run;
 }
 
 const server = createServer(async (req, res) => {

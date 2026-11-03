@@ -14,7 +14,39 @@ function closeBody(source: string): string {
   return source.slice(start, end);
 }
 
+// Pull `queueSessionOperation` out of a generated index and run it, so the test checks the shipped helper's behaviour.
+function loadQueueHelper(source: string) {
+  const start = source.indexOf("function queueSessionOperation(");
+  expect(start).toBeGreaterThan(-1);
+  const end = source.indexOf("\n}\n", start) + 2;
+  const js = source
+    .slice(start, end)
+    .replace(
+      /\(sessionId: string, operation: \(\) => Promise<void>\): Promise<void>/,
+      "(sessionId, operation)",
+    );
+  return new Function("sessionOperationQueues", `${js}\nreturn queueSessionOperation;`)(
+    new Map(),
+  ) as (sessionId: string, operation: () => Promise<void>) => Promise<void>;
+}
+
 describe("custom agent runtime provider", () => {
+  it.each(["files", "postgres"] as const)(
+    "lets a failed %s turn reject for its caller and keeps the session queue running",
+    async (durability) => {
+      const queue = loadQueueHelper(getCustomAgentIndexTemplate(SERVICE, durability));
+      await expect(
+        queue("s1", async () => {
+          throw new Error("checkpoint write failed");
+        }),
+      ).rejects.toThrow("checkpoint write failed");
+      let ran = false;
+      await queue("s1", async () => {
+        ran = true;
+      });
+      expect(ran).toBe(true);
+    },
+  );
   it("is a dependency-free provider backed by the exported template", () => {
     expect(customAgentRuntime.id).toBe("custom");
     expect(customAgentRuntime.dependencies).toEqual({});
