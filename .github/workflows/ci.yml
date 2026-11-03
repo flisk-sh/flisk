@@ -223,6 +223,7 @@ jobs:
     permissions:
       contents: write # push the refreshed coverage badge branch
       pull-requests: write # open the coverage badge PR
+      code-quality: write # upload line coverage for the code_coverage ruleset rule
     defaults:
       run:
         working-directory: cli
@@ -264,6 +265,16 @@ jobs:
             );
             console.log(["## Unit test coverage", "", "| Metric | Coverage | Covered |", "|---|---|---|", ...rows, ""].join("\n"));
           ' >> "$GITHUB_STEP_SUMMARY"
+      # The main ruleset's code_coverage rule (minimum 57% lines) reads only coverage uploaded to Code Quality; without this step
+      # every merge-queue entry was removed with branch_protection_failure. The action skips merge_group runs and fork PRs itself.
+      - name: Upload line coverage to GitHub Code Quality
+        if: ${{ !cancelled() && hashFiles('cli/coverage/cobertura-coverage.xml') != '' }}
+        uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
+        with:
+          file: cli/coverage/cobertura-coverage.xml
+          language: TypeScript
+          label: code-coverage/vitest
+          fail-on-error: false
       - name: Upload coverage HTML report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

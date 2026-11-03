@@ -17,3 +17,8 @@ paths:
       # The same scope as above: it reads the open Dependabot alerts (open-security-alerts), and security-events only
       # covers the code scanning ones.
       - 'unknown permission scope "vulnerability-alerts"'
+  .github/workflows/ci.yml:
+    ignore:
+      # The code-quality permission scope exists (actions/upload-code-coverage requires code-quality: write) but the
+      # pinned actionlint 1.7.12 does not know it yet. It uploads line coverage for the main ruleset's code_coverage rule.
+      - 'unknown permission scope "code-quality"'
