@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 
-import { spawn } from "child_process";
-import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { spawn } from "node:child_process";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const TEST_PORT = 9999;
@@ -254,7 +254,7 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
     // Load checkpoint - should have all messages saved atomically
     const checkpoint = JSON.parse(
-      require("fs").readFileSync(join(TEST_STATE_DIR, `${sessionId}.json`), "utf8"),
+      require("node:fs").readFileSync(join(TEST_STATE_DIR, `${sessionId}.json`), "utf8"),
     );
     expect(checkpoint.messages.length).toBe(concurrency * 2); // Each request adds 2 messages (user + agent)
     expect(checkpoint.sessionId).toBe(sessionId);

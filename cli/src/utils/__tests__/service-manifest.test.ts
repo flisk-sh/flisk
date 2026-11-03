@@ -1318,7 +1318,10 @@ describe("Compose settings from imported stacks, round 3", () => {
     [[{ condition: "service_healthy" }], "dependsOn[0].name: expected a service or stack name"],
     [[42], "dependsOn[0]: expected a name, or an object"],
     [
-      [{ name: "db", condition: "service_healthy" }, { name: "db", condition: "service_started" }],
+      [
+        { name: "db", condition: "service_healthy" },
+        { name: "db", condition: "service_started" },
+      ],
       "dependsOn: 'db' lists conflicting conditions 'service_healthy' and 'service_started'",
     ],
     [
