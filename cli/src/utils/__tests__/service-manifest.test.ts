@@ -847,10 +847,14 @@ describe("secretsErrors", () => {
     expect(secretsErrors({ secrets: { files: "not-an-array" } }, file)).toEqual([
       `${file}.secrets.files: expected an array of { name, source, target }`,
     ]);
-    expect(secretsErrors({ secrets: { files: [{ name: "bad name\n", source: "./s.txt" }] } }, file)).toContain(
+    expect(
+      secretsErrors({ secrets: { files: [{ name: "bad name\n", source: "./s.txt" }] } }, file),
+    ).toContain(
       `${file}.secrets.files[0].name: "bad name\\n" is not a valid secret identifier name (letters, digits, dashes, dots and underscores)`,
     );
-    expect(secretsErrors({ secrets: { files: [{ name: "s", source: "/etc/passwd" }] } }, file)).toContain(
+    expect(
+      secretsErrors({ secrets: { files: [{ name: "s", source: "/etc/passwd" }] } }, file),
+    ).toContain(
       `${file}.secrets.files[0].source: expected a relative path inside the project such as ./config or ./file.txt`,
     );
   });

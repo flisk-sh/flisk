@@ -1350,7 +1350,9 @@ function validateSecretConfigFileEntry(
   kind: "secret" | "config",
 ): string[] {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-    return [`${field}: expected an object like { "name": "...", "source": "...", "target": "..." }`];
+    return [
+      `${field}: expected an object like { "name": "...", "source": "...", "target": "..." }`,
+    ];
   }
   const errors: string[] = [];
   const rec = entry as Record<string, unknown>;
@@ -1361,11 +1363,21 @@ function validateSecretConfigFileEntry(
     );
   }
   const source = rec.source;
-  if (typeof source !== "string" || !RESOURCE_FILE_PATH_PATTERN.test(source) || source.includes("/../") || source.endsWith("/..")) {
-    errors.push(`${field}.source: expected a relative path inside the project such as ./config or ./file.txt`);
+  if (
+    typeof source !== "string" ||
+    !RESOURCE_FILE_PATH_PATTERN.test(source) ||
+    source.includes("/../") ||
+    source.endsWith("/..")
+  ) {
+    errors.push(
+      `${field}.source: expected a relative path inside the project such as ./config or ./file.txt`,
+    );
   }
   const target = rec.target;
-  if (target !== undefined && (typeof target !== "string" || !CONTAINER_TARGET_PATTERN.test(target))) {
+  if (
+    target !== undefined &&
+    (typeof target !== "string" || !CONTAINER_TARGET_PATTERN.test(target))
+  ) {
     errors.push(`${field}.target: expected an absolute container path such as /etc/config`);
   }
   const uid = rec.uid;

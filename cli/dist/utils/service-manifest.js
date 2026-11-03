@@ -1224,7 +1224,9 @@ const RESOURCE_FILE_PATH_PATTERN = /^(?:[A-Za-z0-9_.-]+|\.{1,2}(?:\/[A-Za-z0-9_.
 const CONTAINER_TARGET_PATTERN = /^\/[A-Za-z0-9_./-]*$/;
 function validateSecretConfigFileEntry(entry, field, kind) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-        return [`${field}: expected an object like { "name": "...", "source": "...", "target": "..." }`];
+        return [
+            `${field}: expected an object like { "name": "...", "source": "...", "target": "..." }`,
+        ];
     }
     const errors = [];
     const rec = entry;
@@ -1233,11 +1235,15 @@ function validateSecretConfigFileEntry(entry, field, kind) {
         errors.push(`${field}.name: ${JSON.stringify(name)} is not a valid ${kind} identifier name (letters, digits, dashes, dots and underscores)`);
     }
     const source = rec.source;
-    if (typeof source !== "string" || !RESOURCE_FILE_PATH_PATTERN.test(source) || source.includes("/../") || source.endsWith("/..")) {
+    if (typeof source !== "string" ||
+        !RESOURCE_FILE_PATH_PATTERN.test(source) ||
+        source.includes("/../") ||
+        source.endsWith("/..")) {
         errors.push(`${field}.source: expected a relative path inside the project such as ./config or ./file.txt`);
     }
     const target = rec.target;
-    if (target !== undefined && (typeof target !== "string" || !CONTAINER_TARGET_PATTERN.test(target))) {
+    if (target !== undefined &&
+        (typeof target !== "string" || !CONTAINER_TARGET_PATTERN.test(target))) {
         errors.push(`${field}.target: expected an absolute container path such as /etc/config`);
     }
     const uid = rec.uid;
