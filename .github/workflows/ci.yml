@@ -107,7 +107,9 @@ jobs:
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
+    # A hang guard: lint alone takes about 20s, but on a same-repo PR the autofix step also builds, a clean run took 37s, and
+    # on 2026-11-03 the runner's orphan-process cleanup waited 3 minutes after the last step (#3185). One minute cancelled it.
+    timeout-minutes: 5
     permissions:
       contents: write # push Biome fixes and a rebuilt cli/dist back to the PR branch
       actions: write # start CI on the pushed fix commit
