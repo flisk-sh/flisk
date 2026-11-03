@@ -394,7 +394,9 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
             # Not a service or stack: keep the name Tilt has always been given (a `-yaml` echo resource, or nothing).
             resolved = [_resolve_dependency_to_resource(dep, all_services_map or {})]
         
-        dep_condition = conditions.get(dep, "service_started")
+        is_direct = _is_known_resource(dep, all_services_map) or is_shared_platform_postgres_dependency(dep) or _is_database_resource(dep, all_services_map)
+        is_expanded_stack = (not is_direct) or (len(resolved) > 1)
+        dep_condition = conditions.get(dep, None)
 
         for resolved_dep in resolved:
             if resolved_dep and resolved_dep != res_name and resolved_dep not in res_deps:
@@ -406,25 +408,47 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
             if is_valid_res:
                 dep_is_job = _is_job_resource(resolved_dep, all_services_map)
 
-                if dep_condition == "service_healthy":
-                    if dep_is_job:
-                        fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_healthy', but '{}' is a one-shot job that exits on completion without a health check. Use 'service_completed_successfully' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
-                    healthy = job_healthy_resource_name(resolved_dep)
-                    if healthy not in res_deps:
-                        res_deps.append(healthy)
+                if is_expanded_stack:
+                    # Expanded stack dependency (e.g. {"name": "shop", "condition": "service_healthy"}).
+                    # Route each member service to its valid companion gate:
+                    # - service_healthy: persistent services wait for <svc>-healthy; one-shot migrators wait for <job>-done.
+                    # - service_completed_successfully: migrators wait for <job>-done; persistent services wait for <svc>-healthy.
+                    # - service_started: all members only wait for container start (no companion gates).
+                    # - unconditioned (default): persistent services wait for start; migrators default to <job>-done (#2871).
+                    if dep_condition == "service_healthy" or dep_condition == "service_completed_successfully":
+                        companion = job_done_resource_name(resolved_dep) if dep_is_job else job_healthy_resource_name(resolved_dep)
+                        if companion not in res_deps:
+                            res_deps.append(companion)
+                    elif dep_condition == "service_started":
+                        pass
+                    elif dep_is_job:
+                        done = job_done_resource_name(resolved_dep)
+                        if done not in res_deps:
+                            res_deps.append(done)
+                else:
+                    # Directly named service or one-shot job dependency. Enforce strict condition validity.
+                    if dep_condition == "service_healthy":
+                        if dep_is_job:
+                            fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_healthy', but '{}' is a one-shot job that exits on completion without a health check. Use 'service_completed_successfully' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                        healthy = job_healthy_resource_name(resolved_dep)
+                        if healthy not in res_deps:
+                            res_deps.append(healthy)
 
-                elif dep_condition == "service_completed_successfully":
-                    if not dep_is_job:
-                        fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_completed_successfully', but '{}' is a long-running service that does not exit on completion. Use 'service_healthy' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
-                    done = job_done_resource_name(resolved_dep)
-                    if done not in res_deps:
-                        res_deps.append(done)
+                    elif dep_condition == "service_completed_successfully":
+                        if not dep_is_job:
+                            fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_completed_successfully', but '{}' is a long-running service that does not exit on completion. Use 'service_healthy' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                        done = job_done_resource_name(resolved_dep)
+                        if done not in res_deps:
+                            res_deps.append(done)
 
-                elif dep_is_job:
-                    # One-shot job without an explicit condition: default to job completion (#2871)
-                    done = job_done_resource_name(resolved_dep)
-                    if done not in res_deps:
-                        res_deps.append(done)
+                    elif dep_condition == "service_started":
+                        pass
+
+                    elif dep_is_job:
+                        # Direct dependency on a one-shot job with no explicit condition: default to completion (#2871)
+                        done = job_done_resource_name(resolved_dep)
+                        if done not in res_deps:
+                            res_deps.append(done)
     
     return res_deps
 
@@ -913,7 +937,7 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
 
 
 _HEALTHY_SCRIPT = (
-    'job="$1"; max_polls="${2:-120}"; shift 2 2>/dev/null || shift 1; '
+    'job="$1"; max_polls="${2:-120}"; shift 2 2>/dev/null || shift 1; exited_count=0; '
     + 'for i in $(seq 1 "$max_polls"); do '
     + '  if [ "$#" -gt 0 ]; then '
     + '    id="$("$@" ps -q "$job" 2>/dev/null | head -n 1)"; '
@@ -927,6 +951,20 @@ _HEALTHY_SCRIPT = (
     + '  if [ "$state" = "dead" ]; then '
     + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
     + '    echo "ERROR: container $job is dead (exit code $code)"; exit 1; '
+    + '  fi; '
+    + '  if [ "$state" = "exited" ]; then '
+    + '    policy="$(docker inspect --format="{{.HostConfig.RestartPolicy.Name}}" "$id" 2>/dev/null)"; '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    if [ "$policy" = "no" ] || [ -z "$policy" ]; then '
+    + '      exited_count=$((exited_count + 1)); '
+    + '      if [ "$exited_count" -ge 5 ]; then '
+    + '        echo "ERROR: container $job exited with code $code and will not restart (restart: ${policy:-no})"; exit 1; '
+    + '      fi; '
+    + '    else '
+    + '      exited_count=0; '
+    + '    fi; '
+    + '  else '
+    + '    exited_count=0; '
     + '  fi; '
     + '  has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}" "$id" 2>/dev/null)"; '
     + '  if [ "$has_health" = "no" ]; then '
@@ -986,7 +1024,11 @@ def _register_healthy_resource(config, resource_path, compose_project_name, auto
 
 _JOB_DONE_SCRIPT = (
     'job="$1"; shift; '
-    + 'id="$("$@" ps -a -q "$job" | head -n 1)"; '
+    + 'if [ "$#" -gt 0 ]; then '
+    + '  id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; '
+    + 'else '
+    + '  id="$(docker ps -a -q -f "name=$job" 2>/dev/null | head -n 1)"; '
+    + 'fi; '
     + 'if [ -z "$id" ]; then echo "no container for $job"; exit 1; fi; '
     + 'code="$(docker wait "$id")"; '
     + 'if [ "$code" != "0" ]; then rm -f ".flisk/outputs/$job.env" 2>/dev/null; echo "$job exited with code $code"; exit 1; fi; '
@@ -1015,6 +1057,10 @@ def _register_job_done_resource(config, resource_path, compose_project_name, aut
         auto_init=auto_init_apps,
         allow_parallel=True,
     )
+
+
+HEALTHY_SCRIPT = _HEALTHY_SCRIPT
+JOB_DONE_SCRIPT = _JOB_DONE_SCRIPT
 
 
 def _register_dc_resources(resource_configs, resource_path, compose_project_name, auto_init_apps):

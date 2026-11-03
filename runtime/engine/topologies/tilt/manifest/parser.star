@@ -175,9 +175,10 @@ def normalize_depends_on(manifest, resource_path=""):
     """
     `dependsOn` entries may be names ("db") or Compose-style objects ({"name": "db", "condition": "service_healthy"}). Every
     generator reads names, so the objects are turned into their names here, where a service.json becomes a manifest, and the
-    conditions are kept in `dependsOnConditions` (name -> condition). Tilt orders resources by name only. Returns the manifest
-    (changed in place), or fail()s on an object that is not {name, condition?}. Keep in step with dependsOnErrors in
-    cli/src/utils/service-manifest.ts.
+    conditions are kept in `dependsOnConditions` (name -> condition). The orchestrator enforces condition-aware ordering
+    (service_started, service_healthy, service_completed_successfully) by mapping conditions to companion gate resources
+    (<res>-healthy, <job>-done). Returns the manifest (changed in place), or fail()s on an object that is not {name, condition?}.
+    Keep in step with dependsOnErrors in cli/src/utils/service-manifest.ts.
     """
     if type(manifest) != "dict":
         return manifest

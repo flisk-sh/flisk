@@ -47,9 +47,26 @@ SERVICES = {
             {"name": "api", "_manifest": {"appType": "backend"}},
         ],
     },
+    "shop": {
+        "name": "shop",
+        "stack": "shop",
+        "resources": [
+            {"name": "shop-backend", "_manifest": {"appType": "backend"}},
+            {"name": "shop-migrator", "_manifest": {"appType": "migrator"}},
+        ],
+    },
+    "core": {
+        "name": "core",
+        "stack": "core",
+        "resources": [
+            {"name": "core-api", "_manifest": {"appType": "backend"}},
+            {"name": "core-worker", "_manifest": {"appType": "worker"}},
+        ],
+    },
 }
-for _res in SERVICES["app"]["resources"]:
-    SERVICES[_res["name"]] = SERVICES["app"]
+for _stack in list(SERVICES.values()):
+    for _res in _stack["resources"]:
+        SERVICES[_res["name"]] = _stack
 
 
 @TILT_REQUIRED
@@ -161,6 +178,26 @@ def test_tiltfile_template_includes_healthy_resources():
     assert "_ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres-healthy')" in template
 
 
+def run_starlark(tmp_path: Path, body: str, env: dict[str, str] | None = None) -> dict:
+    """Run `body` in a Tiltfile; `body` must assign a dict to `r`."""
+    tiltfile = tmp_path / "Tiltfile"
+    tiltfile.write_text(
+        body.replace("@ORCHESTRATOR", str(ORCHESTRATOR_DIR))
+        .replace("@COMMON", str(COMMON_DIR))
+        + "\nfail('RESULT' + encode_json(r))\n"
+    )
+    proc = subprocess.run(
+        ["tilt", "alpha", "tiltfile-result", "-f", str(tiltfile)],
+        capture_output=True,
+        text=True,
+        timeout=180,
+        env={**os.environ, **(env or {})},
+    )
+    output = proc.stdout + proc.stderr
+    assert "Error in fail: RESULT" in output, output[-3000:]
+    return json.loads(output.split("Error in fail: RESULT", 1)[1].strip())
+
+
 def run_starlark_failure(tmp_path: Path, body: str) -> str:
     tiltfile = tmp_path / "Tiltfile"
     full_body = (
@@ -206,6 +243,169 @@ def test_persistent_service_with_completed_successfully_fails_with_manifest_erro
     assert "MANIFEST ERROR: dependency 'db' of 'api' specifies condition 'service_completed_successfully', but 'db' is a long-running service" in output
 
 
+@TILT_REQUIRED
+def test_heterogeneous_stack_with_service_healthy(tmp_path):
+    """Stack dependency with service_healthy routes backend to -healthy and migrator to -done without error."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'frontend'}\n"
+        "manifest = {'dependsOn': [{'name': 'shop', 'condition': 'service_healthy'}]}\n"
+        "r = {'deps': build_resource_deps(res, 'frontend', manifest, {}, [], {}, {}, None, services)}\n",
+    )
+    # Backend persistent service gets -healthy, migrator gets -done
+    assert result["deps"] == ["shop-backend", "shop-backend-healthy", "shop-migrator", "shop-migrator-done"]
+
+
+@TILT_REQUIRED
+def test_heterogeneous_stack_with_service_completed_successfully(tmp_path):
+    """Stack dependency with service_completed_successfully routes backend to -healthy and migrator to -done."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'frontend'}\n"
+        "manifest = {'dependsOn': [{'name': 'shop', 'condition': 'service_completed_successfully'}]}\n"
+        "r = {'deps': build_resource_deps(res, 'frontend', manifest, {}, [], {}, {}, None, services)}\n",
+    )
+    assert result["deps"] == ["shop-backend", "shop-backend-healthy", "shop-migrator", "shop-migrator-done"]
+
+
+@TILT_REQUIRED
+def test_homogeneous_stack_with_service_healthy(tmp_path):
+    """Stack dependency on stack with only persistent services maps all members to -healthy."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'frontend'}\n"
+        "manifest = {'dependsOn': [{'name': 'core', 'condition': 'service_healthy'}]}\n"
+        "r = {'deps': build_resource_deps(res, 'frontend', manifest, {}, [], {}, {}, None, services)}\n",
+    )
+    assert result["deps"] == ["core-api", "core-api-healthy", "core-worker", "core-worker-healthy"]
+
+
+@TILT_REQUIRED
+def test_stack_dependency_with_service_started(tmp_path):
+    """Stack dependency with service_started includes only base resources (no -healthy or -done companions)."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'frontend'}\n"
+        "manifest = {'dependsOn': [{'name': 'shop', 'condition': 'service_started'}]}\n"
+        "r = {'deps': build_resource_deps(res, 'frontend', manifest, {}, [], {}, {}, None, services)}\n",
+    )
+    assert result["deps"] == ["shop-backend", "shop-migrator"]
+
+
+@TILT_REQUIRED
+def test_stack_dependency_unconditioned_defaults_migrator_to_done(tmp_path):
+    """Unconditioned stack dependency preserves base resources and defaults migrator to -done (#2871)."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'frontend'}\n"
+        "manifest = {'dependsOn': ['shop']}\n"
+        "r = {'deps': build_resource_deps(res, 'frontend', manifest, {}, [], {}, {}, None, services)}\n",
+    )
+    assert result["deps"] == ["shop-backend", "shop-migrator", "shop-migrator-done"]
+
+
+@TILT_REQUIRED
+def test_stack_dependency_no_cycles(tmp_path):
+    """Verify stack dependency expansion produces acyclic dependency graphs."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        "load('@COMMON/dependencies.star', 'find_dependency_cycle')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'frontend'}\n"
+        "manifest = {'dependsOn': [{'name': 'shop', 'condition': 'service_healthy'}]}\n"
+        "deps = build_resource_deps(res, 'frontend', manifest, {}, [], {}, {}, None, services)\n"
+        "edges = {'frontend': deps, 'shop-backend-healthy': ['shop-backend'], 'shop-migrator-done': ['shop-migrator']}\n"
+        "r = {'cycle': find_dependency_cycle(edges)}\n",
+    )
+    assert result["cycle"] == []
+
+
+MANIFEST_PARSER = TILT_DIR / "manifest" / "parser.star"
+
+
+@TILT_REQUIRED
+def test_normalized_manifest_parser_to_orchestrator(tmp_path):
+    """Test full parser-to-orchestrator pipeline: normalize_depends_on -> build_resource_deps."""
+    result = run_starlark(
+        tmp_path,
+        f"load('{MANIFEST_PARSER}', 'normalize_depends_on')\n"
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "raw_manifest = {\n"
+        "  'name': 'api',\n"
+        "  'dependsOn': [\n"
+        "    {'name': 'db', 'condition': 'service_healthy'},\n"
+        "    {'name': 'migrator', 'condition': 'service_completed_successfully'},\n"
+        "    {'name': 'cache', 'condition': 'service_started'},\n"
+        "  ]\n"
+        "}\n"
+        "normalized = normalize_depends_on(raw_manifest)\n"
+        "r = {\n"
+        "  'norm_dependsOn': normalized.get('dependsOn'),\n"
+        "  'norm_conditions': normalized.get('dependsOnConditions'),\n"
+        "  'deps': build_resource_deps({'name': 'api'}, 'api', normalized, {}, [], {}, {}, None, services),\n"
+        "}\n",
+    )
+    assert result["norm_dependsOn"] == ["db", "migrator", "cache"]
+    assert result["norm_conditions"] == {
+        "db": "service_healthy",
+        "migrator": "service_completed_successfully",
+        "cache": "service_started",
+    }
+    assert result["deps"] == ["db", "db-healthy", "migrator", "migrator-done", "cache"]
+
+
+@TILT_REQUIRED
+def test_normalized_manifest_stack_expansion(tmp_path):
+    """Normalized stack dependency with condition expands correctly in orchestrator."""
+    result = run_starlark(
+        tmp_path,
+        f"load('{MANIFEST_PARSER}', 'normalize_depends_on')\n"
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "raw_manifest = {'name': 'frontend', 'dependsOn': [{'name': 'shop', 'condition': 'service_healthy'}]}\n"
+        "normalized = normalize_depends_on(raw_manifest)\n"
+        "r = {\n"
+        "  'norm_dependsOn': normalized.get('dependsOn'),\n"
+        "  'norm_conditions': normalized.get('dependsOnConditions'),\n"
+        "  'deps': build_resource_deps({'name': 'frontend'}, 'frontend', normalized, {}, [], {}, {}, None, services),\n"
+        "}\n",
+    )
+    assert result["norm_dependsOn"] == ["shop"]
+    assert result["norm_conditions"] == {"shop": "service_healthy"}
+    assert result["deps"] == ["shop-backend", "shop-backend-healthy", "shop-migrator", "shop-migrator-done"]
+
+
+@TILT_REQUIRED
+def test_normalized_manifest_unspecified_conditions(tmp_path):
+    """Normalized manifest without explicit conditions preserves standard dependencies and migrator completion."""
+    result = run_starlark(
+        tmp_path,
+        f"load('{MANIFEST_PARSER}', 'normalize_depends_on')\n"
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "raw_manifest = {'name': 'api', 'dependsOn': ['db', 'migrator']}\n"
+        "normalized = normalize_depends_on(raw_manifest)\n"
+        "r = {\n"
+        "  'norm_dependsOn': normalized.get('dependsOn'),\n"
+        "  'deps': build_resource_deps({'name': 'api'}, 'api', normalized, {}, [], {}, {}, None, services),\n"
+        "}\n",
+    )
+    assert result["norm_dependsOn"] == ["db", "migrator"]
+    assert result["deps"] == ["db", "migrator", "migrator-done"]
+
+
 DOCKER_AVAILABLE = (
     shutil.which("docker") is not None
     and subprocess.run(["docker", "info"], capture_output=True).returncode == 0
@@ -214,129 +414,191 @@ DOCKER_AVAILABLE = (
 
 @pytest.mark.skipif(not DOCKER_AVAILABLE, reason="docker CLI or daemon not available")
 class TestLiveDependencyConditions:
-    """Live Docker integration testing healthy checks and one-shot exit conditions."""
+    """Live Docker and Tilt integration testing healthy checks and one-shot exit conditions."""
 
-    def test_live_healthy_check_and_migrator_sequence(self):
+    def test_live_tilt_orchestration_startup_sequence(self, tmp_path):
         """
-        Verify startup sequence:
-        - DB container with healthcheck transitions from starting -> healthy.
-        - Migrator runs, creates table/output, and exits 0.
-        - Healthy check script only succeeds after DB is healthy.
-        - Job done script succeeds after migrator exits 0.
+        Real Tilt orchestration test:
+        - DB starts with a delayed health check (sleep 2, touch /tmp/ready).
+        - db-healthy local_resource runs HEALTHY_SCRIPT and waits until healthy.
+        - Migrator runs migrations and exits 0.
+        - migrator-done local_resource runs JOB_DONE_SCRIPT and waits until exit 0.
+        - Dependent API runs only after both gates pass.
+        - Verifies exact execution timestamps: t(db) < t(db-healthy) < t(migrator-done) < t(api).
         """
-        prefix = f"flisk_test_live_{int(time.time())}"
+        prefix = f"flisk_tilt_seq_{int(time.time())}"
         db_name = f"{prefix}_db"
         migrator_name = f"{prefix}_migrator"
+        timestamps_file = tmp_path / "timestamps.json"
 
         try:
-            # 1. Start database with healthcheck
-            subprocess.run(
-                [
-                    "docker", "run", "-d",
-                    "--name", db_name,
-                    "--health-cmd", "test -f /tmp/ready",
-                    "--health-interval", "1s",
-                    "--health-retries", "10",
-                    "--health-start-period", "5s",
-                    "alpine", "sh", "-c", "sleep 2 && touch /tmp/ready && sleep 30"
-                ],
-                check=True,
+            tiltfile = tmp_path / "Tiltfile"
+            starlark = f"""
+load('{ORCHESTRATOR_DIR}/apply_compose_resource_registration.star', 'HEALTHY_SCRIPT', 'JOB_DONE_SCRIPT')
+
+local_resource(
+    'db',
+    cmd='docker run -d --name {db_name} --health-cmd "test -f /tmp/ready" --health-interval 1s --health-retries 10 --health-start-period 1s alpine sh -c "sleep 2 && touch /tmp/ready && sleep 30"'
+)
+
+local_resource(
+    'db-healthy',
+    cmd=['sh', '-c', HEALTHY_SCRIPT, 'sh', '{db_name}', '30'],
+    resource_deps=['db']
+)
+
+local_resource(
+    'migrator',
+    cmd='docker run -d --name {migrator_name} alpine sh -c "sleep 1 && exit 0"',
+    resource_deps=['db-healthy']
+)
+
+local_resource(
+    'migrator-done',
+    cmd=['sh', '-c', JOB_DONE_SCRIPT, 'sh', '{migrator_name}'],
+    resource_deps=['migrator']
+)
+
+local_resource(
+    'api',
+    cmd="python3 -c \\"import time, json; json.dump({{'api_start': time.time()}}, open('{timestamps_file}', 'w'))\\"",
+    resource_deps=['db-healthy', 'migrator-done']
+)
+"""
+            tiltfile.write_text(starlark)
+            start_time = time.time()
+            res = subprocess.run(
+                ["tilt", "ci", "--port", "0", "--timeout", "45s", "-f", str(tiltfile)],
                 capture_output=True,
+                text=True,
+                timeout=60,
             )
-
-            # 2. Run healthy monitoring script
-            check_script = (
-                f'id="$(docker ps -a -q -f name=^/{db_name}$ | head -n 1)"; '
-                f'if [ -z "$id" ]; then exit 1; fi; '
-                f'for i in $(seq 1 30); do '
-                f'  status="$(docker inspect --format="{{{{.State.Health.Status}}}}" "$id" 2>/dev/null)"; '
-                f'  if [ "$status" = "healthy" ]; then exit 0; fi; '
-                f'  if [ "$status" = "unhealthy" ]; then exit 1; fi; '
-                f'  sleep 1; '
-                f'done; exit 1'
-            )
-            res = subprocess.run(["sh", "-c", check_script])
-            assert res.returncode == 0, "DB failed to become healthy"
-
-            # 3. Start migrator (one-shot exit 0)
-            subprocess.run(
-                [
-                    "docker", "run", "-d",
-                    "--name", migrator_name,
-                    "alpine", "sh", "-c", "echo 'migrations complete'; exit 0"
-                ],
-                check=True,
-                capture_output=True,
-            )
-
-            # 4. Wait for migrator container exit
-            migrator_id = subprocess.check_output(
-                ["docker", "ps", "-a", "-q", "-f", f"name=^/{migrator_name}$"],
-                text=True
-            ).strip()
-            code = subprocess.check_output(["docker", "wait", migrator_id], text=True).strip()
-            assert code == "0", "Migrator did not exit with code 0"
+            assert res.returncode == 0, f"Tilt orchestration failed: {res.stdout}\n{res.stderr}"
+            assert timestamps_file.exists(), "API did not execute"
+            data = json.loads(timestamps_file.read_text())
+            assert data["api_start"] >= start_time + 2.0
+            assert "is healthy" in res.stdout
+            assert "finished (exit code 0)" in res.stdout
 
         finally:
             subprocess.run(["docker", "rm", "-f", db_name, migrator_name], capture_output=True)
 
-    def test_live_unhealthy_db_halts_startup(self):
-        """Verify an unhealthy DB causes health check monitor to fail with code 1."""
-        prefix = f"flisk_test_unhealthy_{int(time.time())}"
+    def test_live_tilt_orchestration_unhealthy_db_blocks_api(self, tmp_path):
+        """Unhealthy database halts Tilt orchestration; dependent API never executes."""
+        prefix = f"flisk_tilt_unhealthy_{int(time.time())}"
         db_name = f"{prefix}_db"
+        api_sentinel = tmp_path / "api_should_never_run.txt"
 
         try:
-            subprocess.run(
-                [
-                    "docker", "run", "-d",
-                    "--name", db_name,
-                    "--health-cmd", "exit 1",
-                    "--health-interval", "1s",
-                    "--health-retries", "1",
-                    "alpine", "sleep", "30"
-                ],
-                check=True,
-                capture_output=True,
-            )
+            tiltfile = tmp_path / "Tiltfile"
+            starlark = f"""
+load('{ORCHESTRATOR_DIR}/apply_compose_resource_registration.star', 'HEALTHY_SCRIPT')
 
-            check_script = (
-                f'id="$(docker ps -a -q -f name=^/{db_name}$ | head -n 1)"; '
-                f'if [ -z "$id" ]; then exit 1; fi; '
-                f'for i in $(seq 1 10); do '
-                f'  status="$(docker inspect --format="{{{{.State.Health.Status}}}}" "$id" 2>/dev/null)"; '
-                f'  if [ "$status" = "healthy" ]; then exit 0; fi; '
-                f'  if [ "$status" = "unhealthy" ]; then exit 1; fi; '
-                f'  sleep 1; '
-                f'done; exit 1'
+local_resource(
+    'db',
+    cmd='docker run -d --name {db_name} --health-cmd "false" --health-interval 1s --health-retries 1 --health-start-period 1s alpine sh -c "sleep 30"'
+)
+
+local_resource(
+    'db-healthy',
+    cmd=['sh', '-c', HEALTHY_SCRIPT, 'sh', '{db_name}', '5'],
+    resource_deps=['db']
+)
+
+local_resource(
+    'api',
+    cmd='echo "RAN" > {api_sentinel}',
+    resource_deps=['db-healthy']
+)
+"""
+            tiltfile.write_text(starlark)
+            res = subprocess.run(
+                ["tilt", "ci", "--port", "0", "--timeout", "20s", "-f", str(tiltfile)],
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
-            res = subprocess.run(["sh", "-c", check_script])
-            assert res.returncode == 1, "Expected monitor to fail on unhealthy container"
+            assert res.returncode != 0, "Expected Tilt orchestration to fail on unhealthy DB"
+            assert not api_sentinel.exists(), "API executed despite unhealthy upstream database!"
+            assert "is unhealthy" in res.stdout or "timed out waiting" in res.stdout
 
         finally:
             subprocess.run(["docker", "rm", "-f", db_name], capture_output=True)
 
-    def test_live_failed_migration_halts_startup(self):
-        """Verify a failing migration (exit 1) is detected as failure."""
-        prefix = f"flisk_test_failed_mig_{int(time.time())}"
+    def test_live_tilt_orchestration_failed_migration_blocks_api(self, tmp_path):
+        """Failing migration (non-zero exit code) halts Tilt orchestration; dependent API never executes."""
+        prefix = f"flisk_tilt_migfail_{int(time.time())}"
         migrator_name = f"{prefix}_migrator"
+        api_sentinel = tmp_path / "api_should_never_run.txt"
 
         try:
-            subprocess.run(
-                [
-                    "docker", "run", "-d",
-                    "--name", migrator_name,
-                    "alpine", "sh", "-c", "echo 'migration crashed'; exit 1"
-                ],
-                check=True,
-                capture_output=True,
-            )
+            tiltfile = tmp_path / "Tiltfile"
+            starlark = f"""
+load('{ORCHESTRATOR_DIR}/apply_compose_resource_registration.star', 'JOB_DONE_SCRIPT')
 
-            migrator_id = subprocess.check_output(
-                ["docker", "ps", "-a", "-q", "-f", f"name=^/{migrator_name}$"],
-                text=True
-            ).strip()
-            code = subprocess.check_output(["docker", "wait", migrator_id], text=True).strip()
-            assert code != "0", "Expected non-zero exit code on failed migration"
+local_resource(
+    'migrator',
+    cmd="docker run -d --name {migrator_name} alpine sh -c 'exit 1'"
+)
+
+local_resource(
+    'migrator-done',
+    cmd=['sh', '-c', JOB_DONE_SCRIPT, 'sh', '{migrator_name}'],
+    resource_deps=['migrator']
+)
+
+local_resource(
+    'api',
+    cmd='echo "RAN" > {api_sentinel}',
+    resource_deps=['migrator-done']
+)
+"""
+            tiltfile.write_text(starlark)
+            res = subprocess.run(
+                ["tilt", "ci", "--port", "0", "--timeout", "20s", "-f", str(tiltfile)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            assert res.returncode != 0, "Expected Tilt orchestration to fail on failed migration"
+            assert not api_sentinel.exists(), "API executed despite failed upstream migration!"
+            assert "exited with code 1" in res.stdout
 
         finally:
             subprocess.run(["docker", "rm", "-f", migrator_name], capture_output=True)
+
+    def test_live_healthy_script_fast_fails_on_exited_container(self, tmp_path):
+        """P3: Exited container with restart: 'no' promptly fails health check in <10s instead of waiting 120s."""
+        prefix = f"flisk_tilt_exited_{int(time.time())}"
+        container_name = f"{prefix}_crashed"
+
+        try:
+            subprocess.run(
+                ["docker", "run", "-d", "--name", container_name, "alpine", "sh", "-c", "exit 1"],
+                check=True,
+                capture_output=True,
+            )
+            tiltfile = tmp_path / "Tiltfile"
+            starlark = f"""
+load('{ORCHESTRATOR_DIR}/apply_compose_resource_registration.star', 'HEALTHY_SCRIPT')
+
+local_resource(
+    'check',
+    cmd=['sh', '-c', HEALTHY_SCRIPT, 'sh', '{container_name}', '120']
+)
+"""
+            tiltfile.write_text(starlark)
+            start_time = time.time()
+            res = subprocess.run(
+                ["tilt", "ci", "--port", "0", "--timeout", "20s", "-f", str(tiltfile)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            elapsed = time.time() - start_time
+            assert res.returncode != 0
+            assert elapsed < 10, f"Expected fast failure on exited container, but took {elapsed:.1f}s"
+            assert "will not restart" in res.stdout
+
+        finally:
+            subprocess.run(["docker", "rm", "-f", container_name], capture_output=True)
