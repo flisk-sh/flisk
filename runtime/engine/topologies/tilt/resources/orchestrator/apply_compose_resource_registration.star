@@ -1061,6 +1061,8 @@ def _register_job_done_resource(config, resource_path, compose_project_name, aut
 
 HEALTHY_SCRIPT = _HEALTHY_SCRIPT
 JOB_DONE_SCRIPT = _JOB_DONE_SCRIPT
+register_healthy_resource = _register_healthy_resource
+register_job_done_resource = _register_job_done_resource
 
 
 def _register_dc_resources(resource_configs, resource_path, compose_project_name, auto_init_apps):

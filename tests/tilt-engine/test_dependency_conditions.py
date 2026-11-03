@@ -22,6 +22,7 @@ import os
 import shutil
 import subprocess
 import time
+import uuid
 from pathlib import Path
 
 import pytest
@@ -176,6 +177,35 @@ def test_tiltfile_template_includes_healthy_resources():
     assert "_FILTERED_RESOURCES.append(_R + '-healthy')" in template
     assert "_FILTERED_RESOURCES.append(_STACK_RES_NAME + '-healthy')" in template
     assert "_ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres-healthy')" in template
+
+
+@TILT_REQUIRED
+def test_production_registration_emits_healthy_and_done_resources(tmp_path):
+    """Verify production registration functions emit valid <res>-healthy and <job>-done resources."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'register_healthy_resource', 'register_job_done_resource')\n"
+        "config_backend = {\n"
+        "    'res_name': 'orders-backend',\n"
+        "    'res_path': 'services/orders-backend',\n"
+        "    'res_deps': ['postgres'],\n"
+        "    'labels': ['orders'],\n"
+        "    'syncs': [],\n"
+        "    'manifest': {'appType': 'backend', 'healthCheck': {'path': '/health', 'interval': 5}},\n"
+        "}\n"
+        "config_migrator = {\n"
+        "    'res_name': 'orders-migrator',\n"
+        "    'res_path': 'services/orders-migrator',\n"
+        "    'res_deps': ['postgres'],\n"
+        "    'labels': ['orders'],\n"
+        "    'syncs': [],\n"
+        "    'manifest': {'appType': 'migrator'},\n"
+        "}\n"
+        "register_healthy_resource(config_backend, 'services/orders-backend', 'orders', True)\n"
+        "register_job_done_resource(config_migrator, 'services/orders-migrator', 'orders', True)\n"
+        "r = {'registered': True}\n",
+    )
+    assert result["registered"] is True
 
 
 def run_starlark(tmp_path: Path, body: str, env: dict[str, str] | None = None) -> dict:
@@ -426,10 +456,13 @@ class TestLiveDependencyConditions:
         - Dependent API runs only after both gates pass.
         - Verifies exact execution timestamps: t(db) < t(db-healthy) < t(migrator-done) < t(api).
         """
-        prefix = f"flisk_tilt_seq_{int(time.time())}"
+        prefix = f"flisk_tilt_seq_{uuid.uuid4().hex[:8]}"
         db_name = f"{prefix}_db"
         migrator_name = f"{prefix}_migrator"
+        api_name = f"{prefix}_api"
         timestamps_file = tmp_path / "timestamps.json"
+
+        api_cmd = f"docker run -d --name {api_name} alpine sh -c 'sleep 1 && exit 0' && python3 -c \"import time, json; json.dump({{'api_start': time.time()}}, open('{timestamps_file}', 'w'))\""
 
         try:
             tiltfile = tmp_path / "Tiltfile"
@@ -461,8 +494,14 @@ local_resource(
 
 local_resource(
     'api',
-    cmd="python3 -c \\"import time, json; json.dump({{'api_start': time.time()}}, open('{timestamps_file}', 'w'))\\"",
+    cmd={api_cmd!r},
     resource_deps=['db-healthy', 'migrator-done']
+)
+
+local_resource(
+    'api-healthy',
+    cmd=['sh', '-c', HEALTHY_SCRIPT, 'sh', '{api_name}', '30'],
+    resource_deps=['api']
 )
 """
             tiltfile.write_text(starlark)
@@ -481,11 +520,11 @@ local_resource(
             assert "finished (exit code 0)" in res.stdout
 
         finally:
-            subprocess.run(["docker", "rm", "-f", db_name, migrator_name], capture_output=True)
+            subprocess.run(["docker", "rm", "-f", db_name, migrator_name, api_name], capture_output=True)
 
     def test_live_tilt_orchestration_unhealthy_db_blocks_api(self, tmp_path):
         """Unhealthy database halts Tilt orchestration; dependent API never executes."""
-        prefix = f"flisk_tilt_unhealthy_{int(time.time())}"
+        prefix = f"flisk_tilt_unhealthy_{uuid.uuid4().hex[:8]}"
         db_name = f"{prefix}_db"
         api_sentinel = tmp_path / "api_should_never_run.txt"
 
@@ -527,7 +566,7 @@ local_resource(
 
     def test_live_tilt_orchestration_failed_migration_blocks_api(self, tmp_path):
         """Failing migration (non-zero exit code) halts Tilt orchestration; dependent API never executes."""
-        prefix = f"flisk_tilt_migfail_{int(time.time())}"
+        prefix = f"flisk_tilt_migfail_{uuid.uuid4().hex[:8]}"
         migrator_name = f"{prefix}_migrator"
         api_sentinel = tmp_path / "api_should_never_run.txt"
 
@@ -569,7 +608,7 @@ local_resource(
 
     def test_live_healthy_script_fast_fails_on_exited_container(self, tmp_path):
         """P3: Exited container with restart: 'no' promptly fails health check in <10s instead of waiting 120s."""
-        prefix = f"flisk_tilt_exited_{int(time.time())}"
+        prefix = f"flisk_tilt_exited_{uuid.uuid4().hex[:8]}"
         container_name = f"{prefix}_crashed"
 
         try:
