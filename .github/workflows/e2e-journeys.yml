@@ -79,6 +79,9 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      # queue-reuse-base.sh reads the pull request and this workflow's runs on its head.
+      actions: read
+      pull-requests: read
     outputs:
       run: ${{ steps.select.outputs.run }}
       version: ${{ steps.select.outputs.version }}
@@ -102,7 +105,19 @@ jobs:
           VERSION_INPUT: ${{ github.event.inputs.version }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
           LICENSED: ${{ needs.license.outputs.configured }}
-        run: scripts/e2e/select-journeys.sh
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: e2e-journeys.yml
+        # In the merge queue, diff against the pull request head when this workflow already passed there (queue-reuse-base.sh),
+        # so only the journeys that main's newer commits touch run again.
+        run: |
+          if [ "$EVENT" = "merge_group" ]; then
+            reuse="$(scripts/e2e/queue-reuse-base.sh)"
+            if [ -n "$reuse" ]; then
+              echo "Reusing the pull request's passing run on $reuse."
+              BASE_SHA="$reuse"
+            fi
+          fi
+          BASE_SHA="$BASE_SHA" scripts/e2e/select-journeys.sh
 
   journeys:
     name: ${{ matrix.check || matrix.suite }}
