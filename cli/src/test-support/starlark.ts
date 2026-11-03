@@ -62,11 +62,27 @@ export interface StarlarkOptions {
   verbose?: boolean;
   /** Files written into the scratch project before the run, keyed by relative path. */
   files?: Record<string, string>;
+  /** How long the run may take, in milliseconds (Default: `TILT_TIMEOUT_MS`). */
+  timeoutMs?: number;
 }
 
 export interface StarlarkRun extends SpawnSyncReturns<string> {
   /** The scratch project the Tiltfile ran in. It is removed after the test. */
   dir: string;
+}
+
+/**
+ * Kills what is left of a tilt run's process group, such as a server tilt forked. Windows has no process groups, and
+ * the timeout there ends tilt with TerminateProcess, which cannot be trapped, so this does nothing on Windows.
+ */
+export function killProcessGroup(pid: number, kill: typeof process.kill = process.kill): void {
+  // A pid of 0 means the spawn failed, and kill(-0) would signal this process's own group.
+  if (process.platform === "win32" || pid <= 0) return;
+  try {
+    kill(-pid, "SIGKILL");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ESRCH") throw err;
+  }
 }
 
 const scratchDirs: string[] = [];
@@ -81,6 +97,12 @@ afterEach(() => {
  */
 export function evaluateStarlark(file: string, options: StarlarkOptions): StarlarkRun {
   if (!existsSync(file)) throw new Error(`Starlark module not found: ${file}`);
+  // spawnSync treats a timeout of 0 as no timeout at all.
+  if (options.timeoutMs !== undefined && !(options.timeoutMs > 0)) {
+    throw new Error(
+      `timeoutMs must be a positive number of milliseconds, got ${options.timeoutMs}`,
+    );
+  }
   const dir = mkdtempSync(join(tmpdir(), "flisk-starlark-"));
   scratchDirs.push(dir);
   for (const [path, content] of Object.entries(options.files ?? {})) {
@@ -92,12 +114,19 @@ export function evaluateStarlark(file: string, options: StarlarkOptions): Starla
   const args = ["alpha", "tiltfile-result"];
   if (options.verbose) args.push("--verbose");
   args.push("-f", tiltfile);
-  const result = spawnSync("tilt", args, {
+  const spawnOptions = {
     cwd: dir,
-    encoding: "utf-8",
-    timeout: TILT_TIMEOUT_MS,
+    encoding: "utf-8" as const,
+    timeout: options.timeoutMs ?? TILT_TIMEOUT_MS,
+    // Tilt traps SIGTERM, so the default timeout signal left a stuck run, and this call, waiting forever (#2011).
+    killSignal: "SIGKILL" as const,
+    // Its own process group, so that killProcessGroup also ends what tilt started. On Windows, detached opens a console.
+    // spawnSync honours it, but @types/node leaves it out of SpawnSyncOptions, hence the variable.
+    detached: process.platform !== "win32",
     env: { ...process.env, ...options.env },
-  });
+  };
+  const result = spawnSync("tilt", args, spawnOptions);
+  killProcessGroup(result.pid);
   if (result.error) {
     throw new Error(`tilt could not run ${file}: ${result.error.message}\n${result.stderr}`);
   }
