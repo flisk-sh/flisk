@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
   schedule:
     - cron: "17 4 * * 1" # weekly, so new queries catch old code
   workflow_dispatch:
