@@ -194,6 +194,7 @@ def normalize_depends_on(manifest, resource_path=""):
     where = " in " + resource_path if resource_path else ""
     names = []
     conditions = {}
+    declared_conditions = {}
     for i, entry in enumerate(deps):
         if type(entry) == "dict":
             for key in entry.keys():
@@ -203,13 +204,22 @@ def normalize_depends_on(manifest, resource_path=""):
             if type(name) != "string" or not name:
                 fail("MANIFEST ERROR: 'dependsOn[{}].name' must be a service or stack name{}".format(i, where))
             condition = entry.get('condition')
+            cond = condition if condition != None else "service_started"
             if condition != None:
                 if condition not in DEPENDS_ON_CONDITIONS:
                     fail("MANIFEST ERROR: 'dependsOn[{}].condition' must be one of {}{}".format(i, ", ".join(DEPENDS_ON_CONDITIONS), where))
                 conditions[name] = condition
+            if name in declared_conditions and declared_conditions[name] != cond:
+                fail("MANIFEST ERROR: 'dependsOn' lists '{}' with conflicting conditions '{}' and '{}'{}".format(name, declared_conditions[name], cond, where))
+            declared_conditions[name] = cond
             names.append(name)
         else:
-            names.append(entry)
+            name = entry
+            if type(name) == "string":
+                if name in declared_conditions and declared_conditions[name] != "service_started":
+                    fail("MANIFEST ERROR: 'dependsOn' lists '{}' with conflicting conditions '{}' and 'service_started'{}".format(name, declared_conditions[name], where))
+                declared_conditions[name] = "service_started"
+            names.append(name)
     manifest['dependsOn'] = names
     manifest['dependsOnConditions'] = conditions
     return manifest

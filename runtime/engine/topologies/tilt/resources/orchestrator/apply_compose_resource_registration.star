@@ -411,11 +411,20 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
                 if is_expanded_stack:
                     # Expanded stack dependency (e.g. {"name": "shop", "condition": "service_healthy"}).
                     # Route each member service to its valid companion gate:
-                    # - service_healthy: persistent services wait for <svc>-healthy; one-shot migrators wait for <job>-done.
+                    # - service_healthy: persistent services with health checks wait for <svc>-healthy; one-shot migrators wait for <job>-done.
                     # - service_completed_successfully: migrators wait for <job>-done; persistent services wait for <svc>-healthy.
                     # - service_started: all members only wait for container start (no companion gates).
                     # - unconditioned (default): persistent services wait for start; migrators default to <job>-done (#2871).
-                    if dep_condition == "service_healthy" or dep_condition == "service_completed_successfully":
+                    if dep_condition == "service_healthy":
+                        if dep_is_job:
+                            companion = job_done_resource_name(resolved_dep)
+                            if companion not in res_deps:
+                                res_deps.append(companion)
+                        elif _service_has_health_check(resolved_dep, all_services_map):
+                            companion = job_healthy_resource_name(resolved_dep)
+                            if companion not in res_deps:
+                                res_deps.append(companion)
+                    elif dep_condition == "service_completed_successfully":
                         companion = job_done_resource_name(resolved_dep) if dep_is_job else job_healthy_resource_name(resolved_dep)
                         if companion not in res_deps:
                             res_deps.append(companion)
@@ -430,6 +439,8 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
                     if dep_condition == "service_healthy":
                         if dep_is_job:
                             fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_healthy', but '{}' is a one-shot job that exits on completion without a health check. Use 'service_completed_successfully' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                        if not _service_has_health_check(resolved_dep, all_services_map):
+                            fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_healthy', but '{}' has no health check configured (or healthCheck is disabled). Configure healthCheck (path, port, or command) or use 'service_started'.".format(resolved_dep, res_name, resolved_dep))
                         healthy = job_healthy_resource_name(resolved_dep)
                         if healthy not in res_deps:
                             res_deps.append(healthy)
@@ -472,6 +483,44 @@ def _is_job_resource(name, all_services_map):
         if res.get('name', '') == name:
             return _is_registered_resource(res) and is_one_shot_job(res.get('_manifest', {}) or {})
     return False
+
+
+def _find_resource_manifest(name, all_services_map):
+    """Locate the manifest for a resource by name across all_services_map."""
+    service = (all_services_map or {}).get(name)
+    if service:
+        for res in service.get('resources', []):
+            if res.get('name', '') == name:
+                return res.get('_manifest', {}) or {}
+    for svc in (all_services_map or {}).values():
+        if type(svc) == 'dict':
+            for res in svc.get('resources', []):
+                if res.get('name', '') == name:
+                    return res.get('_manifest', {}) or {}
+    return None
+
+
+def _service_has_health_check(name, all_services_map):
+    """True when `name` has an active health check configured (path, port, command, or postgres default)."""
+    if is_shared_platform_postgres_dependency(name) or _is_database_resource(name, all_services_map):
+        return True
+    manifest = _find_resource_manifest(name, all_services_map)
+    if manifest == None:
+        # Unknown/external resource: assume true to avoid false negative when manifest is omitted
+        return True
+    hc = manifest.get('healthCheck')
+    if hc == False or (type(hc) == 'dict' and hc.get('enabled') == False):
+        return False
+    if type(hc) == 'dict' and (hc.get('path') or hc.get('port') or hc.get('command')):
+        return True
+    if manifest.get('healthCheckPath'):
+        return True
+    app_type = manifest.get('appType')
+    if app_type == 'bring-your-own':
+        return False
+    if app_type == 'migrator':
+        return False
+    return True
 
 
 def resource_defers_start(manifest):
@@ -943,8 +992,8 @@ _HEALTHY_SCRIPT = (
     + '    id="$("$@" ps -q "$job" 2>/dev/null | head -n 1)"; '
     + '    if [ -z "$id" ]; then id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; fi; '
     + '  else '
-    + '    id="$(docker ps -q -f "name=$job" 2>/dev/null | head -n 1)"; '
-    + '    if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=$job" 2>/dev/null | head -n 1)"; fi; '
+    + '    id="$(docker ps -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; '
+    + '    if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; fi; '
     + '  fi; '
     + '  if [ -z "$id" ]; then sleep 1; continue; fi; '
     + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
@@ -968,9 +1017,7 @@ _HEALTHY_SCRIPT = (
     + '  fi; '
     + '  has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}" "$id" 2>/dev/null)"; '
     + '  if [ "$has_health" = "no" ]; then '
-    + '    if [ "$state" = "running" ]; then '
-    + '      echo "$job has no health check configured, proceeding once running"; exit 0; '
-    + '    fi; '
+    + '    echo "ERROR: container $job has no health check configured"; exit 1; '
     + '  else '
     + '    health="$(docker inspect --format="{{.State.Health.Status}}" "$id" 2>/dev/null)"; '
     + '    if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi; '
@@ -1027,7 +1074,7 @@ _JOB_DONE_SCRIPT = (
     + 'if [ "$#" -gt 0 ]; then '
     + '  id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; '
     + 'else '
-    + '  id="$(docker ps -a -q -f "name=$job" 2>/dev/null | head -n 1)"; '
+    + '  id="$(docker ps -a -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; '
     + 'fi; '
     + 'if [ -z "$id" ]; then echo "no container for $job"; exit 1; fi; '
     + 'code="$(docker wait "$id")"; '

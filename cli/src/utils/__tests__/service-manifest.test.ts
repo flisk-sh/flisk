@@ -1317,10 +1317,31 @@ describe("Compose settings from imported stacks, round 3", () => {
     [[{ name: "db", restart: true }], "dependsOn[0].restart: unknown option"],
     [[{ condition: "service_healthy" }], "dependsOn[0].name: expected a service or stack name"],
     [[42], "dependsOn[0]: expected a name, or an object"],
+    [
+      [{ name: "db", condition: "service_healthy" }, { name: "db", condition: "service_started" }],
+      "dependsOn: 'db' lists conflicting conditions 'service_healthy' and 'service_started'",
+    ],
+    [
+      ["db", { name: "db", condition: "service_healthy" }],
+      "dependsOn: 'db' lists conflicting conditions 'service_started' and 'service_healthy'",
+    ],
   ])("refuses dependsOn %j", (dependsOn, message) => {
     const errors = dependsOnErrors({ dependsOn }, file);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(message);
+  });
+
+  it("accepts dependsOn with repeated names when conditions match", () => {
+    const errors = dependsOnErrors(
+      {
+        dependsOn: [
+          { name: "db", condition: "service_healthy" },
+          { name: "db", condition: "service_healthy" },
+        ],
+      },
+      file,
+    );
+    expect(errors).toHaveLength(0);
   });
 
   it.each([

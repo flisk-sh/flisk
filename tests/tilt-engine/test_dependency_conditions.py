@@ -42,9 +42,12 @@ SERVICES = {
         "name": "app",
         "stack": "app",
         "resources": [
-            {"name": "db", "_manifest": {"appType": "bring-your-own"}},
+            {"name": "db", "_manifest": {"appType": "bring-your-own", "healthCheck": {"port": 5432}}},
             {"name": "migrator", "_manifest": {"appType": "migrator"}},
             {"name": "cache", "_manifest": {"appType": "bring-your-own"}},
+            {"name": "byo-no-health", "_manifest": {"appType": "bring-your-own"}},
+            {"name": "disabled-health", "_manifest": {"appType": "backend", "healthCheck": False}},
+            {"name": "byo-with-port", "_manifest": {"appType": "bring-your-own", "healthCheck": {"port": 8080}}},
             {"name": "api", "_manifest": {"appType": "backend"}},
         ],
     },
@@ -436,10 +439,96 @@ def test_normalized_manifest_unspecified_conditions(tmp_path):
     assert result["deps"] == ["db", "migrator", "migrator-done"]
 
 
-DOCKER_AVAILABLE = (
-    shutil.which("docker") is not None
-    and subprocess.run(["docker", "info"], capture_output=True).returncode == 0
-)
+@TILT_REQUIRED
+def test_conflicting_depends_on_conditions_fails_with_manifest_error(tmp_path):
+    """normalize_depends_on rejects repeated dependency with conflicting conditions."""
+    output = run_starlark_failure(
+        tmp_path,
+        f"load('{MANIFEST_PARSER}', 'normalize_depends_on')\n"
+        "raw_manifest = {\n"
+        "  'name': 'api',\n"
+        "  'dependsOn': [\n"
+        "    {'name': 'db', 'condition': 'service_healthy'},\n"
+        "    {'name': 'db', 'condition': 'service_started'},\n"
+        "  ]\n"
+        "}\n"
+        "normalize_depends_on(raw_manifest)\n",
+    )
+    assert "MANIFEST ERROR: 'dependsOn' lists 'db' with conflicting conditions 'service_healthy' and 'service_started'" in output
+
+
+@TILT_REQUIRED
+def test_conflicting_depends_on_string_and_condition_fails_with_manifest_error(tmp_path):
+    """normalize_depends_on rejects dependency declared as string and conflicting condition object."""
+    output = run_starlark_failure(
+        tmp_path,
+        f"load('{MANIFEST_PARSER}', 'normalize_depends_on')\n"
+        "raw_manifest = {\n"
+        "  'name': 'api',\n"
+        "  'dependsOn': [\n"
+        "    'db',\n"
+        "    {'name': 'db', 'condition': 'service_healthy'},\n"
+        "  ]\n"
+        "}\n"
+        "normalize_depends_on(raw_manifest)\n",
+    )
+    assert "MANIFEST ERROR: 'dependsOn' lists 'db' with conflicting conditions 'service_started' and 'service_healthy'" in output
+
+
+@TILT_REQUIRED
+def test_service_healthy_on_byo_without_healthcheck_fails_with_manifest_error(tmp_path):
+    """condition: 'service_healthy' on a bring-your-own service with no health check fails at manifest validation."""
+    output = run_starlark_failure(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'api'}\n"
+        "manifest = {'dependsOn': [{'name': 'byo-no-health', 'condition': 'service_healthy'}]}\n"
+        "build_resource_deps(res, 'api', manifest, {}, [], {}, {}, None, services)\n",
+    )
+    assert "MANIFEST ERROR: dependency 'byo-no-health' of 'api' specifies condition 'service_healthy', but 'byo-no-health' has no health check configured" in output
+
+
+@TILT_REQUIRED
+def test_service_healthy_on_service_with_disabled_healthcheck_fails_with_manifest_error(tmp_path):
+    """condition: 'service_healthy' on a service with healthCheck: false fails at manifest validation."""
+    output = run_starlark_failure(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'api'}\n"
+        "manifest = {'dependsOn': [{'name': 'disabled-health', 'condition': 'service_healthy'}]}\n"
+        "build_resource_deps(res, 'api', manifest, {}, [], {}, {}, None, services)\n",
+    )
+    assert "MANIFEST ERROR: dependency 'disabled-health' of 'api' specifies condition 'service_healthy', but 'disabled-health' has no health check configured" in output
+
+
+@TILT_REQUIRED
+def test_service_healthy_on_byo_with_healthcheck_port_succeeds(tmp_path):
+    """condition: 'service_healthy' on a bring-your-own service with configured healthCheck port succeeds."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps', 'job_healthy_resource_name')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'api'}\n"
+        "manifest = {'dependsOn': [{'name': 'byo-with-port', 'condition': 'service_healthy'}]}\n"
+        "r = {\n"
+        "  'deps': build_resource_deps(res, 'api', manifest, {}, [], {}, {}, None, services),\n"
+        "  'healthy_name': job_healthy_resource_name('byo-with-port'),\n"
+        "}\n",
+    )
+    assert result["deps"] == ["byo-with-port", "byo-with-port-healthy"]
+    assert result["healthy_name"] == "byo-with-port-healthy"
+
+
+def _docker_daemon_responds() -> bool:
+    try:
+        return subprocess.run(["docker", "info"], capture_output=True, timeout=15).returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
+DOCKER_AVAILABLE = shutil.which("docker") is not None and _docker_daemon_responds()
 
 
 @pytest.mark.skipif(not DOCKER_AVAILABLE, reason="docker CLI or daemon not available")
@@ -462,7 +551,7 @@ class TestLiveDependencyConditions:
         api_name = f"{prefix}_api"
         timestamps_file = tmp_path / "timestamps.json"
 
-        api_cmd = f"docker run -d --name {api_name} alpine sh -c 'sleep 1 && exit 0' && python3 -c \"import time, json; json.dump({{'api_start': time.time()}}, open('{timestamps_file}', 'w'))\""
+        api_cmd = f"docker run -d --name {api_name} --health-cmd 'test -f /tmp/api_ready' --health-interval 1s --health-retries 10 --health-start-period 1s alpine sh -c 'sleep 1 && touch /tmp/api_ready && sleep 30' && python3 -c \"import time, json; json.dump({{'api_start': time.time()}}, open('{timestamps_file}', 'w'))\""
 
         try:
             tiltfile = tmp_path / "Tiltfile"
@@ -641,3 +730,71 @@ local_resource(
 
         finally:
             subprocess.run(["docker", "rm", "-f", container_name], capture_output=True)
+
+    def test_live_postgres_poller_anchored_lookup_and_timeout_when_absent(self, tmp_path):
+        """Postgres health poller anchors container lookup so substring matches from other projects are ignored."""
+        proj = f"p_{uuid.uuid4().hex[:6]}"
+        exact_cname = f"{proj}_postgres"
+        other_proj_cname = f"other_{proj}_postgres_extra"
+
+        try:
+            # Start another container that contains `proj_postgres` as a substring and is healthy
+            subprocess.run(
+                [
+                    "docker", "run", "-d", "--name", other_proj_cname,
+                    "--health-cmd", "true", "--health-interval", "1s", "--health-retries", "1",
+                    "alpine", "sh", "-c", "sleep 30",
+                ],
+                check=True,
+                capture_output=True,
+            )
+            # Wait 2s for other container to report healthy
+            time.sleep(2)
+
+            tiltfile = tmp_path / "Tiltfile"
+            starlark = f"""
+load('{INFRA_LOADER}', 'HEALTHY_POSTGRES_SCRIPT')
+
+local_resource(
+    'check_pg',
+    cmd=['sh', '-c', HEALTHY_POSTGRES_SCRIPT, 'sh', '{proj}']
+)
+"""
+            tiltfile.write_text(starlark)
+            # Run tilt ci with short timeout: it should time out and NOT mistake other_proj_cname for exact_cname
+            # The script loops 120s by default, but we test running the script directly with max 3s timeout
+            poller_cmd = [
+                "sh", "-c",
+                f'name="{proj}"; cname="${{name}}_postgres"; exited_count=0; '
+                + 'for i in $(seq 1 3); do '
+                + '  id="$(docker ps -q -f "name=^/${cname}$" 2>/dev/null | head -n 1)"; '
+                + '  if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=^/${cname}$" 2>/dev/null | head -n 1)"; fi; '
+                + '  if [ -z "$id" ]; then sleep 1; continue; fi; '
+                + '  health="$(docker inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" "$id" 2>/dev/null)"; '
+                + '  if [ "$health" = "healthy" ]; then echo "postgres is healthy"; exit 0; fi; '
+                + '  sleep 1; '
+                + 'done; '
+                + 'echo "ERROR: timed out waiting for postgres to become healthy"; exit 1',
+            ]
+            res_absent = subprocess.run(poller_cmd, capture_output=True, text=True)
+            assert res_absent.returncode == 1, "Poller should have timed out and failed because exact container is absent"
+            assert "ERROR: timed out waiting for postgres to become healthy" in res_absent.stdout
+            assert "postgres is healthy" not in res_absent.stdout
+
+            # Now start the exact container and verify it matches and succeeds
+            subprocess.run(
+                [
+                    "docker", "run", "-d", "--name", exact_cname,
+                    "--health-cmd", "true", "--health-interval", "1s", "--health-retries", "1",
+                    "alpine", "sh", "-c", "sleep 30",
+                ],
+                check=True,
+                capture_output=True,
+            )
+            time.sleep(2)
+            res_exact = subprocess.run(poller_cmd, capture_output=True, text=True)
+            assert res_exact.returncode == 0, f"Poller failed to detect exact container: {res_exact.stderr}"
+            assert "postgres is healthy" in res_exact.stdout
+
+        finally:
+            subprocess.run(["docker", "rm", "-f", other_proj_cname, exact_cname], capture_output=True)

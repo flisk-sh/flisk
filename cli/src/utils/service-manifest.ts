@@ -973,27 +973,50 @@ export function dependsOnErrors(manifest: Record<string, unknown>, displayPath: 
   const deps = manifest.dependsOn;
   if (!Array.isArray(deps)) return [];
   const errors: string[] = [];
+  const declaredConditions = new Map<string, string>();
+
   deps.forEach((entry: unknown, i) => {
-    if (typeof entry === "string") return;
-    const at = `${displayPath}.dependsOn[${i}]`;
-    if (!isPlainObject(entry)) {
+    let name: string | undefined;
+    let cond = "service_started";
+
+    if (typeof entry === "string") {
+      name = entry;
+    } else if (isPlainObject(entry)) {
+      const at = `${displayPath}.dependsOn[${i}]`;
+      for (const key of Object.keys(entry)) {
+        if (key !== "name" && key !== "condition")
+          errors.push(`${at}.${key}: unknown option (use name, condition)`);
+      }
+      if (typeof entry.name !== "string" || entry.name === "") {
+        errors.push(`${at}.name: expected a service or stack name`);
+      } else {
+        name = entry.name;
+      }
+      if (entry.condition !== undefined) {
+        if (
+          !(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))
+        ) {
+          errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+        } else {
+          cond = entry.condition;
+        }
+      }
+    } else {
+      const at = `${displayPath}.dependsOn[${i}]`;
       errors.push(
         `${at}: expected a name, or an object such as { "name": "db", "condition": "service_healthy" }`,
       );
       return;
     }
-    for (const key of Object.keys(entry)) {
-      if (key !== "name" && key !== "condition")
-        errors.push(`${at}.${key}: unknown option (use name, condition)`);
-    }
-    if (typeof entry.name !== "string" || entry.name === "") {
-      errors.push(`${at}.name: expected a service or stack name`);
-    }
-    if (
-      entry.condition !== undefined &&
-      !(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))
-    ) {
-      errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+
+    if (name) {
+      if (declaredConditions.has(name) && declaredConditions.get(name) !== cond) {
+        errors.push(
+          `${displayPath}.dependsOn: '${name}' lists conflicting conditions '${declaredConditions.get(name)}' and '${cond}'`,
+        );
+      } else {
+        declaredConditions.set(name, cond);
+      }
     }
   });
   return errors;
