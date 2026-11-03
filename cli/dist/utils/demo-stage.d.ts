@@ -5,6 +5,8 @@
  * demo is recorded: a frame that grows pushes everything off the screen.
  */
 export declare const FRAME_ROWS = 12;
+/** Where the finished frame points someone who liked the demo. */
+export declare const DEMO_STAR_URL: string;
 export type DemoPhaseStatus = "pending" | "active" | "done" | "failed";
 export type DemoPhase = {
     id: string;
@@ -21,6 +23,8 @@ export type DemoDone = {
     hint: string;
     /** The CLI version, so a recording never leaves "which build is this" unanswered. */
     version: string;
+    /** Set only on an interactive run outside CI: the repo to star, on the last row. */
+    starUrl?: string;
 };
 export type DemoState = {
     title: string;
