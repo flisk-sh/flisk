@@ -134,7 +134,8 @@ export function findStaleProjects(options?: {
     ]);
     for (const line of containerOutput.split(/\r?\n/)) {
       if (!line.trim()) continue;
-      const [id, names, size, composeProject, composeDir, fliskProject, fliskDir] = line.split("\t");
+      const [id, names, size, composeProject, composeDir, fliskProject, fliskDir] =
+        line.split("\t");
       const workingDir = fliskDir || composeDir;
       const projectName = fliskProject || composeProject;
       if (!workingDir && !projectName) continue;

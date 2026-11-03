@@ -16,7 +16,11 @@ export const projectsCommand = new Command("projects")
   .description("Show project information and configuration status")
   .alias("info")
   .option("--check", "Check if project is properly configured", false)
-  .option("--stale", "List stale projects whose directory is gone but Docker resources remain", false)
+  .option(
+    "--stale",
+    "List stale projects whose directory is gone but Docker resources remain",
+    false,
+  )
   .option("--json", "Output a versioned JSON response")
   .action(async (options) => {
     const action = async (): Promise<void> => {
@@ -74,9 +78,7 @@ export const projectsCommand = new Command("projects")
             );
           }
           if (proj.volumeCount > 0) {
-            console.log(
-              chalk.gray(`  Volumes:        ${formatCount(proj.volumeCount, "volume")}`),
-            );
+            console.log(chalk.gray(`  Volumes:        ${formatCount(proj.volumeCount, "volume")}`));
           }
           if (proj.networkCount > 0) {
             console.log(
