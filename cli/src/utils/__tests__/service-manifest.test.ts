@@ -921,8 +921,8 @@ describe("secret and config file entries", () => {
   });
 
   it("rejects unknown keys", () => {
-    expect(cfg({ source: "./c", targte: "/c" })).toEqual([
-      `${file}.configs[0].targte: unknown option (use name, source, target, uid, gid, mode)`,
+    expect(cfg({ source: "./c", path: "/c" })).toEqual([
+      `${file}.configs[0].path: unknown option (use name, source, target, uid, gid, mode)`,
     ]);
   });
 
