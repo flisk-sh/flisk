@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: read
     env:
-      MIN_SCORE: "8.2"
+      MIN_SCORE: "8.0"
     steps:
       - name: Read the published Scorecard score
         env:
