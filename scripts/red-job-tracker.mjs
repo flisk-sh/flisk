@@ -15,6 +15,7 @@ export const TRACKED = [
 	"benchmarks.yml",
 	"scorecard.yml",
 	"codeql.yml",
+	"nightly-adopters.yml",
 ];
 export const WINDOW = 3;
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
