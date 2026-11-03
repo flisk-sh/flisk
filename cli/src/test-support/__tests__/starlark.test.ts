@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -75,13 +76,23 @@ describe("killProcessGroup", () => {
   });
 });
 
+describe("evaluateStarlark timeoutMs", () => {
+  it.each([0, -1, Number.NaN])(
+    "rejects %s before running tilt, since spawnSync reads 0 as no timeout",
+    (timeoutMs) => {
+      expect(() =>
+        evaluateStarlark(fileURLToPath(import.meta.url), { args: "", timeoutMs }),
+      ).toThrow("timeoutMs must be a positive number of milliseconds");
+    },
+  );
+});
+
+// Reads the state with ps, not kill(pid, 0): a killed process that is not reaped yet (a zombie) still answers kill.
 function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+  const state = spawnSync("ps", ["-o", "stat=", "-p", String(pid)], {
+    encoding: "utf-8",
+  }).stdout.trim();
+  return state !== "" && !state.startsWith("Z");
 }
 
 // The stub `tilt` traps SIGTERM, as tilt does, and forks a child that would outlive it. POSIX only: on Windows,

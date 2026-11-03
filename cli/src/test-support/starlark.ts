@@ -97,6 +97,12 @@ afterEach(() => {
  */
 export function evaluateStarlark(file: string, options: StarlarkOptions): StarlarkRun {
   if (!existsSync(file)) throw new Error(`Starlark module not found: ${file}`);
+  // spawnSync treats a timeout of 0 as no timeout at all.
+  if (options.timeoutMs !== undefined && !(options.timeoutMs > 0)) {
+    throw new Error(
+      `timeoutMs must be a positive number of milliseconds, got ${options.timeoutMs}`,
+    );
+  }
   const dir = mkdtempSync(join(tmpdir(), "flisk-starlark-"));
   scratchDirs.push(dir);
   for (const [path, content] of Object.entries(options.files ?? {})) {
