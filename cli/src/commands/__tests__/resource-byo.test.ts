@@ -183,11 +183,19 @@ describe("bring-your-own resource type", () => {
       const networksReport = JSON.parse(output.join("\n"));
       expect(networksReport.schemaVersion).toBe(1);
       expect(networksReport.errors).toEqual([]);
-      expect(networksReport.data.services).toEqual([]);
+      // A proxied bring-your-own service is routed like a backend, so flisk networks lists it at /api/<name>.
+      const widgetRoute = {
+        name: "widget",
+        stack: "shop",
+        basePath: "/api/widget",
+        // The ingress port comes from the host port plan (80 when free, 8080 on CI runners), so match any port.
+        url: expect.stringMatching(/^http:\/\/api\.test\.localhost:\d+\/api\/widget$/),
+      };
+      expect(networksReport.data.services).toMatchObject([widgetRoute]);
 
       output.length = 0;
       await networksCommand.parseAsync(["node", "flisk", "--json-legacy"], { from: "node" });
-      expect(JSON.parse(output.join("\n"))).toEqual([]);
+      expect(JSON.parse(output.join("\n"))).toMatchObject([widgetRoute]);
 
       output.length = 0;
       await upCommand.parseAsync(["node", "flisk", "shop", "--dry-run"], { from: "node" });
