@@ -122,7 +122,7 @@ jobs:
         working-directory: adopter
         timeout-minutes: 15
         run: |
-          flisk up -d
+          flisk up --wait --wait-timeout 900
 
       - name: Smoke Route Health Check
         working-directory: adopter
@@ -130,10 +130,10 @@ jobs:
         run: |
           target="${{ matrix.health_check }}"
           echo "Probing $target..."
-          for i in $(seq 1 60); do
+          for attempt in $(seq 1 60); do
             status="$(curl -s -o /dev/null -w "%{http_code}" "$target" || true)"
             if [ -n "$status" ] && [ "$status" != "000" ] && [ "$status" -lt 500 ]; then
-              echo "✅ Target answered with HTTP $status"
+              echo "✅ Target answered with HTTP $status (attempt $attempt)"
               exit 0
             fi
             sleep 2
@@ -172,7 +172,23 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           issue_title="ci(nightly): ${ADOPTER_NAME} integration failure on main"
-          existing="$(gh issue list --repo flisk-sh/flisk --label "ci:nightly-adopters" --state open --search "${ADOPTER_NAME}" --json number --jq '.[0].number' || true)"
+          existing=""
+          lookup_ok=false
+          for attempt in 1 2 3; do
+            if out="$(gh issue list --repo flisk-sh/flisk --label "ci:nightly-adopters" --state open --search "${ADOPTER_NAME}" --json number --jq '.[0].number' 2>&1)"; then
+              existing="$out"
+              lookup_ok=true
+              break
+            fi
+            echo "::warning::Issue lookup attempt $attempt failed: $out. Retrying in 3s..."
+            sleep 3
+          done
+
+          if [ "$lookup_ok" != "true" ]; then
+            echo "::error::Failed to query GitHub issues via gh CLI after 3 attempts. Aborting issue reporting to prevent duplicate issue creation."
+            exit 1
+          fi
+
           cat << EOF > /tmp/issue_body.md
           ### Nightly Integration Failure: ${ADOPTER_NAME} (${REPO_NAME}@${COMMIT_SHA})
 
@@ -188,7 +204,7 @@ jobs:
             echo "Commenting on existing issue #${existing}"
             gh issue comment "$existing" --repo flisk-sh/flisk --body-file /tmp/issue_body.md
           else
-            echo "Creating new issue"
+            echo "Creating new issue: $issue_title"
             gh issue create --repo flisk-sh/flisk --title "$issue_title" --label "ci:nightly-adopters" --body-file /tmp/issue_body.md
           fi
 
