@@ -153,4 +153,28 @@ describe("flisk projects (human-readable)", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Could not find project root");
   });
+
+  it("supports --stale even outside of a project root", async () => {
+    const emptyDir = createTempDir("flisk-projects-stale-");
+    const command = await freshProjectsCommand();
+    const result = await runCommandInProcess(command, ["--stale"], emptyDir);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stderr).toBe("");
+    const output = stripTerminalControls(result.stdout);
+    expect(output).toContain("Stale Projects Discovery");
+  });
+
+  it("supports --stale --json output format", async () => {
+    const emptyDir = createTempDir("flisk-projects-stale-json-");
+    const command = await freshProjectsCommand();
+    const result = await runCommandInProcess(command, ["--stale", "--json"], emptyDir);
+
+    expect(result.status).toBeUndefined();
+    expect(result.stderr).toBe("");
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.schemaVersion).toBe(1);
+    expect(parsed.errors).toEqual([]);
+    expect(Array.isArray(parsed.data.staleProjects)).toBe(true);
+  });
 });
