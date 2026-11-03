@@ -78,20 +78,27 @@ function gh(args, input) {
 }
 
 function listRuns(file) {
-	return JSON.parse(
-		gh([
-			"run",
-			"list",
-			"--workflow",
-			file,
-			"--branch",
-			"main",
-			"--limit",
-			"20",
-			"--json",
-			"databaseId,workflowName,status,conclusion,event,url,createdAt",
-		]),
-	);
+	try {
+		return JSON.parse(
+			gh([
+				"run",
+				"list",
+				"--workflow",
+				file,
+				"--branch",
+				"main",
+				"--limit",
+				"20",
+				"--json",
+				"databaseId,workflowName,status,conclusion,event,url,createdAt",
+			]),
+		);
+	} catch (err) {
+		if (err.stderr && (err.stderr.includes("not found on the default branch") || err.stderr.includes("HTTP 404"))) {
+			return [];
+		}
+		throw err;
+	}
 }
 
 function openIssue(workflowName) {
