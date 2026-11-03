@@ -14,6 +14,12 @@ import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import {
+  arrowMultiSelect,
+  arrowSelect,
+  arrowText,
+  PromptCancelled,
+} from "../utils/arrow-prompt.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import {
   asksBackend,
@@ -38,7 +44,6 @@ import {
 } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
-import { promptConfirm, promptMultiSelect, promptSelect, promptText } from "../utils/prompt.js";
 
 const KIND_TITLES: Record<CreateKind, string> = {
   web: "A web app: website + API + Postgres",
@@ -90,20 +95,9 @@ export async function collectAnswers(
   options: CreateOptions,
   interactive: boolean,
 ): Promise<CreateAnswers> {
-  let name = nameArg;
-  if (name === undefined) {
-    name = interactive
-      ? await promptText({
-          message: "Project name?",
-          initial: "my-app",
-          validate: (value) =>
-            isValidProjectName(value) || "Use lowercase letters, digits and dashes, e.g. my-app.",
-        })
-      : "my-app";
-  }
-  if (!isValidProjectName(name)) {
+  if (nameArg !== undefined && !isValidProjectName(nameArg)) {
     throw new FliskError(
-      `"${name}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`,
+      `"${nameArg}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`,
       ["Pick a name like my-app or shop-2: flisk create my-app"],
     );
   }
@@ -111,7 +105,7 @@ export async function collectAnswers(
   const kind: CreateKind = options.kind
     ? pick("kind", options.kind, CREATE_KINDS)
     : interactive
-      ? await promptSelect<CreateKind>({
+      ? await arrowSelect<CreateKind>({
           message: "What are you building?",
           choices: CREATE_KINDS.map((value) => ({ title: KIND_TITLES[value], value })),
         })
@@ -120,7 +114,7 @@ export async function collectAnswers(
   const frontend: CreateFrontend = options.frontend
     ? pick("frontend", options.frontend, CREATE_FRONTENDS)
     : interactive && asksFrontend(kind)
-      ? await promptSelect<CreateFrontend>({
+      ? await arrowSelect<CreateFrontend>({
           message: "Which website framework?",
           choices: [
             { title: "React (Vite)", value: "react" },
@@ -134,7 +128,7 @@ export async function collectAnswers(
   const backend: CreateBackend = options.backend
     ? pick("backend", options.backend, CREATE_BACKENDS)
     : interactive && asksBackend(kind)
-      ? await promptSelect<CreateBackend>({
+      ? await arrowSelect<CreateBackend>({
           message: "Which API framework?",
           choices: [
             { title: "Hono (Bun)", value: "hono" },
@@ -156,13 +150,32 @@ export async function collectAnswers(
       ]);
     extras = parsed.extras;
   } else if (interactive && asksExtras(kind)) {
-    extras = await promptMultiSelect<CreateExtra>({
+    extras = await arrowMultiSelect<CreateExtra>({
       message: "Add anything else? (Postgres is always included)",
       choices: (Object.keys(EXTRA_TITLES) as CreateExtra[]).map((value) => ({
         title: EXTRA_TITLES[value],
         value,
       })),
     });
+  }
+
+  // The name comes last and has a default, so a first run is arrows and Enter, never typing.
+  let name = nameArg;
+  if (name === undefined) {
+    name = interactive
+      ? await arrowText({
+          message: "Project name?",
+          initial: "my-app",
+          validate: (value) =>
+            isValidProjectName(value) || "Use lowercase letters, digits and dashes, e.g. my-app.",
+        })
+      : "my-app";
+  }
+  if (!isValidProjectName(name)) {
+    throw new FliskError(
+      `"${name}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`,
+      ["Pick a name like my-app or shop-2: flisk create my-app"],
+    );
   }
 
   return { name, kind, frontend, backend, extras };
@@ -205,7 +218,16 @@ export const createCommand = addYesOption(new Command("create"))
   .option("--dry-run", "Print the commands that would run and stop", false)
   .option("--start", "Install dependencies and start the stack when it is ready", false)
   .action(async (nameArg: string | undefined, options: CreateOptions) => {
-    await runCommand(() => runCreate(nameArg, options));
+    // runCommand turns every error into an exit, so a cancel is handled inside it.
+    await runCommand(async () => {
+      try {
+        await runCreate(nameArg, options);
+      } catch (error) {
+        if (!(error instanceof PromptCancelled)) throw error;
+        console.log(chalk.dim("\nCancelled. Nothing was written."));
+        process.exitCode = 130;
+      }
+    });
   });
 
 async function runCreate(nameArg: string | undefined, options: CreateOptions): Promise<void> {
@@ -262,10 +284,14 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
 
   let start = Boolean(options.start);
   if (!start && interactive) {
-    start = await promptConfirm({
-      message: "Install dependencies and start it now?",
-      initial: true,
-    });
+    start =
+      (await arrowSelect<"yes" | "no">({
+        message: "Install dependencies and start it now?",
+        choices: [
+          { title: "Yes, start it", value: "yes" },
+          { title: "No, I'll do it later", value: "no" },
+        ],
+      })) === "yes";
   }
 
   if (!start) {

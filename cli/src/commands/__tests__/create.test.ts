@@ -6,12 +6,14 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const prompts = vi.hoisted(() => ({
-  promptText: vi.fn(),
-  promptSelect: vi.fn(),
-  promptMultiSelect: vi.fn(),
-  promptConfirm: vi.fn(),
+  arrowText: vi.fn(),
+  arrowSelect: vi.fn(),
+  arrowMultiSelect: vi.fn(),
 }));
-vi.mock("../../utils/prompt.js", () => prompts);
+vi.mock("../../utils/arrow-prompt.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/arrow-prompt.js")>()),
+  ...prompts,
+}));
 
 import { runFlisk } from "../../test-support/index.js";
 import { assertFolderIsFree, collectAnswers, isInteractive } from "../create.js";
@@ -56,17 +58,17 @@ describe("collectAnswers", () => {
       backend: "express",
       extras: ["queue", "worker"],
     });
-    expect(prompts.promptSelect).not.toHaveBeenCalled();
-    expect(prompts.promptMultiSelect).not.toHaveBeenCalled();
+    expect(prompts.arrowSelect).not.toHaveBeenCalled();
+    expect(prompts.arrowMultiSelect).not.toHaveBeenCalled();
   });
 
-  it("asks the website, API and extras questions for a web app", async () => {
-    prompts.promptText.mockResolvedValueOnce("storefront");
-    prompts.promptSelect
+  it("asks what you are building first, and the name last", async () => {
+    prompts.arrowSelect
       .mockResolvedValueOnce("web")
       .mockResolvedValueOnce("vue")
       .mockResolvedValueOnce("fastify");
-    prompts.promptMultiSelect.mockResolvedValueOnce(["queue"]);
+    prompts.arrowMultiSelect.mockResolvedValueOnce(["queue"]);
+    prompts.arrowText.mockResolvedValueOnce("storefront");
     const result = await collectAnswers(undefined, {}, true);
     expect(result).toEqual({
       name: "storefront",
@@ -75,21 +77,41 @@ describe("collectAnswers", () => {
       backend: "fastify",
       extras: ["queue"],
     });
-    expect(prompts.promptSelect).toHaveBeenCalledTimes(3);
+    // The first question is the kind, with no typing needed to answer it.
+    expect(prompts.arrowSelect.mock.calls[0]?.[0].message).toBe("What are you building?");
+    // The name is asked after every menu, and Enter takes its default.
+    const lastMenu = Math.max(
+      ...prompts.arrowSelect.mock.invocationCallOrder,
+      ...prompts.arrowMultiSelect.mock.invocationCallOrder,
+    );
+    expect(prompts.arrowText.mock.invocationCallOrder[0]).toBeGreaterThan(lastMenu);
+    expect(prompts.arrowText.mock.calls[0]?.[0].initial).toBe("my-app");
+  });
+
+  it("does not ask for the name when it is given", async () => {
+    prompts.arrowSelect.mockResolvedValueOnce("agent");
+    await collectAnswers("bot", {}, true);
+    expect(prompts.arrowText).not.toHaveBeenCalled();
+  });
+
+  it("fails on a bad name before asking a single question", async () => {
+    await expect(collectAnswers("My_App", {}, true)).rejects.toThrow(/not a usable project name/);
+    expect(prompts.arrowSelect).not.toHaveBeenCalled();
   });
 
   it("asks nothing more once a starter kind is picked", async () => {
-    prompts.promptSelect.mockResolvedValueOnce("agent");
-    const result = await collectAnswers("bot", {}, true);
+    prompts.arrowSelect.mockResolvedValueOnce("agent");
+    prompts.arrowText.mockResolvedValueOnce("bot");
+    const result = await collectAnswers(undefined, {}, true);
     expect(result.kind).toBe("agent");
-    expect(prompts.promptSelect).toHaveBeenCalledTimes(1);
-    expect(prompts.promptMultiSelect).not.toHaveBeenCalled();
+    expect(prompts.arrowSelect).toHaveBeenCalledTimes(1);
+    expect(prompts.arrowMultiSelect).not.toHaveBeenCalled();
   });
 
   it("--extras none means no extras and no question", async () => {
     const result = await collectAnswers("shop", { kind: "web", extras: "none" }, true);
     expect(result.extras).toEqual([]);
-    expect(prompts.promptMultiSelect).not.toHaveBeenCalled();
+    expect(prompts.arrowMultiSelect).not.toHaveBeenCalled();
   });
 
   it("rejects an unknown kind, framework or extra with the valid list", async () => {
