@@ -58,6 +58,17 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
+const sessionOperationQueues = new Map();
+
+function queueSessionOperation(sessionId, operation) {
+  const currentQueue = sessionOperationQueues.get(sessionId) ?? Promise.resolve();
+  // The caller gets the operation's own promise, so a failed turn still reaches the handler's catch and answers 500.
+  // The stored tail never rejects, so the next operation for this session still runs.
+  const run = currentQueue.then(operation);
+  sessionOperationQueues.set(sessionId, run.catch(() => {}));
+  return run;
+}
+
 const store = {
   ready() {
     try {
@@ -120,19 +131,21 @@ const server = createServer(async (req, res) => {
       }
       const body = await readJson(req);
       const input = String(body.input ?? '');
-      activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
-      try {
-        const checkpoint = store.load(sessionId);
-        checkpoint.messages.push({ role: 'user', content: input, at: new Date().toISOString() });
-        const reply = await runTurn(checkpoint, input);
-        checkpoint.messages.push({ role: 'agent', content: reply, at: new Date().toISOString() });
-        store.save(checkpoint);
-        return sendJson(res, 200, { sessionId, reply, turns: checkpoint.messages.length / 2 });
-      } finally {
-        const left = (activeTurns.get(sessionId) ?? 1) - 1;
-        if (left > 0) activeTurns.set(sessionId, left);
-        else activeTurns.delete(sessionId);
-      }
+      return await queueSessionOperation(sessionId, async () => {
+        activeTurns.set(sessionId, (activeTurns.get(sessionId) ?? 0) + 1);
+        try {
+          const checkpoint = store.load(sessionId);
+          checkpoint.messages.push({ role: 'user', content: input, at: new Date().toISOString() });
+          const reply = await runTurn(checkpoint, input);
+          checkpoint.messages.push({ role: 'agent', content: reply, at: new Date().toISOString() });
+          store.save(checkpoint);
+          return sendJson(res, 200, { sessionId, reply, turns: checkpoint.messages.length / 2 });
+        } finally {
+          const left = (activeTurns.get(sessionId) ?? 1) - 1;
+          if (left > 0) activeTurns.set(sessionId, left);
+          else activeTurns.delete(sessionId);
+        }
+      });
     }
 
     if (url.pathname === '/sessions' && req.method === 'GET') {
@@ -207,6 +220,29 @@ process.on('SIGINT', () => shutdown('SIGINT'));
     };
     const sess = sessList.sessions.find((s) => s.sessionId === "test-session-1");
     expect(sess?.status).toBe("idle");
+  });
+
+  it("storage failure: a turn on an unreadable checkpoint answers 500 and the session's queue keeps working", async () => {
+    const sessionId = "broken-checkpoint";
+    mkdirSync(TEST_STATE_DIR, { recursive: true });
+    writeFileSync(join(TEST_STATE_DIR, `${sessionId}.json`), "{ not json");
+
+    const failed = await fetch(`http://localhost:${TEST_PORT}/turn`, {
+      method: "POST",
+      headers: { "x-session-id": sessionId, "content-type": "application/json" },
+      body: JSON.stringify({ input: "hello" }),
+      signal: AbortSignal.timeout(3000),
+    });
+    expect(failed.status).toBe(500);
+
+    rmSync(join(TEST_STATE_DIR, `${sessionId}.json`));
+    const next = await fetch(`http://localhost:${TEST_PORT}/turn`, {
+      method: "POST",
+      headers: { "x-session-id": sessionId, "content-type": "application/json" },
+      body: JSON.stringify({ input: "again" }),
+      signal: AbortSignal.timeout(3000),
+    });
+    expect(next.status).toBe(200);
   });
 
   it("activeTurns counter: concurrent requests for same sessionId should track correctly", async () => {
