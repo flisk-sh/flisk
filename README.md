@@ -37,7 +37,7 @@ Want to choose your own stack? Answer a few questions with the arrow keys and En
 npx @flisk-sh/flisk create
 ```
 
-It asks what you are building (a web app, an API, a SaaS starter, an AI agent stack, a multi-agent swarm), then the website and API framework and any extras (NATS queue, worker, MCP tool server, AI agent, Redis). The project name comes last and Enter takes `my-app`. Add `--dry-run` to see the commands it would run, or flags such as `--kind web --extras queue --yes` to skip the questions in a script.
+The default is a small Vite + React app with a tiny API that runs on Node.js and npm alone: `cd my-app`, `npm install`, `npm run dev`, and open it. No Docker, no Tilt, no database. It also asks about an API, a SaaS starter, an AI agent stack, a multi-agent swarm and a storefront. Pick "With Docker and Tilt" to choose the website and API framework and add a NATS queue, worker, MCP tool server, AI agent or Redis. The project name comes last and Enter takes `my-app`. Add `--dry-run` to see what it would do, or flags such as `--kind web --runtime docker --extras queue --yes` to skip the questions in a script.
 
 Install Flisk with `npm install -g @flisk-sh/flisk`, then, in a new folder:
 
@@ -504,7 +504,7 @@ The commands you will use every day:
 
 | You want to | Flisk does | Command |
 | --- | --- | --- |
-| Pick a stack with a few questions | Asks what you are building, then writes a project that runs | `flisk create` |
+| Pick a stack with a few questions | Asks what you are building and writes a project that runs (Node and npm only by default) | `flisk create` |
 | Start a new project | Creates the project and first services | `flisk project --yes` |
 | Add a service | Writes its `service.json` and generated files | `flisk resource <name> --type backend --stack <stack> --yes` |
 | Start a whole stack | Starts Postgres, your services, and the routing, and prints the URLs | `flisk up <stack>` |
