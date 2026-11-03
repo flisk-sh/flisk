@@ -77,16 +77,16 @@ jobs:
           node-version: 22
 
       - name: Setup Bun
-        uses: ./.github/actions/setup-bun
+        uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install Tilt
-        uses: ./.github/actions/setup-tilt
+        uses: ./.github/actions/setup-tilt # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Free port 5432 (preinstalled Postgres)
-        uses: ./.github/actions/free-postgres-port
+        uses: ./.github/actions/free-postgres-port # zizmor: ignore[self-repository] composite action resolves from this commit
 
       - name: Install Flisk CLI
-        uses: ./.github/actions/install-flisk
+        uses: ./.github/actions/install-flisk # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           version: ${{ inputs.version || 'local' }}
 
@@ -127,23 +127,24 @@ jobs:
       - name: Smoke Route Health Check
         working-directory: adopter
         timeout-minutes: 5
+        env:
+          TARGET: ${{ matrix.health_check }}
         run: |
-          target="${{ matrix.health_check }}"
-          echo "Probing $target..."
+          echo "Probing $TARGET..."
           for attempt in $(seq 1 60); do
-            status="$(curl -s -o /dev/null -w "%{http_code}" "$target" || true)"
+            status="$(curl -s -o /dev/null -w "%{http_code}" "$TARGET" || true)"
             if [ -n "$status" ] && [ "$status" != "000" ] && [ "$status" -lt 500 ]; then
               echo "✅ Target answered with HTTP $status (attempt $attempt)"
               exit 0
             fi
             sleep 2
           done
-          echo "::error::Target $target did not answer with 2xx/3xx/4xx within 120s"
+          echo "::error::Target $TARGET did not answer with 2xx/3xx/4xx within 120s"
           exit 1
 
       - name: Collect Failure Evidence
         if: failure() || cancelled()
-        uses: ./.github/actions/collect-e2e-evidence
+        uses: ./.github/actions/collect-e2e-evidence # zizmor: ignore[self-repository] composite action resolves from this commit
         with:
           name: adopter-${{ matrix.repo }}
           sources: adopter
