@@ -110,18 +110,25 @@ jobs:
             || gh release view "v${version}" --repo flisk-sh/releases >/dev/null 2>&1; do
             version=$(node -p 'const [a, b, c] = process.argv[1].split(".").map(Number); [a, b, c + 1].join(".")' "$version")
           done
-          if [ "$version" = "$current" ]; then
+          # The build reads cli/package.json, so both files must carry the version: a root-only bump once built
+          # release-dist-<old>/ and the upload of release-dist-<new>/ found nothing.
+          cli_current=$(node -p "require('./cli/package.json').version")
+          if [ "$version" = "$current" ] && [ "$version" = "$cli_current" ]; then
             echo "Releasing ${version}."
             echo "bumped=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::${current} is already released; releasing this commit as ${version}."
+            if [ "$version" = "$current" ]; then
+              echo "::notice::cli/package.json says ${cli_current}, package.json says ${current}; writing ${version} to both."
+            else
+              echo "::notice::${current} is already released; releasing this commit as ${version}."
+            fi
             node -e '
               const fs = require("fs");
               const nextVersion = process.argv[1];
               for (const file of ["package.json", "cli/package.json"]) {
                 const before = fs.readFileSync(file, "utf8");
                 const after = before.replace(/("version":\s*")[^"]+"/, (_, key) => key + nextVersion + "\"");
-                if (after === before) throw new Error("no version field in " + file);
+                if (!/"version":\s*"[^"]+"/.test(before)) throw new Error("no version field in " + file);
                 fs.writeFileSync(file, after);
               }
               const lockBefore = fs.readFileSync("bun.lock", "utf8");
@@ -287,7 +294,7 @@ jobs:
             for (const file of ["package.json", "cli/package.json"]) {
               const before = fs.readFileSync(file, "utf8");
               const after = before.replace(/("version":\s*")[^"]+"/, (_, key) => key + nextVersion + "\"");
-              if (after === before) throw new Error("no version field in " + file);
+              if (!/"version":\s*"[^"]+"/.test(before)) throw new Error("no version field in " + file);
               fs.writeFileSync(file, after);
             }
             const lockBefore = fs.readFileSync("bun.lock", "utf8");
