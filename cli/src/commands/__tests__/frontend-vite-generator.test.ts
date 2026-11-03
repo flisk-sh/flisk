@@ -413,6 +413,7 @@ if 'NEXT_DIST_DIR' in text: fail('a distDir outside the project breaks module re
 golden_off = generate_next_dockerfile('services/app/web', 3000, False)
 if 'npm ci --no-audit --no-fund --legacy-peer-deps;' not in text or 'npm install --no-audit --no-fund --legacy-peer-deps;' not in text: fail('npm ci and npm install both pass --legacy-peer-deps: npm 10.9.9 crashes on vitest 5 optional peers (edgesOut)')
 if 'npm install --no-audit --no-fund --legacy-peer-deps;' not in golden_off: fail('the upstream node path installs with --legacy-peer-deps too')
+if 'ENV NPM_CONFIG_LEGACY_PEER_DEPS=true' not in text or 'ENV NPM_CONFIG_LEGACY_PEER_DEPS=true' not in golden_off: fail('runtime npm runs (next dev installing typescript) use legacy peer deps too')
 if 'l4-backend-node' in golden_off: fail('without the golden image the base must be the upstream node image')
 if 'node:22-slim@sha256' not in golden_off: fail('the upstream node image must be pinned by digest')
 if golden_off.count('FROM node:22-slim@sha256:') != 2: fail('both FROM lines carry the digest literally, so a scanner reading the file sees a pinned image')
