@@ -537,7 +537,7 @@
           },
           "source": {
             "type": "string",
-            "pattern": "^([A-Za-z0-9_.-]+|\\.{1,2}(/[A-Za-z0-9_.-]+)+)$",
+            "pattern": "^(?!\\.$)([A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*|\\.{1,2}(/[A-Za-z0-9_.-]+)+)$",
             "description": "Relative path to the config file from the service directory. Must resolve within project root."
           },
           "target": {
@@ -555,7 +555,7 @@
           },
           "mode": {
             "oneOf": [
-              { "type": "integer" },
+              { "type": "integer", "minimum": 0, "maximum": 4095 },
               { "type": "string", "pattern": "^0?[0-7]{3,4}$" }
             ],
             "description": "Optional file mode permissions (e.g. 0440 or 288)."
@@ -671,7 +671,7 @@
               },
               "source": {
                 "type": "string",
-                "pattern": "^([A-Za-z0-9_.-]+|\\.{1,2}(/[A-Za-z0-9_.-]+)+)$",
+                "pattern": "^(?!\\.$)([A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*|\\.{1,2}(/[A-Za-z0-9_.-]+)+)$",
                 "description": "Relative path to the secret file from the service directory. Must resolve within project root."
               },
               "target": {
@@ -689,7 +689,7 @@
               },
               "mode": {
                 "oneOf": [
-                  { "type": "integer" },
+                  { "type": "integer", "minimum": 0, "maximum": 4095 },
                   { "type": "string", "pattern": "^0?[0-7]{3,4}$" }
                 ],
                 "description": "Optional file mode permissions (e.g. 0440 or 288)."

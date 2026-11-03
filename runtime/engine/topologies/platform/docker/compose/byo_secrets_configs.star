@@ -79,7 +79,7 @@ def byo_secrets_configs(manifest, service_path, compose_dir):
 
             if type(name) != "string" or not name or name[0] not in _ALNUM or not _only(name, _NAME_CHARS):
                 fail("MANIFEST ERROR: '{}.name' must be a secret name (letters, digits, '-', '_' and '.')".format(field))
-            if type(source) != "string" or not source or not _only(source, _PATH_CHARS):
+            if type(source) != "string" or not source or source == '.' or source.startswith('/') or not _only(source, _PATH_CHARS):
                 fail("MANIFEST ERROR: '{}.source' must be a relative file path".format(field))
             if target != None and (type(target) != "string" or not target.startswith('/') or not _only(target, _PATH_CHARS)):
                 fail("MANIFEST ERROR: '{}.target' must be an absolute path in the container".format(field))
@@ -91,15 +91,17 @@ def byo_secrets_configs(manifest, service_path, compose_dir):
             default_target = "/run/secrets/" + name
             is_short = (target == None or target == default_target) and uid == None and gid == None and mode == None
             if is_short:
-                lines.append("      - {}".format(name))
+                lines.append('      - "{}"'.format(name))
             else:
-                lines.append("      - source: {}".format(name))
+                lines.append('      - source: "{}"'.format(name))
                 lines.append("        target: {}".format(target if target != None else default_target))
                 if uid != None:
-                    lines.append('        uid: "{}"'.format(uid))
+                    lines.append("        uid: {}".format(encode_json(str(uid)).strip()))
                 if gid != None:
-                    lines.append('        gid: "{}"'.format(gid))
+                    lines.append("        gid: {}".format(encode_json(str(gid)).strip()))
                 if mode != None:
+                    if type(mode) == "int" and (mode < 0 or mode > 4095):
+                        fail("MANIFEST ERROR: '{}.mode' must be a file mode from 0 to 4095 (0o7777)".format(field))
                     if type(mode) == "int":
                         lines.append("        mode: {}".format(mode))
                     else:
@@ -128,7 +130,7 @@ def byo_secrets_configs(manifest, service_path, compose_dir):
 
             if type(name) != "string" or not name or name[0] not in _ALNUM or not _only(name, _NAME_CHARS):
                 fail("MANIFEST ERROR: '{}.name' must be a config name (letters, digits, '-', '_' and '.')".format(field))
-            if type(source) != "string" or not source or not _only(source, _PATH_CHARS):
+            if type(source) != "string" or not source or source == '.' or source.startswith('/') or not _only(source, _PATH_CHARS):
                 fail("MANIFEST ERROR: '{}.source' must be a relative file path".format(field))
             if target != None and (type(target) != "string" or not target.startswith('/') or not _only(target, _PATH_CHARS)):
                 fail("MANIFEST ERROR: '{}.target' must be an absolute path in the container".format(field))
@@ -140,15 +142,17 @@ def byo_secrets_configs(manifest, service_path, compose_dir):
             default_target = "/" + name
             is_short = (target == None or target == default_target) and uid == None and gid == None and mode == None
             if is_short:
-                lines.append("      - {}".format(name))
+                lines.append('      - "{}"'.format(name))
             else:
-                lines.append("      - source: {}".format(name))
+                lines.append('      - source: "{}"'.format(name))
                 lines.append("        target: {}".format(target if target != None else default_target))
                 if uid != None:
-                    lines.append('        uid: "{}"'.format(uid))
+                    lines.append("        uid: {}".format(encode_json(str(uid)).strip()))
                 if gid != None:
-                    lines.append('        gid: "{}"'.format(gid))
+                    lines.append("        gid: {}".format(encode_json(str(gid)).strip()))
                 if mode != None:
+                    if type(mode) == "int" and (mode < 0 or mode > 4095):
+                        fail("MANIFEST ERROR: '{}.mode' must be a file mode from 0 to 4095 (0o7777)".format(field))
                     if type(mode) == "int":
                         lines.append("        mode: {}".format(mode))
                     else:

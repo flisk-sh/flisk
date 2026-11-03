@@ -64,7 +64,7 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | `container_name` | none, Flisk names containers | n/a | dropped with a note | Lychee | by design |
 | several or named custom `networks` | the default network | n/a | ignored with a note | Lychee | open: a service that needs two isolated networks is not expressible |
 | `command` on a service that has `build:` | none | n/a | noted, not carried over | none yet | open |
-| top-level Compose `secrets:` and `configs:` | `secrets.files`, `configs` | 1.4.34 | yes (import 0.19.0, export 0.6.0) | catchpoint/WebPageTest, sameersbn/docker-gitlab | tested |
+| top-level Compose `secrets:` and `configs:` | `secrets.files`, `configs` | unreleased (after 1.4.33) | not yet released | catchpoint/WebPageTest, sameersbn/docker-gitlab | tested |
 | a web UI behind the proxy | `webUi: true` | 1.4.29 | set by hand | TREK, wanderer | tested, not checked in a browser; the importer cannot tell UI from API |
 
 ## Flisk behaviour that surprised adopters

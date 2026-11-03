@@ -41,6 +41,11 @@ web = {
                 'name': 'short_secret',
                 'source': './keys/token.txt',
             },
+            {
+                'name': 'true',
+                'source': 'keys/nested/flag.txt',
+                'uid': 'a"b\\\\',
+            },
         ],
     },
 }
@@ -114,30 +119,34 @@ def result(project) -> dict:
 @TILT_REQUIRED
 def test_secrets_files_and_configs_emitted_in_service(result):
     assert "    secrets:\n" in result["web"]
-    assert "      - source: wpt_settings_ini\n" in result["web"]
+    assert '      - source: "wpt_settings_ini"\n' in result["web"]
     assert "        target: /var/www/webpagetest/settings/settings.ini\n" in result["web"]
     assert '        uid: "1000"\n' in result["web"]
     assert '        gid: "1000"\n' in result["web"]
     assert "        mode: 288\n" in result["web"]
     # Shorthand when default target and no permissions
-    assert "      - short_secret\n" in result["web"]
+    assert '      - "short_secret"\n' in result["web"]
+    # A YAML-reserved name stays a string, and uid is escaped
+    assert '      - source: "true"\n' in result["web"]
+    assert '        uid: "a\\"b\\\\"\n' in result["web"]
 
     # Configs in gitlab
     assert "    configs:\n" in result["gitlab"]
-    assert "      - source: gitlab_cfg\n" in result["gitlab"]
+    assert '      - source: "gitlab_cfg"\n' in result["gitlab"]
     assert "        target: /etc/gitlab/gitlab.rb\n" in result["gitlab"]
 
 
 @TILT_REQUIRED
 def test_top_level_secrets_and_configs_declared_once(result):
     top = result["yaml"].split("\nsecrets:\n", 1)[1]
-    assert '  wpt_settings_ini:\n    file: "../../../services/wpt/docker/local/wptconfig/settings.ini"\n' in top
-    assert '  short_secret:\n    file: "../../../services/wpt/web/keys/token.txt"\n' in top
+    assert '  "wpt_settings_ini":\n    file: "../../../services/wpt/docker/local/wptconfig/settings.ini"\n' in top
+    assert '  "short_secret":\n    file: "../../../services/wpt/web/keys/token.txt"\n' in top
     # Declared once even though both web and worker mount wpt_settings_ini
-    assert top.count("  wpt_settings_ini:\n") == 1
+    assert top.count('  "wpt_settings_ini":\n') == 1
+    assert '  "true":\n    file: "../../../services/wpt/web/keys/nested/flag.txt"\n' in top
 
     gitlab_top = result["gitlab_yaml"].split("\nconfigs:\n", 1)[1]
-    assert '  gitlab_cfg:\n    file: "../../../services/gitlab/gitlab/gitlab.conf"\n' in gitlab_top
+    assert '  "gitlab_cfg":\n    file: "../../../services/gitlab/gitlab/gitlab.conf"\n' in gitlab_top
 
 
 @TILT_REQUIRED
@@ -166,3 +175,36 @@ r = {'yaml': generate_app_compose_from_entries('services/s', entries)}
     output = run_tilt(project, body)
     assert FAIL_MARKER in output
     assert "must stay inside the project" in output
+
+
+@TILT_REQUIRED
+@pytest.mark.parametrize(
+    "entry, message",
+    [
+        ("{'name': 's', 'source': '/etc/passwd'}", "must be a relative file path"),
+        ("{'name': 's', 'source': '.'}", "must be a relative file path"),
+        ("{'name': 's', 'source': './s', 'mode': 4096}", "must be a file mode from 0 to 4095"),
+        ("{'name': 's', 'source': './s', 'mode': -1}", "must be a file mode from 0 to 4095"),
+    ],
+)
+def test_bad_secret_entries_fail(project, entry, message):
+    body = LOAD + """
+bad = {'appType': 'bring-your-own', 'stack': 's', 'port': 3000, 'image': 'i', 'secrets': {'files': [ENTRY]}}
+entries = [generate_backend_compose_entry('services/s', 's', {'name': 'bad'}, bad)]
+r = {'yaml': generate_app_compose_from_entries('services/s', entries)}
+""".replace("ENTRY", entry)
+    output = run_tilt(project, body)
+    assert FAIL_MARKER in output
+    assert message in output
+
+
+@TILT_REQUIRED
+def test_absolute_config_source_fails(project):
+    body = LOAD + """
+bad = {'appType': 'bring-your-own', 'stack': 's', 'port': 3000, 'image': 'i', 'configs': [{'name': 'c', 'source': '/etc/passwd'}]}
+entries = [generate_backend_compose_entry('services/s', 's', {'name': 'bad'}, bad)]
+r = {'yaml': generate_app_compose_from_entries('services/s', entries)}
+"""
+    output = run_tilt(project, body)
+    assert FAIL_MARKER in output
+    assert "must be a relative file path" in output

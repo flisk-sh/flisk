@@ -1341,7 +1341,9 @@ export function providersErrors(manifest: Record<string, unknown>, displayPath: 
 }
 
 const RESOURCE_FILE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
-const RESOURCE_FILE_PATH_PATTERN = /^(?:[A-Za-z0-9_.-]+|\.{1,2}(?:\/[A-Za-z0-9_.-]+)+)$/;
+const RESOURCE_FILE_PATH_PATTERN =
+  /^(?!\.$)(?:[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*|\.{1,2}(?:\/[A-Za-z0-9_.-]+)+)$/;
+const SECRET_CONFIG_FILE_KEYS = ["name", "source", "target", "uid", "gid", "mode"];
 const CONTAINER_TARGET_PATTERN = /^\/[A-Za-z0-9_./-]*$/;
 
 function validateSecretConfigFileEntry(
@@ -1356,6 +1358,11 @@ function validateSecretConfigFileEntry(
   }
   const errors: string[] = [];
   const rec = entry as Record<string, unknown>;
+  for (const key of Object.keys(rec)) {
+    if (!SECRET_CONFIG_FILE_KEYS.includes(key)) {
+      errors.push(`${field}.${key}: unknown option (use ${SECRET_CONFIG_FILE_KEYS.join(", ")})`);
+    }
+  }
   const name = rec.name;
   if (typeof name !== "string" || !RESOURCE_FILE_NAME_PATTERN.test(name)) {
     errors.push(
@@ -1389,11 +1396,10 @@ function validateSecretConfigFileEntry(
     errors.push(`${field}.gid: expected a string or number group ID`);
   }
   const mode = rec.mode;
-  if (
-    mode !== undefined &&
-    typeof mode !== "number" &&
-    (typeof mode !== "string" || !/^0?[0-7]{3,4}$/.test(mode))
-  ) {
+  const numericModeOk =
+    typeof mode === "number" && Number.isInteger(mode) && mode >= 0 && mode <= 0o7777;
+  const stringModeOk = typeof mode === "string" && /^0?[0-7]{3,4}$/.test(mode);
+  if (mode !== undefined && !numericModeOk && !stringModeOk) {
     errors.push(`${field}.mode: expected an octal file mode such as 0440, "0440" or 288`);
   }
   return errors;
@@ -1422,7 +1428,11 @@ export function secretsErrors(manifest: Record<string, unknown>, displayPath: st
   }
   const files: unknown = (secrets as Record<string, unknown>).files;
   if (files !== undefined && files !== null) {
-    if (!Array.isArray(files)) {
+    if (manifest.appType !== "bring-your-own") {
+      errors.push(
+        `${displayPath}.secrets.files: only applies to bring-your-own resources (appType "bring-your-own")`,
+      );
+    } else if (!Array.isArray(files)) {
       errors.push(`${displayPath}.secrets.files: expected an array of { name, source, target }`);
     } else {
       for (let i = 0; i < files.length; i++) {
@@ -1439,6 +1449,11 @@ export function secretsErrors(manifest: Record<string, unknown>, displayPath: st
 export function configsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
   const configs = manifest.configs;
   if (configs === undefined || configs === null) return [];
+  if (manifest.appType !== "bring-your-own") {
+    return [
+      `${displayPath}.configs: only applies to bring-your-own resources (appType "bring-your-own")`,
+    ];
+  }
   if (!Array.isArray(configs)) {
     return [`${displayPath}.configs: expected an array of { name, source, target }`];
   }

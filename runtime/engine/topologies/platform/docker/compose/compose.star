@@ -748,14 +748,14 @@ services:
     secrets_section = ""
     if secret_names:
         secrets_section = "\nsecrets:\n" + "".join([
-            '  {}:\n    file: "{}"\n'.format(name, secrets_by_name[name])
+            '  "{}":\n    file: "{}"\n'.format(name, secrets_by_name[name])
             for name in secret_names
         ])
 
     configs_section = ""
     if config_names:
         configs_section = "\nconfigs:\n" + "".join([
-            '  {}:\n    file: "{}"\n'.format(name, configs_by_name[name])
+            '  "{}":\n    file: "{}"\n'.format(name, configs_by_name[name])
             for name in config_names
         ])
 

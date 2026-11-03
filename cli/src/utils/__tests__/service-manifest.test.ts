@@ -827,6 +827,7 @@ describe("secretsErrors", () => {
     expect(
       secretsErrors(
         {
+          appType: "bring-your-own",
           secrets: {
             files: [
               {
@@ -844,16 +845,25 @@ describe("secretsErrors", () => {
       ),
     ).toEqual([]);
 
-    expect(secretsErrors({ secrets: { files: "not-an-array" } }, file)).toEqual([
-      `${file}.secrets.files: expected an array of { name, source, target }`,
-    ]);
     expect(
-      secretsErrors({ secrets: { files: [{ name: "bad name\n", source: "./s.txt" }] } }, file),
+      secretsErrors({ appType: "bring-your-own", secrets: { files: "not-an-array" } }, file),
+    ).toEqual([`${file}.secrets.files: expected an array of { name, source, target }`]);
+    expect(
+      secretsErrors(
+        {
+          appType: "bring-your-own",
+          secrets: { files: [{ name: "bad name\n", source: "./s.txt" }] },
+        },
+        file,
+      ),
     ).toContain(
       `${file}.secrets.files[0].name: "bad name\\n" is not a valid secret identifier name (letters, digits, dashes, dots and underscores)`,
     );
     expect(
-      secretsErrors({ secrets: { files: [{ name: "s", source: "/etc/passwd" }] } }, file),
+      secretsErrors(
+        { appType: "bring-your-own", secrets: { files: [{ name: "s", source: "/etc/passwd" }] } },
+        file,
+      ),
     ).toContain(
       `${file}.secrets.files[0].source: expected a relative path inside the project such as ./config or ./file.txt`,
     );
@@ -869,6 +879,7 @@ describe("configsErrors", () => {
     expect(
       configsErrors(
         {
+          appType: "bring-your-own",
           configs: [
             {
               name: "app_cfg",
@@ -881,12 +892,54 @@ describe("configsErrors", () => {
       ),
     ).toEqual([]);
 
-    expect(configsErrors({ configs: "not-an-array" }, file)).toEqual([
+    expect(configsErrors({ appType: "bring-your-own", configs: "not-an-array" }, file)).toEqual([
       `${file}.configs: expected an array of { name, source, target }`,
     ]);
-    expect(configsErrors({ configs: [{ name: "bad name", source: "./s.txt" }] }, file)).toContain(
+    expect(
+      configsErrors(
+        { appType: "bring-your-own", configs: [{ name: "bad name", source: "./s.txt" }] },
+        file,
+      ),
+    ).toContain(
       `${file}.configs[0].name: "bad name" is not a valid config identifier name (letters, digits, dashes, dots and underscores)`,
     );
+  });
+});
+
+describe("secret and config file entries", () => {
+  const file = "services/main/app/service.json";
+  const cfg = (entry: Record<string, unknown>) =>
+    configsErrors({ appType: "bring-your-own", configs: [{ name: "c", ...entry }] }, file);
+
+  it("rejects them on resources that are not bring-your-own", () => {
+    expect(secretsErrors({ secrets: { files: [{ name: "s", source: "./s" }] } }, file)).toEqual([
+      `${file}.secrets.files: only applies to bring-your-own resources (appType "bring-your-own")`,
+    ]);
+    expect(configsErrors({ appType: "backend", configs: [] }, file)).toEqual([
+      `${file}.configs: only applies to bring-your-own resources (appType "bring-your-own")`,
+    ]);
+  });
+
+  it("rejects unknown keys", () => {
+    expect(cfg({ source: "./c", targte: "/c" })).toEqual([
+      `${file}.configs[0].targte: unknown option (use name, source, target, uid, gid, mode)`,
+    ]);
+  });
+
+  it("accepts nested relative sources and rejects a bare dot", () => {
+    expect(cfg({ source: "docker/local/settings.ini" })).toEqual([]);
+    expect(cfg({ source: "../docker/local/settings.ini" })).toEqual([]);
+    expect(cfg({ source: ".env" })).toEqual([]);
+    expect(cfg({ source: "." })).toHaveLength(1);
+    expect(cfg({ source: "docker/../../x" })).toHaveLength(1);
+  });
+
+  it("accepts integer modes from 0 to 4095 only", () => {
+    expect(cfg({ source: "./c", mode: 0 })).toEqual([]);
+    expect(cfg({ source: "./c", mode: 4095 })).toEqual([]);
+    for (const mode of [-1, 4096, 1.5]) {
+      expect(cfg({ source: "./c", mode })).toHaveLength(1);
+    }
   });
 });
 

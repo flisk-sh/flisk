@@ -1220,7 +1220,8 @@ export function providersErrors(manifest, displayPath) {
     return errors;
 }
 const RESOURCE_FILE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
-const RESOURCE_FILE_PATH_PATTERN = /^(?:[A-Za-z0-9_.-]+|\.{1,2}(?:\/[A-Za-z0-9_.-]+)+)$/;
+const RESOURCE_FILE_PATH_PATTERN = /^(?!\.$)(?:[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*|\.{1,2}(?:\/[A-Za-z0-9_.-]+)+)$/;
+const SECRET_CONFIG_FILE_KEYS = ["name", "source", "target", "uid", "gid", "mode"];
 const CONTAINER_TARGET_PATTERN = /^\/[A-Za-z0-9_./-]*$/;
 function validateSecretConfigFileEntry(entry, field, kind) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
@@ -1230,6 +1231,11 @@ function validateSecretConfigFileEntry(entry, field, kind) {
     }
     const errors = [];
     const rec = entry;
+    for (const key of Object.keys(rec)) {
+        if (!SECRET_CONFIG_FILE_KEYS.includes(key)) {
+            errors.push(`${field}.${key}: unknown option (use ${SECRET_CONFIG_FILE_KEYS.join(", ")})`);
+        }
+    }
     const name = rec.name;
     if (typeof name !== "string" || !RESOURCE_FILE_NAME_PATTERN.test(name)) {
         errors.push(`${field}.name: ${JSON.stringify(name)} is not a valid ${kind} identifier name (letters, digits, dashes, dots and underscores)`);
@@ -1255,9 +1261,9 @@ function validateSecretConfigFileEntry(entry, field, kind) {
         errors.push(`${field}.gid: expected a string or number group ID`);
     }
     const mode = rec.mode;
-    if (mode !== undefined &&
-        typeof mode !== "number" &&
-        (typeof mode !== "string" || !/^0?[0-7]{3,4}$/.test(mode))) {
+    const numericModeOk = typeof mode === "number" && Number.isInteger(mode) && mode >= 0 && mode <= 0o7777;
+    const stringModeOk = typeof mode === "string" && /^0?[0-7]{3,4}$/.test(mode);
+    if (mode !== undefined && !numericModeOk && !stringModeOk) {
         errors.push(`${field}.mode: expected an octal file mode such as 0440, "0440" or 288`);
     }
     return errors;
@@ -1285,7 +1291,10 @@ export function secretsErrors(manifest, displayPath) {
     }
     const files = secrets.files;
     if (files !== undefined && files !== null) {
-        if (!Array.isArray(files)) {
+        if (manifest.appType !== "bring-your-own") {
+            errors.push(`${displayPath}.secrets.files: only applies to bring-your-own resources (appType "bring-your-own")`);
+        }
+        else if (!Array.isArray(files)) {
             errors.push(`${displayPath}.secrets.files: expected an array of { name, source, target }`);
         }
         else {
@@ -1303,6 +1312,11 @@ export function configsErrors(manifest, displayPath) {
     const configs = manifest.configs;
     if (configs === undefined || configs === null)
         return [];
+    if (manifest.appType !== "bring-your-own") {
+        return [
+            `${displayPath}.configs: only applies to bring-your-own resources (appType "bring-your-own")`,
+        ];
+    }
     if (!Array.isArray(configs)) {
         return [`${displayPath}.configs: expected an array of { name, source, target }`];
     }
