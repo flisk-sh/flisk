@@ -47,6 +47,7 @@ import { buildTiltUpArgs, runTilt } from "../utils/tilt.js";
 import { classifyTiltPorts } from "../utils/tilt-port-owner.js";
 import { stopTiltOnPort } from "../utils/tilt-process.js";
 import { parseTiltPort, resolveTiltPort, secondUpAction, stopTiltForUp, } from "../utils/tilt-startup.js";
+import { cloneForUp, isGitRepoArg } from "../utils/up-from-git.js";
 import { upFailureHints } from "../utils/up-hints.js";
 import { findUnknownServices, resolveOnlySelection } from "../utils/up-only.js";
 import { createUpProgressReporter, fetchWithProgress, shouldRedrawUpProgress, } from "../utils/up-progress.js";
@@ -388,7 +389,7 @@ function missingDeclaredRepoDirs(projectRoot) {
 export const upCommand = new Command("up")
     .description("Start all services on this machine (optionally filtered by stack). Alias: deploy, which never deploys to a cluster")
     .alias("deploy")
-    .argument("[stack-name]", "Name of the stack to start (optional - runs all if omitted)")
+    .argument("[stack-name]", "Name of the stack to start (optional - runs all if omitted), or a git repository URL to clone and start")
     .option("-v, --verbose", "Enable verbose output", false)
     .option("-q, --quiet", "Suppress non-essential output", false)
     .option("--dry-run", "Show what would be started without starting", false)
@@ -405,6 +406,24 @@ export const upCommand = new Command("up")
     .option("--wait-timeout <seconds>", "With --wait: seconds to wait for a healthy stack, 1 to 21600 (default 1800)")
     .action(async (stackName, options) => {
     const emit = options.json ? createJsonEmitter("UP_FAILED", "flisk up") : undefined;
+    // `flisk up <git-url>`: clone the repository into ./<name> and start it from there, as a plain `flisk up` would.
+    if (isGitRepoArg(stackName)) {
+        try {
+            const dir = await cloneForUp(stackName, {
+                log: options.json || options.quiet ? undefined : (line) => console.log(chalk.gray(line)),
+            });
+            process.chdir(dir);
+        }
+        catch (error) {
+            if (error instanceof FliskError) {
+                if (emit)
+                    emit({ ok: false }, [toMachineError(error).error]);
+                return error.exit();
+            }
+            throw error;
+        }
+        stackName = undefined;
+    }
     if (options.wait) {
         await runUpWait(options);
         return;
