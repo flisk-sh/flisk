@@ -35,10 +35,21 @@ jobs:
             const issue = context.payload.issue;
             const user = context.payload.comment.user.login;
             const text = context.payload.comment.body || '';
-            // Short, direct claims only. A long comment that merely mentions "take" is a discussion.
-            const CLAIM = /^\s*(?:(?:hi|hello|hey)[,!.]?\s+)?(?:(?:i['’]?ll|i will|i can|let me|can i|may i|could i|i['’]?d (?:like|love) to|i would (?:like|love) to|i want to)\s+(?:take|work on|try|do|fix|pick up|tackle|have a go at)|(?:i would|i['’]?d) (?:like|love) this one|(?:take|taking|claim|claiming|assign me|please assign|working on|i['’]?m (?:on it|taking|working on))\b)/i;
-            if (text.length > 400 || !CLAIM.test(text)) return;
-            if (issue.labels.some((l) => l.name === 'tracking' || l.name === 'rfc')) return;
+            // A claim is the opening line of the comment, so a long comment that starts with
+            // "I'd like to take on this issue." and then lays out a plan still counts, while a
+            // discussion that only mentions "take" later on does not. Greetings, @mentions and
+            // markdown emphasis in front of it are skipped.
+            const head = text.replace(/[*_`>#]/g, '').trim()
+              .replace(/^(?:(?:hi|hello|hey|hii|dear)\b[,!.]?\s*)?(?:(?:@[\w-]+|and|&|flisk|maintainers|team|there|all)[,!.]?\s*)*/i, '')
+              .split(/\n|(?<=[.!?])\s/)[0].slice(0, 200);
+            const VERB = '(?:take|work on|try|do|fix|pick up|tackle|have a go at|handle|contribute to|own|take ownership of|attempt)';
+            const CLAIM = new RegExp('^(?:/assign\\b|' +
+              `(?:i['’]?ll|i will|i can|let me|can i|may i|could i|i['’]?d (?:like|love) to|i would (?:like|love) to|i want to|i['’]?m (?:happy|keen|interested) to)\\s+${VERB}|` +
+              "(?:i would|i['’]?d) (?:like|love) this(?: one)?|" +
+              "(?:(?:can|could|would) (?:you|u) (?:please )?)?assign (?:it |this )?(?:to )?me|" +
+              "(?:take|taking|claim|claiming|please assign|working on|i['’]?m (?:on it|taking|working on))\\b)", 'i');
+            if (!CLAIM.test(head)) return;
+            if (issue.labels.some((l) => l.name === 'tracking')) return;
 
             const taken = issue.assignees.map((a) => a.login);
             if (taken.includes(user)) return;
