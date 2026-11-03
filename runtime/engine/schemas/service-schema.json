@@ -522,6 +522,47 @@
         }
       }
     },
+    "configs": {
+      "description": "File-backed configs mounted into the container (flisk#3059). Paths are relative to the service directory.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "source", "target"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+            "description": "Unique config identifier name matching Compose configs."
+          },
+          "source": {
+            "type": "string",
+            "pattern": "^([A-Za-z0-9_.-]+|\\.{1,2}(/[A-Za-z0-9_.-]+)+)$",
+            "description": "Relative path to the config file from the service directory. Must resolve within project root."
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9_./-]*$",
+            "description": "Absolute in-container path where the config file is mounted."
+          },
+          "uid": {
+            "type": "string",
+            "description": "Optional in-container user ID for file ownership."
+          },
+          "gid": {
+            "type": "string",
+            "description": "Optional in-container group ID for file ownership."
+          },
+          "mode": {
+            "oneOf": [
+              { "type": "integer" },
+              { "type": "string", "pattern": "^0?[0-7]{3,4}$" }
+            ],
+            "description": "Optional file mode permissions (e.g. 0440 or 288)."
+          }
+        }
+      }
+    },
     "volumes": {
       "description": "Storage for this bring-your-own resource. A source that is a name (\"data\") is a named Docker volume: flisk down keeps it, and two services that name the same volume share it. A source starting with ./ or ../ is a bind mount of a path relative to the service directory, which must stay inside the project.",
       "type": "array",
@@ -614,6 +655,47 @@
           "additionalProperties": { "type": "string", "pattern": "^(hex|base64):[0-9]+$" },
           "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
           "type": "object"
+        },
+        "files": {
+          "description": "File-backed secrets mounted into the container (flisk#3059). Paths are relative to the service directory; secret contents are never stored in service.json.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "source", "target"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "description": "Unique secret identifier name matching Compose secrets."
+              },
+              "source": {
+                "type": "string",
+                "pattern": "^([A-Za-z0-9_.-]+|\\.{1,2}(/[A-Za-z0-9_.-]+)+)$",
+                "description": "Relative path to the secret file from the service directory. Must resolve within project root."
+              },
+              "target": {
+                "type": "string",
+                "pattern": "^/[A-Za-z0-9_./-]*$",
+                "description": "Absolute in-container path where the secret file is mounted."
+              },
+              "uid": {
+                "type": "string",
+                "description": "Optional in-container user ID for file ownership."
+              },
+              "gid": {
+                "type": "string",
+                "description": "Optional in-container group ID for file ownership."
+              },
+              "mode": {
+                "oneOf": [
+                  { "type": "integer" },
+                  { "type": "string", "pattern": "^0?[0-7]{3,4}$" }
+                ],
+                "description": "Optional file mode permissions (e.g. 0440 or 288)."
+              }
+            }
+          }
         }
       },
       "type": "object"

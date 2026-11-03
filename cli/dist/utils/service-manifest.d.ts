@@ -106,8 +106,10 @@ export declare function providersOf(manifest: Record<string, unknown> | undefine
  * engine/.../docker/secrets/providers.star, which refuses the same values.
  */
 export declare function providersErrors(manifest: Record<string, unknown>, displayPath: string): string[];
-/** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
+/** `secrets` must be { required?: string[], optional?: string[], generate?: object, files?: array }: the generator fails on anything else. */
 export declare function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
+/** `configs` must be an array of { name, source, target, uid?, gid?, mode? } (#3059). */
+export declare function configsErrors(manifest: Record<string, unknown>, displayPath: string): string[];
 export declare function secretConflictWarnings(manifest: Record<string, unknown>, displayPath: string): string[];
 export interface ParsedHealthCheckConfig {
     enabled: boolean;

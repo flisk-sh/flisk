@@ -36,6 +36,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   "buildArgs",
   "buildContext",
   "command",
+  "configs",
   "container",
   "databaseName",
   "dependencies",
@@ -1339,7 +1340,54 @@ export function providersErrors(manifest: Record<string, unknown>, displayPath: 
   return errors;
 }
 
-/** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
+const RESOURCE_FILE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+const RESOURCE_FILE_PATH_PATTERN = /^(?:[A-Za-z0-9_.-]+|\.{1,2}(?:\/[A-Za-z0-9_.-]+)+)$/;
+const CONTAINER_TARGET_PATTERN = /^\/[A-Za-z0-9_./-]*$/;
+
+function validateSecretConfigFileEntry(
+  entry: unknown,
+  field: string,
+  kind: "secret" | "config",
+): string[] {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return [`${field}: expected an object like { "name": "...", "source": "...", "target": "..." }`];
+  }
+  const errors: string[] = [];
+  const rec = entry as Record<string, unknown>;
+  const name = rec.name;
+  if (typeof name !== "string" || !RESOURCE_FILE_NAME_PATTERN.test(name)) {
+    errors.push(
+      `${field}.name: ${JSON.stringify(name)} is not a valid ${kind} identifier name (letters, digits, dashes, dots and underscores)`,
+    );
+  }
+  const source = rec.source;
+  if (typeof source !== "string" || !RESOURCE_FILE_PATH_PATTERN.test(source) || source.includes("/../") || source.endsWith("/..")) {
+    errors.push(`${field}.source: expected a relative path inside the project such as ./config or ./file.txt`);
+  }
+  const target = rec.target;
+  if (target !== undefined && (typeof target !== "string" || !CONTAINER_TARGET_PATTERN.test(target))) {
+    errors.push(`${field}.target: expected an absolute container path such as /etc/config`);
+  }
+  const uid = rec.uid;
+  if (uid !== undefined && typeof uid !== "string" && typeof uid !== "number") {
+    errors.push(`${field}.uid: expected a string or number user ID`);
+  }
+  const gid = rec.gid;
+  if (gid !== undefined && typeof gid !== "string" && typeof gid !== "number") {
+    errors.push(`${field}.gid: expected a string or number group ID`);
+  }
+  const mode = rec.mode;
+  if (
+    mode !== undefined &&
+    typeof mode !== "number" &&
+    (typeof mode !== "string" || !/^0?[0-7]{3,4}$/.test(mode))
+  ) {
+    errors.push(`${field}.mode: expected an octal file mode such as 0440, "0440" or 288`);
+  }
+  return errors;
+}
+
+/** `secrets` must be { required?: string[], optional?: string[], generate?: object, files?: array }: the generator fails on anything else. */
 export function secretsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
   const secrets = manifest.secrets;
   if (secrets === undefined || secrets === null) return [];
@@ -1360,7 +1408,33 @@ export function secretsErrors(manifest: Record<string, unknown>, displayPath: st
         );
     }
   }
+  const files: unknown = (secrets as Record<string, unknown>).files;
+  if (files !== undefined && files !== null) {
+    if (!Array.isArray(files)) {
+      errors.push(`${displayPath}.secrets.files: expected an array of { name, source, target }`);
+    } else {
+      for (let i = 0; i < files.length; i++) {
+        const field = `${displayPath}.secrets.files[${i}]`;
+        errors.push(...validateSecretConfigFileEntry(files[i], field, "secret"));
+      }
+    }
+  }
   errors.push(...generateSecretErrors(manifest, secrets as Record<string, unknown>, displayPath));
+  return errors;
+}
+
+/** `configs` must be an array of { name, source, target, uid?, gid?, mode? } (#3059). */
+export function configsErrors(manifest: Record<string, unknown>, displayPath: string): string[] {
+  const configs = manifest.configs;
+  if (configs === undefined || configs === null) return [];
+  if (!Array.isArray(configs)) {
+    return [`${displayPath}.configs: expected an array of { name, source, target }`];
+  }
+  const errors: string[] = [];
+  for (let i = 0; i < configs.length; i++) {
+    const field = `${displayPath}.configs[${i}]`;
+    errors.push(...validateSecretConfigFileEntry(configs[i], field, "config"));
+  }
   return errors;
 }
 
@@ -1652,6 +1726,7 @@ export function validateServiceManifest(
   errors.push(...fieldTypeErrors(manifest, displayPath));
   errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
   errors.push(...secretsErrors(manifest, displayPath));
+  errors.push(...configsErrors(manifest, displayPath));
   errors.push(...containerErrors(manifest, displayPath));
   errors.push(...extraPortsErrors(manifest, displayPath));
   errors.push(...providesErrors(manifest, displayPath));

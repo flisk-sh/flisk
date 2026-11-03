@@ -17,6 +17,8 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | wger-project/docker | Django, nginx | Not opened | `include:` files, `logging` |
 | open-mercato/open-mercato | Node, many overlays | Not opened | `extra_hosts` with a variable, bind sources `${VAR:-./path}` |
 | liketrek/TREK, open-wanderer/wanderer | Single app plus database | Discussions open | bare published ports, host-based routing for a web app |
+| catchpoint/WebPageTest (4e157836) | WebPageTest server and agent | RFC / reproduction | file-backed Compose `secrets:` (`wpt_settings_ini`) mounted to custom container target |
+| sameersbn/docker-gitlab (9003c09b) | GitLab with PostgreSQL and Redis | RFC / reproduction | file-backed Compose `configs:` (`gitlab-configs`) mounted to container target |
 
 ## Compose features
 
@@ -62,7 +64,7 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | `container_name` | none, Flisk names containers | n/a | dropped with a note | Lychee | by design |
 | several or named custom `networks` | the default network | n/a | ignored with a note | Lychee | open: a service that needs two isolated networks is not expressible |
 | `command` on a service that has `build:` | none | n/a | noted, not carried over | none yet | open |
-| top-level Compose `secrets:` and `configs:` | none | n/a | not handled | none yet | open, not yet tested on a real repository |
+| top-level Compose `secrets:` and `configs:` | `secrets.files`, `configs` | 1.4.34 | yes (import 0.19.0, export 0.6.0) | catchpoint/WebPageTest, sameersbn/docker-gitlab | tested |
 | a web UI behind the proxy | `webUi: true` | 1.4.29 | set by hand | TREK, wanderer | tested, not checked in a browser; the importer cannot tell UI from API |
 
 ## Flisk behaviour that surprised adopters

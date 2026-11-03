@@ -8,6 +8,7 @@ import { substitutePublish } from "../extra-port-publish.js";
 import {
   buildArgsErrors,
   byoEnvErrors,
+  configsErrors,
   containerErrors,
   dependsOnErrors,
   dockerNameErrors,
@@ -820,6 +821,68 @@ describe("secretsErrors", () => {
     const errors = secretsErrors(manifest, file);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(message);
+  });
+
+  it("accepts file-backed secrets and reports malformed entries", () => {
+    expect(
+      secretsErrors(
+        {
+          secrets: {
+            files: [
+              {
+                name: "wpt_settings",
+                source: "./settings.ini",
+                target: "/var/www/settings.ini",
+                uid: "1000",
+                gid: "1000",
+                mode: 288,
+              },
+            ],
+          },
+        },
+        file,
+      ),
+    ).toEqual([]);
+
+    expect(secretsErrors({ secrets: { files: "not-an-array" } }, file)).toEqual([
+      `${file}.secrets.files: expected an array of { name, source, target }`,
+    ]);
+    expect(secretsErrors({ secrets: { files: [{ name: "bad name\n", source: "./s.txt" }] } }, file)).toContain(
+      `${file}.secrets.files[0].name: "bad name\\n" is not a valid secret identifier name (letters, digits, dashes, dots and underscores)`,
+    );
+    expect(secretsErrors({ secrets: { files: [{ name: "s", source: "/etc/passwd" }] } }, file)).toContain(
+      `${file}.secrets.files[0].source: expected a relative path inside the project such as ./config or ./file.txt`,
+    );
+  });
+});
+
+describe("configsErrors", () => {
+  const file = "services/main/app/service.json";
+
+  it("accepts valid configs and reports malformed entries", () => {
+    expect(configsErrors({}, file)).toEqual([]);
+    expect(configsErrors({ configs: null }, file)).toEqual([]);
+    expect(
+      configsErrors(
+        {
+          configs: [
+            {
+              name: "app_cfg",
+              source: "./config.json",
+              target: "/etc/config.json",
+            },
+          ],
+        },
+        file,
+      ),
+    ).toEqual([]);
+
+    expect(configsErrors({ configs: "not-an-array" }, file)).toEqual([
+      `${file}.configs: expected an array of { name, source, target }`,
+    ]);
+    expect(configsErrors({ configs: [{ name: "bad name", source: "./s.txt" }] }, file)).toContain(
+      `${file}.configs[0].name: "bad name" is not a valid config identifier name (letters, digits, dashes, dots and underscores)`,
+    );
   });
 });
 
