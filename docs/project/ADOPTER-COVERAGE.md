@@ -39,7 +39,7 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | `healthcheck` command, interval, timeout, retries | `healthCheck` | 1.4.0 (`healthCheck`) | yes | nosia, Lychee | covered |
 | `healthcheck.start_period` | `healthCheck.startPeriod` | 1.4.27 | yes | Lychee, EDDI | covered |
 | `healthcheck: disable` | `healthCheck: false` | 1.4.0 (`healthCheck: false`) | yes | pl_mail | covered |
-| `depends_on` with conditions | `dependsOn` objects | 1.4.33 | yes | nosia, EDDI, wger | covered: condition-aware startup orchestration (service_started, service_healthy, service_completed_successfully) |
+| `depends_on` with conditions | `dependsOn` objects | main (unreleased) | yes | nosia, EDDI, wger | tested: condition-aware startup orchestration (service_started, service_healthy, service_completed_successfully); not yet run on nosia, EDDI or wger |
 | `restart: on-failure:N` | `restart` | 1.4.27 | yes | nosia | covered |
 | no `restart` set | none (Flisk restarts after a crash or reboot) | n/a | yes | pl_mail, EDDI | by design: Compose would not restart |
 | `cap_add`, `cap_drop`, `read_only`, `user`, `security_opt`, `shm_size`, `init` | `container` | 1.4.24 | yes | tubehaus, Lychee | covered |

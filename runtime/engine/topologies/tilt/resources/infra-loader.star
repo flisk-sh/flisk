@@ -145,7 +145,7 @@ _HEALTHY_POSTGRES_SCRIPT = (
     + '  sleep 1; '
     + 'done; '
     + 'if [ -z "$id" ]; then echo "ERROR: no container found for postgres ($cname)"; exit 1; fi; '
-    + 'for i in $(seq 1 90); do '
+    + 'for i in $(seq 1 120); do '
     + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
     + '  if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then '
     + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '

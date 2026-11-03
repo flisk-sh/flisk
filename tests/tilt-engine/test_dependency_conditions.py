@@ -161,10 +161,43 @@ def test_tiltfile_template_includes_healthy_resources():
     assert "_ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres-healthy')" in template
 
 
-DOCKER_AVAILABLE = shutil.which("docker") is not None
+@TILT_REQUIRED
+def test_migrator_with_service_healthy_condition_maps_to_done(tmp_path):
+    """A migrator dependency with condition service_healthy uses migrator-done gate."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'api'}\n"
+        "manifest = {'dependsOn': [{'name': 'migrator', 'condition': 'service_healthy'}]}\n"
+        "r = {'deps': build_resource_deps(res, 'api', manifest, {}, [], {}, {}, None, services)}\n",
+    )
+    # Migrator is a one-shot job, so it maps to migrator-done rather than dangling migrator-healthy
+    assert result["deps"] == ["migrator", "migrator-done"]
 
 
-@pytest.mark.skipif(not DOCKER_AVAILABLE, reason="docker CLI not available")
+@TILT_REQUIRED
+def test_long_running_service_with_completed_successfully_condition(tmp_path):
+    """A persistent service with condition service_completed_successfully gates on db-healthy."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
+        f"services = {SERVICES!r}\n"
+        "res = {'name': 'api'}\n"
+        "manifest = {'dependsOn': [{'name': 'db', 'condition': 'service_completed_successfully'}]}\n"
+        "r = {'deps': build_resource_deps(res, 'api', manifest, {}, [], {}, {}, None, services)}\n",
+    )
+    # Persistent db doesn't exit on success, so it gates on db-healthy rather than dangling db-done
+    assert result["deps"] == ["db", "db-healthy"]
+
+
+DOCKER_AVAILABLE = (
+    shutil.which("docker") is not None
+    and subprocess.run(["docker", "info"], capture_output=True).returncode == 0
+)
+
+
+@pytest.mark.skipif(not DOCKER_AVAILABLE, reason="docker CLI or daemon not available")
 class TestLiveDependencyConditions:
     """Live Docker integration testing healthy checks and one-shot exit conditions."""
 

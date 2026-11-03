@@ -400,17 +400,28 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
             if resolved_dep and resolved_dep != res_name and resolved_dep not in res_deps:
                 res_deps.append(resolved_dep)
             
-            # Condition: service_healthy
-            if dep_condition == "service_healthy" and resolved_dep and resolved_dep != res_name and not resolved_dep.endswith("-yaml"):
-                healthy = job_healthy_resource_name(resolved_dep)
-                if healthy not in res_deps:
-                    res_deps.append(healthy)
+            # Check if resolved_dep is a valid runnable resource (or not an unregistered echo name)
+            is_valid_res = resolved_dep and resolved_dep != res_name and (not resolved_dep.endswith("-yaml") or _is_known_resource(resolved_dep, all_services_map))
 
-            # Condition: service_completed_successfully OR one-shot job
-            if (dep_condition == "service_completed_successfully" or _is_job_resource(resolved_dep, all_services_map)) and resolved_dep and resolved_dep != res_name and not resolved_dep.endswith("-yaml"):
-                done = job_done_resource_name(resolved_dep)
-                if done not in res_deps:
-                    res_deps.append(done)
+            if is_valid_res:
+                dep_is_job = _is_job_resource(resolved_dep, all_services_map)
+
+                # Condition: service_healthy
+                # For long-running services, wait for `<res>-healthy`.
+                # For one-shot jobs (migrators), wait for `<res>-done` (jobs exit rather than reporting health).
+                if dep_condition == "service_healthy":
+                    companion = job_done_resource_name(resolved_dep) if dep_is_job else job_healthy_resource_name(resolved_dep)
+                    if companion not in res_deps:
+                        res_deps.append(companion)
+
+                # Condition: service_completed_successfully OR one-shot job dependency
+                # One-shot jobs always require `<res>-done` so dependents wait for them to finish.
+                # If a service explicitly requests `service_completed_successfully` on a job, wait for `<res>-done`.
+                # If requested on a long-running service, fallback to `<res>-healthy` since persistent services do not exit.
+                if dep_condition == "service_completed_successfully" or dep_is_job:
+                    companion = job_done_resource_name(resolved_dep) if dep_is_job else job_healthy_resource_name(resolved_dep)
+                    if companion not in res_deps:
+                        res_deps.append(companion)
     
     return res_deps
 
@@ -899,7 +910,7 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
 
 
 _HEALTHY_SCRIPT = (
-    'job="$1"; shift; '
+    'job="$1"; max_polls="${2:-120}"; shift 2 2>/dev/null || shift 1; '
     + 'id=""; '
     + 'for i in $(seq 1 30); do '
     + '  if [ "$#" -gt 0 ]; then '
@@ -911,7 +922,7 @@ _HEALTHY_SCRIPT = (
     + '  sleep 1; '
     + 'done; '
     + 'if [ -z "$id" ]; then echo "ERROR: no container found for $job"; exit 1; fi; '
-    + 'for i in $(seq 1 90); do '
+    + 'for i in $(seq 1 "$max_polls"); do '
     + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
     + '  if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then '
     + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
@@ -929,8 +940,26 @@ _HEALTHY_SCRIPT = (
     + '  fi; '
     + '  sleep 1; '
     + 'done; '
-    + 'echo "ERROR: timed out waiting for $job to become healthy"; exit 1'
+    + 'echo "ERROR: timed out waiting for $job to become healthy (waited ${max_polls}s)"; exit 1'
 )
+
+
+def _calculate_healthy_timeout_seconds(manifest):
+    """Calculate the maximum seconds to wait for a service to become healthy based on its healthCheck (#3061)."""
+    base = 120
+    if not manifest or type(manifest) != 'dict':
+        return base
+    hc = manifest.get('healthCheck', {})
+    if type(hc) != 'dict':
+        return base
+    start_period = hc.get('startPeriod', 0) or 0
+    interval = hc.get('interval', 10) or 10
+    retries = hc.get('retries', 3) or 3
+    timeout = hc.get('timeout', 5) or 5
+    calculated = start_period + (retries * (interval + timeout)) + 30
+    if calculated > base:
+        return calculated
+    return base
 
 
 def _register_healthy_resource(config, resource_path, compose_project_name, auto_init_apps=True):
@@ -942,7 +971,8 @@ def _register_healthy_resource(config, resource_path, compose_project_name, auto
     inspect until it reports 'healthy', failing fast if the container exits or reports 'unhealthy'.
     If no healthcheck is configured, it proceeds as soon as the container is running.
     """
-    argv = ['sh', '-c', _HEALTHY_SCRIPT, 'sh', config['res_name']]
+    timeout_s = _calculate_healthy_timeout_seconds(config.get('manifest', {}))
+    argv = ['sh', '-c', _HEALTHY_SCRIPT, 'sh', config['res_name'], str(timeout_s)]
     argv.extend(_compose_project_argv(config, resource_path, compose_project_name))
     local_resource(
         name=job_healthy_resource_name(config['res_name']),

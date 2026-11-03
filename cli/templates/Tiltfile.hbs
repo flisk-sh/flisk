@@ -276,7 +276,6 @@ for _KNOWN_SVC in _app_resources_list:
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME)
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-run-only')
                 _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-config-gen')
-                _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-healthy')
                 # A frontend whose build script is the standard `tsc && vite build` gets a
                 # non-blocking <service>-typecheck resource (see Docker frontend registration).
                 # Name it here, from the same plan and path, so focus mode can enable it.
@@ -286,8 +285,11 @@ for _KNOWN_SVC in _app_resources_list:
                         _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-typecheck')
                 _KNOWN_RES_MANIFEST = _KNOWN_RES.get('_manifest', {})
                 # A one-shot job (a migrator, or bring-your-own with "restart": "no") has a `<name>-done` resource that waits for it to exit.
+                # Long-running services have a `<name>-healthy` companion (#3061). Registration registers one or the other, never both.
                 if _KNOWN_RES_MANIFEST.get('appType', '') == 'migrator' or (_KNOWN_RES_MANIFEST.get('appType', '') == 'bring-your-own' and _KNOWN_RES_MANIFEST.get('restart', '') == 'no'):
                     _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-done')
+                else:
+                    _KNOWN_TILT_RESOURCES.add(_KNOWN_RES_NAME + '-healthy')
                 _KNOWN_RES_SABLIER = _KNOWN_RES_MANIFEST.get('sablier', {})
                 # Mirrors _register_single_resource: the prebuild only exists for
                 # a resource that gets a docker_build (has syncs, not a library/sdk/BYO).
