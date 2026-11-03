@@ -107,7 +107,9 @@ jobs:
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
+    # A hang guard: actionlint takes seconds, but zizmor's online audits call the GitHub API and took 90s on 2026-11-03, so a
+    # one-minute limit cancelled a clean run (#3185) twice.
+    timeout-minutes: 5
     permissions:
       contents: write # push Biome fixes and a rebuilt cli/dist back to the PR branch
       actions: write # start CI on the pushed fix commit
@@ -160,7 +162,9 @@ jobs:
     needs: changes
     # Skip on docs-only PRs; a skipped job still satisfies required checks.
     if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
+    # A hang guard: actionlint takes seconds, but zizmor's online audits call the GitHub API and took 90s on 2026-11-03, so a
+    # one-minute limit cancelled a clean run (#3185) twice.
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: cli
@@ -576,7 +580,9 @@ jobs:
   secret-scan:
     name: 🔑 Secret Scan
     runs-on: ubuntu-26.04
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
+    # A hang guard: actionlint takes seconds, but zizmor's online audits call the GitHub API and took 90s on 2026-11-03, so a
+    # one-minute limit cancelled a clean run (#3185) twice.
+    timeout-minutes: 5
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -594,7 +600,9 @@ jobs:
   dependency-review:
     name: 🔒 Dependency Audit
     runs-on: ubuntu-26.04
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
+    # A hang guard: actionlint takes seconds, but zizmor's online audits call the GitHub API and took 90s on 2026-11-03, so a
+    # one-minute limit cancelled a clean run (#3185) twice.
+    timeout-minutes: 5
     needs: changes
     if: vars.DEPENDENCY_REVIEW == 'true' && needs.changes.outputs.lockfile == 'true' && github.event_name == 'pull_request'
     steps:
@@ -608,7 +616,9 @@ jobs:
   workflow-audit:
     name: 🛠️ Workflow Audit
     runs-on: ubuntu-26.04
-    timeout-minutes: 1 # every job finishes in under 20s; fail fast if one hangs
+    # A hang guard: actionlint takes seconds, but zizmor's online audits call the GitHub API and took 90s on 2026-11-03, so a
+    # one-minute limit cancelled a clean run (#3185) twice.
+    timeout-minutes: 5
     needs: changes
     if: needs.changes.outputs.workflows == 'true' || github.event_name == 'workflow_dispatch'
     steps:
