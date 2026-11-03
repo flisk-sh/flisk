@@ -978,6 +978,7 @@ export function dependsOnErrors(manifest: Record<string, unknown>, displayPath: 
   deps.forEach((entry: unknown, i) => {
     let name: string | undefined;
     let cond = "service_started";
+    let hasValidCondition = true;
 
     if (typeof entry === "string") {
       name = entry;
@@ -997,6 +998,7 @@ export function dependsOnErrors(manifest: Record<string, unknown>, displayPath: 
           !(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))
         ) {
           errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+          hasValidCondition = false;
         } else {
           cond = entry.condition;
         }
@@ -1009,7 +1011,7 @@ export function dependsOnErrors(manifest: Record<string, unknown>, displayPath: 
       return;
     }
 
-    if (name) {
+    if (name && hasValidCondition) {
       if (declaredConditions.has(name) && declaredConditions.get(name) !== cond) {
         errors.push(
           `${displayPath}.dependsOn: '${name}' lists conflicting conditions '${declaredConditions.get(name)}' and '${cond}'`,

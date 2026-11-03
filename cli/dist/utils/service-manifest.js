@@ -881,6 +881,7 @@ export function dependsOnErrors(manifest, displayPath) {
     deps.forEach((entry, i) => {
         let name;
         let cond = "service_started";
+        let hasValidCondition = true;
         if (typeof entry === "string") {
             name = entry;
         }
@@ -899,6 +900,7 @@ export function dependsOnErrors(manifest, displayPath) {
             if (entry.condition !== undefined) {
                 if (!(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))) {
                     errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+                    hasValidCondition = false;
                 }
                 else {
                     cond = entry.condition;
@@ -910,7 +912,7 @@ export function dependsOnErrors(manifest, displayPath) {
             errors.push(`${at}: expected a name, or an object such as { "name": "db", "condition": "service_healthy" }`);
             return;
         }
-        if (name) {
+        if (name && hasValidCondition) {
             if (declaredConditions.has(name) && declaredConditions.get(name) !== cond) {
                 errors.push(`${displayPath}.dependsOn: '${name}' lists conflicting conditions '${declaredConditions.get(name)}' and '${cond}'`);
             }
