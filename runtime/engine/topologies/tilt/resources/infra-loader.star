@@ -134,6 +134,45 @@ def _ensure_database_management_compose(root_prefix, write_fn):
 # Tiltfile evaluation registers `postgres` at most once on its own path.
 
 
+_HEALTHY_POSTGRES_SCRIPT = (
+    'name="$1"; '
+    + 'cname="${name}_postgres"; '
+    + 'exited_count=0; '
+    + 'for i in $(seq 1 120); do '
+    + '  id="$(docker ps -q -f "name=^/${cname}$" 2>/dev/null | head -n 1)"; '
+    + '  if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=^/${cname}$" 2>/dev/null | head -n 1)"; fi; '
+    + '  if [ -z "$id" ]; then sleep 1; continue; fi; '
+    + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$state" = "dead" ]; then '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    echo "ERROR: container postgres is dead (exit code $code)"; exit 1; '
+    + '  fi; '
+    + '  if [ "$state" = "exited" ]; then '
+    + '    policy="$(docker inspect --format="{{.HostConfig.RestartPolicy.Name}}" "$id" 2>/dev/null)"; '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    if [ "$policy" = "no" ] || [ -z "$policy" ]; then '
+    + '      exited_count=$((exited_count + 1)); '
+    + '      if [ "$exited_count" -ge 5 ]; then '
+    + '        echo "ERROR: container postgres exited with code $code and will not restart (restart: ${policy:-no})"; exit 1; '
+    + '      fi; '
+    + '    else '
+    + '      exited_count=0; '
+    + '    fi; '
+    + '  else '
+    + '    exited_count=0; '
+    + '  fi; '
+    + '  health="$(docker inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$health" = "healthy" ]; then echo "postgres is healthy"; exit 0; fi; '
+    + '  if [ "$health" = "unhealthy" ]; then echo "ERROR: postgres is unhealthy"; exit 1; fi; '
+    + '  if [ "$health" = "none" ]; then '
+    + '    echo "ERROR: postgres container has no health check configured"; exit 1; '
+    + '  fi; '
+    + '  sleep 1; '
+    + 'done; '
+    + 'echo "ERROR: timed out waiting for postgres to become healthy"; exit 1'
+)
+
+
 def _register_platform_postgres(should_enable, root_prefix="", env_file=None, write_fn=None, required=False):
     """Materialize the platform compose and register the shared `postgres` Tilt resource.
 
@@ -148,6 +187,13 @@ def _register_platform_postgres(should_enable, root_prefix="", env_file=None, wr
         debug_log("INFRA: Loading postgres compose from {}".format(postgres_compose))
         _docker_compose(postgres_compose, env_file, 'database-management')
         dc_resource('postgres', labels=['infra.tools'], resource_deps=['init-networks'], auto_init=True)
+        local_resource(
+            name='postgres-healthy',
+            cmd=['sh', '-c', _HEALTHY_POSTGRES_SCRIPT, 'sh', PlatformDockerConstants.PROJECT_NAME],
+            labels=['infra.tools', 'health'],
+            resource_deps=['postgres'],
+            auto_init=True,
+        )
         return
     message = "Shared platform Postgres compose was not materialized at {}".format(postgres_compose)
     if required:

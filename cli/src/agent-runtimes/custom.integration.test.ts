@@ -3,11 +3,12 @@
 
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const TEST_PORT = 9999;
-const TEST_STATE_DIR = join(import.meta.dir, ".test-agent-state");
+const TEST_STATE_DIR = join(dirname(fileURLToPath(import.meta.url)), ".test-agent-state");
 
 async function waitForServer(port: number, timeout = 5000) {
   const start = Date.now();

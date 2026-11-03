@@ -408,6 +408,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "nightly-adopters.yml",
+			"job": "adopter",
+			"tier": "e2e",
+			"required": false,
+			"reason": "Nightly integration testing against three pinned real-world adopter repositories (#3100)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "npm-downloads-graph.yml",
 			"job": "graph",
 			"tier": "report",
