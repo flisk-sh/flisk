@@ -231,3 +231,31 @@ def test_find_dependency_cycle_handles_a_long_chain_and_a_long_circle(tmp_path):
     chain["s300"] = ["s0"]
     found = cycle(tmp_path, chain)
     assert found[0] == found[-1] and len(found) == 302
+
+
+@TILT_REQUIRED
+def test_dependson_condition_service_healthy_adds_healthy_resource_edge(tmp_path):
+    """#3061: condition: 'service_healthy' waits for <dependency>-healthy."""
+    manifest = {
+        "dependsOn": [{"name": "orders", "condition": "service_healthy"}]
+    }
+    assert deps(tmp_path, "ledger", manifest) == ["orders", "orders-healthy"]
+
+
+@TILT_REQUIRED
+def test_dependson_condition_service_completed_successfully_adds_done_resource_edge(tmp_path):
+    """#3061: condition: 'service_completed_successfully' waits for <dependency>-done."""
+    manifest = {
+        "dependsOn": [{"name": "orders", "condition": "service_completed_successfully"}]
+    }
+    assert deps(tmp_path, "ledger", manifest) == ["orders", "orders-done"]
+
+
+@TILT_REQUIRED
+def test_dependson_condition_service_started_keeps_default_edge(tmp_path):
+    """#3061: condition: 'service_started' keeps standard start edge without waiting for healthy/done."""
+    manifest = {
+        "dependsOn": [{"name": "orders", "condition": "service_started"}]
+    }
+    assert deps(tmp_path, "ledger", manifest) == ["orders"]
+

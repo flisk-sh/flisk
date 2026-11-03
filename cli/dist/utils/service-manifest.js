@@ -877,24 +877,48 @@ export function dependsOnErrors(manifest, displayPath) {
     if (!Array.isArray(deps))
         return [];
     const errors = [];
+    const declaredConditions = new Map();
     deps.forEach((entry, i) => {
-        if (typeof entry === "string")
-            return;
-        const at = `${displayPath}.dependsOn[${i}]`;
-        if (!isPlainObject(entry)) {
+        let name;
+        let cond = "service_started";
+        let hasValidCondition = true;
+        if (typeof entry === "string") {
+            name = entry;
+        }
+        else if (isPlainObject(entry)) {
+            const at = `${displayPath}.dependsOn[${i}]`;
+            for (const key of Object.keys(entry)) {
+                if (key !== "name" && key !== "condition")
+                    errors.push(`${at}.${key}: unknown option (use name, condition)`);
+            }
+            if (typeof entry.name !== "string" || entry.name === "") {
+                errors.push(`${at}.name: expected a service or stack name`);
+            }
+            else {
+                name = entry.name;
+            }
+            if (entry.condition !== undefined) {
+                if (!(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))) {
+                    errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+                    hasValidCondition = false;
+                }
+                else {
+                    cond = entry.condition;
+                }
+            }
+        }
+        else {
+            const at = `${displayPath}.dependsOn[${i}]`;
             errors.push(`${at}: expected a name, or an object such as { "name": "db", "condition": "service_healthy" }`);
             return;
         }
-        for (const key of Object.keys(entry)) {
-            if (key !== "name" && key !== "condition")
-                errors.push(`${at}.${key}: unknown option (use name, condition)`);
-        }
-        if (typeof entry.name !== "string" || entry.name === "") {
-            errors.push(`${at}.name: expected a service or stack name`);
-        }
-        if (entry.condition !== undefined &&
-            !(typeof entry.condition === "string" && DEPENDS_ON_CONDITIONS.includes(entry.condition))) {
-            errors.push(`${at}.condition: expected one of ${DEPENDS_ON_CONDITIONS.join(", ")}`);
+        if (name && hasValidCondition) {
+            if (declaredConditions.has(name) && declaredConditions.get(name) !== cond) {
+                errors.push(`${displayPath}.dependsOn: '${name}' lists conflicting conditions '${declaredConditions.get(name)}' and '${cond}'`);
+            }
+            else {
+                declaredConditions.set(name, cond);
+            }
         }
     });
     return errors;

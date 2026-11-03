@@ -379,21 +379,94 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
             res_deps.append(migrator_name)
     
     # Resolve dependsOn from the manifest: services, stacks (their backend-side services) and the shared Postgres.
+    conditions = dict(manifest.get('dependsOnConditions', {})) if manifest and type(manifest.get('dependsOnConditions')) == 'dict' else {}
+    if manifest and type(manifest.get('dependsOn')) == 'list':
+        for entry in manifest['dependsOn']:
+            if type(entry) == 'dict':
+                entry_name = entry.get('name')
+                entry_cond = entry.get('condition')
+                if entry_name and entry_cond and entry_name not in conditions:
+                    conditions[entry_name] = entry_cond
+
     for dep in declared_dependencies(manifest):
         resolved = _resolve_dependency_to_resources(dep, all_services_map)
         if not resolved and not _is_unregistered_resource(dep, all_services_map):
             # Not a service or stack: keep the name Tilt has always been given (a `-yaml` echo resource, or nothing).
             resolved = [_resolve_dependency_to_resource(dep, all_services_map or {})]
+        
+        is_direct = _is_known_resource(dep, all_services_map) or is_shared_platform_postgres_dependency(dep) or _is_database_resource(dep, all_services_map)
+        is_expanded_stack = (not is_direct) or (len(resolved) > 1)
+        dep_condition = conditions.get(dep, None)
+
         for resolved_dep in resolved:
             if resolved_dep and resolved_dep != res_name and resolved_dep not in res_deps:
                 res_deps.append(resolved_dep)
-            # A one-shot job is done when it exited 0, not when its container started: wait for its `-done` resource too.
-            if resolved_dep and resolved_dep != res_name and _is_job_resource(resolved_dep, all_services_map):
-                done = job_done_resource_name(resolved_dep)
-                if done not in res_deps:
-                    res_deps.append(done)
+            
+            # Check if resolved_dep is a valid runnable resource (or not an unregistered echo name)
+            is_valid_res = resolved_dep and resolved_dep != res_name and (not resolved_dep.endswith("-yaml") or _is_known_resource(resolved_dep, all_services_map))
+
+            if is_valid_res:
+                dep_is_job = _is_job_resource(resolved_dep, all_services_map)
+
+                if is_expanded_stack:
+                    # Expanded stack dependency (e.g. {"name": "shop", "condition": "service_healthy"}).
+                    # Route each member service to its valid companion gate:
+                    # - service_healthy: persistent services with health checks wait for <svc>-healthy; one-shot migrators wait for <job>-done.
+                    # - service_completed_successfully: migrators wait for <job>-done; persistent services wait for <svc>-healthy.
+                    # - service_started: all members only wait for container start (no companion gates).
+                    # - unconditioned (default): persistent services wait for start; migrators default to <job>-done (#2871).
+                    if dep_condition == "service_healthy":
+                        if dep_is_job:
+                            companion = job_done_resource_name(resolved_dep)
+                            if companion not in res_deps:
+                                res_deps.append(companion)
+                        elif _service_has_health_check(resolved_dep, all_services_map):
+                            companion = job_healthy_resource_name(resolved_dep)
+                            if companion not in res_deps:
+                                res_deps.append(companion)
+                    elif dep_condition == "service_completed_successfully":
+                        companion = job_done_resource_name(resolved_dep) if dep_is_job else job_healthy_resource_name(resolved_dep)
+                        if companion not in res_deps:
+                            res_deps.append(companion)
+                    elif dep_condition == "service_started":
+                        pass
+                    elif dep_is_job:
+                        done = job_done_resource_name(resolved_dep)
+                        if done not in res_deps:
+                            res_deps.append(done)
+                else:
+                    # Directly named service or one-shot job dependency. Enforce strict condition validity.
+                    if dep_condition == "service_healthy":
+                        if dep_is_job:
+                            fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_healthy', but '{}' is a one-shot job that exits on completion without a health check. Use 'service_completed_successfully' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                        if not _service_has_health_check(resolved_dep, all_services_map):
+                            fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_healthy', but '{}' has no health check configured (or healthCheck is disabled). Configure healthCheck (path, port, or command) or use 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                        healthy = job_healthy_resource_name(resolved_dep)
+                        if healthy not in res_deps:
+                            res_deps.append(healthy)
+
+                    elif dep_condition == "service_completed_successfully":
+                        if not dep_is_job:
+                            fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_completed_successfully', but '{}' is a long-running service that does not exit on completion. Use 'service_healthy' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                        done = job_done_resource_name(resolved_dep)
+                        if done not in res_deps:
+                            res_deps.append(done)
+
+                    elif dep_condition == "service_started":
+                        pass
+
+                    elif dep_is_job:
+                        # Direct dependency on a one-shot job with no explicit condition: default to completion (#2871)
+                        done = job_done_resource_name(resolved_dep)
+                        if done not in res_deps:
+                            res_deps.append(done)
     
     return res_deps
+
+
+def job_healthy_resource_name(svc):
+    """The Tilt resource that waits for a service to become healthy (see _register_healthy_resource)."""
+    return svc + '-healthy'
 
 
 def job_done_resource_name(job):
@@ -410,6 +483,44 @@ def _is_job_resource(name, all_services_map):
         if res.get('name', '') == name:
             return _is_registered_resource(res) and is_one_shot_job(res.get('_manifest', {}) or {})
     return False
+
+
+def _find_resource_manifest(name, all_services_map):
+    """Locate the manifest for a resource by name across all_services_map."""
+    service = (all_services_map or {}).get(name)
+    if service:
+        for res in service.get('resources', []):
+            if res.get('name', '') == name:
+                return res.get('_manifest', {}) or {}
+    for svc in (all_services_map or {}).values():
+        if type(svc) == 'dict':
+            for res in svc.get('resources', []):
+                if res.get('name', '') == name:
+                    return res.get('_manifest', {}) or {}
+    return None
+
+
+def _service_has_health_check(name, all_services_map):
+    """True when `name` has an active health check configured (path, port, command, or postgres default)."""
+    if is_shared_platform_postgres_dependency(name) or _is_database_resource(name, all_services_map):
+        return True
+    manifest = _find_resource_manifest(name, all_services_map)
+    if manifest == None:
+        # Unknown/external resource: assume true to avoid false negative when manifest is omitted
+        return True
+    hc = manifest.get('healthCheck')
+    if hc == False or (type(hc) == 'dict' and hc.get('enabled') == False):
+        return False
+    if type(hc) == 'dict' and (hc.get('path') or hc.get('port') or hc.get('command')):
+        return True
+    if manifest.get('healthCheckPath'):
+        return True
+    app_type = manifest.get('appType')
+    if app_type == 'bring-your-own':
+        return False
+    if app_type == 'migrator':
+        return False
+    return True
 
 
 def resource_defers_start(manifest):
@@ -868,13 +979,105 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
     _register_run_only_resource(config, resource_path, compose_project_name, effective_auto_init)
     if is_one_shot_job(config.get('manifest', {})):
         _register_job_done_resource(config, resource_path, compose_project_name, effective_auto_init)
+    else:
+        _register_healthy_resource(config, resource_path, compose_project_name, effective_auto_init)
     _register_replicas(config, effective_auto_init)
     register_python_test_resource(config, resource_path, compose_project_name, effective_auto_init)
 
 
+_HEALTHY_SCRIPT = (
+    'job="$1"; max_polls="${2:-120}"; shift 2 2>/dev/null || shift 1; exited_count=0; '
+    + 'for i in $(seq 1 "$max_polls"); do '
+    + '  if [ "$#" -gt 0 ]; then '
+    + '    id="$("$@" ps -q "$job" 2>/dev/null | head -n 1)"; '
+    + '    if [ -z "$id" ]; then id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; fi; '
+    + '  else '
+    + '    id="$(docker ps -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; '
+    + '    if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; fi; '
+    + '  fi; '
+    + '  if [ -z "$id" ]; then sleep 1; continue; fi; '
+    + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$state" = "dead" ]; then '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    echo "ERROR: container $job is dead (exit code $code)"; exit 1; '
+    + '  fi; '
+    + '  if [ "$state" = "exited" ]; then '
+    + '    policy="$(docker inspect --format="{{.HostConfig.RestartPolicy.Name}}" "$id" 2>/dev/null)"; '
+    + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
+    + '    if [ "$policy" = "no" ] || [ -z "$policy" ]; then '
+    + '      exited_count=$((exited_count + 1)); '
+    + '      if [ "$exited_count" -ge 5 ]; then '
+    + '        echo "ERROR: container $job exited with code $code and will not restart (restart: ${policy:-no})"; exit 1; '
+    + '      fi; '
+    + '    else '
+    + '      exited_count=0; '
+    + '    fi; '
+    + '  else '
+    + '    exited_count=0; '
+    + '  fi; '
+    + '  has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}" "$id" 2>/dev/null)"; '
+    + '  if [ "$has_health" = "no" ]; then '
+    + '    if [ "$state" = "running" ]; then '
+    + '      echo "$job has no health check configured, proceeding once running"; exit 0; '
+    + '    fi; '
+    + '  else '
+    + '    health="$(docker inspect --format="{{.State.Health.Status}}" "$id" 2>/dev/null)"; '
+    + '    if [ "$health" = "healthy" ]; then echo "$job is healthy"; exit 0; fi; '
+    + '    if [ "$health" = "unhealthy" ]; then echo "ERROR: $job is unhealthy"; exit 1; fi; '
+    + '  fi; '
+    + '  sleep 1; '
+    + 'done; '
+    + 'echo "ERROR: timed out waiting for $job to become healthy (waited ${max_polls}s)"; exit 1'
+)
+
+
+def _calculate_healthy_timeout_seconds(manifest):
+    """Calculate the maximum seconds to wait for a service to become healthy based on its healthCheck (#3061)."""
+    base = 120
+    if not manifest or type(manifest) != 'dict':
+        return base
+    hc = manifest.get('healthCheck', {})
+    if type(hc) != 'dict':
+        return base
+    start_period = hc.get('startPeriod', 0) or 0
+    interval = hc.get('interval', 10) or 10
+    retries = hc.get('retries', 3) or 3
+    timeout = hc.get('timeout', 5) or 5
+    calculated = start_period + (retries * (interval + timeout)) + 30
+    if calculated > base:
+        return calculated
+    return base
+
+
+def _register_healthy_resource(config, resource_path, compose_project_name, auto_init_apps=True):
+    """`<res>-healthy`: waits until a service's container is healthy (#3061).
+
+    Tilt counts a Compose resource as ready once its container starts running, which allows
+    dependents with `condition: "service_healthy"` to start before the dependency's health
+    check has passed. This local_resource monitors the container's health status via Docker
+    inspect until it reports 'healthy', failing fast if the container exits or reports 'unhealthy'.
+    If no healthcheck is configured, it proceeds as soon as the container is running.
+    """
+    timeout_s = _calculate_healthy_timeout_seconds(config.get('manifest', {}))
+    argv = ['sh', '-c', _HEALTHY_SCRIPT, 'sh', config['res_name'], str(timeout_s)]
+    argv.extend(_compose_project_argv(config, resource_path, compose_project_name))
+    local_resource(
+        name=job_healthy_resource_name(config['res_name']),
+        cmd=argv,
+        labels=config['labels'] + ['health'],
+        resource_deps=[config['res_name']],
+        auto_init=auto_init_apps,
+        allow_parallel=True,
+    )
+
+
 _JOB_DONE_SCRIPT = (
     'job="$1"; shift; '
-    + 'id="$("$@" ps -a -q "$job" | head -n 1)"; '
+    + 'if [ "$#" -gt 0 ]; then '
+    + '  id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; '
+    + 'else '
+    + '  id="$(docker ps -a -q -f "name=^/${job}$" 2>/dev/null | head -n 1)"; '
+    + 'fi; '
     + 'if [ -z "$id" ]; then echo "no container for $job"; exit 1; fi; '
     + 'code="$(docker wait "$id")"; '
     + 'if [ "$code" != "0" ]; then rm -f ".flisk/outputs/$job.env" 2>/dev/null; echo "$job exited with code $code"; exit 1; fi; '
@@ -903,6 +1106,12 @@ def _register_job_done_resource(config, resource_path, compose_project_name, aut
         auto_init=auto_init_apps,
         allow_parallel=True,
     )
+
+
+HEALTHY_SCRIPT = _HEALTHY_SCRIPT
+JOB_DONE_SCRIPT = _JOB_DONE_SCRIPT
+register_healthy_resource = _register_healthy_resource
+register_job_done_resource = _register_job_done_resource
 
 
 def _register_dc_resources(resource_configs, resource_path, compose_project_name, auto_init_apps):
