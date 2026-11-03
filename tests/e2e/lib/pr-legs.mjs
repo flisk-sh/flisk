@@ -63,6 +63,7 @@ export const BYO_FILE_VARIANTS = {
   sidecar: [],
   models: [],
   build_logging: [],
+  secrets_configs: [],
 };
 
 // Rule 9. The files that decide which legs run: a change to them is checked against every leg.

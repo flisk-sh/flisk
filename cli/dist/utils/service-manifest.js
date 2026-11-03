@@ -30,6 +30,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
     "buildArgs",
     "buildContext",
     "command",
+    "configs",
     "container",
     "databaseName",
     "dependencies",
@@ -1218,7 +1219,56 @@ export function providersErrors(manifest, displayPath) {
     }
     return errors;
 }
-/** `secrets` must be { required?: string[], optional?: string[] } of environment variable names: the generator fails on anything else. */
+const RESOURCE_FILE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+const RESOURCE_FILE_PATH_PATTERN = /^(?!\.$)(?:[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*|\.{1,2}(?:\/[A-Za-z0-9_.-]+)+)$/;
+const SECRET_CONFIG_FILE_KEYS = ["name", "source", "target", "uid", "gid", "mode"];
+const CONTAINER_TARGET_PATTERN = /^\/[A-Za-z0-9_./-]*$/;
+function validateSecretConfigFileEntry(entry, field, kind) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return [
+            `${field}: expected an object like { "name": "...", "source": "...", "target": "..." }`,
+        ];
+    }
+    const errors = [];
+    const rec = entry;
+    for (const key of Object.keys(rec)) {
+        if (!SECRET_CONFIG_FILE_KEYS.includes(key)) {
+            errors.push(`${field}.${key}: unknown option (use ${SECRET_CONFIG_FILE_KEYS.join(", ")})`);
+        }
+    }
+    const name = rec.name;
+    if (typeof name !== "string" || !RESOURCE_FILE_NAME_PATTERN.test(name)) {
+        errors.push(`${field}.name: ${JSON.stringify(name)} is not a valid ${kind} identifier name (letters, digits, dashes, dots and underscores)`);
+    }
+    const source = rec.source;
+    if (typeof source !== "string" ||
+        !RESOURCE_FILE_PATH_PATTERN.test(source) ||
+        source.includes("/../") ||
+        source.endsWith("/..")) {
+        errors.push(`${field}.source: expected a relative path inside the project such as ./config or ./file.txt`);
+    }
+    const target = rec.target;
+    if (target !== undefined &&
+        (typeof target !== "string" || !CONTAINER_TARGET_PATTERN.test(target))) {
+        errors.push(`${field}.target: expected an absolute container path such as /etc/config`);
+    }
+    const uid = rec.uid;
+    if (uid !== undefined && typeof uid !== "string" && typeof uid !== "number") {
+        errors.push(`${field}.uid: expected a string or number user ID`);
+    }
+    const gid = rec.gid;
+    if (gid !== undefined && typeof gid !== "string" && typeof gid !== "number") {
+        errors.push(`${field}.gid: expected a string or number group ID`);
+    }
+    const mode = rec.mode;
+    const numericModeOk = typeof mode === "number" && Number.isInteger(mode) && mode >= 0 && mode <= 0o7777;
+    const stringModeOk = typeof mode === "string" && /^0?[0-7]{3,4}$/.test(mode);
+    if (mode !== undefined && !numericModeOk && !stringModeOk) {
+        errors.push(`${field}.mode: expected an octal file mode such as 0440, "0440" or 288`);
+    }
+    return errors;
+}
+/** `secrets` must be { required?: string[], optional?: string[], generate?: object, files?: array }: the generator fails on anything else. */
 export function secretsErrors(manifest, displayPath) {
     const secrets = manifest.secrets;
     if (secrets === undefined || secrets === null)
@@ -1239,7 +1289,42 @@ export function secretsErrors(manifest, displayPath) {
                 errors.push(`${displayPath}.secrets.${kind}: ${JSON.stringify(name)} is not an environment variable name (letters, digits and underscores, not starting with a digit)`);
         }
     }
+    const files = secrets.files;
+    if (files !== undefined && files !== null) {
+        if (manifest.appType !== "bring-your-own") {
+            errors.push(`${displayPath}.secrets.files: only applies to bring-your-own resources (appType "bring-your-own")`);
+        }
+        else if (!Array.isArray(files)) {
+            errors.push(`${displayPath}.secrets.files: expected an array of { name, source, target }`);
+        }
+        else {
+            for (let i = 0; i < files.length; i++) {
+                const field = `${displayPath}.secrets.files[${i}]`;
+                errors.push(...validateSecretConfigFileEntry(files[i], field, "secret"));
+            }
+        }
+    }
     errors.push(...generateSecretErrors(manifest, secrets, displayPath));
+    return errors;
+}
+/** `configs` must be an array of { name, source, target, uid?, gid?, mode? } (#3059). */
+export function configsErrors(manifest, displayPath) {
+    const configs = manifest.configs;
+    if (configs === undefined || configs === null)
+        return [];
+    if (manifest.appType !== "bring-your-own") {
+        return [
+            `${displayPath}.configs: only applies to bring-your-own resources (appType "bring-your-own")`,
+        ];
+    }
+    if (!Array.isArray(configs)) {
+        return [`${displayPath}.configs: expected an array of { name, source, target }`];
+    }
+    const errors = [];
+    for (let i = 0; i < configs.length; i++) {
+        const field = `${displayPath}.configs[${i}]`;
+        errors.push(...validateSecretConfigFileEntry(configs[i], field, "config"));
+    }
     return errors;
 }
 /** `secrets.generate` (#3140): valid specs, valid names, and no fixed value in `env`/`params` for a generated name. */
@@ -1470,6 +1555,7 @@ export function validateServiceManifest(value, displayPath) {
     errors.push(...fieldTypeErrors(manifest, displayPath));
     errors.push(...validateNativeServiceFields(manifest).map((error) => `${displayPath}: ${error}`));
     errors.push(...secretsErrors(manifest, displayPath));
+    errors.push(...configsErrors(manifest, displayPath));
     errors.push(...containerErrors(manifest, displayPath));
     errors.push(...extraPortsErrors(manifest, displayPath));
     errors.push(...providesErrors(manifest, displayPath));

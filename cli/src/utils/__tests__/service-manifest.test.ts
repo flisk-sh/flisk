@@ -8,6 +8,7 @@ import { substitutePublish } from "../extra-port-publish.js";
 import {
   buildArgsErrors,
   byoEnvErrors,
+  configsErrors,
   containerErrors,
   dependsOnErrors,
   dockerNameErrors,
@@ -820,6 +821,125 @@ describe("secretsErrors", () => {
     const errors = secretsErrors(manifest, file);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain(message);
+  });
+
+  it("accepts file-backed secrets and reports malformed entries", () => {
+    expect(
+      secretsErrors(
+        {
+          appType: "bring-your-own",
+          secrets: {
+            files: [
+              {
+                name: "wpt_settings",
+                source: "./settings.ini",
+                target: "/var/www/settings.ini",
+                uid: "1000",
+                gid: "1000",
+                mode: 288,
+              },
+            ],
+          },
+        },
+        file,
+      ),
+    ).toEqual([]);
+
+    expect(
+      secretsErrors({ appType: "bring-your-own", secrets: { files: "not-an-array" } }, file),
+    ).toEqual([`${file}.secrets.files: expected an array of { name, source, target }`]);
+    expect(
+      secretsErrors(
+        {
+          appType: "bring-your-own",
+          secrets: { files: [{ name: "bad name\n", source: "./s.txt" }] },
+        },
+        file,
+      ),
+    ).toContain(
+      `${file}.secrets.files[0].name: "bad name\\n" is not a valid secret identifier name (letters, digits, dashes, dots and underscores)`,
+    );
+    expect(
+      secretsErrors(
+        { appType: "bring-your-own", secrets: { files: [{ name: "s", source: "/etc/passwd" }] } },
+        file,
+      ),
+    ).toContain(
+      `${file}.secrets.files[0].source: expected a relative path inside the project such as ./config or ./file.txt`,
+    );
+  });
+});
+
+describe("configsErrors", () => {
+  const file = "services/main/app/service.json";
+
+  it("accepts valid configs and reports malformed entries", () => {
+    expect(configsErrors({}, file)).toEqual([]);
+    expect(configsErrors({ configs: null }, file)).toEqual([]);
+    expect(
+      configsErrors(
+        {
+          appType: "bring-your-own",
+          configs: [
+            {
+              name: "app_cfg",
+              source: "./config.json",
+              target: "/etc/config.json",
+            },
+          ],
+        },
+        file,
+      ),
+    ).toEqual([]);
+
+    expect(configsErrors({ appType: "bring-your-own", configs: "not-an-array" }, file)).toEqual([
+      `${file}.configs: expected an array of { name, source, target }`,
+    ]);
+    expect(
+      configsErrors(
+        { appType: "bring-your-own", configs: [{ name: "bad name", source: "./s.txt" }] },
+        file,
+      ),
+    ).toContain(
+      `${file}.configs[0].name: "bad name" is not a valid config identifier name (letters, digits, dashes, dots and underscores)`,
+    );
+  });
+});
+
+describe("secret and config file entries", () => {
+  const file = "services/main/app/service.json";
+  const cfg = (entry: Record<string, unknown>) =>
+    configsErrors({ appType: "bring-your-own", configs: [{ name: "c", ...entry }] }, file);
+
+  it("rejects them on resources that are not bring-your-own", () => {
+    expect(secretsErrors({ secrets: { files: [{ name: "s", source: "./s" }] } }, file)).toEqual([
+      `${file}.secrets.files: only applies to bring-your-own resources (appType "bring-your-own")`,
+    ]);
+    expect(configsErrors({ appType: "backend", configs: [] }, file)).toEqual([
+      `${file}.configs: only applies to bring-your-own resources (appType "bring-your-own")`,
+    ]);
+  });
+
+  it("rejects unknown keys", () => {
+    expect(cfg({ source: "./c", path: "/c" })).toEqual([
+      `${file}.configs[0].path: unknown option (use name, source, target, uid, gid, mode)`,
+    ]);
+  });
+
+  it("accepts nested relative sources and rejects a bare dot", () => {
+    expect(cfg({ source: "docker/local/settings.ini" })).toEqual([]);
+    expect(cfg({ source: "../docker/local/settings.ini" })).toEqual([]);
+    expect(cfg({ source: ".env" })).toEqual([]);
+    expect(cfg({ source: "." })).toHaveLength(1);
+    expect(cfg({ source: "docker/../../x" })).toHaveLength(1);
+  });
+
+  it("accepts integer modes from 0 to 4095 only", () => {
+    expect(cfg({ source: "./c", mode: 0 })).toEqual([]);
+    expect(cfg({ source: "./c", mode: 4095 })).toEqual([]);
+    for (const mode of [-1, 4096, 1.5]) {
+      expect(cfg({ source: "./c", mode })).toHaveLength(1);
+    }
   });
 });
 
