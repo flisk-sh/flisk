@@ -161,10 +161,27 @@ def test_tiltfile_template_includes_healthy_resources():
     assert "_ALWAYS_ENABLED_INFRA_RESOURCES.append('postgres-healthy')" in template
 
 
+def run_starlark_failure(tmp_path: Path, body: str) -> str:
+    tiltfile = tmp_path / "Tiltfile"
+    full_body = (
+        body.replace("@ORCHESTRATOR", str(ORCHESTRATOR_DIR))
+        .replace("@COMMON", str(COMMON_DIR))
+    )
+    tiltfile.write_text(full_body + "\n")
+    proc = subprocess.run(
+        ["tilt", "alpha", "tiltfile-result", "-f", str(tiltfile)],
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert proc.returncode != 0, f"Expected failure but succeeded: {proc.stdout}\n{proc.stderr}"
+    return proc.stdout + proc.stderr
+
+
 @TILT_REQUIRED
-def test_migrator_with_service_healthy_condition_maps_to_done(tmp_path):
-    """A migrator dependency with condition service_healthy uses migrator-done gate."""
-    result = run_starlark(
+def test_migrator_with_service_healthy_fails_with_manifest_error(tmp_path):
+    """condition: 'service_healthy' on a one-shot job is rejected without silent substitution."""
+    output = run_starlark_failure(
         tmp_path,
         "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
         f"services = {SERVICES!r}\n"
@@ -172,14 +189,13 @@ def test_migrator_with_service_healthy_condition_maps_to_done(tmp_path):
         "manifest = {'dependsOn': [{'name': 'migrator', 'condition': 'service_healthy'}]}\n"
         "r = {'deps': build_resource_deps(res, 'api', manifest, {}, [], {}, {}, None, services)}\n",
     )
-    # Migrator is a one-shot job, so it maps to migrator-done rather than dangling migrator-healthy
-    assert result["deps"] == ["migrator", "migrator-done"]
+    assert "MANIFEST ERROR: dependency 'migrator' of 'api' specifies condition 'service_healthy', but 'migrator' is a one-shot job" in output
 
 
 @TILT_REQUIRED
-def test_long_running_service_with_completed_successfully_condition(tmp_path):
-    """A persistent service with condition service_completed_successfully gates on db-healthy."""
-    result = run_starlark(
+def test_persistent_service_with_completed_successfully_fails_with_manifest_error(tmp_path):
+    """condition: 'service_completed_successfully' on a long-running service is rejected."""
+    output = run_starlark_failure(
         tmp_path,
         "load('@ORCHESTRATOR/apply_compose_resource_registration.star', 'build_resource_deps')\n"
         f"services = {SERVICES!r}\n"
@@ -187,8 +203,7 @@ def test_long_running_service_with_completed_successfully_condition(tmp_path):
         "manifest = {'dependsOn': [{'name': 'db', 'condition': 'service_completed_successfully'}]}\n"
         "r = {'deps': build_resource_deps(res, 'api', manifest, {}, [], {}, {}, None, services)}\n",
     )
-    # Persistent db doesn't exit on success, so it gates on db-healthy rather than dangling db-done
-    assert result["deps"] == ["db", "db-healthy"]
+    assert "MANIFEST ERROR: dependency 'db' of 'api' specifies condition 'service_completed_successfully', but 'db' is a long-running service" in output
 
 
 DOCKER_AVAILABLE = (

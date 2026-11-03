@@ -406,22 +406,25 @@ def _build_resource_deps(res, res_name, manifest, resource_config, infra_deps, c
             if is_valid_res:
                 dep_is_job = _is_job_resource(resolved_dep, all_services_map)
 
-                # Condition: service_healthy
-                # For long-running services, wait for `<res>-healthy`.
-                # For one-shot jobs (migrators), wait for `<res>-done` (jobs exit rather than reporting health).
                 if dep_condition == "service_healthy":
-                    companion = job_done_resource_name(resolved_dep) if dep_is_job else job_healthy_resource_name(resolved_dep)
-                    if companion not in res_deps:
-                        res_deps.append(companion)
+                    if dep_is_job:
+                        fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_healthy', but '{}' is a one-shot job that exits on completion without a health check. Use 'service_completed_successfully' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                    healthy = job_healthy_resource_name(resolved_dep)
+                    if healthy not in res_deps:
+                        res_deps.append(healthy)
 
-                # Condition: service_completed_successfully OR one-shot job dependency
-                # One-shot jobs always require `<res>-done` so dependents wait for them to finish.
-                # If a service explicitly requests `service_completed_successfully` on a job, wait for `<res>-done`.
-                # If requested on a long-running service, fallback to `<res>-healthy` since persistent services do not exit.
-                if dep_condition == "service_completed_successfully" or dep_is_job:
-                    companion = job_done_resource_name(resolved_dep) if dep_is_job else job_healthy_resource_name(resolved_dep)
-                    if companion not in res_deps:
-                        res_deps.append(companion)
+                elif dep_condition == "service_completed_successfully":
+                    if not dep_is_job:
+                        fail("MANIFEST ERROR: dependency '{}' of '{}' specifies condition 'service_completed_successfully', but '{}' is a long-running service that does not exit on completion. Use 'service_healthy' or 'service_started'.".format(resolved_dep, res_name, resolved_dep))
+                    done = job_done_resource_name(resolved_dep)
+                    if done not in res_deps:
+                        res_deps.append(done)
+
+                elif dep_is_job:
+                    # One-shot job without an explicit condition: default to job completion (#2871)
+                    done = job_done_resource_name(resolved_dep)
+                    if done not in res_deps:
+                        res_deps.append(done)
     
     return res_deps
 
@@ -911,22 +914,19 @@ def _register_single_resource(config, resource_path, compose_project_name, auto_
 
 _HEALTHY_SCRIPT = (
     'job="$1"; max_polls="${2:-120}"; shift 2 2>/dev/null || shift 1; '
-    + 'id=""; '
-    + 'for i in $(seq 1 30); do '
-    + '  if [ "$#" -gt 0 ]; then '
-    + '    id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; '
-    + '  else '
-    + '    id="$(docker ps -a -q -f "name=$job" 2>/dev/null | head -n 1)"; '
-    + '  fi; '
-    + '  if [ -n "$id" ]; then break; fi; '
-    + '  sleep 1; '
-    + 'done; '
-    + 'if [ -z "$id" ]; then echo "ERROR: no container found for $job"; exit 1; fi; '
     + 'for i in $(seq 1 "$max_polls"); do '
+    + '  if [ "$#" -gt 0 ]; then '
+    + '    id="$("$@" ps -q "$job" 2>/dev/null | head -n 1)"; '
+    + '    if [ -z "$id" ]; then id="$("$@" ps -a -q "$job" 2>/dev/null | head -n 1)"; fi; '
+    + '  else '
+    + '    id="$(docker ps -q -f "name=$job" 2>/dev/null | head -n 1)"; '
+    + '    if [ -z "$id" ]; then id="$(docker ps -a -q -f "name=$job" 2>/dev/null | head -n 1)"; fi; '
+    + '  fi; '
+    + '  if [ -z "$id" ]; then sleep 1; continue; fi; '
     + '  state="$(docker inspect --format="{{.State.Status}}" "$id" 2>/dev/null)"; '
-    + '  if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then '
+    + '  if [ "$state" = "dead" ]; then '
     + '    code="$(docker inspect --format="{{.State.ExitCode}}" "$id" 2>/dev/null)"; '
-    + '    echo "ERROR: container $job exited unexpectedly with code $code"; exit 1; '
+    + '    echo "ERROR: container $job is dead (exit code $code)"; exit 1; '
     + '  fi; '
     + '  has_health="$(docker inspect --format="{{if .State.Health}}yes{{else}}no{{end}}" "$id" 2>/dev/null)"; '
     + '  if [ "$has_health" = "no" ]; then '
