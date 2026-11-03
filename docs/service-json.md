@@ -141,7 +141,7 @@ The `language` and `framework` properties intentionally use an open id pattern i
 
 | Field | Type and default | Applies to | Description |
 | --- | --- | --- | --- |
-| `dependsOn` | string array; optional | all | Resources or stacks that must start before this resource. It also informs focus mode, health checks, migration order, and generated frontend environment values. |
+| `dependsOn` | array of strings or objects; optional | all | Resources or stacks that must start before this resource. Each entry can be a string name (`"db"`) or an object (`{"name": "db", "condition": "service_healthy"}`). Valid conditions: `service_started`, `service_healthy`, and `service_completed_successfully`. Informs focus mode, health checks, startup gate ordering, and generated frontend environment values. |
 | `dependencies` | string array; deprecated | existing manifests | Legacy spelling for `dependsOn`. It is still read for compatibility; use `dependsOn` in new files. |
 | `basePath` | path string; defaults from the stack | frontends | Public route prefix for frontend traffic. |
 | `backendName` | resource name; auto-computed for frontends | frontends | Associated backend resource. |
@@ -201,6 +201,31 @@ What this does on `flisk up`:
 - A `dependsOn` name that matches no service is reported as an error when the manifests are checked. `postgres` and `database-management` are the exception: they refer to the shared platform Postgres.
 
 This is only local startup ordering for `flisk up`. It does not describe how you deploy the services, and it does not make `orders-backend` retry or wait if `inventory-backend` stops later. Each manifest field is described in the table above; see [`flisk up`](cheat-sheet.md#flisk-up-stack-name-alias-deploy) for `--only` and [Machine-readable CLI](reference/machine-readable-cli.md) for the JSON output.
+
+### Compose-style dependency conditions
+
+Instead of plain string names, entries in `dependsOn` can specify a Compose dependency condition object:
+
+```json
+{
+  "dependsOn": [
+    { "name": "shop-db", "condition": "service_healthy" },
+    { "name": "orders-api-migrator", "condition": "service_completed_successfully" },
+    { "name": "cache", "condition": "service_started" }
+  ]
+}
+```
+
+Supported conditions:
+
+- `service_started`: Waits only for the dependency container to start running. No companion health check or completion gate is created.
+- `service_healthy`: Gates startup on the dependency's health check reporting `healthy` via a companion `<svc>-healthy` resource. Designed for long-running services (databases, backend APIs, redis).
+- `service_completed_successfully`: Gates startup on a one-shot job exiting with code 0 via a companion `<job>-done` resource. Designed for one-shot tasks (database migrators, seeders).
+
+#### Direct service dependencies vs. stack dependencies
+
+- **Direct service dependencies:** When `name` specifies a direct service or database, Flisk enforces strict semantic validity. Specifying `service_healthy` on a one-shot job is invalid because migrators exit rather than running continuous health checks. Specifying `service_completed_successfully` on a persistent service is invalid because long-running services do not exit. In both cases, Flisk fails with an actionable manifest error.
+- **Full-stack dependencies:** When `name` specifies an entire stack (e.g. `{"name": "shop", "condition": "service_healthy"}`), the condition expands intelligently across all backend-side members of the stack: persistent services route to health gates (`<svc>-healthy`) while database migrators route to completion gates (`<job>-done`). This allows dependent services to wait for an entire heterogeneous stack without triggering condition mismatch errors.
 
 ### Example: Postgres, then a migrator, then an API
 

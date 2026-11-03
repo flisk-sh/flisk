@@ -175,9 +175,10 @@ def normalize_depends_on(manifest, resource_path=""):
     """
     `dependsOn` entries may be names ("db") or Compose-style objects ({"name": "db", "condition": "service_healthy"}). Every
     generator reads names, so the objects are turned into their names here, where a service.json becomes a manifest, and the
-    conditions are kept in `dependsOnConditions` (name -> condition). Tilt orders resources by name only. Returns the manifest
-    (changed in place), or fail()s on an object that is not {name, condition?}. Keep in step with dependsOnErrors in
-    cli/src/utils/service-manifest.ts.
+    conditions are kept in `dependsOnConditions` (name -> condition). The orchestrator enforces condition-aware ordering
+    (service_started, service_healthy, service_completed_successfully) by mapping conditions to companion gate resources
+    (<res>-healthy, <job>-done). Returns the manifest (changed in place), or fail()s on an object that is not {name, condition?}.
+    Keep in step with dependsOnErrors in cli/src/utils/service-manifest.ts.
     """
     if type(manifest) != "dict":
         return manifest
@@ -193,6 +194,7 @@ def normalize_depends_on(manifest, resource_path=""):
     where = " in " + resource_path if resource_path else ""
     names = []
     conditions = {}
+    declared_conditions = {}
     for i, entry in enumerate(deps):
         if type(entry) == "dict":
             for key in entry.keys():
@@ -202,13 +204,22 @@ def normalize_depends_on(manifest, resource_path=""):
             if type(name) != "string" or not name:
                 fail("MANIFEST ERROR: 'dependsOn[{}].name' must be a service or stack name{}".format(i, where))
             condition = entry.get('condition')
+            cond = condition if condition != None else "service_started"
             if condition != None:
                 if condition not in DEPENDS_ON_CONDITIONS:
                     fail("MANIFEST ERROR: 'dependsOn[{}].condition' must be one of {}{}".format(i, ", ".join(DEPENDS_ON_CONDITIONS), where))
                 conditions[name] = condition
+            if name in declared_conditions and declared_conditions[name] != cond:
+                fail("MANIFEST ERROR: 'dependsOn' lists '{}' with conflicting conditions '{}' and '{}'{}".format(name, declared_conditions[name], cond, where))
+            declared_conditions[name] = cond
             names.append(name)
         else:
-            names.append(entry)
+            name = entry
+            if type(name) == "string":
+                if name in declared_conditions and declared_conditions[name] != "service_started":
+                    fail("MANIFEST ERROR: 'dependsOn' lists '{}' with conflicting conditions '{}' and 'service_started'{}".format(name, declared_conditions[name], where))
+                declared_conditions[name] = "service_started"
+            names.append(name)
     manifest['dependsOn'] = names
     manifest['dependsOnConditions'] = conditions
     return manifest
