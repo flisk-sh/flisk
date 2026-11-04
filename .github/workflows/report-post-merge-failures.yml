@@ -3,7 +3,7 @@
 name: 📣 CI | Report post-merge failures
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] default-branch code only, no PR code checked out, token limited to comments and issues
     workflows:
       - "✅ CI | Checks"
       - "🧭 E2E | Journeys"
