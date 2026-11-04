@@ -65,7 +65,13 @@ export function lastErrorLine(log) {
 	return (error ?? lines.at(-1) ?? "no log output").slice(0, 300);
 }
 
-export function issueTitle(workflowName) {
+// The title keys on the workflow file, which never changes with a display-name edit, so a rename cannot open a second issue.
+export function issueTitle(file) {
+	return `Red job: ${file} failed ${WINDOW} runs in a row on main`;
+}
+
+// Titles written before the filename was used carried the workflow's display name.
+export function legacyIssueTitle(workflowName) {
 	return `Red job: ${workflowName} failed ${WINDOW} runs in a row on main`;
 }
 
@@ -101,20 +107,25 @@ function listRuns(file) {
 	}
 }
 
-function openIssue(workflowName) {
-	const found = JSON.parse(
-		gh([
-			"issue",
-			"list",
-			"--state",
-			"open",
-			"--search",
-			`in:title "${issueTitle(workflowName)}"`,
-			"--json",
-			"number,title",
-		]),
-	);
-	return found.find((i) => i.title === issueTitle(workflowName)) ?? null;
+function openIssue(file, workflowName) {
+	const titles = [issueTitle(file), legacyIssueTitle(workflowName)];
+	for (const title of titles) {
+		const found = JSON.parse(
+			gh([
+				"issue",
+				"list",
+				"--state",
+				"open",
+				"--search",
+				`in:title "${title}"`,
+				"--json",
+				"number,title",
+			]),
+		);
+		const match = found.find((i) => i.title === title);
+		if (match) return match;
+	}
+	return null;
 }
 
 function main(argv) {
@@ -123,7 +134,7 @@ function main(argv) {
 		const runs = listRuns(file);
 		const name = runs[0]?.workflowName ?? file;
 		const { state, window, firstFailing } = decide(runs);
-		const issue = openIssue(name);
+		const issue = openIssue(file, name);
 		const label = `${file}: ${state}`;
 		if (state === "red") {
 			const failing = firstFailing;
@@ -154,7 +165,7 @@ function main(argv) {
 							"issue",
 							"create",
 							"--title",
-							issueTitle(name),
+							issueTitle(file),
 							"--body-file",
 							"-",
 						],

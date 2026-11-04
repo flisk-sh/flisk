@@ -50,7 +50,7 @@ The `publish` job, in order:
 
 ### The short way: one click
 
-Run [**Release | One click**](https://github.com/flisk-sh/flisk/actions/workflows/release-one-click.yml) (Actions → Run workflow; optionally give a commit). It does steps 2 and 3 for you: it picks the newest `main` commit whose `E2E | Journeys` run passed, creates the next free `release/<version>-rc<n>` branch there, and starts the candidate with `release=true`, which starts the release once the candidate is green. It refuses to start while a release run is queued or in progress. What stays manual is [step 4](#4-merge-the-version-bump-pr): `main` requires an approval on the bump PR, and the workflow does not approve it. The sections below describe each step in detail.
+Run [**RELEASE | Validation | One click**](https://github.com/flisk-sh/flisk/actions/workflows/release-one-click.yml) (Actions → Run workflow; optionally give a commit). It does steps 2 and 3 for you: it picks the newest `main` commit whose `E2E | Journeys` run passed, creates the next free `release/<version>-rc<n>` branch there, and starts the candidate with `release=true`, which starts the release once the candidate is green. It refuses to start while a release run is queued or in progress. What stays manual is [step 4](#4-merge-the-version-bump-pr): `main` requires an approval on the bump PR, and the workflow does not approve it. The sections below describe each step in detail.
 
 ### 0. Preconditions
 
@@ -96,9 +96,9 @@ gh run watch <candidate-run-id> --exit-status   # ~6-10 min: 30 jobs, 10 at a ti
 
 Cut the branch from the newest green `main`, not from an older release branch: a fix that landed after the branch was cut (for example #2498, which made `flisk up` print ingress URLs instead of the Tilt UI port) is not in the candidate, and a candidate failure that `main` already fixed costs a full cycle.
 
-**Pressing the button instead of using `gh`:** open [Actions → Release | Candidate](https://github.com/flisk-sh/flisk/actions/workflows/release-candidate.yml), click **Run workflow** (a button above the runs list, on the right; it is missing when you are signed out or lack write access), choose your `release/<version>-rc<n>` branch under **Use workflow from**, tick **release** if the release should start by itself once the candidate is green, then click the green **Run workflow** button in the dropdown. Refresh the page: your run appears at the top within a few seconds. The same button on [Release | Binaries and npm package](https://github.com/flisk-sh/flisk/actions/workflows/release-binaries.yml) starts step 3.
+**Pressing the button instead of using `gh`:** open [Actions → RELEASE | Validation | Candidate](https://github.com/flisk-sh/flisk/actions/workflows/release-candidate.yml), click **Run workflow** (a button above the runs list, on the right; it is missing when you are signed out or lack write access), choose your `release/<version>-rc<n>` branch under **Use workflow from**, tick **release** if the release should start by itself once the candidate is green, then click the green **Run workflow** button in the dropdown. Refresh the page: your run appears at the top within a few seconds. The same button on [Release | Binaries and npm package](https://github.com/flisk-sh/flisk/actions/workflows/release-binaries.yml) starts step 3.
 
-A passing candidate run is a green check on a `release/<version>-rc<n>` branch in the [Release | Candidate runs](https://github.com/flisk-sh/flisk/actions/workflows/release-candidate.yml) list (1.4.33 needed four attempts; 1.4.34 and 1.4.35 passed first time):
+A passing candidate run is a green check on a `release/<version>-rc<n>` branch in the [RELEASE | Validation | Candidate runs](https://github.com/flisk-sh/flisk/actions/workflows/release-candidate.yml) list (1.4.33 needed four attempts; 1.4.34 and 1.4.35 passed first time):
 
 ![Release | Candidate runs list: release/1.4.35-rc1 and release/1.4.34-rc1 green, release/1.4.33-rc1 to rc3 red](assets/releasing/1-candidate-runs.png)
 

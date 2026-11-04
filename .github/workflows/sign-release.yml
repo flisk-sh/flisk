@@ -1,4 +1,4 @@
-name: 🔏 Release | Sign an existing release
+name: 🏷️ RELEASE | Package | Sign an existing release
 
 # Repairs the checksums signature of a version whose release-binaries run never signed it (the sign step was
 # skipped when the version-bump push failed; see docs/releasing.md#repair-a-half-finished-release). It signs the

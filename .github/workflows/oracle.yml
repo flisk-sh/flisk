@@ -2,7 +2,7 @@
 # config verify, the generated .env and the exported Compose file contradict each other about one project. No Docker, no Tilt
 # stack: it only reads files and --json output. Each run prints its first seed; a failure replays with
 # `node tests/oracle/run.mjs --seed <n> --shape <shape>`. Nightly and manual only; the unit tests run in CI | Checks.
-name: 🧬 ORACLE | Differential
+name: 🌙 NIGHTLY | 🧬 ORACLE | Differential
 
 on:
   workflow_dispatch:

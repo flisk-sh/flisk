@@ -1,5 +1,5 @@
 # Checks for every PR and push to main. Run manually from the Actions tab too.
-name: ✅ CI | Checks
+name: 🔀 PR | CI | Checks
 
 on:
   push:

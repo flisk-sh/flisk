@@ -1,7 +1,7 @@
 # The "Personal Demos" and "Bubbles" instructions in the llms files come from the demo worker
 # (https://demo.flisk.sh/llms-demos.txt). Weekly, or on demand, copy them in and open a pull request when they changed.
 # Needs "Allow GitHub Actions to create and approve pull requests" under Settings > Actions > General.
-name: sync llms demos
+name: 🤖 BOT | Automation | Sync llms demos
 
 on:
   schedule:

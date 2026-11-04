@@ -1,4 +1,4 @@
-name: 🔄 CI | Packed CLI lifecycle smoke
+name: 🚀 PUSH | CI | Packed CLI lifecycle smoke
 
 on:
   push:

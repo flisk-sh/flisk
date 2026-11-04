@@ -1,5 +1,5 @@
 # GitHub's CodeQL code scanning (free for public repos). Findings appear under Security > Code scanning.
-name: 🔬 Security | CodeQL
+name: 🔀 PR | Security | CodeQL
 
 on:
   push:

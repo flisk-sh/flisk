@@ -1,4 +1,4 @@
-name: 🏅 CI | OSS score gate
+name: 🚀 PUSH | CI | OSS score gate
 
 # Fails the run when the repo's published OpenSSF Scorecard is below MIN_SCORE. The score only changes when Scorecard
 # publishes (main on push and weekly), so this runs on those events, not on every pull request.

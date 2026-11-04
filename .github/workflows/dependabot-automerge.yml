@@ -1,5 +1,5 @@
 # Enables auto-merge (squash) on Dependabot PRs. GitHub then merges once the required checks pass.
-name: Automation | Dependabot auto-merge
+name: 🤖 BOT | Automation | Dependabot auto-merge
 
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers] never checks out or runs PR code; only enables auto-merge on the PR, so it can use the write token Dependabot PRs otherwise lack

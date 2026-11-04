@@ -1,4 +1,4 @@
-name: 📤 Release | Publish flisk-import
+name: 🏷️ RELEASE | Package | Publish flisk-import
 
 # flisk-import lives in flisk-sh/flisk-import but is published with this repo's NPM_TOKEN,
 # the only place the secret is set. Run manually with a tag of that repo (for example v0.1.0).

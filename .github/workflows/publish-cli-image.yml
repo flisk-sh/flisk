@@ -1,4 +1,4 @@
-name: 🐳 Release | Publish CLI image
+name: 🏷️ RELEASE | Image | Publish CLI image
 
 # Builds the flisk CLI image from a published binary release (flisk-sh/releases v<version>: the two Linux binaries and the
 # engine archive, checked against its checksums.txt) and pushes it for amd64 and arm64 to ghcr.io/flisk-sh/flisk and

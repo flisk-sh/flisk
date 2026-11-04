@@ -1,20 +1,20 @@
 # Reports a pull request workflow that fails for the head commit of a pull request that was already merged (#2897): a comment
 # on the pull request and one issue per pull request. Runs on the default branch only and never checks out pull request code.
-name: 📣 CI | Report post-merge failures
+name: 🤖 BOT | CI | Report post-merge failures
 
 on:
   workflow_run: # zizmor: ignore[dangerous-triggers] default-branch code only, no PR code checked out, token limited to comments and issues
     workflows:
-      - "✅ CI | Checks"
-      - "🧭 E2E | Journeys"
-      - "🧩 E2E | Resource types"
-      - "🚪 E2E | Examples gate"
-      - "🖥️ E2E | Platforms gate"
-      - "🔌 E2E | Platforms hardware"
-      - "🌀 Chaos | service.json"
-      - "🛡️ Security | Scans"
-      - "🔬 Security | CodeQL"
-      - "BYO template e2e"
+      - "🔀 PR | CI | Checks"
+      - "🔀 PR | E2E | Journeys"
+      - "🔀 PR | E2E | Resource types"
+      - "🔀 PR | E2E | Examples gate"
+      - "🔀 PR | E2E | Platforms gate"
+      - "🔀 PR | E2E | Platforms hardware"
+      - "🔀 PR | Chaos | service.json"
+      - "🔀 PR | Security | Scans"
+      - "🔀 PR | Security | CodeQL"
+      - "♻️ REUSE | E2E | BYO template"
     types: [completed]
 
 permissions: {}
