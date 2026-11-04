@@ -31,6 +31,9 @@ def issues(app_type, port):
 r = {
     'byo_80': issues('bring-your-own', 80),
     'byo_0': issues('bring-your-own', 0),
+    'byo_1': issues('bring-your-own', 1),
+    'byo_65535': issues('bring-your-own', 65535),
+    'byo_65536': issues('bring-your-own', 65536),
     'backend_80': issues('backend', 80),
 }
 """
@@ -66,3 +69,9 @@ def test_an_imported_port_outside_1_65535_is_still_rejected(result):
 
 def test_a_scaffolded_backend_keeps_the_3000_9999_rule(result):
     assert _port_issues(result["backend_80"]) == ["Invalid port: 80. Must be integer 3000-9999"]
+
+
+def test_the_bring_your_own_range_is_inclusive_at_both_ends(result):
+    assert _port_issues(result["byo_1"]) == []
+    assert _port_issues(result["byo_65535"]) == []
+    assert _port_issues(result["byo_65536"]) == ["Invalid port: 65536. Must be integer 1-65535"]

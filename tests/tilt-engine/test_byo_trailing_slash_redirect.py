@@ -10,9 +10,14 @@ only, so an API client's POST to the bare path is never redirected.
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import subprocess
 
-from test_backend_traefik_labels import pytestmark, run_traefik_labels  # noqa: F401
+from test_backend_traefik_labels import REPO_ROOT, pytestmark, run_traefik_labels  # noqa: F401
+
+PARSER = REPO_ROOT / "runtime" / "engine" / "topologies" / "tilt" / "manifest" / "parser.star"
 
 BODY = """
 load('@NETWORKING/traefik.star', 'get_backend_traefik_labels')
@@ -74,3 +79,37 @@ def test_regex_characters_in_an_api_path_match_themselves(tmp_path):
     assert re.match(regex, "http://api.starter.localhost/api/a+b.c")
     assert not re.match(regex, "http://api.starter.localhost/api/aab.c")
     assert not re.match(regex, "http://api.starter.localhost/api/a+bxc")
+
+
+
+def _api_path_errors(tmp_path, values):
+    """generated_string_error for a manifest whose apiPath is each of `values`, through Tilt's interpreter."""
+    (tmp_path / ".flisk").mkdir(exist_ok=True)
+    (tmp_path / ".flisk" / "project.json").write_text(json.dumps({"project": {"name": "starter"}}))
+    tiltfile = tmp_path / "Tiltfile"
+    tiltfile.write_text(
+        "load('{}', 'generated_string_error')\n"
+        "r = [generated_string_error({{'apiPath': v}}) for v in {}]\n"
+        "fail('RESULT' + encode_json(r))\n".format(PARSER, json.dumps(values))
+    )
+    proc = subprocess.run(
+        ["tilt", "alpha", "tiltfile-result", "-f", str(tiltfile)],
+        capture_output=True, text=True, timeout=180, cwd=tmp_path,
+        env={**os.environ, "FLISK_PROJECT_ROOT": str(tmp_path)},
+    )
+    output = proc.stdout + proc.stderr
+    marker = "Error in fail: RESULT"
+    assert marker in output, output[-3000:]
+    return json.loads(output.split(marker, 1)[1].strip())
+
+
+def test_the_parser_refuses_regex_characters_in_api_path_and_accepts_what_the_cli_accepts(tmp_path):
+    bad = ["/api/a+b", "/api/a*", "/api/(x)", "/api/[x]", "/api/a?b", "/api/a|b", "/api/a$b", "api/vote"]
+    good = ["/api/vote", "/api/v1.2", "/api/~user", "/api/my_app-2"]
+
+    errors = _api_path_errors(tmp_path, bad + good)
+
+    for value, error in zip(bad, errors[: len(bad)]):
+        assert error and "apiPath" in error, (value, error)
+    for value, error in zip(good, errors[len(bad):]):
+        assert not error, (value, error)

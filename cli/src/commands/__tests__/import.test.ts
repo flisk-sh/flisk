@@ -758,6 +758,38 @@ describe("flisk import without a terminal", () => {
     expect(nonInteractiveRefusal([".", flag], "flisk import", false)).toBeNull();
   });
 
+  it.each([
+    [["."], false, 1],
+    [[".", "--dry-run"], true, 0],
+    [[".", "--yes"], true, 0],
+  ])(
+    "flisk import %j without a terminal: importer spawned %s, exit %i",
+    async (args, spawned, exitCode) => {
+      for (const name of ["yes", "force", "dryRun", "json"])
+        importCommand.setOptionValue(name, false);
+      const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+      Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
+      const { calls, spawnFn } = fakeSpawn({ code: 0 });
+      mocks.spawn.mockImplementation(spawnFn);
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      const previousExitCode = process.exitCode;
+      try {
+        process.exitCode = undefined;
+        await importCommand.parseAsync(["node", "flisk", ...args], { from: "node" });
+
+        expect(calls.length > 0).toBe(spawned);
+        expect(process.exitCode ?? 0).toBe(exitCode);
+        if (!spawned) expect(err.mock.calls.flat().join("\n")).toContain("nothing was written");
+      } finally {
+        process.exitCode = previousExitCode;
+        err.mockRestore();
+        mocks.spawn.mockReset();
+        if (stdinTTY) Object.defineProperty(process.stdin, "isTTY", stdinTTY);
+        else delete (process.stdin as { isTTY?: boolean }).isTTY;
+      }
+    },
+  );
+
   it("asks as before in a terminal", () => {
     expect(nonInteractiveRefusal(["."], "flisk import", true)).toBeNull();
   });

@@ -170,6 +170,54 @@ describe("checkDockerFileSharing", () => {
     expect(result.fix).toContain("File sharing");
   });
 
+  it.each([
+    [
+      "an unauthorized image pull",
+      125,
+      "Error response from daemon: pull access denied for alpine, repository does not exist or may require 'docker login': denied: requested access to the resource is denied",
+      true,
+    ],
+    [
+      "the daemon being unreachable",
+      1,
+      "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
+      true,
+    ],
+    [
+      "Operation not permitted inside the started probe",
+      1,
+      "sh: can't create /flisk-probe/x: Operation not permitted",
+      false,
+    ],
+    [
+      "permission denied inside the started probe",
+      2,
+      "sh: can't create /flisk-probe/x: Permission denied",
+      false,
+    ],
+    [
+      "a mount Docker refuses before start",
+      125,
+      "Error response from daemon: Mounts denied: The path /p is not shared from the host",
+      false,
+    ],
+  ])("classifies %s (exit %i)", async (_case, code, stderr, skipped) => {
+    // Exit 1 for an unreachable daemon comes from the docker CLI itself, not from a container, so it is told apart by
+    // Docker's own text; any other exit 1-124 is the probe's `sh` failing to write into the mount.
+    const fakeRunner = async () => {
+      throw Object.assign(new Error("Command failed: docker run"), { code, stderr });
+    };
+
+    const result = await checkDockerFileSharing({
+      projectRoot: tempDir,
+      runner: fakeRunner,
+      hasDocker: true,
+    });
+
+    expect(Boolean(result.isSkipped)).toBe(skipped);
+    expect(result.didPass).toBe(skipped);
+  });
+
   it("skips when Docker CLI is not installed", async () => {
     const result = await checkDockerFileSharing({
       projectRoot: tempDir,
