@@ -26,6 +26,9 @@ Variables`, `Master Configs`) and never the Docker, Tilt or host ones, so its ve
 | doctor | `flisk doctor --json --no-ping`: the three project checks above |
 | env | the generated `.env` |
 | compose | `flisk export compose --dry-run` (bring-your-own resources only) |
+| stacks | `flisk stacks --json` |
+| up | `flisk up --dry-run --json` (`ok`, `unknownDependsOn`; starts nothing) |
+| project | `.flisk/project.json` `optional_infra` and the generated `spec.master` |
 | scenario | what the seed says the project is (the expected side) |
 
 ## Invariants (`lib/invariants.mjs`)
@@ -41,13 +44,18 @@ Variables`, `Master Configs`) and never the Docker, Tilt or host ones, so its ve
 9. `doctor-env-agrees-with-dotenv`: doctor never reports a key missing that `.env` sets.
 10. `generated-files-consistent`: after `config regenerate`, verify is valid and doctor finds the files.
 11. `status-lists-scaffolded-resources`: status lists exactly the resources the scenario scaffolded, with their types.
-12. `compose-matches-database-need`: exported Compose lists every bring-your-own resource and does not reference PostgreSQL or
+12. `stacks-command-matches-status`: `flisk stacks` and `flisk status` list the same stacks with the same counts.
+13. `status-stacks-match-scenario`: every resource is on the stack it was scaffolded into.
+14. `infra-flags-agree`: after `config enable-infra`/`disable-infra` and `regenerate`, `project.json` and `spec.master` carry the flags that were set.
+15. `verify-notices-unapplied-infra`: before `regenerate`, `config verify` reports the changed infra flags as out of sync.
+16. `dependson-graph-agrees`: a `dependsOn` cycle is refused by verify, doctor and `up --dry-run` alike; a dangling name is named by both verify and `up --dry-run`.
+17. `compose-matches-database-need`: exported Compose lists every bring-your-own resource and does not reference PostgreSQL or
     `DB_PASSWORD` while the database is off.
 
 ## Seeds and replay
 
 `lib/scenario.mjs` draws a shape from the seed (salted, so it does not share ENIGMA's PRNG stream): `byo-only`,
-`byo-no-proxy`, `byo-postgres-dep`, or `enigma-mix`. `enigma-mix` is ENIGMA's own `drawPlan(seed, {count})`
+`byo-no-proxy`, `byo-postgres-dep`, `multi-stack`, `infra-toggle`, `depends-chain`, `depends-cycle`, `depends-dangling`, or `enigma-mix`. `enigma-mix` is ENIGMA's own `drawPlan(seed, {count})`
 (`tests/e2e/scale/enigma36/plan.mjs`), so a seed names the same resources in both engines and `E2E_SEED` from an Enigma 36 run
 can be passed to `--seed` (with `--count`). Every failure prints its replay command.
 
@@ -68,6 +76,17 @@ Failures use the shared bug-memory shape so a later PHANTOM step can turn them i
 - `databaseMode` (external, absent) and `authMode` (jwt, none): the CLI has no such switch to scaffold yet; tracked with the
   axes in #3239.
 - `.env` keys that are present but no longer needed (a BYO-only project keeps `DB_PASSWORD`): treated as harmless.
-- Optional infra (`config enable-infra`), `dependsOn` on non-Postgres infrastructure, multi-stack focus selection.
+- Multi-stack focus selection (`flisk up <stack>`).
 - Doctor's `Postgres credentials` check against a running volume.
-- Scheduled workflow and CI inventory entry: added once the static slice has run clean on a sweep.
+
+## Observations that are not failures
+
+- A dangling `dependsOn` name: `flisk up` warns and ignores it (`up --dry-run` exits 0), while `config verify` reports it as an
+  error (`valid: false`). The two agree on the name, so ORACLE passes it; whether the severities should match is a product
+  decision.
+- `flisk config enable-infra verdaccio` leaves `verdaccio: false` (a paid feature), so the infra shape does not toggle it.
+
+## CI
+
+`.github/workflows/oracle.yml` runs 30 consecutive seeds nightly and on demand (`seed`, `seeds` inputs), prints the first seed in
+the job summary, and uploads `oracle-failures.json` on failure. The unit tests run in `make test-shell`.

@@ -24,11 +24,29 @@ test("the enigma-mix shape is ENIGMA's own draw for that seed", () => {
 test("what each shape expects follows from its resources", () => {
 	for (let seed = 0; seed < 100; seed++) {
 		const sc = drawScenario(seed);
-		if (sc.shape === "byo-only") assert.deepEqual(sc.expect, { database: false, gateway: true });
-		if (sc.shape === "byo-no-proxy") assert.deepEqual(sc.expect, { database: false, gateway: false });
+		if (sc.shape === "byo-only") assert.deepEqual(sc.expect, { database: false, gateway: true, cycle: false, dangling: false });
+		if (sc.shape === "byo-no-proxy") assert.deepEqual(sc.expect, { database: false, gateway: false, cycle: false, dangling: false });
 		if (sc.shape === "byo-postgres-dep") assert.equal(sc.expect.database, true);
 		if (sc.shape === "enigma-mix") assert.equal(sc.expect.database, sc.resources.some((r) => r.kind === "database" || r.kind !== "bring-your-own"));
 	}
 });
 
 test("an unknown shape is an error", () => assert.throws(() => drawScenario(1, { shape: "nope" }), /unknown shape/));
+
+test("the dependsOn shapes build the graph they promise", () => {
+	const sc = drawScenario(9, { shape: "depends-cycle" });
+	const names = sc.resources.map((r) => r.name);
+	assert.deepEqual(sc.resources.at(-1).dependsOn, [names[0]]);
+	assert.equal(sc.expect.cycle, true);
+	const ghost = drawScenario(9, { shape: "depends-dangling" });
+	assert.ok(ghost.resources[0].dependsOn.includes("ghost"));
+	assert.deepEqual([ghost.expect.cycle, ghost.expect.dangling], [false, true]);
+	assert.deepEqual(drawScenario(9, { shape: "depends-chain" }).resources.at(-1).dependsOn, []);
+});
+
+test("multi-stack spreads resources over at least two stacks; infra-toggle names every optional service", () => {
+	for (let seed = 0; seed < 30; seed++) {
+		assert.ok(new Set(drawScenario(seed, { shape: "multi-stack" }).resources.map((r) => r.stack)).size >= 2);
+		assert.deepEqual(Object.keys(drawScenario(seed, { shape: "infra-toggle" }).infra), ["monitoring", "elk", "debezium", "golden_image"]);
+	}
+});

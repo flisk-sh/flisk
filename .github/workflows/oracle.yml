@@ -1,0 +1,64 @@
+# ORACLE (tests/oracle): differential testing. Scaffolds seeded projects with the real CLI and fails when flisk status, doctor,
+# config verify, the generated .env and the exported Compose file contradict each other about one project. No Docker, no Tilt
+# stack: it only reads files and --json output. Each run prints its first seed; a failure replays with
+# `node tests/oracle/run.mjs --seed <n> --shape <shape>`. Nightly and manual only; the unit tests run in CI | Checks.
+name: 🧬 ORACLE | Differential
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "First seed to run (empty draws a random one)"
+        type: string
+        default: ""
+      seeds:
+        description: "How many consecutive seeds"
+        type: string
+        default: "30"
+  schedule:
+    - cron: "47 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oracle
+  cancel-in-progress: false
+
+jobs:
+  oracle:
+    name: 🧬 ORACLE surfaces agree
+    runs-on: ubuntu-26.04
+    # About 35 seconds a seed (doctor dominates), so 30 seeds take under 20 minutes.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - name: Install CLI dependencies
+        working-directory: cli
+        run: bun install --frozen-lockfile
+      - name: Sweep seeds
+        env:
+          INPUT_SEED: ${{ inputs.seed }}
+          INPUT_SEEDS: ${{ inputs.seeds || '30' }}
+        shell: bash # pipefail: a failing sweep fails the step even though tee ends the pipe
+        run: |
+          seed="${INPUT_SEED:-$((RANDOM * 32768 + RANDOM))}"
+          echo "### ORACLE, seeds ${seed} to $((seed + INPUT_SEEDS - 1))" >> "$GITHUB_STEP_SUMMARY"
+          echo "Replay a failing seed: \`node tests/oracle/run.mjs --seed <n> --shape <shape>\`, or run this workflow with that seed and 1 seed." >> "$GITHUB_STEP_SUMMARY"
+          status=0
+          node tests/oracle/run.mjs --seed "$seed" --seeds "$INPUT_SEEDS" --out "$RUNNER_TEMP/oracle" | tee "$RUNNER_TEMP/oracle.log" || status=$?
+          { echo '```'; cat "$RUNNER_TEMP/oracle.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - name: Upload failures
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: oracle-failures
+          path: ${{ runner.temp }}/oracle/oracle-failures.json
+          if-no-files-found: ignore

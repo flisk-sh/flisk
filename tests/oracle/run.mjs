@@ -15,8 +15,8 @@ export function runSeed(seed, opts = {}) {
 	const scenario = drawScenario(seed, opts);
 	const dir = makeProjectDir(seed);
 	try {
-		scaffold(scenario, dir);
-		return { scenario, failures: checkScenario(collectSurfaces(dir), scenario, { project: path.basename(path.dirname(dir)) }) };
+		const extra = scaffold(scenario, dir);
+		return { scenario, failures: checkScenario(collectSurfaces(dir, extra), scenario, { project: path.basename(path.dirname(dir)) }) };
 	} finally {
 		if (!opts.keep) rmSync(path.dirname(dir), { recursive: true, force: true });
 	}

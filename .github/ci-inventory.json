@@ -856,6 +856,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "oracle.yml",
+			"job": "oracle",
+			"tier": "test",
+			"required": false,
+			"reason": "ORACLE differential testing (tests/oracle): seeded projects scaffolded with the real CLI; fails when status, doctor, config verify, .env and exported Compose contradict each other; nightly and manual",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "scoreboard.yml",
 			"job": "report",
 			"tier": "report",

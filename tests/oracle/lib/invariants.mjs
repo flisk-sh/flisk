@@ -103,12 +103,14 @@ export const INVARIANTS = [
 	{
 		id: "generated-files-consistent",
 		surfaces: ["config verify --json valid", "doctor --json 'Master Configs'"],
-		check: (s) => {
+		check: (s, sc) => {
 			// doctor's Master Configs only checks that the files exist; config verify checks they match project.json. A project that
 			// verifies clean after regenerate must have them, and a doctor that finds them missing cannot sit beside a clean verify.
 			const c = doctorCheck(s, "Master Configs");
 			const v = s.verify?.json?.data;
 			if (!v) return null;
+			const graphProblem = sc.expect.cycle || sc.expect.dangling; // verify refuses those on purpose; invariants below check them
+			if (!v.valid && graphProblem) return null;
 			if (!v.valid) return fail("generated-files-consistent", "config verify valid after config regenerate", `config verify errors: ${(v.errors ?? []).join("; ")}`, ["verify"]);
 			return c && !c.didPass ? fail("generated-files-consistent", "doctor finds the master files config verify accepted", `doctor Master Configs failed: ${c.message}`, ["doctor", "verify"]) : null;
 		},
@@ -122,6 +124,71 @@ export const INVARIANTS = [
 			const want = sc.resources.map((r) => `${r.name}=${r.kind}`).sort();
 			const got = listed.map((r) => `${r.name}=${r.type}`).sort();
 			return want.join() === got.join() ? null : fail("status-lists-scaffolded-resources", `resources ${want.join(" ")}`, `resources ${got.join(" ")}`, ["status"]);
+		},
+	},
+	{
+		id: "stacks-command-matches-status",
+		surfaces: ["stacks --json", "status --json stacks"],
+		check: (s) => {
+			const a = s.stacks?.json?.data?.stacks;
+			const b = s.status?.json?.data?.stacks;
+			if (!a || !b) return null;
+			const show = (list) => list.map((x) => `${x.name}=${x.resourceCount}`).sort().join(" ");
+			return show(a) === show(b) ? null : fail("stacks-command-matches-status", `flisk stacks lists ${show(b)} like status`, `flisk stacks lists ${show(a)}`, ["stacks", "status"]);
+		},
+	},
+	{
+		id: "status-stacks-match-scenario",
+		surfaces: ["status --json stacks", "scaffold output"],
+		check: (s, sc) => {
+			const listed = s.status?.json?.data?.stacks;
+			if (!listed) return null;
+			const group = (pairs) => pairs.sort().join(" ");
+			const want = group(sc.resources.map((r) => `${r.stack}:${r.name}`));
+			const got = group(listed.flatMap((st) => st.resources.map((n) => `${st.name}:${n}`)));
+			return want === got ? null : fail("status-stacks-match-scenario", `stacks ${want}`, `stacks ${got}`, ["status"]);
+		},
+	},
+	{
+		id: "infra-flags-agree",
+		surfaces: [".flisk/project.json optional_infra", "spec.master", "scenario infra"],
+		check: (s, sc) => {
+			if (!sc.infra || !s.specMaster) return null;
+			const flags = s.projectJson.optional_infra ?? {};
+			for (const [name, on] of Object.entries(sc.infra)) {
+				if (flags[name] !== on) return fail("infra-flags-agree", `project.json optional_infra.${name}=${on}`, `project.json has ${flags[name]}`, ["projectJson"]);
+				const m = new RegExp(`^"${name}": (True|False)`, "m").exec(s.specMaster);
+				if (m && (m[1] === "True") !== on) return fail("infra-flags-agree", `spec.master ${name} ${on ? "True" : "False"} after config regenerate`, `spec.master has ${m[1]}`, ["specMaster", "projectJson"]);
+			}
+			return null;
+		},
+	},
+	{
+		id: "verify-notices-unapplied-infra",
+		surfaces: ["config verify --json before config regenerate", "scenario infra"],
+		check: (s, sc) => {
+			if (!sc.infra || !s.staleVerify?.json) return null;
+			// Only a flag that differs from the default (monitoring/elk/debezium off, golden_image on) changes the generated files.
+			const defaults = { monitoring: false, elk: false, debezium: false, golden_image: true };
+			const changed = Object.entries(sc.infra).filter(([k, on]) => on !== defaults[k]);
+			if (changed.length === 0) return null;
+			return s.staleVerify.json.data?.valid === false ? null : fail("verify-notices-unapplied-infra", `config verify out of sync after enabling ${changed.map(([k]) => k).join(", ")} without regenerate`, "config verify said valid", ["verify"]);
+		},
+	},
+	{
+		id: "dependson-graph-agrees",
+		surfaces: ["config verify --json", "doctor --json 'Circular dependencies'", "up --dry-run --json"],
+		check: (s, sc) => {
+			const v = s.verify?.json?.data;
+			const c = doctorCheck(s, "Circular dependencies");
+			if (!v || !c) return null;
+			const verifyCycle = (v.errors ?? []).some((e) => /circular dependency/.test(e));
+			const ghosts = (v.sharedPlatformPostgres?.unknownDependsOnNames ?? []).map((u) => u.name);
+			const upOk = s.up?.json?.data?.ok;
+			const upGhosts = (s.up?.json?.data?.unknownDependsOn ?? []).map((u) => u.name);
+			const got = { verifyCycle, doctorCycle: !c.didPass, upRefuses: s.up?.code !== 0 && upOk !== true, ghosts: ghosts.sort().join(), upGhosts: upGhosts.sort().join() };
+			const want = { verifyCycle: sc.expect.cycle, doctorCycle: sc.expect.cycle, upRefuses: sc.expect.cycle, ghosts: sc.expect.dangling ? "ghost" : "", upGhosts: sc.expect.dangling ? "ghost" : "" };
+			return JSON.stringify(got) === JSON.stringify(want) ? null : fail("dependson-graph-agrees", JSON.stringify(want), JSON.stringify(got), ["verify", "doctor", "up"]);
 		},
 	},
 	{
