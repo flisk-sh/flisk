@@ -456,7 +456,7 @@ export function createPackageJson(
       // vitest 5.0.x crashes npm 10's arborist (loadPeerSet, edgesOut null) when a peer edge is missing,
       // even though `vite` is declared. vitest 5.1.0 fixed it, so users' `npm install` on npm 10 works.
       vitest: "5.1.0",
-      "@biomejs/biome": "^2.5.13",
+      "@biomejs/biome": "^2.6.2",
 
       // vitest 5 peers on vite ^6.4.0 || ^7 || ^8; vite 5 makes `vitest run` fail at startup with
       // ERR_PACKAGE_PATH_NOT_EXPORTED ('./module-runner'), in every resource once it is hoisted.
