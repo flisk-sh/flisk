@@ -17,7 +17,12 @@ Short on time? The two-service demo (`npx @flisk-sh/flisk demo`) runs on plain W
 
 ## 1. Install Ubuntu on WSL2
 
-Open the Start menu, type `PowerShell`, right-click **Windows PowerShell** and choose **Run as administrator**. Paste:
+Open the Start menu, type `PowerShell`, right-click **Windows PowerShell** and choose **Run as administrator**.
+
+![Start menu search for PowerShell with Run as administrator highlighted](assets/windows/0-start-menu-run-as-admin.svg)
+*Illustration: search for PowerShell, then pick Run as administrator.*
+
+In PowerShell, paste:
 
 ```powershell
 wsl --install -d Ubuntu
@@ -50,6 +55,9 @@ Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with t
 docker version
 ```
 
+![Ubuntu terminal showing docker version output](assets/windows/2b-docker-version.svg)
+*Illustration of what you should see.*
+
 **If you skip it:** `flisk doctor` in Ubuntu reports `Docker WSL integration` as failed:
 
 ```
@@ -76,6 +84,9 @@ tilt version
 git --version
 ```
 
+![Ubuntu terminal installing tools and printing versions](assets/windows/3-install-tools.svg)
+*Illustration of what you should see.*
+
 **If you skip it:** `flisk doctor` prints `Tilt CLI not found` with the install command as its fix. A missing Node.js shows up earlier: `npx: command not found` or `node: command not found` in Ubuntu means step 3 is not done.
 
 ## 4. Keep line endings as LF
@@ -85,6 +96,9 @@ Windows Git can rewrite shell scripts and healthchecks with CRLF line endings, w
 ```bash
 git config --global core.autocrlf input
 ```
+
+![Ubuntu terminal setting core.autocrlf to input](assets/windows/4-autocrlf.svg)
+*Illustration of what you should see.*
 
 Run it in Ubuntu. If you also use Git on Windows, run it in PowerShell as well.
 
@@ -113,6 +127,9 @@ git clone <your-repository-url>
 cd <your-repository>
 pwd   # should print /home/<you>/…
 ```
+
+![Ubuntu terminal cloning into the home folder](assets/windows/6-clone-in-home.svg)
+*Illustration of what you should see.*
 
 Files under `/mnt/c` are on the Windows disk, where file watching and permissions are slow or wrong, so live reload lags and scripts can lose their executable bit. To open the folder in Windows, type `explorer.exe .` in Ubuntu or browse to `\\wsl$\Ubuntu\home\<you>`.
 
