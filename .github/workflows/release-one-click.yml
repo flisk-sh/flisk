@@ -1,0 +1,99 @@
+# One button for a release. Picks the newest green main commit, creates the next release/<version>-rc<n> branch there,
+# and dispatches release-candidate.yml with release=true. The candidate then starts release-binaries.yml itself, and that
+# publishes only if every candidate job passed (docs/releasing.md). This replaces the manual "create the branch with
+# gh api, then dispatch" steps. It does not approve the version-bump PR: main's merge queue ruleset requires a person.
+name: 🚀 Release | One click
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit to release. Empty = the newest main commit whose E2E | Journeys run passed."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# One at a time: two clicks must not create two release branches for the same version.
+concurrency:
+  group: release-one-click
+  cancel-in-progress: false
+
+jobs:
+  start:
+    name: release / create branch and start candidate
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the release/* branch
+      actions: write # dispatch release-candidate.yml
+    steps:
+      - name: Refuse while a release is already running
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for status in queued in_progress; do
+            runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release-binaries.yml --status "$status" --json databaseId,headBranch --jq '.[] | "\(.databaseId) \(.headBranch)"')
+            if [ -n "$runs" ]; then
+              echo "::error::A release run is already ${status}: ${runs}. A second dispatch after publish would release the next version. Wait for it to finish."
+              exit 1
+            fi
+          done
+
+      - name: Pick the commit
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_COMMIT" ]; then
+            sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${INPUT_COMMIT}" --jq .sha)
+          else
+            sha=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow e2e-journeys.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha')
+          fi
+          if [ -z "$sha" ] || [ "$sha" = "null" ]; then
+            echo "::error::No green E2E | Journeys run on main, and no commit input."
+            exit 1
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Pick the version and branch name
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Same rule as release-binaries.yml: the newest published version, plus one patch, skipping versions that exist.
+          latest=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --jq '[.[] | select(.draft | not) | .tag_name | ltrimstr("v")] | .[0]')
+          next=$(node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); console.log([a,b,c+1].join("."))' "$latest")
+          while npm view "@flisk-sh/flisk@${next}" version >/dev/null 2>&1 \
+            || gh release view "v${next}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; do
+            next=$(node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); console.log([a,b,c+1].join("."))' "$next")
+          done
+          n=1
+          while gh api "repos/${GITHUB_REPOSITORY}/git/refs/heads/release/${next}-rc${n}" >/dev/null 2>&1; do n=$((n + 1)); done
+          echo "version=${next}" >> "$GITHUB_OUTPUT"
+          echo "ref=release/${next}-rc${n}" >> "$GITHUB_OUTPUT"
+
+      - name: Create the branch and start the candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          REF: ${{ steps.branch.outputs.ref }}
+          VERSION: ${{ steps.branch.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f "ref=refs/heads/${REF}" -f "sha=${SHA}" >/dev/null
+          gh workflow run release-candidate.yml --repo "$GITHUB_REPOSITORY" --ref "$REF" -f release=true
+          {
+            echo "### Release ${VERSION} started"
+            echo
+            echo "- Commit: \`${SHA}\`"
+            echo "- Branch: \`${REF}\`"
+            echo "- Candidate runs, then the release publishes by itself: https://github.com/${GITHUB_REPOSITORY}/actions/workflows/release-candidate.yml"
+            echo
+            echo "**Still yours:** when the release run finishes it opens \`Release ${VERSION} (automatic version bump)\`. Approve it; its merge tags the release."
+          } >> "$GITHUB_STEP_SUMMARY"
