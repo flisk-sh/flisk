@@ -3,13 +3,19 @@
 
 import { describe, expect, it } from "vitest";
 
-import { NATIVE_WINDOWS_REFUSAL, nativeWindowsStackRefusal } from "../native-windows.js";
+import {
+  NATIVE_WINDOWS_NEXT_STEP,
+  NATIVE_WINDOWS_REFUSAL_WITH_NEXT_STEP,
+  nativeWindowsStackRefusal,
+} from "../native-windows.js";
 
 describe("nativeWindowsStackRefusal", () => {
   it("refuses native Windows with the WSL2 guidance", () => {
-    expect(nativeWindowsStackRefusal("win32")).toBe(NATIVE_WINDOWS_REFUSAL);
-    expect(NATIVE_WINDOWS_REFUSAL).toContain("WSL2");
-    expect(NATIVE_WINDOWS_REFUSAL).toContain("Ubuntu");
+    expect(nativeWindowsStackRefusal("win32")).toBe(NATIVE_WINDOWS_REFUSAL_WITH_NEXT_STEP);
+    expect(NATIVE_WINDOWS_NEXT_STEP).toContain("You are on Windows. Open Ubuntu (WSL2)");
+    expect(NATIVE_WINDOWS_NEXT_STEP).toContain("wsl --install -d Ubuntu");
+    expect(NATIVE_WINDOWS_NEXT_STEP).toContain("flisk up");
+    expect(NATIVE_WINDOWS_NEXT_STEP).toContain("docs/setup/windows.md");
   });
 
   it("lets the unsupported escape hatch through", () => {

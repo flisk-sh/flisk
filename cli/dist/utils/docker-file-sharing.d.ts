@@ -6,6 +6,8 @@ export interface DockerFileSharingOptions {
     runner?: DockerRunner;
     hasDocker?: boolean;
     image?: string;
+    /** Inside WSL2 the Docker Desktop "File sharing" setting does not apply; defaults to detecting WSL. */
+    isWsl?: boolean;
 }
 export declare function formatDockerFileSharingFix(projectFolder: string): string;
 /**

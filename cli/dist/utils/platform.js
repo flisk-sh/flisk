@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { release as osRelease } from "node:os";
 import { delimiter, extname } from "node:path";
 export function isWindows() {
     return process.platform === "win32";
@@ -51,4 +52,24 @@ export function pathLookups(binName, windows = isWindows()) {
 }
 export function pathDelimiter(windows = isWindows()) {
     return windows ? ";" : delimiter;
+}
+/** True inside a WSL distribution (Linux kernel running under Windows). */
+export function isWsl(probe = {}) {
+    const platform = probe.platform ?? process.platform;
+    if (platform !== "linux")
+        return false;
+    const env = probe.env ?? process.env;
+    if (env.WSL_DISTRO_NAME || env.WSL_INTEROP)
+        return true;
+    return /microsoft|wsl/i.test(probe.release ?? osRelease());
+}
+export function detectPlatformKind(probe = {}) {
+    const platform = probe.platform ?? process.platform;
+    if (platform === "win32")
+        return "windows";
+    if (platform === "darwin")
+        return "macos";
+    if (platform === "linux")
+        return isWsl(probe) ? "wsl2" : "linux";
+    return "other";
 }

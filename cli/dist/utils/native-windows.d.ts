@@ -7,6 +7,13 @@
  * one-command flow of a Docker starter refuse with this message before they touch the machine.
  */
 export declare const NATIVE_WINDOWS_REFUSAL = "Landscape startup needs Ubuntu on WSL2. Native Windows runs only services that declare a command, as local processes.";
+export declare const WINDOWS_GUIDE_URL = "https://github.com/flisk-sh/flisk/blob/main/docs/setup/windows.md";
+/**
+ * The one next step for someone on native Windows: open Ubuntu (WSL2) and run Flisk there, with the exact commands.
+ */
+export declare const NATIVE_WINDOWS_NEXT_STEP: string;
+/** The refusal plus the next step, as `flisk up` prints it. */
+export declare const NATIVE_WINDOWS_REFUSAL_WITH_NEXT_STEP: string;
 /**
  * Why a command that starts a stack cannot run on this host, or null when it may proceed.
  *
