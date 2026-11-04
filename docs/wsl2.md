@@ -2,7 +2,7 @@
 
 On Windows, you run Flisk inside the **Ubuntu** app. Ubuntu is a free version of Linux, and [WSL2](start/words.md#wsl2) (Windows Subsystem for Linux) is the part of Windows that runs it, next to your usual Windows apps. You install it once with one command, then type every Flisk command in the Ubuntu app, which is your [terminal](start/words.md#terminal) on Windows.
 
-Why the extra step? Flisk starts your app with Linux tools: Linux [containers](start/words.md#container), [Docker](start/words.md#docker) and [Tilt](start/words.md#tilt). Docker Desktop and Tilt both run on Windows, but Flisk's Tilt engine runs POSIX shell commands on the host (see [why native Windows cannot start a Docker stack](design/native-windows-runtime-decision.md#31-evidence-from-the-engine-2026-11-04)), and Ubuntu on WSL2 provides that environment.
+Why the extra step? Flisk starts your app with Linux tools: Linux [containers](start/words.md#container), [Docker](start/words.md#docker) and [Tilt](start/words.md#tilt). Docker Desktop and Tilt both run on Windows, but Flisk's Tilt engine runs POSIX shell commands on the host (see [why native Windows cannot start a Docker stack](design/native-windows-runtime-decision.md#37-evidence-from-the-engine-2026-11-04)), and Ubuntu on WSL2 provides that environment.
 
 Just want the short version? [Set up Windows](setup/windows.md) has three steps. Never written code? [Start here](start/first-time.md). This page has every step in detail, an example app to try, and fixes for common problems.
 
