@@ -634,6 +634,14 @@
 			"owner": "maintainers"
 		},
 		{
+			"workflow": "release-one-click.yml",
+			"job": "start",
+			"tier": "release",
+			"required": false,
+			"reason": "Manual one-click release: creates the next release/* branch on a green main commit and dispatches release-candidate.yml (#3226)",
+			"owner": "maintainers"
+		},
+		{
 			"workflow": "scorecard.yml",
 			"job": "scorecard",
 			"tier": "report",
