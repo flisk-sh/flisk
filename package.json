@@ -33,6 +33,7 @@
     "examples/flisk-example",
     "cli/bin",
     "cli/dist-bundle/**/*.js",
+    "cli/dist-bundle/build-info.json",
     "cli/dist/types/index.js",
     "cli/dist/utils/constants.js",
     "cli/templates",

@@ -8,7 +8,8 @@
 // The npm package ships dist-bundle/ and not dist/ (only the two files of its "main"
 // entry), so bundled code must not read or import a file under dist/ at runtime.
 
-import { readFileSync, rmSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -16,6 +17,26 @@ import { pinModuleLocation } from "./pin-module-location.mjs";
 
 const cliDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(cliDir, "dist-bundle");
+
+function resolveCommitSha() {
+  if (process.env.FLISK_BUILD_COMMIT?.trim()) {
+    return process.env.FLISK_BUILD_COMMIT.trim();
+  }
+  if (process.env.GITHUB_SHA?.trim()) {
+    return process.env.GITHUB_SHA.trim();
+  }
+  try {
+    const sha = execSync("git rev-parse HEAD", {
+      cwd: cliDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (sha) return sha;
+  } catch {
+    // git not available or not in a git repository
+  }
+  return "unknown";
+}
 
 // Our own modules locate assets relative to import.meta.url/dirname, assuming
 // their original place in dist/ (e.g. dist/generator/ -> cli/templates).
@@ -53,3 +74,12 @@ await build({
   },
   logLevel: "warning",
 });
+
+const commitSha = resolveCommitSha();
+const buildInfo = {
+  commit: commitSha,
+  commitSha,
+};
+const buildInfoJson = JSON.stringify(buildInfo, null, 2) + "\n";
+
+writeFileSync(join(out, "build-info.json"), buildInfoJson, "utf8");

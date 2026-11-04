@@ -589,6 +589,9 @@ stdout holds one JSON document; diagnostics go to stderr. See [machine-readable 
 | `FLISK_ALLOW_NATIVE_WINDOWS` | Set to `1` to allow `flisk up` on native Windows |
 | `FLISK_LICENSE_KEY` | Unlocks premium features such as `--ddd` |
 | `FLISK_DEBUG` | Set to `1` with `flisk up --verbose` to include Starlark debug logs |
+| `FLISK_BUILD_COMMIT` | Overrides the commit sha that `flisk version --verbose` prints |
+| `FLISK_BUILD_INFO_PATH` | Path to the build-info file that `flisk version --verbose` reads instead of the bundled one |
+| `FLISK_BUILD_INFO_FILE` | Same as `FLISK_BUILD_INFO_PATH`; used only when that is not set |
 
 Project `.env` keys (`DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET`, ...) are covered in [environment, params and secrets](environment.md).
 

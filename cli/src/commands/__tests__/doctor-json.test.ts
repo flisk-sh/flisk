@@ -205,6 +205,21 @@ describe("doctor JSON command", () => {
     expect(getDoctorExitCode(passingReport)).toBe(0);
   });
 
+  it("includes commit in doctor report data when commit is provided", () => {
+    const report = createDoctorReport(
+      [PASSING_CHECK],
+      true,
+      [],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "doctor-commit-12345",
+    );
+    expect(report.data.commit).toBe("doctor-commit-12345");
+    expect(report.data.commitSha).toBe("doctor-commit-12345");
+  });
+
   it("includes buildCache in doctor report data when present in checks", () => {
     const buildCacheCheck = {
       name: "Docker Build Cache",
@@ -262,6 +277,8 @@ describe("doctor JSON command", () => {
       // Failing checks are ordered before passing and skipped checks by orderDoctorResults
       expect(report.data.checks).toEqual([FAILING_CHECK, PASSING_CHECK, SKIPPED_CHECK]);
       expect(report.errors).toEqual([]);
+      expect(report.data.commit).toBeDefined();
+      expect(report.data.commitSha).toBeDefined();
 
       jsonRun.log.mockRestore();
       jsonRun.exit.mockRestore();

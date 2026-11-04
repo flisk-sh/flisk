@@ -13,3 +13,4 @@ export declare function findProjectRoot(startDir?: string): string | null;
  * @returns The version string of the CLI package
  */
 export declare function getPackageVersion(): string;
+export { type BuildInfo, clearBuildInfoCache, getBuildCommit, getBuildInfo, } from "./build-info.js";
