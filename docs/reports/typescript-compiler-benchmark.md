@@ -3,8 +3,7 @@
 Status: **initial experiment, one machine, 5 warm runs.** Evidence only; nothing was migrated and no default
 compiler, `package.json` script, lockfile, `cli/dist` or shipped file was changed. Reproduce with
 `scripts/benchmarks/ts-compilers/` (see [Reproducing](#reproducing)). The CI workflow
-`⏱️ CI | TypeScript Compiler Benchmark` produces the same data on Linux and macOS runners; **those CI numbers are not
-in this report yet** (the first workflow runs passed in about 7 minutes per OS on the PR, but their artifacts are not folded in yet).
+`⏱️ CI | TypeScript Compiler Benchmark` produces the same data on Linux and macOS runners; **CI numbers are in §5b** (see §5b for the first CI run).
 
 ## 1. Executive summary
 
@@ -79,6 +78,47 @@ JS (6.0.3) vs native, and `tsc-rs` type-check vs `tsc`/`tsgo`. `tsc` vs `tsgo` i
 columns are in `results.json`. Output size is identical for every compiler: 1.89 MB / 240 files (JS), 0.39 MB / 240
 (d.ts), 2.28 MB / 480 (full). Incremental builds rewrote 0 files on a no-change rebuild and 3 on a one-file edit for
 every compiler, with 0 failed runs.
+
+## 5b. CI results (GitHub-hosted runners, separate from the local table)
+
+Source: workflow run [41933526148](https://github.com/flisk-sh/flisk/actions/runs/41933526148) (artifacts
+`ts-compiler-benchmark-Linux-41933526148` and `-macOS-41933526148`, kept 90 days; that run used Node 24.22.1 and Bun 1.4.4,
+the workflow now pins Node 22). Each job: 5 warm runs plus 1 cold run per compiler and scenario, compiler order shuffled
+per round, 0 failed runs, same compiler versions as §2. **The three environments are different machines. Do not rank
+across them; compare compilers only within one column group.**
+
+| environment | CPU / memory |
+|---|---|
+| Local | Apple M1, 8 cores, 16 GB, not idle |
+| CI Linux (`ubuntu-latest`) | AMD EPYC 7763, 4 vCPU, 16 GB, page cache dropped before each cold run |
+| CI macOS (`macos-latest`) | Apple M1 (virtual), 3 vCPU, 7 GB, page cache not dropped |
+
+Median wall seconds [peak RSS MB] (tight min-max on Linux: usually within 10%).
+
+| scenario | env | tsc 7.0.2 | tsgo | tsc-rs | tsc-rs --fast | 7.1.0-beta | 6.0.3 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| type-check | Linux | 1.95 [697] | 1.96 [696] | **0.64** [379] | **0.64** [361] | 1.52 [501] | 9.24 [780] |
+| type-check | macOS | 1.48 [714] | 1.73 [705] | 0.69 [376] | **0.62** [357] | 1.15 [507] | 9.40 [777] |
+| JS emit (`--noCheck`) | Linux | 0.39 | 0.41 | **0.22** | **0.22** | 0.38 | 2.57 |
+| JS emit (`--noCheck`) | macOS | 0.31 | 0.31 | 0.22 | **0.19** | 0.27 | 2.10 |
+| d.ts emit (`--noCheck`) | Linux | 0.43 | 0.41 | **0.19** | **0.19** | 0.40 | 2.23 |
+| d.ts emit (`--noCheck`) | macOS | 0.32 | 0.35 | **0.21** | **0.21** | 0.32 | 1.92 |
+| full build | Linux | 0.84 [304] | 0.82 [312] | **0.39** [205] | **0.39** [203] | 0.77 [267] | 5.11 [522] |
+| full build | macOS | 0.65 [330] | 0.83 [329] | **0.38** [201] | 0.45 [199] | 0.63 [272] | 5.49 [507] |
+| incremental, cold | Linux | 0.85 | 0.90 | **0.54** | 0.55 | 0.80 | 5.15 |
+| incremental, no change | Linux | 0.32 | 0.31 | 0.16 | **0.15** | 0.28 | 1.64 |
+| incremental, one-file edit | Linux | 0.37 | 0.35 | **0.17** | **0.17** | 0.32 | 4.47 |
+| incremental, one-file edit | macOS | 0.30 | 0.28 | **0.18** | 0.20 | 0.33 | 4.61 |
+| `bun run typecheck` (real script = `tsc`) | Linux | 1.89 | 1.90 | **0.62** | 0.63 | 1.46 | 9.13 |
+| `bun run typecheck` (real script = `tsc`) | macOS | 1.56 | 2.08 | 0.77 | **0.69** | 1.51 | 11.65 |
+
+What the CI data adds: the pattern holds on clean hardware. `tsc-rs` type-checks the CLI about 3x faster than `tsc`
+and `tsgo`, uses about half the memory, and emits in roughly half the time; `tsc` vs `tsgo` is a tie. `--fast` gives
+no extra benefit on the 4-vCPU Linux runner (its extra checkers are capped by core count), so its edge in the local
+table should not be assumed on CI. The absolute saving on CI is about 1.3 s per type-check on Linux. The diagnostics
+and emit comparisons (§7) were also run on both runners and showed no diagnostic differences for `tsgo` against `tsc`
+or `tsc-rs` against 7.1.0-beta, and no emit differences for `tsgo` against `tsc` or `tsc-rs` against 7.1.0-beta.
+None of this changes the recommendation.
 
 ## 6. Memory (peak RSS, MB, median)
 
@@ -167,7 +207,7 @@ node bench.mjs --runs 5 --out results/local   # results.json + report.md
 
 ## Incomplete or failed items
 
-- CI (Linux, macOS) numbers: the workflow ran and passed on the PR; its artifacts are not folded into this report yet.
+- CI numbers come from a single workflow run (§5b). The weekly schedule will add more; the workflow no longer runs on PRs.
 - Windows, `examples/byo/nestjs`, Bun-substituted workflows: not run.
 - True cold-cache numbers locally: not measured (needs sudo `purge`).
 - Local run had 5 warm runs on a machine that was not idle; use the CI artifacts for cleaner numbers.
