@@ -90,18 +90,29 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-# Check if database already exists
-echo "🔍 Checking if database $DB_NAME exists..."
-DB_EXISTS=$(docker exec $DB_HOST psql -U $DB_USER -d $MASTER_DB -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" || echo "0")
-
-if [ "$DB_EXISTS" = "1" ]; then
-  echo "✅ Database $DB_NAME already exists - skipping creation"
-else
-  echo "📝 Creating database $DB_NAME..."
-  docker exec $DB_HOST createdb -U $DB_USER -O $DB_USER "$DB_NAME" || echo "⚠️  Could not create database (may already exist)"
-  docker exec $DB_HOST psql -U $DB_USER -d $MASTER_DB -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" || true
-  echo "✅ Database provisioning completed!"
-fi
+# The postgres image first runs a temporary server for its init scripts and shuts it down, so pg_isready can pass
+# right before the real server starts. Create the database in a retry loop and only finish once it is really there.
+echo "🔍 Ensuring database $DB_NAME exists..."
+db_exists() {{
+  [ "$(docker exec $DB_HOST psql -U $DB_USER -d $MASTER_DB -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" 2>/dev/null)" = "1" ]
+}}
+for i in $(seq 1 30); do
+  if db_exists; then
+    break
+  fi
+  echo "📝 Creating database $DB_NAME (attempt $i/30)..."
+  docker exec $DB_HOST createdb -U $DB_USER -O $DB_USER "$DB_NAME" >/dev/null 2>&1 || true
+  if db_exists; then
+    break
+  fi
+  if [ $i -eq 30 ]; then
+    echo "❌ Database $DB_NAME could not be created"
+    exit 1
+  fi
+  sleep 2
+done
+docker exec $DB_HOST psql -U $DB_USER -d $MASTER_DB -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" || true
+echo "✅ Database $DB_NAME exists"
 
 # Show database info
 echo ""
