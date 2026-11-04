@@ -347,9 +347,13 @@ export function carryOverBuildCommand(
   if (!rawCommand) return manifest;
 
   const commandList = Array.isArray(rawCommand)
-    ? rawCommand.filter((part): part is string => typeof part === "string" && part.length > 0)
+    ? rawCommand.map(String)
     : typeof rawCommand === "string" && rawCommand.trim() !== ""
-      ? rawCommand.trim().split(/\s+/).filter(Boolean)
+      ? (rawCommand.trim().match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? []).map((token) =>
+          (token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))
+            ? token.slice(1, -1)
+            : token,
+        )
       : undefined;
 
   if (!commandList || commandList.length === 0) return manifest;

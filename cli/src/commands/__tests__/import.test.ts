@@ -739,6 +739,23 @@ describe("flisk import --json", () => {
   });
 
   describe("carrying over command on services with build (#3060)", () => {
+    it("preserves quoted arguments and intentional empty arguments in command (#3060)", () => {
+      const manifest = {
+        appName: "api",
+        appType: "bring-your-own",
+        buildContext: "./api",
+      };
+      const quotedResult = carryOverBuildCommand(manifest, "node server.js --title 'hello world' --env \"test env\"");
+      expect(quotedResult.container).toEqual({
+        command: ["node", "server.js", "--title", "hello world", "--env", "test env"],
+      });
+
+      const arrayWithEmpty = carryOverBuildCommand(manifest, ["node", "server.js", "", "--arg"]);
+      expect(arrayWithEmpty.container).toEqual({
+        command: ["node", "server.js", "", "--arg"],
+      });
+    });
+
     it("carries over string command on a service with buildContext as container.command", () => {
       const manifest = {
         appName: "api",
