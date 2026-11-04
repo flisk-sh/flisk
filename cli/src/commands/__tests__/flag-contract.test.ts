@@ -6,10 +6,11 @@ import type { AddressInfo } from "node:net";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createTempDir,
   createTempProject,
+  installFakeContainerTools,
   runCommandInProcess,
   runFlisk,
 } from "../../test-support/index.js";
@@ -491,6 +492,13 @@ const DRY_RUN_TARGETS: Record<string, { command: Command; args: string[] }> = {
 };
 
 describe("flag contract: --dry-run", () => {
+  // `down --dry-run` runs the machine checks first; stub docker and tilt so it passes without them installed (#2898).
+  let restoreTools = () => {};
+  beforeAll(() => {
+    restoreTools = installFakeContainerTools();
+  });
+  afterAll(() => restoreTools());
+
   it.each(DRY_RUN_MATRIX)(
     "flisk $site prints its plan and writes nothing",
     async ({ command, project, expect: line }) => {

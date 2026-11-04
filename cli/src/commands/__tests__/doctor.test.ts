@@ -1426,7 +1426,22 @@ describe("doctor Docker Compose check", () => {
 });
 
 describe("doctor --all, sections, and summary", () => {
+  // --all runs the real machine checks, which shell out to docker, tilt and friends and read ~/.flisk and ~/.docker. Left on the
+  // developer's PATH and HOME they take about 4s each and over 30s under load (#2898); an empty PATH and a temporary HOME make
+  // every tool "not installed", which these tests already expect (they assert a failing run), in milliseconds.
+  const realEnv = { PATH: process.env.PATH, HOME: process.env.HOME };
+  let isolatedDir = "";
+  beforeEach(() => {
+    isolatedDir = mkdtempSync(join(tmpdir(), "flisk-doctor-env-"));
+    process.env.PATH = isolatedDir;
+    process.env.HOME = isolatedDir;
+  });
   afterEach(() => {
+    if (realEnv.PATH === undefined) delete process.env.PATH;
+    else process.env.PATH = realEnv.PATH;
+    if (realEnv.HOME === undefined) delete process.env.HOME;
+    else process.env.HOME = realEnv.HOME;
+    rmSync(isolatedDir, { recursive: true, force: true });
     doctorCommand.setOptionValue("all", false);
     doctorCommand.setOptionValue("json", false);
     doctorCommand.setOptionValue("ping", true);
