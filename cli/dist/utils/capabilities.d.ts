@@ -8,6 +8,13 @@ export type CapabilitySource = string | ProjectConfig | {
     [key: string]: unknown;
 } | ProjectCapabilities | null | undefined;
 /**
+ * False when the project at `projectRoot` only has bring-your-own containers that do not use the shared Postgres (#3200):
+ * its `.env` then needs no generated `DB_PASSWORD` or `DATABASE_URL`. True when that cannot be established: no project.json,
+ * a wrapped Tiltfile, no resources yet, an explicit `capabilities.database: true`, a `service.json` that could not be read
+ * (its resource may use the database), or a discovery error. An older project keeps the keys it had.
+ */
+export declare function projectNeedsDatabaseKeys(projectRoot: string): boolean;
+/**
  * The project's capabilities: the defaults, then `capabilities` in `.flisk/project.json` (or the config passed in), then
  * flags. A flag only turns a capability off. Commander sets `database: true` when `--no-database` is not given, so a
  * `true` from the options must not undo a project that opted out in project.json. An object source may also carry

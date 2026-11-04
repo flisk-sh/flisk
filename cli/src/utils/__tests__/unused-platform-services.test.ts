@@ -15,8 +15,9 @@ import {
   describePlatformServices,
   isDatabaseCapabilityEnabled,
   isGatewayEnabled,
+  projectNeedsDatabaseKeys,
 } from "../capabilities.js";
-import { evaluatePlatformServiceNeeds } from "../platform-services.js";
+import { evaluatePlatformServiceNeeds, needsDatabaseKeys } from "../platform-services.js";
 
 const roots: string[] = [];
 
@@ -194,5 +195,53 @@ describe("platform services follow the resources (#2963)", () => {
     ]);
     expect(needs.gateway).toMatchObject({ isNeeded: true, users: ["web"] });
     expect(needs.database.users).toEqual(["db"]);
+  });
+});
+
+describe("generated database keys follow the resources (#3200)", () => {
+  it("a bring-your-own-only project that does not use Postgres needs no DB_PASSWORD, routed or not", () => {
+    expect(projectNeedsDatabaseKeys(project({ caddy: byo(), app: byo({ port: 4101 }) }))).toBe(
+      false,
+    );
+    expect(projectNeedsDatabaseKeys(project({ web: byo({ exposeViaProxy: true }) }))).toBe(false);
+  });
+
+  it("keeps them when a resource uses the shared Postgres or is not bring-your-own", () => {
+    expect(projectNeedsDatabaseKeys(project({ app: byo({ dependsOn: ["postgres"] }) }))).toBe(true);
+    expect(projectNeedsDatabaseKeys(project({ db: { appType: "database" }, app: byo() }))).toBe(
+      true,
+    );
+    expect(projectNeedsDatabaseKeys(project({ api: { appType: "backend" }, caddy: byo() }))).toBe(
+      true,
+    );
+  });
+
+  it("keeps them for an empty project, a wrapped Tiltfile, an explicit database: true and a missing project", () => {
+    expect(projectNeedsDatabaseKeys(project({}))).toBe(true);
+    expect(projectNeedsDatabaseKeys(project({ app: byo() }, { database: true }))).toBe(true);
+    const wrapped = project({ app: byo() });
+    const file = join(wrapped, ".flisk", "project.json");
+    const config = JSON.parse(readFileSync(file, "utf-8"));
+    writeFileSync(file, JSON.stringify({ ...config, orchestration: { tiltfile: "Tiltfile" } }));
+    expect(projectNeedsDatabaseKeys(wrapped)).toBe(true);
+    const nothing = mkdtempSync(join(tmpdir(), "flisk-no-project-"));
+    roots.push(nothing);
+    expect(projectNeedsDatabaseKeys(nothing)).toBe(true);
+  });
+
+  it("keeps them when a service.json cannot be read, even beside a valid bring-your-own service (review #3227)", () => {
+    // The unreadable file might be a backend that uses the database; discovery skips it, so `resources` alone looks BYO-only.
+    const root = project({ caddy: byo() });
+    mkdirSync(join(root, "services", "broken"), { recursive: true });
+    writeFileSync(join(root, "services", "broken", "service.json"), "{ not json");
+    expect(projectNeedsDatabaseKeys(root)).toBe(true);
+  });
+
+  it("is decided on the resources alone by needsDatabaseKeys", () => {
+    expect(needsDatabaseKeys([])).toBe(true);
+    expect(needsDatabaseKeys([makeResource("a", "bring-your-own")])).toBe(false);
+    expect(
+      needsDatabaseKeys([makeResource("a", "bring-your-own"), makeResource("b", "worker")]),
+    ).toBe(true);
   });
 });

@@ -49,3 +49,17 @@ export function evaluatePlatformServiceNeeds(resources) {
         },
     };
 }
+/**
+ * Whether the project's `.env` needs the database keys Flisk generates for the shared PostgreSQL: `DB_PASSWORD`, and
+ * `DATABASE_URL` built from it (#3200). A project of only bring-your-own containers that do not use the shared PostgreSQL
+ * runs nothing that reads them. `JWT_SECRET` is not decided here: every Compose entry requires it (local-jwt is the default
+ * auth mode), so it is always kept. Conservative like {@link evaluatePlatformServiceNeeds}: any other resource type, or no
+ * resource at all, keeps the keys.
+ */
+export function needsDatabaseKeys(resources) {
+    if (resources.length === 0)
+        return true;
+    if (!resources.every(isBringYourOwn))
+        return true;
+    return evaluatePlatformServiceNeeds(resources).database.isNeeded;
+}

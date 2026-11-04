@@ -16,6 +16,24 @@ export interface EnvVariable {
   complete?: boolean;
 }
 
+/**
+ * The keys that exist only for the shared PostgreSQL. A project that does not use it does not need them (#3200).
+ * DATABASE_URL is built from the generated DB_PASSWORD, so it goes with it. JWT_SECRET is not listed: every Compose entry
+ * requires it, so it is always kept.
+ */
+const SHARED_DATABASE_KEY_NAMES: readonly string[] = ["DB_PASSWORD", "DATABASE_URL"];
+
+export interface EnvKeyOptions {
+  /** False for a project that does not use the shared PostgreSQL: DB_PASSWORD and DATABASE_URL are then neither added nor required. */
+  databaseKeys?: boolean;
+}
+
+function keysFor(options?: EnvKeyOptions): EnvVariable[] {
+  return options?.databaseKeys === false
+    ? REQUIRED_ENV_VARS.filter((v) => !SHARED_DATABASE_KEY_NAMES.includes(v.name))
+    : REQUIRED_ENV_VARS;
+}
+
 const REQUIRED_ENV_VARS: EnvVariable[] = [
   {
     name: "VERDACCIO_URL_DOCKER",
@@ -150,7 +168,7 @@ function describe(envVar: EnvVariable): string[] {
   return lines;
 }
 
-export function generateEnvFile(): string {
+export function generateEnvFile(options?: EnvKeyOptions): string {
   const password = generateDbPassword();
   const lines: string[] = [
     "# 🔧 Flisk Environment Configuration",
@@ -161,7 +179,7 @@ export function generateEnvFile(): string {
     "",
   ];
 
-  for (const envVar of REQUIRED_ENV_VARS) {
+  for (const envVar of keysFor(options)) {
     lines.push(...describe(envVar));
     lines.push(`${envVar.name}=${generatedValue(envVar.name, password)}`);
     lines.push("");
@@ -177,7 +195,10 @@ function urlPassword(url: string): string | undefined {
   return match[1];
 }
 
-export function validateEnvFile(projectRoot: string): {
+export function validateEnvFile(
+  projectRoot: string,
+  options?: EnvKeyOptions,
+): {
   missing: string[];
   invalid: string[];
   warnings: string[];
@@ -191,7 +212,9 @@ export function validateEnvFile(projectRoot: string): {
 
   if (!existsSync(envPath)) {
     return {
-      missing: REQUIRED_ENV_VARS.filter((v) => v.required).map((v) => v.name),
+      missing: keysFor(options)
+        .filter((v) => v.required)
+        .map((v) => v.name),
       invalid: [],
       warnings: [".env file not found - will be auto-generated"],
     };
@@ -199,7 +222,7 @@ export function validateEnvFile(projectRoot: string): {
 
   const env = parseEnv(readFileSync(envPath, "utf-8"));
 
-  for (const envVar of REQUIRED_ENV_VARS) {
+  for (const envVar of keysFor(options)) {
     if (envVar.required && !env.has(envVar.name)) {
       result.missing.push(envVar.name);
     }
@@ -245,17 +268,17 @@ function replaceEmptyEnvValue(line: string, name: string, value: string): string
  *
  * @returns the names that were added or filled in, empty when the file was already complete
  */
-export function completeEnvFile(projectRoot: string): string[] {
+export function completeEnvFile(projectRoot: string, options?: EnvKeyOptions): string[] {
   const envPath = join(projectRoot, ".env");
 
   if (!existsSync(envPath)) {
-    writeFileSync(envPath, generateEnvFile(), { mode: 0o600 });
-    return REQUIRED_ENV_VARS.map((v) => v.name);
+    writeFileSync(envPath, generateEnvFile(options), { mode: 0o600 });
+    return keysFor(options).map((v) => v.name);
   }
 
   const existing = readFileSync(envPath, "utf-8");
   const env = parseEnv(existing);
-  const toComplete = REQUIRED_ENV_VARS.filter((v) => {
+  const toComplete = keysFor(options).filter((v) => {
     if (!v.complete) return false;
     if (!env.has(v.name)) return true;
     return !(env.get(v.name) ?? "").trim();

@@ -5,6 +5,17 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeTextFileAtomic } from "./atomic-write.js";
 import { FliskError } from "./errors.js";
+/**
+ * The keys that exist only for the shared PostgreSQL. A project that does not use it does not need them (#3200).
+ * DATABASE_URL is built from the generated DB_PASSWORD, so it goes with it. JWT_SECRET is not listed: every Compose entry
+ * requires it, so it is always kept.
+ */
+const SHARED_DATABASE_KEY_NAMES = ["DB_PASSWORD", "DATABASE_URL"];
+function keysFor(options) {
+    return options?.databaseKeys === false
+        ? REQUIRED_ENV_VARS.filter((v) => !SHARED_DATABASE_KEY_NAMES.includes(v.name))
+        : REQUIRED_ENV_VARS;
+}
 const REQUIRED_ENV_VARS = [
     {
         name: "VERDACCIO_URL_DOCKER",
@@ -132,7 +143,7 @@ function describe(envVar) {
         lines.push(`# Example: ${envVar.example}`);
     return lines;
 }
-export function generateEnvFile() {
+export function generateEnvFile(options) {
     const password = generateDbPassword();
     const lines = [
         "# 🔧 Flisk Environment Configuration",
@@ -142,7 +153,7 @@ export function generateEnvFile() {
         "# After editing, run: flisk config regenerate && flisk up",
         "",
     ];
-    for (const envVar of REQUIRED_ENV_VARS) {
+    for (const envVar of keysFor(options)) {
         lines.push(...describe(envVar));
         lines.push(`${envVar.name}=${generatedValue(envVar.name, password)}`);
         lines.push("");
@@ -156,7 +167,7 @@ function urlPassword(url) {
         return undefined;
     return match[1];
 }
-export function validateEnvFile(projectRoot) {
+export function validateEnvFile(projectRoot, options) {
     const envPath = join(projectRoot, ".env");
     const result = {
         missing: [],
@@ -165,13 +176,15 @@ export function validateEnvFile(projectRoot) {
     };
     if (!existsSync(envPath)) {
         return {
-            missing: REQUIRED_ENV_VARS.filter((v) => v.required).map((v) => v.name),
+            missing: keysFor(options)
+                .filter((v) => v.required)
+                .map((v) => v.name),
             invalid: [],
             warnings: [".env file not found - will be auto-generated"],
         };
     }
     const env = parseEnv(readFileSync(envPath, "utf-8"));
-    for (const envVar of REQUIRED_ENV_VARS) {
+    for (const envVar of keysFor(options)) {
         if (envVar.required && !env.has(envVar.name)) {
             result.missing.push(envVar.name);
         }
@@ -211,15 +224,15 @@ function replaceEmptyEnvValue(line, name, value) {
  *
  * @returns the names that were added or filled in, empty when the file was already complete
  */
-export function completeEnvFile(projectRoot) {
+export function completeEnvFile(projectRoot, options) {
     const envPath = join(projectRoot, ".env");
     if (!existsSync(envPath)) {
-        writeFileSync(envPath, generateEnvFile(), { mode: 0o600 });
-        return REQUIRED_ENV_VARS.map((v) => v.name);
+        writeFileSync(envPath, generateEnvFile(options), { mode: 0o600 });
+        return keysFor(options).map((v) => v.name);
     }
     const existing = readFileSync(envPath, "utf-8");
     const env = parseEnv(existing);
-    const toComplete = REQUIRED_ENV_VARS.filter((v) => {
+    const toComplete = keysFor(options).filter((v) => {
         if (!v.complete)
             return false;
         if (!env.has(v.name))
