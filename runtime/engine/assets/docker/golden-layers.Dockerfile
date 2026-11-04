@@ -185,8 +185,8 @@ LABEL layer="l4-migrator"       description="Migrator runtime with Prisma"      
 
 ENV NODE_ENV=production
 
-# Copy global Prisma installation from L3 (l3-backend carries the same pinned Prisma)
-COPY --from=l3_backend_golden /root/.bun/install/global /root/.bun/install/global
+# No global Prisma copy: it lived under /root (mode 0700), unreadable by the bun user, so it was
+# 294 MB of dead weight. Derived migrators install Prisma into their own node_modules.
 
 # ⚠️ Infisical CLI is NOT included in golden L4 images
 # The migrator reads secrets directly from environment variables at runtime
