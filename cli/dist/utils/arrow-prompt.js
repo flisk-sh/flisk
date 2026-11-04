@@ -73,10 +73,31 @@ export function renderMenu(frame) {
 export function renderAnswered(message, answer) {
     return `${chalk.green("◇")} ${message}  ${chalk.dim(answer)}`;
 }
-/** The visible width of a line: colour codes do not take up columns. */
-function visibleWidth(line) {
+/** East Asian wide and fullwidth blocks (CJK, Hangul, kana, fullwidth forms): two terminal columns each. */
+const WIDE = /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}]/u;
+/** How many terminal columns one character takes: 0 for joiners and combining marks, 2 for wide text and emoji. */
+export function cellWidth(char) {
+    const code = char.codePointAt(0) ?? 0;
+    // Zero-width spaces and joiners, and variation selectors.
+    if ((code >= 0x200b && code <= 0x200f) || (code >= 0xfe00 && code <= 0xfe0f))
+        return 0;
+    if (/\p{Mn}|\p{Me}/u.test(char))
+        return 0;
+    if (WIDE.test(char))
+        return 2;
+    // Emoji are two columns; text-style symbols such as © and ™ are pictographic too but print one column wide.
+    if (/\p{Extended_Pictographic}/u.test(char))
+        return code < 0x2000 ? 1 : 2;
+    return 1;
+}
+/** The visible width of a line in terminal columns: colour codes take none, wide characters two. */
+export function visibleWidth(line) {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences are control codes
-    return [...line.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")].length;
+    const plain = line.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+    let width = 0;
+    for (const char of plain)
+        width += cellWidth(char);
+    return width;
 }
 /**
  * How many terminal lines a frame takes. A row wider than the terminal wraps onto more lines, and the cursor can only
@@ -93,7 +114,17 @@ export function fitRow(row, columns) {
         return row;
     // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences are control codes
     const plain = row.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
-    return `${[...plain].slice(0, max - 1).join("")}…`;
+    // Cut by columns, not characters, so a wide character never pushes the row past the edge.
+    let kept = "";
+    let width = 0;
+    for (const char of plain) {
+        const next = cellWidth(char);
+        if (width + next > max - 1)
+            break;
+        kept += char;
+        width += next;
+    }
+    return `${kept}…`;
 }
 /** Clears the last `lines` terminal lines the cursor is below, and puts the cursor back at the first. */
 function eraseRows(output, lines) {

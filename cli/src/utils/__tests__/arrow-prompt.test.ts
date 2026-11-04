@@ -6,6 +6,7 @@ import {
   arrowMultiSelect,
   arrowSelect,
   arrowText,
+  cellWidth,
   filterChoices,
   fitRow,
   framedLines,
@@ -14,6 +15,7 @@ import {
   PromptCancelled,
   type PromptStreams,
   renderMenu,
+  visibleWidth,
 } from "../arrow-prompt.js";
 
 /** The menu text of one frame: ANSI and frame separators removed, rows split. */
@@ -267,6 +269,20 @@ describe("arrowText", () => {
 });
 
 describe("fitting a frame to the terminal", () => {
+  it("counts terminal columns: wide text and emoji take two, joiners and marks none", () => {
+    expect(cellWidth("a")).toBe(1);
+    expect(cellWidth("寿")).toBe(2);
+    expect(cellWidth("한")).toBe(2);
+    expect(cellWidth("🍣")).toBe(2);
+    expect(cellWidth("\u200D")).toBe(0);
+    expect(cellWidth("\u0301")).toBe(0);
+    expect(cellWidth("©")).toBe(1);
+    expect(visibleWidth("\x1b[36m寿司\x1b[39m ok")).toBe(7);
+    // Ten wide characters are twenty columns: two lines at width 10, and a cut row never passes the edge.
+    expect(framedLines(["寿".repeat(10)], 10)).toBe(2);
+    expect(visibleWidth(fitRow("寿".repeat(30), 20))).toBeLessThanOrEqual(19);
+  });
+
   it("framedLines counts the lines a row takes at a given width", () => {
     expect(framedLines(["short", "also short"], 80)).toBe(2);
     expect(framedLines(["012345678 0123456789"], 20)).toBe(1);

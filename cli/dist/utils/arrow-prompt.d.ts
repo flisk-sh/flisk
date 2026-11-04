@@ -41,6 +41,10 @@ interface MenuFrame<T extends string> {
 export declare function renderMenu<T extends string>(frame: MenuFrame<T>): string[];
 /** The line left behind once an answer is given. */
 export declare function renderAnswered(message: string, answer: string): string;
+/** How many terminal columns one character takes: 0 for joiners and combining marks, 2 for wide text and emoji. */
+export declare function cellWidth(char: string): number;
+/** The visible width of a line in terminal columns: colour codes take none, wide characters two. */
+export declare function visibleWidth(line: string): number;
 /**
  * How many terminal lines a frame takes. A row wider than the terminal wraps onto more lines, and the cursor can only
  * move back over the lines it really printed, so a miscount leaves an old copy of the menu on screen.

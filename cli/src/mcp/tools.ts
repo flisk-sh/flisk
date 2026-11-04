@@ -355,6 +355,12 @@ export function buildResourceCreateArgs(args: Record<string, unknown>): string[]
   const runtime = optionalName(args.runtime, "runtime");
   const durability = optionalName(args.durability, "durability");
   const local = flag(args.local, "local");
+  // Same rule as `flisk resource --local`, checked here so an agent gets it as a tool error before any command runs.
+  if (local && type && type !== "frontend" && type !== "backend") {
+    throw new FliskError(`local applies to type frontend or backend, not ${type}`, [
+      "Leave local out to scaffold it for Docker and Tilt",
+    ]);
+  }
   const out = ["resource", name];
   if (type) out.push(`--type=${type}`);
   if (stack) out.push(`--stack=${stack}`);

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -8,7 +9,8 @@ import { renderLocalViteConfig } from "../../frontend-frameworks/local.js";
 import { FRONTEND_FRAMEWORKS } from "../../frontend-frameworks/registry.js";
 import { runFlisk } from "../../test-support/index.js";
 import type { FileGenerationTask } from "../../types/index.js";
-import { applyLocalScaffold } from "../resource-local.js";
+import { isPortListening } from "../native-runtime.js";
+import { applyLocalScaffold, localResourcePort } from "../resource-local.js";
 
 const viteSpaFrameworks = Object.values(FRONTEND_FRAMEWORKS).filter(
   (provider) => (provider.kind ?? "vite-spa") === "vite-spa",
@@ -214,5 +216,24 @@ describe("flisk resource --local (the real CLI)", () => {
     });
     expect(run.status).not.toBe(0);
     expect(run.stdout + run.stderr).toContain("--local applies to frontend and backend");
+  });
+});
+
+describe("localResourcePort", () => {
+  it("moves past a port something on this computer really listens on, and past ports other resources hold", async () => {
+    // A real socket on a port the OS chose, standing in for "4000 is already taken by another program".
+    const busy = createServer();
+    await new Promise<void>((resolve) => busy.listen(0, "localhost", resolve));
+    const address = busy.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+    try {
+      expect(await isPortListening(port)).toBe(true);
+      const picked = await localResourcePort(port, false, [port + 1], isPortListening);
+      expect(picked).toBeGreaterThan(port + 1);
+      // An explicit --port is kept as given, busy or not.
+      expect(await localResourcePort(port, true, [], isPortListening)).toBe(port);
+    } finally {
+      await new Promise((resolve) => busy.close(resolve));
+    }
   });
 });

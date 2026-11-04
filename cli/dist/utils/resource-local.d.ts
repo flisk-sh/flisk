@@ -20,3 +20,8 @@ export interface LocalScaffoldInput {
  * dependencies and tests are the generator's own, untouched. Returns the command the service runs.
  */
 export declare function applyLocalScaffold(input: LocalScaffoldInput): string;
+/**
+ * The port a `--local` resource gets. An explicit --port is kept as given; otherwise the assigned port, or the next one
+ * that no other resource in the project uses and that nothing on this computer is listening on right now.
+ */
+export declare function localResourcePort(assignedPort: number, explicit: boolean, taken: readonly number[], isListening: (port: number) => Promise<boolean>): Promise<number>;

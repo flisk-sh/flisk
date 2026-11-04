@@ -1,5 +1,6 @@
 import { LOCAL_VITE_SCRIPTS, renderLocalViteConfig } from "../frontend-frameworks/local.js";
 import { FliskError } from "./errors.js";
+import { findFreePort } from "./native-demo.js";
 const taskNamed = (tasks, filename) => tasks.find((task) => task.filename === filename);
 /**
  * Turns a scaffold made for containers into one that runs on the host with no Docker and no Tilt.
@@ -64,4 +65,13 @@ export function applyLocalScaffold(input) {
     serviceJson.command = command;
     serviceJson.port = input.port;
     return command;
+}
+/**
+ * The port a `--local` resource gets. An explicit --port is kept as given; otherwise the assigned port, or the next one
+ * that no other resource in the project uses and that nothing on this computer is listening on right now.
+ */
+export async function localResourcePort(assignedPort, explicit, taken, isListening) {
+    if (explicit)
+        return assignedPort;
+    return findFreePort(assignedPort, isListening, taken);
 }

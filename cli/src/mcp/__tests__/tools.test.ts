@@ -229,6 +229,14 @@ describe("argument building", () => {
       "--yes",
     ]);
     expect(() => buildResourceCreateArgs({ name: "api", local: "yes" })).toThrow(/boolean/);
+    expect(buildResourceCreateArgs({ name: "web", type: "frontend", local: true })).toContain(
+      "--local",
+    );
+    for (const type of ["worker", "agent", "database", "queue", "mcp"]) {
+      expect(() => buildResourceCreateArgs({ name: "x", type, local: true }), type).toThrow(
+        /frontend or backend/,
+      );
+    }
     expect(
       buildResourceCreateArgs({
         name: "api",

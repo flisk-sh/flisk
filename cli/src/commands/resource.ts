@@ -75,13 +75,12 @@ import {
   replacementForRemovedType,
 } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
-import { findFreePort } from "../utils/native-demo.js";
 import { isPortListening } from "../utils/native-runtime.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
-import { applyLocalScaffold } from "../utils/resource-local.js";
+import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -1646,9 +1645,12 @@ This file contains the resource configuration for Flisk.
         const taken = allResources
           .map((resource) => resource.config?.port)
           .filter((port): port is number => typeof port === "number");
-        const localPort = options.port
-          ? assignedPort
-          : await findFreePort(assignedPort, isPortListening, taken);
+        const localPort = await localResourcePort(
+          assignedPort,
+          Boolean(options.port),
+          taken,
+          isPortListening,
+        );
         applyLocalScaffold({
           resourceName,
           resourceType,
