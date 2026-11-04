@@ -1,5 +1,5 @@
 import { CONTAINER_RUNTIME_CHECK } from "./constants.js";
-import { DISK_SPACE_CHECK } from "./doctor-host.js";
+import { DISK_SAFE_CLEANUP, DISK_SPACE_CHECK } from "./doctor-host.js";
 const POSIX = (platform) => platform === "darwin" || platform === "linux";
 function conflictingPort(result) {
     const match = /^\s*(\d{2,5}) \(/m.exec(result.message);
@@ -41,7 +41,9 @@ const RULES = {
     },
     "Docker Network Pool": { tier: 4, command: () => "flisk down --prune-networks" },
     "Docker networks": { tier: 4, command: () => "flisk down --prune-networks" },
-    [DISK_SPACE_CHECK]: { tier: 5, command: () => "docker system prune -af" },
+    // Build cache only: it frees the most after image builds and never removes an image, container or volume a running
+    // stack uses. `docker system prune -af` deleted every unused image, so the next `flisk up` rebuilt them all.
+    [DISK_SPACE_CHECK]: { tier: 5, command: () => DISK_SAFE_CLEANUP },
     "Flisk installs": { tier: 6, command: () => "flisk upgrade" },
     "Flisk version": { tier: 6, command: () => "flisk upgrade" },
     "Master Configs": { tier: 7, command: () => "flisk project" },

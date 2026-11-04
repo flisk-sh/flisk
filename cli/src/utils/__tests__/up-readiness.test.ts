@@ -14,9 +14,57 @@ const item = (name: string, updateStatus: string, runtimeStatus: string) => ({
   status: { updateStatus, runtimeStatus },
 });
 const json = (...items: unknown[]) => JSON.stringify({ items });
-const opts = { intervalMs: 1, deferred: new Set<string>() };
+const opts = { intervalMs: 1, deferred: new Set<string>(), failureGraceMs: 0 };
 
 describe("waitForTiltResourcesReady", () => {
+  const unhealthy = (name: string) => ({
+    metadata: { name },
+    status: {
+      updateStatus: "ok",
+      runtimeStatus: "ok",
+      composeResourceInfo: { healthStatus: "unhealthy" },
+    },
+  });
+  it("keeps waiting while a container that built is failing at runtime, and reports it ready once it recovers", async () => {
+    // First start of a database: its health check fails while it initialises, then it comes up.
+    let clock = 0;
+    const responses = [
+      json(item("api", "ok", "ok"), unhealthy("db")),
+      json(item("api", "ok", "ok"), unhealthy("db")),
+      json(item("api", "ok", "ok"), item("db", "ok", "ok")),
+    ];
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 60_000,
+      now: () => (clock += 1_000),
+      fetchJson: async () => responses.shift() ?? null,
+    });
+    expect(result.ready).toBe(true);
+    expect(result.failures).toEqual([]);
+  });
+  it("reports a runtime failure that has not recovered once the grace window is over", async () => {
+    let clock = 0;
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 5_000,
+      now: () => (clock += 1_000),
+      fetchJson: async () => json(item("api", "ok", "ok"), unhealthy("db")),
+    });
+    expect(result).toMatchObject({ ready: false, timedOut: false });
+    expect(result.failures.map((f) => f.name)).toEqual(["db"]);
+    expect(clock).toBeGreaterThanOrEqual(5_000);
+  });
+  it("stops at once on a build error: it cannot recover by itself", async () => {
+    let clock = 0;
+    const result = await waitForTiltResourcesReady(1, {
+      ...opts,
+      failureGraceMs: 60_000,
+      now: () => (clock += 1_000),
+      fetchJson: async () => json(item("api", "ok", "ok"), item("db", "error", "none")),
+    });
+    expect(result.ready).toBe(false);
+    expect(clock).toBeLessThan(5_000);
+  });
   it("waits for pending resources, then reports ready", async () => {
     const responses = [
       json(item("api", "pending", "pending")),
@@ -53,7 +101,11 @@ describe("waitForTiltResourcesReady", () => {
     expect(responses).toEqual([]);
     expect(result).toMatchObject({ ready: false, timedOut: false });
     expect(result.failures).toEqual([
-      { name: "postgres", message: "container is running, but its health check is failing" },
+      {
+        name: "postgres",
+        message: "container is running, but its health check is failing",
+        runtime: true,
+      },
     ]);
   });
   it("ignores deferred resources", async () => {

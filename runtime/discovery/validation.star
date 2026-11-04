@@ -48,6 +48,10 @@ def validate(manifest):
             issues.append("Missing required field: port")
     elif type(port) != "int":
         issues.append("Invalid port: " + str(port) + ". Must be an integer")
+    elif app_type == "bring-your-own":
+        # Same rule as manifest/validation.star: the port its own container listens on, so an imported Compose app keeps 80.
+        if port < 1 or port > 65535:
+            issues.append("Invalid port: " + str(port) + ". Must be integer 1-65535")
     elif app_type != "infra":
         if port < 3000 or port > 9999:
             issues.append("Invalid port: " + str(port) + ". Must be integer 3000-9999")

@@ -6,6 +6,20 @@ import { defaultDockerRunner } from "./docker-build-cache.js";
 import { findProjectRoot } from "./paths.js";
 import { findOnPath } from "./which.js";
 export const DOCKER_FILE_SHARING_CHECK = "Docker File Sharing";
+/** What Docker prints when it refuses a bind mount, as opposed to failing to run the probe at all. */
+const MOUNT_DENIED = /mounts? denied|not shared from the host|file sharing|invalid mount|bind source path|error while creating mount|permission denied/i;
+function probeErrorText(error) {
+    if (!error || typeof error !== "object")
+        return String(error ?? "");
+    const { stderr, message } = error;
+    return [stderr, message].filter((part) => typeof part === "string" && part).join("\n");
+}
+function firstLine(text) {
+    return (text
+        .split("\n")
+        .map((line) => line.trim())
+        .find(Boolean) ?? "");
+}
 export function formatDockerFileSharingFix(projectFolder) {
     return [
         `Share ${projectFolder} with Docker so bind mounts reach the host:`,
@@ -48,9 +62,21 @@ export async function checkDockerFileSharing(options = {}) {
                 `echo 1 > /flisk-probe/${probeName}`,
             ]);
         }
-        catch {
+        catch (error) {
             // If docker run fails (e.g. Docker explicitly denies the mount), check if the file was created
             if (!existsSync(probeHostPath)) {
+                const detail = probeErrorText(error);
+                if (!MOUNT_DENIED.test(detail)) {
+                    // The probe container never ran (the image could not be pulled, the engine refused it, it timed out), so this
+                    // says nothing about file sharing. Reporting it as a sharing failure sent WSL2 users to a setting that does not
+                    // apply to them while their bind mounts worked.
+                    return {
+                        name: DOCKER_FILE_SHARING_CHECK,
+                        didPass: true,
+                        isSkipped: true,
+                        message: `Could not run the file sharing probe (${firstLine(detail) || "docker run failed"}); file sharing was not tested`,
+                    };
+                }
                 return {
                     name: DOCKER_FILE_SHARING_CHECK,
                     didPass: false,

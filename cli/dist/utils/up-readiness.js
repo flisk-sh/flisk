@@ -89,11 +89,13 @@ export function evaluateTiltReadiness(jsonText, deferred, expected, disabledHeal
     // A `<service>-typecheck` resource runs on the host and is advisory: it reports type errors
     // in Tilt, it does not decide whether the stack is up. It must not fail the stack.
     const blocking = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
+    const unhealthyButRunning = unhealthyRunningNames(jsonText);
     let result = {
         ready: blocking.length === 0 && parsed.pendingCount === 0 && parsed.okCount > 0,
         failures: blocking.map((failure) => ({
             name: failure.name,
             message: failure.error || `${failure.updateStatus}/${failure.runtimeStatus}`,
+            ...(unhealthyButRunning.has(failure.name) ? { runtime: true } : {}),
         })),
         pending: parsed.pendingCount,
         timedOut: false,
@@ -188,6 +190,38 @@ function stateFingerprint(jsonText) {
     }
 }
 /**
+ * Containers that built and are running but whose health check fails. Unlike an exited container (a migrator that failed,
+ * a crash) these can still turn healthy by themselves.
+ */
+function unhealthyRunningNames(jsonText) {
+    try {
+        const parsed = JSON.parse(jsonText);
+        return new Set((parsed.items ?? [])
+            .filter((item) => item.status?.updateStatus !== "error" &&
+            item.status
+                ?.composeResourceInfo?.healthStatus === "unhealthy")
+            .map((item) => item.metadata?.name));
+    }
+    catch {
+        return new Set();
+    }
+}
+/** How long `flisk up` keeps waiting on a container that built but is failing at runtime before it reports a failure. */
+export const DEFAULT_FAILURE_GRACE_MS = 120_000;
+/**
+ * True while every failure is a runtime one (the image built; the container is unhealthy or restarting) and the failures
+ * began less than `graceMs` ago. A database on its first start initialises its data directory and fails its health check
+ * for a while: `flisk up` used to print "db failed" and stop waiting, and a few minutes later every container was healthy.
+ * A build error never recovers by itself, so it still ends the wait at once.
+ */
+export function withinFailureGrace(result, failingSince, now, graceMs) {
+    if (failingSince === null || result.failures.length === 0)
+        return false;
+    if (!result.failures.every((failure) => failure.runtime === true))
+        return false;
+    return now - failingSince < graceMs;
+}
+/**
  * Waits until every non-deferred Tilt resource is built and running. Resolves not-ready as soon as the rest has settled
  * with an errored resource, or after a period of no progress (progress-aware timeout). While builds or image pulls
  * produce output, the wait does not time out. Sablier-deferred resources are excluded: they stay idle by design.
@@ -203,6 +237,9 @@ export async function waitForTiltResourcesReady(port, options = {}) {
     const deferred = options.deferred ?? getDeferredResourceNames();
     const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
     const now = options.now ?? Date.now;
+    const failureGraceMs = options.failureGraceMs ??
+        Number(process.env.FLISK_UP_FAILURE_GRACE_MS ?? DEFAULT_FAILURE_GRACE_MS);
+    let failingSince = null;
     let lastProgressAt = now();
     let previousFingerprint = "";
     const previousLogLengths = new Map();
@@ -221,10 +258,15 @@ export async function waitForTiltResourcesReady(port, options = {}) {
             try {
                 const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth);
                 last = evaluation.result;
-                if (evaluation.settled)
+                failingSince = last.failures.length > 0 ? (failingSince ?? now()) : null;
+                if (evaluation.settled && !withinFailureGrace(last, failingSince, now(), failureGraceMs)) {
                     return last;
-                if (last.failures.length > 0 && options.isStalled?.(text))
+                }
+                if (last.failures.length > 0 &&
+                    !withinFailureGrace(last, failingSince, now(), failureGraceMs) &&
+                    options.isStalled?.(text)) {
                     return last;
+                }
                 const currentFingerprint = stateFingerprint(text);
                 if (currentFingerprint !== previousFingerprint) {
                     previousFingerprint = currentFingerprint;

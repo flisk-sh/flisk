@@ -98,6 +98,11 @@ export interface ImportOptions {
 }
 export declare function resolveImportOptions(options?: ImportOptions, cmd?: Command): ImportOptions;
 export declare function executeImport(args: string[], options?: ImportOptions, commandName?: string): Promise<void>;
+/**
+ * Without a terminal the importer cannot ask its (Y/n) question: it wrote nothing and exited 0, which a coding agent or CI
+ * job reads as success. A run that would write, with no `--yes` and no stdin TTY, is refused with exit 1 before it starts.
+ */
+export declare function nonInteractiveRefusal(forwardedArgs: string[], commandName?: string, isTTY?: boolean): string | null;
 export declare const composeCommand: Command;
 /**
  * `flisk import tiltfile` registers an existing Tiltfile as the project's orchestration source. flisk-import (0.4.1 or later)

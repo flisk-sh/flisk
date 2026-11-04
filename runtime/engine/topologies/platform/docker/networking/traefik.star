@@ -210,6 +210,38 @@ def _byo_web_ui_labels(resource_entry_name, traefik_resource_name, internal_port
     return labels
 
 
+def _regex_literal(path):
+    """`path` as a Go regexp literal for a Traefik label. `[.]` instead of `\\.`: a backslash is an escape in a YAML string."""
+    return path.replace(".", "[.]")
+
+
+def _trailing_slash_redirect_labels(router_name, service_name, api_path, entrypoints, base_priority):
+    """A GET/HEAD to the bare `/api/<name>` redirects to `/api/<name>/` (bring-your-own services only).
+
+    The `-project` router strips `/api/<name>`, so a page served at the bare prefix resolves its relative links (`./`,
+    `static/app.css`) against `/api/`, where nothing is routed: the form posts 404 and the assets never load. A browser
+    that lands on `/api/<name>/` resolves them under the prefix. Only GET and HEAD redirect, so an API client's POST to
+    the bare path still reaches the service unchanged; the query string is kept.
+    """
+    return """
+      - "traefik.http.routers.{router_name}-slash.rule=Host(`{api_host}`) && Path(`{api_path}`) && (Method(`GET`) || Method(`HEAD`))"
+      - "traefik.http.routers.{router_name}-slash.entrypoints={entrypoints}"
+      - "traefik.http.routers.{router_name}-slash.service={service_name}"
+      - "traefik.http.routers.{router_name}-slash.middlewares={router_name}-slash"
+      - "traefik.http.routers.{router_name}-slash.priority={priority}"
+      - "traefik.http.middlewares.{router_name}-slash.redirectregex.regex=^(https?://[^/?]+{path_regex})([?].*)?$$"
+      - "traefik.http.middlewares.{router_name}-slash.redirectregex.replacement=$${{1}}/$${{2}}"
+""".format(
+        router_name=router_name,
+        api_host=TRAEFIK_PROJECT_API_HOST,
+        api_path=api_path,
+        entrypoints=entrypoints,
+        service_name=service_name,
+        priority=base_priority + 1,
+        path_regex=_regex_literal(api_path),
+    )
+
+
 def get_backend_traefik_labels(
     resource_entry_name,
     traefik_host,
@@ -365,6 +397,9 @@ def get_backend_traefik_labels(
             api_path=api_path,
             router_priority=router_priority,
         )
+
+        if manifest.get("appType") == "bring-your-own":
+            labels += _trailing_slash_redirect_labels(router_name, service_name, api_path, project_entrypoints, router_priority)
 
         if management_path and management_path != api_path and not stack_shared:
             labels += """

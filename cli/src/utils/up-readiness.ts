@@ -16,7 +16,8 @@ export { findStaleDisabledResources };
 
 export interface ReadinessResult {
   ready: boolean;
-  failures: Array<{ name: string; message: string }>;
+  /** `runtime` is true when the container is still running but its health check fails (it may still recover). */
+  failures: Array<{ name: string; message: string; runtime?: boolean }>;
   pending: number;
   timedOut: boolean;
   /** Names of the resources Tilt has enabled (everything not `Disabled`), so callers report what actually started. */
@@ -155,11 +156,13 @@ export function evaluateTiltReadiness(
   // A `<service>-typecheck` resource runs on the host and is advisory: it reports type errors
   // in Tilt, it does not decide whether the stack is up. It must not fail the stack.
   const blocking = parsed.failures.filter((failure) => !isAdvisoryResource(failure.name));
+  const unhealthyButRunning = unhealthyRunningNames(jsonText);
   let result: ReadinessResult = {
     ready: blocking.length === 0 && parsed.pendingCount === 0 && parsed.okCount > 0,
     failures: blocking.map((failure) => ({
       name: failure.name,
       message: failure.error || `${failure.updateStatus}/${failure.runtimeStatus}`,
+      ...(unhealthyButRunning.has(failure.name) ? { runtime: true } : {}),
     })),
     pending: parsed.pendingCount,
     timedOut: false,
@@ -265,6 +268,48 @@ function stateFingerprint(jsonText: string): string {
 }
 
 /**
+ * Containers that built and are running but whose health check fails. Unlike an exited container (a migrator that failed,
+ * a crash) these can still turn healthy by themselves.
+ */
+function unhealthyRunningNames(jsonText: string): Set<string> {
+  try {
+    const parsed = JSON.parse(jsonText) as { items?: TiltItem[] };
+    return new Set(
+      (parsed.items ?? [])
+        .filter(
+          (item) =>
+            item.status?.updateStatus !== "error" &&
+            (item.status as { composeResourceInfo?: { healthStatus?: string } } | undefined)
+              ?.composeResourceInfo?.healthStatus === "unhealthy",
+        )
+        .map((item) => item.metadata?.name as string),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/** How long `flisk up` keeps waiting on a container that built but is failing at runtime before it reports a failure. */
+export const DEFAULT_FAILURE_GRACE_MS = 120_000;
+
+/**
+ * True while every failure is a runtime one (the image built; the container is unhealthy or restarting) and the failures
+ * began less than `graceMs` ago. A database on its first start initialises its data directory and fails its health check
+ * for a while: `flisk up` used to print "db failed" and stop waiting, and a few minutes later every container was healthy.
+ * A build error never recovers by itself, so it still ends the wait at once.
+ */
+export function withinFailureGrace(
+  result: ReadinessResult,
+  failingSince: number | null,
+  now: number,
+  graceMs: number,
+): boolean {
+  if (failingSince === null || result.failures.length === 0) return false;
+  if (!result.failures.every((failure) => failure.runtime === true)) return false;
+  return now - failingSince < graceMs;
+}
+
+/**
  * Waits until every non-deferred Tilt resource is built and running. Resolves not-ready as soon as the rest has settled
  * with an errored resource, or after a period of no progress (progress-aware timeout). While builds or image pulls
  * produce output, the wait does not time out. Sablier-deferred resources are excluded: they stay idle by design.
@@ -283,6 +328,8 @@ export async function waitForTiltResourcesReady(
     isStalled?: (jsonText: string) => boolean;
     /** Resource names whose health checks are disabled. */
     disabledHealth?: Set<string>;
+    /** How long a runtime-only failure may recover before the wait gives up on it (FLISK_UP_FAILURE_GRACE_MS). */
+    failureGraceMs?: number;
     now?: () => number;
   } = {},
 ): Promise<ReadinessResult> {
@@ -297,6 +344,10 @@ export async function waitForTiltResourcesReady(
   const deferred = options.deferred ?? getDeferredResourceNames();
   const disabledHealth = options.disabledHealth ?? getDisabledHealthResourceNames();
   const now = options.now ?? Date.now;
+  const failureGraceMs =
+    options.failureGraceMs ??
+    Number(process.env.FLISK_UP_FAILURE_GRACE_MS ?? DEFAULT_FAILURE_GRACE_MS);
+  let failingSince: number | null = null;
 
   let lastProgressAt = now();
   let previousFingerprint = "";
@@ -317,8 +368,17 @@ export async function waitForTiltResourcesReady(
       try {
         const evaluation = evaluateTiltReadiness(text, deferred, options.expected, disabledHealth);
         last = evaluation.result;
-        if (evaluation.settled) return last;
-        if (last.failures.length > 0 && options.isStalled?.(text)) return last;
+        failingSince = last.failures.length > 0 ? (failingSince ?? now()) : null;
+        if (evaluation.settled && !withinFailureGrace(last, failingSince, now(), failureGraceMs)) {
+          return last;
+        }
+        if (
+          last.failures.length > 0 &&
+          !withinFailureGrace(last, failingSince, now(), failureGraceMs) &&
+          options.isStalled?.(text)
+        ) {
+          return last;
+        }
 
         const currentFingerprint = stateFingerprint(text);
         if (currentFingerprint !== previousFingerprint) {

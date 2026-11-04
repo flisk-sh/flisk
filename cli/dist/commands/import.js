@@ -265,7 +265,29 @@ export async function executeImport(args, options = {}, commandName = "flisk imp
         return;
     }
     const forwardedArgs = buildForwardedImportArgs(args, options);
+    const refusal = nonInteractiveRefusal(forwardedArgs, commandName);
+    if (refusal) {
+        console.error(refusal);
+        process.exitCode = 1;
+        return;
+    }
     process.exitCode = await runImport(forwardedArgs);
+}
+/**
+ * Without a terminal the importer cannot ask its (Y/n) question: it wrote nothing and exited 0, which a coding agent or CI
+ * job reads as success. A run that would write, with no `--yes` and no stdin TTY, is refused with exit 1 before it starts.
+ */
+export function nonInteractiveRefusal(forwardedArgs, commandName = "flisk import", isTTY = Boolean(process.stdin.isTTY)) {
+    if (isTTY)
+        return null;
+    const answersItself = ["--yes", "--dry-run", "--help", "-h"].some((flag) => forwardedArgs.includes(flag));
+    if (answersItself)
+        return null;
+    return [
+        `${commandName}: no terminal to confirm the import, so nothing was written.`,
+        `-> Preview first: ${commandName} --dry-run`,
+        `-> Then write without a prompt: ${commandName} --yes (or --json)`,
+    ].join("\n");
 }
 export const composeCommand = addYesOption(new Command("compose"))
     .description("Import a directory's root docker-compose.yml, same as flisk import (runs flisk-import)")

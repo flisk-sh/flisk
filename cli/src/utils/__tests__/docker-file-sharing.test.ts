@@ -108,6 +108,28 @@ describe("checkDockerFileSharing", () => {
     expect(result.fix).toContain("File sharing");
   });
 
+  it("does not blame file sharing when the probe container could not run at all", async () => {
+    // A WSL2 user saw "Docker cannot access the project folder" while their bind mounts worked: the probe image pull failed.
+    const fakeRunner = async () => {
+      throw Object.assign(new Error("Command failed: docker run --rm alpine"), {
+        stderr:
+          "Unable to find image 'alpine:latest' locally\nError response from daemon: Get \"https://registry-1.docker.io/v2/\": net/http: TLS handshake timeout",
+      });
+    };
+
+    const result = await checkDockerFileSharing({
+      projectRoot: tempDir,
+      runner: fakeRunner,
+      hasDocker: true,
+    });
+
+    expect(result.didPass).toBe(true);
+    expect(result.isSkipped).toBe(true);
+    expect(result.message).toContain("file sharing was not tested");
+    expect(result.message).toContain("Unable to find image 'alpine:latest' locally");
+    expect(result.fix).toBeUndefined();
+  });
+
   it("skips when Docker CLI is not installed", async () => {
     const result = await checkDockerFileSharing({
       projectRoot: tempDir,

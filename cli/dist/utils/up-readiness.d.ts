@@ -3,9 +3,11 @@ import { findStaleDisabledResources } from "./doctor-runtime.js";
 export { findStaleDisabledResources };
 export interface ReadinessResult {
     ready: boolean;
+    /** `runtime` is true when the container is still running but its health check fails (it may still recover). */
     failures: Array<{
         name: string;
         message: string;
+        runtime?: boolean;
     }>;
     pending: number;
     timedOut: boolean;
@@ -48,6 +50,15 @@ export declare function evaluateTiltReadiness(jsonText: string, deferred: Set<st
 export declare function findBuildingResourceNames(jsonText: string, deferred?: Set<string>): string[];
 export declare function findPendingResourceNames(jsonText: string, deferred?: Set<string>): string[];
 export declare function formatTail(text: string, maxLines?: number): string;
+/** How long `flisk up` keeps waiting on a container that built but is failing at runtime before it reports a failure. */
+export declare const DEFAULT_FAILURE_GRACE_MS = 120000;
+/**
+ * True while every failure is a runtime one (the image built; the container is unhealthy or restarting) and the failures
+ * began less than `graceMs` ago. A database on its first start initialises its data directory and fails its health check
+ * for a while: `flisk up` used to print "db failed" and stop waiting, and a few minutes later every container was healthy.
+ * A build error never recovers by itself, so it still ends the wait at once.
+ */
+export declare function withinFailureGrace(result: ReadinessResult, failingSince: number | null, now: number, graceMs: number): boolean;
 /**
  * Waits until every non-deferred Tilt resource is built and running. Resolves not-ready as soon as the rest has settled
  * with an errored resource, or after a period of no progress (progress-aware timeout). While builds or image pulls
@@ -65,5 +76,7 @@ export declare function waitForTiltResourcesReady(port: number, options?: {
     isStalled?: (jsonText: string) => boolean;
     /** Resource names whose health checks are disabled. */
     disabledHealth?: Set<string>;
+    /** How long a runtime-only failure may recover before the wait gives up on it (FLISK_UP_FAILURE_GRACE_MS). */
+    failureGraceMs?: number;
     now?: () => number;
 }): Promise<ReadinessResult>;
