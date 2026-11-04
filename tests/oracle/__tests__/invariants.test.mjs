@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { INVARIANTS, checkScenario } from "../lib/invariants.mjs";
 
-const scenario = { seed: 5, shape: "byo-only", resources: [{ name: "w", kind: "bring-your-own", stack: "main" }], expect: { database: false, gateway: true, cycle: false, dangling: false } };
+const scenario = { seed: 5, shape: "byo-only", resources: [{ name: "w", kind: "bring-your-own", stack: "main", args: [] }], expect: { database: false, gateway: true, cycle: false, dangling: false } };
 const services = (db, gw = true) => [
 	{ capability: "gateway", isEnabled: gw, reason: "gw" },
 	{ capability: "database", isEnabled: db, reason: db ? "on" : "off" },
@@ -20,10 +20,13 @@ const agreeing = () => ({
 		{ name: "Circular dependencies", didPass: true, message: "none" },
 	] } } },
 	stacks: { json: { data: { stacks: [{ name: "main", resourceCount: 1 }] } } },
-	up: { code: 0, json: { data: { ok: true, unknownDependsOn: [] } } },
+	up: { code: 0, json: { data: { ok: true, services: ["w"], unknownDependsOn: [] } } },
 	projectJson: { optional_infra: {} },
 	specMaster: null,
 	staleVerify: null,
+	resources: { json: { data: { resources: [{ name: "w" }] } } },
+	upByStack: {},
+	render: { code: 0, stdout: 'services:\n  - type: web\n    name: "w"\n' },
 	compose: { code: 0, text: "name: main\n\nservices:\n  w:\n    init: true\n" },
 	env: { JWT_SECRET: "s", DB_PASSWORD: "pw", DATABASE_URL: "postgres://u:pw@h/db" },
 });
@@ -103,6 +106,7 @@ test("config verify out of sync, or doctor missing files verify accepted, is fla
 test("status resources that differ from what was scaffolded are flagged", () => {
 	const s = agreeing();
 	s.status.json.data.resources = [];
+	s.resources.json.data.resources = [];
 	assert.deepEqual(ids(s), ["status-lists-scaffolded-resources"]);
 });
 
@@ -183,4 +187,58 @@ test("a dangling dependsOn must be named by both verify and up --dry-run", () =>
 	assert.deepEqual(ids(s, sc), []);
 	s.up.json.data.unknownDependsOn = [];
 	assert.deepEqual(ids(s, sc), ["dependson-graph-agrees"]);
+});
+
+test("flisk resources and status listing different resources is flagged", () => {
+	const s = agreeing();
+	s.resources.json.data.resources = [];
+	assert.deepEqual(ids(s), ["resources-command-matches-status"]);
+});
+
+test("up --dry-run leaving out a resource is flagged", () => {
+	const s = agreeing();
+	s.up.json.data.services = [];
+	assert.deepEqual(ids(s), ["up-dry-run-lists-every-resource"]);
+});
+
+test("up --dry-run <stack> must start exactly that stack's resources", () => {
+	const s = agreeing();
+	s.upByStack = { main: { code: 0, json: { data: { services: ["w"] } } } };
+	assert.deepEqual(ids(s), []);
+	s.upByStack.main.json.data.services = [];
+	assert.deepEqual(ids(s), ["up-stack-focus-matches-stacks"]);
+	s.upByStack.main = { code: 1, error: "no envelope" };
+	assert.deepEqual(ids(s), ["up-stack-focus-matches-stacks"]);
+});
+
+test("render.yaml must list the HTTP resources and nothing else", () => {
+	const s = agreeing();
+	s.render.stdout = "services:\n";
+	assert.deepEqual(ids(s), ["render-exports-http-resources"]);
+	s.render = { code: 1, stdout: "" };
+	assert.deepEqual(ids(s), ["render-exports-http-resources"]);
+	const sc = { ...scenario, resources: [{ name: "job", kind: "worker", stack: "main" }] };
+	const t = agreeing();
+	t.status.json.data.resources = [{ name: "job", type: "worker" }];
+	t.status.json.data.stacks = [{ name: "main", resourceCount: 1, resources: ["job"] }];
+	t.resources.json.data.resources = [{ name: "job" }];
+	t.up.json.data.services = ["job"];
+	t.render = { code: 1, stdout: "" };
+	assert.deepEqual(ids(t, sc), [], "a worker serves no HTTP, so no render.yaml is right");
+});
+
+test("known gap #3243: export render refusing a python/go/rust backend is not a failure, any other refusal is", () => {
+	const sc = { ...scenario, resources: [{ name: "svc", kind: "backend", stack: "main", args: ["--language", "rust"] }] };
+	const s = agreeing();
+	s.status.json.data.resources = [{ name: "svc", type: "backend" }];
+	s.status.json.data.stacks = [{ name: "main", resourceCount: 1, resources: ["svc"] }];
+	s.resources.json.data.resources = [{ name: "svc" }];
+	s.up.json.data.services = ["svc"];
+	s.render = { code: 1, stdout: "", stderr: 'Error: Resource "svc" has neither a Dockerfile nor a package.json, so Render has nothing to build' };
+	assert.deepEqual(ids(s, sc), []);
+	s.render.stderr = "Error: something else";
+	assert.deepEqual(ids(s, sc), ["render-exports-http-resources"]);
+	s.render.stderr = 'Error: Resource "svc" has neither a Dockerfile nor a package.json';
+	const bun = { ...sc, resources: [{ ...sc.resources[0], args: [] }] };
+	assert.deepEqual(ids(s, bun), ["render-exports-http-resources"], "a bun backend has a Dockerfile, so the gap does not apply");
 });

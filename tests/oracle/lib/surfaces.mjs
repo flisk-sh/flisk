@@ -78,7 +78,7 @@ export function scaffold(scenario, dir) {
   if (scenario.infra) stale = readOnly(dir, ["config", "verify", "--json"]); // before regenerate: verify must notice the change
   // service.json is the source of the generated project files; a flisk up regenerates them, so the scenario does too.
   must("flisk config regenerate", runFlisk(dir, ["config", "regenerate"]));
-  return { staleVerify: stale };
+  return { staleVerify: stale, stacks: scenario.shape === "multi-stack" ? [...new Set(scenario.resources.map((r) => r.stack))] : [] };
 }
 
 function readOnly(dir, args) {
@@ -87,6 +87,11 @@ function readOnly(dir, args) {
 }
 
 // Every surface for one scaffolded project. A command that fails is recorded, not thrown: a crash is itself a finding.
+// `flisk up --dry-run <stack>` for each stack the scenario used (it starts nothing).
+function upByStack(dir, stacks) {
+  return Object.fromEntries(stacks.map((st) => [st, readOnly(dir, ["up", "--dry-run", st, "--json"])]));
+}
+
 export function collectSurfaces(dir, extra = {}) {
   const read = (args) => readOnly(dir, args);
   const text = (file) => { try { return readFileSync(path.join(dir, file), "utf8"); } catch { return null; } };
@@ -97,6 +102,9 @@ export function collectSurfaces(dir, extra = {}) {
     doctor: read(["doctor", "--json", "--no-ping"]),
     stacks: read(["stacks", "--json"]),
     up: read(["up", "--dry-run", "--json"]),
+    resources: read(["resources", "--json"]),
+    upByStack: upByStack(dir, extra.stacks ?? []),
+    render: runFlisk(dir, ["export", "render", "--dry-run"]),
     projectJson: JSON.parse(text(".flisk/project.json") ?? "{}"),
     specMaster: text(".flisk/.flisk-out/spec.master"),
     staleVerify: extra.staleVerify ?? null,

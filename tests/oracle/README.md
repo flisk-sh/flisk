@@ -26,7 +26,8 @@ Variables`, `Master Configs`) and never the Docker, Tilt or host ones, so its ve
 | doctor | `flisk doctor --json --no-ping`: the three project checks above |
 | env | the generated `.env` |
 | compose | `flisk export compose --dry-run` (bring-your-own resources only) |
-| stacks | `flisk stacks --json` |
+| stacks | `flisk stacks --json`, `flisk resources --json` |
+| render | `flisk export render --dry-run` |
 | up | `flisk up --dry-run --json` (`ok`, `unknownDependsOn`; starts nothing) |
 | project | `.flisk/project.json` `optional_infra` and the generated `spec.master` |
 | scenario | what the seed says the project is (the expected side) |
@@ -49,7 +50,11 @@ Variables`, `Master Configs`) and never the Docker, Tilt or host ones, so its ve
 14. `infra-flags-agree`: after `config enable-infra`/`disable-infra` and `regenerate`, `project.json` and `spec.master` carry the flags that were set.
 15. `verify-notices-unapplied-infra`: before `regenerate`, `config verify` reports the changed infra flags as out of sync.
 16. `dependson-graph-agrees`: a `dependsOn` cycle is refused by verify, doctor and `up --dry-run` alike; a dangling name is named by both verify and `up --dry-run`.
-17. `compose-matches-database-need`: exported Compose lists every bring-your-own resource and does not reference PostgreSQL or
+17. `resources-command-matches-status`: `flisk resources` and `flisk status` list the same resources.
+18. `up-dry-run-lists-every-resource`: `flisk up --dry-run` would start every resource (none when a cycle makes it refuse).
+19. `up-stack-focus-matches-stacks`: `flisk up --dry-run <stack>` starts exactly that stack's resources (multi-stack shape).
+20. `render-exports-http-resources`: `flisk export render` lists every HTTP-serving resource (backend, mcp, agent, frontend, bring-your-own) and no other.
+21. `compose-matches-database-need`: exported Compose lists every bring-your-own resource and does not reference PostgreSQL or
     `DB_PASSWORD` while the database is off.
 
 ## Seeds and replay
@@ -76,11 +81,13 @@ Failures use the shared bug-memory shape so a later PHANTOM step can turn them i
 - `databaseMode` (external, absent) and `authMode` (jwt, none): the CLI has no such switch to scaffold yet; tracked with the
   axes in #3239.
 - `.env` keys that are present but no longer needed (a BYO-only project keeps `DB_PASSWORD`): treated as harmless.
-- Multi-stack focus selection (`flisk up <stack>`).
 - Doctor's `Postgres credentials` check against a running volume.
 
 ## Observations that are not failures
 
+- Known gap [#3243](https://github.com/flisk-sh/flisk/issues/3243), found by ORACLE: `flisk export render` refuses a python, go or rust
+  backend that `flisk resource` just scaffolded (no Dockerfile until `flisk up`). `render-exports-http-resources` tolerates that
+  one message; delete the exemption when the issue is fixed.
 - A dangling `dependsOn` name: `flisk up` warns and ignores it (`up --dry-run` exits 0), while `config verify` reports it as an
   error (`valid: false`). The two agree on the name, so ORACLE passes it; whether the severities should match is a product
   decision.

@@ -192,6 +192,57 @@ export const INVARIANTS = [
 		},
 	},
 	{
+		id: "resources-command-matches-status",
+		surfaces: ["resources --json", "status --json resources"],
+		check: (s) => {
+			const a = s.resources?.json?.data?.resources;
+			const b = s.status?.json?.data?.resources;
+			if (!a || !b) return null;
+			const names = (list) => list.map((r) => r.name).sort().join(" ");
+			return names(a) === names(b) ? null : fail("resources-command-matches-status", `flisk resources lists ${names(b)} like status`, `flisk resources lists ${names(a)}`, ["resources", "status"]);
+		},
+	},
+	{
+		id: "up-dry-run-lists-every-resource",
+		surfaces: ["up --dry-run --json services", "status --json resources"],
+		check: (s, sc) => {
+			const services = s.up?.json?.data?.services;
+			if (!services || sc.expect.cycle) return null; // up refuses a cycle
+			const want = sc.resources.map((r) => r.name).sort().join(" ");
+			const got = [...services].sort().join(" ");
+			return want === got ? null : fail("up-dry-run-lists-every-resource", `up would start ${want}`, `up would start ${got}`, ["up"]);
+		},
+	},
+	{
+		id: "up-stack-focus-matches-stacks",
+		surfaces: ["up --dry-run <stack> --json services", "status --json stacks"],
+		check: (s) => {
+			const stacks = s.status?.json?.data?.stacks;
+			if (!stacks) return null;
+			for (const [stack, r] of Object.entries(s.upByStack ?? {})) {
+				const want = (stacks.find((x) => x.name === stack)?.resources ?? []).sort().join(" ");
+				const got = [...(r.json?.data?.services ?? [])].sort().join(" ");
+				if (want !== got) return fail("up-stack-focus-matches-stacks", `up ${stack} starts ${want || "(none)"}`, `up ${stack} would start ${got || (r.error ?? "(none)")}`, ["up", "status"]);
+			}
+			return null;
+		},
+	},
+	{
+		id: "render-exports-http-resources",
+		surfaces: ["export render --dry-run", "scaffold output"],
+		check: (s, sc) => {
+			if (!s.render) return null;
+			const http = ["backend", "mcp", "agent", "frontend", "bring-your-own"]; // `export render` exports every resource that serves HTTP
+			const want = sc.resources.filter((r) => http.includes(r.kind)).map((r) => r.name).sort().join(" ");
+			// Known gap #3243: a python, go or rust backend has no Dockerfile until `flisk up`, and export render refuses it.
+			const noDockerfile = sc.resources.some((r) => r.kind === "backend" && r.args.some((a) => ["python", "go", "rust"].includes(a)));
+			if (s.render.code !== 0 && noDockerfile && /has neither a Dockerfile nor a package\.json/.test(s.render.stderr ?? "")) return null;
+			if (s.render.code !== 0) return want ? fail("render-exports-http-resources", `render.yaml lists ${want}`, `export render exited ${s.render.code}`, ["render"]) : null;
+			const got = [...s.render.stdout.matchAll(/^ {2}- type: \w+\n {4}name: "([^"]+)"/gm)].map((m) => m[1]).sort().join(" ");
+			return want === got ? null : fail("render-exports-http-resources", `render.yaml lists ${want}`, `render.yaml lists ${got}`, ["render"]);
+		},
+	},
+	{
 		id: "compose-matches-database-need",
 		surfaces: ["export compose --dry-run", "status --json platformServices"],
 		check: (s, sc) => {
