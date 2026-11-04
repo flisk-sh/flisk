@@ -31,7 +31,9 @@ import { formatCount } from "../utils/formatting.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
+import { NATIVE_WINDOWS_NEXT_STEP } from "../utils/native-windows.js";
 import { findProjectRoot, getBuildCommit, getPackageVersion } from "../utils/paths.js";
+import { isWsl as detectWsl } from "../utils/platform.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
@@ -45,6 +47,7 @@ import { buildSmokePlans, readOnlySmokePlans, runSmokePlans, safeSmokeDeps, } fr
 import { checkToolchains } from "../utils/toolchain.js";
 import { findOnPath } from "../utils/which.js";
 import { checkWindowsDockerMode, checkWindowsHostConfiguration, checkWindowsRuntimeTools, } from "../utils/windows-doctor.js";
+import { checkDockerWslIntegration } from "../utils/wsl-integration.js";
 export { checkIngressPorts, checkPrivateNpmRegistry, checkTiltResourceHealth, summarizeServiceProbes, summarizeTiltBuildError, } from "../utils/doctor-runtime.js";
 export { checkDockerBuildCache, checkDockerFileSharing, checkPublicEnvSecrets, checkStarlarkLoadExports, };
 // A wedged Docker daemon makes `docker ps` block forever instead of failing,
@@ -63,7 +66,7 @@ export const DOCTOR_FIXES = {
     notProject: "flisk project --yes",
 };
 export const WSL2_DOCTOR_MESSAGE = "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
-export const NATIVE_WINDOWS_DOCTOR_MESSAGE = "Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
+export const NATIVE_WINDOWS_DOCTOR_MESSAGE = `Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md`;
 export const MIN_TILT_VERSION = [0, 25, 0];
 export const MIN_BUN_VERSION = [1, 2, 0];
 export function versionMeetsMinimum(raw, minimum) {
@@ -72,7 +75,7 @@ export function versionMeetsMinimum(raw, minimum) {
         return false;
     return isAtLeast(version, minimum);
 }
-export function checkWslProjectLocation(projectPath, strict, isWsl = process.platform === "linux" && Boolean(process.env.WSL_DISTRO_NAME)) {
+export function checkWslProjectLocation(projectPath, strict, isWsl = detectWsl()) {
     if (!isWsl) {
         return {
             name: "WSL project location",
@@ -1361,7 +1364,7 @@ export const doctorCommand = new Command("doctor")
             name: "Native Windows support",
             didPass: false,
             message: NATIVE_WINDOWS_DOCTOR_MESSAGE,
-            fix: "Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md",
+            fix: NATIVE_WINDOWS_NEXT_STEP,
         };
         // Keep Windows diagnostics behind the win32 platform check (Linux/macOS unchanged).
         const windowsChecks = [
@@ -1537,6 +1540,7 @@ export const doctorCommand = new Command("doctor")
         // Each project needs several networks; a full address pool fails `flisk up` late.
         requiresContainerRuntime("Docker Network Pool", () => checkDockerNetworkCapacity()),
         requiresContainerRuntime("Docker File Sharing", () => checkDockerFileSharing()),
+        () => checkDockerWslIntegration(),
         () => checkDuplicateFliskInstalls(),
     ];
     // Project checks both the container list and the local-process list run, in the same order in each.

@@ -4,6 +4,7 @@ import { existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { defaultDockerRunner } from "./docker-build-cache.js";
 import { findProjectRoot } from "./paths.js";
+import { isWsl } from "./platform.js";
 import { findOnPath } from "./which.js";
 export const DOCKER_FILE_SHARING_CHECK = "Docker File Sharing";
 /**
@@ -57,6 +58,14 @@ export function formatDockerFileSharingFix(projectFolder) {
  * the VM while the host folder remains empty.
  */
 export async function checkDockerFileSharing(options = {}) {
+    if (options.isWsl ?? isWsl()) {
+        return {
+            name: DOCKER_FILE_SHARING_CHECK,
+            didPass: true,
+            isSkipped: true,
+            message: "Running in WSL2 - Docker Desktop file sharing does not apply (see Docker WSL integration)",
+        };
+    }
     const hasDocker = options.hasDocker ?? Boolean(findOnPath("docker"));
     if (!hasDocker) {
         return {

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
+import { release as osRelease } from "node:os";
 import { delimiter, extname } from "node:path";
 
 export type FliskOs = "linux" | "darwin" | "windows";
@@ -55,4 +56,31 @@ export function pathLookups(binName: string, windows = isWindows()): string[] {
 
 export function pathDelimiter(windows = isWindows()): string {
   return windows ? ";" : delimiter;
+}
+
+/** Where Flisk is running, for advice that differs by host: native Windows, WSL2, Linux or macOS. */
+export type PlatformKind = "windows" | "wsl2" | "linux" | "macos" | "other";
+
+export interface PlatformProbe {
+  platform?: string;
+  env?: Record<string, string | undefined>;
+  /** The kernel release string (`os.release()`); WSL2 kernels contain "microsoft". */
+  release?: string;
+}
+
+/** True inside a WSL distribution (Linux kernel running under Windows). */
+export function isWsl(probe: PlatformProbe = {}): boolean {
+  const platform = probe.platform ?? process.platform;
+  if (platform !== "linux") return false;
+  const env = probe.env ?? process.env;
+  if (env.WSL_DISTRO_NAME || env.WSL_INTEROP) return true;
+  return /microsoft|wsl/i.test(probe.release ?? osRelease());
+}
+
+export function detectPlatformKind(probe: PlatformProbe = {}): PlatformKind {
+  const platform = probe.platform ?? process.platform;
+  if (platform === "win32") return "windows";
+  if (platform === "darwin") return "macos";
+  if (platform === "linux") return isWsl(probe) ? "wsl2" : "linux";
+  return "other";
 }

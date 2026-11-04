@@ -206,9 +206,12 @@ describe("flisk up success output", () => {
 
 describe("flisk up platform contract", () => {
   it("refuses native Windows unless the explicit escape hatch is set", () => {
-    expect(nativeWindowsUpRefusal("win32")).toBe(
+    const refusal = nativeWindowsUpRefusal("win32");
+    expect(refusal).toContain(
       "Landscape startup needs Ubuntu on WSL2. Native Windows runs only services that declare a command, as local processes.",
     );
+    expect(refusal).toContain("You are on Windows. Open Ubuntu (WSL2)");
+    expect(refusal).toContain("wsl --install -d Ubuntu");
     expect(nativeWindowsUpRefusal("win32", "0")).not.toBeNull();
     expect(nativeWindowsUpRefusal("win32", "1")).toBeNull();
     expect(nativeWindowsUpRefusal("linux")).toBeNull();

@@ -95,7 +95,9 @@ import {
 } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
+import { NATIVE_WINDOWS_NEXT_STEP } from "../utils/native-windows.js";
 import { findProjectRoot, getBuildCommit, getPackageVersion } from "../utils/paths.js";
+import { isWsl as detectWsl } from "../utils/platform.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
@@ -138,6 +140,7 @@ import {
   checkWindowsHostConfiguration,
   checkWindowsRuntimeTools,
 } from "../utils/windows-doctor.js";
+import { checkDockerWslIntegration } from "../utils/wsl-integration.js";
 
 export {
   checkIngressPorts,
@@ -173,8 +176,7 @@ export const DOCTOR_FIXES = {
 
 export const WSL2_DOCTOR_MESSAGE =
   "WSL2 detected. Use Docker Desktop WSL integration. Guide: docs/wsl2.md";
-export const NATIVE_WINDOWS_DOCTOR_MESSAGE =
-  "Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md";
+export const NATIVE_WINDOWS_DOCTOR_MESSAGE = `Native Windows cannot boot a Docker stack; services that declare a command run as local processes. For a Docker stack use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md`;
 
 export const MIN_TILT_VERSION = [0, 25, 0] as const;
 export const MIN_BUN_VERSION = [1, 2, 0] as const;
@@ -188,7 +190,7 @@ export function versionMeetsMinimum(raw: string, minimum: readonly number[]): bo
 export function checkWslProjectLocation(
   projectPath: string,
   strict: boolean,
-  isWsl = process.platform === "linux" && Boolean(process.env.WSL_DISTRO_NAME),
+  isWsl = detectWsl(),
 ): CheckResult {
   if (!isWsl) {
     return {
@@ -1680,7 +1682,7 @@ export const doctorCommand = new Command("doctor")
         name: "Native Windows support",
         didPass: false,
         message: NATIVE_WINDOWS_DOCTOR_MESSAGE,
-        fix: "Use WSL2 Ubuntu with Docker Desktop integration. Guide: docs/wsl2.md",
+        fix: NATIVE_WINDOWS_NEXT_STEP,
       };
       // Keep Windows diagnostics behind the win32 platform check (Linux/macOS unchanged).
       const windowsChecks: CheckResult[] = [
@@ -1880,6 +1882,7 @@ export const doctorCommand = new Command("doctor")
       // Each project needs several networks; a full address pool fails `flisk up` late.
       requiresContainerRuntime("Docker Network Pool", () => checkDockerNetworkCapacity()),
       requiresContainerRuntime("Docker File Sharing", () => checkDockerFileSharing()),
+      () => checkDockerWslIntegration(),
       () => checkDuplicateFliskInstalls(),
     ];
     // Project checks both the container list and the local-process list run, in the same order in each.

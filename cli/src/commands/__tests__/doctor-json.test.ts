@@ -156,7 +156,7 @@ describe("doctor JSON command", () => {
       expect(report.data.ready).toBe(false);
       expect(report.data.checks[0].name).toBe("Native Windows support");
       expect(report.data.checks[0].message).toBe(NATIVE_WINDOWS_DOCTOR_MESSAGE);
-      expect(report.data.checks[0].fix).toContain("WSL2 Ubuntu");
+      expect(report.data.checks[0].fix).toContain("Open Ubuntu (WSL2)");
       expect(report.data.checks.map((check: CheckResult) => check.name)).toEqual([
         "Native Windows support",
         "Windows Runtime Tools",
