@@ -189,6 +189,18 @@ export function describeRequirements(
   return missing.length > 0 ? `${list}. Not found on this machine: ${missing.join(", ")}` : list;
 }
 
+/** The programs a local project needs that are not on this machine. */
+export function missingPrograms(
+  answers: CreateAnswers,
+  onPath: (program: string) => boolean = () => true,
+): string[] {
+  if (answers.starter || answers.runtime === "docker") return [];
+  return localRequirements({
+    frontend: answers.frontend !== undefined,
+    language: answers.backend?.language,
+  }).filter((program) => !onPath(program));
+}
+
 /** The parts the plan creates, for the review. */
 export function describeParts(answers: CreateAnswers, steps: CreateStep[]): string {
   if (answers.starter) return `the ${answers.starter} starter`;

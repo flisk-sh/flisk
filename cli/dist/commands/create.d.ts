@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import { type CreateAnswers, type CreateStep } from "../utils/create-plan.js";
+/** How to get each missing program; empty when nothing is missing or nothing is known about it. */
+export declare function installHelp(missing: string[]): string[];
 export interface CreateOptions {
     starter?: string;
     runtime?: string;

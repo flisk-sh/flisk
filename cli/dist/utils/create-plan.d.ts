@@ -50,6 +50,8 @@ export declare function isEmptyApp(answers: CreateAnswers): boolean;
 export declare function asksToStart(answers: CreateAnswers): boolean;
 /** What the project needs on the machine, in a sentence. Starter requirements come from the starter itself. */
 export declare function describeRequirements(answers: CreateAnswers, onPath?: (program: string) => boolean): string;
+/** The programs a local project needs that are not on this machine. */
+export declare function missingPrograms(answers: CreateAnswers, onPath?: (program: string) => boolean): string[];
 /** The parts the plan creates, for the review. */
 export declare function describeParts(answers: CreateAnswers, steps: CreateStep[]): string;
 /** The answers, one line each, skipping what was not chosen. */

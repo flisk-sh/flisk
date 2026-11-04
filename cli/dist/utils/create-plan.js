@@ -138,6 +138,15 @@ export function describeRequirements(answers, onPath = () => true) {
     const list = `${programs.join(", ")}. No Docker, no Tilt, no database`;
     return missing.length > 0 ? `${list}. Not found on this machine: ${missing.join(", ")}` : list;
 }
+/** The programs a local project needs that are not on this machine. */
+export function missingPrograms(answers, onPath = () => true) {
+    if (answers.starter || answers.runtime === "docker")
+        return [];
+    return localRequirements({
+        frontend: answers.frontend !== undefined,
+        language: answers.backend?.language,
+    }).filter((program) => !onPath(program));
+}
 /** The parts the plan creates, for the review. */
 export function describeParts(answers, steps) {
     if (answers.starter)

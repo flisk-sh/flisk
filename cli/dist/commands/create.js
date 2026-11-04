@@ -16,24 +16,47 @@ import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languag
 import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../utils/arrow-prompt.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
-import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, } from "../utils/create-plan.js";
+import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
 import { findOnPath } from "../utils/which.js";
 const SHAPE_CHOICES = [
     {
-        title: "A website + API",
+        title: "A website that saves and shows information",
         value: "both",
-        hint: "A website that talks to an API (default).",
+        hint: "Pages people open in a browser, plus the part behind them (default).",
     },
-    { title: "A website", value: "web", hint: "Just the front end." },
-    { title: "Just an API", value: "api", hint: "Just the back end." },
+    { title: "Just a website", value: "web", hint: "Pages people open in a browser." },
     {
-        title: "A ready-made starter…",
+        title: "Just the part behind the scenes",
+        value: "api",
+        hint: "A service other programs talk to (an API).",
+    },
+    {
+        title: "A ready-made app to start from…",
         value: "starter",
-        hint: "SaaS, AI agents, a storefront and more.",
+        hint: "An online shop, an AI helper, a team tool and more.",
+    },
+    {
+        title: "I know what I want: let me choose every part",
+        value: "custom",
+        hint: "Pick the framework, language and extras yourself.",
     },
 ];
+/** What to do when a program is missing: one link or command a person can follow without knowing the tool. */
+const INSTALL_HELP = {
+    node: "Node.js (also gives you npm): https://nodejs.org",
+    npm: "npm comes with Node.js: https://nodejs.org",
+    bun: "Bun: curl -fsSL https://bun.sh/install | bash",
+    go: "Go: https://go.dev/dl",
+    cargo: "Rust: https://rustup.rs",
+    python3: "Python: https://www.python.org/downloads",
+    uvicorn: "uvicorn: pip install uvicorn",
+};
+/** How to get each missing program; empty when nothing is missing or nothing is known about it. */
+export function installHelp(missing) {
+    return missing.flatMap((program) => INSTALL_HELP[program] ? [`  ${INSTALL_HELP[program]}`] : []);
+}
 /** A flag value must be one of the ids the catalog offers; the error lists them. */
 function oneOf(flag, value, ids, extra = []) {
     const allowed = [...ids, ...extra];
@@ -141,10 +164,15 @@ export async function collectAnswers(nameArg, options, interactive) {
     }
     else if (interactive) {
         shape = await arrowSelect({
-            message: "What are you building?",
+            message: "What do you want to make?",
             choices: SHAPE_CHOICES,
         });
     }
+    // The plain journey picks the framework, language and extras from the registries' defaults; only
+    // "let me choose every part" shows those menus.
+    const advanced = shape === "custom";
+    if (advanced)
+        shape = "both";
     // 2. A starter carries its own parts and its own runtime.
     let starter;
     if (shape === "starter") {
@@ -153,7 +181,9 @@ export async function collectAnswers(nameArg, options, interactive) {
             : await arrowSelect({
                 message: "Which starter?",
                 filterable: true,
-                choices: starters.map((option) => ({
+                choices: [...starters]
+                    .sort((x, y) => Number(y.local) - Number(x.local))
+                    .map((option) => ({
                     title: option.title,
                     value: option.id,
                     hint: `${option.hint}${option.local ? " · runs on your computer" : " · needs Docker, see its README"}`,
@@ -171,13 +201,14 @@ export async function collectAnswers(nameArg, options, interactive) {
             frontend = oneOf("frontend", options.frontend, frontends.map((option) => option.id), ["none"]);
         }
         else if (!options.frontend) {
-            frontend = interactive
-                ? await arrowSelect({
-                    message: "Which website framework?",
-                    filterable: true,
-                    choices: toChoices(frontends),
-                })
-                : frontends.find((option) => option.local)?.id;
+            frontend =
+                interactive && advanced
+                    ? await arrowSelect({
+                        message: "Which website framework?",
+                        filterable: true,
+                        choices: toChoices(frontends),
+                    })
+                    : frontends.find((option) => option.local)?.id;
         }
         const picked = frontends.find((option) => option.id === frontend);
         if (picked && !picked.local)
@@ -190,7 +221,7 @@ export async function collectAnswers(nameArg, options, interactive) {
             backend = resolveBackend(options.backend, options.language);
         }
         else if (!flagged.backend) {
-            if (interactive) {
+            if (interactive && advanced) {
                 const stack = await arrowSelect({
                     message: "Which API stack?",
                     filterable: true,
@@ -215,7 +246,7 @@ export async function collectAnswers(nameArg, options, interactive) {
                     .filter(Boolean)
                     .map((value) => oneOf("extras", value, extrasCatalog.map((extra) => extra.id), ["none"]));
     }
-    else if (interactive && !starter) {
+    else if (interactive && advanced && !starter) {
         extras = await arrowMultiSelect({
             message: "Add anything else?  Leaving it empty runs the app on this computer.",
             choices: extrasCatalog.map((extra) => ({
@@ -310,6 +341,10 @@ export function reviewLines(answers, steps, onPath = (program) => findOnPath(pro
     // so the Docker route stays reachable as a one-flag switch.
     if (answers.runtime === "local" && !answers.starter) {
         lines.push(`Runs on this computer. --runtime docker switches to containers, one gateway and live reload.`);
+    }
+    const missing = missingPrograms(answers, onPath);
+    if (missing.length > 0) {
+        lines.push(`To install what is missing:`, ...installHelp(missing));
     }
     return lines;
 }
