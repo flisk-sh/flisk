@@ -15,6 +15,12 @@ Início rápido:
 npx @flisk-sh/flisk demo
 ```
 
+Quer escolher seu próprio stack? Responda a algumas perguntas com as setas e Enter:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

@@ -1,6 +1,7 @@
 export const vanillaFrontendProvider = {
     id: "vanilla",
     label: "Vanilla TypeScript + Vite",
+    vite: { imports: [], plugins: [] },
     dependencies: {},
     devDependencies: {},
     compilerOptions: {},

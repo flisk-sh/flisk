@@ -354,6 +354,13 @@ export function buildResourceCreateArgs(args: Record<string, unknown>): string[]
   const features = names(args.features, "features");
   const runtime = optionalName(args.runtime, "runtime");
   const durability = optionalName(args.durability, "durability");
+  const local = flag(args.local, "local");
+  // Same rule as `flisk resource --local`, checked here so an agent gets it as a tool error before any command runs.
+  if (local && type && type !== "frontend" && type !== "backend") {
+    throw new FliskError(`local applies to type frontend or backend, not ${type}`, [
+      "Leave local out to scaffold it for Docker and Tilt",
+    ]);
+  }
   const out = ["resource", name];
   if (type) out.push(`--type=${type}`);
   if (stack) out.push(`--stack=${stack}`);
@@ -363,6 +370,7 @@ export function buildResourceCreateArgs(args: Record<string, unknown>): string[]
   out.push(...features.map((feature) => `--feature=${feature}`));
   if (runtime) out.push(`--runtime=${runtime}`);
   if (durability) out.push(`--durability=${durability}`);
+  if (local) out.push("--local");
   out.push("--yes");
   return out;
 }
@@ -838,6 +846,11 @@ export function createFliskTools(
             type: "string",
             description:
               "Where agent sessions are checkpointed (type agent only): files or postgres",
+          },
+          local: {
+            type: "boolean",
+            description:
+              "Frontend or backend only: scaffold it to run on this computer with no Docker or Tilt (a plain Vite config, a command in service.json), the way flisk create does by default",
           },
         }),
         required: ["name"],

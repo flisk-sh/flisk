@@ -221,6 +221,22 @@ describe("argument building", () => {
 
   it("builds resource_create arguments, always non-interactive, with options after the name", () => {
     expect(buildResourceCreateArgs({ name: "api" })).toEqual(["resource", "api", "--yes"]);
+    expect(buildResourceCreateArgs({ name: "api", type: "backend", local: true })).toEqual([
+      "resource",
+      "api",
+      "--type=backend",
+      "--local",
+      "--yes",
+    ]);
+    expect(() => buildResourceCreateArgs({ name: "api", local: "yes" })).toThrow(/boolean/);
+    expect(buildResourceCreateArgs({ name: "web", type: "frontend", local: true })).toContain(
+      "--local",
+    );
+    for (const type of ["worker", "agent", "database", "queue", "mcp"]) {
+      expect(() => buildResourceCreateArgs({ name: "x", type, local: true }), type).toThrow(
+        /frontend or backend/,
+      );
+    }
     expect(
       buildResourceCreateArgs({
         name: "api",

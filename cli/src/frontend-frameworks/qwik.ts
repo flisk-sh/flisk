@@ -5,6 +5,10 @@ import type { FrontendFrameworkProvider } from "./types.js";
 export const qwikFrontendProvider: FrontendFrameworkProvider = {
   id: "qwik",
   label: "Qwik + Vite",
+  vite: {
+    imports: ["import { qwikVite } from '@builder.io/qwik/optimizer';"],
+    plugins: ["qwikVite({ csr: true })"],
+  },
   dependencies: {
     "@builder.io/qwik": "^1.12.0",
   },

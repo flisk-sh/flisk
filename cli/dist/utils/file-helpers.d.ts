@@ -1,5 +1,11 @@
 import type { FileGenerationTask } from "../types/index.js";
-export declare function writeFilesWithProgress(basePath: string, tasks: FileGenerationTask[], onProgress?: (task: FileGenerationTask, index: number, total: number) => void): void;
+/**
+ * Writes generated files. With `exclusive`, a file that already exists is never overwritten: the write fails
+ * with a FliskError naming it, so a file that appeared after the folder was checked is left as it is.
+ */
+export declare function writeFilesWithProgress(basePath: string, tasks: FileGenerationTask[], onProgress?: (task: FileGenerationTask, index: number, total: number) => void, options?: {
+    exclusive?: boolean;
+}): void;
 /**
  * Write JSON data to a file.
  * @param filePath - Path to the file

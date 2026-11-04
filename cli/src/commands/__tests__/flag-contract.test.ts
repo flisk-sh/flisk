@@ -200,6 +200,10 @@ const DOCTOR_JSON: { site: string; command: string[] } = {
  * Shrinking this list is the work; a new entry needs a reason.
  */
 const EXEMPT: Record<string, string> = {
+  "create --yes":
+    "creates a new project folder from answers or flags and never runs inside an existing project, so the matrix's project-required rows do not fit; create.test.ts runs it with no terminal and covers the defaults, the flags and the errors",
+  "create --dry-run":
+    "prints the flisk commands it would run and writes nothing, in a folder that is not a project; create.test.ts proves nothing is written",
   "repos clone --json":
     "a subcommand of repos that clones git repos; repos.test.ts covers the envelope",
   "distribute board --json":

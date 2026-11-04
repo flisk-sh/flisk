@@ -49,16 +49,19 @@ const sha = (path: string) => createHash("sha256").update(readFileSync(path)).di
 // https://flisk.sh/schema.service.json.
 // It was re-captured a fifth time on 2026-10-21 for the Flisk rebrand: the generated Dockerfile header now names
 // the CLI as Flisk, and that header is the only byte that differs.
-// It was re-captured a sixth time on 2026-10-22 for the vitest version: the scaffold now writes the same vitest
-// the CLI tests itself with (`5.0.5`), so the `vitest` line of the scaffolded package.json is the only byte that differs.
+// It was re-captured a sixth time on 2026-10-22 for the vitest version: the scaffold writes `vitest: "5.1.0"`.
+// vitest 5.0.x crashes npm 10's arborist (loadPeerSet, edgesOut null) when a peer edge is missing; 5.1.0 fixed it.
+// The CLI itself still runs vitest 5.0.5 under bun, which is unaffected. That is the only file that differs.
 // It was re-captured a seventh time for the frontend starter wiring: the Hono `src/index.ts` now allows CORS from the
 // *.localhost frontend origins (hono/cors), so the browser can call /health from the starter page. That is the only file that differs.
 // The test scaffold now emits a TODO instead of an always-passing assertion; only the test-file hash changes.
 // It was re-captured for #1516: the Bun `src/index.ts` now reads PORT with the shared rule (1-65535, otherwise 3000),
 // so `PORT=abc` no longer reaches Bun.serve as a string. That is the only file that differs.
+// It was re-captured for #3192: the scaffold's `@types/node` moves to ^22 because vitest 5 peers on ^22 and npm enforces
+// the range, so `npm install` in the scaffold no longer fails with ERESOLVE. That is the only file that differs.
 const BUN_BASELINE: Record<string, string> = {
   Dockerfile: "068f15a55176c3960bae240a370244f1976879f126fddb01920c3eca3af5dd89",
-  "package.json": "2ee050e7c1cb741d02b26b05261c15631602d25ddf261a2c305ffdbde5b184e5",
+  "package.json": "d1614a133b3f74c3829c8d55ade1f125dfb11873c9f4a7ea7545e6bf16e47b8b",
   "service.json": "550245dee287700a34fabbe6b5adc0620d19ec9d6ac767e9b869075cc4900357",
   "src/index.ts": "0a59131aaa6763472c901d2a121e34a23f4259af28ff0b426bb01fd0bc3071e3",
   "tests/orders-api.test.ts": "acbe72a5661b26a5f26a3a3cd3372a7139b90daab19da88f587fe0e5bd815620",

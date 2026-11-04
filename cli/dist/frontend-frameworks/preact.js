@@ -1,6 +1,10 @@
 export const preactFrontendProvider = {
     id: "preact",
     label: "Preact + Vite",
+    vite: {
+        imports: ["import preact from '@preact/preset-vite';"],
+        plugins: ["preact()"],
+    },
     dependencies: {
         preact: "^10.26.0",
     },

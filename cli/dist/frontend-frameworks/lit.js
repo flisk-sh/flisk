@@ -1,6 +1,7 @@
 export const litFrontendProvider = {
     id: "lit",
     label: "Lit + Vite",
+    vite: { imports: [], plugins: [] },
     dependencies: {
         lit: "^3.2.0",
     },

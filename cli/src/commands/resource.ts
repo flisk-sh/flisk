@@ -75,10 +75,12 @@ import {
   replacementForRemovedType,
 } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { isPortListening } from "../utils/native-runtime.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
 import { getDefaultFeaturesForResourceType } from "../utils/resource-features.js";
+import { applyLocalScaffold, localResourcePort } from "../utils/resource-local.js";
 import {
   healthCheckPathOf,
   isHealthCheckDisabled,
@@ -446,14 +448,14 @@ export function createPackageJson(
     },
     devDependencies: {
       "@types/bun": "^1.4.2",
-      // The generated Docker tsconfig sets "types": ["node"]; without this the
-      // image's `bun run build` fails with TS2688. ^20 matches the services that build.
-      "@types/node": "^20.0.0",
+      // The generated Docker tsconfig sets "types": ["node"]; without this the image's `bun run build` fails with TS2688.
+      // vitest 5 peers on @types/node ^22 || >=24 and npm enforces that range: ^20 failed `npm install` with ERESOLVE.
+      "@types/node": "^22.0.0",
       typescript: "^7.0.2",
-      // The same version the CLI tests itself with (cli/package.json devDependencies.vitest).
-      // Dependabot pins it exactly to keep CVE-2026-112950 fixed, and the scaffold follows.
-      vitest: "5.0.5",
-      "@biomejs/biome": "^2.5.13",
+      // vitest 5.0.x crashes npm 10's arborist (loadPeerSet, edgesOut null) when a peer edge is missing,
+      // even though `vite` is declared. vitest 5.1.0 fixed it, so users' `npm install` on npm 10 works.
+      vitest: "5.1.0",
+      "@biomejs/biome": "^2.6.2",
 
       // vitest 5 peers on vite ^6.4.0 || ^7 || ^8; vite 5 makes `vitest run` fail at startup with
       // ERR_PACKAGE_PATH_NOT_EXPORTED ('./module-runner'), in every resource once it is hoisted.
@@ -820,6 +822,11 @@ export const resourceCommand = addYesOption(new Command("resource"))
     "Continue even if the CLI does not match the project's version requirements",
     false,
   )
+  .option(
+    "--local",
+    "Scaffold to run on your computer as a plain process: no Dockerfile, a plain Vite config and a `command` in service.json, so it needs no Docker or Tilt (frontend and backend)",
+    false,
+  )
   .option("--json", "Print one JSON envelope on stdout; implies --yes", false)
   .action(async (name, options, command: Command) => {
     // The frontend listing is the historical default; `--type` selects the listing when it is given.
@@ -887,6 +894,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
         ? BRING_YOUR_OWN_TYPE
         : (requestedType as Exclude<typeof requestedType, typeof QUEUE_RESOURCE_TYPE>);
       const isDatabase = resourceType === DATABASE_RESOURCE_TYPE;
+      // Before any early return below (databases, queues, bring-your-own), or --local would be accepted and ignored.
+      if (options.local && resourceType !== "frontend" && resourceType !== "backend") {
+        throw new FliskError(
+          `--local applies to frontend and backend resources, not ${resourceType}.`,
+          ["Leave --local out to scaffold it for Docker and Tilt."],
+        );
+      }
       if (isDatabase) assertDatabaseOptions(options);
       if (
         resourceType !== "agent" &&
@@ -1149,6 +1163,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
       }
       // Checked before anything is written: the Drizzle files are Bun/TypeScript files for a backend.
       const requestedFeatures = Array.isArray(options.feature) ? options.feature : [];
+      // The Prisma migrator is a container with a build block; next to a host-run API it makes `flisk up` refuse to
+      // start (mixed runtimes), so the two cannot be combined. Checked before any folder is created.
+      if (options.local && resourceType === "backend" && requestedFeatures.includes("prisma")) {
+        throw new FliskError("--local cannot be combined with --feature prisma.", [
+          "Leave --local out to scaffold the Prisma migrator and Postgres for Docker and Tilt.",
+        ]);
+      }
       if (
         requestedFeatures.includes("drizzle") &&
         (resourceType !== "backend" || backendLanguage?.createFiles)
@@ -1163,7 +1184,7 @@ export const resourceCommand = addYesOption(new Command("resource"))
           ? readServiceJsonPort(resolve(fullPath, SERVICE_JSON))
           : undefined;
       if (infraPreset) assertInfraPresetOptions(infraPreset, options);
-      const assignedPort = infraPreset
+      let assignedPort = infraPreset
         ? INFRA_PRESETS[infraPreset].port
         : isInference
           ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
@@ -1175,6 +1196,19 @@ export const resourceCommand = addYesOption(new Command("resource"))
                 nextPort,
                 allResources,
               );
+      // --local: on your own computer the port has to be free right now, not only unassigned in this project (another
+      // program may already listen on 3000). Picked here so the details, the confirmation and the JSON report all show
+      // the port the service really gets. An explicit --port is kept as it is.
+      if (options.local && !shouldRegisterExisting) {
+        assignedPort = await localResourcePort(
+          assignedPort,
+          Boolean(options.port),
+          allResources
+            .map((resource) => resource.config?.port)
+            .filter((port): port is number => typeof port === "number"),
+          isPortListening,
+        );
+      }
 
       console.log(chalk.gray("\nResource details:"));
       console.log(chalk.gray(`  Name:  ${resourceName}`));
@@ -1622,9 +1656,28 @@ This file contains the resource configuration for Flisk.
         );
       }
 
+      // --local: the same scaffold, made to run on the host (no Dockerfile, a plain Vite config, a command in service.json).
+      if (options.local) {
+        const backendResource = allResources.find(
+          (resource) => resource.name === frontendBackendName,
+        );
+        applyLocalScaffold({
+          resourceName,
+          resourceType,
+          port: assignedPort,
+          tasks,
+          frontendFramework,
+          backendLanguage: options.language === undefined ? undefined : backendLanguage,
+          backendUrl: backendResource?.config?.port
+            ? `http://localhost:${backendResource.config.port}`
+            : undefined,
+        });
+      }
+
       // Execute all file writes with progress
       console.log(chalk.blue("💻 Generating source files..."));
-      writeFilesWithProgress(fullPath, tasks);
+      // A new resource's folder did not exist when it was checked, so nothing in it may be overwritten.
+      writeFilesWithProgress(fullPath, tasks, undefined, { exclusive: !isExistingResource });
 
       if (prismaEnabled && resourceType === "backend") {
         mkdirSync(resolve(fullPath, "prisma"), { recursive: true });
@@ -1727,7 +1780,12 @@ This file contains the resource configuration for Flisk.
       }
       console.log(chalk.gray(`\nNext steps:`));
       console.log(chalk.gray(`  cd ${finalResourcePath}`));
-      console.log(chalk.gray(`  ${backendLanguage?.installHint ?? "bun install"}`));
+      // A --local frontend installs with npm (what its dev command and Vite config expect); the container scaffold uses Bun.
+      console.log(
+        chalk.gray(
+          `  ${options.local && resourceType === "frontend" ? "npm install" : (backendLanguage?.installHint ?? "bun install")}`,
+        ),
+      );
       console.log(chalk.gray(`  flisk up ${stackName}`));
       return report("created");
     };

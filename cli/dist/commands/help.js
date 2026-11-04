@@ -11,6 +11,11 @@ const COMMAND_GROUPS = [
         color: chalk.blue,
         commands: [
             {
+                name: "create",
+                desc: "Pick a stack with a few questions and get a project that runs",
+                alias: "[name] --kind web --extras queue",
+            },
+            {
                 name: "project",
                 desc: "Initialize master configs (TILT_RESOURCE_DEFAULTS.star)",
                 alias: "",
@@ -162,6 +167,7 @@ export function showHelp() {
     console.log(chalk.bold.yellow("  Quick start:"));
     console.log(chalk.gray(`  ${"─".repeat(50)}`));
     console.log(chalk.white(`
+  ${chalk.cyan("0.")} Or pick a stack:            ${chalk.green("flisk create")}
   ${chalk.cyan("1.")} Initialize project:        ${chalk.green("flisk project")}
   ${chalk.cyan("2.")} Create a resource:         ${chalk.green("flisk resource my-api --type backend")}
   ${chalk.cyan("3.")} Assign to stack:           ${chalk.green("flisk stack my-stack")}

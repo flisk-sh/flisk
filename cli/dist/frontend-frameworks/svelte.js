@@ -1,6 +1,10 @@
 export const svelteFrontendProvider = {
     id: "svelte",
     label: "Svelte + Vite",
+    vite: {
+        imports: ["import { svelte } from '@sveltejs/vite-plugin-svelte';"],
+        plugins: ["svelte()"],
+    },
     dependencies: {
         svelte: "^5.0.0",
     },

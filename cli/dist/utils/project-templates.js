@@ -2,78 +2,78 @@
 export const PROJECT_TEMPLATES = {
     demo: {
         repo: "https://github.com/flisk-sh/flisk-restaurant-example.git",
-        description: "The demo stack: restaurant ops with reservations, kitchen and floor control",
+        description: "Restaurant demo: take table bookings, run the kitchen and manage the dining room",
         fixedDir: "flisk-demo",
     },
     restaurant: {
         repo: "https://github.com/flisk-sh/flisk-restaurant-example.git",
-        description: "Restaurant ops: reservations, kitchen, floor control (Hono + Vite + Bun)",
+        description: "Restaurant app: table bookings, kitchen orders and the dining room in one place",
     },
     saas: {
         repo: "https://github.com/flisk-sh/flisk-saas-starter.git",
-        description: "SaaS starter: account dashboard and a working checkout button (Hono + Vite + Bun)",
+        description: "Online subscription app: a customer account page and a working payment button",
     },
     erp: {
         repo: "https://github.com/flisk-sh/flisk-erp-system.git",
-        description: "Enterprise ERP: 100 microservices across 7 business domains",
+        description: "Company back office: 100 small services for sales, stock, finance and more",
     },
     "user-management": {
         repo: "https://github.com/flisk-sh/flisk-user-management.git",
-        description: "User/auth management services",
+        description: "Sign-up and log-in: user accounts, passwords and who may do what",
     },
     ecommerce: {
         repo: "https://github.com/flisk-sh/flisk-ecommerce-example.git",
-        description: "Vue 3 storefront and Hono catalog API (needs Flisk 1.3.75+ for --framework vue)",
+        description: "Online shop: a shop front with a product catalogue",
     },
     example: {
         repo: "https://github.com/flisk-sh/flisk-example.git",
         bundledPath: "examples/flisk-example",
-        description: "Hono + Postgres + NATS worker + Vite example with a routed write path",
+        description: "Order tracker: a web page that saves orders and finishes work in the background",
     },
     "agent-stack": {
         repo: "https://github.com/flisk-sh/flisk-agent-stack.git",
-        description: "AI agent stack: Bun agent + MCP tool server + Postgres + NATS",
+        description: "AI assistant: an assistant that can use tools and remember what it did",
     },
     swarm: {
         repo: "https://github.com/flisk-sh/flisk.git",
         generated: "swarm",
-        description: "Multi-agent swarm: a coordinator splits a goal, three workers pull and finish subtasks (local processes, no Docker)",
+        description: "AI team: one assistant splits a goal into tasks and three helpers finish them",
     },
     security: {
         repo: "https://github.com/flisk-sh/flisk.git",
         generated: "security",
-        description: "Security agents: a scanner, a triage agent and a reporter in a line (local processes, no Docker)",
+        description: "Security checker: one assistant scans, one sorts what it found, one writes the report",
     },
     "super-agent": {
         repo: "https://github.com/flisk-sh/flisk.git",
         generated: "super-agent",
-        description: "Super agent: a planner, an MCP tool server and researcher, writer and checker sub-agents; plans with Claude when ANTHROPIC_API_KEY is set (local processes, no Docker)",
+        description: "AI researcher: plans a task, looks things up, writes and checks the result (uses Claude when you add an Anthropic key)",
     },
     langgraph: {
         repo: "https://github.com/flisk-sh/flisk.git",
         generated: "langgraph",
-        description: "LangGraph agent: a StateGraph (plan, research, write, check) with durable checkpoints and retries, and an MCP tool server (local processes, no Docker)",
+        description: "Step-by-step AI writer: plans, researches, writes and checks, and picks up where it stopped",
     },
     "tool-loop": {
         repo: "https://github.com/flisk-sh/flisk.git",
         generated: "tool-loop",
-        description: "Plain agent loop: the Anthropic SDK tool runner over an MCP tool server, with a local mock model so it runs offline (local processes, no Docker)",
+        description: "Simple AI helper: an assistant that uses tools, with a practice model so it works offline",
     },
     launch: {
         repo: "https://github.com/flisk-sh/flisk-template-launch.git",
         ref: "f97e03a11d026715573a610a8370c3c7546c5af8",
-        description: "Launch-ready web tool: one Bun + Hono service with SEO, icons, a JSON API and an /mcp endpoint; no database",
+        description: "Launch page: a ready-to-publish website with a search-friendly page, icons and a small data feed",
     },
     portal: {
         repo: "https://github.com/flisk-sh/flisk-template-portal.git",
         ref: "0d57988acca78ff6649d861edcc683ece2afff22",
-        description: "API portal and model gateway: GitHub sign-in, API keys, usage and a metered OpenAI-style /v1 proxy (one Bun service)",
+        description: "Developer portal: sign in with GitHub, hand out access keys and see who uses what",
     },
     // Not "stack": that is a command name, and `flisk <template>` is the one-command flow.
     fullstack: {
         repo: "https://github.com/flisk-sh/flisk-stack.git",
         ref: "fff53f3c77d0daea1f34498c70fe48a9e372b682",
-        description: "Full-stack app skeleton: Hono API, Postgres job worker, Prisma migrator and Vue 3 web app",
+        description: "Full app to build on: a website, the part behind it, background jobs and a database",
     },
 };
 /** The template catalog in registration order: key, repo, description and, for a pinned template, its ref. */

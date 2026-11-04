@@ -15,6 +15,12 @@ Flisk 是一款用于本地开发的命令行工具。它在你的电脑上把�
 npx @flisk-sh/flisk demo
 ```
 
+想自己选择技术栈？用方向键和回车回答几个问题即可：
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

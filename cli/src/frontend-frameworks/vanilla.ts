@@ -5,6 +5,7 @@ import type { FrontendFrameworkProvider } from "./types.js";
 export const vanillaFrontendProvider: FrontendFrameworkProvider = {
   id: "vanilla",
   label: "Vanilla TypeScript + Vite",
+  vite: { imports: [], plugins: [] },
   dependencies: {},
   devDependencies: {},
   compilerOptions: {},

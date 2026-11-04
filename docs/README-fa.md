@@ -15,6 +15,12 @@ Flisk یک ابزار خط فرمان برای توسعه محلی است. هر 
 npx @flisk-sh/flisk demo
 ```
 
+می‌خواهید خودتان پشته‌تان را انتخاب کنید؟ با کلیدهای جهت‌نما و Enter به چند پرسش پاسخ دهید:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes

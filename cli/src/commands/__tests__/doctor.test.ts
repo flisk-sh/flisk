@@ -537,7 +537,7 @@ describe("doctor TypeScript type dependency check", () => {
       'cash-management-api: "types" lists "node" (needs @types/node)',
     );
     expect(result.message).toContain("TS2688");
-    expect(result.fix).toContain('"@types/node": "^20.0.0"');
+    expect(result.fix).toContain('"@types/node": "^22.0.0"');
   });
 
   it('passes when @types/node is present for "types": ["node"]', () => {

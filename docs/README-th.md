@@ -15,6 +15,12 @@ Flisk เป็นเครื่องมือบรรทัดคำสั�
 npx @flisk-sh/flisk demo
 ```
 
+อยากเลือกสแตกเองไหม? ตอบคำถามไม่กี่ข้อด้วยปุ่มลูกศรและ Enter:
+
+```bash
+npx @flisk-sh/flisk create
+```
+
 ```bash
 mkdir my-shop && cd my-shop
 flisk project --yes
