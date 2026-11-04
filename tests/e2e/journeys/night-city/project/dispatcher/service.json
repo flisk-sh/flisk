@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "appName": "dispatcher",
+  "appType": "worker",
+  "command": "node server.mjs",
+  "port": 4601,
+  "healthCheckPath": "/health",
+  "env": { "NETWATCH_URL": "http://localhost:4600" },
+  "dependsOn": ["netwatch"]
+}
