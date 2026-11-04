@@ -84,6 +84,10 @@ gh run watch <candidate-run-id> --exit-status   # ~6-10 min: 30 jobs, 10 at a ti
 
 Cut the branch from the newest green `main`, not from an older release branch: a fix that landed after the branch was cut (for example #2498, which made `flisk up` print ingress URLs instead of the Tilt UI port) is not in the candidate, and a candidate failure that `main` already fixed costs a full cycle.
 
+A passing candidate run is a green check on a `release/<version>-rc<n>` branch in the [Release | Candidate runs](https://github.com/flisk-sh/flisk/actions/workflows/release-candidate.yml) list (1.4.33 needed four attempts; 1.4.34 and 1.4.35 passed first time):
+
+![Release | Candidate runs list: release/1.4.35-rc1 and release/1.4.34-rc1 green, release/1.4.33-rc1 to rc3 red](assets/releasing/1-candidate-runs.png)
+
 The candidate (`release-candidate.yml`) packs the CLI, then runs the quickstart journey and every release-blocking resource-type suite against that exact tarball. Retry a run whose failures are all the same infrastructure readiness check (Docker Compose on a slow runner); never bypass the gate.
 
 Check the gate for any commit before dispatching:
@@ -109,6 +113,10 @@ gh workflow run release-binaries.yml --ref release/<version>-rc<n>
 
 The gate then sees the candidate's exact commit, whatever has merged into `main` meanwhile. Dispatching on `main` works only while `main` is still at the candidate's commit or no release input changed since (the gate above); with several people merging, `main` usually moves during the 30-45 minutes a candidate takes, and every such release input sends you back to step 2 (1.4.24: rc5, rc6 and rc7 passed and were each refused on `main`). The version bump PR still targets `main`. Watch the run. `build`, `windows-binary` and `publish` must be green. Publication happens inside `publish`: by the time it finishes, npm and `flisk-sh/releases` are live even if later steps failed.
 
+A good release run: `build`, `windows-binary`, `publish` and the two follow-up publish jobs are green; `tag-bumped-release` is skipped on a dispatch (it only runs on the bump PR merge):
+
+![Release | Binaries and npm package run for 1.4.34: changes, build, windows-binary, cli-image, publish and the GitHub Packages and image publishes green, tag-bumped-release skipped](assets/releasing/2-release-run.png)
+
 ### 4. Merge the version-bump PR
 
 Only when the run bumped the version (`build` printed `<old> is already released; releasing this commit as <version>`). When `main` already carried the version there is no bump PR: the publish job tagged the commit and published the release itself (pipeline step 6), so skip to [verify](#verify-a-release).
@@ -121,6 +129,10 @@ gh pr checks <number> --watch && gh pr review <number> --approve
 ```
 
 Auto-merge takes it from there. The merge push triggers `tag-bumped-release`, which tags `v<version>` and publishes the checksums draft. The bump PR body names the published commit (`Published from commit: <sha>`). If the bump commit is that commit plus the version files, it is the tag target. If `main` moved after the publish, the squash commit also carries later merges that are not in the npm package, so the tag goes on a new commit made by `scripts/release-tag-target.mjs`: the published commit with the bump's version files (`package.json`, `cli/package.json`, `bun.lock`, `docs/CHANGELOG.md`). The run then shows a warning and lists the extra files in its summary. That tag is not on `main`'s history; its parent is the published commit (1.4.30 was tagged on the bump commit and shipped without #3024, #3025 and #3028, #3054). It only publishes a draft that already exists; it never creates the release.
+
+The bump PR for 1.4.34 (merged; `bun.lock` and `cli/package.json` only):
+
+![Release 1.4.34 (automatic version bump) pull request, merged](assets/releasing/3-bump-pr.png)
 
 ## Where to look
 
@@ -157,6 +169,16 @@ gh attestation verify verify/checksums.txt --repo flisk-sh/flisk   # provenance:
 A release without `checksums.txt.intoto.jsonl` has no provenance; that is expected for versions cut before provenance was added. A release without a signature is a gap to close with [sign-release.yml](#repair-a-half-finished-release), not something to fix by hand.
 
 See also the [maintainer checks for GitHub Packages](github-packages.md#maintainer-release-checks).
+
+What a finished release looks like on both repositories (screenshots are 1.4.34 as of 2026-11-04, signed out, so your view may differ slightly):
+
+[`flisk-sh/releases`](https://github.com/flisk-sh/releases/releases): not a draft, marked Latest, with the binaries, engine, zip, checksums and signature:
+
+![flisk-sh/releases v1.4.34 release page](assets/releasing/4-binaries-release.png)
+
+[`flisk-sh/flisk` releases](https://github.com/flisk-sh/flisk/releases): not a draft, with `checksums.txt`, `.sigstore.json` and `.intoto.jsonl`. A **Draft** badge here means step 4 has not finished; see [repair](#repair-a-half-finished-release):
+
+![flisk-sh/flisk v1.4.34 release page with signed checksums](assets/releasing/5-checksums-release.png)
 
 ## Repair a half-finished release
 
