@@ -14,8 +14,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A push to main gets its own group per commit and is never cancelled: a newer merge must not leave an older main commit
+  # unverified (#2897). Pull request runs still cancel their superseded runs.
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
   # The only change-detection job in this run. Every other job reads its outputs.
