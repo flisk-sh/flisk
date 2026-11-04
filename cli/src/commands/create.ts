@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -216,6 +216,12 @@ export async function collectAnswers(
   const frontends = frontendCatalog();
   const backends = backendCatalog();
   const extrasCatalog = extraCatalog();
+  if (options.backend === "none" && options.language !== undefined) {
+    throw new FliskError(
+      `--language ${options.language} has no API to apply to: --backend none leaves the API out.`,
+      ["Drop --backend none to get an API in that language, or drop --language."],
+    );
+  }
   const flagged = {
     frontend: options.frontend !== undefined,
     backend: options.backend !== undefined || options.language !== undefined,
@@ -378,8 +384,19 @@ export async function collectAnswers(
 
 /** The project folder must not exist, or must be empty, so a create never overwrites anything. */
 export function assertFolderIsFree(dir: string): void {
-  if (!existsSync(dir)) return;
-  if (!statSync(dir).isDirectory()) {
+  // lstat, not stat: a link named like the project would send every write somewhere else.
+  let entry: ReturnType<typeof lstatSync>;
+  try {
+    entry = lstatSync(dir);
+  } catch {
+    return;
+  }
+  if (entry.isSymbolicLink()) {
+    throw new FliskError(`${dir} is a link to another place, not a folder.`, [
+      "Pick another name: flisk create <name>",
+    ]);
+  }
+  if (!entry.isDirectory()) {
     throw new FliskError(`${dir} already exists and is not a folder.`, [
       "Pick another name: flisk create <name>",
     ]);
@@ -397,8 +414,10 @@ export function assertFolderIsFree(dir: string): void {
  * segment: if another process made it in the meantime, mkdir fails (EEXIST) and create aborts
  * instead of writing into a folder it no longer owns.
  */
-export function claimFolder(dir: string): void {
+/** Returns true when create made the folder, false when it took over an empty folder that was already there. */
+export function claimFolder(dir: string): boolean {
   assertFolderIsFree(dir);
+  const existed = existsSync(dir);
   // An empty folder the user made is claimed the same way as a new one: rmdir only succeeds while it is still
   // empty, and the mkdir below fails if anything re-creates it, so nothing that appears in between is ever used.
   if (existsSync(dir)) {
@@ -422,6 +441,7 @@ export function claimFolder(dir: string): void {
     }
     throw error;
   }
+  return !existed;
 }
 
 /** One line per step for the dry run and the failure report. */
@@ -580,6 +600,7 @@ export function recoveryMessage(
   projectDir: string,
   steps: CreateStep[],
   failedIndex: number,
+  createdFolder = true,
 ): string[] {
   const failed = steps[failedIndex];
   return [
@@ -587,7 +608,9 @@ export function recoveryMessage(
     ...steps.slice(0, failedIndex).map((step) => `  done: ${step.label}`),
     ...steps.slice(failedIndex + 1).map((step) => `  not run: ${step.label}`),
     `Project folder (absolute path): ${JSON.stringify(projectDir)}`,
-    "flisk create made this folder just now. Look inside it, delete it yourself if you no longer need it, then run flisk create again.",
+    createdFolder
+      ? "flisk create made this folder just now. Look inside it, delete it yourself if you no longer need it, then run flisk create again."
+      : "This folder was already there (empty) before flisk create. Look inside it and remove only what create added, then run flisk create again.",
   ];
 }
 
@@ -725,7 +748,7 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
 
   // Re-check right before writing: the folder may have changed since the first check and the confirmation.
   // A starter's generator accepts the empty folder this leaves, so starters get the same protection as apps.
-  claimFolder(projectDir);
+  const createdFolder = claimFolder(projectDir);
 
   for (const [index, step] of steps.entries()) {
     process.stdout.write(`  ${step.label}... `);
@@ -735,7 +758,7 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
       console.log(result.output.trimEnd());
       throw new FliskError(
         `"${renderStep(step)}" did not finish.`,
-        recoveryMessage(projectDir, steps, index),
+        recoveryMessage(projectDir, steps, index, createdFolder),
       );
     }
     console.log(chalk.green("done"));

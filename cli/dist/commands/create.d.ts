@@ -31,7 +31,8 @@ export declare function assertFolderIsFree(dir: string): void;
  * segment: if another process made it in the meantime, mkdir fails (EEXIST) and create aborts
  * instead of writing into a folder it no longer owns.
  */
-export declare function claimFolder(dir: string): void;
+/** Returns true when create made the folder, false when it took over an empty folder that was already there. */
+export declare function claimFolder(dir: string): boolean;
 /** One line per step for the dry run and the failure report. */
 export declare function renderStep(step: CreateStep): string;
 /** What gets created, what it needs, and what was chosen, shown before anything is written. */
@@ -58,5 +59,5 @@ export declare function whereToOpen(services: GeneratedService[]): string | unde
 /** The commands to run next, from what was generated. */
 export declare function nextSteps(projectDir: string, answers: CreateAnswers, services?: GeneratedService[]): string[];
 /** What to tell someone when a step fails halfway: what finished, what did not run, how to start over. */
-export declare function recoveryMessage(projectDir: string, steps: CreateStep[], failedIndex: number): string[];
+export declare function recoveryMessage(projectDir: string, steps: CreateStep[], failedIndex: number, createdFolder?: boolean): string[];
 export declare const createCommand: Command;

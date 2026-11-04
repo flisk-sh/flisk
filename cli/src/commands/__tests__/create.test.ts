@@ -9,6 +9,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createServer, type Server } from "node:net";
@@ -145,6 +146,9 @@ describe("collectAnswers without a terminal", () => {
   });
 
   it("rejects a name that is not a safe folder name before anything else", async () => {
+    await expect(
+      collectAnswers("shop", { backend: "none", language: backends[0]?.id }, false),
+    ).rejects.toThrow(/--backend none leaves the API out/);
     await expect(collectAnswers("../evil", {}, false)).rejects.toThrow(/not a usable project name/);
   });
 });
@@ -475,7 +479,7 @@ describe("the review, the recovery message and the folder guard", () => {
       writeFileSync(join(target, "keep.txt"), "mine");
       expect(() => claimFolder(target)).toThrow(/already exists and is not empty/);
       expect(readFileSync(join(target, "keep.txt"), "utf8")).toBe("mine");
-      expect(claimFolder(join(dir, "nested", "fresh app"))).toBeUndefined();
+      expect(claimFolder(join(dir, "nested", "fresh app"))).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -491,6 +495,35 @@ describe("the review, the recovery message and the folder guard", () => {
       writeFileSync(join(empty, "late.txt"), "theirs");
       expect(() => claimFolder(empty)).toThrow(/not empty/);
       expect(readFileSync(join(empty, "late.txt"), "utf8")).toBe("theirs");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a link as the project folder, even one to an empty folder", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-create-link-"));
+    try {
+      mkdirSync(join(dir, "elsewhere"));
+      symlinkSync(join(dir, "elsewhere"), join(dir, "my-app"));
+      expect(() => assertFolderIsFree(join(dir, "my-app"))).toThrow(/is a link/);
+      expect(() => claimFolder(join(dir, "my-app"))).toThrow(/is a link/);
+      expect(readdirSync(join(dir, "elsewhere"))).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("claimFolder says whether it made the folder, and the recovery text follows", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-create-own-"));
+    try {
+      expect(claimFolder(join(dir, "fresh"))).toBe(true);
+      mkdirSync(join(dir, "theirs"));
+      expect(claimFolder(join(dir, "theirs"))).toBe(false);
+      const steps = buildCreatePlan(local);
+      expect(recoveryMessage("/w/s", steps, 1, true).join("\n")).toContain("made this folder");
+      const taken = recoveryMessage("/w/s", steps, 1, false).join("\n");
+      expect(taken).not.toContain("made this folder");
+      expect(taken).toContain("already there");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
