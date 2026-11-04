@@ -83,3 +83,15 @@ def test_provision_script_retries_until_the_database_exists() -> None:
     assert "db_exists()" in source
     assert "could not be created" in source
     assert "Could not create database (may already exist)" not in source
+
+
+@TILT_REQUIRED
+def test_provision_database_formats_and_registers_in_tilt(tmp_path: Path) -> None:
+    """The provisioning script goes through str.format, so a stray shell brace breaks every Tiltfile that provisions."""
+    result = run_starlark(
+        tmp_path,
+        "load('@ORCHESTRATOR/../databases.star', 'Database')\n"
+        "Database.provision('rotor-i')\n"
+        "r = 'ok'\n",
+    )
+    assert result == "ok"

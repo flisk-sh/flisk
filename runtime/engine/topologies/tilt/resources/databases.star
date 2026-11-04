@@ -93,9 +93,9 @@ done
 # The postgres image first runs a temporary server for its init scripts and shuts it down, so pg_isready can pass
 # right before the real server starts. Create the database in a retry loop and only finish once it is really there.
 echo "🔍 Ensuring database $DB_NAME exists..."
-db_exists() {
+db_exists() {{
   [ "$(docker exec $DB_HOST psql -U $DB_USER -d $MASTER_DB -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" 2>/dev/null)" = "1" ]
-}
+}}
 for i in $(seq 1 30); do
   if db_exists; then
     break
