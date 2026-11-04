@@ -31,7 +31,7 @@ import { formatCount } from "../utils/formatting.js";
 import { describeHostPortPlan, getHostPortPlan, hostPortPlanFix, resolveRuntimeIngressPort, } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
-import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
+import { findProjectRoot, getBuildCommit, getPackageVersion } from "../utils/paths.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
@@ -1378,7 +1378,7 @@ export const doctorCommand = new Command("doctor")
             console.log(JSON.stringify(createDoctorReport(windowsChecks, Boolean(findProjectRoot()), [], windowsPortPlan, {
                 ...host,
                 canUp: false,
-            })));
+            }, undefined, undefined, getBuildCommit())));
         }
         else {
             printDoctorResults(windowsChecks);
@@ -1396,7 +1396,7 @@ export const doctorCommand = new Command("doctor")
                 message: WEBCONTAINER_UP_MESSAGE,
                 fix: `Use a machine with Docker. Guide: ${WEBCONTAINER_DOCS}`,
             },
-        ], Boolean(findProjectRoot()), [], undefined, host);
+        ], Boolean(findProjectRoot()), [], undefined, host, undefined, undefined, getBuildCommit());
         if (options.json)
             console.log(JSON.stringify(report));
         console.error(WEBCONTAINER_UP_MESSAGE);
@@ -1714,7 +1714,8 @@ export const doctorCommand = new Command("doctor")
             }
         }
     }
-    const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCapabilities);
+    const buildCommit = getBuildCommit();
+    const report = createDoctorReport(orderDoctorResults(results), inProject, errors, hostPortPlan, host, enabledCapabilities, undefined, buildCommit);
     if (fixActions)
         report.data.actions = fixActions;
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
@@ -1734,7 +1735,7 @@ export const doctorCommand = new Command("doctor")
             console.log(JSON.stringify(createDoctorReport([], inProject, [
                 ...errors,
                 { code: "ENV_UNREADABLE", message: error.message },
-            ])));
+            ], undefined, undefined, undefined, undefined, buildCommit)));
             console.error(error.message);
             process.exit(1);
         }

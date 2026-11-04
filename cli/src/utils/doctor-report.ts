@@ -19,6 +19,8 @@ export interface DoctorReport {
     inProject: boolean;
     checks: CheckResult[];
     capabilities?: string[];
+    commit?: string;
+    commitSha?: string;
     /** Present only when a failing check has a runnable command: most blocking first. */
     fixFirst?: RankedFix[];
     /** Present only with `--fix`: every repair planned, applied, skipped or failed. */
@@ -77,6 +79,7 @@ export function createDoctorReport(
   host?: HostInfo,
   capabilities?: string[],
   buildCache?: DockerBuildCacheReport,
+  commit?: string,
 ): DoctorReport {
   const fixFirst = rankDoctorFixes(checks);
   const observedOwner = checks.find((check) => check.observed !== undefined)?.observed;
@@ -99,6 +102,7 @@ export function createDoctorReport(
       ...(observedOwner ? { observed: observedOwner } : {}),
       ...(fixFirst.length > 0 ? { fixFirst } : {}),
       ...(detectedBuildCache ? { buildCache: detectedBuildCache } : {}),
+      ...(commit !== undefined ? { commit, commitSha: commit } : {}),
       ...(host
         ? {
             host: {

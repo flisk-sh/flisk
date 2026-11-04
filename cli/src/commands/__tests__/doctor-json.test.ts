@@ -205,6 +205,21 @@ describe("doctor JSON command", () => {
     expect(getDoctorExitCode(passingReport)).toBe(0);
   });
 
+  it("includes commit in doctor report data when commit is provided", () => {
+    const report = createDoctorReport(
+      [PASSING_CHECK],
+      true,
+      [],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "doctor-commit-12345",
+    );
+    expect(report.data.commit).toBe("doctor-commit-12345");
+    expect(report.data.commitSha).toBe("doctor-commit-12345");
+  });
+
   it("includes buildCache in doctor report data when present in checks", () => {
     const buildCacheCheck = {
       name: "Docker Build Cache",

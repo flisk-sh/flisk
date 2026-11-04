@@ -151,6 +151,29 @@ describe("doctor report contract", () => {
     });
   });
 
+  describe("commit sha reporting", () => {
+    it("includes commit and commitSha in doctor report data when provided", () => {
+      const report = createDoctorReport(
+        [passing],
+        true,
+        [],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        "testcommit12345",
+      );
+      expect(report.data.commit).toBe("testcommit12345");
+      expect(report.data.commitSha).toBe("testcommit12345");
+    });
+
+    it("omits commit when not provided", () => {
+      const report = createDoctorReport([passing], true);
+      expect(report.data.commit).toBeUndefined();
+      expect(report.data.commitSha).toBeUndefined();
+    });
+  });
+
   describe("port fallback planning", () => {
     it("provides fallback ports when portPlan is null", () => {
       const report = createDoctorReport([passing], true, [], null);

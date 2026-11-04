@@ -94,7 +94,7 @@ import {
 } from "../utils/host-port-config.js";
 import { createHostPortPlan } from "../utils/host-port-plan.js";
 import { findNativeProject } from "../utils/native-project.js";
-import { findProjectRoot, getPackageVersion } from "../utils/paths.js";
+import { findProjectRoot, getBuildCommit, getPackageVersion } from "../utils/paths.js";
 import { findPortOwner, formatPortOwnerDiagnostic } from "../utils/port-owner.js";
 import { checkProjectRepos } from "../utils/project-repos.js";
 import { promptConfirm } from "../utils/prompt.js";
@@ -1694,10 +1694,19 @@ export const doctorCommand = new Command("doctor")
       if (options.json) {
         console.log(
           JSON.stringify(
-            createDoctorReport(windowsChecks, Boolean(findProjectRoot()), [], windowsPortPlan, {
-              ...host,
-              canUp: false,
-            }),
+            createDoctorReport(
+              windowsChecks,
+              Boolean(findProjectRoot()),
+              [],
+              windowsPortPlan,
+              {
+                ...host,
+                canUp: false,
+              },
+              undefined,
+              undefined,
+              getBuildCommit(),
+            ),
           ),
         );
       } else {
@@ -1723,6 +1732,9 @@ export const doctorCommand = new Command("doctor")
         [],
         undefined,
         host,
+        undefined,
+        undefined,
+        getBuildCommit(),
       );
       if (options.json) console.log(JSON.stringify(report));
       console.error(WEBCONTAINER_UP_MESSAGE);
@@ -2067,6 +2079,7 @@ export const doctorCommand = new Command("doctor")
         }
       }
     }
+    const buildCommit = getBuildCommit();
     const report = createDoctorReport(
       orderDoctorResults(results),
       inProject,
@@ -2074,6 +2087,8 @@ export const doctorCommand = new Command("doctor")
       hostPortPlan,
       host,
       enabledCapabilities,
+      undefined,
+      buildCommit,
     );
     if (fixActions) report.data.actions = fixActions;
     const fixFailed = fixActions ? hasFailedActions(fixActions) : false;
@@ -2089,10 +2104,19 @@ export const doctorCommand = new Command("doctor")
         // Without the values the report cannot be published safely, so it is replaced by a structured error.
         console.log(
           JSON.stringify(
-            createDoctorReport([], inProject, [
-              ...errors,
-              { code: "ENV_UNREADABLE", message: error.message },
-            ]),
+            createDoctorReport(
+              [],
+              inProject,
+              [
+                ...errors,
+                { code: "ENV_UNREADABLE", message: error.message },
+              ],
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              buildCommit,
+            ),
           ),
         );
         console.error(error.message);
