@@ -11,6 +11,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -699,6 +700,50 @@ describe("detectInstallation and detectInstallationForPath", () => {
       findOnPathMock.mockReturnValueOnce(npmBin);
       const info = detectInstallation();
       expect(info).toEqual({ method: "npm", path: npmBin });
+    } finally {
+      process.argv[1] = origArgv1;
+    }
+  });
+
+  // A global npm/bun install links the PATH entry to the real file inside node_modules or .bun.
+  // The package manager is in the resolved path only, so detection must follow the link.
+  it("detectInstallationForPath detects npm when a PATH symlink points into node_modules", () => {
+    const realBin = join(tempDir, "lib", "node_modules", "@flisk-sh", "flisk", "bin", "flisk.js");
+    mkdirSync(dirname(realBin), { recursive: true });
+    writeFileSync(realBin, "#!/usr/bin/env node");
+    const linkBin = join(tempDir, "usr-local-bin", "flisk");
+    mkdirSync(dirname(linkBin), { recursive: true });
+    symlinkSync(realBin, linkBin);
+
+    const info = detectInstallationForPath(linkBin);
+    expect(info).toEqual({ method: "npm", path: linkBin });
+  });
+
+  it("detectInstallationForPath detects bun when a PATH symlink points into .bun", () => {
+    const realBin = join(tempDir, ".bun", "install", "global", "node_modules", "flisk.js");
+    mkdirSync(dirname(realBin), { recursive: true });
+    writeFileSync(realBin, "#!/usr/bin/env node");
+    const linkBin = join(tempDir, "opt-homebrew-bin", "flisk");
+    mkdirSync(dirname(linkBin), { recursive: true });
+    symlinkSync(realBin, linkBin);
+
+    const info = detectInstallationForPath(linkBin);
+    expect(info).toEqual({ method: "bun", path: linkBin });
+  });
+
+  it("detectInstallation detects npm when the PATH entry is a symlink into node_modules", () => {
+    const origArgv1 = process.argv[1];
+    process.argv[1] = "";
+    try {
+      const realBin = join(tempDir, "lib", "node_modules", "@flisk-sh", "flisk", "bin", "flisk.js");
+      mkdirSync(dirname(realBin), { recursive: true });
+      writeFileSync(realBin, "#!/usr/bin/env node");
+      const linkBin = join(tempDir, "usr-local-bin", "flisk");
+      mkdirSync(dirname(linkBin), { recursive: true });
+      symlinkSync(realBin, linkBin);
+      findOnPathMock.mockReturnValueOnce(linkBin);
+      const info = detectInstallation();
+      expect(info).toEqual({ method: "npm", path: linkBin });
     } finally {
       process.argv[1] = origArgv1;
     }

@@ -51,6 +51,14 @@ export function windowsNpmUpgradeMessage(platformName, installInfo) {
         ? "use npm install -g @flisk-sh/flisk@latest"
         : null;
 }
+/** The package manager whose global directory a path lives in, or null. Checks `.bun` before `node_modules`. */
+function packageManagerForPath(path) {
+    if (path.includes(".bun"))
+        return "bun";
+    if (path.includes("node_modules") || path.includes(".npm"))
+        return "npm";
+    return null;
+}
 /** @internal Exported for unit tests only; not part of the package API. */
 export function detectInstallation() {
     const runningPath = process.execPath;
@@ -71,13 +79,11 @@ export function detectInstallation() {
                 return { method: "git", path: possibleGitRoot };
             }
         }
-        if (fliskPath.includes("node_modules") ||
-            fliskPath.includes(".npm") ||
-            fliskPath.includes(".bun")) {
-            if (fliskPath.includes(".bun")) {
-                return { method: "bun", path: fliskPath };
-            }
-            return { method: "npm", path: fliskPath };
+        // A global install puts a symlink on PATH (/usr/local/bin/flisk, /opt/homebrew/bin/flisk),
+        // so the package manager's directory shows up only in the resolved path.
+        const packageManager = packageManagerForPath(fliskPath) ?? packageManagerForPath(realPath);
+        if (packageManager) {
+            return { method: packageManager, path: fliskPath };
         }
         const cliRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
         if (existsSync(join(cliRoot, ".git"))) {
@@ -106,11 +112,9 @@ export function detectInstallationForPath(fliskPath) {
                 return { method: "git", path: possibleGitRoot };
             }
         }
-        if (fliskPath.includes("node_modules") ||
-            fliskPath.includes(".npm") ||
-            fliskPath.includes(".bun")) {
-            return { method: fliskPath.includes(".bun") ? "bun" : "npm", path: fliskPath };
-        }
+        const packageManager = packageManagerForPath(fliskPath) ?? packageManagerForPath(realPath);
+        if (packageManager)
+            return { method: packageManager, path: fliskPath };
         if (isStandaloneBinary(realPath))
             return { method: "binary", path: realPath };
     }
@@ -667,6 +671,9 @@ export function createUpgradeCommand() {
             console.log(chalk.cyan("   npm install -g @flisk-sh/flisk@latest"));
             console.log(chalk.cyan("   bun install -g @flisk-sh/flisk@latest"));
             console.log(chalk.cyan("   git:  cd /path/to/flisk-cli && git pull && bun link --force"));
+            console.log(chalk.yellow("\nTo remove Flisk (run the one you installed with, or both):"));
+            console.log(chalk.cyan("   npm uninstall -g @flisk-sh/flisk"));
+            console.log(chalk.cyan("   bun remove -g @flisk-sh/flisk"));
             process.exit(1);
         }
         let latestVersion = null;
