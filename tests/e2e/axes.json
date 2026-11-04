@@ -381,6 +381,48 @@
 				}
 			},
 			"interactions": []
+		},
+		"databaseMode": {
+			"source": null,
+			"groups": [
+				"journeys"
+			],
+			"defaults": [
+				"shared"
+			],
+			"values": {
+				"shared": {
+					"allow": "#3239"
+				},
+				"external": {
+					"allow": "#3239"
+				},
+				"absent": {
+					"allow": "#3239"
+				}
+			},
+			"interactions": []
+		},
+		"authMode": {
+			"source": null,
+			"groups": [
+				"journeys"
+			],
+			"defaults": [
+				"local-jwt"
+			],
+			"values": {
+				"local-jwt": {
+					"allow": "#3239"
+				},
+				"jwt": {
+					"allow": "#3239"
+				},
+				"none": {
+					"allow": "#3239"
+				}
+			},
+			"interactions": []
 		}
 	}
 }
