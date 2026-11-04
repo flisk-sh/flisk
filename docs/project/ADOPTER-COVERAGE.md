@@ -25,7 +25,7 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | Compose | service.json | Since (core release) | Importer and exporter | Needed by | Status |
 |---|---|---|---|---|---|
 | `image`, `build` | `image`, `buildContext`, `dockerfile` | 1.4.0 | yes | all | covered |
-| `command`, `entrypoint` on an image | a generated Dockerfile next to the service | n/a (importer) | yes | nosia, pl_mail, EDDI | covered |
+| `command`, `entrypoint` on an image | `container.command`, `container.entrypoint` | 1.4.31 (`container.command`) | yes | nosia, pl_mail, EDDI | covered |
 | `environment` with `${VAR}`, `${VAR:-d}`, `${VAR-d}` | `env` | 1.4.24; `${VAR-d}` 1.4.27 | yes | all | covered |
 | required secrets | `secrets.required` | 1.4.0 | yes | nosia | covered |
 | `ports` (host address, host port) | `extraPorts` `bind`, `hostPort` | 1.4.24 | yes | tubehaus, nosia | covered |
@@ -63,7 +63,7 @@ What a real project needs from Flisk when it moves from Docker Compose, which of
 | `include:`, `extends:`, anchors | resolved by the importer | n/a (importer) | yes | wger, nosia | tested, a plan note says when Compose is missing |
 | `container_name` | none, Flisk names containers | n/a | dropped with a note | Lychee | by design |
 | several or named custom `networks` | the default network | n/a | ignored with a note | Lychee | open: a service that needs two isolated networks is not expressible |
-| `command` on a service that has `build:` | none | n/a | noted, not carried over | none yet | open |
+| `command` on a service that has `build:` | `container.command` | 1.4.31 (`container.command`) | yes | none yet | covered |
 | top-level Compose `secrets:` and `configs:` | `secrets.files`, `configs` | unreleased (after 1.4.33) | not yet released | catchpoint/WebPageTest, sameersbn/docker-gitlab | tested |
 | a web UI behind the proxy | `webUi: true` | 1.4.29 | set by hand | TREK, wanderer | tested, not checked in a browser; the importer cannot tell UI from API |
 

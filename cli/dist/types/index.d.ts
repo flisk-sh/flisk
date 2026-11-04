@@ -24,6 +24,31 @@ export interface HealthCheckObjectConfig {
     command?: string[];
 }
 export type HealthCheckConfig = boolean | HealthCheckObjectConfig;
+export interface ContainerConfig {
+    /** Start command (Compose command), replacing the image's CMD: a list of arguments such as ["server", "/data"]. */
+    command?: string[];
+    /** Entrypoint (Compose entrypoint), replacing the image's ENTRYPOINT: a list of arguments such as ["/docker-entrypoint.sh"]. */
+    entrypoint?: string[];
+    init?: boolean;
+    readOnly?: boolean;
+    user?: string;
+    shmSize?: string;
+    tmpfs?: string[];
+    gpus?: string | number;
+    cpus?: string | number;
+    memory?: string;
+    ipc?: string;
+    stopGracePeriod?: string;
+    extraHosts?: string[];
+    ulimits?: Record<string, number | {
+        soft: number;
+        hard: number;
+    }>;
+    networkAliases?: string[];
+    capAdd?: string[];
+    capDrop?: string[];
+    securityOpt?: string[];
+}
 export interface ResourceConfigFields {
     appName: string;
     appType: (typeof RESOURCE_CONFIG_APP_TYPES)[number];
@@ -72,11 +97,13 @@ export interface ResourceConfigFields {
     dockerfile?: string;
     /** Optional Docker image name instead of building from Dockerfile */
     image?: string;
+    /** Container runtime options for bring-your-own resources (command, entrypoint, capabilities, ulimits, etc.). */
+    container?: ContainerConfig;
     /** agent only: how the agent runtime is scaffolded and where its session state lives. See agent-runtimes/. */
     agent?: AgentConfig;
     /**
      * Run the service as a local process with this shell command instead of a container (no image, no Dockerfile). Started from
-     * the service directory with PORT set to `port`. See utils/native-service.ts.
+     * the service directory with PORT set to `port`. See utils/native-service.ts. For container services, use `container.command`.
      */
     command?: string;
     /** Extra environment for a `command` service. Values may reference `${VAR}` from the project .env or the shell. */

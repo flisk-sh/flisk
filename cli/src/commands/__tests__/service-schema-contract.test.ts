@@ -59,6 +59,7 @@ const RESOURCE_CONFIG_FIELDS = [
   "image",
   "exposeViaProxy",
   "webUi",
+  "container",
   "agent",
   "command",
   "env",

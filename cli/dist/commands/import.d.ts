@@ -98,6 +98,17 @@ export interface ImportOptions {
 }
 export declare function resolveImportOptions(options?: ImportOptions, cmd?: Command): ImportOptions;
 /**
+ * Preserves a Compose `command` on a service that also has `build:` (#3060).
+ * In Compose, a service can define both `build:` and `command:`. Flisk maps container
+ * runtime arguments to `container.command` so the Compose generator passes it through.
+ */
+export declare function carryOverBuildCommand(manifest: Record<string, unknown>, command?: string | string[]): Record<string, unknown>;
+/**
+ * Normalizes any written service.json files where build and command were declared,
+ * ensuring container.command is populated.
+ */
+export declare function syncImportedManifestCommands(writtenPaths: string[]): void;
+/**
  * Runs `flisk import` (and its `compose` / `tiltfile` subcommands). With `--json` the importer runs captured and never
  * prompts; otherwise it inherits the terminal, and a run that would write is refused when there is no terminal to ask in.
  * Sets `process.exitCode` to the importer's exit code, or 1 for a refusal.

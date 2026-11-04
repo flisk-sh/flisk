@@ -12,9 +12,12 @@ vi.mock("node:child_process", async (importOriginal) => ({
   spawn: (...args: unknown[]) => mocks.spawn(...args),
 }));
 
+import fs from "node:fs";
+import path from "node:path";
 import { createTempDir, runCommandInProcess } from "../../test-support/index.js";
 import {
   buildForwardedImportArgs,
+  carryOverBuildCommand,
   checkCoreVersion,
   compareSemver,
   composeCommand,
@@ -30,6 +33,7 @@ import {
   RECOMMENDED_CORE_VERSION,
   runImport,
   runImportCaptured,
+  syncImportedManifestCommands,
 } from "../import.js";
 
 function fakeSpawn(outcome: { code?: number | null; error?: Error }) {
@@ -742,6 +746,176 @@ describe("flisk import --json", () => {
         mocks.spawn.mockReset();
         reset();
       }
+    });
+  });
+
+  describe("carrying over command on services with build (#3060)", () => {
+    it("preserves quoted arguments and intentional empty arguments in command (#3060)", () => {
+      const manifest = {
+        appName: "api",
+        appType: "bring-your-own",
+        buildContext: "./api",
+      };
+      const quotedResult = carryOverBuildCommand(
+        manifest,
+        "node server.js --title 'hello world' --env \"test env\"",
+      );
+      expect(quotedResult.container).toEqual({
+        command: ["node", "server.js", "--title", "hello world", "--env", "test env"],
+      });
+
+      const arrayWithEmpty = carryOverBuildCommand(manifest, ["node", "server.js", "", "--arg"]);
+      expect(arrayWithEmpty.container).toEqual({
+        command: ["node", "server.js", "", "--arg"],
+      });
+    });
+
+    it("carries over string command on a service with buildContext as container.command", () => {
+      const manifest = {
+        appName: "api",
+        appType: "bring-your-own",
+        buildContext: "./api",
+        dockerfile: "Dockerfile",
+      };
+      const result = carryOverBuildCommand(manifest, "node server.js --port 3000");
+      expect(result).toEqual({
+        appName: "api",
+        appType: "bring-your-own",
+        buildContext: "./api",
+        dockerfile: "Dockerfile",
+        container: {
+          command: ["node", "server.js", "--port", "3000"],
+        },
+      });
+    });
+
+    it("carries over string array command on a service with build object as container.command", () => {
+      const manifest = {
+        appName: "worker",
+        appType: "bring-your-own",
+        build: { context: ".", dockerfile: "Dockerfile.worker" },
+      };
+      const result = carryOverBuildCommand(manifest, ["python", "-m", "worker"]);
+      expect(result).toEqual({
+        appName: "worker",
+        appType: "bring-your-own",
+        build: { context: ".", dockerfile: "Dockerfile.worker" },
+        container: {
+          command: ["python", "-m", "worker"],
+        },
+      });
+    });
+
+    it("migrates top-level command on a built service to container.command and removes top-level command", () => {
+      const manifest = {
+        appName: "api",
+        appType: "bring-your-own",
+        dockerfile: "Dockerfile",
+        command: ["node", "server.js"],
+      };
+      const result = carryOverBuildCommand(manifest);
+      expect(result).toEqual({
+        appName: "api",
+        appType: "bring-your-own",
+        dockerfile: "Dockerfile",
+        container: {
+          command: ["node", "server.js"],
+        },
+      });
+      expect(result.command).toBeUndefined();
+    });
+
+    it("preserves existing container configuration when adding command", () => {
+      const manifest = {
+        appName: "api",
+        appType: "bring-your-own",
+        buildContext: "./api",
+        container: {
+          user: "node",
+          networkAliases: ["api-internal"],
+        },
+      };
+      const result = carryOverBuildCommand(manifest, ["npm", "start"]);
+      expect(result).toEqual({
+        appName: "api",
+        appType: "bring-your-own",
+        buildContext: "./api",
+        container: {
+          user: "node",
+          networkAliases: ["api-internal"],
+          command: ["npm", "start"],
+        },
+      });
+    });
+
+    it("does not alter native local command service without build or image", () => {
+      const manifest = {
+        appName: "api",
+        appType: "backend",
+        command: "node server.js",
+      };
+      const result = carryOverBuildCommand(manifest);
+      expect(result).toEqual(manifest);
+      expect(result.container).toBeUndefined();
+      expect(result.command).toBe("node server.js");
+    });
+
+    it("syncImportedManifestCommands normalizes written service.json files", () => {
+      const tempDir = createTempDir();
+      const serviceJsonPath = path.join(tempDir, "service.json");
+      fs.writeFileSync(
+        serviceJsonPath,
+        JSON.stringify(
+          {
+            appName: "web",
+            appType: "bring-your-own",
+            buildContext: ".",
+            dockerfile: "Dockerfile",
+            command: ["bun", "run", "dev"],
+          },
+          null,
+          2,
+        ),
+      );
+
+      syncImportedManifestCommands([serviceJsonPath]);
+
+      const updated = JSON.parse(fs.readFileSync(serviceJsonPath, "utf-8"));
+      expect(updated.container).toEqual({
+        command: ["bun", "run", "dev"],
+      });
+      expect(updated.command).toBeUndefined();
+    });
+
+    it("retains command in container.command for a fixture service defining both build: and command:", async () => {
+      const tempDir = createTempDir();
+      const stackDir = path.join(tempDir, "services", "fixture-stack", "web");
+      fs.mkdirSync(stackDir, { recursive: true });
+
+      const serviceJsonPath = path.join(stackDir, "service.json");
+      // What the importer writes for a Compose service with both build: and command: (a top-level command)
+      const initialManifest = {
+        $schema: "https://flisk.sh/schema.service.json",
+        schemaVersion: 1,
+        appName: "web",
+        appType: "bring-your-own",
+        stack: "fixture-stack",
+        port: 3000,
+        buildContext: "../../..",
+        dockerfile: "Dockerfile",
+        command: "node server.js --port 3000",
+      };
+      fs.writeFileSync(serviceJsonPath, JSON.stringify(initialManifest, null, 2));
+
+      // The post-import sync moves it into container.command and keeps the build settings
+      syncImportedManifestCommands([serviceJsonPath]);
+
+      const readManifest = JSON.parse(fs.readFileSync(serviceJsonPath, "utf-8"));
+      expect(readManifest.buildContext).toBe("../../..");
+      expect(readManifest.dockerfile).toBe("Dockerfile");
+      expect(readManifest.container).toBeDefined();
+      expect(readManifest.container.command).toEqual(["node", "server.js", "--port", "3000"]);
+      expect(readManifest.command).toBeUndefined();
     });
   });
 });
