@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Flisk Landscape contributors
 // SPDX-License-Identifier: MIT
 import { type SpawnOptions, spawn } from "node:child_process";
+import fs from "node:fs";
 import { Command } from "commander";
 import { addYesOption } from "../utils/command-helpers.js";
 import { JsonCommandError, runJsonCommand } from "../utils/json-command.js";
@@ -333,6 +334,80 @@ export function resolveImportOptions(options: ImportOptions = {}, cmd?: Command)
   };
 }
 
+/**
+ * Preserves a Compose `command` on a service that also has `build:` (#3060).
+ * In Compose, a service can define both `build:` and `command:`. Flisk maps container
+ * runtime arguments to `container.command` so the Compose generator passes it through.
+ */
+export function carryOverBuildCommand(
+  manifest: Record<string, unknown>,
+  command?: string | string[],
+): Record<string, unknown> {
+  const rawCommand = command ?? manifest.command;
+  if (!rawCommand) return manifest;
+
+  const commandList = Array.isArray(rawCommand)
+    ? rawCommand.filter((part): part is string => typeof part === "string" && part.length > 0)
+    : typeof rawCommand === "string" && rawCommand.trim() !== ""
+      ? rawCommand.trim().split(/\s+/).filter(Boolean)
+      : undefined;
+
+  if (!commandList || commandList.length === 0) return manifest;
+
+  const hasBuild =
+    manifest.build !== undefined ||
+    manifest.buildContext !== undefined ||
+    manifest.dockerfile !== undefined;
+
+  if (hasBuild || manifest.image) {
+    const existingContainer =
+      manifest.container &&
+      typeof manifest.container === "object" &&
+      !Array.isArray(manifest.container)
+        ? (manifest.container as Record<string, unknown>)
+        : {};
+
+    const updated: Record<string, unknown> = {
+      ...manifest,
+      container: {
+        ...existingContainer,
+        command: commandList,
+      },
+    };
+
+    if ("command" in updated) {
+      delete updated.command;
+    }
+
+    return updated;
+  }
+
+  return manifest;
+}
+
+/**
+ * Normalizes any written service.json files where build and command were declared,
+ * ensuring container.command is populated.
+ */
+export function syncImportedManifestCommands(writtenPaths: string[]): void {
+  for (const relativePath of writtenPaths) {
+    try {
+      if (!relativePath.endsWith("service.json")) continue;
+      if (!fs.existsSync(relativePath)) continue;
+      const content = fs.readFileSync(relativePath, "utf-8");
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === "object") {
+        const updated = carryOverBuildCommand(parsed as Record<string, unknown>);
+        if (JSON.stringify(updated) !== JSON.stringify(parsed)) {
+          fs.writeFileSync(relativePath, `${JSON.stringify(updated, null, 2)}\n`, "utf-8");
+        }
+      }
+    } catch {
+      // Best-effort post-processing; ignore unreadable files
+    }
+  }
+}
+
 export async function executeImport(
   args: string[],
   options: ImportOptions = {},
@@ -347,7 +422,9 @@ export async function executeImport(
       if (run.stdout.trim()) console.log(run.stdout.trimEnd());
       if (run.stderr.trim()) console.error(run.stderr.trimEnd());
       if (run.exitCode !== 0) throw importFailure(run, commandName);
-      return { data: importReport(forwardedArgs, run) };
+      const report = importReport(forwardedArgs, run);
+      syncImportedManifestCommands(report.written);
+      return { data: report };
     });
     return;
   }

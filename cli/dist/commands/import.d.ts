@@ -97,6 +97,17 @@ export interface ImportOptions {
     json?: boolean;
 }
 export declare function resolveImportOptions(options?: ImportOptions, cmd?: Command): ImportOptions;
+/**
+ * Preserves a Compose `command` on a service that also has `build:` (#3060).
+ * In Compose, a service can define both `build:` and `command:`. Flisk maps container
+ * runtime arguments to `container.command` so the Compose generator passes it through.
+ */
+export declare function carryOverBuildCommand(manifest: Record<string, unknown>, command?: string | string[]): Record<string, unknown>;
+/**
+ * Normalizes any written service.json files where build and command were declared,
+ * ensuring container.command is populated.
+ */
+export declare function syncImportedManifestCommands(writtenPaths: string[]): void;
 export declare function executeImport(args: string[], options?: ImportOptions, commandName?: string): Promise<void>;
 export declare const composeCommand: Command;
 /**
