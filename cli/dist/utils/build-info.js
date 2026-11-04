@@ -47,7 +47,14 @@ export function getBuildInfo(customPath) {
     try {
         const raw = readFileSync(filePath, "utf8");
         const parsed = JSON.parse(raw);
-        const commit = String(parsed.commit ?? parsed.commitSha ?? parsed.sha ?? "").trim();
+        const candidates = [parsed.commit, parsed.commitSha, parsed.sha];
+        let commit = "";
+        for (const val of candidates) {
+            if (typeof val === "string" && val.trim().length > 0) {
+                commit = val.trim();
+                break;
+            }
+        }
         if (!commit) {
             if (!customPath)
                 buildInfoCache = null;

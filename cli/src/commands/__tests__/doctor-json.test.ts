@@ -277,6 +277,8 @@ describe("doctor JSON command", () => {
       // Failing checks are ordered before passing and skipped checks by orderDoctorResults
       expect(report.data.checks).toEqual([FAILING_CHECK, PASSING_CHECK, SKIPPED_CHECK]);
       expect(report.errors).toEqual([]);
+      expect(report.data.commit).toBeDefined();
+      expect(report.data.commitSha).toBeDefined();
 
       jsonRun.log.mockRestore();
       jsonRun.exit.mockRestore();

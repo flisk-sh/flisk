@@ -98,6 +98,16 @@ describe("build-info", () => {
     expect(result).toBeNull();
   });
 
+  it("skips blank or non-string earlier fields in favor of valid candidate", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "flisk-build-test-"));
+    const file = join(tempDir, "build-info.json");
+    writeFileSync(file, JSON.stringify({ commit: "   ", commitSha: 12345, sha: "  valid-sha-123  " }));
+
+    const result = getBuildInfo(file);
+    expect(result?.commit).toBe("valid-sha-123");
+    expect(result?.commitSha).toBe("valid-sha-123");
+  });
+
   it("getBuildCommit prioritizes FLISK_BUILD_COMMIT over build-info file", () => {
     tempDir = mkdtempSync(join(tmpdir(), "flisk-build-test-"));
     const file = join(tempDir, "build-info.json");
