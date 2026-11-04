@@ -74,4 +74,5 @@ def test_posix_commands_of_converted_resources_are_unchanged():
     assert "cmd_bat=POWERSHELL + [healthy_postgres_script()]" in infra
     assert "cmd_bat=POWERSHELL + [init_networks_script()]" in infra
     manifest = (TILT / "resources" / "orchestrator" / "generators" / "manifest_resource.star").read_text()
-    assert "file_mtime(json_path)" in manifest and "IS_NATIVE_WINDOWS" not in manifest
+    assert "if IS_NATIVE_WINDOWS:" in manifest and "file_mtime(json_path)" in manifest
+    assert 'stat -f %m \\"$1\\" 2>/dev/null || stat -c %Y' in manifest
