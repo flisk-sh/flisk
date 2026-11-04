@@ -199,6 +199,14 @@ describe("arrowSelect", () => {
     t.press(CTRL_C);
     await expect(done).rejects.toBeInstanceOf(PromptCancelled);
   });
+
+  it("a closed input cancels instead of waiting forever, and shows the cursor again", async () => {
+    const t = fakeTerminal();
+    const done = arrowSelect({ message: "Build?", choices: CHOICES }, t.streams);
+    (t.streams.input as unknown as PassThrough).end();
+    await expect(done).rejects.toBeInstanceOf(PromptCancelled);
+    expect(t.printed()).toContain("\x1b[?25h");
+  });
 });
 
 describe("arrowMultiSelect", () => {

@@ -8,7 +8,7 @@
  * those commands wrote. It keeps no list of frameworks, languages or starters of its own.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -296,6 +296,11 @@ export async function collectAnswers(nameArg, options, interactive) {
 export function assertFolderIsFree(dir) {
     if (!existsSync(dir))
         return;
+    if (!statSync(dir).isDirectory()) {
+        throw new FliskError(`${dir} already exists and is not a folder.`, [
+            "Pick another name: flisk create <name>",
+        ]);
+    }
     if (readdirSync(dir).length === 0)
         return;
     throw new FliskError(`The folder ${dir} already exists and is not empty.`, [
@@ -441,20 +446,13 @@ export function nextSteps(projectDir, answers, services = generatedServices(proj
     }
     if (answers.runtime === "docker")
         return [`cd ${answers.name}`, "flisk up app"];
-    const [only] = services;
+    // Always flisk up: it starts each part with the port written in its service.json. Running a part's own dev
+    // command by hand would fall back to the part's built-in default port, which may not be the one chosen here.
     const open = whereToOpen(services);
-    if (services.length === 1 && only) {
-        return [
-            `cd ${answers.name}/${only.dir}`,
-            ...(only.install ? [only.install] : []),
-            only.run,
-            ...(open ? [open] : []),
-        ];
-    }
     return [
         `cd ${answers.name}`,
         ...services.flatMap((service) => service.install ? [`(cd ${service.dir} && ${service.install})`] : []),
-        "flisk up        # starts both",
+        services.length === 1 ? "flisk up        # starts it" : "flisk up        # starts both",
         ...(open ? [open] : []),
     ];
 }
@@ -609,14 +607,26 @@ async function runCreate(nameArg, options) {
     // The "install and start now?" ask belongs to the local app route alone (#3192): the Docker route
     // is started with flisk up app, and a starter points at its own README instead.
     if (!start && interactive && asksToStart(answers)) {
-        start =
-            (await arrowSelect({
-                message: "Start it now?",
-                choices: [
-                    { title: "Yes, start it", value: "yes", hint: "Downloads what it needs, then runs it." },
-                    { title: "No, I'll do it later", value: "no", hint: "Shows the commands instead." },
-                ],
-            })) === "yes";
+        // The project is already written: Escape or Ctrl-C here means "not now", never "nothing was written".
+        try {
+            start =
+                (await arrowSelect({
+                    message: "Start it now?",
+                    choices: [
+                        {
+                            title: "Yes, start it",
+                            value: "yes",
+                            hint: "Downloads what it needs, then runs it.",
+                        },
+                        { title: "No, I'll do it later", value: "no", hint: "Shows the commands instead." },
+                    ],
+                })) === "yes";
+        }
+        catch (error) {
+            if (!(error instanceof PromptCancelled))
+                throw error;
+            start = false;
+        }
     }
     if (!start) {
         console.log(`\nNext:\n${nextSteps(projectDir, answers, services)

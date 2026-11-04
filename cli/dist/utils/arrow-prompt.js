@@ -112,6 +112,8 @@ function readKeys(streams, onKey) {
     return new Promise((resolve, reject) => {
         const finish = (settle) => {
             input.off("keypress", handler);
+            input.off("end", closed);
+            input.off("close", closed);
             input.setRawMode?.(wasRaw);
             input.pause();
             output.write("\x1b[?25h");
@@ -127,7 +129,11 @@ function readKeys(streams, onKey) {
             if (result)
                 finish(() => resolve(result.done));
         };
+        // A closed input (a pipe that ended, a detached terminal) can never answer: cancel instead of waiting forever.
+        const closed = () => finish(() => reject(new PromptCancelled()));
         input.on("keypress", handler);
+        input.once("end", closed);
+        input.once("close", closed);
     });
 }
 /** Pick one: arrows to move, Enter to choose. With `filterable`, typing narrows a long list. */

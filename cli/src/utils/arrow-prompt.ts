@@ -166,6 +166,8 @@ function readKeys<R>(
   return new Promise<R>((resolve, reject) => {
     const finish = (settle: () => void) => {
       input.off("keypress", handler);
+      input.off("end", closed);
+      input.off("close", closed);
       input.setRawMode?.(wasRaw);
       input.pause();
       output.write("\x1b[?25h");
@@ -180,7 +182,11 @@ function readKeys<R>(
       const result = onKey(pressed, str);
       if (result) finish(() => resolve(result.done));
     };
+    // A closed input (a pipe that ended, a detached terminal) can never answer: cancel instead of waiting forever.
+    const closed = () => finish(() => reject(new PromptCancelled()));
     input.on("keypress", handler);
+    input.once("end", closed);
+    input.once("close", closed);
   });
 }
 

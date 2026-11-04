@@ -496,6 +496,19 @@ describe("the review, the recovery message and the folder guard", () => {
     }
   });
 
+  it("names a destination that is a file instead of failing with a raw error", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-create-file-"));
+    try {
+      writeFileSync(join(dir, "my-app"), "a file");
+      expect(() => assertFolderIsFree(join(dir, "my-app"))).toThrow(
+        /already exists and is not a folder/,
+      );
+      expect(() => claimFolder(join(dir, "my-app"))).toThrow(/not a folder/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("refuses a folder that already has files, but accepts a missing or empty one", () => {
     const dir = mkdtempSync(join(tmpdir(), "flisk-create-guard-"));
     try {
@@ -574,6 +587,30 @@ describe("flisk create (the real CLI, no terminal)", () => {
     }
   });
 
+  it("an API-only project on a busy port starts with flisk up, which gives it that port", async () => {
+    const held = await new Promise<Server | undefined>((resolve) => {
+      const server = createServer();
+      server.once("error", () => resolve(undefined));
+      server.listen(4000, () => resolve(server));
+    });
+    try {
+      const run = runFlisk(["create", "solo-api", "--frontend", "none", "--yes"], {
+        cwd: dirOf(),
+        timeout: 120_000,
+      });
+      expect(run.status, run.stdout + run.stderr).toBe(0);
+      const port = JSON.parse(
+        readFileSync(join(dirOf(), "solo-api", "api", "service.json"), "utf8"),
+      ).port;
+      expect(port).not.toBe(4000);
+      expect(run.stdout).toContain("flisk up");
+      expect(run.stdout).not.toContain("npm run dev");
+      expect(run.stdout).toContain(`http://localhost:${port}/health`);
+    } finally {
+      held?.close();
+    }
+  });
+
   it("the printed next steps match what was generated", () => {
     const run = runFlisk(["create", "shop", "--yes"], { cwd: dirOf(), timeout: 120_000 });
     expect(run.status, run.stdout + run.stderr).toBe(0);
@@ -600,7 +637,7 @@ describe("flisk create (the real CLI, no terminal)", () => {
     expect(printed).toContain("cd shop");
   });
 
-  it("a single local service prints cd, install and its own dev command", () => {
+  it("a single local service prints cd, install and flisk up", () => {
     const run = runFlisk(["create", "solo", "--backend", "none", "--yes"], {
       cwd: dirOf(),
       timeout: 120_000,
@@ -610,10 +647,11 @@ describe("flisk create (the real CLI, no terminal)", () => {
       readFileSync(join(dirOf(), "solo", "web", "package.json"), "utf8"),
     ).scripts;
     expect(scripts.dev).toBe("vite");
-    expect(run.stdout).toContain("cd solo/web");
-    expect(run.stdout).toContain("npm install");
-    expect(run.stdout).toContain("npm run dev");
-    expect(run.stdout).not.toMatch(/flisk up/);
+    expect(run.stdout).toContain("cd solo");
+    expect(run.stdout).toContain("(cd web && npm install)");
+    // flisk up hands the part the port in its service.json; a bare "npm run dev" would not.
+    expect(run.stdout).toContain("flisk up");
+    expect(run.stdout).not.toContain("npm run dev");
   });
 
   it("the Docker route still writes the container-based project", () => {
@@ -820,7 +858,7 @@ describe("nextSteps", () => {
       nextSteps("/x", { name: "a", runtime: "local", extras: [], frontend: "f" }, [
         { dir: "web", install: "npm install", run: "npm run dev" },
       ]),
-    ).toEqual(["cd a/web", "npm install", "npm run dev"]);
+    ).toEqual(["cd a", "(cd web && npm install)", "flisk up        # starts it"]);
   });
 });
 
