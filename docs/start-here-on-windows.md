@@ -23,7 +23,13 @@ Open the Start menu, type `PowerShell`, right-click **Windows PowerShell** and c
 wsl --install -d Ubuntu
 ```
 
-Restart if Windows asks. Then open the **Ubuntu** app from the Start menu and choose a user name and password. From here on, type every command in the Ubuntu app, not in PowerShell.
+![PowerShell opened as administrator, running wsl --install -d Ubuntu](assets/windows/1-powershell-admin.svg)
+*Illustration of what you should see. Your window may look slightly different.*
+
+Restart if Windows asks. Then open the **Ubuntu** app from the Start menu and choose a user name and password (the password stays invisible while you type).
+
+![Ubuntu asking for a new user name and password](assets/windows/3-ubuntu-first-run.svg)
+*Illustration of what you should see.* From here on, type every command in the Ubuntu app, not in PowerShell.
 
 **If you skip it:** in PowerShell or `cmd`, `flisk doctor` prints
 
@@ -36,6 +42,9 @@ and `flisk up` on a Docker project exits with `Landscape startup needs Ubuntu on
 ## 2. Connect Docker Desktop to Ubuntu
 
 Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with the WSL 2 backend. Then open **Settings → Resources → WSL Integration**, turn it on for **Ubuntu**, and click **Apply & Restart**. Check in Ubuntu:
+
+![Docker Desktop, Settings, Resources, WSL Integration, with the Ubuntu switch on](assets/windows/2-docker-wsl-integration.svg)
+*Illustration of what you should see. Your window may look slightly different.*
 
 ```bash
 docker version
@@ -88,6 +97,9 @@ In Ubuntu:
 ```bash
 npx @flisk-sh/flisk doctor
 ```
+
+![flisk doctor in Ubuntu, with one failed check and its fix](assets/windows/4-flisk-doctor.svg)
+*Illustration: a failed check prints the fix right below it.*
 
 Fix anything it marks failed, using the fix it prints, then run it again until every check passes. Other messages and what they mean are in [Windows & WSL2: Troubleshooting](wsl2.md#troubleshooting).
 
