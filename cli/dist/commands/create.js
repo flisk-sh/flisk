@@ -16,7 +16,7 @@ import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languag
 import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../utils/arrow-prompt.js";
 import { addYesOption } from "../utils/command-helpers.js";
 import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
-import { buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, } from "../utils/create-plan.js";
+import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
 import { findOnPath } from "../utils/which.js";
@@ -141,7 +141,7 @@ export async function collectAnswers(nameArg, options, interactive) {
                 choices: starters.map((option) => ({
                     title: option.title,
                     value: option.id,
-                    hint: `${option.hint}${option.local ? " · no Docker" : ""}`,
+                    hint: `${option.hint}${option.local ? " · runs on your computer" : " · needs Docker, see its README"}`,
                 })),
             });
     }
@@ -321,10 +321,10 @@ export function generatedServices(projectDir, answers) {
 }
 /** The commands to run next, from what was generated. */
 export function nextSteps(projectDir, answers, services = generatedServices(projectDir, answers)) {
-    if (answers.starter || answers.runtime === "docker") {
-        const up = answers.runtime === "docker" && !answers.starter ? "flisk up app" : "flisk up";
-        return [`cd ${answers.name}`, up];
-    }
+    if (answers.starter)
+        return [`cd ${answers.name}`, "Read its README for what it needs, then run it."];
+    if (answers.runtime === "docker")
+        return [`cd ${answers.name}`, "flisk up app"];
     const [only] = services;
     if (services.length === 1 && only) {
         return [`cd ${answers.name}/${only.dir}`, ...(only.install ? [only.install] : []), only.run];
@@ -364,7 +364,7 @@ export const createCommand = addYesOption(new Command("create"))
     .option("--language <id>", "API language (see flisk resource --help)")
     .option("--extras <list>", "Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none")
     .option("--dry-run", "Print the commands that would run, and stop", false)
-    .option("--start", "Install dependencies and start the project when it is ready", false)
+    .option("--start", "Install dependencies and start what was written (the local app route; a starter is never started here)", false)
     .action(async (nameArg, options) => {
     // runCommand turns every error into an exit, so a cancel is handled inside it.
     await runCommand(async () => {
@@ -379,6 +379,10 @@ export const createCommand = addYesOption(new Command("create"))
         }
     });
 });
+/**
+ * The create journey: collect the answers, show the review, run the plan, then hand over. A starter is handed to
+ * its README; a local app may install and start itself (the ask, or --start); the Docker route is started with flisk up app.
+ */
 async function runCreate(nameArg, options) {
     const interactive = isInteractive(options, {
         in: process.stdin.isTTY === true,
@@ -449,8 +453,18 @@ async function runCreate(nameArg, options) {
     }
     console.log(`\n${chalk.green("✔")} Created ${chalk.bold(answers.name)}`);
     const services = generatedServices(projectDir, answers);
+    // A starter is ready-made and may need Docker, a database or other setup its own README describes. create writes it and
+    // stops: it never installs, never starts Docker, Tilt or a stack, not even with --start.
+    if (answers.starter) {
+        console.log(`\nNext:\n${nextSteps(projectDir, answers)
+            .map((line) => `  ${line}`)
+            .join("\n")}\n`);
+        return;
+    }
     let start = Boolean(options.start);
-    if (!start && interactive) {
+    // The "install and start now?" ask belongs to the local app route alone (#3192): the Docker route
+    // is started with flisk up app, and a starter points at its own README instead.
+    if (!start && interactive && asksToStart(answers)) {
         start =
             (await arrowSelect({
                 message: "Install dependencies and start it now?",
@@ -468,8 +482,7 @@ async function runCreate(nameArg, options) {
     }
     const defaultInstall = getBackendLanguage(DEFAULT_BACKEND_LANGUAGE).installHint;
     // Install what the generators wrote.
-    const local = answers.runtime === "local" && !answers.starter;
-    if (local) {
+    if (answers.runtime === "local") {
         // npm when it is there; otherwise the package manager the default language's own install hint uses.
         const pm = findOnPath("npm") ? "npm" : (defaultInstall.split(" ")[0] ?? "npm");
         for (const service of services.filter((entry) => entry.install === "npm install")) {
@@ -489,7 +502,7 @@ async function runCreate(nameArg, options) {
             console.log(chalk.green("done"));
         }
     }
-    else if (!answers.starter) {
+    else {
         process.stdout.write("  Installing dependencies... ");
         const installs = await installServiceDependencies(projectDir);
         const failed = installs.filter((entry) => !entry.ok);
@@ -502,7 +515,7 @@ async function runCreate(nameArg, options) {
         }
         console.log(chalk.green("done"));
     }
-    const upArgs = !answers.starter && answers.runtime === "docker" ? ["up", "app"] : ["up"];
+    const upArgs = answers.runtime === "docker" ? ["up", "app"] : ["up"];
     const up = spawnSync(process.execPath, [binPath, ...upArgs], {
         cwd: projectDir,
         stdio: "inherit",

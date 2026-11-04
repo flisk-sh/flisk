@@ -7,12 +7,56 @@ import {
   arrowSelect,
   arrowText,
   filterChoices,
+  fitRow,
+  framedLines,
   menuAction,
   moveIndex,
   PromptCancelled,
   type PromptStreams,
   renderMenu,
 } from "../arrow-prompt.js";
+
+/** The menu text of one frame: ANSI and frame separators removed, rows split. */
+function frameRows(printed: string): string[] {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the erase markers are terminal control codes
+  const frame = printed.split(/\x1b\[\d+A|\r\x1b\[0J/).at(-1) ?? "";
+  return (
+    frame
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences are control codes
+      .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
+      .split("\n")
+      .filter(Boolean)
+  );
+}
+
+/** The rows of the menu frame that is on screen right now, before the answer collapses it. */
+function menuOnScreen(printed: string): string[] {
+  return frameRows(printed).filter((row) => row.startsWith("│"));
+}
+
+/**
+ * Walks the printed stream the way a terminal would and fails when a redraw erases fewer or more
+ * lines than the previous frame printed: either copies of the old menu stay on screen (duplicates,
+ * stale rows) or prompt'd content above is cut off.
+ */
+function expectCleanRedraws(printed: string): void {
+  let drawn = 0; // lines the previous frame printed since the last erase
+  let erases = 0;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the erase markers are terminal control codes
+  for (const match of printed.matchAll(/\x1b\[(\d+)A|\n/g)) {
+    if (match[0] === "\n") {
+      drawn += 1;
+      continue;
+    }
+    erases += 1;
+    expect(drawn, "a frame is at least title + hint rows").toBeGreaterThanOrEqual(2);
+    expect(
+      Number(match[1]),
+      `erase #${erases} must match the lines the previous frame printed`,
+    ).toBe(drawn);
+    drawn = 0;
+  }
+}
 
 const ESC_BRACKET = "\x1b[";
 const UP = "\x1b[A";
@@ -214,6 +258,27 @@ describe("arrowText", () => {
   });
 });
 
+describe("fitting a frame to the terminal", () => {
+  it("framedLines counts the lines a row takes at a given width", () => {
+    expect(framedLines(["short", "also short"], 80)).toBe(2);
+    expect(framedLines(["012345678 0123456789"], 20)).toBe(1);
+    expect(framedLines(["one two"], 3)).toBe(3); // words wrap onto three lines
+    expect(framedLines([""], 80)).toBe(1);
+  });
+
+  it("fitRow cuts an overlong row to a single terminal line, colour codes and all", () => {
+    const colored = `§${"y".repeat(100)}§`;
+    const cut = fitRow(colored, 20);
+    expect(cut).toHaveLength(19); // columns-1 plus the ellipsis
+    expect(cut.startsWith("§yyyy")).toBe(true);
+    expect(cut.endsWith("…")).toBe(true);
+    expect(framedLines([cut], 20)).toBe(1);
+    // A row that fits is untouched, so the active highlight stays coloured.
+    const highlighted = "\x1b[36mshort\x1b[39m";
+    expect(fitRow(highlighted, 80)).toBe(highlighted);
+  });
+});
+
 describe("filtering a long menu", () => {
   const LONG = [
     { title: "React", value: "react", hint: "Vite" },
@@ -256,5 +321,66 @@ describe("filtering a long menu", () => {
     const done = arrowSelect({ message: "Framework?", choices: LONG }, t.streams);
     t.press(`j${ENTER}`);
     expect(await done).toBe("vue");
+  });
+});
+
+describe("redrawing the filtered menu", () => {
+  const LONG = [
+    { title: "React", value: "react", hint: "Vite" },
+    { title: "Vue 3", value: "vue", hint: "Vite" },
+    { title: "Svelte", value: "svelte", hint: "Vite" },
+    { title: "Next.js", value: "next", hint: "runs its own dev server" },
+  ] as const;
+
+  const drive = (keys: string) => {
+    const t = fakeTerminal();
+    const done = arrowSelect({ message: "Framework?", choices: LONG, filterable: true }, t.streams);
+    t.press(keys);
+    // The presses land one tick apart; wait past the last one before reading the screen.
+    const waitTyped = () =>
+      new Promise<void>((resolve) => setTimeout(resolve, keys.length * 4 + 10));
+    return { t, done, waitTyped };
+  };
+
+  it("every redraw erases exactly the lines the previous frame printed", async () => {
+    const { t, done } = drive(`sv${DOWN}${BACKSPACE}e${UP}${UP}${BACKSPACE}${BACKSPACE}${ENTER}`);
+    expect(await done).toBe("react");
+    expectCleanRedraws(t.printed());
+  });
+
+  it("repeated typing updates the filter in place without duplicating a choice", async () => {
+    const { t, done, waitTyped } = drive(`sv${BACKSPACE}${BACKSPACE}ne`);
+    await waitTyped();
+    // The frame finally on screen lists each match once and nothing stale.
+    const rows = menuOnScreen(t.printed());
+    expect(rows.filter((row) => row.includes("Next.js"))).toHaveLength(1);
+    expect(rows.some((row) => row.includes("React") || row.includes("Svelte"))).toBe(false);
+    t.press(ENTER);
+    expect(await done).toBe("next");
+    expectCleanRedraws(t.printed());
+  });
+
+  it("a narrowing filter retires the stale rows of the open menu one by one", async () => {
+    const { t, done, waitTyped } = drive(`ne`);
+    await waitTyped();
+    const rows = menuOnScreen(t.printed());
+    expect(rows.filter((row) => row.includes("Next.js"))).toHaveLength(1);
+    expect(rows.filter((row) => row.includes("React"))).toHaveLength(0);
+    t.press(ENTER);
+    expect(await done).toBe("next");
+    expectCleanRedraws(t.printed());
+  });
+
+  it("a narrow terminal fits every row on one line, so the redraw still tracks the frame", async () => {
+    const t = fakeTerminal();
+    (t.streams.output as unknown as { columns: number }).columns = 24;
+    const done = arrowSelect({ message: "Framework?", choices: LONG, filterable: true }, t.streams);
+    t.press(`next${ENTER}`);
+    expect(await done).toBe("next");
+    expectCleanRedraws(t.printed());
+    // The long hint never wrapped, so the resolved prompt leaves a single answered line behind.
+    const tail = frameRows(t.printed());
+    expect(tail).toHaveLength(1);
+    expect(tail[0]).toContain("Framework?  Next.js");
   });
 });

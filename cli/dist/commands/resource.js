@@ -301,9 +301,9 @@ export function createPackageJson(name, type, frameworkId, prismaEnabled = false
         },
         devDependencies: {
             "@types/bun": "^1.4.2",
-            // The generated Docker tsconfig sets "types": ["node"]; without this the
-            // image's `bun run build` fails with TS2688. ^20 matches the services that build.
-            "@types/node": "^20.0.0",
+            // The generated Docker tsconfig sets "types": ["node"]; without this the image's `bun run build` fails with TS2688.
+            // vitest 5 peers on @types/node ^22 || >=24 and npm enforces that range: ^20 failed `npm install` with ERESOLVE.
+            "@types/node": "^22.0.0",
             typescript: "^7.0.2",
             // The same version the CLI tests itself with (cli/package.json devDependencies.vitest).
             // Dependabot pins it exactly to keep CVE-2026-112950 fixed, and the scaffold follows.

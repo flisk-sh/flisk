@@ -27,7 +27,7 @@ vi.mock("../../utils/arrow-prompt.js", async (importOriginal) => ({
 import { BACKEND_LANGUAGES } from "../../backend-languages/registry.js";
 import { freePort, runFlisk } from "../../test-support/index.js";
 import { backendCatalog, frontendCatalog, starterCatalog } from "../../utils/create-catalog.js";
-import { buildCreatePlan } from "../../utils/create-plan.js";
+import { asksToStart, buildCreatePlan } from "../../utils/create-plan.js";
 import {
   assertFolderIsFree,
   collectAnswers,
@@ -533,19 +533,83 @@ describe("a generated website runs without Docker or Tilt", () => {
 });
 
 describe("nextSteps", () => {
-  it("a Docker project or a starter says flisk up; a single local service says its own command", () => {
+  it("a Docker project gets flisk up app, a starter its README, a single local service its own command", () => {
     expect(nextSteps("/x", { name: "a", runtime: "docker", extras: [], frontend: "f" })).toEqual([
       "cd a",
       "flisk up app",
     ]);
-    expect(nextSteps("/x", { name: "a", runtime: "local", extras: [], starter: "s" })).toEqual([
+    expect(nextSteps("/x", { name: "a", runtime: "docker", extras: [], starter: "demo" })).toEqual([
       "cd a",
-      "flisk up",
+      "Read its README for what it needs, then run it.",
     ]);
     expect(
       nextSteps("/x", { name: "a", runtime: "local", extras: [], frontend: "f" }, [
         { dir: "web", install: "npm install", run: "npm run dev" },
       ]),
     ).toEqual(["cd a/web", "npm install", "npm run dev"]);
+  });
+});
+
+describe("asksToStart", () => {
+  it("the start ask belongs to the local app route alone: never a starter, never the Docker route", () => {
+    expect(asksToStart({ name: "a", runtime: "local", extras: [], frontend: "f" })).toBe(true);
+    expect(asksToStart({ name: "a", runtime: "docker", extras: [], frontend: "f" })).toBe(false);
+    expect(asksToStart({ name: "a", runtime: "local", extras: [], starter: "swarm" })).toBe(false);
+    expect(asksToStart({ name: "a", runtime: "docker", extras: [], starter: "demo" })).toBe(false);
+  });
+});
+
+describe("regressions from the first hand test", () => {
+  const dirOf = inTempDir();
+
+  it("a starter writes its files and never starts Docker or a stack", () => {
+    const run = runFlisk(["create", "bots", "--starter", "demo", "--yes"], {
+      cwd: dirOf(),
+      timeout: 120_000,
+    });
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    expect(existsSync(join(dirOf(), "bots", "README.md"))).toBe(true);
+    expect(run.stdout).not.toMatch(/flisk up|Tilt|init-networks/);
+    expect(run.stdout).toContain("Read its README");
+  });
+
+  it("a starter is not started even when --start asks for it", () => {
+    const run = runFlisk(["create", "bots", "--starter", "demo", "--yes", "--start"], {
+      cwd: dirOf(),
+      timeout: 120_000,
+    });
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    expect(run.stdout).not.toMatch(/flisk up|Tilt|init-networks/);
+    expect(run.stdout).toContain("Read its README");
+    expect(run.stdout).not.toContain("Install dependencies and start it now?");
+    expect(existsSync(join(dirOf(), "bots", "README.md"))).toBe(true);
+  });
+
+  it("a starter is never offered the 'start it now' question, even on a terminal", async () => {
+    prompts.arrowSelect.mockResolvedValueOnce("starter").mockResolvedValueOnce("demo");
+    prompts.arrowText.mockResolvedValueOnce("bots");
+    await collectAnswers(undefined, {}, true);
+    const messages = prompts.arrowSelect.mock.calls.map((call) => call[0].message);
+    expect(messages).not.toContain("Install dependencies and start it now?");
+    expect(asksToStart(await collectAnswers("bots", { starter: "demo" }, true))).toBe(false);
+  });
+
+  it("the starter menu marks each starter's runtime in plain words", async () => {
+    prompts.arrowSelect.mockResolvedValueOnce("starter").mockResolvedValueOnce("demo");
+    prompts.arrowText.mockResolvedValueOnce("bots");
+    await collectAnswers(undefined, {}, true);
+    const choices = prompts.arrowSelect.mock.calls[1]?.[0].choices as { hint: string }[];
+    expect(choices.some((c) => c.hint.includes("runs on your computer"))).toBe(true);
+    expect(choices.some((c) => c.hint.includes("needs Docker, see its README"))).toBe(true);
+  });
+});
+
+describe("the menu redraw", () => {
+  it("a frame's terminal line count includes wrapped rows", async () => {
+    const { framedLines, fitRow } = await import("../../utils/arrow-prompt.js");
+    expect(framedLines(["short", "x".repeat(50)], 20)).toBe(1 + 3);
+    expect(framedLines(["a", "b"], 80)).toBe(2);
+    expect(fitRow("y".repeat(200), 40).length).toBeLessThanOrEqual(40);
+    expect(fitRow("short", 40)).toBe("short");
   });
 });

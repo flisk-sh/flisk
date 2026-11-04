@@ -41,6 +41,13 @@ interface MenuFrame<T extends string> {
 export declare function renderMenu<T extends string>(frame: MenuFrame<T>): string[];
 /** The line left behind once an answer is given. */
 export declare function renderAnswered(message: string, answer: string): string;
+/**
+ * How many terminal lines a frame takes. A row wider than the terminal wraps onto more lines, and the cursor can only
+ * move back over the lines it really printed, so a miscount leaves an old copy of the menu on screen.
+ */
+export declare function framedLines(rows: readonly string[], columns: number): number;
+/** Cuts a row to the terminal width, so a long description never wraps and the menu stays one line per choice. */
+export declare function fitRow(row: string, columns: number): string;
 /** Pick one: arrows to move, Enter to choose. With `filterable`, typing narrows a long list. */
 export declare function arrowSelect<T extends string>(options: {
     message: string;

@@ -73,10 +73,32 @@ export function renderMenu(frame) {
 export function renderAnswered(message, answer) {
     return `${chalk.green("◇")} ${message}  ${chalk.dim(answer)}`;
 }
-/** Clears the last `rows` rows the cursor is below, and puts the cursor back at the first. */
-function eraseRows(output, rows) {
-    if (rows > 0)
-        output.write(`\x1b[${rows}A`);
+/** The visible width of a line: colour codes do not take up columns. */
+function visibleWidth(line) {
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences are control codes
+    return [...line.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")].length;
+}
+/**
+ * How many terminal lines a frame takes. A row wider than the terminal wraps onto more lines, and the cursor can only
+ * move back over the lines it really printed, so a miscount leaves an old copy of the menu on screen.
+ */
+export function framedLines(rows, columns) {
+    const width = Math.max(1, columns);
+    return rows.reduce((total, row) => total + Math.max(1, Math.ceil(visibleWidth(row) / width)), 0);
+}
+/** Cuts a row to the terminal width, so a long description never wraps and the menu stays one line per choice. */
+export function fitRow(row, columns) {
+    const max = Math.max(10, columns - 1);
+    if (visibleWidth(row) <= max)
+        return row;
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences are control codes
+    const plain = row.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+    return `${[...plain].slice(0, max - 1).join("")}…`;
+}
+/** Clears the last `lines` terminal lines the cursor is below, and puts the cursor back at the first. */
+function eraseRows(output, lines) {
+    if (lines > 0)
+        output.write(`\x1b[${lines}A`);
     output.write("\r\x1b[0J");
 }
 /** Reads keypresses until `onKey` returns a value. Raw mode and the cursor are always put back. */
@@ -113,8 +135,10 @@ export async function arrowSelect(options, streams = defaultStreams()) {
     const { output } = streams;
     let filter = "";
     let cursor = Math.max(0, options.choices.findIndex((choice) => choice.value === options.initial));
+    // The choices visible right now: the filter narrows them when the menu is filterable.
     const visible = () => options.filterable ? filterChoices(options.choices, filter) : options.choices;
     let drawn = 0;
+    // Overwrites the menu in place: erases exactly the lines the last frame printed, then draws again.
     const draw = () => {
         eraseRows(output, drawn);
         const shown = visible();
@@ -127,8 +151,10 @@ export async function arrowSelect(options, streams = defaultStreams()) {
         });
         if (shown.length === 0)
             rows.splice(options.filterable ? 2 : 1, 0, chalk.dim("│   nothing matches"));
-        output.write(`${rows.join("\n")}\n`);
-        drawn = rows.length;
+        const width = output.columns ?? 80;
+        const fitted = rows.map((row) => fitRow(row, width));
+        output.write(`${fitted.join("\n")}\n`);
+        drawn = framedLines(fitted, width);
     };
     draw();
     try {
@@ -171,11 +197,14 @@ export async function arrowMultiSelect(options, streams = defaultStreams()) {
     let cursor = 0;
     const ticked = new Set(options.choices.filter((choice) => choice.selected).map((choice) => choice.value));
     let drawn = 0;
+    // Overwrites the tick list in place: erases exactly the lines the last frame printed, then draws again.
     const draw = () => {
         eraseRows(output, drawn);
         const rows = renderMenu({ message: options.message, choices: options.choices, cursor, ticked });
-        output.write(`${rows.join("\n")}\n`);
-        drawn = rows.length;
+        const width = output.columns ?? 80;
+        const fitted = rows.map((row) => fitRow(row, width));
+        output.write(`${fitted.join("\n")}\n`);
+        drawn = framedLines(fitted, width);
     };
     draw();
     try {
@@ -211,6 +240,7 @@ export async function arrowText(options, streams = defaultStreams()) {
     let typed = "";
     let problem = "";
     let drawn = 0;
+    // Overwrites the name line in place: erases exactly the lines the last frame printed, then draws again.
     const draw = () => {
         eraseRows(output, drawn);
         const shown = typed.length > 0 ? chalk.cyan(typed) : chalk.dim(options.initial);
@@ -218,8 +248,10 @@ export async function arrowText(options, streams = defaultStreams()) {
             `${chalk.cyan("◆")} ${chalk.bold(options.message)}  ${shown}${chalk.dim("▏")}`,
             problem ? chalk.red(`│ ${problem}`) : chalk.dim("└ Enter to accept, or type a name"),
         ];
-        output.write(`${rows.join("\n")}\n`);
-        drawn = rows.length;
+        const width = output.columns ?? 80;
+        const fitted = rows.map((row) => fitRow(row, width));
+        output.write(`${fitted.join("\n")}\n`);
+        drawn = framedLines(fitted, width);
     };
     draw();
     try {

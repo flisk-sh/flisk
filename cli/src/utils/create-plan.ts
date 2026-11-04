@@ -163,6 +163,15 @@ export function isEmptyApp(answers: CreateAnswers): boolean {
   return !answers.starter && !answers.frontend && !answers.backend;
 }
 
+/**
+ * Whether create may offer to install and start what it wrote: the local app route alone (#3192).
+ * A starter is handed to its own README and the Docker route is started with `flisk up app`, so the
+ * "Install dependencies and start it now?" ask must not appear for either.
+ */
+export function asksToStart(answers: CreateAnswers): boolean {
+  return answers.runtime === "local" && !answers.starter;
+}
+
 /** What the project needs on the machine, in a sentence. Starter requirements come from the starter itself. */
 export function describeRequirements(
   answers: CreateAnswers,

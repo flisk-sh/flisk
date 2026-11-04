@@ -1101,7 +1101,8 @@ function neededTypePackage(entry: string): string {
 
 const KNOWN_TYPE_PACKAGE_VERSIONS: Record<string, string> = {
   "@types/bun": "^1.4.2",
-  "@types/node": "^20.0.0",
+  // The same range the scaffold writes: vitest 5 peers on ^22 and npm enforces it, so ^20 trips ERESOLVE.
+  "@types/node": "^22.0.0",
 };
 
 /**

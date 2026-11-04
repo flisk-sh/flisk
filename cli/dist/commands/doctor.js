@@ -895,7 +895,8 @@ function neededTypePackage(entry) {
 }
 const KNOWN_TYPE_PACKAGE_VERSIONS = {
     "@types/bun": "^1.4.2",
-    "@types/node": "^20.0.0",
+    // The same range the scaffold writes: vitest 5 peers on ^22 and npm enforces it, so ^20 trips ERESOLVE.
+    "@types/node": "^22.0.0",
 };
 /**
  * `@types/bun` (via its underlying `bun-types` package) ships a hardcoded

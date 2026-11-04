@@ -42,6 +42,12 @@ export declare function isValidProjectName(name: string): boolean;
 export declare function buildCreatePlan(answers: CreateAnswers): CreateStep[];
 /** True when the plan builds nothing: no starter, no website and no API. */
 export declare function isEmptyApp(answers: CreateAnswers): boolean;
+/**
+ * Whether create may offer to install and start what it wrote: the local app route alone (#3192).
+ * A starter is handed to its own README and the Docker route is started with `flisk up app`, so the
+ * "Install dependencies and start it now?" ask must not appear for either.
+ */
+export declare function asksToStart(answers: CreateAnswers): boolean;
 /** What the project needs on the machine, in a sentence. Starter requirements come from the starter itself. */
 export declare function describeRequirements(answers: CreateAnswers, onPath?: (program: string) => boolean): string;
 /** The parts the plan creates, for the review. */
