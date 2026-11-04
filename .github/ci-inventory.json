@@ -131,6 +131,14 @@
 		},
 		{
 			"workflow": "ci.yml",
+			"job": "test-macos",
+			"tier": "test",
+			"required": false,
+			"reason": "The TypeScript unit suite on a clean macOS runner, so a test that only passes on Linux is caught when added (#2898)",
+			"owner": "maintainers"
+		},
+		{
+			"workflow": "ci.yml",
 			"job": "test",
 			"tier": "test",
 			"required": false,

@@ -215,6 +215,34 @@ jobs:
       - name: Validate the service schema (offline, no live fetch)
         run: node scripts/check-published-service-schema.mjs
 
+  # The same unit suite on a clean macOS runner (#2898): a test that only passes on Linux (a real ~/.flisk cache, a tool on PATH,
+  # a fixed port) is caught when it is added, not on a contributor's laptop. No Tilt (the Linux-only setup action), so the
+  # Tilt-gated tests skip here and still run in the Linux job. Not required until it has been green for a while.
+  test-macos:
+    name: 🍎 Test (macOS)
+    runs-on: macos-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun # zizmor: ignore[self-repository] composite action resolves from this commit
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Build the CLI (the e2e-style tests spawn cli/bin/flisk.js, which imports dist/)
+        run: bun run build
+      - name: Run TypeScript unit tests
+        run: bun run test
+
   test:
     name: 🧪 Test
     runs-on: ubuntu-26.04
