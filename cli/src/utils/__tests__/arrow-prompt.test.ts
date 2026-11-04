@@ -277,6 +277,19 @@ describe("fitting a frame to the terminal", () => {
     expect(cellWidth("\u200D")).toBe(0);
     expect(cellWidth("\u0301")).toBe(0);
     expect(cellWidth("©")).toBe(1);
+    expect(cellWidth("™")).toBe(1);
+    expect(visibleWidth("™")).toBe(1);
+    // Joined and modified emoji are one grapheme each, two columns wide.
+    expect(visibleWidth("👨‍👩‍👧‍👦")).toBe(2);
+    expect(visibleWidth("👩🏽‍💻")).toBe(2);
+    expect(visibleWidth("🏳️‍🌈")).toBe(2);
+    expect(visibleWidth("🇺🇦")).toBe(2);
+    expect(visibleWidth("e\u0301")).toBe(1);
+    // A cut never splits a joined emoji: what is kept is whole graphemes.
+    const cut = fitRow(`${"ab".repeat(4)}👨‍👩‍👧‍👦👨‍👩‍👧‍👦`, 12);
+    expect(cut.endsWith("…")).toBe(true);
+    expect(cut.includes("\u200D") ? cut.includes("👨‍👩‍👧‍👦") : true).toBe(true);
+    expect(visibleWidth(cut)).toBeLessThanOrEqual(11);
     expect(visibleWidth("\x1b[36m寿司\x1b[39m ok")).toBe(7);
     // Ten wide characters are twenty columns: two lines at width 10, and a cut row never passes the edge.
     expect(framedLines(["寿".repeat(10)], 10)).toBe(2);

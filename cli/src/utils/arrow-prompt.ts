@@ -125,24 +125,33 @@ export function renderAnswered(message: string, answer: string): string {
 const WIDE =
   /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{20000}-\u{3FFFD}]/u;
 
-/** How many terminal columns one character takes: 0 for joiners and combining marks, 2 for wide text and emoji. */
-export function cellWidth(char: string): number {
-  const code = char.codePointAt(0) ?? 0;
-  // Zero-width spaces and joiners, and variation selectors.
-  if ((code >= 0x200b && code <= 0x200f) || (code >= 0xfe00 && code <= 0xfe0f)) return 0;
-  if (/\p{Mn}|\p{Me}/u.test(char)) return 0;
-  if (WIDE.test(char)) return 2;
-  // Emoji are two columns; text-style symbols such as © and ™ are pictographic too but print one column wide.
-  if (/\p{Extended_Pictographic}/u.test(char)) return code < 0x2000 ? 1 : 2;
+/**
+ * How many terminal columns one grapheme takes (what a person sees as one character, however many code points it has):
+ * 0 for a lone joiner or combining mark, 2 for wide text and emoji, 1 for everything else.
+ *
+ * A joined emoji (family, profession, flag) or one with a skin tone is a single grapheme and two columns. Text-style
+ * symbols such as © and ™ are one column unless a variation selector asks for the emoji form.
+ */
+export function cellWidth(grapheme: string): number {
+  if (/^(?:\p{Mn}|\p{Me}|\p{Cf}|[\u{FE00}-\u{FE0F}])+$/u.test(grapheme)) return 0;
+  if (WIDE.test(grapheme)) return 2;
+  if (/\p{Emoji_Presentation}|\u{FE0F}|\p{Regional_Indicator}/u.test(grapheme)) return 2;
   return 1;
 }
 
-/** The visible width of a line in terminal columns: colour codes take none, wide characters two. */
-export function visibleWidth(line: string): number {
+const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/** The graphemes of a line, colour codes removed. */
+function graphemes(line: string): string[] {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences are control codes
   const plain = line.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+  return [...segmenter.segment(plain)].map((part) => part.segment);
+}
+
+/** The visible width of a line in terminal columns: colour codes take none, wide characters and emoji two. */
+export function visibleWidth(line: string): number {
   let width = 0;
-  for (const char of plain) width += cellWidth(char);
+  for (const grapheme of graphemes(line)) width += cellWidth(grapheme);
   return width;
 }
 
@@ -159,15 +168,14 @@ export function framedLines(rows: readonly string[], columns: number): number {
 export function fitRow(row: string, columns: number): string {
   const max = Math.max(10, columns - 1);
   if (visibleWidth(row) <= max) return row;
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences are control codes
-  const plain = row.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
-  // Cut by columns, not characters, so a wide character never pushes the row past the edge.
+  // Cut by columns and whole graphemes, so a wide character never pushes the row past the edge and an emoji is
+  // never split in the middle of its sequence.
   let kept = "";
   let width = 0;
-  for (const char of plain) {
-    const next = cellWidth(char);
+  for (const grapheme of graphemes(row)) {
+    const next = cellWidth(grapheme);
     if (width + next > max - 1) break;
-    kept += char;
+    kept += grapheme;
     width += next;
   }
   return `${kept}…`;
