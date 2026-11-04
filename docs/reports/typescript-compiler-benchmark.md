@@ -1,9 +1,9 @@
 # TypeScript compiler benchmark: tsc vs tsgo vs ts-rust
 
-Status: **initial experiment, one machine, 5 warm runs.** Evidence only; nothing was migrated and no default
+Status: **initial experiment: one local macOS machine plus one CI run on Linux and macOS, 5 warm runs each.** Evidence only; nothing was migrated and no default
 compiler, `package.json` script, lockfile, `cli/dist` or shipped file was changed. Reproduce with
 `scripts/benchmarks/ts-compilers/` (see [Reproducing](#reproducing)). The CI workflow
-`⏱️ CI | TypeScript Compiler Benchmark` produces the same data on Linux and macOS runners; **CI numbers are in §5b** (see §5b for the first CI run).
+`⏱️ CI | TypeScript Compiler Benchmark` produces the same data on Linux and macOS runners; CI numbers are in §5b.
 
 ## 1. Executive summary
 
