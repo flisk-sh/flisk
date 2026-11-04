@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
+load("./native_windows.star", "IS_NATIVE_WINDOWS", "file_exists", "find_files")
 # =============================================================================
 # 📸 RESOURCE SNAPSHOT - Starlark Interface
 # =============================================================================
@@ -9,10 +10,14 @@
 # Python script path (relative to Tiltfile)
 _SNAPSHOT_SCRIPT = ".flisk/.flisk-out/snapshots/resource_snapshot.py"
 
+# The Windows launcher: `python3` is a Microsoft Store stub there, `py -3` is the real interpreter.
+_WINDOWS_PYTHON = ["py", "-3"]
+
 def _run_snapshot_command(cmd):
     """Run a snapshot command via Python script."""
     result = local(
         ["python3", _SNAPSHOT_SCRIPT, cmd],
+        command_bat=_WINDOWS_PYTHON + [_SNAPSHOT_SCRIPT, cmd],
         quiet=True,
         echo_off=True
     )
@@ -28,6 +33,8 @@ def save_snapshot(resources):
     # Use Python to save snapshot directly
     result = local(
         ["sh", "-c", 'cd "$1" && python3 "$2" save', "sh", config.main_dir, _SNAPSHOT_SCRIPT],
+        command_bat=_WINDOWS_PYTHON + [_SNAPSHOT_SCRIPT, "save"],
+        dir=config.main_dir,
         quiet=True,
         echo_off=True
     )
@@ -109,6 +116,9 @@ def get_current_resources(scan_roots=["services/product"]):
     
     for root in scan_roots:
         # Use find command to locate service.json files
+        if IS_NATIVE_WINDOWS:
+            all_resources.extend(find_files(root, "service.json"))
+            continue
         cmd = ["sh", "-c", 'find "$1" -type f -name service.json 2>/dev/null | sort', "sh", root]
         result = local(cmd, quiet=True, echo_off=True)
         
@@ -123,12 +133,7 @@ def get_current_resources(scan_roots=["services/product"]):
 
 def snapshot_exists():
     """Check if snapshot file exists."""
-    result = local(
-        "test -f .flisk/.flisk-out/snapshots/resource-snapshot.json && echo 'yes' || echo 'no'",
-        quiet=True,
-        echo_off=True
-    )
-    return str(result).strip() == "yes"
+    return file_exists(".flisk/.flisk-out/snapshots/resource-snapshot.json")
 
 # Get the path to the resource snapshot file
 def get_resource_snapshot_path():

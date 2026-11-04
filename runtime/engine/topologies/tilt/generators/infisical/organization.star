@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
+load('../../../../../discovery/native_windows.star', 'iso_timestamp')
 # =============================================================================
 # 🏢 INFISICAL ORGANIZATION MANAGER
 # =============================================================================
@@ -37,7 +38,7 @@ _PROJECT_NAME, _PROJECT_NAME_DISPLAY = _load_project_names()
 
 def _get_timestamp():
     """Get current timestamp string"""
-    return str(local("date +%Y-%m-%dT%H:%M:%S", quiet=True)).strip()
+    return iso_timestamp()
 
 # =============================================================================
 # Organization Structure

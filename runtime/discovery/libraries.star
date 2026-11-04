@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
+load("./native_windows.star", "IS_NATIVE_WINDOWS", "list_subdirs")
 # =============================================================================
 # 📚 TOPOLOGIES - DISCOVERY LIBRARIES
 # =============================================================================
@@ -11,6 +12,8 @@
 
 def autodiscover_libraries(root_path, prefix):
     libs = []
+    if IS_NATIVE_WINDOWS:
+        return list_subdirs(root_path, prefix)
     result = str(local(["sh", "-c", 'ls -d "$1"/"$2"*/ 2>/dev/null || true', "sh", root_path, prefix], quiet=True, echo_off=True))
 
     if result:

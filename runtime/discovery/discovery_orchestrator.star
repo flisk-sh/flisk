@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Flisk Landscape contributors
 # SPDX-License-Identifier: MIT
+load("./native_windows.star", "IS_NATIVE_WINDOWS")
 load("../engine/topologies/tilt/manifest/parser.star", "extract_stack_from_path")
 load("../engine/topologies/tilt/manifest/loader.star", "ManifestLoader")
 load("./manifest/loading.star", "get_default_syncs_for_type")
@@ -52,8 +53,11 @@ def _to_project_relative_path(path, project_root):
         return path
     root = project_root if project_root else os.environ.get("FLISK_PROJECT_ROOT", ".")
     # Already project-relative (including ../sibling/...)
-    if not path.startswith("/"):
+    has_drive = IS_NATIVE_WINDOWS and len(path) > 1 and path[1] == ":"
+    if not path.startswith("/") and not has_drive:
         return path
+    if IS_NATIVE_WINDOWS:
+        return os.path.relpath(path, root).replace("\\", "/")
     cmd = [
         "python3",
         "-c",

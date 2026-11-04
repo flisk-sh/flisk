@@ -7,6 +7,7 @@
 # Purpose: Normalize manifests and provide helper accessors
 # =============================================================================
 
+load('../native_windows.star', 'IS_NATIVE_WINDOWS', 'find_files')
 load('../../engine/topologies/tilt/manifest/parser.star', 'generated_string_error', 'normalize_depends_on')
 load('./constants.star', 'MANIFEST_DEFAULTS', 'MANIFEST_FILENAME')
 load('./loading.star', 'apply_manifest_defaults', 'check_prisma_folder', 'get_default_syncs_for_type')
@@ -151,6 +152,8 @@ def _discover_manifests_in_path(root_path):
     Returns:
         List of manifest file paths
     """
+    if IS_NATIVE_WINDOWS:
+        return find_files(root_path, MANIFEST_FILENAME)
     find_cmd = ["sh", "-c", 'find "$1" -name "$2" -type f 2>/dev/null | sort', "sh", root_path, MANIFEST_FILENAME]
     result = str(local(find_cmd, quiet=True, echo_off=True))
     

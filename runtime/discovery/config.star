@@ -5,6 +5,7 @@
 # 🗺️ TOPOLOGIES - DISCOVERY CONFIG
 # =============================================================================
 
+load("./native_windows.star", "file_exists")
 load("./constants.star", "RESOURCES_ROOT")
 load("../engine/topologies/platform/docker/constants.star", "PlatformDockerConstants")
 
@@ -37,8 +38,7 @@ def load_project_defaults(project_root):
     
     spec_path = None
     for path in spec_paths:
-        check_cmd = ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path]
-        exists = str(local(check_cmd, quiet=True, echo_off=True)).strip() == 'yes'
+        exists = file_exists(path)
         if exists:
             spec_path = path
             break

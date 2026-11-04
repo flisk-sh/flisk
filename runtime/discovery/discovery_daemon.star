@@ -6,6 +6,7 @@
 # Monitors filesystem for new resources and triggers incremental registration
 # =============================================================================
 
+load("./native_windows.star", "file_exists", "now_seconds", "sleep_seconds")
 load("./resource_snapshot.star", "ResourceSnapshot")
 load("./registry.star", "CacheOps")
 load("../engine/topologies/tilt/manifest/loader.star", "ManifestLoader")
@@ -171,21 +172,15 @@ def _handle_new_service(
 
 def _file_exists(path):
     """Check if a file exists."""
-    result = local(
-        ["sh", "-c", 'test -f "$1" && echo yes || echo no', "sh", path],
-        quiet=True,
-        echo_off=True
-    )
-    return str(result).strip() == "yes"
+    return file_exists(path)
 
 def time_now():
     """Get current time in seconds (for timing)."""
-    result = local("date +%s", quiet=True, echo_off=True)
-    return int(str(result).strip())
+    return now_seconds()
 
 def sleep(seconds):
     """Sleep for specified seconds."""
-    local(["sleep", str(seconds)], quiet=True, echo_off=True)
+    sleep_seconds(seconds)
 
 # Export daemon functions
 DiscoveryDaemon = struct(

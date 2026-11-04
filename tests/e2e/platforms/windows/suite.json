@@ -8,6 +8,7 @@
     "cli/src/utils/native-windows.ts",
     "cli/src/utils/which.ts",
     "cli/src/utils/windows-doctor.ts",
+    "runtime/discovery/native_windows.star",
     "cli/src/commands/up.ts",
     "tests/e2e/lib/**",
     "tests/e2e/platforms/windows/**",

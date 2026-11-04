@@ -78,7 +78,9 @@ Re-checked against Docker Desktop and Tilt documentation and the code at `ba2421
 - **Why Git Bash is not a fix:** its `usr\bin` would shadow Windows `find.exe` and `sort.exe` with different behaviour.
 - **Not verifiable in CI:** GitHub `windows-latest` runners cannot run Linux containers, so G6 needs a real or self-hosted Windows machine.
 
-Smallest future path: gate G1 (replace host `sh` with Starlark built-ins or `cmd_bat` equivalents, or have the CLI do discovery in TypeScript), then G3 to G6 on hardware. Until then the refusal and the unsupported `FLISK_ALLOW_NATIVE_WINDOWS=1` escape hatch stay as they are.
+**G1 progress (host shell removal):** `runtime/discovery/native_windows.star` now answers file-exists, directory-exists, `find`, glob, `mkdir -p`, file read/write, `date` and `sleep` with Tilt built-ins or PowerShell (`command_bat`) when `os.name == "nt"`. The discovery layer (`runtime/discovery/`) and the engine's file checks, `find`, generated-file writes and Infisical timestamps use it; the POSIX command at each call site is unchanged, so Linux, macOS and WSL2 behave as before. `tests/tilt-engine/test_discovery_portable_fs.py` forces the portable path with `FLISK_DISCOVERY_PORTABLE=1` and compares it with the POSIX results. Still POSIX-only: the `local_resource` build, publish and database scripts (about 29 sites and the 14 `.sh` files under `runtime/`), the `docker cp`/`docker build` and pytest `sh -c` blocks in `apply_compose_resource_registration.star`, and the `/var/run/docker.sock` mount in `traefik_standalone.star`. None of this has run on a real Windows machine, and `flisk up` still refuses native Windows unless `FLISK_ALLOW_NATIVE_WINDOWS=1`.
+
+Smallest future path: gate G1 (finish replacing host `sh`: the `local_resource` scripts), then G3 to G6 on hardware. Until then the refusal and the unsupported `FLISK_ALLOW_NATIVE_WINDOWS=1` escape hatch stay as they are.
 
 ---
 

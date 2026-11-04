@@ -4,6 +4,7 @@
 # 🎯 TOPOLOGIES - FOCUS PROFILES
 # =============================================================================
 
+load('../../../../discovery/native_windows.star', 'file_exists', 'read_text')
 load("../../../topologies/tilt/common/utils.star", "Utils")
 load(
     "../../../../discovery/registry.star",
@@ -159,15 +160,14 @@ def _load_focus_lists():
     ]
     
     for spec_path in spec_paths:
-        check_cmd = ["sh", "-c", "test -f \"$1\" && echo 'yes' || echo 'no'", "sh", spec_path]
-        exists = str(local(check_cmd, quiet=True, echo_off=True)).strip() == 'yes'
+        exists = file_exists(spec_path)
         if exists:
             # Parse PRE_ALPHA_RESOURCES from spec.master
             pre_alpha = []
             alpha = []
             beta = []
             
-            content = str(local(["sh", "-c", "cat \"$1\" 2>/dev/null || true", "sh", spec_path], quiet=True, echo_off=True))
+            content = read_text(spec_path)
             
             # Simple parsing for PRE_ALPHA_RESOURCES = {"key": True, ...}
             if "PRE_ALPHA_RESOURCES" in content:
