@@ -174,8 +174,8 @@ def write_text_exact(dir_path, file_path, content):
     """mkdir -p dir_path, then write content exactly (printf '%s'), as UTF-8 without BOM."""
     local(
         ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh", dir_path, content, file_path],
-        command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_DIR | Out-Null; [IO.File]::WriteAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
-        env = {"FLISK_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": content},
+        command_bat = _PS + ["New-Item -ItemType Directory -Force -Path $env:FLISK_TARGET_DIR | Out-Null; [IO.File]::WriteAllText($env:FLISK_PATH, $env:FLISK_CONTENT, (New-Object Text.UTF8Encoding($false)))"],
+        env = {"FLISK_TARGET_DIR": dir_path, "FLISK_PATH": file_path, "FLISK_CONTENT": content},
         quiet = True,
         echo_off = True,
     )
