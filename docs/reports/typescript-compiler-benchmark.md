@@ -1,0 +1,165 @@
+# TypeScript compiler benchmark: tsc vs tsgo vs ts-rust
+
+Status: **initial experiment, one machine, 3 warm runs.** Evidence only; nothing was migrated and no default
+compiler, `package.json` script, lockfile, `cli/dist` or shipped file was changed. Reproduce with
+`scripts/benchmarks/ts-compilers/` (see [Reproducing](#reproducing)). The CI workflow
+`⏱️ CI | TypeScript Compiler Benchmark` produces the same data on Linux and macOS runners; **those CI numbers are not
+in this report yet** (the first workflow run was still pending when this was written).
+
+## 1. Executive summary
+
+- **`tsc` in this repo is already the native (Go) compiler.** `cli/package.json` pins `typescript ^7.0.2`, so "tsc vs
+  tsgo" is really "TypeScript 7.0.2 vs an older `@typescript/native-preview` build of the same code base". Their output is
+  byte-identical (960/960 files). The slow JS compiler (6.0.3) is included only as context: 8-13x slower here.
+- **ts-rust (`tsc-rs` 0.8.0) was the fastest on every check/emit scenario locally** and used the least memory, with
+  identical diagnostics on all fixtures and byte-identical output to the TypeScript version it ports (7.1.0-beta).
+  Absolute gains are small for this repo: type-check of the CLI is about 2 s with `tsc`, about 1.3 s with `tsc-rs`,
+  about 0.9 s with `--fast`.
+- The timing data is **noisy** (max values 2-4x the median; other processes ran on the machine). Treat differences under
+  about 30% as inconclusive; larger ones (JS vs native, ts-rust type-check) were consistent in every run.
+- Recommendation: **keep `tsc` 7.0.2. Do not adopt tsgo (no benefit) or ts-rust (experimental) for production.**
+  Keep the non-blocking benchmark running to see whether ts-rust's lead and compatibility hold on CI hardware.
+
+## 2. Compilers
+
+| id | package | version | notes |
+|---|---|---|---|
+| tsc | `typescript` (repo pin, `bun.lock`) | 7.0.2 | baseline; native |
+| tsgo | `@typescript/native-preview` | 7.0.0-dev.20260707.2 | npm `latest` tag; older than tsc 7.0.2 |
+| ts-rust | `tsc-rs` (`pingdotgg/ts-rust`) | 0.8.0 (reports 7.1.0-dev); npm gitHead 4c032be6; repo `main` 91f3d021 when written | prebuilt npm binary; also run with `--fast` |
+| oracle | `typescript` | 7.1.0-beta | the revision ts-rust ports; used as its reference |
+| context | `typescript` | 6.0.3 | JS implementation |
+
+No Rust or Go toolchain is used anywhere: all compilers are prebuilt npm packages in
+`scripts/benchmarks/ts-compilers/` (installed only by the workflow or by hand with `--no-package-lock`).
+
+## 3. Hardware and environment (local run)
+
+Apple M1, 8 cores, 16 GB, macOS (darwin-arm64), Node v24.16.0, Flisk `4264dc02`. Page cache was not purged (no
+sudo); "cold" is the first invocation per scenario and is **not** a true cold-disk number locally. CI sets
+`DROP_CACHES=1` on Linux. Peak RAM and CPU come from `/usr/bin/time -l`; CPU utilization = (user+sys)/wall, so >1
+means multi-threaded. Raw data: `results.json` (kept as a CI artifact).
+
+## 4. Repository coverage
+
+| area | covered? |
+|---|---|
+| `cli/` (577 TS/TSX files, strict, `jsx: react-jsx`, `moduleResolution: bundler`, declarations) | yes: type-check, JS emit, d.ts emit, full build, incremental |
+| `cli/tsconfig.typecheck.json` incl. `tests/generated`, `tests/runtime-layout` | yes (type-check scenario) |
+| Project references | synthetic fixture only (`tsc -b`); the repo has none |
+| Decorators (legacy + metadata, standard) | synthetic fixtures only |
+| NodeNext/ESM resolution | synthetic fixture only |
+| `examples/byo/nestjs` (the only other tsconfig) | **not run** (dependencies not installed) |
+| Backend services / shared libraries | the repo has no other tsconfigs; nothing else to test |
+| Bun workflows | **not benchmarked.** `bun run typecheck/build` call `tsc` directly; not substituted |
+| Windows | **untested** (deliberately; see §9) |
+
+## 5. Performance (local, macOS M1, median of 3 warm runs, seconds)
+
+| scenario | tsc 7.0.2 | tsgo | tsc-rs | tsc-rs --fast | tsc 7.1.0-beta | tsc 6.0.3 |
+|---|---:|---:|---:|---:|---:|---:|
+| startup `--version` | 0.89 | 0.80 | 1.16 | 0.72 | 1.14 | 1.40 |
+| type-check only (CLI + tests dirs) | 2.15 | 2.01 | 1.32 | **0.91** | 1.63 | 16.67 |
+| JS emit only (`--noCheck`) | 0.56 | 0.68 | **0.33** | **0.33** | 0.38 | 4.34 |
+| d.ts emit only (`--noCheck`) | 0.52 | 0.49 | **0.33** | 0.35 | 0.54 | 4.19 |
+| full build (check + JS + d.ts) | 2.22 | 2.87 | 1.72 | **1.25** | 1.81 | 25.91 |
+| incremental, cold | 3.48 | 3.59 | 2.21 | 3.19 | 2.84 | 33.00 |
+| incremental, no change | 1.21 | 1.29 | 1.18 | 0.94 | 1.37 | 8.57 |
+| incremental, one-file edit | 1.22 | 1.14 | 0.93 | 0.88 | 1.93 | 29.23 |
+
+Min/max, cold-run and CPU columns are in `results.json` and the generated `report.md`. Startup rows are dominated
+by process spawn and noise (the `tsc` and `tsc71` entries go through a Node wrapper); do not read them as compiler
+differences. Output size is identical for every compiler: 1.89 MB / 240 files (JS), 0.39 MB / 240 (d.ts), 2.28 MB /
+480 (full). Incremental builds rewrote 0 files on a no-change rebuild and 3 on a one-file edit for every compiler.
+
+## 6. Memory (peak RSS, MB, median)
+
+| scenario | tsc | tsgo | tsc-rs | tsc-rs --fast | 7.1.0-beta | 6.0.3 |
+|---|---:|---:|---:|---:|---:|---:|
+| type-check | 707 | 701 | **383** | 396 | 499 | 656 |
+| JS emit | 188 | 187 | **156** | **152** | 157 | 427 |
+| full build | 334 | 333 | **214** | 220 | 275 | 406 |
+| incremental edit | 183 | 181 | 151 | 155 | 148 | 427 |
+
+## 7. Correctness and compatibility
+
+Compared against `tsc` 7.0.2 and, for ts-rust, against `tsc` 7.1.0-beta (the revision it ports).
+
+| check | tsgo | tsc-rs / --fast |
+|---|---|---|
+| Real CLI diagnostics | identical (but **0 errors**, so this proves little) | identical (0 errors) |
+| Error fixtures (26, 7, 1, 2, 3, 1 diagnostics across 6 fixtures) | identical text and order | identical text and order |
+| Module-resolution file list (`--listFilesOnly`) | same | same |
+| Emitted JS / d.ts, real CLI (960 files incl. maps) | **960/960 identical to tsc 7.0.2** | 480/960 differ vs 7.0.2, **960/960 identical vs 7.1.0-beta** |
+| Source maps, decorators, NodeNext, project references (fixtures) | identical to 7.0.2 | identical to 7.1.0-beta |
+| Incremental behaviour | no rewrites on no-change; 3 rewrites on edit | same |
+
+The 480 files that differ between 7.0.2 and 7.1.0-beta/ts-rust are all `.map` files and differ in the `sourceRoot` field.
+That is an upstream change between TypeScript versions and **not** a ts-rust disagreement. JS 6.0.3 differs more
+(`.js`/`.d.ts` too: 164 files) and has 1-2 differing diagnostics on two fixtures, as expected across a major version.
+
+Limits of this evidence: the real repo has no type errors, so missing-diagnostic detection rests on 6 small fixtures
+(about 40 diagnostics). The `project-refs` fixture contains a deliberate error, so its `-b` rerun exits non-zero and
+the "second run is up to date" check there is weak. Nothing here tests React/JSX types beyond what the CLI covers,
+large generic-heavy libraries, or language-server behaviour.
+
+ts-rust unsupported vs disagreeing: no unsupported option was hit by any scenario here (`--noCheck`,
+`--emitDeclarationOnly`, `--incremental`, `-b`, `--sourceMap`, `--declarationMap` all ran), and no genuine
+disagreement with its reference was found. Per its README, known problems are monorepo `rootDir`/TS6059 edge cases,
+timing-dependent `-b` builds that import another project's output without a reference, `--version` printing the
+ported version, and slowly growing editor memory. None apply to this repo's single-project setup, but they are
+vendor-stated, not independently verified here.
+
+## 8. Unsupported features and incompatibilities
+
+- tsgo / tsc 7: nothing found. Both are still lacking the old JS compiler API (a project-wide TS 7 change, unrelated to
+  these results; tooling that imports `typescript` programmatically must be checked separately).
+- ts-rust: nothing found in these scenarios. `--fast` is a command-line-only switch and `-b` must come first; the
+  harness handles this. The README describes it as an early, LLM-generated release; maturity, not a feature gap, is the risk.
+
+## 9. CI integration cost
+
+- Workflow: `.github/workflows/typescript-compiler-benchmark.yml`; weekly, manual, and on PRs touching the benchmark
+  files. Separate `continue-on-error` jobs for `ubuntu-latest` and `macos-latest`; not a required check; registered in
+  `.github/ci-inventory.json`. Install is about 40 s (7 npm packages with prebuilt binaries), cached by the pin file.
+- Windows is **untested**: the npm shims need a shell and there is no `/usr/bin/time`, and a first attempt also hit the
+  repo's git-hook `prepare` script during `bun install` on Windows runners. It does not affect the JS-only distribution.
+- Flisk's shipped CLI is unchanged: none of this is in the npm package (`npm pack --dry-run` lists no benchmark files).
+
+## 10. Recommendation
+
+Three winners:
+
+| category | winner | why |
+|---|---|---|
+| Fastest | **tsc-rs `--fast`** (tsc-rs default close behind) | best median on type-check (0.91 s vs 2.15 s), full build, JS emit and memory; noisy, 3 runs |
+| Most compatible | **tsgo** vs tsc 7.0.2 (byte-identical), **tsc-rs** vs its own pin | tsgo shares tsc 7's code base; tsc-rs matched 7.1.0-beta exactly |
+| Best for Flisk | **tsc 7.0.2 (stay)** | already native; the whole CLI type-checks in about 2 s, so the best case saves about 1 s |
+
+Questions:
+- *Is tsgo ready to replace tsc?* There is nothing to replace: `tsc` 7.0.2 is already native and tsgo was equal or slower here.
+- *Is ts-rust ready for production?* Not on this evidence. Results are good, but one machine, small fixtures, a
+  0-error real repo and an author-described early release are not enough.
+- *Can either safely accelerate local development?* ts-rust plausibly could as an **optional, non-default** type-check
+  (about 1 s saved on a 2 s check); not worth it yet.
+- *Best performance/correctness trade-off?* ts-rust on measured data; tsc on risk.
+- *What would prevent migration?* For ts-rust: maturity, single maintainer/LLM-authored code, and unverified behaviour on
+  larger codebases. For tsgo: no reason to switch.
+- *Is a hybrid workflow worthwhile?* Not now. Revisit if CI (Linux) numbers confirm a large, stable lead and a month of
+  scheduled runs show zero diagnostic differences.
+
+## Reproducing
+
+```bash
+bun install --frozen-lockfile
+cd scripts/benchmarks/ts-compilers
+npm install --no-package-lock --no-audit --no-fund --ignore-scripts
+node bench.mjs --runs 5 --out results/local   # results.json + report.md
+```
+
+## Incomplete or failed items
+
+- CI (Linux, macOS) results: pending the first workflow run.
+- Windows, `examples/byo/nestjs`, Bun-substituted workflows: not run.
+- True cold-cache numbers locally: not measured (needs sudo `purge`).
+- Local run had 3 warm runs and ran on a loaded machine; rerun with 5+ on an idle machine or use the CI artifacts.
