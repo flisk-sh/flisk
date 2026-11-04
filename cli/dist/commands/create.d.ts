@@ -46,6 +46,11 @@ export interface GeneratedService {
 }
 /** The local services a project actually contains, read from the files the generators wrote. */
 export declare function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[];
+/**
+ * Programs that must be installed before --start can run the app. The default language's package manager stands in
+ * for npm, exactly as the installer below does.
+ */
+export declare function startBlockers(answers: CreateAnswers, onPath?: (program: string) => boolean): string[];
 /** The first port a starter's services declare, so the next steps can say where to look. */
 export declare function firstPort(projectDir: string): number | undefined;
 /** Where to look once it runs: the website's page, or the API's health check when there is no website. */

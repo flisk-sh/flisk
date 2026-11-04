@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -394,7 +394,18 @@ export function assertFolderIsFree(dir: string): void {
  */
 export function claimFolder(dir: string): void {
   assertFolderIsFree(dir);
-  if (existsSync(dir)) return; // an empty folder the user made; just re-checked as empty
+  // An empty folder the user made is claimed the same way as a new one: rmdir only succeeds while it is still
+  // empty, and the mkdir below fails if anything re-creates it, so nothing that appears in between is ever used.
+  if (existsSync(dir)) {
+    try {
+      rmdirSync(dir);
+    } catch {
+      throw new FliskError(`The folder ${dir} is no longer empty.`, [
+        "Something wrote into it while create was starting. Nothing was written by create.",
+        "Pick another name: flisk create <name>",
+      ]);
+    }
+  }
   mkdirSync(dirname(dir), { recursive: true });
   try {
     mkdirSync(dir);
@@ -479,6 +490,20 @@ export function generatedServices(projectDir: string, answers: CreateAnswers): G
     });
   }
   return found;
+}
+
+/**
+ * Programs that must be installed before --start can run the app. The default language's package manager stands in
+ * for npm, exactly as the installer below does.
+ */
+export function startBlockers(
+  answers: CreateAnswers,
+  onPath: (program: string) => boolean = (program) => findOnPath(program) !== null,
+): string[] {
+  const fallback = getBackendLanguage(DEFAULT_BACKEND_LANGUAGE).installHint.split(" ")[0] ?? "npm";
+  return missingPrograms(answers, onPath).filter(
+    (program) => !(program === "npm" && onPath(fallback)),
+  );
 }
 
 /** The first port a starter's services declare, so the next steps can say where to look. */
@@ -701,8 +726,8 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
   }
 
   // Re-check right before writing: the folder may have changed since the first check and the confirmation.
-  if (answers.starter) assertFolderIsFree(projectDir);
-  else claimFolder(projectDir);
+  // A starter's generator accepts the empty folder this leaves, so starters get the same protection as apps.
+  claimFolder(projectDir);
 
   for (const [index, step] of steps.entries()) {
     process.stdout.write(`  ${step.label}... `);
@@ -753,6 +778,18 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
         .join("\n")}\n`,
     );
     return;
+  }
+
+  // Check the programs before installing anything, so a missing toolchain is one clear message, not a failed install.
+  const missing = startBlockers(answers);
+  if (missing.length > 0) {
+    throw new FliskError(
+      `The project is created, but it cannot start yet: ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not installed.`,
+      [
+        ...installHelp(missing).map((line) => line.trim()),
+        `Once it is installed, run flisk up in ${JSON.stringify(projectDir)}.`,
+      ],
+    );
   }
 
   const defaultInstall = getBackendLanguage(DEFAULT_BACKEND_LANGUAGE).installHint;

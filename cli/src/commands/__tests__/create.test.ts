@@ -6,10 +6,12 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,6 +50,7 @@ import {
   nextSteps,
   recoveryMessage,
   reviewLines,
+  startBlockers,
   whereToOpen,
 } from "../create.js";
 
@@ -434,6 +437,15 @@ describe("the review, the recovery message and the folder guard", () => {
     }
   });
 
+  it("--start is blocked only by programs that are really missing; Bun stands in for npm", () => {
+    expect(startBlockers(local, () => true)).toEqual([]);
+    expect(startBlockers(local, (p) => p !== "npm")).toEqual([]); // bun installs instead
+    expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(
+      expect.arrayContaining(["npm", "bun"]),
+    );
+    expect(startBlockers({ ...local, starter: "x" }, () => false)).toEqual([]);
+  });
+
   it("tells a person how to get each missing program", () => {
     const lines = reviewLines(local, buildCreatePlan(local), (program) => program !== "npm");
     const text = lines.join("\n");
@@ -464,6 +476,21 @@ describe("the review, the recovery message and the folder guard", () => {
       expect(() => claimFolder(target)).toThrow(/already exists and is not empty/);
       expect(readFileSync(join(target, "keep.txt"), "utf8")).toBe("mine");
       expect(claimFolder(join(dir, "nested", "fresh app"))).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("claimFolder claims an existing empty folder, and refuses it once something is inside", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-create-empty-"));
+    try {
+      const empty = join(dir, "empty");
+      mkdirSync(empty);
+      claimFolder(empty);
+      expect(readdirSync(empty)).toEqual([]);
+      writeFileSync(join(empty, "late.txt"), "theirs");
+      expect(() => claimFolder(empty)).toThrow(/not empty/);
+      expect(readFileSync(join(empty, "late.txt"), "utf8")).toBe("theirs");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -522,6 +549,29 @@ describe("flisk create (the real CLI, no terminal)", () => {
     }
     expect(existsSync(join(project, "web", "vite.config.ts"))).toBe(true);
     expect(run.stdout).toContain("No Docker, no Tilt, no database");
+  });
+
+  it("moves to free ports when 3000 and 4000 are busy, and the website's proxy follows the API", async () => {
+    const hold = (port: number) =>
+      new Promise<Server | undefined>((resolve) => {
+        const server = createServer();
+        server.once("error", () => resolve(undefined)); // already busy: just as good for this test
+        server.listen(port, () => resolve(server));
+      });
+    const held = await Promise.all([hold(3000), hold(4000)]);
+    try {
+      const run = runFlisk(["create", "shop", "--yes"], { cwd: dirOf(), timeout: 120_000 });
+      expect(run.status, run.stdout + run.stderr).toBe(0);
+      const project = join(dirOf(), "shop");
+      const apiPort = JSON.parse(readFileSync(join(project, "api", "service.json"), "utf8")).port;
+      const webPort = JSON.parse(readFileSync(join(project, "web", "service.json"), "utf8")).port;
+      expect(apiPort).not.toBe(4000);
+      expect(webPort).not.toBe(3000);
+      const vite = readFileSync(join(project, "web", "vite.config.ts"), "utf8");
+      expect(vite).toContain(`http://localhost:${apiPort}`);
+    } finally {
+      for (const server of held) server?.close();
+    }
   });
 
   it("the printed next steps match what was generated", () => {
