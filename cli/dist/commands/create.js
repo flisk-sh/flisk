@@ -3,75 +3,56 @@
 /**
  * `flisk create`: pick what you are building with a few key presses, then get a project that runs.
  *
- * It asks only on an interactive terminal. With `--yes`, with flags for every answer, or without a
- * terminal it never prompts, so scripts and CI behave the same way every time. A small web app or
- * API runs as plain local processes (Node only: no Docker, no Tilt, no database); frameworks and
- * extras are the Docker route's questions (see `create-plan.ts`).
+ * This file is only the journey. What can be built comes from Flisk's generator registries (create-catalog.ts), the project is
+ * built by the real `flisk project` and `flisk resource` commands (create-plan.ts), and the next steps are read back from what
+ * those commands wrote. It keeps no list of frameworks, languages or starters of its own.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { loadTemplate } from "../generator/template-engine.js";
+import { DEFAULT_BACKEND_LANGUAGE, getBackendLanguage } from "../backend-languages/registry.js";
 import { arrowMultiSelect, arrowSelect, arrowText, PromptCancelled, } from "../utils/arrow-prompt.js";
 import { addYesOption } from "../utils/command-helpers.js";
-import { asksBackend, asksExtras, asksFrontend, asksRuntime, buildCreatePlan, CREATE_BACKENDS, CREATE_DEFAULTS, CREATE_FRONTENDS, CREATE_KINDS, CREATE_RUNTIMES, CREATE_STACK, DEFAULT_LOCAL_PORTS, describeAnswers, describeParts, describeRequirements, isTemplateKind, isValidProjectName, parseExtras, runsLocally, } from "../utils/create-plan.js";
+import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "../utils/create-catalog.js";
+import { buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
-import { pickDemoPorts } from "../utils/native-demo.js";
 import { installServiceDependencies } from "../utils/one-command.js";
-const KIND_CHOICES = [
+import { findOnPath } from "../utils/which.js";
+const SHAPE_CHOICES = [
     {
-        title: "Web app",
-        value: "web",
-        hint: "A website and an API. Runs on your computer, no Docker.",
+        title: "Website and API",
+        value: "both",
+        hint: "A website that talks to an API (recommended).",
     },
-    { title: "API or backend", value: "api", hint: "An API you can grow with jobs and queues." },
-    { title: "SaaS product", value: "saas", hint: "A dashboard and a checkout, ready to edit." },
-    { title: "AI application", value: "agent", hint: "An agent, its tools, Postgres and a queue." },
-    { title: "More starters…", value: "more", hint: "A multi-agent swarm, a storefront." },
-];
-const MORE_KIND_CHOICES = [
-    { title: "Multi-agent swarm", value: "swarm", hint: "A coordinator and workers. No Docker." },
-    { title: "Storefront", value: "ecommerce", hint: "A Vue shop with a catalog API." },
+    { title: "A website", value: "web", hint: "Just the front end." },
+    { title: "An API", value: "api", hint: "Just the back end." },
+    {
+        title: "A ready-made starter…",
+        value: "starter",
+        hint: "SaaS, AI agents, a storefront and more.",
+    },
 ];
 const RUNTIME_CHOICES = [
     {
         title: "On my computer (recommended)",
         value: "local",
-        hint: "Needs only Node.js. No Docker, no database.",
+        hint: "Plain processes. No Docker, no Tilt, no database.",
     },
     {
         title: "With Docker and Tilt",
         value: "docker",
-        hint: "For Postgres, queues, a gateway and your choice of framework.",
+        hint: "Containers, one gateway and live reload; for databases and queues.",
     },
 ];
-const FRONTEND_CHOICES = [
-    { title: "React (recommended)", value: "react", hint: "The most common choice." },
-    { title: "Vue 3", value: "vue", hint: "Gentle to learn." },
-    { title: "Svelte", value: "svelte", hint: "Small and fast." },
-    { title: "No website", value: "none", hint: "An API only." },
-];
-const BACKEND_CHOICES = [
-    { title: "Hono (recommended)", value: "hono", hint: "Small and fast, on Bun." },
-    { title: "Express", value: "express", hint: "The classic." },
-    { title: "Fastify", value: "fastify", hint: "Fast, with schemas." },
-    { title: "Elysia", value: "elysia", hint: "Typed, on Bun." },
-];
-const EXTRA_CHOICES = [
-    { title: "Queue (NATS)", value: "queue", hint: "Pass jobs between services." },
-    { title: "Background worker", value: "worker", hint: "Runs jobs away from requests." },
-    { title: "MCP tool server", value: "mcp", hint: "Tools an AI agent can call." },
-    { title: "AI agent", value: "agent", hint: "An agent that keeps its sessions." },
-    { title: "Redis", value: "redis", hint: "A fast cache." },
-];
-/** Looks a flag value up in its allowed list, failing with the list so the fix is one read away. */
-function pick(flag, value, allowed) {
+/** A flag value must be one of the ids the catalog offers; the error lists them. */
+function oneOf(flag, value, ids, extra = []) {
+    const allowed = [...ids, ...extra];
     if (allowed.includes(value))
         return value;
     throw new FliskError(`Unknown --${flag} "${value}". Use one of: ${allowed.join(", ")}.`, [
-        `flisk create --${flag} ${allowed[0]}`,
+        `flisk create --${flag} ${allowed[0] ?? "<id>"}`,
         "Leave the flag out to be asked, or to take the default.",
     ]);
 }
@@ -79,89 +60,186 @@ function pick(flag, value, allowed) {
 export function isInteractive(options, tty) {
     return Boolean(tty.in && tty.out && !options.yes);
 }
-/** A framework or extras flag only means something to the Docker route, so it picks that route. */
-function impliesDocker(options) {
-    return (options.frontend !== undefined || options.backend !== undefined || options.extras !== undefined);
+/** Catalog options as menu rows; a Docker-only option is marked so nobody picks it by surprise. */
+function toChoices(options, runtime) {
+    return options
+        .filter((option) => runtime === "docker" || option.local)
+        .map((option, index) => ({
+        title: index === 0 ? `${option.title} (default)` : option.title,
+        value: option.id,
+        hint: `${option.hint}${option.local ? "" : " · Docker only"}`.trim(),
+    }));
+}
+/** Resolves `--backend` and `--language` into the API choice the catalog allows, or throws with what it allows. */
+function resolveBackend(framework, language) {
+    const catalog = backendCatalog();
+    const languages = catalog.map((entry) => entry.id);
+    const lang = language ? oneOf("language", language, languages) : undefined;
+    // A framework names its language: the one that lists it.
+    const owner = framework
+        ? catalog.find((entry) => entry.frameworks.some((option) => option.id === framework))
+        : undefined;
+    if (framework) {
+        const everyFramework = catalog.flatMap((entry) => entry.frameworks.map((option) => option.id));
+        oneOf("backend", framework, everyFramework);
+        if (lang && owner && lang !== owner.id) {
+            throw new FliskError(`--backend ${framework} runs on ${owner.id}, not ${lang}.`, [
+                `Use --language ${owner.id}, or leave --language out.`,
+            ]);
+        }
+        return { language: owner?.id ?? catalog[0]?.id ?? "", framework };
+    }
+    const chosen = catalog.find((entry) => entry.id === lang) ?? catalog[0];
+    if (!chosen)
+        return undefined;
+    return {
+        language: chosen.id,
+        ...(chosen.frameworks[0] && !lang ? { framework: chosen.frameworks[0].id } : {}),
+    };
 }
 /**
- * Collects the answers. A flag wins over a question, and a question is only asked for a part the
- * chosen kind uses. Without a terminal the defaults fill what a flag did not.
- *
- * The order is what a newcomer needs: what you are building, then how it runs, then (only for the
- * Docker route) the frameworks and extras, and the name last with a default Enter accepts.
+ * Collects the answers. A flag wins over a question, and a question is only asked for a part the chosen shape uses. Without a
+ * terminal the registries' defaults fill what a flag did not.
  */
 export async function collectAnswers(nameArg, options, interactive) {
     if (nameArg !== undefined && !isValidProjectName(nameArg)) {
         throw new FliskError(`"${nameArg}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`, ["Pick a name like my-app or shop-2: flisk create my-app"]);
     }
-    let kind;
-    if (options.kind) {
-        kind = pick("kind", options.kind, CREATE_KINDS);
+    const starters = starterCatalog();
+    const frontends = frontendCatalog();
+    const backends = backendCatalog();
+    const extrasCatalog = extraCatalog();
+    const flagged = {
+        frontend: options.frontend !== undefined,
+        backend: options.backend !== undefined || options.language !== undefined,
+    };
+    // 1. What to build.
+    let shape = "both";
+    if (options.starter)
+        shape = "starter";
+    else if (flagged.frontend || flagged.backend) {
+        shape = options.frontend === "none" ? "api" : options.backend === "none" ? "web" : "both";
+        if (!flagged.backend && flagged.frontend)
+            shape = options.frontend === "none" ? "api" : "web";
+        if (!flagged.frontend && flagged.backend)
+            shape = options.backend === "none" ? "web" : "api";
     }
     else if (interactive) {
-        const first = await arrowSelect({
+        shape = await arrowSelect({
             message: "What do you want to build?",
-            choices: KIND_CHOICES,
-        });
-        kind =
-            first === "more"
-                ? await arrowSelect({ message: "Which starter?", choices: MORE_KIND_CHOICES })
-                : first;
-    }
-    else {
-        kind = CREATE_DEFAULTS.kind;
-    }
-    let runtime = CREATE_DEFAULTS.runtime;
-    if (options.runtime) {
-        runtime = pick("runtime", options.runtime, CREATE_RUNTIMES);
-    }
-    else if (impliesDocker(options)) {
-        runtime = "docker";
-    }
-    else if (interactive && asksRuntime(kind)) {
-        runtime = await arrowSelect({
-            message: "How do you want to run it?",
-            choices: RUNTIME_CHOICES,
+            choices: SHAPE_CHOICES,
         });
     }
-    if (runtime === "local" && impliesDocker(options) && asksRuntime(kind)) {
-        throw new FliskError("--frontend, --backend and --extras need the Docker runtime.", [
-            "Use --runtime docker, or leave those flags out to run on your computer.",
+    // 2. A starter carries its own parts and its own runtime.
+    let starter;
+    if (shape === "starter") {
+        starter = options.starter
+            ? oneOf("starter", options.starter, starters.map((option) => option.id))
+            : await arrowSelect({
+                message: "Which starter?",
+                filterable: true,
+                choices: starters.map((option) => ({
+                    title: option.title,
+                    value: option.id,
+                    hint: `${option.hint}${option.local ? " · no Docker" : ""}`,
+                })),
+            });
+    }
+    const starterLocal = starters.find((option) => option.id === starter)?.local ?? false;
+    // 3. How to run it. Asked only for an app, where it changes what is generated.
+    const extrasImplyDocker = options.extras !== undefined && options.extras !== "none";
+    let runtime = starter ? (starterLocal ? "local" : "docker") : "local";
+    if (!starter) {
+        if (options.runtime)
+            runtime = oneOf("runtime", options.runtime, CREATE_RUNTIMES);
+        else if (extrasImplyDocker)
+            runtime = "docker";
+        else if (interactive) {
+            runtime = await arrowSelect({
+                message: "How do you want to run it?",
+                choices: RUNTIME_CHOICES,
+            });
+        }
+    }
+    // 4. The website.
+    let frontend;
+    if (!starter && shape !== "api") {
+        if (options.frontend && options.frontend !== "none") {
+            frontend = oneOf("frontend", options.frontend, frontends.map((option) => option.id), ["none"]);
+        }
+        else if (!options.frontend) {
+            const offered = frontends.filter((option) => runtime === "docker" || option.local);
+            frontend = interactive
+                ? await arrowSelect({
+                    message: "Which website framework?",
+                    filterable: true,
+                    choices: toChoices(frontends, runtime),
+                })
+                : offered[0]?.id;
+        }
+        const picked = frontends.find((option) => option.id === frontend);
+        if (picked && runtime === "local" && !picked.local) {
+            throw new FliskError(`The ${picked.id} frontend cannot run on your computer yet.`, [
+                "Use --runtime docker for it, or pick another framework.",
+            ]);
+        }
+    }
+    // 5. The API: a language, then a framework when the language takes them.
+    let backend;
+    if (!starter && shape !== "web") {
+        if (flagged.backend && options.backend !== "none") {
+            backend = resolveBackend(options.backend, options.language);
+        }
+        else if (!flagged.backend) {
+            if (interactive) {
+                const language = await arrowSelect({
+                    message: "Which language for the API?",
+                    filterable: true,
+                    choices: toChoices(backends, runtime),
+                });
+                const entry = backends.find((candidate) => candidate.id === language);
+                const framework = entry && entry.frameworks.length > 0
+                    ? await arrowSelect({
+                        message: "Which API framework?",
+                        filterable: true,
+                        choices: toChoices(entry.frameworks, runtime),
+                    })
+                    : undefined;
+                backend = { language, ...(framework ? { framework } : {}) };
+            }
+            else {
+                backend = resolveBackend(undefined, undefined);
+            }
+        }
+    }
+    // 6. Extras: infrastructure, only on the Docker route.
+    let extras = [];
+    if (options.extras !== undefined) {
+        extras =
+            options.extras === "none"
+                ? []
+                : options.extras
+                    .split(",")
+                    .map((value) => value.trim())
+                    .filter(Boolean)
+                    .map((value) => oneOf("extras", value, extrasCatalog.map((extra) => extra.id), ["none"]));
+    }
+    else if (interactive && !starter && runtime === "docker") {
+        extras = await arrowMultiSelect({
+            message: "Add anything else?",
+            choices: extrasCatalog.map((extra) => ({
+                title: extra.title,
+                value: extra.id,
+                hint: extra.hint,
+            })),
+        });
+    }
+    if (runtime === "local" && extras.length > 0 && !starter) {
+        throw new FliskError("--extras (queues, databases, workers) need the Docker runtime.", [
+            "Use --runtime docker, or leave --extras out to run on your computer.",
         ]);
     }
-    const frontend = options.frontend
-        ? pick("frontend", options.frontend, CREATE_FRONTENDS)
-        : interactive && asksFrontend(kind, runtime)
-            ? await arrowSelect({
-                message: "Which website framework?",
-                choices: FRONTEND_CHOICES,
-            })
-            : CREATE_DEFAULTS.frontend;
-    const backend = options.backend
-        ? pick("backend", options.backend, CREATE_BACKENDS)
-        : interactive && asksBackend(kind, runtime)
-            ? await arrowSelect({
-                message: "Which API framework?",
-                choices: BACKEND_CHOICES,
-            })
-            : CREATE_DEFAULTS.backend;
-    let extras = [...CREATE_DEFAULTS.extras];
-    if (options.extras !== undefined) {
-        const parsed = options.extras === "none" ? { extras: [] } : parseExtras(options.extras);
-        if ("error" in parsed)
-            throw new FliskError(parsed.error, [
-                "flisk create --extras queue,worker",
-                "flisk create --extras none",
-            ]);
-        extras = parsed.extras;
-    }
-    else if (interactive && asksExtras(kind, runtime)) {
-        extras = await arrowMultiSelect({
-            message: "Add anything else? (Postgres is always included)",
-            choices: EXTRA_CHOICES,
-        });
-    }
-    // The name comes last and has a default, so a first run is arrows and Enter, never typing.
+    // 7. The name comes last and has a default, so a first run is arrows and Enter, never typing.
     const name = nameArg ??
         (interactive
             ? await arrowText({
@@ -170,7 +248,20 @@ export async function collectAnswers(nameArg, options, interactive) {
                 validate: (value) => isValidProjectName(value) || "Use lowercase letters, digits and dashes, e.g. my-app.",
             })
             : "my-app");
-    return { name, kind, runtime, frontend, backend, extras };
+    const answers = {
+        name,
+        ...(starter ? { starter } : {}),
+        runtime,
+        ...(frontend ? { frontend } : {}),
+        ...(backend ? { backend } : {}),
+        extras,
+    };
+    if (isEmptyApp(answers)) {
+        throw new FliskError("There is nothing to create: no website, no API and no starter.", [
+            "Pick a website or an API, or use --starter <name>.",
+        ]);
+    }
+    return answers;
 }
 /** The project folder must not exist, or must be empty, so a create never overwrites anything. */
 export function assertFolderIsFree(dir) {
@@ -185,47 +276,75 @@ export function assertFolderIsFree(dir) {
 }
 /** One line per step for the dry run and the failure report. */
 export function renderStep(step) {
-    if (step.args)
-        return `flisk ${step.args.join(" ")}`;
-    return `write ${(step.files ?? []).map((file) => file.path).join(", ")}`;
+    return `flisk ${step.args.join(" ")}`;
 }
-/** What gets created, what it needs, and what is chosen, shown before anything is written. */
-export function reviewLines(answers, steps) {
+/** What gets created, what it needs, and what was chosen, shown before anything is written. */
+export function reviewLines(answers, steps, onPath = (program) => findOnPath(program) !== null) {
     const chosen = describeAnswers(answers)
         .filter((line) => !line.startsWith("name:"))
         .join(" · ");
     return [
         `Creating ${answers.name}: ${describeParts(answers, steps)}`,
-        `Needs: ${describeRequirements(answers)}`,
+        `Needs: ${describeRequirements(answers, onPath)}`,
         `Chosen: ${chosen}`,
     ];
 }
-/** Writes the files of a local step, filling `__NAME__` in templates. Returns the paths written. */
-export function writeLocalFiles(projectDir, name, files) {
-    const written = [];
-    for (const file of files) {
-        const target = join(projectDir, file.path);
-        mkdirSync(dirname(target), { recursive: true });
-        const body = file.template
-            ? loadTemplate(file.template).replaceAll("__NAME__", name)
-            : file.json
-                ? `${JSON.stringify(file.json, null, 2)}\n`
-                : (file.text ?? "");
-        writeFileSync(target, body);
-        written.push(file.path);
+function readJson(path) {
+    try {
+        return JSON.parse(readFileSync(path, "utf8"));
     }
-    return written;
+    catch {
+        return undefined;
+    }
+}
+/** The local services a project actually contains, read from the files the generators wrote. */
+export function generatedServices(projectDir, answers) {
+    const found = [];
+    for (const dir of [LOCAL_FRONTEND_DIR, LOCAL_BACKEND_DIR]) {
+        const service = readJson(join(projectDir, dir, "service.json"));
+        if (!service)
+            continue;
+        const pkg = readJson(join(projectDir, dir, "package.json"));
+        const scripts = (pkg?.scripts ?? {});
+        const language = dir === LOCAL_BACKEND_DIR ? answers.backend?.language : undefined;
+        found.push({
+            dir,
+            install: pkg
+                ? "npm install"
+                : language
+                    ? getBackendLanguage(language).installHint
+                    : undefined,
+            run: scripts.dev ? "npm run dev" : String(service.command ?? ""),
+        });
+    }
+    return found;
+}
+/** The commands to run next, from what was generated. */
+export function nextSteps(projectDir, answers, services = generatedServices(projectDir, answers)) {
+    if (answers.starter || answers.runtime === "docker") {
+        const up = answers.runtime === "docker" && !answers.starter ? "flisk up app" : "flisk up";
+        return [`cd ${answers.name}`, up];
+    }
+    const [only] = services;
+    if (services.length === 1 && only) {
+        return [`cd ${answers.name}/${only.dir}`, ...(only.install ? [only.install] : []), only.run];
+    }
+    return [
+        `cd ${answers.name}`,
+        ...services.flatMap((service) => service.install ? [`(cd ${service.dir} && ${service.install})`] : []),
+        "flisk up        # starts both",
+    ];
 }
 /** Runs one planned command with this CLI, quietly. Returns its output on failure. */
 function runStep(binPath, step, cwd) {
-    const result = spawnSync(process.execPath, [binPath, ...(step.args ?? [])], {
+    const result = spawnSync(process.execPath, [binPath, ...step.args], {
         cwd,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
     });
     return { ok: result.status === 0, output: `${result.stdout ?? ""}${result.stderr ?? ""}` };
 }
-/** What to tell someone when a step fails halfway: what finished, what did not, how to start over. */
+/** What to tell someone when a step fails halfway: what finished, what did not run, how to start over. */
 export function recoveryMessage(projectDir, steps, failedIndex) {
     const failed = steps[failedIndex];
     return [
@@ -238,12 +357,13 @@ export function recoveryMessage(projectDir, steps, failedIndex) {
 export const createCommand = addYesOption(new Command("create"))
     .description("Pick what you are building with a few key presses and get a project that runs")
     .argument("[name]", "Project folder to create (default: my-app)")
-    .option("--kind <kind>", `What you are building: ${CREATE_KINDS.join(", ")} (default: web)`)
-    .option("--runtime <runtime>", "web and api: local (Node only, no Docker; default) or docker (Docker and Tilt, with frameworks and extras)")
-    .option("--frontend <id>", `Docker runtime: website framework: ${CREATE_FRONTENDS.join(", ")}`)
-    .option("--backend <id>", `Docker runtime: API framework: ${CREATE_BACKENDS.join(", ")}`)
-    .option("--extras <list>", 'Docker runtime: extra parts, comma-separated: queue, worker, mcp, agent, redis, or "none"')
-    .option("--dry-run", "Print what would be created and run, and stop", false)
+    .option("--starter <name>", "A ready-made starter project (see flisk project --list)")
+    .option("--runtime <runtime>", "local (plain processes on your computer; default) or docker (Docker and Tilt)")
+    .option("--frontend <id>", "Website framework (see flisk resource --frameworks --type frontend), or none")
+    .option("--backend <id>", "API framework (see flisk resource --frameworks --type backend), or none")
+    .option("--language <id>", "API language (see flisk resource --help)")
+    .option("--extras <list>", "Docker runtime: extra parts, comma-separated (worker, queue:nats, database:redis…), or none")
+    .option("--dry-run", "Print the commands that would run, and stop", false)
     .option("--start", "Install dependencies and start the project when it is ready", false)
     .action(async (nameArg, options) => {
     // runCommand turns every error into an exit, so a cancel is handled inside it.
@@ -266,21 +386,16 @@ async function runCreate(nameArg, options) {
     });
     if (interactive) {
         console.log(chalk.bold("\nLet's create your project"));
-        console.log(chalk.dim("Start with a working default. Change only what you need.\n"));
+        console.log(chalk.dim("Start with a working default. Type to filter a long list.\n"));
     }
     const answers = await collectAnswers(nameArg, options, interactive);
     if (!isValidProjectName(answers.name)) {
         throw new FliskError(`"${answers.name}" is not a usable project name. Use lowercase letters, digits and dashes, e.g. my-app.`, ["Pick a name like my-app or shop-2: flisk create my-app"]);
     }
-    // Free ports are picked before the plan, so the plan itself stays a pure function.
-    let ports = DEFAULT_LOCAL_PORTS;
-    if (runsLocally(answers) && !isTemplateKind(answers.kind) && !options.dryRun) {
-        ports = await pickDemoPorts();
-    }
-    const steps = buildCreatePlan(answers, ports);
+    const steps = buildCreatePlan(answers);
     if (options.dryRun) {
         console.log(describeAnswers(answers).join("\n"));
-        console.log(`needs: ${describeRequirements(answers)}\n`);
+        console.log(`needs: ${describeRequirements(answers, (program) => findOnPath(program) !== null)}\n`);
         for (const step of steps) {
             const where = step.inProject ? chalk.gray(`(in ./${answers.name})`) : "";
             console.log(`${renderStep(step)} ${where}`.trimEnd());
@@ -320,22 +435,10 @@ async function runCreate(nameArg, options) {
             "Reinstall the Flisk CLI and run the command again.",
         ]);
     }
-    if (!isTemplateKind(answers.kind))
+    if (!answers.starter)
         mkdirSync(projectDir, { recursive: true });
     for (const [index, step] of steps.entries()) {
         process.stdout.write(`  ${step.label}... `);
-        if (step.files) {
-            try {
-                writeLocalFiles(projectDir, answers.name, step.files);
-            }
-            catch (error) {
-                console.log(chalk.red("failed"));
-                console.log(chalk.dim(String(error instanceof Error ? error.message : error)));
-                throw new FliskError(`${step.label} did not finish.`, recoveryMessage(projectDir, steps, index));
-            }
-            console.log(chalk.green("done"));
-            continue;
-        }
         const result = runStep(binPath, step, step.inProject ? projectDir : process.cwd());
         if (!result.ok) {
             console.log(chalk.red("failed"));
@@ -344,16 +447,13 @@ async function runCreate(nameArg, options) {
         }
         console.log(chalk.green("done"));
     }
-    const local = runsLocally(answers) && !isTemplateKind(answers.kind);
-    const stack = !runsLocally(answers) && !isTemplateKind(answers.kind) ? CREATE_STACK : undefined;
-    // A local app starts the way create-next-app's does: npm install, then npm run dev.
-    const upCommand = local ? "npm run dev" : stack ? `flisk up ${stack}` : "flisk up";
     console.log(`\n${chalk.green("✔")} Created ${chalk.bold(answers.name)}`);
+    const services = generatedServices(projectDir, answers);
     let start = Boolean(options.start);
     if (!start && interactive) {
         start =
             (await arrowSelect({
-                message: local ? "Start it now?" : "Install dependencies and start it now?",
+                message: "Install dependencies and start it now?",
                 choices: [
                     { title: "Yes, start it", value: "yes" },
                     { title: "No, I'll do it later", value: "no" },
@@ -361,45 +461,55 @@ async function runCreate(nameArg, options) {
             })) === "yes";
     }
     if (!start) {
-        console.log(`\nNext:\n  cd ${answers.name}\n${local ? "  npm install\n" : ""}  ${upCommand}\n`);
-        if (local) {
-            console.log(chalk.dim("It needs Node.js and npm only. To add a database, a queue or a framework later, see README.md.\n"));
-        }
+        console.log(`\nNext:\n${nextSteps(projectDir, answers, services)
+            .map((line) => `  ${line}`)
+            .join("\n")}\n`);
         return;
     }
+    const defaultInstall = getBackendLanguage(DEFAULT_BACKEND_LANGUAGE).installHint;
+    // Install what the generators wrote.
+    const local = answers.runtime === "local" && !answers.starter;
     if (local) {
-        const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-        for (const args of [["install"], ["run", "dev"]]) {
-            const run = spawnSync(npm, args, { cwd: projectDir, stdio: "inherit" });
+        // npm when it is there; otherwise the package manager the default language's own install hint uses.
+        const pm = findOnPath("npm") ? "npm" : (defaultInstall.split(" ")[0] ?? "npm");
+        for (const service of services.filter((entry) => entry.install === "npm install")) {
+            process.stdout.write(`  Installing ${service.dir}... `);
+            const run = spawnSync(pm, ["install"], {
+                cwd: join(projectDir, service.dir),
+                stdio: "ignore",
+                shell: process.platform === "win32",
+            });
             if (run.error || run.status !== 0) {
-                throw new FliskError(`"npm ${args.join(" ")}" did not finish.`, [
-                    "The project is created. Install Node.js (it includes npm) if npm is missing.",
-                    `Then run it yourself: cd ${answers.name} && npm install && npm run dev`,
+                console.log(chalk.red("failed"));
+                throw new FliskError(`"${pm} install" did not finish in ${service.dir}.`, [
+                    "The project is created and complete; only the install needs a retry.",
+                    `Run it yourself: cd ${answers.name}/${service.dir} && ${pm} install`,
                 ]);
             }
+            console.log(chalk.green("done"));
         }
-        return;
     }
-    {
+    else if (!answers.starter) {
         process.stdout.write("  Installing dependencies... ");
         const installs = await installServiceDependencies(projectDir);
         const failed = installs.filter((entry) => !entry.ok);
         if (failed.length > 0) {
             console.log(chalk.red("failed"));
             throw new FliskError(`${failed.length} of ${installs.length} services could not install.`, [
-                `The project is created and complete; only the install needs a retry.`,
-                `Run "bun install" in ${join(projectDir, failed[0]?.dir ?? "")}, then ${upCommand} in ${projectDir}.`,
+                "The project is created and complete; only the install needs a retry.",
+                `Run "${defaultInstall}" in ${join(projectDir, failed[0]?.dir ?? "")}, then flisk up app in ${projectDir}.`,
             ]);
         }
         console.log(chalk.green("done"));
     }
-    const up = spawnSync(process.execPath, [binPath, "up", ...(stack ? [stack] : [])], {
+    const upArgs = !answers.starter && answers.runtime === "docker" ? ["up", "app"] : ["up"];
+    const up = spawnSync(process.execPath, [binPath, ...upArgs], {
         cwd: projectDir,
         stdio: "inherit",
     });
     if (up.status !== 0) {
-        throw new FliskError(`"${upCommand}" did not finish.`, [
-            `The project is created. Run "flisk doctor" in ${projectDir} to see what is missing, then ${upCommand}.`,
+        throw new FliskError(`"flisk ${upArgs.join(" ")}" did not finish.`, [
+            `The project is created. Run "flisk doctor" in ${projectDir} to see what is missing, then flisk ${upArgs.join(" ")}.`,
         ]);
     }
 }

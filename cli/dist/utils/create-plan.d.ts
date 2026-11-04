@@ -1,97 +1,50 @@
-/**
- * The plan behind `flisk create`.
- *
- * The wizard asks a few questions; this module turns the answers into what gets built. It does no
- * I/O, so every path is testable.
- *
- * There are two ways to run what it builds:
- *  - **local**: plain processes on your computer. It needs only Node.js: no Docker, no Tilt, no
- *    Postgres. This is the default for a web app or an API, so a first run never waits on tooling.
- *  - **docker**: containers behind one gateway with live reload, for a database, queues, a
- *    framework choice or more parts. It uses the same `flisk project` and `flisk resource`
- *    commands a person would type.
- */
-/** What the person is building. A template kind clones or writes a ready-made starter. */
-export type CreateKind = "web" | "api" | "saas" | "agent" | "swarm" | "ecommerce";
 export type CreateRuntime = "local" | "docker";
-export type CreateFrontend = "react" | "vue" | "svelte" | "none";
-export type CreateBackend = "hono" | "express" | "fastify" | "elysia";
-export type CreateExtra = "queue" | "worker" | "mcp" | "agent" | "redis";
-export declare const CREATE_KINDS: readonly CreateKind[];
 export declare const CREATE_RUNTIMES: readonly CreateRuntime[];
-export declare const CREATE_FRONTENDS: readonly CreateFrontend[];
-export declare const CREATE_BACKENDS: readonly CreateBackend[];
-export declare const CREATE_EXTRAS: readonly CreateExtra[];
+/** The API of an app: a language, and for a language that takes frameworks, the framework. */
+export interface BackendChoice {
+    language: string;
+    framework?: string;
+}
 export interface CreateAnswers {
     /** The project folder, kebab-case. */
     name: string;
-    kind: CreateKind;
-    /** Used by `web` and `api`; the starters decide their own runtime. */
+    /** A project template key. When set, the app answers below are not used: the template carries its own parts. */
+    starter?: string;
     runtime: CreateRuntime;
-    /** Docker runtime and `web` only. */
-    frontend: CreateFrontend;
-    /** Docker runtime, `web` and `api`. */
-    backend: CreateBackend;
-    /** Docker runtime, `web` and `api`; a starter already carries its own parts. */
-    extras: CreateExtra[];
+    /** A frontend framework id, or undefined for no website. */
+    frontend?: string;
+    /** The API, or undefined for none. */
+    backend?: BackendChoice;
+    /** Docker route only: ids from the extras catalog. */
+    extras: string[];
 }
-/** The answers a person gets by pressing Enter on every question. */
-export declare const CREATE_DEFAULTS: Omit<CreateAnswers, "name">;
-/** A file the local runtime writes: a bundled template, JSON, or text. */
-export interface LocalFile {
-    /** Path inside the project folder. */
-    path: string;
-    /** A file under cli/templates; `__NAME__` in it becomes the project name. */
-    template?: string;
-    json?: Record<string, unknown>;
-    text?: string;
-}
-/** One step: a `flisk` invocation (`args`) or a set of files to write (`files`). */
+/** One real Flisk command: the arguments after `flisk`, and where it runs. */
 export interface CreateStep {
     /** A short label for the progress line. */
     label: string;
-    args?: string[];
-    files?: LocalFile[];
-    /** Run inside the project folder (true) or in the folder the command was started in (false). */
+    args: string[];
+    /** Run inside the project folder (true) or in the folder `create` was started in (false). */
     inProject: boolean;
 }
-/** The stack the Docker runtime's generated resources are assigned to. */
+/** The stack the Docker route assigns its resources to. */
 export declare const CREATE_STACK = "app";
-/** Default ports of a local app; the executor swaps in free ones. */
-export interface LocalPorts {
-    api: number;
-    web: number;
-}
-export declare const DEFAULT_LOCAL_PORTS: LocalPorts;
+/** The folders a local project's website and API live in. */
+export declare const LOCAL_FRONTEND_DIR = "web";
+export declare const LOCAL_BACKEND_DIR = "api";
 /** Returns true when `name` is a usable project folder name. */
 export declare function isValidProjectName(name: string): boolean;
-/** True for the kinds that start from a ready-made template instead of generated parts. */
-export declare function isTemplateKind(kind: CreateKind): boolean;
-/** Whether the runtime question applies: only a web app or an API can run either way. */
-export declare function asksRuntime(kind: CreateKind): boolean;
-/** The framework and extras questions belong to the Docker runtime only. */
-export declare function asksFrontend(kind: CreateKind, runtime: CreateRuntime): boolean;
-export declare function asksBackend(kind: CreateKind, runtime: CreateRuntime): boolean;
-export declare function asksExtras(kind: CreateKind, runtime: CreateRuntime): boolean;
-/** True when a project of these answers is built as plain local processes. */
-export declare function runsLocally(answers: Pick<CreateAnswers, "kind" | "runtime">): boolean;
 /**
- * What builds a project from the answers.
+ * The commands that build the project.
  *
- * A template kind is one `flisk project <template> --path <name>`. The local runtime is one step
- * that writes files. The Docker runtime is `flisk project --yes` followed by one `flisk resource`
- * per part.
+ * A starter is one `flisk project <template>`. An app is `flisk project --yes` and one `flisk resource` per part: the API
+ * first (a website is wired to the API already in its stack), then the website, then any extras.
  */
-export declare function buildCreatePlan(answers: CreateAnswers, ports?: LocalPorts): CreateStep[];
-/** What the project needs on the machine, in a sentence. */
-export declare function describeRequirements(answers: CreateAnswers): string;
-/** The parts the plan creates, for the review summary. */
+export declare function buildCreatePlan(answers: CreateAnswers): CreateStep[];
+/** True when the plan builds nothing: no starter, no website and no API. */
+export declare function isEmptyApp(answers: CreateAnswers): boolean;
+/** What the project needs on the machine, in a sentence. Starter requirements come from the starter itself. */
+export declare function describeRequirements(answers: CreateAnswers, onPath?: (program: string) => boolean): string;
+/** The parts the plan creates, for the review. */
 export declare function describeParts(answers: CreateAnswers, steps: CreateStep[]): string;
-/** The answers, one line each, skipping the questions a kind never asks. */
+/** The answers, one line each, skipping what was not chosen. */
 export declare function describeAnswers(answers: CreateAnswers): string[];
-/** Parses a comma-separated `--extras` value, naming the first value that is not one of the extras. */
-export declare function parseExtras(value: string): {
-    extras: CreateExtra[];
-} | {
-    error: string;
-};

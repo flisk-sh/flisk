@@ -22,6 +22,8 @@ import { writeFilesWithProgress } from "../utils/file-helpers.js";
 import { showCommandHeader } from "../utils/formatting.js";
 import { createInfraServiceJson, frameworksOfType, INFRA_PRESETS, infraFrameworkFor, isInfraFramework, replacementForRemovedType, } from "../utils/infra-presets.js";
 import { runJsonCommand } from "../utils/json-command.js";
+import { findFreePort } from "../utils/native-demo.js";
+import { isPortListening } from "../utils/native-runtime.js";
 import { findProjectRoot } from "../utils/paths.js";
 import { assignPort } from "../utils/port-assignment.js";
 import { promptSelect, promptText } from "../utils/prompt.js";
@@ -1196,10 +1198,18 @@ This file contains the resource configuration for Flisk.
                 throw new FliskError(`--local applies to frontend and backend resources, not ${resourceType}.`, ["Leave --local out to scaffold it for Docker and Tilt."]);
             }
             const backendResource = allResources.find((resource) => resource.name === frontendBackendName);
+            // On your own computer the port has to be free right now, not only unassigned in this project: another program
+            // may already listen on 3000. An explicit --port is kept as it is.
+            const taken = allResources
+                .map((resource) => resource.config?.port)
+                .filter((port) => typeof port === "number");
+            const localPort = options.port
+                ? assignedPort
+                : await findFreePort(assignedPort, isPortListening, taken);
             applyLocalScaffold({
                 resourceName,
                 resourceType,
-                port: assignedPort,
+                port: localPort,
                 tasks,
                 frontendFramework,
                 backendLanguage: options.language === undefined ? undefined : backendLanguage,

@@ -8,7 +8,7 @@ New to contributing? Start with the [step-by-step contributor guide](../docs/con
 
 **Try it with no Docker:** `npx @flisk-sh/flisk demo` needs only Node.js 22.12+. Without Docker or Tilt (or on native Windows) it starts a small menu app as two local processes in about a second and opens it; with Docker and Tilt it starts the full restaurant demo. `flisk up --dry-run` previews any project without Docker or Tilt.
 
-**Pick your own stack:** `npx @flisk-sh/flisk create` asks what you are building with arrow keys and Enter. The default is a Vite + React app with a small API that runs on Node.js and npm alone (`npm install`, `npm run dev`), with no Docker, Tilt or database. Choose "With Docker and Tilt" for frameworks, a queue, a worker or an agent. `--dry-run` shows what it would do.
+**Pick your own stack:** `npx @flisk-sh/flisk create` asks what you are building with arrow keys and Enter, and offers every website framework, API language and starter Flisk's generators know (type to filter). The default runs on your computer with no Docker, Tilt or database; choose "With Docker and Tilt" for queues, databases, workers and agents. `--dry-run` shows the commands it would run.
 
 ## Cheat sheet
 
@@ -18,7 +18,7 @@ Run in a project with Bun, Docker, and Tilt, or, when every service's `service.j
 
 | Command | When to use it |
 | --- | --- |
-| `flisk create` | Pick a stack with a few questions (arrow keys and Enter). The default needs only Node.js and npm. |
+| `flisk create` | Pick a stack with a few questions (arrow keys and Enter). The default runs on your computer, with no Docker or Tilt. |
 | `flisk project --yes` | Create a project with the default setup. |
 | `flisk resource api --type backend --stack api --yes` | Scaffold `api` directly into the `api` stack. |
 | `flisk stack api` | Assign unstacked resources to `api` interactively. |

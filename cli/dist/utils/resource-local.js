@@ -62,5 +62,6 @@ export function applyLocalScaffold(input) {
     delete serviceJson.build;
     delete serviceJson.dev;
     serviceJson.command = command;
+    serviceJson.port = input.port;
     return command;
 }

@@ -23,6 +23,8 @@ export interface PromptStreams {
 }
 /** Moves a highlighted row up or down, wrapping at both ends. */
 export declare function moveIndex(index: number, count: number, delta: 1 | -1): number;
+/** The choices whose title, id or hint contains every word typed, case-insensitively. */
+export declare function filterChoices<T extends string>(choices: readonly ArrowChoice<T>[], filter: string): ArrowChoice<T>[];
 /** What a keypress means to a menu. */
 export type MenuAction = "up" | "down" | "toggle" | "submit" | "cancel" | "none";
 export declare function menuAction(key: KeyPress): MenuAction;
@@ -32,16 +34,19 @@ interface MenuFrame<T extends string> {
     cursor: number;
     /** Multi-select: the ticked values. Undefined for a single choice. */
     ticked?: ReadonlySet<T>;
+    /** The text typed to narrow a long menu; undefined when the menu does not filter. */
+    filter?: string;
 }
 /** The rows of a menu, plain text for the caller to colour. Pure, so the layout is testable. */
 export declare function renderMenu<T extends string>(frame: MenuFrame<T>): string[];
 /** The line left behind once an answer is given. */
 export declare function renderAnswered(message: string, answer: string): string;
-/** Pick one: arrows to move, Enter to choose. */
+/** Pick one: arrows to move, Enter to choose. With `filterable`, typing narrows a long list. */
 export declare function arrowSelect<T extends string>(options: {
     message: string;
     choices: readonly ArrowChoice<T>[];
     initial?: T;
+    filterable?: boolean;
 }, streams?: PromptStreams): Promise<T>;
 /** Pick any number: arrows to move, space to tick, Enter to confirm (nothing ticked is fine). */
 export declare function arrowMultiSelect<T extends string>(options: {

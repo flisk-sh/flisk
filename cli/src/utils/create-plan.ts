@@ -2,100 +2,56 @@
 // SPDX-License-Identifier: MIT
 
 /**
- * The plan behind `flisk create`.
- *
- * The wizard asks a few questions; this module turns the answers into what gets built. It does no
- * I/O, so every path is testable.
+ * The plan behind `flisk create`: the answers, turned into the real `flisk project` and `flisk resource` commands that build
+ * the project. It does no I/O and writes no file itself, so what a project contains is always what Flisk's own generators
+ * produce. Which frameworks, languages, starters and extras exist is not decided here (see create-catalog.ts).
  *
  * There are two ways to run what it builds:
- *  - **local**: plain processes on your computer. It needs only Node.js: no Docker, no Tilt, no
- *    Postgres. This is the default for a web app or an API, so a first run never waits on tooling.
- *  - **docker**: containers behind one gateway with live reload, for a database, queues, a
- *    framework choice or more parts. It uses the same `flisk project` and `flisk resource`
- *    commands a person would type.
+ *  - **local**: plain processes on your computer (`flisk resource --local`). No Docker, no Tilt, no database.
+ *  - **docker**: containers behind one gateway, for databases, queues and the rest of Flisk's infrastructure.
  */
 
-/** What the person is building. A template kind clones or writes a ready-made starter. */
-export type CreateKind = "web" | "api" | "saas" | "agent" | "swarm" | "ecommerce";
+import { DEFAULT_BACKEND_LANGUAGE } from "../backend-languages/registry.js";
+import { extraCatalog, localRequirements } from "./create-catalog.js";
 
 export type CreateRuntime = "local" | "docker";
-export type CreateFrontend = "react" | "vue" | "svelte" | "none";
-export type CreateBackend = "hono" | "express" | "fastify" | "elysia";
-export type CreateExtra = "queue" | "worker" | "mcp" | "agent" | "redis";
-
-export const CREATE_KINDS: readonly CreateKind[] = [
-  "web",
-  "api",
-  "saas",
-  "agent",
-  "swarm",
-  "ecommerce",
-];
 export const CREATE_RUNTIMES: readonly CreateRuntime[] = ["local", "docker"];
-export const CREATE_FRONTENDS: readonly CreateFrontend[] = ["react", "vue", "svelte", "none"];
-export const CREATE_BACKENDS: readonly CreateBackend[] = ["hono", "express", "fastify", "elysia"];
-export const CREATE_EXTRAS: readonly CreateExtra[] = ["queue", "worker", "mcp", "agent", "redis"];
+
+/** The API of an app: a language, and for a language that takes frameworks, the framework. */
+export interface BackendChoice {
+  language: string;
+  framework?: string;
+}
 
 export interface CreateAnswers {
   /** The project folder, kebab-case. */
   name: string;
-  kind: CreateKind;
-  /** Used by `web` and `api`; the starters decide their own runtime. */
+  /** A project template key. When set, the app answers below are not used: the template carries its own parts. */
+  starter?: string;
   runtime: CreateRuntime;
-  /** Docker runtime and `web` only. */
-  frontend: CreateFrontend;
-  /** Docker runtime, `web` and `api`. */
-  backend: CreateBackend;
-  /** Docker runtime, `web` and `api`; a starter already carries its own parts. */
-  extras: CreateExtra[];
+  /** A frontend framework id, or undefined for no website. */
+  frontend?: string;
+  /** The API, or undefined for none. */
+  backend?: BackendChoice;
+  /** Docker route only: ids from the extras catalog. */
+  extras: string[];
 }
 
-/** The answers a person gets by pressing Enter on every question. */
-export const CREATE_DEFAULTS: Omit<CreateAnswers, "name"> = {
-  kind: "web",
-  runtime: "local",
-  frontend: "react",
-  backend: "hono",
-  extras: [],
-};
-
-/** A file the local runtime writes: a bundled template, JSON, or text. */
-export interface LocalFile {
-  /** Path inside the project folder. */
-  path: string;
-  /** A file under cli/templates; `__NAME__` in it becomes the project name. */
-  template?: string;
-  json?: Record<string, unknown>;
-  text?: string;
-}
-
-/** One step: a `flisk` invocation (`args`) or a set of files to write (`files`). */
+/** One real Flisk command: the arguments after `flisk`, and where it runs. */
 export interface CreateStep {
   /** A short label for the progress line. */
   label: string;
-  args?: string[];
-  files?: LocalFile[];
-  /** Run inside the project folder (true) or in the folder the command was started in (false). */
+  args: string[];
+  /** Run inside the project folder (true) or in the folder `create` was started in (false). */
   inProject: boolean;
 }
 
-/** The stack the Docker runtime's generated resources are assigned to. */
+/** The stack the Docker route assigns its resources to. */
 export const CREATE_STACK = "app";
 
-/** Default ports of a local app; the executor swaps in free ones. */
-export interface LocalPorts {
-  api: number;
-  web: number;
-}
-export const DEFAULT_LOCAL_PORTS: LocalPorts = { api: 4000, web: 3000 };
-
-/** Which template key a kind clones or writes, when it is a template kind. */
-const TEMPLATE_BY_KIND: Partial<Record<CreateKind, string>> = {
-  saas: "saas",
-  agent: "agent-stack",
-  swarm: "swarm",
-  ecommerce: "ecommerce",
-};
+/** The folders a local project's website and API live in. */
+export const LOCAL_FRONTEND_DIR = "web";
+export const LOCAL_BACKEND_DIR = "api";
 
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
@@ -104,214 +60,149 @@ export function isValidProjectName(name: string): boolean {
   return KEBAB.test(name) && name.length <= 48;
 }
 
-/** True for the kinds that start from a ready-made template instead of generated parts. */
-export function isTemplateKind(kind: CreateKind): boolean {
-  return TEMPLATE_BY_KIND[kind] !== undefined;
-}
-
-/** Whether the runtime question applies: only a web app or an API can run either way. */
-export function asksRuntime(kind: CreateKind): boolean {
-  return kind === "web" || kind === "api";
-}
-/** The framework and extras questions belong to the Docker runtime only. */
-export function asksFrontend(kind: CreateKind, runtime: CreateRuntime): boolean {
-  return kind === "web" && runtime === "docker";
-}
-export function asksBackend(kind: CreateKind, runtime: CreateRuntime): boolean {
-  return asksRuntime(kind) && runtime === "docker";
-}
-export function asksExtras(kind: CreateKind, runtime: CreateRuntime): boolean {
-  return asksRuntime(kind) && runtime === "docker";
-}
-
-/** True when a project of these answers is built as plain local processes. */
-export function runsLocally(answers: Pick<CreateAnswers, "kind" | "runtime">): boolean {
-  if (answers.kind === "swarm") return true;
-  if (isTemplateKind(answers.kind)) return false;
-  return answers.runtime === "local";
-}
-
-/** The service.json of a local app: one service at the project root, started with its npm script. */
-function localManifest(answers: CreateAnswers, ports: LocalPorts): Record<string, unknown> {
-  const web = answers.kind === "web";
-  return {
-    $schema: "https://flisk.sh/schema.service.json",
-    schemaVersion: 1,
-    appName: answers.name,
-    appType: web ? "frontend" : "backend",
-    command: web ? "npm run dev" : "node server.mjs",
-    port: web ? ports.web : ports.api,
-    healthCheckPath: web ? "/" : "/health",
-  };
-}
-
-function localReadme(answers: CreateAnswers, ports: LocalPorts): string {
-  const web = answers.kind === "web";
-  const url = `http://localhost:${web ? ports.web : ports.api}`;
-  return `# ${answers.name}
-
-Made with \`flisk create\`. It runs on your computer with Node.js and npm: no Docker, no Tilt, no database.
-
-## Run it
-
-\`\`\`bash
-npm install
-npm run dev     # ${web ? `opens ${url}` : `serves ${url}/api/hello`}
-\`\`\`
-
-${web ? `Edit \`src/App.tsx\` and save: the page updates on its own. \`npm run build\` makes the production files.` : "Edit `server.mjs`; `npm run dev` restarts it when you save."}
-
-Flisk can run it too, as a local process (still no Docker): \`flisk up\`, then \`flisk down\`.
-
-## Grow it later
-
-A database, a queue, a worker or another framework run in containers, so they need Docker and Tilt (\`flisk doctor\` says what is missing). Start a full stack in a new folder:
-
-\`\`\`bash
-flisk create --runtime docker
-\`\`\`
-`;
-}
+/** The suffix a resource name gets from an extras id: its `type:framework` colon becomes a dash. */
+const extraSuffix = (id: string) => id.replace(":", "-");
 
 /**
- * What builds a project from the answers.
+ * The commands that build the project.
  *
- * A template kind is one `flisk project <template> --path <name>`. The local runtime is one step
- * that writes files. The Docker runtime is `flisk project --yes` followed by one `flisk resource`
- * per part.
+ * A starter is one `flisk project <template>`. An app is `flisk project --yes` and one `flisk resource` per part: the API
+ * first (a website is wired to the API already in its stack), then the website, then any extras.
  */
-export function buildCreatePlan(
-  answers: CreateAnswers,
-  ports: LocalPorts = DEFAULT_LOCAL_PORTS,
-): CreateStep[] {
-  const { name, kind } = answers;
-  const template = TEMPLATE_BY_KIND[kind];
+export function buildCreatePlan(answers: CreateAnswers): CreateStep[] {
+  const { name, starter, runtime } = answers;
 
-  if (template) {
+  if (starter) {
     return [
       {
-        label: `Writing the ${template} starter`,
-        args: ["project", template, "--path", name, "--yes"],
+        label: `Writing the ${starter} starter`,
+        args: ["project", starter, "--path", name, "--yes"],
         inProject: false,
       },
     ];
   }
 
-  if (answers.runtime === "local") {
-    const web = kind === "web";
-    const dir = web ? "create-local/web" : "create-local/api";
-    const files: LocalFile[] = web
-      ? [
-          { path: "package.json", template: `${dir}/package.json` },
-          { path: "vite.config.ts", template: `${dir}/vite.config.ts` },
-          { path: "index.html", template: `${dir}/index.html` },
-          { path: "tsconfig.json", template: `${dir}/tsconfig.json` },
-          { path: "src/main.tsx", template: `${dir}/src/main.tsx` },
-          { path: "src/App.tsx", template: `${dir}/src/App.tsx` },
-          { path: ".gitignore", template: `${dir}/gitignore` },
-        ]
-      : [
-          { path: "package.json", template: `${dir}/package.json` },
-          { path: "server.mjs", template: `${dir}/server.mjs` },
-          { path: ".gitignore", template: `${dir}/gitignore` },
-        ];
-    files.push(
-      { path: "service.json", json: localManifest(answers, ports) },
-      { path: "README.md", text: localReadme(answers, ports) },
-    );
-    return [
-      {
-        label: web ? "Writing your Vite + React app" : "Writing your API",
-        files,
-        inProject: true,
-      },
-    ];
-  }
-
+  const local = runtime === "local";
   const steps: CreateStep[] = [
     { label: "Creating the project", args: ["project", "--yes"], inProject: true },
   ];
+  const where = (dir: string) => (local ? ["--path", dir, "--local"] : []);
 
-  const resource = (
-    label: string,
-    resourceName: string,
-    type: string,
-    extra: string[] = [],
-  ): CreateStep => ({
-    label,
-    args: ["resource", resourceName, "--type", type, ...extra, "--stack", CREATE_STACK, "--yes"],
-    inProject: true,
-  });
-
-  steps.push(
-    resource(`Adding the ${answers.backend} API`, `${name}-api`, "backend", [
-      "--framework",
-      answers.backend,
-    ]),
-  );
-
-  if (kind === "web" && answers.frontend !== "none") {
-    steps.push(
-      resource(`Adding the ${answers.frontend} website`, `${name}-web`, "frontend", [
-        "--framework",
-        answers.frontend,
-      ]),
-    );
+  if (answers.backend) {
+    const { language, framework } = answers.backend;
+    // The default language is the one a missing --language means, so its output stays the historical one.
+    const flavour =
+      language === DEFAULT_BACKEND_LANGUAGE
+        ? framework
+          ? ["--framework", framework]
+          : []
+        : ["--language", language];
+    steps.push({
+      label: `Adding the ${framework ?? language} API`,
+      args: [
+        "resource",
+        `${name}-api`,
+        "--type",
+        "backend",
+        ...flavour,
+        ...where(LOCAL_BACKEND_DIR),
+        "--stack",
+        CREATE_STACK,
+        "--yes",
+      ],
+      inProject: true,
+    });
   }
 
-  const extras = new Set(answers.extras);
-  if (extras.has("queue"))
-    steps.push(resource("Adding a NATS queue", `${name}-queue`, "queue", ["--framework", "nats"]));
-  if (extras.has("redis"))
-    steps.push(resource("Adding Redis", `${name}-redis`, "database", ["--framework", "redis"]));
-  if (extras.has("worker"))
-    steps.push(resource("Adding a background worker", `${name}-worker`, "worker"));
-  if (extras.has("mcp")) steps.push(resource("Adding an MCP tool server", `${name}-tools`, "mcp"));
-  if (extras.has("agent")) steps.push(resource("Adding an AI agent", `${name}-agent`, "agent"));
+  if (answers.frontend) {
+    steps.push({
+      label: `Adding the ${answers.frontend} website`,
+      args: [
+        "resource",
+        `${name}-web`,
+        "--type",
+        "frontend",
+        "--framework",
+        answers.frontend,
+        ...where(LOCAL_FRONTEND_DIR),
+        "--stack",
+        CREATE_STACK,
+        "--yes",
+      ],
+      inProject: true,
+    });
+  }
+
+  if (!local) {
+    const known = new Map(extraCatalog().map((extra) => [extra.id, extra]));
+    for (const id of answers.extras) {
+      const extra = known.get(id);
+      if (!extra) continue;
+      steps.push({
+        label: `Adding ${extra.title}`,
+        args: [
+          "resource",
+          `${name}-${extraSuffix(id)}`,
+          "--type",
+          extra.type,
+          ...(extra.framework ? ["--framework", extra.framework] : []),
+          "--stack",
+          CREATE_STACK,
+          "--yes",
+        ],
+        inProject: true,
+      });
+    }
+  }
 
   return steps;
 }
 
-/** What the project needs on the machine, in a sentence. */
-export function describeRequirements(answers: CreateAnswers): string {
-  if (runsLocally(answers)) return "Node.js and npm only. No Docker, no Tilt, no database.";
-  return "Docker, Tilt and Bun (`flisk doctor` checks what is missing).";
+/** True when the plan builds nothing: no starter, no website and no API. */
+export function isEmptyApp(answers: CreateAnswers): boolean {
+  return !answers.starter && !answers.frontend && !answers.backend;
 }
 
-/** The parts the plan creates, for the review summary. */
+/** What the project needs on the machine, in a sentence. Starter requirements come from the starter itself. */
+export function describeRequirements(
+  answers: CreateAnswers,
+  onPath: (program: string) => boolean = () => true,
+): string {
+  if (answers.starter) return "see the starter's README for its prerequisites";
+  if (answers.runtime === "docker")
+    return "Docker and Tilt (`flisk doctor` checks what is missing)";
+  const programs = localRequirements({
+    frontend: answers.frontend !== undefined,
+    language: answers.backend?.language,
+  });
+  const missing = programs.filter((program) => !onPath(program));
+  const list = `${programs.join(", ")}. No Docker, no Tilt, no database`;
+  return missing.length > 0 ? `${list}. Not found on this machine: ${missing.join(", ")}` : list;
+}
+
+/** The parts the plan creates, for the review. */
 export function describeParts(answers: CreateAnswers, steps: CreateStep[]): string {
-  if (isTemplateKind(answers.kind)) return `the ${TEMPLATE_BY_KIND[answers.kind]} starter`;
-  if (answers.runtime === "local")
-    return answers.kind === "web" ? "a Vite + React app with a small API" : "a Node API";
+  if (answers.starter) return `the ${answers.starter} starter`;
   const parts = steps
-    .filter((step) => step.args?.[0] === "resource")
-    .map((step) => String(step.args?.[1]));
+    .filter((step) => step.args[0] === "resource")
+    .map((step) => String(step.args[1]));
   return parts.join(", ");
 }
 
-/** The answers, one line each, skipping the questions a kind never asks. */
+/** The answers, one line each, skipping what was not chosen. */
 export function describeAnswers(answers: CreateAnswers): string[] {
-  const lines = [`name: ${answers.name}`, `kind: ${answers.kind}`];
-  if (asksRuntime(answers.kind)) lines.push(`runtime: ${answers.runtime}`);
-  if (asksFrontend(answers.kind, answers.runtime)) lines.push(`frontend: ${answers.frontend}`);
-  if (asksBackend(answers.kind, answers.runtime)) lines.push(`backend: ${answers.backend}`);
-  if (asksExtras(answers.kind, answers.runtime))
-    lines.push(`extras: ${answers.extras.length > 0 ? answers.extras.join(", ") : "none"}`);
-  return lines;
-}
-
-/** Parses a comma-separated `--extras` value, naming the first value that is not one of the extras. */
-export function parseExtras(value: string): { extras: CreateExtra[] } | { error: string } {
-  const parts = value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const extras: CreateExtra[] = [];
-  for (const part of parts) {
-    if (!(CREATE_EXTRAS as readonly string[]).includes(part)) {
-      return { error: `Unknown extra "${part}". Use: ${CREATE_EXTRAS.join(", ")}, or "none".` };
-    }
-    if (!extras.includes(part as CreateExtra)) extras.push(part as CreateExtra);
+  const lines = [`name: ${answers.name}`];
+  if (answers.starter) return [...lines, `starter: ${answers.starter}`];
+  lines.push(`runtime: ${answers.runtime}`);
+  lines.push(`website: ${answers.frontend ?? "none"}`);
+  if (answers.backend) {
+    const { language, framework } = answers.backend;
+    lines.push(`api: ${framework ? `${language} + ${framework}` : language}`);
+  } else {
+    lines.push("api: none");
   }
-  return { extras };
+  if (answers.runtime === "docker") {
+    lines.push(`extras: ${answers.extras.length > 0 ? answers.extras.join(", ") : "none"}`);
+  }
+  return lines;
 }

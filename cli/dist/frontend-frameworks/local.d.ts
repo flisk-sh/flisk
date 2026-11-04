@@ -16,3 +16,5 @@ export declare const LOCAL_VITE_SCRIPTS: {
     readonly build: "tsc && vite build";
     readonly preview: "vite preview";
 };
+/** The programs a frontend scaffolded with `--local` needs on the host to install and start. */
+export declare const LOCAL_FRONTEND_REQUIRES: readonly string[];

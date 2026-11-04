@@ -23,6 +23,16 @@ export function moveIndex(index, count, delta) {
         return 0;
     return (index + delta + count) % count;
 }
+/** The choices whose title, id or hint contains every word typed, case-insensitively. */
+export function filterChoices(choices, filter) {
+    const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length === 0)
+        return [...choices];
+    return choices.filter((choice) => {
+        const text = `${choice.title} ${choice.value} ${choice.hint ?? ""}`.toLowerCase();
+        return words.every((word) => text.includes(word));
+    });
+}
 export function menuAction(key) {
     if (key.ctrl && key.name === "c")
         return "cancel";
@@ -41,6 +51,9 @@ export function menuAction(key) {
 /** The rows of a menu, plain text for the caller to colour. Pure, so the layout is testable. */
 export function renderMenu(frame) {
     const rows = [`${chalk.cyan("◆")} ${chalk.bold(frame.message)}`];
+    if (frame.filter !== undefined) {
+        rows.push(`${chalk.dim("│")} ${chalk.dim("filter:")} ${frame.filter || chalk.dim("type to narrow the list")}${chalk.dim("▏")}`);
+    }
     frame.choices.forEach((choice, index) => {
         const active = index === frame.cursor;
         const mark = frame.ticked ? (frame.ticked.has(choice.value) ? "◼" : "◻") : active ? "●" : "○";
@@ -49,7 +62,11 @@ export function renderMenu(frame) {
         const pointer = active ? chalk.cyan("›") : " ";
         rows.push(`${chalk.dim("│")} ${pointer} ${active ? chalk.cyan(mark) : chalk.dim(mark)} ${title}${hint}`);
     });
-    rows.push(chalk.dim(frame.ticked ? "└ ↑/↓ move · space tick · Enter confirm" : "└ ↑/↓ move · Enter choose"));
+    rows.push(chalk.dim(frame.ticked
+        ? "└ ↑/↓ move · space tick · Enter confirm"
+        : frame.filter !== undefined
+            ? "└ ↑/↓ move · type to filter · Enter choose"
+            : "└ ↑/↓ move · Enter choose"));
     return rows;
 }
 /** The line left behind once an answer is given. */
@@ -91,26 +108,51 @@ function readKeys(streams, onKey) {
         input.on("keypress", handler);
     });
 }
-/** Pick one: arrows to move, Enter to choose. */
+/** Pick one: arrows to move, Enter to choose. With `filterable`, typing narrows a long list. */
 export async function arrowSelect(options, streams = defaultStreams()) {
     const { output } = streams;
+    let filter = "";
     let cursor = Math.max(0, options.choices.findIndex((choice) => choice.value === options.initial));
+    const visible = () => options.filterable ? filterChoices(options.choices, filter) : options.choices;
     let drawn = 0;
     const draw = () => {
         eraseRows(output, drawn);
-        const rows = renderMenu({ message: options.message, choices: options.choices, cursor });
+        const shown = visible();
+        cursor = Math.min(cursor, Math.max(0, shown.length - 1));
+        const rows = renderMenu({
+            message: options.message,
+            choices: shown,
+            cursor,
+            ...(options.filterable ? { filter } : {}),
+        });
+        if (shown.length === 0)
+            rows.splice(options.filterable ? 2 : 1, 0, chalk.dim("│   nothing matches"));
         output.write(`${rows.join("\n")}\n`);
         drawn = rows.length;
     };
     draw();
     try {
-        const chosen = await readKeys(streams, (key) => {
+        const chosen = await readKeys(streams, (key, str) => {
             const action = menuAction(key);
+            const shown = visible();
+            // In a filtering menu the letters belong to the filter, so only the arrows move.
+            const typed = options.filterable && str && str.length === 1 && str >= " " && !key.ctrl;
+            if (options.filterable && key.name === "backspace") {
+                filter = filter.slice(0, -1);
+                draw();
+                return undefined;
+            }
+            if (typed && action !== "submit") {
+                filter += str;
+                cursor = 0;
+                draw();
+                return undefined;
+            }
             if (action === "up" || action === "down") {
-                cursor = moveIndex(cursor, options.choices.length, action === "up" ? -1 : 1);
+                cursor = moveIndex(cursor, shown.length, action === "up" ? -1 : 1);
                 draw();
             }
-            const current = options.choices[cursor];
+            const current = shown[cursor];
             return action === "submit" && current ? { done: current.value } : undefined;
         });
         eraseRows(output, drawn);

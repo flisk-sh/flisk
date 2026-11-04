@@ -43,3 +43,6 @@ export const LOCAL_VITE_SCRIPTS = {
   build: "tsc && vite build",
   preview: "vite preview",
 } as const;
+
+/** The programs a frontend scaffolded with `--local` needs on the host to install and start. */
+export const LOCAL_FRONTEND_REQUIRES: readonly string[] = ["node", "npm"];

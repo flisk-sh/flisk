@@ -1,10 +1,11 @@
 import { Command } from "commander";
-import { type CreateAnswers, type CreateStep, type LocalFile } from "../utils/create-plan.js";
+import { type CreateAnswers, type CreateStep } from "../utils/create-plan.js";
 export interface CreateOptions {
-    kind?: string;
+    starter?: string;
     runtime?: string;
     frontend?: string;
     backend?: string;
+    language?: string;
     extras?: string;
     yes?: boolean;
     dryRun?: boolean;
@@ -16,21 +17,27 @@ export declare function isInteractive(options: CreateOptions, tty: {
     out: boolean;
 }): boolean;
 /**
- * Collects the answers. A flag wins over a question, and a question is only asked for a part the
- * chosen kind uses. Without a terminal the defaults fill what a flag did not.
- *
- * The order is what a newcomer needs: what you are building, then how it runs, then (only for the
- * Docker route) the frameworks and extras, and the name last with a default Enter accepts.
+ * Collects the answers. A flag wins over a question, and a question is only asked for a part the chosen shape uses. Without a
+ * terminal the registries' defaults fill what a flag did not.
  */
 export declare function collectAnswers(nameArg: string | undefined, options: CreateOptions, interactive: boolean): Promise<CreateAnswers>;
 /** The project folder must not exist, or must be empty, so a create never overwrites anything. */
 export declare function assertFolderIsFree(dir: string): void;
 /** One line per step for the dry run and the failure report. */
 export declare function renderStep(step: CreateStep): string;
-/** What gets created, what it needs, and what is chosen, shown before anything is written. */
-export declare function reviewLines(answers: CreateAnswers, steps: CreateStep[]): string[];
-/** Writes the files of a local step, filling `__NAME__` in templates. Returns the paths written. */
-export declare function writeLocalFiles(projectDir: string, name: string, files: LocalFile[]): string[];
-/** What to tell someone when a step fails halfway: what finished, what did not, how to start over. */
+/** What gets created, what it needs, and what was chosen, shown before anything is written. */
+export declare function reviewLines(answers: CreateAnswers, steps: CreateStep[], onPath?: (program: string) => boolean): string[];
+/** A service `flisk resource --local` wrote: where it lives, how to install it, and how it starts. */
+export interface GeneratedService {
+    dir: string;
+    /** The install command, or the generator's own hint for a language without a package.json. */
+    install?: string;
+    run: string;
+}
+/** The local services a project actually contains, read from the files the generators wrote. */
+export declare function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[];
+/** The commands to run next, from what was generated. */
+export declare function nextSteps(projectDir: string, answers: CreateAnswers, services?: GeneratedService[]): string[];
+/** What to tell someone when a step fails halfway: what finished, what did not run, how to start over. */
 export declare function recoveryMessage(projectDir: string, steps: CreateStep[], failedIndex: number): string[];
 export declare const createCommand: Command;

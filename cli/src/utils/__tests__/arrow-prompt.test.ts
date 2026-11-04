@@ -6,6 +6,7 @@ import {
   arrowMultiSelect,
   arrowSelect,
   arrowText,
+  filterChoices,
   menuAction,
   moveIndex,
   PromptCancelled,
@@ -210,5 +211,50 @@ describe("arrowText", () => {
     t.press(`A${ENTER}${BACKSPACE}ok${ENTER}`);
     expect(await done).toBe("ok");
     expect(t.printed()).toContain("lowercase only");
+  });
+});
+
+describe("filtering a long menu", () => {
+  const LONG = [
+    { title: "React", value: "react", hint: "Vite" },
+    { title: "Vue 3", value: "vue", hint: "Vite" },
+    { title: "Svelte", value: "svelte", hint: "Vite" },
+    { title: "Next.js", value: "next", hint: "runs its own dev server" },
+  ] as const;
+
+  it("filterChoices matches the title, the id and the hint, every word, any case", () => {
+    expect(filterChoices(LONG, "").map((c) => c.value)).toEqual(["react", "vue", "svelte", "next"]);
+    expect(filterChoices(LONG, "VU").map((c) => c.value)).toEqual(["vue"]);
+    expect(filterChoices(LONG, "own server").map((c) => c.value)).toEqual(["next"]);
+    expect(filterChoices(LONG, "zzz")).toEqual([]);
+  });
+
+  it("typing letters narrows the list and Enter picks the match", async () => {
+    const t = fakeTerminal();
+    const done = arrowSelect({ message: "Framework?", choices: LONG, filterable: true }, t.streams);
+    t.press(`sve${ENTER}`);
+    expect(await done).toBe("svelte");
+  });
+
+  it("backspace widens the list again, and the arrows move inside what is left", async () => {
+    const t = fakeTerminal();
+    const done = arrowSelect({ message: "Framework?", choices: LONG, filterable: true }, t.streams);
+    t.press(`zz${BACKSPACE}${BACKSPACE}${DOWN}${ENTER}`);
+    expect(await done).toBe("vue");
+  });
+
+  it("says when nothing matches, and Enter then chooses nothing", async () => {
+    const t = fakeTerminal();
+    const done = arrowSelect({ message: "Framework?", choices: LONG, filterable: true }, t.streams);
+    t.press(`qqq${ENTER}${BACKSPACE}${BACKSPACE}${BACKSPACE}${ENTER}`);
+    expect(await done).toBe("react");
+    expect(t.printed()).toContain("nothing matches");
+  });
+
+  it("a menu that does not filter still treats j and k as movement", async () => {
+    const t = fakeTerminal();
+    const done = arrowSelect({ message: "Framework?", choices: LONG }, t.streams);
+    t.press(`j${ENTER}`);
+    expect(await done).toBe("vue");
   });
 });
