@@ -15,7 +15,7 @@ export function parseSizeToBytes(sizeStr) {
     if (!match)
         return 0;
     const num = parseFloat(match[1]);
-    if (isNaN(num))
+    if (Number.isNaN(num))
         return 0;
     const unit = match[2].toLowerCase();
     if (unit === "b")
@@ -142,7 +142,7 @@ export function findStaleProjects(options) {
             }
             else if (projectName && projectsByName.has(projectName)) {
                 const entry = projectsByName.get(projectName);
-                if (!entry.volumes.includes(volName)) {
+                if (entry && !entry.volumes.includes(volName)) {
                     entry.volumes.push(volName);
                 }
             }
@@ -175,7 +175,7 @@ export function findStaleProjects(options) {
             }
             else if (projectName && projectsByName.has(projectName)) {
                 const entry = projectsByName.get(projectName);
-                if (!entry.networks.includes(netName)) {
+                if (entry && !entry.networks.includes(netName)) {
                     entry.networks.push(netName);
                 }
             }

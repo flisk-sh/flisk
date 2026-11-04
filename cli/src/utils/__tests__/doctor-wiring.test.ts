@@ -226,6 +226,16 @@ describe("checkSharedStackRoutes", () => {
     );
     expect(result.message).toContain("they are routed at /api/<name> only");
   });
+
+  it("says nothing about the stack route for imported bring-your-own services, which never had it", () => {
+    resource("voting", "vote", { appType: "bring-your-own", port: 80 });
+    resource("voting", "result", { appType: "bring-your-own", port: 80 });
+
+    const result = checkSharedStackRoutes(root);
+
+    expect(result.message).not.toContain("lose the shared");
+    expect(result.didPass).toBe(true);
+  });
 });
 
 describe("checkNatsBroker", () => {

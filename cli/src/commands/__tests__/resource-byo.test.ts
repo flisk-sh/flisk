@@ -189,7 +189,8 @@ describe("bring-your-own resource type", () => {
         stack: "shop",
         basePath: "/api/widget",
         // The ingress port comes from the host port plan (80 when free, 8080 on CI runners), so match any port.
-        url: expect.stringMatching(/^http:\/\/api\.test\.localhost:\d+\/api\/widget$/),
+        // With the trailing slash, so a page served under the stripped prefix resolves its relative links.
+        url: expect.stringMatching(/^http:\/\/api\.test\.localhost:\d+\/api\/widget\/$/),
       };
       expect(networksReport.data.services).toMatchObject([widgetRoute]);
 

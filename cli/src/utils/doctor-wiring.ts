@@ -506,7 +506,11 @@ export function checkSharedStackRoutes(
     if (resources.length < 2) continue;
     const explicit = (resource: DiscoveredResource) =>
       Boolean(resource.config?.traefik?.host || resource.config?.traefik?.pathPrefix);
-    const lost = resources.filter((resource) => !explicit(resource)).map((r) => r.name);
+    // A bring-your-own service (an imported Compose app) never had the stack-management route: it is reached at
+    // /api/<name>, which it keeps, so "losing" a route it never used only confused a first run of an imported stack.
+    const lost = resources
+      .filter((resource) => !explicit(resource) && resource.config?.appType !== BRING_YOUR_OWN_TYPE)
+      .map((r) => r.name);
     if (lost.length > 0) {
       problems.push(
         `stack "${stack}": ${lost.sort().join(", ")} lose the shared /api/${stack}-management route because ${resources.length} backends share the stack; they are routed at /api/<name> only`,
