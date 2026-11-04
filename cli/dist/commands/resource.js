@@ -615,6 +615,10 @@ export const resourceCommand = addYesOption(new Command("resource"))
             ? BRING_YOUR_OWN_TYPE
             : requestedType;
         const isDatabase = resourceType === DATABASE_RESOURCE_TYPE;
+        // Before any early return below (databases, queues, bring-your-own), or --local would be accepted and ignored.
+        if (options.local && resourceType !== "frontend" && resourceType !== "backend") {
+            throw new FliskError(`--local applies to frontend and backend resources, not ${resourceType}.`, ["Leave --local out to scaffold it for Docker and Tilt."]);
+        }
         if (isDatabase)
             assertDatabaseOptions(options);
         if (resourceType !== "agent" &&
@@ -830,6 +834,13 @@ export const resourceCommand = addYesOption(new Command("resource"))
         }
         // Checked before anything is written: the Drizzle files are Bun/TypeScript files for a backend.
         const requestedFeatures = Array.isArray(options.feature) ? options.feature : [];
+        // The Prisma migrator is a container with a build block; next to a host-run API it makes `flisk up` refuse to
+        // start (mixed runtimes), so the two cannot be combined. Checked before any folder is created.
+        if (options.local && resourceType === "backend" && requestedFeatures.includes("prisma")) {
+            throw new FliskError("--local cannot be combined with --feature prisma.", [
+                "Leave --local out to scaffold the Prisma migrator and Postgres for Docker and Tilt.",
+            ]);
+        }
         if (requestedFeatures.includes("drizzle") &&
             (resourceType !== "backend" || backendLanguage?.createFiles)) {
             throw new FliskError("--feature drizzle is only supported for Bun backends.", [
@@ -842,13 +853,21 @@ export const resourceCommand = addYesOption(new Command("resource"))
             : undefined;
         if (infraPreset)
             assertInfraPresetOptions(infraPreset, options);
-        const assignedPort = infraPreset
+        let assignedPort = infraPreset
             ? INFRA_PRESETS[infraPreset].port
             : isInference
                 ? (existingInferencePort ?? resolveInferencePort(options.port, allResources))
                 : resourceType === "sdk" || isDatabase
                     ? 0
                     : resolveResourcePort(resourceType, options.port, nextPort, allResources);
+        // --local: on your own computer the port has to be free right now, not only unassigned in this project (another
+        // program may already listen on 3000). Picked here so the details, the confirmation and the JSON report all show
+        // the port the service really gets. An explicit --port is kept as it is.
+        if (options.local && !shouldRegisterExisting) {
+            assignedPort = await localResourcePort(assignedPort, Boolean(options.port), allResources
+                .map((resource) => resource.config?.port)
+                .filter((port) => typeof port === "number"), isPortListening);
+        }
         console.log(chalk.gray("\nResource details:"));
         console.log(chalk.gray(`  Name:  ${resourceName}`));
         console.log(chalk.gray(`  Type:  ${resourceType}`));
@@ -1193,20 +1212,11 @@ This file contains the resource configuration for Flisk.
         }
         // --local: the same scaffold, made to run on the host (no Dockerfile, a plain Vite config, a command in service.json).
         if (options.local) {
-            if (resourceType !== "frontend" && resourceType !== "backend") {
-                throw new FliskError(`--local applies to frontend and backend resources, not ${resourceType}.`, ["Leave --local out to scaffold it for Docker and Tilt."]);
-            }
             const backendResource = allResources.find((resource) => resource.name === frontendBackendName);
-            // On your own computer the port has to be free right now, not only unassigned in this project: another program
-            // may already listen on 3000. An explicit --port is kept as it is.
-            const taken = allResources
-                .map((resource) => resource.config?.port)
-                .filter((port) => typeof port === "number");
-            const localPort = await localResourcePort(assignedPort, Boolean(options.port), taken, isPortListening);
             applyLocalScaffold({
                 resourceName,
                 resourceType,
-                port: localPort,
+                port: assignedPort,
                 tasks,
                 frontendFramework,
                 backendLanguage: options.language === undefined ? undefined : backendLanguage,
@@ -1307,7 +1317,8 @@ This file contains the resource configuration for Flisk.
         }
         console.log(chalk.gray(`\nNext steps:`));
         console.log(chalk.gray(`  cd ${finalResourcePath}`));
-        console.log(chalk.gray(`  ${backendLanguage?.installHint ?? "bun install"}`));
+        // A --local frontend installs with npm (what its dev command and Vite config expect); the container scaffold uses Bun.
+        console.log(chalk.gray(`  ${options.local && resourceType === "frontend" ? "npm install" : (backendLanguage?.installHint ?? "bun install")}`));
         console.log(chalk.gray(`  flisk up ${stackName}`));
         return report("created");
     };

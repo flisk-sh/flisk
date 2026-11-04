@@ -34,6 +34,19 @@ export function bindToLocalhost(tasks: FileGenerationTask[]): void {
   }
 }
 
+/** `flisk up` on your computer starts plain processes and no Tilt, so the starter pages must not link to its UI. */
+export function dropTiltLinks(tasks: FileGenerationTask[]): void {
+  for (const task of tasks) {
+    if (task.type !== "text") continue;
+    const content = String(task.content);
+    if (!content.includes("localhost:10350")) continue;
+    task.content = content
+      .split("\n")
+      .filter((line) => !line.includes("localhost:10350"))
+      .join("\n");
+  }
+}
+
 const taskNamed = (tasks: FileGenerationTask[], filename: string) =>
   tasks.find((task) => task.filename === filename);
 
@@ -98,6 +111,7 @@ export function applyLocalScaffold(input: LocalScaffoldInput): string {
     command = "npm run dev";
   }
 
+  if (resourceType === "frontend") dropTiltLinks(tasks);
   if (resourceType === "backend") {
     bindToLocalhost(tasks);
     command = command.replaceAll("0.0.0.0", "localhost");

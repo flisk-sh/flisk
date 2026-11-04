@@ -45,13 +45,15 @@ export interface GeneratedService {
     run: string;
     port?: number;
 }
+/** Splits an install command into words, treating "double quotes" as shell syntax: pip gets .[dev], not ".[dev]". */
+export declare function splitCommand(command: string): string[];
 /** The install command without the "# optional: Docker builds the image" note: on your computer the install is needed. */
 export declare function localInstallHint(hint: string): string;
 /** The local services a project actually contains, read from the files the generators wrote. */
 export declare function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[];
 /**
- * Programs that must be installed before --start can run the app. The default language's package manager stands in
- * for npm, exactly as the installer below does.
+ * Programs that must be installed before --start can run the app. npm stays required even when Bun is installed:
+ * the generated services run `npm run dev`, so `flisk up` would stop without it.
  */
 export declare function startBlockers(answers: CreateAnswers, onPath?: (program: string) => boolean): string[];
 /** The first port a starter's services declare, so the next steps can say where to look. */

@@ -38,6 +38,7 @@ import {
   asksToStart,
   buildCreatePlan,
   isEmptyApp,
+  isValidProjectName,
   toProjectName,
 } from "../../utils/create-plan.js";
 import {
@@ -51,6 +52,7 @@ import {
   nextSteps,
   recoveryMessage,
   reviewLines,
+  splitCommand,
   startBlockers,
   whereToOpen,
 } from "../create.js";
@@ -441,13 +443,49 @@ describe("the review, the recovery message and the folder guard", () => {
     }
   });
 
-  it("--start is blocked only by programs that are really missing; Bun stands in for npm", () => {
+  it("--start needs npm even when Bun is installed, because the services run npm run dev", () => {
     expect(startBlockers(local, () => true)).toEqual([]);
-    expect(startBlockers(local, (p) => p !== "npm")).toEqual([]); // bun installs instead
+    expect(startBlockers(local, (p) => p !== "npm")).toEqual(["npm"]);
     expect(startBlockers(local, (p) => p !== "npm" && p !== "bun")).toEqual(
       expect.arrayContaining(["npm", "bun"]),
     );
     expect(startBlockers({ ...local, starter: "x" }, () => false)).toEqual([]);
+  });
+
+  it('splits an install command the way a shell would, so pip gets .[dev] and not ".[dev]"', () => {
+    expect(splitCommand("npm install")).toEqual(["npm", "install"]);
+    expect(splitCommand('pip install -e ".[dev]"')).toEqual(["pip", "install", "-e", ".[dev]"]);
+    expect(splitCommand("go mod tidy")).toEqual(["go", "mod", "tidy"]);
+  });
+
+  it("a folder it cannot inspect is a FliskError with a next step, not a raw permission error", () => {
+    const dir = mkdtempSync(join(tmpdir(), "flisk-create-perm-"));
+    try {
+      mkdirSync(join(dir, "locked"));
+      chmodSync(join(dir, "locked"), 0o000);
+      if (process.getuid?.() === 0) return; // root can read anything
+      expect(() => assertFolderIsFree(join(dir, "locked", "my-app"))).toThrow(/Cannot check/);
+    } finally {
+      chmodSync(join(dir, "locked"), 0o755);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("a Windows device name is not a usable project name", () => {
+    for (const name of ["con", "nul", "aux", "prn", "com1", "lpt9"]) {
+      expect(isValidProjectName(name), name).toBe(false);
+    }
+    expect(isValidProjectName("console")).toBe(true);
+    expect(isValidProjectName("my-app")).toBe(true);
+  });
+
+  it("rejects --extras together with --starter before building any plan", async () => {
+    await expect(
+      collectAnswers("shop", { starter: starterCatalog()[0]?.id, extras: "worker" }, false),
+    ).rejects.toThrow(/--extras cannot be combined with --starter/);
+    await expect(
+      collectAnswers("shop", { starter: starterCatalog()[0]?.id, extras: "none" }, false),
+    ).resolves.toBeDefined();
   });
 
   it("the local install step drops the Docker-only note", () => {
@@ -657,6 +695,29 @@ describe("flisk create (the real CLI, no terminal)", () => {
     for (const file of files) {
       expect(readFileSync(file, "utf8"), file).not.toContain("0.0.0.0");
     }
+  });
+
+  it("flisk resource --local is refused for databases and for Prisma, and leaves no folder behind", () => {
+    const made = runFlisk(["create", "base", "--frontend", "none", "--yes"], {
+      cwd: dirOf(),
+      timeout: 120_000,
+    });
+    expect(made.status, made.stdout + made.stderr).toBe(0);
+    const project = join(dirOf(), "base");
+    const db = runFlisk(["resource", "db1", "--type", "database", "--local", "--yes"], {
+      cwd: project,
+      timeout: 60_000,
+    });
+    expect(db.status).not.toBe(0);
+    expect(db.stdout + db.stderr).toContain("--local applies to frontend and backend resources");
+    const prisma = runFlisk(
+      ["resource", "pr1", "--type", "backend", "--feature", "prisma", "--local", "--yes"],
+      { cwd: project, timeout: 60_000 },
+    );
+    expect(prisma.status).not.toBe(0);
+    expect(prisma.stdout + prisma.stderr).toContain("cannot be combined with --feature prisma");
+    expect(existsSync(join(project, "services", "app", "pr1"))).toBe(false);
+    expect(existsSync(join(project, "services", "app", "db1"))).toBe(false);
   });
 
   it("the printed next steps match what was generated", () => {

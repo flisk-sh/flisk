@@ -16,6 +16,7 @@ import {
   type PromptStreams,
   renderMenu,
   visibleWidth,
+  visibleWindow,
 } from "../arrow-prompt.js";
 
 /** The menu text of one frame: ANSI and frame separators removed, rows split. */
@@ -294,6 +295,24 @@ describe("fitting a frame to the terminal", () => {
     // Ten wide characters are twenty columns: two lines at width 10, and a cut row never passes the edge.
     expect(framedLines(["寿".repeat(10)], 10)).toBe(2);
     expect(visibleWidth(fitRow("寿".repeat(30), 20))).toBeLessThanOrEqual(19);
+  });
+
+  it("a menu taller than the terminal shows a window that follows the cursor", () => {
+    expect(visibleWindow(5, 0, undefined)).toEqual([0, 5]);
+    expect(visibleWindow(5, 4, 40)).toEqual([0, 5]);
+    // 10 rows of terminal leave 5 for choices: a window of 3 plus the two "more" notes.
+    const [from, to] = visibleWindow(20, 10, 10);
+    expect(to - from).toBe(3);
+    expect(from).toBeLessThanOrEqual(10);
+    expect(to).toBeGreaterThan(10);
+    expect(visibleWindow(20, 0, 10)[0]).toBe(0);
+    expect(visibleWindow(20, 19, 10)[1]).toBe(20);
+    const choices = Array.from({ length: 20 }, (_, i) => ({ title: `c${i}`, value: `v${i}` }));
+    const rows = renderMenu({ message: "Pick?", choices, cursor: 10, terminalRows: 10 });
+    const text = rows.join("\n");
+    expect(text).toContain("c10");
+    expect(text).toContain("more");
+    expect(rows.length).toBeLessThanOrEqual(10);
   });
 
   it("framedLines counts the lines a row takes at a given width", () => {

@@ -10,7 +10,12 @@ import { FRONTEND_FRAMEWORKS } from "../../frontend-frameworks/registry.js";
 import { runFlisk } from "../../test-support/index.js";
 import type { FileGenerationTask } from "../../types/index.js";
 import { isPortListening } from "../native-runtime.js";
-import { applyLocalScaffold, localResourcePort } from "../resource-local.js";
+import {
+  applyLocalScaffold,
+  bindToLocalhost,
+  dropTiltLinks,
+  localResourcePort,
+} from "../resource-local.js";
 
 const viteSpaFrameworks = Object.values(FRONTEND_FRAMEWORKS).filter(
   (provider) => (provider.kind ?? "vite-spa") === "vite-spa",
@@ -235,5 +240,39 @@ describe("localResourcePort", () => {
     } finally {
       await new Promise((resolve) => busy.close(resolve));
     }
+  });
+});
+
+describe("local scaffold text fixes", () => {
+  const task = (filename: string, content: string): FileGenerationTask => ({
+    type: "text",
+    filename,
+    content,
+    description: filename,
+    emoji: "-",
+  });
+
+  it("drops the Tilt UI link from a starter page and keeps the other lines", () => {
+    const tasks = [
+      task(
+        "src/App.vue",
+        '<ul>\n<li><a href="http://localhost:10350">Tilt UI</a>: logs</li>\n<li>flisk status</li>\n</ul>',
+      ),
+    ];
+    dropTiltLinks(tasks);
+    expect(tasks[0]?.content).not.toContain("10350");
+    expect(tasks[0]?.content).toContain("flisk status");
+  });
+
+  it("points every listener at localhost: literal 0.0.0.0, Hono's default, and Go's :port", () => {
+    const tasks = [
+      task("a.ts", "app.listen(port, '0.0.0.0', cb)"),
+      task("index.ts", "export default {\n  port,\n  fetch: app.fetch,\n};"),
+      task("main.go", 'http.ListenAndServe(":"+port, mux)'),
+    ];
+    bindToLocalhost(tasks);
+    expect(tasks[0]?.content).toBe("app.listen(port, 'localhost', cb)");
+    expect(tasks[1]?.content).toContain("hostname: 'localhost',");
+    expect(tasks[2]?.content).toContain('"localhost:"+port');
   });
 });

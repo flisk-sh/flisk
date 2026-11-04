@@ -16,6 +16,20 @@ export function bindToLocalhost(tasks) {
             .replace('http.ListenAndServe(":"+port', 'http.ListenAndServe("localhost:"+port');
     }
 }
+/** `flisk up` on your computer starts plain processes and no Tilt, so the starter pages must not link to its UI. */
+export function dropTiltLinks(tasks) {
+    for (const task of tasks) {
+        if (task.type !== "text")
+            continue;
+        const content = String(task.content);
+        if (!content.includes("localhost:10350"))
+            continue;
+        task.content = content
+            .split("\n")
+            .filter((line) => !line.includes("localhost:10350"))
+            .join("\n");
+    }
+}
 const taskNamed = (tasks, filename) => tasks.find((task) => task.filename === filename);
 /**
  * Turns a scaffold made for containers into one that runs on the host with no Docker and no Tilt.
@@ -74,6 +88,8 @@ export function applyLocalScaffold(input) {
     else {
         command = "npm run dev";
     }
+    if (resourceType === "frontend")
+        dropTiltLinks(tasks);
     if (resourceType === "backend") {
         bindToLocalhost(tasks);
         command = command.replaceAll("0.0.0.0", "localhost");

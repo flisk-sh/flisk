@@ -36,7 +36,11 @@ interface MenuFrame<T extends string> {
     ticked?: ReadonlySet<T>;
     /** The text typed to narrow a long menu; undefined when the menu does not filter. */
     filter?: string;
+    /** The terminal height. A menu taller than this shows a window of its choices that follows the cursor. */
+    terminalRows?: number;
 }
+/** Which choices fit: all of them, or a window that keeps the cursor in view. Returns [start, end). */
+export declare function visibleWindow(total: number, cursor: number, terminalRows?: number): [number, number];
 /** The rows of a menu, plain text for the caller to colour. Pure, so the layout is testable. */
 export declare function renderMenu<T extends string>(frame: MenuFrame<T>): string[];
 /** The line left behind once an answer is given. */

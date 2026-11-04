@@ -55,9 +55,12 @@ export const LOCAL_BACKEND_DIR = "api";
 
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
+/** Names Windows keeps for devices: a folder called con or com1 cannot be created there. */
+const WINDOWS_RESERVED = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
+
 /** Returns true when `name` is a usable project folder name. */
 export function isValidProjectName(name: string): boolean {
-  return KEBAB.test(name) && name.length <= 48;
+  return KEBAB.test(name) && name.length <= 48 && !WINDOWS_RESERVED.test(name);
 }
 
 /**

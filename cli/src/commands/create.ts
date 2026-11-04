@@ -223,6 +223,12 @@ export async function collectAnswers(
       ["Drop --backend none to get an API in that language, or drop --language."],
     );
   }
+  if (options.starter && options.extras !== undefined && options.extras !== "none") {
+    throw new FliskError(
+      "--extras cannot be combined with --starter: a starter carries its own parts.",
+      ["Drop --extras, or drop --starter and add the parts with --runtime docker."],
+    );
+  }
   const flagged = {
     frontend: options.frontend !== undefined,
     backend: options.backend !== undefined || options.language !== undefined,
@@ -389,8 +395,12 @@ export function assertFolderIsFree(dir: string): void {
   let entry: ReturnType<typeof lstatSync>;
   try {
     entry = lstatSync(dir);
-  } catch {
-    return;
+  } catch (error) {
+    // Only "nothing there" means the folder is free; a permission error would otherwise surface later as a raw one.
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw new FliskError(`Cannot check ${dir}: ${(error as NodeJS.ErrnoException).message}`, [
+      "Check that you can read the parent folder, or pick another place: cd <folder> && flisk create <name>",
+    ]);
   }
   if (entry.isSymbolicLink()) {
     throw new FliskError(`${dir} is a link to another place, not a folder.`, [
@@ -495,6 +505,16 @@ function readJson(path: string): Record<string, unknown> | undefined {
   }
 }
 
+/** Splits an install command into words, treating "double quotes" as shell syntax: pip gets .[dev], not ".[dev]". */
+export function splitCommand(command: string): string[] {
+  const words: string[] = [];
+  const pattern = /"([^"]*)"|(\S+)/g;
+  for (let match = pattern.exec(command); match; match = pattern.exec(command)) {
+    words.push(match[1] ?? match[2] ?? "");
+  }
+  return words;
+}
+
 /** The install command without the "# optional: Docker builds the image" note: on your computer the install is needed. */
 export function localInstallHint(hint: string): string {
   return hint.split("#")[0]?.trim() ?? hint;
@@ -524,17 +544,14 @@ export function generatedServices(projectDir: string, answers: CreateAnswers): G
 }
 
 /**
- * Programs that must be installed before --start can run the app. The default language's package manager stands in
- * for npm, exactly as the installer below does.
+ * Programs that must be installed before --start can run the app. npm stays required even when Bun is installed:
+ * the generated services run `npm run dev`, so `flisk up` would stop without it.
  */
 export function startBlockers(
   answers: CreateAnswers,
   onPath: (program: string) => boolean = (program) => findOnPath(program) !== null,
 ): string[] {
-  const fallback = getBackendLanguage(DEFAULT_BACKEND_LANGUAGE).installHint.split(" ")[0] ?? "npm";
-  return missingPrograms(answers, onPath).filter(
-    (program) => !(program === "npm" && onPath(fallback)),
-  );
+  return missingPrograms(answers, onPath);
 }
 
 /** The first port a starter's services declare, so the next steps can say where to look. */
@@ -714,11 +731,12 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
     const defaultBackendFramework = defaultBackend?.frameworks[0]?.id;
     const hasFrontend = !!answers.frontend;
     const hasBackend = !!answers.backend;
-    const frontendDefault = !hasFrontend || answers.frontend === defaultFrontend;
+    // "Just a website" or "just the API" is a choice, not the default: ask before writing.
+    const frontendDefault = hasFrontend && answers.frontend === defaultFrontend;
     const backendDefault =
-      !hasBackend ||
-      (answers.backend?.language === defaultBackend?.id &&
-        answers.backend?.framework === defaultBackendFramework);
+      hasBackend &&
+      answers.backend?.language === defaultBackend?.id &&
+      answers.backend?.framework === defaultBackendFramework;
     const allDefaults =
       answers.runtime === "local" &&
       !answers.starter &&
@@ -824,7 +842,12 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
       `The project is created, but it cannot start yet: ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not installed.`,
       [
         ...installHelp(missing).map((line) => line.trim()),
-        `Once it is installed, run flisk up in ${JSON.stringify(projectDir)}.`,
+        `Then, in ${JSON.stringify(projectDir)}: ${[
+          ...services.flatMap((service) =>
+            service.install ? [`(cd ${service.dir} && ${service.install})`] : [],
+          ),
+          "flisk up",
+        ].join(" ; ")}`,
       ],
     );
   }
@@ -833,24 +856,28 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
 
   // Install what the generators wrote.
   if (answers.runtime === "local") {
-    // npm when it is there; otherwise the package manager the default language's own install hint uses.
-    const pm = findOnPath("npm") ? "npm" : (defaultInstall.split(" ")[0] ?? "npm");
-    for (const service of services.filter((entry) => entry.install === "npm install")) {
-      process.stdout.write(`  Installing ${service.dir}... `);
-      // On Windows npm is a .cmd file, which Node cannot start directly, so cmd.exe runs it. The program and its
-      // arguments are fixed strings (never anything a person typed), and no shell option is involved.
-      const [program, args] = isWindows()
-        ? (["cmd.exe", ["/d", "/s", "/c", pm, "install"]] as const)
-        : ([pm, ["install"]] as const);
-      const run = spawnSync(program, args, {
-        cwd: join(projectDir, service.dir),
-        stdio: "ignore",
-      });
+    // Each service installs with its own command (npm, pip, go, cargo). npm falls back to the default language's
+    // package manager when it is missing; the others run exactly as the generator printed them.
+    for (const service of services) {
+      if (!service.install) continue;
+      const words = splitCommand(service.install);
+      const wanted = words[0] ?? "npm";
+      const program =
+        wanted === "npm" && !findOnPath("npm") ? (defaultInstall.split(" ")[0] ?? "npm") : wanted;
+      const label = [program, ...words.slice(1)].join(" ");
+      process.stdout.write(`  Installing ${service.dir} (${label})... `);
+      // On Windows npm and friends are .cmd files, which Node cannot start directly, so cmd.exe runs them. The
+      // program and its arguments come from the generators, never from anything a person typed, and no shell
+      // option is involved.
+      const [exe, args] = isWindows()
+        ? (["cmd.exe", ["/d", "/s", "/c", program, ...words.slice(1)]] as const)
+        : ([program, words.slice(1)] as const);
+      const run = spawnSync(exe, args, { cwd: join(projectDir, service.dir), stdio: "ignore" });
       if (run.error || run.status !== 0) {
         console.log(chalk.red("failed"));
-        throw new FliskError(`"${pm} install" did not finish in ${service.dir}.`, [
+        throw new FliskError(`"${label}" did not finish in ${service.dir}.`, [
           "The project is created and complete; only the install needs a retry.",
-          `Run it yourself: cd ${answers.name}/${service.dir} && ${pm} install`,
+          `Run it yourself: cd ${answers.name}/${service.dir} && ${label}`,
         ]);
       }
       console.log(chalk.green("done"));

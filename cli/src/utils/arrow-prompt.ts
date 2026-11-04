@@ -84,6 +84,25 @@ interface MenuFrame<T extends string> {
   ticked?: ReadonlySet<T>;
   /** The text typed to narrow a long menu; undefined when the menu does not filter. */
   filter?: string;
+  /** The terminal height. A menu taller than this shows a window of its choices that follows the cursor. */
+  terminalRows?: number;
+}
+
+/** Lines a menu uses besides its choices: the question, the filter line, the footer, and the prompt line below. */
+const MENU_CHROME = 5;
+
+/** Which choices fit: all of them, or a window that keeps the cursor in view. Returns [start, end). */
+export function visibleWindow(
+  total: number,
+  cursor: number,
+  terminalRows?: number,
+): [number, number] {
+  const room = terminalRows === undefined ? total : Math.max(3, terminalRows - MENU_CHROME);
+  if (total <= room) return [0, total];
+  // Two of the lines are the "more above" and "more below" notes.
+  const size = Math.max(1, room - 2);
+  const start = Math.min(Math.max(0, cursor - Math.floor(size / 2)), total - size);
+  return [start, start + size];
 }
 
 /** The rows of a menu, plain text for the caller to colour. Pure, so the layout is testable. */
@@ -94,7 +113,10 @@ export function renderMenu<T extends string>(frame: MenuFrame<T>): string[] {
       `${chalk.dim("│")} ${chalk.dim("filter:")} ${frame.filter || chalk.dim("type to narrow the list")}${chalk.dim("▏")}`,
     );
   }
-  frame.choices.forEach((choice, index) => {
+  const [from, to] = visibleWindow(frame.choices.length, frame.cursor, frame.terminalRows);
+  if (from > 0) rows.push(chalk.dim(`│   ↑ ${from} more`));
+  frame.choices.slice(from, to).forEach((choice, offset) => {
+    const index = from + offset;
     const active = index === frame.cursor;
     const mark = frame.ticked ? (frame.ticked.has(choice.value) ? "◼" : "◻") : active ? "●" : "○";
     const title = active ? chalk.cyan(choice.title) : chalk.dim(choice.title);
@@ -104,6 +126,7 @@ export function renderMenu<T extends string>(frame: MenuFrame<T>): string[] {
       `${chalk.dim("│")} ${pointer} ${active ? chalk.cyan(mark) : chalk.dim(mark)} ${title}${hint}`,
     );
   });
+  if (to < frame.choices.length) rows.push(chalk.dim(`│   ↓ ${frame.choices.length - to} more`));
   rows.push(
     chalk.dim(
       frame.ticked
@@ -256,6 +279,7 @@ export async function arrowSelect<T extends string>(
       choices: shown,
       cursor,
       ...(options.filterable ? { filter } : {}),
+      terminalRows: output.rows,
     });
     if (shown.length === 0)
       rows.splice(
@@ -317,7 +341,13 @@ export async function arrowMultiSelect<T extends string>(
   // Overwrites the tick list in place: erases exactly the lines the last frame printed, then draws again.
   const draw = () => {
     eraseRows(output, drawn);
-    const rows = renderMenu({ message: options.message, choices: options.choices, cursor, ticked });
+    const rows = renderMenu({
+      message: options.message,
+      choices: options.choices,
+      cursor,
+      ticked,
+      terminalRows: output.rows,
+    });
     const width = output.columns ?? 80;
     const fitted = rows.map((row) => fitRow(row, width));
     output.write(`${fitted.join("\n")}\n`);
