@@ -213,6 +213,7 @@ describe("doctor environment contract", () => {
       expect(exit).toHaveBeenCalledWith(1);
       expect(error).toHaveBeenCalledWith(NATIVE_WINDOWS_DOCTOR_MESSAGE);
       expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain("WSL2 Ubuntu");
+      expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain("docs/start-here-on-windows.md");
       expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain("docs/wsl2.md");
       // Local processes run on native Windows; only a Docker stack needs WSL2.
       expect(NATIVE_WINDOWS_DOCTOR_MESSAGE).toContain(
