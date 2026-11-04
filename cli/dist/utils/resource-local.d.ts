@@ -13,6 +13,12 @@ export interface LocalScaffoldInput {
     backendUrl?: string;
 }
 /**
+ * The scaffolds listen on every interface because a container needs that. On your own computer that would put the app
+ * on the café wifi, so every generated listener is pointed at localhost: a literal 0.0.0.0, Bun's default (Hono's
+ * `export default { port }`), and Go's `":" + port`. Flisk's own probes and the website's proxy all use localhost.
+ */
+export declare function bindToLocalhost(tasks: FileGenerationTask[]): void;
+/**
  * Turns a scaffold made for containers into one that runs on the host with no Docker and no Tilt.
  *
  * Only what is coupled to containers changes: the Dockerfile goes, `service.json` gets a `command` (so `flisk up` runs it as a

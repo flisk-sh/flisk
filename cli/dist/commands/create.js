@@ -19,6 +19,7 @@ import { backendCatalog, extraCatalog, frontendCatalog, starterCatalog, } from "
 import { asksToStart, buildCreatePlan, CREATE_RUNTIMES, describeAnswers, describeParts, describeRequirements, isEmptyApp, isValidProjectName, LOCAL_BACKEND_DIR, LOCAL_FRONTEND_DIR, missingPrograms, starterInfo, toProjectName, } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
+import { isWindows } from "../utils/platform.js";
 import { findOnPath } from "../utils/which.js";
 const SHAPE_CHOICES = [
     {
@@ -392,6 +393,10 @@ function readJson(path) {
         return undefined;
     }
 }
+/** The install command without the "# optional: Docker builds the image" note: on your computer the install is needed. */
+export function localInstallHint(hint) {
+    return hint.split("#")[0]?.trim() ?? hint;
+}
 /** The local services a project actually contains, read from the files the generators wrote. */
 export function generatedServices(projectDir, answers) {
     const found = [];
@@ -407,7 +412,7 @@ export function generatedServices(projectDir, answers) {
             install: pkg
                 ? "npm install"
                 : language
-                    ? getBackendLanguage(language).installHint
+                    ? localInstallHint(getBackendLanguage(language).installHint)
                     : undefined,
             run: scripts.dev ? "npm run dev" : String(service.command ?? ""),
             ...(typeof service.port === "number" ? { port: service.port } : {}),
@@ -671,7 +676,9 @@ async function runCreate(nameArg, options) {
             const run = spawnSync(pm, ["install"], {
                 cwd: join(projectDir, service.dir),
                 stdio: "ignore",
-                shell: false,
+                // On Windows npm (and bun's shims) are .cmd files, which Node can only start through a shell. The command and
+                // its arguments are fixed strings, so nothing a person typed reaches the shell.
+                shell: isWindows(),
             });
             if (run.error || run.status !== 0) {
                 console.log(chalk.red("failed"));

@@ -1,6 +1,21 @@
 import { LOCAL_VITE_SCRIPTS, renderLocalViteConfig } from "../frontend-frameworks/local.js";
 import { FliskError } from "./errors.js";
 import { findFreePort } from "./native-demo.js";
+/**
+ * The scaffolds listen on every interface because a container needs that. On your own computer that would put the app
+ * on the café wifi, so every generated listener is pointed at localhost: a literal 0.0.0.0, Bun's default (Hono's
+ * `export default { port }`), and Go's `":" + port`. Flisk's own probes and the website's proxy all use localhost.
+ */
+export function bindToLocalhost(tasks) {
+    for (const task of tasks) {
+        if (task.type !== "text")
+            continue;
+        task.content = String(task.content)
+            .replaceAll("0.0.0.0", "localhost")
+            .replace(/export default \{(\s*)port,/, "export default {$1hostname: 'localhost',$1port,")
+            .replace('http.ListenAndServe(":"+port', 'http.ListenAndServe("localhost:"+port');
+    }
+}
 const taskNamed = (tasks, filename) => tasks.find((task) => task.filename === filename);
 /**
  * Turns a scaffold made for containers into one that runs on the host with no Docker and no Tilt.
@@ -58,6 +73,14 @@ export function applyLocalScaffold(input) {
     }
     else {
         command = "npm run dev";
+    }
+    if (resourceType === "backend") {
+        bindToLocalhost(tasks);
+        command = command.replaceAll("0.0.0.0", "localhost");
+    }
+    else if (frontendFramework?.kind === "server" && packageJson?.scripts?.dev === "next dev") {
+        // Next.js listens on every interface by default.
+        packageJson.scripts.dev = "next dev -H localhost";
     }
     // A build block points at the Dockerfile that is no longer written, and `dev` is what Tilt reloads with.
     delete serviceJson.build;

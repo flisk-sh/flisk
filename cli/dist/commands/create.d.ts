@@ -45,6 +45,8 @@ export interface GeneratedService {
     run: string;
     port?: number;
 }
+/** The install command without the "# optional: Docker builds the image" note: on your computer the install is needed. */
+export declare function localInstallHint(hint: string): string;
 /** The local services a project actually contains, read from the files the generators wrote. */
 export declare function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[];
 /**

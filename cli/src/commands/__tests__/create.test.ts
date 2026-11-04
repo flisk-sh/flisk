@@ -47,6 +47,7 @@ import {
   firstPort,
   generatedServices,
   isInteractive,
+  localInstallHint,
   nextSteps,
   recoveryMessage,
   reviewLines,
@@ -449,6 +450,16 @@ describe("the review, the recovery message and the folder guard", () => {
     expect(startBlockers({ ...local, starter: "x" }, () => false)).toEqual([]);
   });
 
+  it("the local install step drops the Docker-only note", () => {
+    expect(
+      localInstallHint('pip install -e ".[dev]"   # optional: Docker builds the image for you'),
+    ).toBe('pip install -e ".[dev]"');
+    expect(localInstallHint("npm install")).toBe("npm install");
+    for (const language of Object.values(BACKEND_LANGUAGES)) {
+      expect(localInstallHint(language.installHint)).not.toContain("Docker");
+    }
+  });
+
   it("tells a person how to get each missing program", () => {
     const lines = reviewLines(local, buildCreatePlan(local), (program) => program !== "npm");
     const text = lines.join("\n");
@@ -621,6 +632,33 @@ describe("flisk create (the real CLI, no terminal)", () => {
     expect(run.stdout).toContain(`http://localhost:${port}/health`);
   });
 
+  it.each([
+    ["bun", []],
+    ["node", ["--language", "node"]],
+    ["go", ["--language", "go"]],
+    ["python", ["--language", "python"]],
+    ["rust", ["--language", "rust"]],
+  ])("a local %s API listens on localhost, never on every interface", (_name, extra) => {
+    const run = runFlisk(["create", "svc", "--frontend", "none", ...extra, "--yes"], {
+      cwd: dirOf(),
+      timeout: 120_000,
+    });
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "node_modules") continue;
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else files.push(path);
+      }
+    };
+    walk(join(dirOf(), "svc", "api"));
+    for (const file of files) {
+      expect(readFileSync(file, "utf8"), file).not.toContain("0.0.0.0");
+    }
+  });
+
   it("the printed next steps match what was generated", () => {
     const run = runFlisk(["create", "shop", "--yes"], { cwd: dirOf(), timeout: 120_000 });
     expect(run.status, run.stdout + run.stderr).toBe(0);
@@ -772,7 +810,8 @@ describe("every generator remains selectable and produces a valid local project"
         expect(service.command).toBe("npm run dev");
         expect(typeof parse(join(api, "package.json")).scripts.dev).toBe("string");
       } else if (language?.devCommand) {
-        expect(service.command).toBe(language.devCommand);
+        // The registry command listens on every interface for a container; the local one on localhost.
+        expect(service.command).toBe(language.devCommand.replaceAll("0.0.0.0", "localhost"));
       }
     }
   }, 600_000);

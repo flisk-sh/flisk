@@ -52,6 +52,7 @@ import {
 } from "../utils/create-plan.js";
 import { FliskError, runCommand } from "../utils/errors.js";
 import { installServiceDependencies } from "../utils/one-command.js";
+import { isWindows } from "../utils/platform.js";
 import { findOnPath } from "../utils/which.js";
 
 /** The shape of an app: what to ask about. These are choices about the journey, not generators. */
@@ -494,6 +495,11 @@ function readJson(path: string): Record<string, unknown> | undefined {
   }
 }
 
+/** The install command without the "# optional: Docker builds the image" note: on your computer the install is needed. */
+export function localInstallHint(hint: string): string {
+  return hint.split("#")[0]?.trim() ?? hint;
+}
+
 /** The local services a project actually contains, read from the files the generators wrote. */
 export function generatedServices(projectDir: string, answers: CreateAnswers): GeneratedService[] {
   const found: GeneratedService[] = [];
@@ -508,7 +514,7 @@ export function generatedServices(projectDir: string, answers: CreateAnswers): G
       install: pkg
         ? "npm install"
         : language
-          ? getBackendLanguage(language).installHint
+          ? localInstallHint(getBackendLanguage(language).installHint)
           : undefined,
       run: scripts.dev ? "npm run dev" : String(service.command ?? ""),
       ...(typeof service.port === "number" ? { port: service.port } : {}),
@@ -834,7 +840,9 @@ async function runCreate(nameArg: string | undefined, options: CreateOptions): P
       const run = spawnSync(pm, ["install"], {
         cwd: join(projectDir, service.dir),
         stdio: "ignore",
-        shell: false,
+        // On Windows npm (and bun's shims) are .cmd files, which Node can only start through a shell. The command and
+        // its arguments are fixed strings, so nothing a person typed reaches the shell.
+        shell: isWindows(),
       });
       if (run.error || run.status !== 0) {
         console.log(chalk.red("failed"));
