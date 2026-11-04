@@ -14,11 +14,11 @@ export function lit(value) {
   return `'${String(value).replaceAll("\0", "").replaceAll("'", "''")}'`;
 }
 
-/** An integer, or a thrown error: never interpolate anything else into a number position. */
+/** An integer (a number, or a string of digits), or a thrown error: never interpolate anything else into a number position. */
 export function int(value) {
-  const n = Number(value);
-  if (!Number.isInteger(n)) throw new Error(`not an integer: ${value}`);
-  return n;
+  const ok = typeof value === "number" ? Number.isInteger(value) : typeof value === "string" && /^-?\d+$/.test(value);
+  if (!ok) throw new Error(`not an integer: ${value}`);
+  return Number(value);
 }
 
 function reader(socket) {
